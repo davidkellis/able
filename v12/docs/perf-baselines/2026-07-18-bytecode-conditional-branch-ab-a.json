@@ -1,0 +1,250 @@
+{
+  "runs_per_side": 5,
+  "rows": [
+    {
+      "benchmark": "option_result_config",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/option_result_config/option_result_config.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/option-result-config",
+        "verifier": "/home/david/sync/projects/benchmarks/option-result-config/verify.rb",
+        "args": [],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": true
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 0.9474961780069862,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 0.9809802249947097,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 0.9081770179909654,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 3,
+            "order": 1
+          },
+          {
+            "seconds": 0.8640082589990925,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 4,
+            "order": 2
+          },
+          {
+            "seconds": 0.8725317219796125,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 5,
+            "order": 1
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.9073761629988439,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 0.8721972400089726,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 0.84322254898143,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 3,
+            "order": 2
+          },
+          {
+            "seconds": 0.8389129559800494,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 4,
+            "order": 1
+          },
+          {
+            "seconds": 0.879876480990788,
+            "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+            "pair": 5,
+            "order": 2
+          }
+        ]
+      },
+      "baseline_mean_seconds": 0.9146386803942732,
+      "candidate_mean_seconds": 0.8683170777920168,
+      "change_percent": -5.064470112098096
+    },
+    {
+      "benchmark": "array_slice_window",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/array-slice-window",
+        "verifier": "/home/david/sync/projects/benchmarks/array-slice-window/verify.rb",
+        "args": [],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": true
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 0.6930689979926683,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 0.6932973829971161,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 0.6586185110209044,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 3,
+            "order": 1
+          },
+          {
+            "seconds": 0.7405467909993604,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 4,
+            "order": 2
+          },
+          {
+            "seconds": 0.6729663689911831,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 5,
+            "order": 1
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.6581300550024025,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 0.6397937099973205,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 0.6607478929799981,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 3,
+            "order": 2
+          },
+          {
+            "seconds": 0.641402465000283,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 4,
+            "order": 1
+          },
+          {
+            "seconds": 0.6599510180240031,
+            "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+            "pair": 5,
+            "order": 2
+          }
+        ]
+      },
+      "baseline_mean_seconds": 0.6916996104002464,
+      "candidate_mean_seconds": 0.6520050282008014,
+      "change_percent": -5.73870240818497
+    },
+    {
+      "benchmark": "word_frequency",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/word_frequency/word_frequency.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/word-frequency",
+        "verifier": "/home/david/sync/projects/benchmarks/word-frequency/verify.rb",
+        "args": [
+          "corpus.md"
+        ],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": false
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 1.5437037009978667,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 1.5656207999854814,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 1.5282211599987932,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 3,
+            "order": 1
+          },
+          {
+            "seconds": 1.5151881990022957,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 4,
+            "order": 2
+          },
+          {
+            "seconds": 1.5615178250009194,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 5,
+            "order": 1
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 1.6159336430137046,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 1.4955446259991731,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 1.6730020149843767,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 3,
+            "order": 2
+          },
+          {
+            "seconds": 1.5882567160006147,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 4,
+            "order": 1
+          },
+          {
+            "seconds": 1.6263565639965236,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 5,
+            "order": 2
+          }
+        ]
+      },
+      "baseline_mean_seconds": 1.5428503369970712,
+      "candidate_mean_seconds": 1.5998187127988786,
+      "change_percent": 3.6924110158790713
+    }
+  ]
+}

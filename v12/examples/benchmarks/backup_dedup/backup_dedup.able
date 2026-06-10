@@ -1,0 +1,138 @@
+package backup_dedup
+
+import able.core.options.*
+import able.fs
+import able.kernel.{Array, HashMap}
+import able.os
+
+MIN_CHUNK: i64 := 64_i64
+MAX_CHUNK: i64 := 512_i64
+BOUNDARY_MOD: i64 := 257_i64
+HASH_MOD: i64 := 1_000_003_i64
+DEFAULT_ROUNDS: i32 := 8
+PROFILE_ROUNDS: i32 := 32
+
+struct Chunk {
+  signature: i64,
+  length: i64
+}
+
+methods Chunk {
+  fn key(self: Self) -> i64 {
+    self.signature * 1_024_i64 + self.length
+  }
+
+  fn score(self: Self, sequence: i64, occurrence: i64, round: i64) -> i64 {
+    (self.signature * 7_i64 +
+      self.length * 11_i64 +
+      sequence * 13_i64 +
+      occurrence * 17_i64 +
+      round * 19_i64) % HASH_MOD
+  }
+}
+
+struct DedupTally {
+  total_chunks: i64,
+  distinct_chunks: i64,
+  unique_bytes: i64,
+  duplicate_bytes: i64,
+  max_occurrence: i64,
+  checksum: i64
+}
+
+fn chunk_count(counts: HashMap i64 i64, key: i64) -> i64 {
+  counts.raw_get(key) match {
+    case nil => 0_i64,
+    case count: i64 => count
+  }
+}
+
+fn record_chunk(
+  tally: DedupTally,
+  counts: HashMap i64 i64,
+  chunk: Chunk,
+  round: i64
+) -> void {
+  key := chunk.key()
+  seen := chunk_count(counts, key)
+  occurrence := seen + 1_i64
+  counts.raw_set(key, occurrence)
+  if seen == 0_i64 {
+    tally.distinct_chunks = tally.distinct_chunks + 1_i64
+    tally.unique_bytes = tally.unique_bytes + chunk.length
+  } else {
+    tally.duplicate_bytes = tally.duplicate_bytes + chunk.length
+  }
+  if occurrence > tally.max_occurrence {
+    tally.max_occurrence = occurrence
+  }
+  tally.checksum = (
+    tally.checksum +
+    chunk.score(tally.total_chunks, occurrence, round)
+  ) % HASH_MOD
+  tally.total_chunks = tally.total_chunks + 1_i64
+}
+
+fn rounds_for(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" {
+    PROFILE_ROUNDS
+  } else {
+    DEFAULT_ROUNDS
+  }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "corpus.md" }
+  bytes := fs.read_bytes(path)
+  rounds := rounds_for(args)
+  counts: HashMap i64 i64 := HashMap.with_capacity(4_096)
+  tally := DedupTally {
+    total_chunks: 0_i64,
+    distinct_chunks: 0_i64,
+    unique_bytes: 0_i64,
+    duplicate_bytes: 0_i64,
+    max_occurrence: 0_i64,
+    checksum: 0_i64
+  }
+
+  round := 0
+  loop {
+    if round >= rounds { break }
+    rolling := 0_i64
+    signature := 0_i64
+    chunk_length := 0_i64
+    index := 0
+    loop {
+      if index >= bytes.len() { break }
+      current := bytes.read_slot(index) as i64
+      rolling = (rolling * 257_i64 + current + 1_i64) % HASH_MOD
+      signature = (signature * 131_i64 + current + 1_i64) % HASH_MOD
+      chunk_length = chunk_length + 1_i64
+      if chunk_length >= MIN_CHUNK &&
+        ((rolling % BOUNDARY_MOD) == 13_i64 || chunk_length >= MAX_CHUNK) {
+        record_chunk(
+          tally,
+          counts,
+          Chunk { signature, length: chunk_length },
+          round as i64
+        )
+        rolling = 0_i64
+        signature = 0_i64
+        chunk_length = 0_i64
+      }
+      index = index + 1
+    }
+    if chunk_length > 0_i64 {
+      record_chunk(
+        tally,
+        counts,
+        Chunk { signature, length: chunk_length },
+        round as i64
+      )
+    }
+    round = round + 1
+  }
+
+  print(`${tally.total_chunks}:${tally.distinct_chunks}:${tally.unique_bytes}:${tally.duplicate_bytes}:${tally.max_occurrence}:${tally.checksum}`)
+}

@@ -10,8 +10,15 @@ import (
 )
 
 func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	value = bytecodeMaterializeRawValue(bytecodeSlotReadValue(value))
+	if coerced, ok, err := i.tryFastArrayTypeCoercion(typeExpr, value); ok {
+		return coerced, err
+	}
 	if i.coerceValueToTypeWouldBeNoOp(typeExpr) {
 		return value, nil
+	}
+	if coerced, ok, err := i.tryFastSimpleTypeCoercion(typeExpr, value); ok {
+		return coerced, err
 	}
 	switch t := typeExpr.(type) {
 	case *ast.SimpleTypeExpression:
@@ -37,15 +44,8 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 			}
 			targetKind := runtime.IntegerType(name)
 			if _, ok := lookupIntegerInfo(targetKind); ok {
-				switch val := value.(type) {
-				case runtime.IntegerValue:
-					if val.TypeSuffix != targetKind && integerRangeWithinKinds(val.TypeSuffix, targetKind) {
-						return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetKind), nil
-					}
-				case *runtime.IntegerValue:
-					if val != nil && val.TypeSuffix != targetKind && integerRangeWithinKinds(val.TypeSuffix, targetKind) {
-						return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetKind), nil
-					}
+				if coerced, ok := coerceIntegerValueToTargetKindIfInRange(value, targetKind); ok {
+					return coerced, nil
 				}
 			}
 			if name == "f32" || name == "f64" {
@@ -76,6 +76,7 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 				if errVal, ok := value.(*runtime.ErrorValue); ok && errVal != nil {
 					return value, nil
 				}
+				return i.coerceToErrorInterfaceValue(value)
 			}
 			if structVal, ok := value.(*runtime.StructInstanceValue); ok {
 				if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
@@ -100,6 +101,16 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 	case *ast.GenericTypeExpression:
 		if info, ok := parseTypeExpression(typeExpr); ok && info.name != "" {
 			name := normalizeKernelAliasName(info.name)
+			switch name {
+			case "Iterator":
+				if _, ok := value.(*runtime.IteratorValue); ok {
+					return value, nil
+				}
+			case "Future":
+				if _, ok := value.(*runtime.FutureValue); ok {
+					return value, nil
+				}
+			}
 			if _, ok := i.interfaces[name]; ok {
 				return i.coerceToInterfaceValue(name, value, info.typeArgs)
 			}
@@ -108,7 +119,84 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 	return value, nil
 }
 
-func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+func primitiveArrayElementTypeName(typeExpr ast.TypeExpression) (string, bool) {
+	generic, ok := typeExpr.(*ast.GenericTypeExpression)
+	if !ok || generic == nil || len(generic.Arguments) != 1 || typeExpressionToString(generic.Base) != "Array" {
+		return "", false
+	}
+	simple, ok := generic.Arguments[0].(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return "", false
+	}
+	switch name := normalizeKernelAliasName(simple.Name.Name); name {
+	case string(runtime.IntegerI32),
+		string(runtime.IntegerI64),
+		"bool",
+		"char",
+		string(runtime.IntegerU8),
+		string(runtime.IntegerU32),
+		string(runtime.IntegerU64),
+		string(runtime.FloatF64):
+		return name, true
+	default:
+		return "", false
+	}
+}
+
+func (i *Interpreter) tryFastArrayTypeCoercion(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, bool, error) {
+	targetType, ok := primitiveArrayElementTypeName(typeExpr)
+	if !ok {
+		return nil, false, nil
+	}
+	arr, ok := value.(*runtime.ArrayValue)
+	if !ok || arr == nil {
+		return nil, false, nil
+	}
+	handle := arr.Handle
+	if handle == 0 {
+		handle = arr.TrackedHandle
+	}
+	if handle == 0 {
+		return nil, false, nil
+	}
+	if currentType, ok, err := runtime.ArrayStoreMonoElementTypeNameIfKnown(handle); err != nil {
+		return nil, true, err
+	} else if ok {
+		if currentType != targetType {
+			return nil, false, nil
+		}
+		if arr.State != nil || arr.Elements != nil {
+			i.invalidateArrayHandleValueView(handle)
+		}
+		return arr, true, nil
+	}
+	size, err := runtime.ArrayStoreSize(handle)
+	if err != nil {
+		return nil, true, err
+	}
+	if size != 0 {
+		return nil, false, nil
+	}
+	capacity, err := runtime.ArrayStoreCapacity(handle)
+	if err != nil {
+		return nil, true, err
+	}
+	if capacity <= 0 {
+		return nil, false, nil
+	}
+	promoted, err := runtime.ArrayStorePromoteHandleToMonoTypeIfPossible(handle, targetType)
+	if err != nil {
+		return nil, true, err
+	}
+	if !promoted {
+		return nil, false, nil
+	}
+	i.invalidateArrayHandleValueView(handle)
+	return arr, true, nil
+}
+
+func (i *Interpreter) castValueToTypeRaw(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	value = bytecodeMaterializeRawValue(bytecodeSlotReadValue(value))
 	rawValue := value
 	switch v := value.(type) {
 	case runtime.InterfaceValue:
@@ -118,6 +206,7 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 			rawValue = v.Underlying
 		}
 	}
+	rawValue = bytecodeMaterializeRawValue(bytecodeSlotReadValue(rawValue))
 	if simple, ok := typeExpr.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
 		if casted, ok, err := castValueToCanonicalSimpleTypeFast(simple.Name.Name, rawValue); ok {
 			if err != nil {
@@ -150,7 +239,7 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 			}
 		}
 	}
-	if typeExpr != nil && typeExpressionReferencesAlias(typeExpr, i.typeAliases) {
+	if typeExpr != nil && i.typeExpressionReferencesAliasCached(typeExpr) {
 		if expanded := i.expandTypeAliasesCached(typeExpr); expanded != nil {
 			typeExpr = expanded
 		}
@@ -244,6 +333,7 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 			case runtime.ErrorValue, *runtime.ErrorValue:
 				return rawValue, nil
 			}
+			return i.coerceToErrorInterfaceValue(value)
 		}
 		if _, ok := i.interfaces[name]; ok {
 			var ifaceArgs []ast.TypeExpression
@@ -261,6 +351,14 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		typeDesc = typeInfoToString(info)
 	}
 	return nil, fmt.Errorf("cannot cast %s to %s", typeDesc, typeExpressionToString(typeExpr))
+}
+
+func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	casted, err := i.castValueToTypeRaw(typeExpr, value)
+	if err == nil {
+		return casted, nil
+	}
+	return nil, raiseSignal{value: runtime.ErrorValue{Message: err.Error()}}
 }
 
 func castFloatValueToInteger(targetKind runtime.IntegerType, info integerInfo, value float64) (runtime.Value, error) {
@@ -319,7 +417,15 @@ func (i *Interpreter) interfaceDispatchSets(interfaceName string) (map[string]st
 	return base, impls
 }
 
-func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, ifaceArgs []ast.TypeExpression, info typeInfo) (map[string]runtime.Value, error) {
+func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, ifaceArgs []ast.TypeExpression, info typeInfo) (map[string]runtime.Value, bool, error) {
+	cacheKey := i.makeInterfaceMethodDictionaryCacheKey(info, interfaceName, ifaceArgs)
+	if cached, ok := i.lookupInterfaceMethodDictionaryCache(cacheKey); ok {
+		if cached.err != nil {
+			return nil, false, cached.err
+		}
+		return cached.methods, true, nil
+	}
+
 	methods := map[string]runtime.Value{}
 	typeArgs := ifaceArgs
 	if len(typeArgs) == 0 && len(info.typeArgs) > 0 {
@@ -351,7 +457,13 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 			if methodName == "" || methods[methodName] != nil {
 				continue
 			}
-			method, err := i.findMethod(targetInfo, methodName, ifaceName, ifaceArgs)
+			var method runtime.Value
+			var err error
+			if len(ifaceArgs) == 0 {
+				method, err = i.findMethodCached(targetInfo, methodName, ifaceName)
+			} else {
+				method, err = i.findMethod(targetInfo, methodName, ifaceName, ifaceArgs)
+			}
 			if err != nil {
 				return err
 			}
@@ -371,22 +483,27 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 			args = baseInterfaceArgs[ifaceName]
 		}
 		if err := collect(ifaceName, info, args); err != nil {
-			return nil, err
+			i.storeInterfaceMethodDictionaryCache(cacheKey, nil, err)
+			return nil, false, err
 		}
 	}
 	for ifaceName := range impls {
 		targetInfo := typeInfo{name: interfaceName, typeArgs: typeArgs}
 		if err := collect(ifaceName, targetInfo, nil); err != nil {
-			return nil, err
+			i.storeInterfaceMethodDictionaryCache(cacheKey, nil, err)
+			return nil, false, err
 		}
 	}
 	if len(methods) == 0 {
-		return nil, nil
+		i.storeInterfaceMethodDictionaryCache(cacheKey, nil, nil)
+		return nil, true, nil
 	}
-	return methods, nil
+	i.storeInterfaceMethodDictionaryCache(cacheKey, methods, nil)
+	return methods, false, nil
 }
 
 func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime.Value, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
+	interfaceName = i.canonicalInterfaceName(interfaceName)
 	if ifaceVal, ok := value.(*runtime.InterfaceValue); ok {
 		if i.interfaceMatches(ifaceVal, interfaceName, ifaceArgs) {
 			return value, nil
@@ -411,7 +528,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 			return &runtime.InterfaceValue{
 				Interface:     ifaceDef,
 				Underlying:    value,
-				Methods:       methods,
+				SharedMethods: methods,
 				InterfaceArgs: ifaceArgs,
 			}, nil
 		}
@@ -446,7 +563,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 	if !ok {
 		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
 	}
-	okImpl, err := i.typeImplementsInterface(info, interfaceName, ifaceArgs, make(map[string]struct{}))
+	okImpl, err := i.typeImplementsInterface(info, interfaceName, ifaceArgs, make(map[interfaceImplCacheKey]struct{}))
 	if err != nil {
 		return nil, err
 	}
@@ -501,19 +618,24 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 			return nil, implErr
 		}
 	}
-	methods, err := i.buildInterfaceMethodDictionary(interfaceName, ifaceArgs, info)
+	methods, sharedMethods, err := i.buildInterfaceMethodDictionary(interfaceName, ifaceArgs, info)
 	if err != nil {
 		return nil, err
 	}
-	return &runtime.InterfaceValue{
+	ifaceVal := &runtime.InterfaceValue{
 		Interface:     ifaceDef,
 		Underlying:    value,
-		Methods:       methods,
 		InterfaceArgs: ifaceArgs,
-	}, nil
+	}
+	if sharedMethods {
+		ifaceVal.SharedMethods = methods
+	} else {
+		ifaceVal.Methods = methods
+	}
+	return ifaceVal, nil
 }
 
-func (i *Interpreter) iteratorInterfaceMethodDictionary(ifaceDef *runtime.InterfaceDefinitionValue) (map[string]runtime.Value, error) {
+func (i *Interpreter) buildIteratorInterfaceMethodDictionary(ifaceDef *runtime.InterfaceDefinitionValue) (map[string]runtime.Value, error) {
 	if ifaceDef == nil || ifaceDef.Node == nil || ifaceDef.Node.ID == nil {
 		return nil, fmt.Errorf("Iterator interface is not defined")
 	}
@@ -526,29 +648,41 @@ func (i *Interpreter) iteratorInterfaceMethodDictionary(ifaceDef *runtime.Interf
 		if name == "" || methods[name] != nil {
 			continue
 		}
-		if name == "next" {
-			methods[name] = iteratorNextNativeMethod()
-			continue
+		method, ok, err := i.iteratorInterfaceMethodValue(ifaceDef, name)
+		if err != nil {
+			return nil, err
 		}
-		if sig.DefaultImpl != nil {
-			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
-			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
-				if i.execMode == execModeBytecode {
-					return nil, err
-				}
-			} else {
-				setFunctionBytecodeProgram(defaultVal, program)
-			}
-			methods[name] = defaultVal
-			continue
+		if !ok {
+			return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)
 		}
-		return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)
+		methods[name] = method
 	}
 	if len(methods) == 0 {
 		return nil, nil
 	}
 	return methods, nil
+}
+
+func (i *Interpreter) iteratorInterfaceMethodValue(ifaceDef *runtime.InterfaceDefinitionValue, name string) (runtime.Value, bool, error) {
+	if ifaceDef == nil || ifaceDef.Node == nil || ifaceDef.Node.ID == nil {
+		return nil, false, fmt.Errorf("Iterator interface is not defined")
+	}
+	for _, sig := range ifaceDef.Node.Signatures {
+		if sig == nil || sig.Name == nil || sig.Name.Name != name {
+			continue
+		}
+		if name == "next" {
+			return iteratorNextNativeMethod(), true, nil
+		}
+		if name == "close" {
+			return iteratorCloseNativeMethod(), true, nil
+		}
+		if sig.DefaultImpl == nil {
+			return nil, false, nil
+		}
+		return i.interfaceDefaultMethodValue(ifaceDef, name)
+	}
+	return nil, false, nil
 }
 
 func (i *Interpreter) futureInterfaceMethodDictionary(ifaceDef *runtime.InterfaceDefinitionValue, value runtime.Value) (map[string]runtime.Value, error) {
@@ -569,16 +703,13 @@ func (i *Interpreter) futureInterfaceMethodDictionary(ifaceDef *runtime.Interfac
 			continue
 		}
 		if sig.DefaultImpl != nil {
-			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
-			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
-				if i.execMode == execModeBytecode {
-					return nil, err
-				}
-			} else {
-				setFunctionBytecodeProgram(defaultVal, program)
+			method, ok, err := i.interfaceDefaultMethodValue(ifaceDef, name)
+			if err != nil {
+				return nil, err
 			}
-			methods[name] = defaultVal
+			if ok {
+				methods[name] = method
+			}
 			continue
 		}
 		return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)
@@ -593,7 +724,7 @@ func (i *Interpreter) interfaceMethodDictionaryFromStruct(inst *runtime.StructIn
 	if inst == nil || ifaceDef == nil || ifaceDef.Node == nil {
 		return nil, fmt.Errorf("interface is not defined")
 	}
-	if inst.Fields == nil {
+	if !structUsesNamedFieldStorage(inst) {
 		return nil, fmt.Errorf("interface requires named struct instance")
 	}
 	methods := make(map[string]runtime.Value)
@@ -605,7 +736,7 @@ func (i *Interpreter) interfaceMethodDictionaryFromStruct(inst *runtime.StructIn
 		if name == "" || methods[name] != nil {
 			continue
 		}
-		if val, ok := inst.Fields[name]; ok {
+		if val, ok := structNamedFieldValue(inst, name); ok {
 			if isCallableValue(val) {
 				methods[name] = val
 				continue
@@ -613,16 +744,13 @@ func (i *Interpreter) interfaceMethodDictionaryFromStruct(inst *runtime.StructIn
 			return nil, fmt.Errorf("Interface method '%s' is not callable", name)
 		}
 		if sig.DefaultImpl != nil {
-			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
-			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
-				if i.execMode == execModeBytecode {
-					return nil, err
-				}
-			} else {
-				setFunctionBytecodeProgram(defaultVal, program)
+			method, ok, err := i.interfaceDefaultMethodValue(ifaceDef, name)
+			if err != nil {
+				return nil, err
 			}
-			methods[name] = defaultVal
+			if ok {
+				methods[name] = method
+			}
 			continue
 		}
 		return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)

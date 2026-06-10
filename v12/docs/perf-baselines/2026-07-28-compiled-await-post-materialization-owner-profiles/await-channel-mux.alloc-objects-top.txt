@@ -1,0 +1,119 @@
+File: app
+Build ID: f3640f258d158b904d46c3332ff16e563602ba82
+Type: alloc_objects
+Time: 2026-07-28 06:36:02 CDT
+Showing nodes accounting for 119906, 97.41% of 123099 total
+Dropped 152 nodes (cum <= 615)
+      flat  flat%   sum%        cum   cum%
+     21547 17.50% 17.50%      21547 17.50%  runtime/pprof.allFrames
+      8195  6.66% 24.16%       8195  6.66%  able/interpreter-go/pkg/compiler/bridge.currentGID
+      6656  5.41% 29.57%       6656  5.41%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+      6656  5.41% 34.98%       6656  5.41%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+      5632  4.58% 39.55%       5632  4.58%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+      5472  4.45% 44.00%       5501  4.47%  runtime/pprof.(*profileBuilder).emitLocation
+      4098  3.33% 47.32%       4099  3.33%  able/interpreter-go/pkg/compiler/bridge.ToInt
+      4096  3.33% 50.65%       4096  3.33%  main.__able_fn__int64_to_int64_to_runtime_value
+      3076  2.50% 53.15%      45163 36.69%  main.__able_compiled_fn_main_ctx
+      3072  2.50% 55.65%       3072  2.50%  able/interpreter-go/pkg/runtime.(*Environment).mutex
+      3072  2.50% 58.14%       3072  2.50%  able/interpreter-go/pkg/runtime.newEnvironmentBase (inline)
+      3072  2.50% 60.64%      12498 10.15%  main.(*__able_goroutine_executor).RunFuture
+      3072  2.50% 63.13%       4608  3.74%  main.__able_call_value_fast
+      2560  2.08% 65.21%       2560  2.08%  main.(*__able_await_state).appendArm (inline)
+      2560  2.08% 67.29%       2560  2.08%  main.__able_iface_Awaitable_i64_wrap_runtime (inline)
+      2495  2.03% 69.32%      29641 24.08%  runtime/pprof.writeHeapProto
+      2048  1.66% 70.98%       2048  1.66%  main.__able_array_iface_Awaitable_i64_to
+      2048  1.66% 72.65%       2048  1.66%  main.__able_channel_await_try_recv_impl
+      1537  1.25% 73.89%       4620  3.75%  main.__able_call_named
+      1537  1.25% 75.14%       1537  1.25%  main.__able_context_from_environment
+      1537  1.25% 76.39%       1537  1.25%  sync.NewCond (inline)
+      1536  1.25% 77.64%       1536  1.25%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+      1536  1.25% 78.89%       3072  2.50%  able/interpreter-go/pkg/runtime.NewFutureWithContext (inline)
+      1536  1.25% 80.14%       3072  2.50%  context.WithCancel
+      1536  1.25% 81.38%       1536  1.25%  context.withCancel (inline)
+      1536  1.25% 82.63%       1536  1.25%  main.__able_iface_Future_i64_wrap_runtime (inline)
+      1536  1.25% 83.88%       7681  6.24%  main.__able_method_call
+      1536  1.25% 85.13%      15572 12.65%  main.__able_spawn_context
+      1536  1.25% 86.37%       1537  1.25%  main.__able_try_member_get_method
+      1234  1.00% 87.38%       5823  4.73%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+      1028  0.84% 88.21%       1028  0.84%  main.__able_add_channel_awaiter
+      1024  0.83% 89.04%       1024  0.83%  main.(*__able_await_state).prepareArmScratch (inline)
+      1024  0.83% 89.88%       1024  0.83%  main.(*__able_await_state).waitChLocked (inline)
+      1024  0.83% 90.71%       3082  2.50%  main.(*__able_channel_awaitable).register
+      1024  0.83% 91.54%       1024  0.83%  main.__able_acquire_await_state
+      1024  0.83% 92.37%       1024  0.83%  main.__able_fn_void_to_int64_to_runtime_value
+      1024  0.83% 93.20%       1030  0.84%  main.__able_make_await_registration_value_ctx
+      1024  0.83% 94.03%       2063  1.68%  main.__able_make_await_waker_ctx
+      1024  0.83% 94.87%       4106  3.34%  main.__able_register_await_state_ctx
+       886  0.72% 95.59%        886  0.72%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+       513  0.42% 96.00%       1543  1.25%  main.__able_call_value
+       512  0.42% 96.42%       4026  3.27%  main.(*__able_channel_awaitable).commit
+       512  0.42% 96.84%       3585  2.91%  main.__able_compiled_method_Await__default_spec_ctx
+       489   0.4% 97.23%       4585  3.72%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+       168  0.14% 97.37%       1746  1.42%  main.(*__able_goroutine_executor).registerHandle
+        21 0.017% 97.39%       1045  0.85%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinitionIn
+        14 0.011% 97.40%      10199  8.29%  main.__able_await_with_state_ctx
+         6 0.0049% 97.40%      27061 21.98%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         1 0.00081% 97.40%      29647 24.08%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00081% 97.40%      45166 36.69%  main.RunRegisteredMain
+         1 0.00081% 97.40%      45164 36.69%  main.__able_compiled_entry_fn_main_ctx
+         1 0.00081% 97.41%       8649  7.03%  main.__able_invoke_awaitable_method_ctx
+         1 0.00081% 97.41%      29642 24.08%  runtime/pprof.writeHeapInternal
+         0     0% 97.41%       1536  1.25%  able/interpreter-go/pkg/ast.Gen (inline)
+         0     0% 97.41%       6656  5.41%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0% 97.41%      13312 10.81%  able/interpreter-go/pkg/ast.Ty (inline)
+         0     0% 97.41%       4100  3.33%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0% 97.41%       1539  1.25%  able/interpreter-go/pkg/compiler/bridge.MatchType
+         0     0% 97.41%       4585  3.72%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 97.41%       2051  1.67%  able/interpreter-go/pkg/compiler/bridge.matchSimpleTypeWithoutInterpreter
+         0     0% 97.41%       2051  1.67%  able/interpreter-go/pkg/compiler/bridge.matchTypeWithoutInterpreter
+         0     0% 97.41%      29647 24.08%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 97.41%      29647 24.08%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 97.41%       1536  1.25%  able/interpreter-go/pkg/runtime.(*Environment).SetRuntimeData
+         0     0% 97.41%       1024  0.83%  able/interpreter-go/pkg/runtime.(*Environment).StructDefinition
+         0     0% 97.41%       3072  2.50%  able/interpreter-go/pkg/runtime.NewEnvironment (inline)
+         0     0% 97.41%       3072  2.50%  able/interpreter-go/pkg/runtime.NewEnvironmentWithValueCapacity (inline)
+         0     0% 97.41%       3072  2.50%  able/interpreter-go/pkg/runtime.newEnvironmentWithStoredValueCapacity (inline)
+         0     0% 97.41%       6167  5.01%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0% 97.41%       6167  5.01%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0% 97.41%       2560  2.08%  internal/sync.(*entry[go.shape.interface {},go.shape.interface {}]).swap
+         0     0% 97.41%       1024  0.83%  main.(*__able_await_state).ensureWaitCh
+         0     0% 97.41%       4026  3.27%  main.(*__able_channel_awaitable).NativeAwaitableCommit
+         0     0% 97.41%       3082  2.50%  main.(*__able_channel_awaitable).NativeAwaitableRegister
+         0     0% 97.41%       1536  1.25%  main.(*__able_default_awaitable).NativeAwaitableCommit
+         0     0% 97.41%      48275 39.22%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 97.41%      45165 36.69%  main.RunRegisteredMain.func1
+         0     0% 97.41%      17894 14.54%  main.__able_await_ctx
+         0     0% 97.41%      17894 14.54%  main.__able_await_value_ctx
+         0     0% 97.41%       3002  2.44%  main.__able_call_value_fast_ctx
+         0     0% 97.41%       2048  1.66%  main.__able_channel_await_try_recv_ctx (inline)
+         0     0% 97.41%       3584  2.91%  main.__able_collect_await_arms_ctx
+         0     0% 97.41%       6064  4.93%  main.__able_compiled_entry_method_Await__default_spec_ctx
+         0     0% 97.41%      17371 14.11%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 97.41%       1024  0.83%  main.__able_compiled_fn_main_ctx.func1.1
+         0     0% 97.41%       1024  0.83%  main.__able_compiled_fn_main_ctx.func1.2
+         0     0% 97.41%       3073  2.50%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 97.41%      16830 13.67%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 97.41%       8195  6.66%  main.__able_compiled_method_Channel_await_receive_spec_ctx
+         0     0% 97.41%       1024  0.83%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0% 97.41%       5562  4.52%  main.__able_complete_await_ctx
+         0     0% 97.41%       3002  2.44%  main.__able_fn__int64_to_int64_to_runtime_value.func1
+         0     0% 97.41%       2562  2.08%  main.__able_iface_Awaitable_i64_from_value
+         0     0% 97.41%       2562  2.08%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0% 97.41%       1536  1.25%  main.__able_iface_Future_i64_from_value
+         0     0% 97.41%      16248 13.20%  main.__able_iface_Future_i64_runtime_adapter.__able_ctx_value
+         0     0% 97.41%      16248 13.20%  main.__able_iface_Future_i64_runtime_adapter.value
+         0     0% 97.41%       1536  1.25%  main.__able_iface_Future_i64_try_from_value
+         0     0% 97.41%       7695  6.25%  main.__able_initialize_await_state_ctx
+         0     0% 97.41%      46189 37.52%  main.__able_register_compiled_call.func1
+         0     0% 97.41%      48275 39.22%  main.__able_run_compiled_task
+         0     0% 97.41%      38810 31.53%  main.__able_spawn_context.func1
+         0     0% 97.41%       8567  6.96%  main.__able_union_int64_or_runtime_ErrorValue_from_value
+         0     0% 97.41%       8567  6.96%  main.__able_union_int64_or_runtime_ErrorValue_try_from_value
+         0     0% 97.41%      45165 36.69%  main.__able_wrap_fn_main
+         0     0% 97.41%      74813 60.77%  main.main
+         0     0% 97.41%      74813 60.77%  main.runMain
+         0     0% 97.41%      29647 24.08%  main.startMainProfilePhase (inline)
+         0     0% 97.41%      74813 60.77%  runtime.main
+         0     0% 97.41%      29642 24.08%  runtime/pprof.(*Profile).WriteTo
+         0     0% 97.41%      29642 24.08%  runtime/pprof.writeAlloc
+         0     0% 97.41%       6167  5.01%  sync.(*Map).Store (inline)

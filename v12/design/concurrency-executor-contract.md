@@ -1,16 +1,26 @@
-# Concurrency Executor Contract
+# Historical TypeScript Executor Proposal
 
-Date: 2025-10-23  
+Date: 2025-10-23
 Owners: Able Agents
 
-## Purpose
+> **Status (archived 2026-07-14):** This document describes a former
+> TypeScript/cooperative-executor proposal. The active workspace has only the
+> Go reference implementation. The normative public contract is spec §12; the
+> active implementation record is
+> [Go Concurrency Design](go-concurrency-scheduler.md).
+>
+> In particular, `schedulerMaxSteps`, `FutureYieldSignal`, and the optional
+> `future_flush(limit)` API below are not part of the active v12 contract.
+> The implemented and specified helper is `future_flush()` with no arguments.
 
-Able v12 runtimes now share a minimal executor abstraction that drives `spawn`
-evaluation. This note documents the contract so TypeScript, Go, and any
-future runtimes implement compatible semantics while retaining freedom over the
-underlying scheduling strategy.
+## Historical Purpose
 
-## High-level requirements
+This note recorded a proposed TypeScript/cooperative executor abstraction for
+`spawn`. It is retained for design history only; it does not describe an
+active runtime in this workspace or define current requirements for a future
+runtime.
+
+## Historical High-level Requirements
 
 - **Executor surface.** Runtimes expose an executor with the methods below. The
   interface is intentionally small so alternative schedulers (goroutines,
@@ -68,7 +78,7 @@ underlying scheduling strategy.
   default) and that `ensureTick` guarantees eventual progress even if no flush
   occurs. Implementations should avoid unbounded recursion or starvation.
 
-## Runtime mappings
+## Historical Runtime Mappings
 
 - **TypeScript (`v12/interpreters/ts/`).**
   - `CooperativeExecutor` maintains the existing FIFO queue, wrapping the former
@@ -101,7 +111,7 @@ underlying scheduling strategy.
     true concurrency. In both cases Able programs see the same observable semantics
     as the TypeScript interpreter.
 
-## Testing guidance
+## Historical Testing Guidance
 
 - **Fixtures (`fixtures/ast/concurrency`).** These scenarios rely on the shared
   executor contract. Both runtimes must execute the fixtures with their native
@@ -111,7 +121,7 @@ underlying scheduling strategy.
   public contract (`flush`, optional `pendingTasks`) rather than mutating
   interpreter internals. This keeps cross-runtime behaviour aligned.
 
-## Scheduler tuning (`schedulerMaxSteps`)
+## Historical Scheduler Tuning (`schedulerMaxSteps`)
 
 The cooperative TypeScript executor (and the Go serial executor that mimics it
 in parity tests) charges “time slices” as the interpreter evaluates loop bodies,
@@ -144,7 +154,7 @@ Keep the default at 1024 unless a workload justifies a different balance. Any
 changes that ship to other contributors should include updated fixture coverage
 or design notes so the cooperative and goroutine executors stay aligned.
 
-## Follow-ups
+## Historical Follow-ups (resolved or superseded)
 
 - Document `future_yield`/`future_flush` guarantees in the v12 specification once
   wording is final.

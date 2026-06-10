@@ -1,0 +1,581 @@
+{
+  "kind": "able-feature-benchmark-coverage",
+  "schema_version": 1,
+  "families": [
+    {
+      "id": "lexical_blocks_bindings_patterns",
+      "spec_sections": [
+        "2",
+        "3",
+        "5"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "backup_dedup",
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+      "concurrent_transform_chain",
+      "concurrent_tree_folds",
+      "dependency_wave_validation",
+      "discrete_event_simulation",
+      "fib",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "quicksort",
+        "sensor_calibration",
+        "sudoku_masks",
+        "tapelang_alphabet"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/05_02_array_nested_patterns"
+      ],
+    "reason": "Ordinary applications exercise source forms, expression blocks, mutable bindings, and destructuring patterns; Binary Event Log repeatedly matches nullable hash-map results, Concurrent Text Index and Dependency Wave Validation select typed or nil Channel payloads, and Discrete Event Simulation mutates an application-defined generic heap through nested loops."
+    },
+    {
+      "id": "types_nominals_generics_unions",
+      "spec_sections": [
+        "4"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "backup_dedup",
+        "binary_event_log",
+        "binarytrees",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+      "concurrent_tree_folds",
+      "dependency_plan",
+      "dependency_wave_validation",
+      "discrete_event_simulation",
+      "fixed_width_128",
+        "inventory_reconciliation",
+        "k_nucleotide",
+        "manifest_normalization",
+        "option_result_config",
+        "policy_record_dispatch",
+        "rational_series",
+        "sensor_calibration",
+        "validated_job_pipeline",
+        "wide_integer_records"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/04_07_types_alias_union_generic_combo",
+        "fixtures/exec/04_05_04_struct_literal_generic_inference"
+      ],
+    "reason": "The portable set includes primitive widths, nominal structures, aliases, generic containers, nullable values, and result/union values; Binary Event Log constructs validated nominal records or interface-typed decode errors, while Discrete Event Simulation specializes nested application-defined Scheduled T and EventQueue T nominals."
+    },
+    {
+      "id": "expressions_arrays_text_files",
+      "spec_sections": [
+        "6"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "array_slice_window",
+        "base64",
+        "backup_dedup",
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+        "concurrent_tree_folds",
+      "config_validation_extraction",
+      "discrete_event_simulation",
+      "distance_field",
+        "document_audit",
+        "fasta_generation",
+        "i_before_e",
+        "json",
+        "lexical_rollup",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "regex_stream_audit",
+        "reverse_complement",
+        "rms_norm",
+        "sensor_calibration",
+        "unicode_scalar_pipeline",
+        "validated_job_pipeline",
+        "word_frequency"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/06_03_safe_navigation_nil_short_circuit",
+        "fixtures/exec/06_07_generator_yield_iterator_end"
+      ],
+    "reason": "Applications exercise literals, operators, arrays, generators, text, bytes, interpolation, files, and required stdlib APIs; Binary Event Log decodes variable-length little-endian records, Discrete Event Simulation performs Array-backed heap mutation, and Validated Job Pipeline transforms file-derived nominal tasks."
+    },
+    {
+      "id": "dynamic_metaprogramming",
+      "spec_sections": [
+        "6"
+      ],
+      "coverage_kind": "local_only",
+      "portable_benchmarks": [],
+      "local_fixtures": [
+        "fixtures/exec/06_10_dynamic_metaprogramming_package_object",
+        "fixtures/exec/13_05_dynimport_interface_dispatch"
+      ],
+      "reason": "Runtime package definition and interpreted evaluation have no like-for-like foreign-runtime application contract; they remain semantic and boundary guards."
+    },
+    {
+      "id": "functions_closures_callables",
+      "spec_sections": [
+        "7"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "backup_dedup",
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_transform_chain",
+        "concurrent_tree_folds",
+        "dependency_wave_validation",
+        "document_audit",
+        "lexical_rollup",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "regex_suffix_audit",
+        "validated_job_pipeline",
+        "word_frequency"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/07_05_partial_application",
+        "fixtures/exec/07_06_shorthand_member_placeholder_lambdas"
+      ],
+      "reason": "Portable callback and iterator pipelines cover named functions, closures, callable values, and method calls; Concurrent Transform Chain stores three captured functions in an Array, Concurrent Policy Callbacks passes a dynamically selected captured function into a user-defined interface method inside worker hot loops, and Concurrent Stateful Pipeline carries stage-local state through callback arguments across three ordered concurrent stages. Focused fixtures retain shorthand and partial-application semantics."
+    },
+    {
+      "id": "control_flow",
+      "spec_sections": [
+        "8"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+      "concurrent_tree_folds",
+      "dependency_wave_validation",
+      "discrete_event_simulation",
+      "distance_field",
+        "fasta_generation",
+        "fib",
+        "mandelbrot",
+        "manifest_normalization",
+        "matrixmultiply",
+        "monte_carlo_pi",
+        "nbody",
+        "pidigits",
+        "policy_record_dispatch",
+        "quicksort",
+        "rms_norm",
+        "sensor_calibration",
+        "sudoku_masks"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/08_02_loop_expression_break_value",
+        "fixtures/exec/08_03_breakpoint_nonlocal_jump"
+      ],
+    "reason": "Algorithm applications exercise branching, matching, loops, ranges, continue, recursion, and loop results; Binary Event Log nests record and byte loops, Discrete Event Simulation runs binary-heap bubble loops, and Concurrent Text Index loops across producer, worker, and aggregation paths. Non-local jumps retain a focused guard."
+    },
+    {
+      "id": "inherent_methods",
+      "spec_sections": [
+        "9"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "backup_dedup",
+        "binarytrees",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+      "concurrent_tree_folds",
+      "dependency_plan",
+      "dependency_wave_validation",
+      "discrete_event_simulation",
+      "fixed_width_128",
+        "option_result_config",
+        "policy_record_dispatch",
+        "rational_series",
+        "sensor_calibration",
+        "validated_job_pipeline",
+        "wide_integer_records"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/09_04_methods_ufcs_basics",
+        "fixtures/exec/09_05_method_set_generics_where"
+      ],
+    "reason": "Nominal applications exercise instance, static, generic, and UFCS-resolved method paths; Discrete Event Simulation adds application-defined generic method arguments and returns on a mutable heap."
+    },
+    {
+      "id": "interfaces_implementations_dispatch",
+      "spec_sections": [
+        "10"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_text_index",
+        "concurrent_tree_folds",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "document_audit",
+        "inventory_reconciliation",
+        "k_nucleotide",
+        "lexical_rollup",
+        "manifest_normalization",
+        "option_result_config",
+        "policy_record_dispatch",
+        "sensor_calibration",
+        "validated_job_pipeline",
+        "word_frequency"
+      ],
+      "local_fixtures": [
+        "fixtures/bench/boolean_reconciliation_small",
+        "fixtures/exec/10_03_interface_type_dynamic_dispatch",
+        "fixtures/exec/10_15_interface_default_generic_method"
+      ],
+      "reason": "Collection and configuration applications exercise public iterator, hashing, comparison, generic default-method, and dynamic interface dispatch; Concurrent Policy Callbacks dynamically selects between two user-defined policy implementations and passes a first-class callback through the interface method boundary, while Concurrent Stateful Pipeline passes a state-carrying reducer through three interface-typed stage components."
+    },
+    {
+      "id": "option_result_exceptions",
+      "spec_sections": [
+        "11"
+      ],
+      "coverage_kind": "mixed",
+      "portable_benchmarks": [
+        "base64",
+        "backup_dedup",
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+        "concurrent_tree_folds",
+        "config_validation_extraction",
+        "dependency_wave_validation",
+        "json",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "option_result_config",
+        "policy_record_dispatch",
+        "sensor_calibration",
+        "validated_job_pipeline"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/11_02_option_result_propagation",
+        "fixtures/exec/11_03_rescue_ensure",
+        "fixtures/exec/11_03_rescue_rethrow_standard_errors"
+      ],
+      "reason": "Portable applications cover ordinary Option/Result success and error branches; Binary Event Log validates each record into Result and exercises mapped success plus interface-typed error paths. Concurrent Document Pipeline matches Channel.receive()'s nullable result for 1,024 document tasks plus four closed-channel worker exits, and Concurrent Text Index classifies nullable Channel/Map results. Exception, rethrow, and ensure timing remains local because Go has no equivalent exception model."
+    },
+    {
+      "id": "concurrency",
+      "spec_sections": [
+        "12"
+      ],
+      "coverage_kind": "mixed",
+      "portable_benchmarks": [
+        "await_channel_mux",
+        "binarytrees",
+        "channel_rollup",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+        "concurrent_tree_folds",
+        "dependency_wave_validation",
+        "future_await_race",
+        "future_pipeline",
+        "mutex_await_journal",
+        "mutex_ledger",
+        "mutex_work_queue",
+        "validated_job_pipeline"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/12_02_future_fairness_cancellation",
+        "fixtures/exec/12_06_await_fairness_cancellation"
+      ],
+      "reason": "Portable applications cover spawn, Future, Channel, Awaitable, Mutex, and ensure; Concurrent Stateful Pipeline adds a one-producer, three-stage ordered topology with independently reconciled stage Futures. Cancellation and scheduler policy remain deterministic local guards."
+    },
+    {
+      "id": "packages_modules_imports",
+      "spec_sections": [
+        "13"
+      ],
+      "coverage_kind": "mixed",
+      "portable_benchmarks": [
+        "array_slice_window",
+        "await_channel_mux",
+        "base64",
+        "backup_dedup",
+        "binary_event_log",
+        "binarytrees",
+        "channel_rollup",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+        "concurrent_tree_folds",
+      "config_validation_extraction",
+      "dependency_plan",
+      "dependency_wave_validation",
+      "discrete_event_simulation",
+      "distance_field",
+        "document_audit",
+        "fasta_generation",
+        "fib",
+        "fixed_width_128",
+        "future_await_race",
+        "future_pipeline",
+        "i_before_e",
+        "inventory_reconciliation",
+        "json",
+        "k_nucleotide",
+        "lexical_rollup",
+        "log_routing_redaction",
+        "mandelbrot",
+        "manifest_normalization",
+        "matrixmultiply",
+        "monte_carlo_pi",
+        "mutex_await_journal",
+        "mutex_ledger",
+        "mutex_work_queue",
+        "nbody",
+        "option_result_config",
+        "pidigits",
+        "policy_record_dispatch",
+        "quicksort",
+        "rational_series",
+        "regex_set_audit",
+        "regex_stream_audit",
+        "regex_suffix_audit",
+        "reverse_complement",
+        "rms_norm",
+        "sensor_calibration",
+        "sudoku_masks",
+        "tapelang_alphabet",
+        "unicode_scalar_pipeline",
+        "validated_job_pipeline",
+        "wide_integer_records",
+        "word_frequency"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/13_04_import_alias_selective_dynimport",
+        "fixtures/exec/13_07_search_path_env_override"
+      ],
+      "reason": "Every portable application exercises entry-package and canonical stdlib resolution; dynamic import and search-path mutation retain local semantic guards."
+    },
+    {
+      "id": "stdlib_protocols_regex",
+      "spec_sections": [
+        "14"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "array_slice_window",
+        "backup_dedup",
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+        "concurrent_tree_folds",
+        "config_validation_extraction",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "document_audit",
+        "fasta_generation",
+        "inventory_reconciliation",
+        "k_nucleotide",
+        "lexical_rollup",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "regex_set_audit",
+        "regex_stream_audit",
+        "regex_suffix_audit",
+        "sensor_calibration",
+        "unicode_scalar_pipeline",
+        "validated_job_pipeline",
+        "word_frequency"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/14_01_language_interfaces_index_apply_iterable",
+        "fixtures/exec/14_25_regex_builder_program"
+      ],
+      "reason": "Applications cover indexing, iteration, callable/operator protocols, hashing, display/error boundaries, regex, regex sets, and streaming; Binary Event Log combines byte indexing, HashMap updates, and an Error boundary in one file-driven application."
+    },
+    {
+      "id": "program_entry",
+      "spec_sections": [
+        "15"
+      ],
+      "coverage_kind": "portable",
+      "portable_benchmarks": [
+        "base64",
+        "backup_dedup",
+        "binary_event_log",
+        "concurrent_audio_voices",
+        "concurrent_packet_codecs",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_graph_visitors",
+        "concurrent_policy_callbacks",
+        "concurrent_scene_tiles",
+        "concurrent_signal_dispatch",
+        "concurrent_state_machines",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+        "concurrent_tree_folds",
+        "config_validation_extraction",
+        "i_before_e",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "quicksort",
+        "reverse_complement",
+        "sensor_calibration",
+        "sudoku_masks",
+        "validated_job_pipeline"
+      ],
+      "local_fixtures": [
+        "fixtures/exec/15_02_entry_args_signature",
+        "fixtures/exec/15_04_background_work_flush"
+      ],
+      "reason": "Portable file/argument applications exercise real entry and argument handling; Binary Event Log resolves a binary path through os.args and fs.read_bytes, while Validated Job Pipeline resolves its input before spawning workers. Focused fixtures guard exit and background-work semantics."
+    },
+    {
+      "id": "host_interop",
+      "spec_sections": [
+        "16"
+      ],
+      "coverage_kind": "local_only",
+      "portable_benchmarks": [],
+      "local_fixtures": [
+        "fixtures/exec/16_01_host_interop_inline_extern"
+      ],
+      "reason": "Canonical stdlib host boundaries occur in applications, but user-authored target-language bodies are inherently target-specific and cannot form a fair cross-language timing row."
+    },
+    {
+      "id": "testing_framework",
+      "spec_sections": [
+        "17"
+      ],
+      "coverage_kind": "local_only",
+      "portable_benchmarks": [],
+      "local_fixtures": [
+        "fixtures/exec/06_12_26_stdlib_test_harness_reporters"
+      ],
+      "reason": "The testing framework is tooling used to validate applications, not an application-runtime workload; reporter behavior remains a focused semantic guard."
+    }
+  ]
+}

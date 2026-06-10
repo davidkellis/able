@@ -1,0 +1,47 @@
+File: compiled
+Build ID: bf029b0d414b0c080640c544b861a4677ad20f8b
+Type: alloc_space
+Time: 2026-07-28 09:43:27 CDT
+Showing nodes accounting for 31172.76kB, 99.49% of 31333.59kB total
+Dropped 83 nodes (cum <= 156.67kB)
+      flat  flat%   sum%        cum   cum%
+13114.77kB 41.86% 41.86% 13114.77kB 41.86%  main.__able_compiled_fn_utf8_decode_ctx
+ 7365.48kB 23.51% 65.36%  7365.48kB 23.51%  main.__able_union__IteratorEnd_or_rune_wrap_rune (inline)
+ 3562.23kB 11.37% 76.73%  3562.23kB 11.37%  runtime/pprof.allFrames
+ 3072.62kB  9.81% 86.54%  3072.62kB  9.81%  main.__able_compiled_method_String_chars_ctx
+ 1703.76kB  5.44% 91.97%  2934.36kB  9.36%  runtime/pprof.(*profileBuilder).emitLocation
+     648kB  2.07% 94.04%  1171.88kB  3.74%  compress/flate.NewWriter (inline)
+     320kB  1.02% 95.06%   523.88kB  1.67%  compress/flate.(*compressor).init
+     304kB  0.97% 96.03%  7107.19kB 22.68%  runtime/pprof.writeHeapInternal
+     288kB  0.92% 96.95%      288kB  0.92%  main.__able_string_from_builtin_native (inline)
+  209.03kB  0.67% 97.62%  6803.19kB 21.71%  runtime/pprof.writeHeapProto
+     200kB  0.64% 98.26%      200kB  0.64%  compress/flate.newDeflateFast (inline)
+  192.03kB  0.61% 98.87%   192.03kB  0.61%  main.__able_compiled_method_StringBuilder_with_capacity_ctx
+     192kB  0.61% 99.48%      192kB  0.61%  main.__able_compiled_method_String_from_bytes_unchecked_ctx
+    0.50kB 0.0016% 99.49%  6498.56kB 20.74%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.25kB 0.0008% 99.49% 23553.38kB 75.17%  main.__able_compiled_fn_scalar_checksum_ctx
+    0.03kB 0.0001% 99.49% 24225.98kB 77.32%  main.__able_compiled_fn_main_ctx
+    0.02kB 7.5e-05% 99.49%  7107.56kB 22.68%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 7.5e-05% 99.49% 24226.02kB 77.32%  main.RunRegisteredMain
+         0     0% 99.49%  7107.56kB 22.68%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.49%  7107.56kB 22.68%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.49%  1178.62kB  3.76%  compress/gzip.(*Writer).Write
+         0     0% 99.49%    24226kB 77.32%  main.RunRegisteredMain.func1
+         0     0% 99.49%   672.05kB  2.14%  main.__able_compiled_fn_build_text_ctx
+         0     0% 99.49%   192.02kB  0.61%  main.__able_compiled_fn_finish_builder_ctx
+         0     0% 99.49%    24226kB 77.32%  main.__able_compiled_fn_main
+         0     0% 99.49%      288kB  0.92%  main.__able_compiled_fn_validated_bytes_ctx
+         0     0% 99.49% 20480.25kB 65.36%  main.__able_compiled_impl_Iterator_next_0_c_spec_ctx
+         0     0% 99.49%   192.02kB  0.61%  main.__able_compiled_method_StringBuilder_finish_ctx
+         0     0% 99.49%      288kB  0.92%  main.__able_compiled_method_StringBuilder_push_string_ctx
+         0     0% 99.49%   192.02kB  0.61%  main.__able_compiled_method_String_from_bytes_ctx
+         0     0% 99.49% 20480.25kB 65.36%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.__able_ctx_next
+         0     0% 99.49%    24226kB 77.32%  main.__able_register_compiled_call.func1
+         0     0% 99.49%    24226kB 77.32%  main.__able_wrap_fn_main
+         0     0% 99.49% 31333.59kB   100%  main.main
+         0     0% 99.49% 31333.59kB   100%  main.runMain
+         0     0% 99.49%  7107.56kB 22.68%  main.startMainProfilePhase (inline)
+         0     0% 99.49% 31333.59kB   100%  runtime.main
+         0     0% 99.49%  7107.19kB 22.68%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.49%  1178.62kB  3.76%  runtime/pprof.(*profileBuilder).flush
+         0     0% 99.49%  7107.19kB 22.68%  runtime/pprof.writeAlloc

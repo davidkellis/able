@@ -1,0 +1,86 @@
+{
+  "generated_at": "2026-07-17T14:44:00.153459Z",
+  "suite": "custom",
+  "benchmarks": [
+    "binarytrees"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-17-mode-aware-full-scorecard-generality-interpreter-reference-status.json",
+  "go_reference_json": null,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "binarytrees",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "binarytrees",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null,
+        "samples": [
+          {
+            "run": 1,
+            "status": "timeout",
+            "real_seconds": null,
+            "user_seconds": null,
+            "sys_seconds": null,
+            "gc_count": null,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": null
+          }
+        ],
+        "validation": {
+          "status": "not-run",
+          "verifier": "/home/david/sync/projects/benchmarks/binarytrees/verify.rb",
+          "verified_runs": 0,
+          "failed_runs": 0,
+          "stdout_sha256": []
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/binarytrees.able",
+          "sha256": "d973598c0ca4e88fcbe96dc852fa64a935cd651b3b85be10121222e9694293d8"
+        },
+        "execution_contract": {
+          "mode": "bytecode",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "goroutine"
+        }
+      },
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "goroutine"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [],
+        "provenance": "measured",
+        "sha256": "98413a9e9b447098dd95d2a98a994e9a8f689833730d27ee73e53aaf6f9a4299",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/binarytrees/verify.rb",
+          "sha256": "7d0f8379c38438b28d4684cf85eaba3c43a8a6d502f0fa0c2d2e58cd667a4bec"
+        }
+      },
+      "comparisons": {}
+    }
+  ]
+}

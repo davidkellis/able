@@ -1,0 +1,166 @@
+{
+  "kind": "able-compiled-architecture-budget-evidence",
+  "schema_version": 1,
+  "minimum_unlike_families": 3,
+  "target_throughput_fraction": 0.95,
+  "sources": {
+    "residual_report": {
+      "path": "v12/docs/perf-baselines/2026-07-21-cross-mode-residual-cost-model.json",
+      "sha256": "499c96e9949a7828bf6dc4df4b257257f6d8fcaa95006c5edb87e23c3e05ee7e"
+    },
+    "allocation_report": {
+      "path": "v12/docs/perf-baselines/2026-07-21-compiled-generated-allocation-shape.json",
+      "sha256": "cda0c1910fddff33f13a785e5de0b096122ad033dd8cdb1efffb4bb1339b1d8f"
+    },
+    "architecture_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-audit.md",
+      "sha256": "d41d9d0f78adb7b3753c015fafdf9bda09a92bf03bcf42ab169d1052defce18d"
+    },
+    "architecture_census": {
+      "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",
+      "sha256": "d2673c1762a3ab122435d0a08d6be3f6e01e45b23a83a4d879d6c7225ccd576a"
+    },
+    "exact_leaf_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-compiled-exact-leaf-seven-application-selection.md",
+      "sha256": "4257f311b79dea17da1e345c871580b6e61dc6e90ad9e39ddb36a12dd2d87ae7"
+    },
+    "range_effect_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-compiled-primitive-range-effect-closure-census.md",
+      "sha256": "2e0972601d6e551059a841432961aaa232f281937407e9ed4ebc52805d9883a9"
+    },
+    "concurrency_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md",
+      "sha256": "71bace357608106555721f49bc0be1050674b6a97527f8eb52cca23837b35a88"
+    }
+  },
+  "current_timing_sources": {
+    "k_nucleotide": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "fixed_width_128": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "distance_field": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "policy_record_dispatch": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "concurrent_event_routing": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    }
+  },
+  "dominant_exact_owners": {
+    "k_nucleotide": "builtin-string-conversion",
+    "fixed_width_128": "loop-carried-nominal-result",
+    "distance_field": null,
+    "policy_record_dispatch": "regex-nfa-storage",
+    "concurrent_event_routing": "goroutine-identity-discovery"
+  },
+  "architecture_areas": [
+    {
+      "id": "primitive-check-control-abi",
+      "kind": "concrete-compiler-boundary",
+      "material_families": ["primitive-recursion"],
+      "disposition": "closed-insufficient-breadth",
+      "reason": "Control-free and range/effect closure found material removable nil-control propagation only in Fib; the seven-application call-site specialization census found no second material family."
+    },
+    {
+      "id": "nominal-representation",
+      "kind": "concrete-compiler-boundary",
+      "material_families": ["wide-numeric"],
+      "disposition": "single-family",
+      "reason": "Loop-carried escaping nominal results dominate Fixed Width, but exact allocation and CPU attribution do not reproduce the same lifetime in unlike families."
+    },
+    {
+      "id": "bridge-conversion",
+      "kind": "concrete-compiler-boundary",
+      "material_families": ["text-map", "regex-dispatch"],
+      "disposition": "closed-insufficient-breadth",
+      "reason": "String and unsigned bridge conversions are CPU-material in two unlike families; Event Routing allocates there but spends less than one percent of CPU."
+    },
+    {
+      "id": "environment-control-values",
+      "kind": "concrete-runtime-boundary",
+      "material_families": ["concurrency"],
+      "disposition": "single-family-and-causally-closed",
+      "reason": "Goroutine identity discovery dominates concurrency, but the generic execution-context ABI regressed Event Routing, Mutex Ledger, and serial guards."
+    },
+    {
+      "id": "allocation-gc",
+      "kind": "aggregate-parent",
+      "material_families": ["text-map", "wide-numeric", "regex-dispatch", "concurrency"],
+      "disposition": "observational-split-owners",
+      "reason": "Allocation amplification is broad, but exact owners split among map/text conversion, escaping nominal results, regex state, and concurrency state."
+    },
+    {
+      "id": "direct-generated-application-bodies",
+      "kind": "aggregate-parent",
+      "material_families": ["text-map", "wide-numeric", "float-numeric", "regex-dispatch", "concurrency"],
+      "disposition": "not-one-mechanism",
+      "reason": "Generated bodies are broad only as an ancestry label; their concrete work is source-equivalent arithmetic, hashing, regex execution, or concurrency behavior."
+    },
+    {
+      "id": "host-library-boundaries",
+      "kind": "semantic-boundary",
+      "material_families": ["byte-transformation", "arbitrary-width-integer"],
+      "disposition": "different-required-kernels",
+      "reason": "Base64/MD5 and math/big are already direct Go kernels with unrelated contracts and do not define a removable compiler mechanism."
+    }
+  ]
+}

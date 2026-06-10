@@ -1,0 +1,12 @@
+{
+  "description": "non-capturing regex groups and alternation lower through the Unicode Thompson-NFA while lookaround remains an explicit error",
+  "expect": {
+    "stdout": [
+      "group acd 1-4",
+      "alternation cd 2-4",
+      "nested abcab 0-5",
+      "lookahead rejected",
+      "unterminated rejected"
+    ]
+  }
+}

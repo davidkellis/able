@@ -9,28 +9,36 @@ import (
 // function body. When non-nil on a bytecodeProgram, the VM uses a flat
 // []Value array instead of map-based Environment lookups for locals.
 type bytecodeFrameLayout struct {
-	slotCount           int // total slots needed (params + locals); set after lowering
-	paramSlots          int // number of param slots (always indices 0..paramSlots-1)
-	paramTypes          []ast.TypeExpression
-	paramSimpleTypes    []string // cached simple type names for params (empty = non-simple)
-	paramSimpleChecks   []bytecodeSimpleTypeCheck
-	paramKinds          []bytecodeCellKind // cached typed-cell kind for params
-	paramNeedsCoercion  []bool             // cached "may need runtime coercion" flags for inline arg setup
-	anyParamCoercion    bool               // true when any parameter may need runtime coercion
-	anyExplicitCoercion bool               // true when any non-receiver param may need runtime coercion
-	methodShorthand     bool               // true when the declaration used implicit self shorthand
-	selfCallSlot        int                // reserved slot for recursive self-call fast path; -1 when disabled
-	returnType          ast.TypeExpression // declared return type (for coercion on inline return)
-	returnSimpleType    string             // cached simple type name for inline return coercion checks
-	returnSimpleCheck   bytecodeSimpleTypeCheck
-	usesImplicitMember  bool               // true if body references #member syntax
-	needsEnvScopes      bool               // true if body has definitions needing env registration
-	selfCallOneArgFast  bool               // true when one-arg self-call inline can skip declaration shape checks
-	firstParamType      ast.TypeExpression // cached first parameter type for self-call inline checks/coercion
-	firstParamSimple    string             // cached simple type name for first parameter (empty for non-simple)
-	slotKinds           []bytecodeCellKind // typed-cell kind by slot after lowering finalizes locals
-	hasTypedSlots       bool
-	i32RegisterFrame    bool
+	slotCount              int // total slots needed (params + locals); set after lowering
+	paramSlots             int // number of param slots (always indices 0..paramSlots-1)
+	paramTypes             []ast.TypeExpression
+	paramSimpleTypes       []string // cached simple type names for params (empty = non-simple)
+	paramSimpleChecks      []bytecodeSimpleTypeCheck
+	paramKinds             []bytecodeCellKind // cached typed-cell kind for params
+	paramExactStructDef    []*runtime.StructDefinitionValue
+	paramNeedsCoercion     []bool             // cached "may need runtime coercion" flags for inline arg setup
+	anyParamCoercion       bool               // true when any parameter may need runtime coercion
+	anyExplicitCoercion    bool               // true when any non-receiver param may need runtime coercion
+	methodShorthand        bool               // true when the declaration used implicit self shorthand
+	selfCallSlot           int                // reserved slot for recursive self-call fast path; -1 when disabled
+	returnType             ast.TypeExpression // declared return type (for coercion on inline return)
+	returnSimpleType       string             // cached simple type name for inline return coercion checks
+	returnSimpleCheck      bytecodeSimpleTypeCheck
+	returnNullableSimple   string
+	returnExactStructDef   *runtime.StructDefinitionValue
+	returnTypeUsesGenerics bool
+	returnTypeHasAlias     bool
+	returnCanonicalType    ast.TypeExpression
+	usesImplicitMember     bool               // true if body references #member syntax
+	needsEnvScopes         bool               // true if body has definitions needing env registration
+	preservesControlFlow   bool               // true when execution cannot mutate loop/iterator stacks
+	selfCallOneArgFast     bool               // true when one-arg self-call inline can skip declaration shape checks
+	firstParamType         ast.TypeExpression // cached first parameter type for self-call inline checks/coercion
+	firstParamSimple       string             // cached simple type name for first parameter (empty for non-simple)
+	slotKinds              []bytecodeCellKind // typed-cell kind by slot after lowering finalizes locals
+	hasTypedSlots          bool
+	i32RegisterFrame       bool
+	i32FrameProof          *bytecodeI32FrameProof // typechecker-backed VM-v2 eligibility metadata
 }
 
 // analyzeFrameLayout inspects a function definition and returns a
@@ -38,6 +46,14 @@ type bytecodeFrameLayout struct {
 // locals. Returns nil if any bail-out condition is detected, in which
 // case the function falls back to map-based Environment storage.
 func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFrameLayout {
+	return analyzeFrameLayoutWithEnv(i, def, nil)
+}
+
+func analyzeFrameLayoutWithEnv(i *Interpreter, def *ast.FunctionDefinition, env *runtime.Environment) *bytecodeFrameLayout {
+	return analyzeFrameLayoutWithEnvAndMethodSet(i, def, env, nil)
+}
+
+func analyzeFrameLayoutWithEnvAndMethodSet(i *Interpreter, def *ast.FunctionDefinition, env *runtime.Environment, methodSet *runtime.MethodSet) *bytecodeFrameLayout {
 	if def == nil || def.Body == nil {
 		return nil
 	}
@@ -50,17 +66,26 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 			return nil
 		}
 	}
-	// Walk the body checking for bail-out conditions.
-	if !slotEligibleBlock(def.Body) {
+	analysisEnv := slotEligibleFunctionEnv(env, def)
+	// Walk the body against the real definition environment before admitting a
+	// slot layout. A nil-env pass can mistake global singleton pattern names
+	// for new bindings, after which lowering must fall back to nested match
+	// bytecode that cannot see slot-only params such as method receivers.
+	slotEligibleWithoutEnv := slotEligibleBlock(def.Body)
+	if !slotEligibleBlockWithEnv(def.Body, analysisEnv) {
+		return nil
+	}
+	if !slotEligibleWithoutEnv && blockHasSlotUnsafePlaceholder(def.Body) {
 		return nil
 	}
 	var firstParamType ast.TypeExpression
 	firstParamSimple := ""
-	generics := functionGenericNameSet(nil, def)
+	generics := buildFunctionGenericNameSet(def, methodSet)
 	paramTypes := make([]ast.TypeExpression, len(def.Params))
 	paramSimpleTypes := make([]string, len(def.Params))
 	paramSimpleChecks := make([]bytecodeSimpleTypeCheck, len(def.Params))
 	paramKinds := make([]bytecodeCellKind, len(def.Params))
+	paramExactStructDef := make([]*runtime.StructDefinitionValue, len(def.Params))
 	paramNeedsCoercion := make([]bool, len(def.Params))
 	anyParamCoercion := false
 	anyExplicitCoercion := false
@@ -69,18 +94,26 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		if param == nil {
 			continue
 		}
-		paramTypes[idx] = param.ParamType
-		paramSimpleTypes[idx] = cachedSimpleTypeName(param.ParamType)
+		paramType := param.ParamType
+		if methodSet != nil {
+			paramType = resolveSelfTypeExpr(paramType, methodSet.TargetType)
+		}
+		if i != nil && paramType != nil {
+			paramType = i.canonicalizeTypeExpressionCached(paramType, env, i.typeExpressionReferencesAliasCached(paramType))
+		}
+		paramTypes[idx] = paramType
+		paramSimpleTypes[idx] = cachedSimpleTypeName(paramType)
 		paramSimpleChecks[idx] = bytecodeSimpleTypeCheckForName(paramSimpleTypes[idx])
 		paramKinds[idx] = bytecodeCellKindForSimpleTypeName(paramSimpleTypes[idx])
+		paramExactStructDef[idx] = exactNamedStructDefinitionForTypeExpr(i, env, paramType)
 		if paramKinds[idx] != bytecodeCellKindValue {
 			hasTypedSlots = true
 		}
 		noOpCoercion := false
 		if i != nil {
-			noOpCoercion = i.coerceValueToTypeWouldBeNoOp(param.ParamType)
+			noOpCoercion = i.coerceValueToTypeWouldBeNoOp(paramType)
 		}
-		paramNeedsCoercion[idx] = param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !noOpCoercion
+		paramNeedsCoercion[idx] = paramType != nil && !paramUsesGeneric(paramType, generics) && !noOpCoercion
 		if paramNeedsCoercion[idx] {
 			anyParamCoercion = true
 			if idx > 0 {
@@ -93,33 +126,64 @@ func analyzeFrameLayout(i *Interpreter, def *ast.FunctionDefinition) *bytecodeFr
 		firstParamSimple = paramSimpleTypes[0]
 	}
 	returnSimpleType := cachedSimpleTypeName(def.ReturnType)
+	returnNullableSimple := cachedNullableSimpleTypeName(def.ReturnType)
+	returnExactStructDef := exactNamedStructDefinitionForTypeExpr(i, env, def.ReturnType)
+	returnTypeUsesGenerics := typeExpressionUsesGenerics(def.ReturnType, generics)
+	returnTypeHasAlias := false
+	returnCanonicalType := def.ReturnType
+	if i != nil && def.ReturnType != nil {
+		returnTypeHasAlias = i.typeExpressionReferencesAliasCached(def.ReturnType)
+		returnCanonicalType = i.canonicalizeTypeExpressionCached(def.ReturnType, env, returnTypeHasAlias)
+	}
 	selfName := ""
 	if def.ID != nil {
 		selfName = def.ID.Name
 	}
 	return &bytecodeFrameLayout{
-		paramSlots:          len(def.Params),
-		paramTypes:          paramTypes,
-		paramSimpleTypes:    paramSimpleTypes,
-		paramSimpleChecks:   paramSimpleChecks,
-		paramKinds:          paramKinds,
-		paramNeedsCoercion:  paramNeedsCoercion,
-		anyParamCoercion:    anyParamCoercion,
-		anyExplicitCoercion: anyExplicitCoercion,
-		methodShorthand:     def.IsMethodShorthand,
-		selfCallSlot:        -1,
-		returnType:          def.ReturnType,
-		returnSimpleType:    returnSimpleType,
-		returnSimpleCheck:   bytecodeSimpleTypeCheckForName(returnSimpleType),
-		usesImplicitMember:  blockUsesImplicitMember(def.Body),
-		needsEnvScopes:      blockNeedsEnvScopes(def.Body),
-		selfCallOneArgFast:  !def.IsMethodShorthand && len(def.Params) == 1 && len(def.GenericParams) == 0,
-		firstParamType:      firstParamType,
-		firstParamSimple:    firstParamSimple,
-		slotKinds:           append([]bytecodeCellKind(nil), paramKinds...),
-		hasTypedSlots:       hasTypedSlots,
-		i32RegisterFrame:    blockCanUseI32RegisterFrame(def.Body, selfName),
+		paramSlots:             len(def.Params),
+		paramTypes:             paramTypes,
+		paramSimpleTypes:       paramSimpleTypes,
+		paramSimpleChecks:      paramSimpleChecks,
+		paramKinds:             paramKinds,
+		paramExactStructDef:    paramExactStructDef,
+		paramNeedsCoercion:     paramNeedsCoercion,
+		anyParamCoercion:       anyParamCoercion,
+		anyExplicitCoercion:    anyExplicitCoercion,
+		methodShorthand:        def.IsMethodShorthand,
+		selfCallSlot:           -1,
+		returnType:             def.ReturnType,
+		returnSimpleType:       returnSimpleType,
+		returnSimpleCheck:      bytecodeSimpleTypeCheckForName(returnSimpleType),
+		returnNullableSimple:   returnNullableSimple,
+		returnExactStructDef:   returnExactStructDef,
+		returnTypeUsesGenerics: returnTypeUsesGenerics,
+		returnTypeHasAlias:     returnTypeHasAlias,
+		returnCanonicalType:    returnCanonicalType,
+		usesImplicitMember:     blockUsesImplicitMember(def.Body),
+		needsEnvScopes:         blockNeedsEnvScopes(def.Body),
+		preservesControlFlow:   blockPreservesControlFlow(def.Body),
+		selfCallOneArgFast:     !def.IsMethodShorthand && len(def.Params) == 1 && len(def.GenericParams) == 0,
+		firstParamType:         firstParamType,
+		firstParamSimple:       firstParamSimple,
+		slotKinds:              append([]bytecodeCellKind(nil), paramKinds...),
+		hasTypedSlots:          hasTypedSlots,
+		i32RegisterFrame:       blockCanUseI32RegisterFrame(def.Body, selfName),
 	}
+}
+
+func slotEligibleFunctionEnv(parent *runtime.Environment, def *ast.FunctionDefinition) *runtime.Environment {
+	env := runtime.NewEnvironmentWithValueCapacity(parent, len(def.Params))
+	for _, param := range def.Params {
+		if param == nil {
+			continue
+		}
+		ident, ok := param.Name.(*ast.Identifier)
+		if !ok || ident == nil || ident.Name == "" {
+			continue
+		}
+		env.DefineWithoutMerge(ident.Name, runtime.NilValue{})
+	}
+	return env
 }
 
 func blockCanUseI32RegisterFrame(block *ast.BlockExpression, selfName string) bool {
@@ -404,6 +468,8 @@ const (
 	bytecodeSimpleTypeCheckF64
 	bytecodeSimpleTypeCheckString
 	bytecodeSimpleTypeCheckBool
+	bytecodeSimpleTypeCheckChar
+	bytecodeSimpleTypeCheckIteratorEnd
 )
 
 func bytecodeSimpleTypeCheckForName(typeName string) bytecodeSimpleTypeCheck {
@@ -440,10 +506,14 @@ func bytecodeSimpleTypeCheckForName(typeName string) bytecodeSimpleTypeCheck {
 		return bytecodeSimpleTypeCheckF32
 	case "f64":
 		return bytecodeSimpleTypeCheckF64
-	case "String":
+	case "String", "string":
 		return bytecodeSimpleTypeCheckString
-	case "Bool":
+	case "Bool", "bool":
 		return bytecodeSimpleTypeCheckBool
+	case "char":
+		return bytecodeSimpleTypeCheckChar
+	case "IteratorEnd":
+		return bytecodeSimpleTypeCheckIteratorEnd
 	default:
 		return bytecodeSimpleTypeCheckUnknown
 	}
@@ -494,14 +564,7 @@ func (check bytecodeSimpleTypeCheck) floatType() (runtime.FloatType, bool) {
 func inlineCoercionUnnecessaryBySimpleCheck(check bytecodeSimpleTypeCheck, val runtime.Value) bool {
 	switch check {
 	case bytecodeSimpleTypeCheckAnyInteger:
-		switch v := val.(type) {
-		case runtime.IntegerValue:
-			return true
-		case *runtime.IntegerValue:
-			return v != nil
-		default:
-			return false
-		}
+		return isIntegerValue(val)
 	case bytecodeSimpleTypeCheckAnyFloat:
 		switch v := val.(type) {
 		case runtime.FloatValue:
@@ -529,8 +592,20 @@ func inlineCoercionUnnecessaryBySimpleCheck(check bytecodeSimpleTypeCheck, val r
 		default:
 			return false
 		}
+	case bytecodeSimpleTypeCheckChar:
+		switch v := val.(type) {
+		case runtime.CharValue:
+			return true
+		case *runtime.CharValue:
+			return v != nil
+		default:
+			return false
+		}
 	}
 	if kind, ok := check.integerType(); ok {
+		if rawKind, _, ok := bytecodeRawIntegerValueInfo(val); ok {
+			return rawKind == kind
+		}
 		switch v := val.(type) {
 		case runtime.IntegerValue:
 			return v.TypeSuffix == kind
@@ -600,6 +675,12 @@ func inlineCoercionUnnecessary(typeExpr ast.TypeExpression, val runtime.Value) b
 	case *runtime.BoolValue:
 		return v != nil && name == "Bool"
 	}
+	if kind, _, ok := bytecodeRawIntegerValueInfo(val); ok {
+		if name == "Int" {
+			return true
+		}
+		return string(kind) == name
+	}
 	return false
 }
 
@@ -655,6 +736,14 @@ func cachedSimpleTypeName(typeExpr ast.TypeExpression) string {
 	return simple.Name.Name
 }
 
+func cachedNullableSimpleTypeName(typeExpr ast.TypeExpression) string {
+	nullable, ok := typeExpr.(*ast.NullableTypeExpression)
+	if !ok || nullable == nil {
+		return ""
+	}
+	return cachedSimpleTypeName(nullable.InnerType)
+}
+
 // blockNeedsEnvScopes returns true if the block contains statements that
 // register definitions in the environment (struct defs, imports, etc.),
 // meaning EnterScope/ExitScope cannot be skipped.
@@ -683,6 +772,143 @@ func blockNeedsEnvScopes(block *ast.BlockExpression) bool {
 		}
 	}
 	return false
+}
+
+func blockPreservesControlFlow(block *ast.BlockExpression) bool {
+	if block == nil {
+		return true
+	}
+	for _, stmt := range block.Body {
+		if !stmtPreservesControlFlow(stmt) {
+			return false
+		}
+	}
+	return true
+}
+
+func stmtPreservesControlFlow(stmt ast.Statement) bool {
+	if stmt == nil {
+		return true
+	}
+	switch s := stmt.(type) {
+	case *ast.ForLoop, *ast.WhileLoop:
+		return false
+	case *ast.ReturnStatement:
+		if s != nil {
+			return exprPreservesControlFlow(s.Argument)
+		}
+	case *ast.BreakStatement:
+		if s != nil {
+			return exprPreservesControlFlow(s.Value)
+		}
+	case *ast.ContinueStatement:
+		return true
+	case ast.Expression:
+		return exprPreservesControlFlow(s)
+	}
+	return false
+}
+
+func exprPreservesControlFlow(expr ast.Expression) bool {
+	if expr == nil {
+		return true
+	}
+	switch n := expr.(type) {
+	case *ast.Identifier,
+		*ast.IntegerLiteral,
+		*ast.FloatLiteral,
+		*ast.BooleanLiteral,
+		*ast.StringLiteral,
+		*ast.CharLiteral,
+		*ast.NilLiteral:
+		return true
+	case *ast.BinaryExpression:
+		return exprPreservesControlFlow(n.Left) && exprPreservesControlFlow(n.Right)
+	case *ast.UnaryExpression:
+		return exprPreservesControlFlow(n.Operand)
+	case *ast.AssignmentExpression:
+		return exprPreservesControlFlow(n.Right)
+	case *ast.FunctionCall:
+		if !exprPreservesControlFlow(n.Callee) {
+			return false
+		}
+		for _, arg := range n.Arguments {
+			if !exprPreservesControlFlow(arg) {
+				return false
+			}
+		}
+		return true
+	case *ast.MemberAccessExpression:
+		return exprPreservesControlFlow(n.Object)
+	case *ast.IndexExpression:
+		return exprPreservesControlFlow(n.Object) && exprPreservesControlFlow(n.Index)
+	case *ast.BlockExpression:
+		return blockPreservesControlFlow(n)
+	case *ast.IfExpression:
+		if !exprPreservesControlFlow(n.IfCondition) || !blockPreservesControlFlow(n.IfBody) || !blockPreservesControlFlow(n.ElseBody) {
+			return false
+		}
+		for _, clause := range n.ElseIfClauses {
+			if clause == nil {
+				continue
+			}
+			if !exprPreservesControlFlow(clause.Condition) || !blockPreservesControlFlow(clause.Body) {
+				return false
+			}
+		}
+		return true
+	case *ast.MatchExpression:
+		if !exprPreservesControlFlow(n.Subject) {
+			return false
+		}
+		for _, clause := range n.Clauses {
+			if clause == nil {
+				continue
+			}
+			if !exprPreservesControlFlow(clause.Guard) || !exprPreservesControlFlow(clause.Body) {
+				return false
+			}
+		}
+		return true
+	case *ast.ArrayLiteral:
+		for _, el := range n.Elements {
+			if !exprPreservesControlFlow(el) {
+				return false
+			}
+		}
+		return true
+	case *ast.StructLiteral:
+		for _, field := range n.Fields {
+			if field != nil && !exprPreservesControlFlow(field.Value) {
+				return false
+			}
+		}
+		for _, src := range n.FunctionalUpdateSources {
+			if !exprPreservesControlFlow(src) {
+				return false
+			}
+		}
+		return true
+	case *ast.StringInterpolation:
+		for _, part := range n.Parts {
+			if !exprPreservesControlFlow(part) {
+				return false
+			}
+		}
+		return true
+	case *ast.TypeCastExpression:
+		return exprPreservesControlFlow(n.Expression)
+	case *ast.RangeExpression:
+		return exprPreservesControlFlow(n.Start) && exprPreservesControlFlow(n.End)
+	case *ast.PropagationExpression:
+		return exprPreservesControlFlow(n.Expression)
+	case *ast.AwaitExpression:
+		return exprPreservesControlFlow(n.Expression)
+	case *ast.LoopExpression, *ast.IteratorLiteral:
+		return false
+	default:
+		return false
+	}
 }
 
 func exprNeedsEnvScopes(expr ast.Expression) bool {
@@ -716,244 +942,5 @@ func exprNeedsEnvScopes(expr ast.Expression) bool {
 	case *ast.LoopExpression:
 		return blockNeedsEnvScopes(n.Body)
 	}
-	return false
-}
-
-// slotEligibleBlock checks a block expression for slot eligibility.
-func slotEligibleBlock(block *ast.BlockExpression) bool {
-	if block == nil {
-		return true
-	}
-	for _, stmt := range block.Body {
-		if !slotEligibleStatement(stmt) {
-			return false
-		}
-	}
-	return true
-}
-
-// slotEligibleStatement checks a statement for conditions that prevent
-// slot-indexed locals.
-func slotEligibleStatement(stmt ast.Statement) bool {
-	if stmt == nil {
-		return true
-	}
-	switch s := stmt.(type) {
-	case *ast.FunctionDefinition:
-		// Nested function definitions capture the env; slot variables
-		// would be invisible to the nested function's closure.
-		return false
-	case *ast.MethodsDefinition:
-		return false
-	case *ast.ImplementationDefinition:
-		return false
-	case *ast.ForLoop:
-		return slotEligibleForLoop(s)
-	case *ast.WhileLoop:
-		if s == nil {
-			return true
-		}
-		return slotEligibleExpr(s.Condition) && slotEligibleBlock(s.Body)
-	case *ast.ReturnStatement:
-		if s != nil && s.Argument != nil {
-			return slotEligibleExpr(s.Argument)
-		}
-		return true
-	case *ast.YieldStatement:
-		if s != nil && s.Expression != nil {
-			return slotEligibleExpr(s.Expression)
-		}
-		return true
-	case *ast.RaiseStatement:
-		// RaiseStatement uses bytecodeOpRaise which evaluates subexpression
-		// via tree-walk (evalExpressionBytecode), so slot variables in the
-		// raise expression would not be found. Bail out.
-		return false
-	case *ast.RethrowStatement:
-		return true
-	case *ast.BreakStatement:
-		if s != nil && s.Value != nil {
-			return slotEligibleExpr(s.Value)
-		}
-		return true
-	case *ast.ContinueStatement:
-		return true
-	case *ast.StructDefinition, *ast.UnionDefinition, *ast.TypeAliasDefinition:
-		return true
-	case *ast.InterfaceDefinition:
-		return true
-	case *ast.ExternFunctionBody:
-		return true
-	case *ast.ImportStatement, *ast.DynImportStatement:
-		return true
-	case *ast.PackageStatement, *ast.PreludeStatement:
-		return true
-	case ast.Expression:
-		return slotEligibleExpr(s)
-	default:
-		return false
-	}
-}
-
-// slotEligibleForLoop checks a for loop for slot eligibility.
-func slotEligibleForLoop(loop *ast.ForLoop) bool {
-	if loop == nil {
-		return true
-	}
-	// The loop pattern must be a simple identifier.
-	if _, ok := loop.Pattern.(*ast.Identifier); !ok {
-		return false
-	}
-	return slotEligibleExpr(loop.Iterable) && slotEligibleBlock(loop.Body)
-}
-
-// slotEligibleExpr checks an expression tree for conditions that prevent
-// slot-indexed locals.
-func slotEligibleExpr(expr ast.Expression) bool {
-	if expr == nil {
-		return true
-	}
-	switch n := expr.(type) {
-	// --- Bail-out types ---
-	case *ast.LambdaExpression:
-		return false
-	case *ast.SpawnExpression:
-		return false
-	case *ast.IteratorLiteral:
-		return false
-	case *ast.RescueExpression:
-		return false
-	case *ast.EnsureExpression:
-		return false
-	case *ast.BreakpointExpression:
-		return false
-	case *ast.OrElseExpression:
-		return false
-	case *ast.StructLiteral:
-		// Evaluated via tree-walk (evaluateStructLiteral) which can't
-		// see slot variables.
-		return false
-	case *ast.MapLiteral:
-		// Evaluated via tree-walk (evaluateMapLiteral) which can't
-		// see slot variables.
-		return false
-
-	// --- Leaf types (always eligible) ---
-	case *ast.StringLiteral, *ast.BooleanLiteral, *ast.CharLiteral,
-		*ast.NilLiteral, *ast.IntegerLiteral, *ast.FloatLiteral,
-		*ast.Identifier, *ast.ImplicitMemberExpression,
-		*ast.PlaceholderExpression:
-		return true
-
-	// --- Container types: recurse into children ---
-	case *ast.BinaryExpression:
-		if n.Operator == "|>" || n.Operator == "|>>" {
-			// Pipe expressions evaluate RHS via tree-walk, which
-			// can't see slot variables.
-			return false
-		}
-		return slotEligibleExpr(n.Left) && slotEligibleExpr(n.Right)
-	case *ast.UnaryExpression:
-		return slotEligibleExpr(n.Operand)
-	case *ast.AssignmentExpression:
-		return slotEligibleAssignment(n)
-	case *ast.FunctionCall:
-		if !slotEligibleExpr(n.Callee) {
-			return false
-		}
-		for _, arg := range n.Arguments {
-			if !slotEligibleExpr(arg) {
-				return false
-			}
-		}
-		return true
-	case *ast.MemberAccessExpression:
-		return slotEligibleExpr(n.Object)
-	case *ast.IndexExpression:
-		return slotEligibleExpr(n.Object) && slotEligibleExpr(n.Index)
-	case *ast.BlockExpression:
-		return slotEligibleBlock(n)
-	case *ast.IfExpression:
-		if !slotEligibleExpr(n.IfCondition) || !slotEligibleBlock(n.IfBody) {
-			return false
-		}
-		for _, clause := range n.ElseIfClauses {
-			if clause != nil {
-				if !slotEligibleExpr(clause.Condition) || !slotEligibleBlock(clause.Body) {
-					return false
-				}
-			}
-		}
-		return slotEligibleBlock(n.ElseBody)
-	case *ast.MatchExpression:
-		return slotEligibleMatchExpression(n)
-	case *ast.ArrayLiteral:
-		for _, el := range n.Elements {
-			if !slotEligibleExpr(el) {
-				return false
-			}
-		}
-		return true
-	case *ast.StringInterpolation:
-		for _, part := range n.Parts {
-			if !slotEligibleExpr(part) {
-				return false
-			}
-		}
-		return true
-	case *ast.TypeCastExpression:
-		return slotEligibleExpr(n.Expression)
-	case *ast.RangeExpression:
-		return slotEligibleExpr(n.Start) && slotEligibleExpr(n.End)
-	case *ast.PropagationExpression:
-		return slotEligibleExpr(n.Expression)
-	case *ast.AwaitExpression:
-		return slotEligibleExpr(n.Expression)
-	case *ast.LoopExpression:
-		return slotEligibleBlock(n.Body)
-	default:
-		// Unknown expression type: bail out conservatively.
-		return false
-	}
-}
-
-func slotEligibleMatchExpression(n *ast.MatchExpression) bool {
-	if n == nil {
-		return true
-	}
-	if !bytecodeCanLowerSlotMatch(n) || !slotEligibleExpr(n.Subject) {
-		return false
-	}
-	for _, clause := range n.Clauses {
-		if clause == nil {
-			continue
-		}
-		if !slotEligibleExpr(clause.Body) {
-			return false
-		}
-	}
-	return true
-}
-
-// slotEligibleAssignment checks an assignment expression for slot eligibility.
-func slotEligibleAssignment(n *ast.AssignmentExpression) bool {
-	if n == nil {
-		return true
-	}
-	// Index and member assignments are fine (they don't create local bindings).
-	if _, ok := n.Left.(*ast.IndexExpression); ok {
-		return slotEligibleExpr(n.Right)
-	}
-	if _, ok := n.Left.(*ast.MemberAccessExpression); ok {
-		return slotEligibleExpr(n.Right)
-	}
-	if _, ok := n.Left.(*ast.ImplicitMemberExpression); ok {
-		return slotEligibleExpr(n.Right)
-	}
-	// Simple identifier targets (including typed identifier patterns): fine.
-	if _, ok := resolveAssignmentTargetName(n.Left); ok {
-		return slotEligibleExpr(n.Right)
-	}
-	// Anything else (destructuring pattern) is a bail-out.
 	return false
 }

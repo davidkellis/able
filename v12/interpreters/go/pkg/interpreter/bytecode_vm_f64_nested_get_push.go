@@ -56,7 +56,7 @@ func (vm *bytecodeVM) execTryArrayPushF64NestedGet(program *bytecodeProgram, ins
 	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 		vm.interp.recordBytecodeCallTrace("call_member", "push", "resolved_method", "array_push_f64_nested_get_fast", instr.node)
 	}
-	vm.stack = append(vm.stack, runtime.VoidValue{})
+	vm.appendStackValue(runtime.VoidValue{})
 	vm.ip = instr.target
 	return nil
 }

@@ -613,6 +613,28 @@ func decodeImportStatement(node map[string]any) (*ast.ImportStatement, error) {
 	return ast.NewImportStatement(packagePath, isWildcard, selectors, alias), nil
 }
 
+func decodeExportStatement(node map[string]any) (*ast.ExportStatement, error) {
+	isWildcard, _ := node["isWildcard"].(bool)
+	pathVal, _ := node["packagePath"].([]any)
+	packagePath, err := decodeIdentifierList(pathVal)
+	if err != nil {
+		return nil, err
+	}
+	var name *ast.Identifier
+	if nameNode, ok := node["name"].(map[string]any); ok {
+		decoded, err := decodeNode(nameNode)
+		if err != nil {
+			return nil, err
+		}
+		id, ok := decoded.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid export name %T", decoded)
+		}
+		name = id
+	}
+	return ast.NewExportStatement(name, packagePath, isWildcard), nil
+}
+
 func decodeDynImportStatement(node map[string]any) (*ast.DynImportStatement, error) {
 	pathVal, _ := node["packagePath"].([]any)
 	packagePath, err := decodeIdentifierList(pathVal)

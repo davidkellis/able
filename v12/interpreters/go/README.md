@@ -52,20 +52,27 @@ This separation mirrors subsystem boundaries, keeps diffs small, and allows futu
 
 ## Concurrency model
 
-- **Executors:** `New()` boots with `SerialExecutor` to keep tests deterministic; production callers should swap to `NewGoroutineExecutor` for real concurrency. Both implementations satisfy the same `Executor` contract.
+- **Executors:** `New()` boots with `SerialExecutor` for deterministic fixture
+  scheduling. Callers that need true parallel execution select
+  `NewGoroutineExecutor` explicitly; both implementations satisfy the same
+  `Executor` contract.
 - **Thread-safe environments:** `runtime.Environment` guards scope maps with an `RWMutex`, allowing goroutines spawned by `spawn` to share globals safely.
 - **Async task state:** Breakpoint and raise stacks live inside an `evalState` that is stored on the async payload, so each goroutine carries its own interpreter state without serialising the entire runtime.
 - **Cooperative helpers:** `future_yield`, `future_cancelled`, and `future_flush` are exposed as native functions. `future_cancelled` now errors when called outside an async task; tests cover the happy path and misuse.
 - **User-managed synchronisation:** The runtime ensures its internal structures are safe; user code must still guard shared data (e.g. via native mutex helpers) when true parallelism is enabled.
 
-See `design/go-concurrency.md` for a deeper dive and open follow-ups.
+See `design/go-concurrency.md` for the active contributor guide and
+`design/go-concurrency-scheduler.md` for the scheduler implementation record.
 
 ## Typechecker status
 
-- The Go-native typechecker in `pkg/typechecker` now covers the full v12 surface
-  (declarations, expressions, patterns, constraint solving).
-- Design notes and future enhancement ideas live in `design/typechecker.md` and
-  `design/typechecker-plan.md` (spans, incremental checking, perf).
+- The Go-native typechecker in `pkg/typechecker` checks declarations,
+  expressions, patterns, imports/visibility, and generic/interface constraints
+  across a dependency-ordered program.
+- `interpreter.TypecheckProgram` returns diagnostics, package summaries, and
+  inference side tables for the same `driver.Program` that the interpreter and
+  compiler consume. `design/typechecker.md` documents the architecture, while
+  `design/typechecker-plan.md` defines the active change-selection contract.
 - Fixture/test harnesses default to strict typechecking; set
   `ABLE_TYPECHECK_FIXTURES=warn` (log diagnostics) or `ABLE_TYPECHECK_FIXTURES=off`
   explicitly when you need to relax enforcement during debugging.

@@ -159,6 +159,15 @@ func (g *generator) renderNativeInterfaceGenericDispatchHelper(buf *bytes.Buffer
 			args = append(args, "call")
 			fmt.Fprintf(buf, "%s)\n", strings.Join(args, ", "))
 			fmt.Fprintf(buf, "\t\t}\n")
+			// A runtime adapter can also wrap an ordinary dynamic interface value,
+			// not only a raw runtime.Iterator. Preserve that general fallback through
+			// the existing runtime method-call adapter; otherwise this switch arm can
+			// reach the end of the generated function without returning.
+			fmt.Fprintf(buf, "\t\treturn __able_compiled_%s_runtime_adapter(typed", dispatch.GoName)
+			for idx := range dispatch.ParamGoTypes {
+				fmt.Fprintf(buf, ", arg%d", idx)
+			}
+			fmt.Fprintf(buf, ", call)\n")
 		} else if dispatch.MonoArrayCollect != nil {
 			fmt.Fprintf(buf, "\t\treturn __able_compiled_%s(typed)\n", dispatch.MonoArrayCollect.GoName)
 		} else {

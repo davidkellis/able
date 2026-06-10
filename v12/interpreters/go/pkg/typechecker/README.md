@@ -1,24 +1,38 @@
 # Able v12 Typechecker (Go)
 
-Status: in-progress (2025-10-19)
+The Go typechecker owns v12 static diagnostics over the shared AST. The
+program-wide entry point is normally the right one:
 
-- `checker.go` exposes `Checker.CheckModule`, currently supporting literal typing, let bindings, and a global declaration pass.
-- `env.go` implements lexical environments for type information.
-- `types.go` defines core type representations (primitives, structs, functions, future, unknown).
-- `inference.go` tracks inferred types per AST node.
-- `literals.go` handles literal expressions, identifier lookup, and basic statement dispatch.
-- `array_literal.go` infers `Array` element types and validates literal element compatibility.
-- `index_expression.go` validates indexing operations and propagates element types.
-- `range_expression.go` validates numeric ranges and records their element type.
-- `decls.go` collects top-level struct/union/interface/function signatures before body checking.
-- `constraint_solver.go` enforces trait/where-clause obligations with contextual diagnostics.
-- `typechecker_integration.go` integrates with the interpreter so callers can enable a pre-flight typecheck (optionally fail-fast on diagnostics) via `Interpreter.EnableTypechecker`. Fixture harnesses default to strict enforcement; set `ABLE_TYPECHECK_FIXTURES=warn|off` explicitly to relax.
+```go
+result, err := typechecker.NewProgramChecker().Check(program)
+```
 
-- Next steps:
-- Flesh out documentation/design notes for the completed surface.
-- Expand diagnostics with span data once the AST carries source locations.
-- Continue parity validation across tree-walker + bytecode interpreters (async helper diagnostics, concurrency fixtures, etc.).
+It checks the dependency-ordered `driver.Program`, returns package-qualified
+diagnostics, privacy-aware package summaries, and per-package inference maps.
+`Checker.CheckModule` is available for a single parsed module; callers needing
+imports, visibility, re-exports, or source attribution should use
+`ProgramChecker` instead. Runtime/CLI users can call
+`interpreter.TypecheckProgram`, which exposes the same `CheckResult`.
 
-Design background: see `design/typechecker.md` and `design/typechecker-plan.md`.
+Key implementation groups:
+
+- `checker.go`, `decls*.go`, and `statement_checker.go`: module orchestration,
+  declaration collection, and scoped body checking.
+- `types.go`, `env.go`, and `inference.go`: checker-only type metadata,
+  environments, and AST-node side tables.
+- `constraint_solver*.go`, `implementation_validation.go`, and
+  `member_access*.go`: generic/interface/impl/method-set resolution.
+- `program_checker*.go`: program imports, export capture, visibility, package
+  summaries, re-exports, and source-hinted diagnostics.
+
+`Interpreter.EnableTypechecker` is a module-evaluation integration point;
+`Interpreter.EvaluateProgram` normally uses `TypecheckProgram` instead so
+program-wide semantics are preserved. Fixture runs are strict by default;
+`ABLE_TYPECHECK_FIXTURES=strict|warn|off` selects only their diagnostic policy.
+
+The language specification remains authoritative. Static diagnostics must not
+silently replace runtime checks for dynamic language rules. The active contract
+and change-selection gate live in `v12/design/typechecker-plan.md`; the
+architecture reference is `v12/design/typechecker.md`.
 
 Tests: `go test ./pkg/typechecker`.

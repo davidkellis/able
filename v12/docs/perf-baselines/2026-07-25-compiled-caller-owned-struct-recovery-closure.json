@@ -1,0 +1,88 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "candidate": "general failure-atomic caller-owned generated nominal recovery",
+  "settings": {
+    "cpu": 9,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "exact_allocation_runs_per_application": 3
+  },
+  "applications": {
+    "concurrent-event-routing": {
+      "selected_recovery_objects": {
+        "EventTask": 4100,
+        "RoutedEvent": 4100
+      },
+      "baseline": {
+        "allocated_bytes_mean": 4484386.666666667,
+        "allocations_mean": 77944.33333333333,
+        "gc_count_mean": 4.0
+      },
+      "candidate": {
+        "allocated_bytes_mean": 4287650.666666667,
+        "allocations_mean": 69744.66666666667,
+        "gc_count_mean": 4.0
+      },
+      "allocated_bytes_change_percent": -4.387132837192153,
+      "allocations_change_percent": -10.51990095495502,
+      "verifier_passed": true,
+      "interpreter_dependency": false
+    },
+    "manifest-normalization": {
+      "selected_recovery_objects": {
+        "ManifestRecord": 3072
+      },
+      "baseline": {
+        "allocated_bytes_mean": 3907458.6666666665,
+        "allocations_mean": 84933.66666666667,
+        "gc_count_mean": 3.0
+      },
+      "candidate": {
+        "allocated_bytes_mean": 3907485.3333333335,
+        "allocations_mean": 84934.0,
+        "gc_count_mean": 3.3333333333333335
+      },
+      "allocated_bytes_change_percent": 0.0006824555021989198,
+      "allocations_change_percent": 0.00039246313789931264,
+      "verifier_passed": true,
+      "interpreter_dependency": false
+    },
+    "binary-event-log": {
+      "selected_recovery_objects": {
+        "EventRecord": 53248
+      },
+      "baseline": {
+        "allocated_bytes_mean": 62725448.0,
+        "allocations_mean": 1078006.0,
+        "gc_count_mean": 60.0
+      },
+      "candidate": {
+        "allocated_bytes_mean": 62725421.333333336,
+        "allocations_mean": 1078006.0,
+        "gc_count_mean": 59.666666666666664
+      },
+      "allocated_bytes_change_percent": -0.00004251331399141023,
+      "allocations_change_percent": 0.0,
+      "verifier_passed": true,
+      "interpreter_dependency": false
+    }
+  },
+  "admission_gate": {
+    "all_rows_improved": false,
+    "candidate_cpu_profiles_run": false,
+    "twenty_cohort_wall_time_run": false,
+    "reason": "mandatory runtime-origin writeback kept Manifest and Binary recovery storage heap allocated"
+  },
+  "verification": {
+    "prototype_strict_builds": 3,
+    "prototype_verified_smokes": 3,
+    "prototype_exact_allocation_processes": 9,
+    "focused_tests_passed": true,
+    "cmd_ablec_passed": true,
+    "prototype_removed": true
+  },
+  "artifacts": "/tmp/able-caller-owned-struct-recovery-20260725.fx9vQI",
+  "next": "qualify conservative read-only non-escaping static nominal parameter effects across at least three unlike applications"
+}

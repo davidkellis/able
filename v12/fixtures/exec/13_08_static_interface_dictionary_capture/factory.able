@@ -1,0 +1,14 @@
+package factory
+
+import exec_13_08_static_interface_dictionary_capture.iface_defs.{Renderable}
+
+## The concrete value and its implementation stay internal to this package.
+private struct Hidden { label: String }
+
+private impl Renderable for Hidden {
+  fn render(self: Self) -> String { self.label }
+}
+
+fn make_renderable(label: String) -> Renderable {
+  Hidden { label }
+}

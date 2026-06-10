@@ -1,0 +1,56 @@
+{
+  "generated_at": "2026-07-23T18:41:19.136585Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_graph_visitors/concurrent_graph_visitors.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-graph-visitors",
+  "runs": 1,
+  "timeout_seconds": 90,
+  "build_timeout_seconds": 90,
+  "modes": [
+    "bytecode-runtime"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 10,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "bytecode-runtime",
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 13.66,
+      "avg_user_seconds": 13.22,
+      "avg_sys_seconds": 0.39,
+      "avg_gc": 21.0,
+      "avg_ns_per_op": 1030858670.0,
+      "avg_bytes_per_op": 145179889.0,
+      "avg_allocs_per_op": 1419297.0,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 13.66,
+          "user_seconds": 13.22,
+          "sys_seconds": 0.39,
+          "gc_count": 21.0,
+          "ns_per_op": 1030858670.0,
+          "bytes_per_op": 145179889.0,
+          "allocs_per_op": 1419297.0,
+          "stdout_sha256": null
+        }
+      ],
+      "validation": {
+        "status": "unavailable",
+        "verifier": null,
+        "verified_runs": 0,
+        "failed_runs": 0,
+        "stdout_sha256": []
+      }
+    }
+  ]
+}

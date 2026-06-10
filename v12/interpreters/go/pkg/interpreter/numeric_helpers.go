@@ -50,6 +50,7 @@ var signedSequence = []runtime.IntegerType{
 	runtime.IntegerI16,
 	runtime.IntegerI32,
 	runtime.IntegerI64,
+	runtime.IntegerIsize,
 	runtime.IntegerI128,
 }
 
@@ -58,6 +59,7 @@ var unsignedSequence = []runtime.IntegerType{
 	runtime.IntegerU16,
 	runtime.IntegerU32,
 	runtime.IntegerU64,
+	runtime.IntegerUsize,
 	runtime.IntegerU128,
 }
 
@@ -164,6 +166,12 @@ func promoteIntegerTypes(left runtime.IntegerType, right runtime.IntegerType) (r
 		if rightInfo.bits > targetBits {
 			targetBits = rightInfo.bits
 		}
+		if leftInfo.signed && targetBits == 64 && (left == runtime.IntegerIsize || right == runtime.IntegerIsize) {
+			return runtime.IntegerIsize, nil
+		}
+		if !leftInfo.signed && targetBits == 64 && (left == runtime.IntegerUsize || right == runtime.IntegerUsize) {
+			return runtime.IntegerUsize, nil
+		}
 		if leftInfo.signed {
 			if info, ok := smallestSigned(targetBits); ok {
 				return info.kind, nil
@@ -192,6 +200,45 @@ func bitPattern(value *big.Int, info integerInfo) *big.Int {
 	var pattern big.Int
 	pattern.And(value, info.mask)
 	return &pattern
+}
+
+func integerMaskUint64(bits int) uint64 {
+	if bits >= 64 {
+		return ^uint64(0)
+	}
+	return (uint64(1) << uint(bits)) - 1
+}
+
+func integerBitPatternUint64(value int64, info integerInfo) (uint64, bool) {
+	if info.bits <= 0 || info.bits > 64 {
+		return 0, false
+	}
+	if !info.signed && value < 0 {
+		return 0, false
+	}
+	return uint64(value) & integerMaskUint64(info.bits), true
+}
+
+func integerFromBitPatternUint64(pattern uint64, info integerInfo) (int64, bool) {
+	if info.bits <= 0 || info.bits > 64 {
+		return 0, false
+	}
+	pattern &= integerMaskUint64(info.bits)
+	if info.signed {
+		if info.bits == 64 {
+			return int64(pattern), true
+		}
+		mask := integerMaskUint64(info.bits)
+		signBit := uint64(1) << uint(info.bits-1)
+		if pattern&signBit != 0 {
+			pattern |= ^mask
+		}
+		return int64(pattern), true
+	}
+	if pattern > math.MaxInt64 {
+		return 0, false
+	}
+	return int64(pattern), true
 }
 
 func patternToInteger(pattern *big.Int, info integerInfo) *big.Int {
@@ -246,9 +293,9 @@ func normalizeFloat(kind runtime.FloatType, value float64) float64 {
 }
 
 func floatResultKind(left runtime.Value, right runtime.Value) runtime.FloatType {
-	leftVal, leftIsFloat := left.(runtime.FloatValue)
-	rightVal, rightIsFloat := right.(runtime.FloatValue)
-	if (leftIsFloat && leftVal.TypeSuffix == runtime.FloatF64) || (rightIsFloat && rightVal.TypeSuffix == runtime.FloatF64) {
+	_, leftKind, leftIsFloat := bytecodeDirectFloatValue(left)
+	_, rightKind, rightIsFloat := bytecodeDirectFloatValue(right)
+	if (leftIsFloat && leftKind == runtime.FloatF64) || (rightIsFloat && rightKind == runtime.FloatF64) {
 		return runtime.FloatF64
 	}
 	return runtime.FloatF32

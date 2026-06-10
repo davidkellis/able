@@ -1,0 +1,32 @@
+Discrete Event Simulation strict compiled main allocation profile
+Date: 2026-07-27
+Binary SHA-256: 17b2f48ef53d49669302b3a3b7196a0b07c57344469de093e52f4fe65ceb15ca
+
+Three independent exact main-phase allocation processes:
+
+process  allocated bytes  allocations  GC count
+1        2,319,168        108,224      2
+2        2,319,168        108,224      2
+3        2,319,168        108,224      2
+
+Representative exact alloc_objects attribution:
+
+owner                                      flat objects  cumulative objects
+main.__able_compiled_fn_main               108,194       108,220
+
+Generated source-line attribution:
+
+allocation                                      objects
+initial SimulationEvent                         4,096
+initial Scheduled SimulationEvent               4,096
+successor SimulationEvent                      50,000
+successor Scheduled SimulationEvent            50,000
+total source-semantic application objects     108,192
+other main flat objects                            2
+other main cumulative objects                     28
+
+The exact phase counter excludes profile serialization and is the authority
+for total bytes/objects. The source-line diff proves 108,192 of 108,224 main
+allocations are the same event and scheduled-event objects constructed by the
+source-equivalent Go program. No bridge.To*, runtime.Value materialization, or
+generic nominal recovery function appears in the application allocation path.

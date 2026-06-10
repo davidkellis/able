@@ -1,8 +1,12 @@
 # Unified Future Model (Proc/Spawn Unification)
 
-Date: 2026-01-23  
-Status: Approved (spec + design alignment pending implementation)  
+Date: 2026-01-23
+Status: Implemented in the Go tree-walker, bytecode VM, and AOT compiler; reconciled 2026-07-14
 Owners: Able v12 maintainers
+
+> **Active contract:** Section 12 of `spec/full_spec_v12.md` is normative.
+> This document records the completed `proc`-to-`Future` unification decision;
+> it is not a pending scheduler, performance, or language-feature backlog.
 
 ## Summary
 
@@ -12,6 +16,11 @@ Able v12 now defines a single async facility: `spawn` returns a `Future T` handl
 - **Value view:** implicit blocking evaluation to `T` in `T`-typed contexts.
 
 The unification removes the `proc` keyword and renames scheduler helpers to `future_*` for consistency.
+
+The Go reference execution modes implement this contract and share coverage for
+status, memoized `value()`, cancellation, cooperative helpers, `await`, and
+nested waits. `ProcHandle` remains a distinct host-process interop type; it is
+not the removed Able language `proc` feature.
 
 ## Motivation
 
@@ -79,7 +88,7 @@ Renamed to align with the unified Future model:
 
 - `future_yield()`
 - `future_cancelled()`
-- `future_flush(limit?: i32)`
+- `future_flush()`
 - `future_pending_tasks() -> i32`
 
 These are still executor diagnostics and must preserve cooperative semantics.
@@ -93,23 +102,31 @@ Futures remain `Awaitable`. `await` continues to multiplex async arms; cancellat
 - No new syntax beyond removing `proc`.
 - No change to OS process handles (`ProcHandle` in stdlib/interop) or to host process APIs.
 
-## Migration & Compatibility
+## Historical Migration & Compatibility
 
-Source changes required by users/tests:
+The completed source migration was:
 
 - `proc` → `spawn`
 - `Proc`/`ProcError`/`ProcStatus` → `Future`/`FutureError`/`FutureStatus`
 - `proc_*` helpers → `future_*` helpers
 
-Fixture and test names should migrate from `proc_*` to `future_*` to match the new model.
+Fixtures and test names use `future_*` to match the unified model.
 
-## Implementation Impact (High-Level)
+## Completed Implementation Scope
 
-- **Spec:** rewrite Section 12 to define unified Future semantics; remove `proc` from keywords and examples.
-- **Parser/AST:** remove `ProcExpression` node; update placeholder scoping and parser tests.
-- **Typechecker:** remove `ProcType`, add implicit-evaluation rules for `Future` in `T` contexts, update helper names and diagnostics.
-- **Interpreters:** merge proc/future handle structures; implement cancellation on Future; update scheduler helpers and await integration.
-- **Fixtures/Tests:** rename fixtures, adjust expected diagnostics, update parity harness and example programs.
-- **Stdlib:** collapse `able.concurrent.proc` into `able.concurrent.future` (or move definitions into a single module); update helper names.
+- **Spec:** Section 12 defines unified Future semantics and no longer lists
+  `proc` as a keyword.
+- **Parser/AST:** the grammar and mapper expose `spawn`; there is no
+  `ProcExpression` AST node.
+- **Typechecker:** Future value-view rules and `future_*` diagnostics are
+  covered by the shared fixture corpus.
+- **Interpreters and compiler:** the Go tree-walker, bytecode VM, and AOT
+  compiler implement Future status/value/cancel, helper, and `await` paths.
+- **Fixtures/tests:** executable fixtures cover status/error/memoization,
+  cancellation/fairness, handle/value views, `await`, and nested spawn.
+- **Stdlib/interop:** host-process `ProcHandle` remains separate from the
+  language Future model.
 
-This work is fully enumerated in the updated `PLAN.md` work breakdown.
+Future performance changes remain subject to the roadmap's cross-application
+selection rule; this completed semantic unification does not authorize a
+scheduler-specific optimization.

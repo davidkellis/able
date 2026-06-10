@@ -22,7 +22,7 @@ func TestBytecodeVMSelfFastSlot0RawLaneRestoresCallerSlot(t *testing.T) {
 	vm.slots[0] = runtime.NewSmallInt(6, runtime.IntegerI32)
 	vm.setSelfFastSlot0I32Raw(6)
 
-	returnIP, _, returnSlots, _, _, _, _, _, ok := vm.popCallFrameFields()
+	returnIP, _, returnSlots, _, _, _, _, _, _, ok := vm.popCallFrameFields()
 	if !ok {
 		t.Fatalf("expected compact self-fast frame to pop")
 	}
@@ -143,5 +143,36 @@ func TestBytecodeVMSlot0StoreRefreshesRawLane(t *testing.T) {
 	}
 	if vm.selfFastSlot0I32Valid {
 		t.Fatalf("expected non-i32 slot0 store to clear raw lane")
+	}
+}
+
+func TestBytecodeVMRestoreI32RegisterFrameInstallsWithoutActiveFrame(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	program := &bytecodeProgram{
+		frameLayout: &bytecodeFrameLayout{
+			slotCount:        1,
+			slotKinds:        []bytecodeCellKind{bytecodeCellKindI32},
+			i32RegisterFrame: true,
+		},
+	}
+
+	values, valid := vm.acquireI32RegisterFrame(1)
+	values[0] = 42
+	valid[0] = true
+
+	vm.restoreI32RegisterFrame(program, values, valid)
+
+	if vm.i32RegisterProgram != program {
+		t.Fatalf("expected restored program %p, got %p", program, vm.i32RegisterProgram)
+	}
+	if len(vm.i32Registers) != 1 || len(vm.i32RegisterValid) != 1 {
+		t.Fatalf("expected one-slot restored register frame, got values=%v valid=%v", vm.i32Registers, vm.i32RegisterValid)
+	}
+	if &vm.i32Registers[0] != &values[0] || &vm.i32RegisterValid[0] != &valid[0] {
+		t.Fatalf("expected restore to install provided register slices directly")
+	}
+	if got, ok := vm.i32RegisterRaw(0); !ok || got != 42 {
+		t.Fatalf("expected restored raw slot0 to be 42, got %d ok=%v", got, ok)
 	}
 }

@@ -251,6 +251,9 @@ func (g *generator) canSynthesizeCarrierMonoArraySpec(elemGoType string) bool {
 	if g.isNativeNullableValueType(elemGoType) {
 		return true
 	}
+	if g.isWideIntegerType(elemGoType) {
+		return true
+	}
 	return false
 }
 

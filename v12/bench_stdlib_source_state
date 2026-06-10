@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Write a reproducible identity for the canonical Able stdlib runtime sources."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def display_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return os.path.relpath(path.resolve(), REPO_ROOT)
+
+
+def git_value(root: Path, arguments: list[str]) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(root), *arguments], text=True, capture_output=True, check=False
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def source_tree_sha256(root: Path) -> tuple[int, str]:
+    source_root = root / "src"
+    if not source_root.is_dir():
+        raise ValueError(f"canonical stdlib source directory is missing: {source_root}")
+    sources = sorted(path for path in source_root.rglob("*.able") if path.is_file())
+    if not sources:
+        raise ValueError(f"canonical stdlib source directory has no Able sources: {source_root}")
+    digest = hashlib.sha256()
+    for source in sources:
+        relative = source.relative_to(root).as_posix().encode("utf-8")
+        digest.update(relative)
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(source.read_bytes()).digest())
+        digest.update(b"\n")
+    return len(sources), digest.hexdigest()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Record the canonical able-stdlib runtime-source tree used by a scorecard refresh."
+    )
+    parser.add_argument(
+        "--root", default=str(REPO_ROOT.parent / "able-stdlib"), metavar="DIR", help="canonical stdlib root"
+    )
+    parser.add_argument("--output", required=True, metavar="PATH", help="write source-state JSON")
+    args = parser.parse_args()
+
+    root = Path(args.root).resolve()
+    if root.name == "src" and (root / "core").is_dir():
+        root = root.parent
+    output = Path(args.output)
+    if output.exists():
+        print(f"bench_stdlib_source_state: refusing to overwrite existing state: {output}", file=sys.stderr)
+        return 2
+    try:
+        source_file_count, source_hash = source_tree_sha256(root)
+    except ValueError as error:
+        print(f"bench_stdlib_source_state: {error}", file=sys.stderr)
+        return 2
+    status = git_value(root, ["status", "--porcelain", "--untracked-files=all"])
+    state = {
+        "kind": "canonical-stdlib-source-state",
+        "root": display_path(root),
+        "source_file_count": source_file_count,
+        "source_tree_sha256": source_hash,
+        "git_head": git_value(root, ["rev-parse", "HEAD"]),
+        "git_dirty": bool(status),
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

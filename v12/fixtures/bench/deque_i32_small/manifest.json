@@ -1,0 +1,6 @@
+{
+  "description": "deque alternating front/back churn benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

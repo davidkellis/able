@@ -46,25 +46,28 @@ func bytecodeArraySlotIndexI32(val runtime.Value) (int, bool, error) {
 }
 
 func arraySlotIndexSmall(val runtime.Value) (int, bool) {
-	var iv *runtime.IntegerValue
-	switch value := val.(type) {
-	case bytecodeRawI32SlotValue:
-		idx := int64(value)
-		if idx < 0 || idx > 1<<31-1 {
+	switch idx := val.(type) {
+	case runtime.IntegerValue:
+		if idx.IsSmall() {
+			raw := idx.Int64Fast()
+			if raw >= 0 && raw <= 1<<31-1 {
+				return int(raw), true
+			}
 			return 0, false
 		}
-		return int(idx), true
-	case runtime.IntegerValue:
-		iv = &value
 	case *runtime.IntegerValue:
-		iv = value
-	default:
+		if idx != nil && idx.IsSmallRef() {
+			raw := idx.Int64FastRef()
+			if raw >= 0 && raw <= 1<<31-1 {
+				return int(raw), true
+			}
+			return 0, false
+		}
+	}
+	_, idx, ok := bytecodeRawIntegerValueInfo(val)
+	if !ok {
 		return 0, false
 	}
-	if iv == nil || !iv.IsSmallRef() {
-		return 0, false
-	}
-	idx := iv.Int64FastRef()
 	if idx < 0 || idx > 1<<31-1 {
 		return 0, false
 	}
@@ -75,6 +78,10 @@ func (vm *bytecodeVM) readArraySlotValueFast(arr *runtime.ArrayValue, index runt
 	if vm == nil || arr == nil {
 		return nil, "", false, nil
 	}
+	return vm.readArraySlotValueFastChecked(arr, index)
+}
+
+func (vm *bytecodeVM) readArraySlotValueFastChecked(arr *runtime.ArrayValue, index runtime.Value) (runtime.Value, string, bool, error) {
 	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 		if idx, ok := arraySlotIndexSmall(index); ok && idx < len(state.Values) {
 			result := state.Values[idx]
@@ -104,10 +111,17 @@ func (vm *bytecodeVM) readArraySlotValueFast(arr *runtime.ArrayValue, index runt
 	if !ok {
 		return nil, "", false, nil
 	}
-	if rawByte, ok, err := runtime.ArrayStoreMonoReadU8IfAvailable(handle, idx); err != nil {
+	var info runtime.ArrayStoreMonoPrimitiveReadInfo
+	if ok, err := runtime.ArrayStoreMonoPrimitiveReadInfoInto(handle, idx, &info); err != nil {
 		return nil, "", true, err
 	} else if ok {
-		return boxedOrSmallIntegerValue(runtime.IntegerU8, int64(rawByte)), "array_read_slot_mono_u8_fast", true, nil
+		dispatch := bytecodeMonoPrimitiveArrayDispatch(info, "array_read_slot")
+		if !info.InBounds {
+			return runtime.NilValue{}, dispatch, true, nil
+		}
+		if result, mono := bytecodeMonoPrimitiveArrayValue(info); mono {
+			return result, dispatch, true, nil
+		}
 	}
 	result, err := runtime.ArrayStoreRead(handle, idx)
 	return result, "array_read_slot_fast", true, err
@@ -126,40 +140,40 @@ func (vm *bytecodeVM) readArraySlotValueFastAtSlot(arr *runtime.ArrayValue, inde
 			return result, "array_read_slot_tracked_fast", true, nil
 		}
 	}
-	return vm.readArraySlotValueFast(arr, vm.slotMaterializedValue(indexSlot))
+	return vm.readArraySlotValueFastChecked(arr, vm.slotMaterializedValue(indexSlot))
 }
 
-func (vm *bytecodeVM) execArrayReadSlotMemberFast(instr bytecodeInstruction, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
-	if vm == nil || instr.argCount != 1 || receiverIndex < 0 || receiverIndex >= len(vm.stack) || argBase < 0 || argBase >= len(vm.stack) {
+func (vm *bytecodeVM) execArrayReadSlotMemberFast(memberName string, argCount int, traceNode ast.Node, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
+	if vm == nil || argCount != 1 || receiverIndex < 0 || receiverIndex >= vm.stackDepth() || argBase < 0 || argBase >= vm.stackDepth() {
 		return nil, false, nil
 	}
-	arr, ok := vm.stack[receiverIndex].(*runtime.ArrayValue)
+	arr, ok := vm.stackValue(receiverIndex).(*runtime.ArrayValue)
 	if !ok || arr == nil {
 		return nil, false, nil
 	}
-	return vm.finishArrayReadSlotMemberFast(instr, arr, receiverIndex, argBase, callNode)
+	return vm.finishArrayReadSlotMemberFast(memberName, argCount, traceNode, arr, receiverIndex, argBase, callNode)
 }
 
-func (vm *bytecodeVM) finishArrayReadSlotMemberFast(instr bytecodeInstruction, arr *runtime.ArrayValue, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
-	if vm == nil || arr == nil || instr.argCount != 1 || receiverIndex < 0 || receiverIndex >= len(vm.stack) || argBase < 0 || argBase >= len(vm.stack) {
+func (vm *bytecodeVM) finishArrayReadSlotMemberFast(memberName string, argCount int, traceNode ast.Node, arr *runtime.ArrayValue, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
+	if vm == nil || arr == nil || argCount != 1 || receiverIndex < 0 || receiverIndex >= vm.stackDepth() || argBase < 0 || argBase >= vm.stackDepth() {
 		return nil, false, nil
 	}
-	indexVal := vm.stack[argBase]
+	indexVal := vm.stackValue(argBase)
 	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 		if idx, ok := arraySlotIndexSmall(indexVal); ok && idx < len(state.Values) {
 			result := state.Values[idx]
 			if result == nil {
 				result = runtime.NilValue{}
 			}
-			vm.stack = vm.stack[:receiverIndex]
-			vm.stack = append(vm.stack, result)
+			vm.truncateStack(receiverIndex)
+			vm.appendStackValue(result)
 			vm.ip++
 			return nil, true, nil
 		}
 	}
-	result, mode, handled, err := vm.readArraySlotValueFast(arr, indexVal)
+	result, mode, handled, err := vm.readArraySlotValueFastChecked(arr, indexVal)
 	if err != nil {
-		vm.stack = vm.stack[:receiverIndex]
+		vm.truncateStack(receiverIndex)
 		newProg, finishErr := vm.finishCompletedCall(nil, err, callNode, nil)
 		return newProg, true, finishErr
 	}
@@ -167,44 +181,45 @@ func (vm *bytecodeVM) finishArrayReadSlotMemberFast(instr bytecodeInstruction, a
 		return nil, false, nil
 	}
 	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
-		vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", mode, instr.node)
+		vm.interp.recordBytecodeCallTrace("call_member", memberName, "resolved_method", mode, traceNode)
 	}
-	vm.stack = vm.stack[:receiverIndex]
+	vm.truncateStack(receiverIndex)
 	newProg, finishErr := vm.finishCompletedCall(result, err, callNode, nil)
 	return newProg, true, finishErr
 }
 
-func (vm *bytecodeVM) execArrayWriteSlotMemberFast(instr bytecodeInstruction, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
-	if vm == nil || instr.argCount != 2 || receiverIndex < 0 || receiverIndex >= len(vm.stack) || argBase < 0 || argBase+1 >= len(vm.stack) || vm.interp == nil {
+func (vm *bytecodeVM) execArrayWriteSlotMemberFast(memberName string, argCount int, traceNode ast.Node, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
+	if vm == nil || argCount != 2 || receiverIndex < 0 || receiverIndex >= vm.stackDepth() || argBase < 0 || argBase+1 >= vm.stackDepth() || vm.interp == nil {
 		return nil, false, nil
 	}
-	arr, ok := vm.stack[receiverIndex].(*runtime.ArrayValue)
+	arr, ok := vm.stackValue(receiverIndex).(*runtime.ArrayValue)
 	if !ok || arr == nil {
 		return nil, false, nil
 	}
-	return vm.finishArrayWriteSlotMemberFast(instr, arr, receiverIndex, argBase, callNode)
+	return vm.finishArrayWriteSlotMemberFast(memberName, argCount, traceNode, arr, receiverIndex, argBase, callNode)
 }
 
-func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(instr bytecodeInstruction, arr *runtime.ArrayValue, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
-	if vm == nil || arr == nil || instr.argCount != 2 || receiverIndex < 0 || receiverIndex >= len(vm.stack) || argBase < 0 || argBase+1 >= len(vm.stack) || vm.interp == nil {
+func (vm *bytecodeVM) finishArrayWriteSlotMemberFast(memberName string, argCount int, traceNode ast.Node, arr *runtime.ArrayValue, receiverIndex int, argBase int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
+	if vm == nil || arr == nil || argCount != 2 || receiverIndex < 0 || receiverIndex >= vm.stackDepth() || argBase < 0 || argBase+1 >= vm.stackDepth() || vm.interp == nil {
 		return nil, false, nil
 	}
-	indexVal := vm.stack[argBase]
-	value := vm.stack[argBase+1]
-	mode, handled, err := vm.writeArraySlotValueFast(arr, indexVal, value)
+	indexVal := vm.stackValue(argBase)
+	value := vm.stackValue(argBase + 1)
+	vm.observeBytecodeArrayOwnershipArrayWrite(arr, value)
+	mode, handled, err := vm.writeArraySlotValueFastChecked(arr, indexVal, value)
 	if err != nil {
-		vm.stack = vm.stack[:receiverIndex]
+		vm.truncateStack(receiverIndex)
 		newProg, finishErr := vm.finishCompletedCall(nil, err, callNode, nil)
 		return newProg, true, finishErr
 	}
 	if !handled {
 		return nil, false, nil
 	}
-	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
-		vm.interp.recordBytecodeCallTrace("call_member", instr.name, "resolved_method", mode, instr.node)
+	if vm.interp.bytecodeTraceEnabled {
+		vm.interp.recordBytecodeCallTrace("call_member", memberName, "resolved_method", mode, traceNode)
 	}
-	vm.stack = vm.stack[:receiverIndex]
-	newProg, finishErr := vm.finishCompletedCall(runtime.VoidValue{}, nil, callNode, nil)
+	vm.truncateStack(receiverIndex)
+	newProg, finishErr := vm.finishCompletedVoidCallFast()
 	return newProg, true, finishErr
 }
 
@@ -212,6 +227,11 @@ func (vm *bytecodeVM) writeArraySlotValueFast(arr *runtime.ArrayValue, indexVal 
 	if vm == nil || arr == nil || vm.interp == nil {
 		return "", false, nil
 	}
+	return vm.writeArraySlotValueFastChecked(arr, indexVal, value)
+}
+
+func (vm *bytecodeVM) writeArraySlotValueFastChecked(arr *runtime.ArrayValue, indexVal runtime.Value, value runtime.Value) (string, bool, error) {
+	value = vm.materializePrimitiveValue(bytecodeMaterializationCandidateStatic, bytecodeMaterializationReasonCollection, value)
 	if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 		if idx, ok := arraySlotIndexSmall(indexVal); ok {
 			switch length := len(state.Values); {
@@ -219,12 +239,16 @@ func (vm *bytecodeVM) writeArraySlotValueFast(arr *runtime.ArrayValue, indexVal 
 				vm.appendTrackedArrayValueFast(arr, state, value)
 			case idx > length:
 				runtime.ArrayEnsureCapacity(state, idx+1)
-				runtime.ArraySetLength(state, idx+1)
+				setArrayLength(state, idx+1)
 				state.Values[idx] = value
-				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+				if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, value) {
+					vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+				}
 			default:
 				state.Values[idx] = value
-				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+				if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, value) {
+					vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+				}
 			}
 			return "array_write_slot_tracked_fast", true, nil
 		}
@@ -242,12 +266,16 @@ func (vm *bytecodeVM) writeArraySlotValueFast(arr *runtime.ArrayValue, indexVal 
 			vm.appendTrackedArrayValueFast(arr, state, value)
 		case idx > length:
 			runtime.ArrayEnsureCapacity(state, idx+1)
-			runtime.ArraySetLength(state, idx+1)
+			setArrayLength(state, idx+1)
 			state.Values[idx] = value
-			vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+			if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, value) {
+				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+			}
 		default:
 			state.Values[idx] = value
-			vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+			if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, value) {
+				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+			}
 		}
 		return "array_write_slot_tracked_fast", true, nil
 	}
@@ -258,11 +286,10 @@ func (vm *bytecodeVM) writeArraySlotValueFast(arr *runtime.ArrayValue, indexVal 
 	if !ok {
 		return "", false, nil
 	}
-	err = runtime.ArrayStoreWrite(handle, idx, value)
+	storedValue := vm.materializePrimitiveValue(bytecodeMaterializationCandidateStatic, bytecodeMaterializationReasonCollection, value)
+	err = runtime.ArrayStoreWrite(handle, idx, storedValue)
 	if err == nil {
-		if state, stateErr := runtime.ArrayStoreState(handle); stateErr == nil {
-			vm.interp.syncArrayValues(handle, state)
-		}
+		vm.interp.syncArrayHandleWriteAfterStore(handle, idx, storedValue)
 	}
 	return "array_write_slot_fast", true, err
 }
@@ -278,7 +305,7 @@ func (vm *bytecodeVM) writeArraySlotValueFastAtSlot(arr *runtime.ArrayValue, ind
 				vm.appendTrackedArrayValueFast(arr, state, value)
 			case idx > length:
 				runtime.ArrayEnsureCapacity(state, idx+1)
-				runtime.ArraySetLength(state, idx+1)
+				setArrayLength(state, idx+1)
 				state.Values[idx] = value
 				vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
 			default:
@@ -288,5 +315,5 @@ func (vm *bytecodeVM) writeArraySlotValueFastAtSlot(arr *runtime.ArrayValue, ind
 			return "array_write_slot_tracked_fast", true, nil
 		}
 	}
-	return vm.writeArraySlotValueFast(arr, vm.slotMaterializedValue(indexSlot), value)
+	return vm.writeArraySlotValueFastChecked(arr, vm.slotMaterializedValue(indexSlot), value)
 }

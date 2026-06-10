@@ -1,0 +1,35 @@
+package rms_norm
+
+import able.math
+
+fn main() {
+  a := 0.25
+  b := -0.5
+  c := 0.75
+  d := -1.0
+  norm_sum := 0.0
+  squared_norm_sum := 0.0
+  i := 0
+
+  loop {
+    if i >= 2000000 { break }
+
+    a = a * 0.99999991 + 0.000013
+    if a > 1.0 { a = a - 2.0 }
+
+    b = b * 1.00000007 - 0.000017
+    if b < -1.0 { b = b + 2.0 }
+
+    c = c * 0.99999983 + a * 0.000003
+    d = d * 0.99999979 - b * 0.000002
+
+    squared_norm := a * a + b * b + c * c + d * d
+    norm := math.sqrt(squared_norm)
+    norm_sum = norm_sum + norm
+    squared_norm_sum = squared_norm_sum + squared_norm
+    i = i + 1
+  }
+
+  print(norm_sum)
+  print(math.sqrt(squared_norm_sum / 2000000.0))
+}

@@ -37,7 +37,7 @@ func (g *generator) compileStaticIteratorCollectMonoArrayCall(ctx *compileContex
 	lines = append(lines, receiverLines...)
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", resultTemp, controlTemp, g.compiledCallTargetNameForPackage(ctx.packageName, info.Package, info.GoName), coercedReceiverExpr))
+	lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", resultTemp, controlTemp, g.compiledContextCallTargetNameForPackage(ctx, ctx.packageName, info.Package, info.GoName), g.compiledCallArgs(ctx, []string{coercedReceiverExpr})))
 	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false
@@ -330,13 +330,25 @@ func (g *generator) renderIteratorCollectMonoArrayHelper(buf *bytes.Buffer, info
 	if !ok {
 		return
 	}
-	if envVar, ok := g.packageEnvVar(info.Package); ok {
-		fmt.Fprintf(buf, "func __able_compiled_%s(self %s) (%s, *__ableControl) {\n", info.GoName, info.ReceiverType, info.ReturnType)
+	legacyBodyName := "__able_compiled_" + info.GoName
+	legacyEntryName := "__able_compiled_entry_" + info.GoName
+	bodyName := legacyBodyName
+	entryName := legacyEntryName
+	context := &compileContext{executionContextExpr: "__able_exec_ctx"}
+	if g.executionContextsEnabled() {
+		bodyName = compiledContextName(bodyName)
+		entryName = compiledContextName(entryName)
+		fmt.Fprintf(buf, "func %s(self %s, __able_exec_ctx %s) (%s, *__ableControl) {\n", bodyName, info.ReceiverType, executionContextType, info.ReturnType)
+		if envVar, ok := g.packageEnvVar(info.Package); ok {
+			writeExecutionContextPackageEnv(buf, "\t", "__able_exec_ctx", "__able_runtime", envVar)
+		}
+	} else if envVar, ok := g.packageEnvVar(info.Package); ok {
+		fmt.Fprintf(buf, "func %s(self %s) (%s, *__ableControl) {\n", bodyName, info.ReceiverType, info.ReturnType)
 		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	} else {
-		fmt.Fprintf(buf, "func __able_compiled_%s(self %s) (%s, *__ableControl) {\n", info.GoName, info.ReceiverType, info.ReturnType)
+		fmt.Fprintf(buf, "func %s(self %s) (%s, *__ableControl) {\n", bodyName, info.ReceiverType, info.ReturnType)
 	}
-	fmt.Fprintf(buf, "\tacc, control := %s()\n", g.compiledCallTargetNameForPackage(info.Package, info.Package, info.DefaultGoName))
+	fmt.Fprintf(buf, "\tacc, control := %s(%s)\n", g.compiledContextCallTargetNameForPackage(context, info.Package, info.Package, info.DefaultGoName), g.compiledCallArgs(context, nil))
 	fmt.Fprintf(buf, "\tif control != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn %s, control\n", zeroExpr)
 	fmt.Fprintf(buf, "\t}\n")
@@ -356,7 +368,7 @@ func (g *generator) renderIteratorCollectMonoArrayHelper(buf *bytes.Buffer, info
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\tvalue, valueOK := %s(next)\n", info.ValueUnwrap)
 	fmt.Fprintf(buf, "\t\tif valueOK {\n")
-	fmt.Fprintf(buf, "\t\t\tnextAcc, control := %s(acc, value)\n", g.compiledCallTargetNameForPackage(info.Package, info.Package, info.ExtendGoName))
+	fmt.Fprintf(buf, "\t\t\tnextAcc, control := %s(%s)\n", g.compiledContextCallTargetNameForPackage(context, info.Package, info.Package, info.ExtendGoName), g.compiledCallArgs(context, []string{"acc", "value"}))
 	fmt.Fprintf(buf, "\t\t\tif control != nil {\n")
 	fmt.Fprintf(buf, "\t\t\t\treturn %s, control\n", zeroExpr)
 	fmt.Fprintf(buf, "\t\t\t}\n")
@@ -367,6 +379,22 @@ func (g *generator) renderIteratorCollectMonoArrayHelper(buf *bytes.Buffer, info
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn acc, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
+	if g.executionContextsEnabled() {
+		fmt.Fprintf(buf, "func %s(self %s, __able_exec_ctx %s) (%s, *__ableControl) {\n", entryName, info.ReceiverType, executionContextType, info.ReturnType)
+		fmt.Fprintf(buf, "\treturn %s(self, __able_exec_ctx)\n", bodyName)
+	} else {
+		fmt.Fprintf(buf, "func %s(self %s) (%s, *__ableControl) {\n", entryName, info.ReceiverType, info.ReturnType)
+		fmt.Fprintf(buf, "\treturn %s(self)\n", bodyName)
+	}
+	fmt.Fprintf(buf, "}\n\n")
+	if g.executionContextsEnabled() {
+		fmt.Fprintf(buf, "func %s(self %s) (%s, *__ableControl) {\n", legacyBodyName, info.ReceiverType, info.ReturnType)
+		fmt.Fprintf(buf, "\treturn %s(self, __able_context_from_args())\n", bodyName)
+		fmt.Fprintf(buf, "}\n\n")
+		fmt.Fprintf(buf, "func %s(self %s) (%s, *__ableControl) {\n", legacyEntryName, info.ReceiverType, info.ReturnType)
+		fmt.Fprintf(buf, "\treturn %s(self, __able_context_from_args())\n", entryName)
+		fmt.Fprintf(buf, "}\n\n")
+	}
 }
 
 func (g *generator) finishNativeInterfaceGenericCallReturn(ctx *compileContext, lines []string, resultExpr string, resultType string, expected string) ([]string, string, string, bool) {

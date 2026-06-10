@@ -1,0 +1,76 @@
+{
+  "kind": "able-v12-release-consolidation-index-review",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "exact-index-committed",
+  "boundary": {
+    "original_manifest_derived_union_paths": 5054,
+    "manifest_recorded_paths": 5046,
+    "original_self_metadata_paths": 8,
+    "index_review_metadata_paths": 2,
+    "final_staged_paths": 5056,
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_tracked_modified_paths": 8,
+    "deferred_wasm_untracked_paths": 26
+  },
+  "manifests": {
+    "language_sha256": "5200fc5d8e698b828213f20659209d71caa52e4f71da468636979f3337d3482a",
+    "runtime_sha256": "2b8b9a54db9487f54ca7d58a78a4c7ca4c36b2f338478a6df98fe4eb090404e0",
+    "compiler_sha256": "9072a4a4762cf9736979f69612e168df63bd2b064c469b49751e0d5579cd84ce",
+    "final_combined_rows": 3968,
+    "final_combined_sha256": "8bc063622617d82a04e644a62d21b4ec56a4b24faed163a3d0a7319670c1c0cc",
+    "final_parts": [
+      {
+        "part": 1,
+        "rows": 850,
+        "sha256": "45990748cbcdc6331074f079b3cd5609cdfb99d6deadd331a4bd3ca0b15f960c"
+      },
+      {
+        "part": 2,
+        "rows": 850,
+        "sha256": "d28ba8a74d1394ca13b9a4461d2f19ca9abf528f721a0ca770379db916157f29"
+      },
+      {
+        "part": 3,
+        "rows": 850,
+        "sha256": "46d96a8c1516d44bb6c60cf5f30bea28045f90e12d6f62b68068e24c784055ed"
+      },
+      {
+        "part": 4,
+        "rows": 850,
+        "sha256": "f5ae39b7af3c7006df050222a8c3624adb85ae6a11c94f84f5a3c0698a1aa9d8"
+      },
+      {
+        "part": 5,
+        "rows": 568,
+        "sha256": "db6ff3e16a6942c33b30742cb0ec8ec6545880ea62e379803e22f41fd664e71c"
+      }
+    ]
+  },
+  "findings": {
+    "whitespace_defects_corrected": 19,
+    "trailing_space_defects": 3,
+    "extra_final_blank_line_defects": 16,
+    "reviewed_binary_artifacts": 2,
+    "forbidden_staged_paths": 0,
+    "secret_like_filenames": 0,
+    "secret_like_cached_content_matches": 0
+  },
+  "verification": {
+    "manifest_line_byte_sha256_identities": "pass",
+    "exact_stage_list_match": "pass",
+    "exact_deferred_wasm_complement": "pass",
+    "git_diff_cached_check": "pass",
+    "affected_python_contract_programs": 2,
+    "affected_python_contract_tests": 4,
+    "affected_python_contract_failures": 0,
+    "commit_created": true,
+    "commit_scope": "commit-containing-this-record"
+  },
+  "next": {
+    "id": "evidence-gated-performance-invalidation",
+    "why": "The committed broad benchmark, profile, and closure-ledger state admits no general production candidate.",
+    "entails": "Keep mutation paused until a broad application, retained source or semantic change, correctness failure, or new three-unlike-application owner invalidates affected evidence; then refresh only that evidence and apply the existing admission protocol.",
+    "importance": "This prevents reopening closed routes or weakening native-carrier and compiled/interpreted-boundary rules without new general evidence."
+  }
+}

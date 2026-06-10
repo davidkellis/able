@@ -25,6 +25,7 @@ func isRatioValue(val runtime.Value) bool {
 }
 
 func ratioPartsFromStruct(val runtime.Value) (ratioParts, bool) {
+	val = unwrapInterfaceValue(val)
 	inst, ok := val.(*runtime.StructInstanceValue)
 	if !ok || inst == nil || inst.Definition == nil {
 		return ratioParts{}, false
@@ -32,8 +33,13 @@ func ratioPartsFromStruct(val runtime.Value) (ratioParts, bool) {
 	if structInstanceName(inst) != "Ratio" {
 		return ratioParts{}, false
 	}
-	numVal, numOK := inst.Fields["num"].(runtime.IntegerValue)
-	denVal, denOK := inst.Fields["den"].(runtime.IntegerValue)
+	numField, numExists := structNamedFieldValue(inst, "num")
+	denField, denExists := structNamedFieldValue(inst, "den")
+	if !numExists || !denExists {
+		return ratioParts{}, false
+	}
+	numVal, numOK := ratioIntegerValue(numField)
+	denVal, denOK := ratioIntegerValue(denField)
 	if !numOK || !denOK {
 		return ratioParts{}, false
 	}
@@ -41,6 +47,18 @@ func ratioPartsFromStruct(val runtime.Value) (ratioParts, bool) {
 		num: runtime.CloneBigInt(numVal.BigInt()),
 		den: runtime.CloneBigInt(denVal.BigInt()),
 	}, true
+}
+
+func ratioIntegerValue(val runtime.Value) (runtime.IntegerValue, bool) {
+	switch v := bytecodeMaterializeRawValue(unwrapInterfaceValue(val)).(type) {
+	case runtime.IntegerValue:
+		return v, true
+	case *runtime.IntegerValue:
+		if v != nil {
+			return *v, true
+		}
+	}
+	return runtime.IntegerValue{}, false
 }
 
 func normalizeRatioParts(num *big.Int, den *big.Int) (ratioParts, error) {
@@ -91,14 +109,23 @@ func coerceToRatio(val runtime.Value) (ratioParts, error) {
 	if parts, ok := ratioPartsFromStruct(val); ok {
 		return normalizeRatioParts(parts.num, parts.den)
 	}
-	switch v := val.(type) {
+	switch v := bytecodeMaterializeRawValue(unwrapInterfaceValue(val)).(type) {
 	case runtime.IntegerValue:
 		return ratioFromIntegerValue(v)
+	case *runtime.IntegerValue:
+		if v != nil {
+			return ratioFromIntegerValue(*v)
+		}
 	case runtime.FloatValue:
 		return ratioFromFloatValue(v)
+	case *runtime.FloatValue:
+		if v != nil {
+			return ratioFromFloatValue(*v)
+		}
 	default:
 		return ratioParts{}, fmt.Errorf("Arithmetic requires numeric operands")
 	}
+	return ratioParts{}, fmt.Errorf("Arithmetic requires numeric operands")
 }
 
 func (i *Interpreter) makeRatioValue(parts ratioParts) (runtime.Value, error) {

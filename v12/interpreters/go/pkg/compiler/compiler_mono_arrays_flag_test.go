@@ -53,8 +53,8 @@ func TestCompilerFeatureFlagMonoArraysDefaultEnabled(t *testing.T) {
 		"",
 	}, "\n"))
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "const __able_experimental_mono_arrays = true") {
-		t.Fatalf("expected mono-array feature flag constant to default to true")
+	if !strings.Contains(compiledSrc, "const __able_native_static_arrays = true") {
+		t.Fatalf("expected native static Array contract constant to be true")
 	}
 }
 
@@ -76,7 +76,43 @@ func TestCompilerFeatureFlagMonoArraysEnabledViaOptions(t *testing.T) {
 		ExperimentalMonoArrays: true,
 	})
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "const __able_experimental_mono_arrays = true") {
-		t.Fatalf("expected mono-array feature flag constant to be enabled")
+	if !strings.Contains(compiledSrc, "const __able_native_static_arrays = true") {
+		t.Fatalf("expected native static Array contract constant to be true")
+	}
+}
+
+func TestCompilerLegacyMonoArrayOptOutCannotDisableNativeStaticArrays(t *testing.T) {
+	result := compileNoFallbackSourceWithCompilerOptions(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 {",
+		"  values := [1, 2, 3]",
+		"  values[1]! as i32",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:               "main",
+		ExperimentalMonoArrays:    false,
+		ExperimentalMonoArraysSet: true,
+	})
+
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "const __able_native_static_arrays = true") {
+		t.Fatalf("legacy opt-out must not disable the native static Array contract")
+	}
+	if strings.Contains(compiledSrc, "__able_experimental_mono_arrays") {
+		t.Fatalf("generated output must no longer describe native static arrays as experimental")
+	}
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(mainBody, "&__able_array_i32{Elements: []int32{") {
+		t.Fatalf("expected native i32 slice wrapper with legacy opt-out set:\n%s", mainBody)
+	}
+	for _, forbidden := range []string{"runtime.ArrayStore", "runtime.ArrayValue", "Storage_handle"} {
+		if strings.Contains(mainBody, forbidden) {
+			t.Fatalf("legacy opt-out leaked %q into the static function body:\n%s", forbidden, mainBody)
+		}
 	}
 }

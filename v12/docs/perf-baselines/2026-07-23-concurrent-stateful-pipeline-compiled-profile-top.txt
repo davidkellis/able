@@ -1,0 +1,109 @@
+File: run
+Build ID: 670c9ad12a57c7b64f57c3b9f86c73891bca036a
+Type: cpu
+Time: 2026-07-23 11:47:55 CDT
+Duration: 2.33s, Total samples = 5.58s (238.98%)
+Showing nodes accounting for 5.31s, 95.16% of 5.58s total
+Dropped 43 nodes (cum <= 0.03s)
+Showing top 100 nodes out of 115
+      flat  flat%   sum%        cum   cum%
+     1.71s 30.65% 30.65%      1.71s 30.65%  runtime.procyieldAsm
+     0.68s 12.19% 42.83%      0.68s 12.19%  runtime.futex
+     0.64s 11.47% 54.30%      2.86s 51.25%  runtime.lock2
+     0.35s  6.27% 60.57%      0.79s 14.16%  runtime.unlock2
+     0.23s  4.12% 64.70%      0.60s 10.75%  runtime.pcvalue
+     0.17s  3.05% 67.74%      0.17s  3.05%  runtime.memmove
+     0.17s  3.05% 70.79%      0.19s  3.41%  runtime.step
+     0.16s  2.87% 73.66%      0.39s  6.99%  runtime.recordForPanic
+     0.12s  2.15% 75.81%      0.57s 10.22%  runtime.gwrite
+     0.11s  1.97% 77.78%      0.11s  1.97%  runtime.(*moduledata).textAddr
+     0.10s  1.79% 79.57%      2.96s 53.05%  runtime.printlock
+     0.09s  1.61% 81.18%      0.41s  7.35%  runtime.unlock2Wake
+     0.07s  1.25% 82.44%      0.07s  1.25%  indexbytebody
+     0.07s  1.25% 83.69%      0.86s 15.41%  runtime.printunlock (partial-inline)
+     0.05s   0.9% 84.59%      0.05s   0.9%  runtime.osyield
+     0.05s   0.9% 85.48%      0.07s  1.25%  runtime.tryDeferToSpanScan
+     0.04s  0.72% 86.20%      0.45s  8.06%  runtime.printstring
+     0.04s  0.72% 86.92%      0.46s  8.24%  runtime.semasleep
+     0.04s  0.72% 87.63%      4.52s 81.00%  runtime.traceback2
+     0.03s  0.54% 88.17%      0.03s  0.54%  internal/strconv.formatBase10
+     0.03s  0.54% 88.71%      0.03s  0.54%  runtime.(*mLockProfile).store (inline)
+     0.03s  0.54% 89.25%      0.23s  4.12%  runtime.(*unwinder).next
+     0.03s  0.54% 89.78%      0.03s  0.54%  runtime.acquirem (inline)
+     0.03s  0.54% 90.32%      0.14s  2.51%  runtime.funcInfo.entry (inline)
+     0.03s  0.54% 90.86%      1.30s 23.30%  runtime.printArgs
+     0.03s  0.54% 91.40%      0.12s  2.15%  runtime.printhexopts
+     0.02s  0.36% 91.76%      0.19s  3.41%  runtime.(*unwinder).resolveInternal
+     0.02s  0.36% 92.11%      0.04s  0.72%  runtime.cheaprandn (inline)
+     0.02s  0.36% 92.47%      0.07s  1.25%  runtime.findnull
+     0.02s  0.36% 92.83%      0.56s 10.04%  runtime.printcreatedby
+     0.02s  0.36% 93.19%      0.29s  5.20%  runtime.semawakeup (inline)
+     0.01s  0.18% 93.37%      5.38s 96.42%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     0.01s  0.18% 93.55%      1.23s 22.04%  main.__able_compiled_entry_impl_StatefulStage_apply_0
+     0.01s  0.18% 93.73%      0.05s   0.9%  runtime.(*moduledata).funcName
+     0.01s  0.18% 93.91%      0.42s  7.53%  runtime.futexsleep
+     0.01s  0.18% 94.09%      0.27s  4.84%  runtime.goroutineheader
+     0.01s  0.18% 94.27%      0.05s   0.9%  runtime.mallocgc
+     0.01s  0.18% 94.44%      0.09s  1.61%  runtime.newInlineUnwinder
+     0.01s  0.18% 94.62%      1.15s 20.61%  runtime.printFuncName
+     0.01s  0.18% 94.80%      0.13s  2.33%  runtime.printhex
+     0.01s  0.18% 94.98%      0.07s  1.25%  runtime.showfuncinfo
+     0.01s  0.18% 95.16%      0.05s   0.9%  runtime.srcFunc.name (inline)
+         0     0% 95.16%      1.68s 30.11%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0% 95.16%      1.90s 34.05%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0% 95.16%      0.63s 11.29%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 95.16%      1.87s 33.51%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0% 95.16%      0.63s 11.29%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 95.16%      1.20s 21.51%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0% 95.16%      0.03s  0.54%  internal/strconv.RuntimeFormatBase10 (inline)
+         0     0% 95.16%      5.39s 96.59%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 95.16%      0.11s  1.97%  main.RunRegisteredMain
+         0     0% 95.16%      0.11s  1.97%  main.RunRegisteredMain.func1
+         0     0% 95.16%      0.82s 14.70%  main.__able_channel_receive_impl
+         0     0% 95.16%      0.87s 15.59%  main.__able_channel_send_impl
+         0     0% 95.16%      0.63s 11.29%  main.__able_compiled_entry_impl_StatefulStage_apply_0_a
+         0     0% 95.16%      0.11s  1.97%  main.__able_compiled_fn_main
+         0     0% 95.16%      0.26s  4.66%  main.__able_compiled_fn_main.__able_compiled_fn_make_reducer.func5
+         0     0% 95.16%      0.22s  3.94%  main.__able_compiled_fn_main.__able_compiled_fn_make_reducer.func6
+         0     0% 95.16%      0.21s  3.76%  main.__able_compiled_fn_main.__able_compiled_fn_make_reducer.func7
+         0     0% 95.16%      0.68s 12.19%  main.__able_compiled_fn_main.func1
+         0     0% 95.16%      1.54s 27.60%  main.__able_compiled_fn_main.func2
+         0     0% 95.16%      1.60s 28.67%  main.__able_compiled_fn_main.func3
+         0     0% 95.16%      1.57s 28.14%  main.__able_compiled_fn_main.func4
+         0     0% 95.16%      0.68s 12.19%  main.__able_compiled_fn_produce
+         0     0% 95.16%      4.71s 84.41%  main.__able_compiled_fn_run_stage
+         0     0% 95.16%      0.48s  8.60%  main.__able_compiled_impl_StatefulStage_apply_0
+         0     0% 95.16%      0.22s  3.94%  main.__able_compiled_impl_StatefulStage_apply_0_a
+         0     0% 95.16%      0.84s 15.05%  main.__able_compiled_method_Channel_receive_spec
+         0     0% 95.16%      2.80s 50.18%  main.__able_compiled_method_Channel_send_spec
+         0     0% 95.16%      1.68s 30.11%  main.__able_current_payload
+         0     0% 95.16%      1.23s 22.04%  main.__able_iface_StatefulStage_adapter_ptr_AffineStage.apply
+         0     0% 95.16%      0.63s 11.29%  main.__able_iface_StatefulStage_adapter_ptr_WindowStage.apply
+         0     0% 95.16%      0.11s  1.97%  main.__able_register_compiled_call.func1
+         0     0% 95.16%      5.39s 96.59%  main.__able_run_compiled_task
+         0     0% 95.16%      1.93s 34.59%  main.__able_struct_Frame_to (inline)
+         0     0% 95.16%      1.93s 34.59%  main.__able_struct_Frame_to_seen
+         0     0% 95.16%      0.99s 17.74%  main.__able_struct_Pulse_to_seen
+         0     0% 95.16%      0.11s  1.97%  main.__able_wrap_fn_main
+         0     0% 95.16%      0.11s  1.97%  main.main
+         0     0% 95.16%      0.11s  1.97%  main.runMain
+         0     0% 95.16%      0.27s  4.84%  runtime.(*inlineUnwinder).fileLine (inline)
+         0     0% 95.16%      0.06s  1.08%  runtime.(*inlineUnwinder).resolveInternal (inline)
+         0     0% 95.16%      5.35s 95.88%  runtime.Stack
+         0     0% 95.16%      5.35s 95.88%  runtime.Stack.func1
+         0     0% 95.16%      0.03s  0.54%  runtime.funcfile
+         0     0% 95.16%      0.07s  1.25%  runtime.funcline (inline)
+         0     0% 95.16%      0.34s  6.09%  runtime.funcline1
+         0     0% 95.16%      0.17s  3.05%  runtime.funcspdelta (inline)
+         0     0% 95.16%      0.27s  4.84%  runtime.futexwakeup
+         0     0% 95.16%      0.07s  1.25%  runtime.gcBgMarkWorker
+         0     0% 95.16%      0.07s  1.25%  runtime.gcBgMarkWorker.func2
+         0     0% 95.16%      0.07s  1.25%  runtime.gcDrain
+         0     0% 95.16%      0.07s  1.25%  runtime.gcDrainMarkWorkerDedicated (inline)
+         0     0% 95.16%      0.07s  1.25%  runtime.gostringnocopy (inline)
+         0     0% 95.16%      2.86s 51.25%  runtime.lock (inline)
+         0     0% 95.16%      2.86s 51.25%  runtime.lockWithRank (inline)
+         0     0% 95.16%      0.11s  1.97%  runtime.main
+         0     0% 95.16%      0.03s  0.54%  runtime.mallocgcSmallScanNoHeader
+         0     0% 95.16%      0.04s  0.72%  runtime.newobject
+         0     0% 95.16%      0.07s  1.25%  runtime.pcdatavalue

@@ -1,0 +1,138 @@
+{
+  "date": "2026-07-26",
+  "decision": "no_production_candidate",
+  "scope": "bytecode_CallMemberArraySlot_i32_materialization",
+  "environment": {
+    "cpu": 6,
+    "GOMAXPROCS": 1,
+    "GOGC": 50,
+    "GOMEMLIMIT": "1GiB",
+    "stdlib": "../able-stdlib/src",
+    "source_root_only": true,
+    "temporary_storage": "/var/tmp"
+  },
+  "artifacts": {
+    "baseline_cli_sha256": "f68f4e7314300999f257395da2a34d0c0d14e20557757f6535da89aa6466095c",
+    "baseline_interpreter_test_sha256": "aa525490df683d83e9b26f59723e2122139cbf209023829e89ed9475bbf7dad2",
+    "baseline_profile_summary_sha256": "35fa467ad5778885f97dd5339bb842db20928ddb2639165fa250cc83046b00b6",
+    "materialization_site_summary_sha256": "0c40c1a34fc2c2cbd501b02a73ada00dfcf6ec53066116491a2be11753168c71"
+  },
+  "trace": {
+    "write_path": "writeArraySlotValueFastChecked materializes before tracked-state or ArrayStore storage",
+    "push_path": "appendTrackedArrayValueFast materializes before tracked-state append",
+    "sidecar_path": "updateArrayElementTypeTokenForWrite duplicates i32 data in CachedI32Values after the boxed aggregate write",
+    "dynamic_boundary": "ensureArrayState and public Array element access materialize any explicitly unmaterialized internal state",
+    "prior_contract": "Array storage is an aggregate escape boundary"
+  },
+  "applications": [
+    {
+      "benchmark": "policy_record_dispatch",
+      "verified": true,
+      "materializations": 697712,
+      "sites": 17,
+      "main_duration_ns_mean": 7360731924.0,
+      "allocated_bytes_mean": 141728285.33333334,
+      "allocations_mean": 1391440.6666666667,
+      "array_slot_cpu_cumulative_percent": 19.89,
+      "materialization_cpu_cumulative_percent": null,
+      "materialization_alloc_space_percent": 4.02,
+      "materialization_alloc_objects_percent": 7.56
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "verified": true,
+      "materializations": 566764,
+      "sites": 17,
+      "main_duration_ns_mean": 4241570404.3333335,
+      "allocated_bytes_mean": 45764632.0,
+      "allocations_mean": 327970.6666666667,
+      "array_slot_cpu_cumulative_percent": 27.34,
+      "materialization_cpu_cumulative_percent": 2.03,
+      "materialization_alloc_space_percent": 1.23,
+      "materialization_alloc_objects_percent": 2.21
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "verified": true,
+      "materializations": 346302,
+      "sites": 18,
+      "main_duration_ns_mean": 2989835260.6666665,
+      "allocated_bytes_mean": 24501290.666666668,
+      "allocations_mean": 184377.0,
+      "array_slot_cpu_cumulative_percent": 22.99,
+      "materialization_cpu_cumulative_percent": 0.73,
+      "materialization_alloc_space_percent": null,
+      "materialization_alloc_objects_percent": null
+    },
+    {
+      "benchmark": "array_slice_window",
+      "verified": true,
+      "materializations": 288259,
+      "sites": 2,
+      "main_duration_ns_mean": 601913779.3333334,
+      "allocated_bytes_mean": 17512858.666666668,
+      "allocations_mean": 415598.3333333333,
+      "array_slot_cpu_cumulative_percent": 20.97,
+      "materialization_cpu_cumulative_percent": null,
+      "materialization_alloc_space_percent": null,
+      "materialization_alloc_objects_percent": null
+    }
+  ],
+  "site_reconciliation": {
+    "regex_family": {
+      "applications": [
+        "policy_record_dispatch",
+        "regex_set_audit",
+        "log_routing_redaction"
+      ],
+      "shared_program": "regex_nfa_upsert_thread",
+      "shared_lines": [633, 637, 645, 649],
+      "operations": ["write_slot", "push"],
+      "note": "The three large rows reuse one canonical stdlib NFA implementation and are not independent Array storage shapes."
+    },
+    "array_slice_window": {
+      "dominant_count": 288002,
+      "program": "Array.slice",
+      "line": 58,
+      "operation": "push"
+    }
+  },
+  "admission": {
+    "cpu_material_in_three_unlike_applications": false,
+    "allocation_material_in_three_unlike_applications": false,
+    "independent_shape_breadth": false,
+    "prototype_admitted": false,
+    "ab_required": false,
+    "reason": "Frequent Array calls are broad, but primitive boxing is a small or unsampled descendant and the largest three rows are one shared regex implementation family."
+  },
+  "retained_changes": [],
+  "not_changed": [
+    "bytecode VM",
+    "runtime",
+    "compiler",
+    "tree walker",
+    "stdlib",
+    "benchmarks",
+    "fixtures",
+    "language",
+    "dependencies",
+    "WASM"
+  ],
+  "focused_verification": {
+    "interpreter_count": 3,
+    "runtime_count": 3,
+    "passed": true
+  },
+  "full_verification": {
+    "command": "./run_all_tests.sh",
+    "passed": true,
+    "compiler_batches": 32,
+    "final_bytecode_fixture_seconds": 90.940
+  },
+  "next": {
+    "tranche": "bytecode_static_return_materialization_consumer_reconciliation",
+    "why": "Static return is the next largest broad candidate reason after collection routes were closed: 1678255 transitions across 39 applications.",
+    "entails": "Classify ordinary Return i32/i64 results by immediate caller consumer and ownership, reconcile diagnostics-off CPU/allocation profiles in unlike applications, and admit only a local existing-ownership raw handoff that avoids broad frame or execution-context ABI changes.",
+    "importance": "Internal static returns are a direct native-carrier boundary; proving which results can remain raw advances the no-boxing architecture without weakening public or dynamic value semantics."
+  }
+}

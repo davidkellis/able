@@ -1,0 +1,51 @@
+package exec_14_22_regex_set_iter
+
+import able.kernel.{Array}
+import able.text.regex.{RegexSet, RegexSetIter, RegexSetMatch}
+import able.text.string.{String}
+
+fn patterns3(first: String, second: String, third: String) -> Array String {
+  result: Array String := Array.with_capacity(3)
+  result.push(first)
+  result.push(second)
+  result.push(third)
+  result
+}
+
+fn patterns4(first: String, second: String, third: String, fourth: String) -> Array String {
+  result: Array String := Array.with_capacity(4)
+  result.push(first)
+  result.push(second)
+  result.push(third)
+  result.push(fourth)
+  result
+}
+
+fn show_iter(label: String, iter: RegexSetIter) -> void {
+  loop {
+    iter.next() match {
+      case found: RegexSetMatch => print(`${label} ${found.pattern_index} ${found.span.start}-${found.span.end}`),
+      case _ => {
+        print(`${label} end`)
+        break
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  RegexSet.compile(patterns4("cat", "c.t", "dog", "at")) match {
+    case set: RegexSet => show_iter("order", set.iter("dog cat")),
+    case _ => print("order compile error")
+  }
+
+  RegexSet.compile(patterns3("a", "aa", "a+")) match {
+    case set: RegexSet => show_iter("longest", set.iter("aaX")),
+    case _ => print("longest compile error")
+  }
+
+  RegexSet.compile(patterns3("ab", "b", "x")) match {
+    case set: RegexSet => show_iter("nonoverlap", set.iter("abab")),
+    case _ => print("nonoverlap compile error")
+  }
+}

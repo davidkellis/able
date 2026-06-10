@@ -1,0 +1,69 @@
+package bench_knapsack_i32_small
+
+import able.kernel.{Array}
+
+fn build_weights(count: i32, seed: i32) -> Array i32 {
+  weights: Array i32 = Array.with_capacity(count)
+  idx := 0
+  loop {
+    if idx >= count { break }
+    weights.push(((idx * 17) + seed) % 23 + 1)
+    idx = idx + 1
+  }
+  weights
+}
+
+fn build_values(count: i32, seed: i32) -> Array i32 {
+  values: Array i32 = Array.with_capacity(count)
+  idx := 0
+  loop {
+    if idx >= count { break }
+    values.push(((idx * 29) + (seed * 7)) % 97 + 3)
+    idx = idx + 1
+  }
+  values
+}
+
+fn solve_knapsack(weights: Array i32, values: Array i32, capacity: i32) -> i32 {
+  best: Array i32 = Array.with_capacity(capacity + 1)
+  slot := 0
+  loop {
+    if slot > capacity { break }
+    best.push(0)
+    slot = slot + 1
+  }
+
+  idx := 0
+  loop {
+    if idx >= weights.len() { break }
+    weight := weights[idx]!
+    value := values[idx]!
+    slot = capacity
+    loop {
+      if slot < weight { break }
+      candidate := best[slot - weight]! + value
+      if candidate > best[slot]! {
+        best[slot] = candidate
+      }
+      slot = slot - 1
+    }
+    idx = idx + 1
+  }
+
+  best[capacity]!
+}
+
+fn main() -> void {
+  seeds: Array i32 = [5, 17, 29, 41, 53, 65]
+  idx := 0
+  total: i64 = 0_i64
+  loop {
+    if idx >= seeds.len() { break }
+    seed := seeds[idx]!
+    weights := build_weights(72, seed)
+    values := build_values(72, seed + 11)
+    total = total + (solve_knapsack(weights, values, 220) as i64)
+    idx = idx + 1
+  }
+  print(total)
+}

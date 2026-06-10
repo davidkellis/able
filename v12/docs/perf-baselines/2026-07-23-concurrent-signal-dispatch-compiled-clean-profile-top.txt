@@ -1,0 +1,58 @@
+File: compiled
+Build ID: 0d0685cb70e440449afd18c3e7f9ca5f1306cb12
+Type: cpu
+Time: 2026-07-23 08:20:41 CDT
+Duration: 572.68ms, Total samples = 1.12s (195.57%)
+Showing nodes accounting for 1.12s, 100% of 1.12s total
+Showing top 50 nodes out of 137
+      flat  flat%   sum%        cum   cum%
+     0.28s 25.00% 25.00%      0.28s 25.00%  runtime.procyieldAsm
+     0.13s 11.61% 36.61%      0.51s 45.54%  runtime.lock2
+     0.12s 10.71% 47.32%      0.12s 10.71%  runtime.futex
+     0.10s  8.93% 56.25%      0.16s 14.29%  runtime.unlock2
+     0.06s  5.36% 61.61%      0.12s 10.71%  runtime.pcvalue
+     0.05s  4.46% 66.07%      0.05s  4.46%  runtime.memmove
+     0.04s  3.57% 69.64%      0.04s  3.57%  runtime.step
+     0.03s  2.68% 72.32%      0.11s  9.82%  runtime.gwrite
+     0.03s  2.68% 75.00%      0.03s  2.68%  runtime.osyield
+     0.03s  2.68% 77.68%      0.08s  7.14%  runtime.recordForPanic
+     0.02s  1.79% 79.46%      0.02s  1.79%  runtime.(*moduledata).funcName
+     0.02s  1.79% 81.25%      0.02s  1.79%  runtime.(*moduledata).textAddr
+     0.02s  1.79% 83.04%      0.18s 16.07%  runtime.printunlock
+     0.01s  0.89% 83.93%      0.01s  0.89%  indexbytebody
+     0.01s  0.89% 84.82%      0.01s  0.89%  internal/strconv.formatBase10
+     0.01s  0.89% 85.71%      0.01s  0.89%  internal/stringslite.HasPrefix (inline)
+     0.01s  0.89% 86.61%      0.01s  0.89%  main.__able_checked_mul_signed
+     0.01s  0.89% 87.50%      0.01s  0.89%  reflect.packEfaceData
+     0.01s  0.89% 88.39%      0.01s  0.89%  runtime.(*unwinder).finishInternal
+     0.01s  0.89% 89.29%      0.01s  0.89%  runtime.(*unwinder).initAt
+     0.01s  0.89% 90.18%      0.05s  4.46%  runtime.(*unwinder).resolveInternal
+     0.01s  0.89% 91.07%      1.05s 93.75%  runtime.Stack.func1
+     0.01s  0.89% 91.96%      0.01s  0.89%  runtime.findfunc
+     0.01s  0.89% 92.86%      0.03s  2.68%  runtime.funcInfo.entry (inline)
+     0.01s  0.89% 93.75%      0.01s  0.89%  runtime.memclrNoHeapPointers
+     0.01s  0.89% 94.64%      0.52s 46.43%  runtime.printlock
+     0.01s  0.89% 95.54%      0.02s  1.79%  runtime.scanSpan
+     0.01s  0.89% 96.43%      0.01s  0.89%  runtime.spanClass.sizeclass (inline)
+     0.01s  0.89% 97.32%      0.01s  0.89%  runtime.spanOf (inline)
+     0.01s  0.89% 98.21%      0.91s 81.25%  runtime.traceback2
+     0.01s  0.89% 99.11%      0.02s  1.79%  runtime.tryDeferToSpanScan
+     0.01s  0.89%   100%      0.06s  5.36%  runtime.unlock2Wake
+         0     0%   100%      0.54s 48.21%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%      0.24s 21.43%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%      0.12s 10.71%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%      0.24s 21.43%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%      0.01s  0.89%  able/interpreter-go/pkg/compiler/bridge.HostValueToRuntime
+         0     0%   100%      0.12s 10.71%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%      0.15s 13.39%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      0.01s  0.89%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         0     0%   100%      1.05s 93.75%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%      0.01s  0.89%  able/interpreter-go/pkg/compiler/bridge.hostValueToRuntime
+         0     0%   100%      0.01s  0.89%  internal/strconv.RuntimeFormatBase10 (inline)
+         0     0%   100%      0.73s 65.18%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%      0.35s 31.25%  main.RunRegisteredMain
+         0     0%   100%      0.35s 31.25%  main.RunRegisteredMain.func1
+         0     0%   100%      0.32s 28.57%  main.__able_channel_receive_impl
+         0     0%   100%      0.22s 19.64%  main.__able_channel_send_impl
+         0     0%   100%      0.01s  0.89%  main.__able_compiled_entry_fn_read_lines_prefix
+         0     0%   100%      0.18s 16.07%  main.__able_compiled_entry_impl_SignalKernel_evaluate_0

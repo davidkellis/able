@@ -90,11 +90,14 @@ func TestCompilerTreeMapStaticCarrierStaysNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var values *TreeMap",
-		"__able_compiled_method_TreeMap_new",
-		"__able_compiled_method_TreeMap_set",
 	} {
 		if !strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected native TreeMap build lowering to contain %q:\n%s", fragment, buildBody)
+		}
+	}
+	for _, call := range []string{"__able_compiled_method_TreeMap_new", "__able_compiled_method_TreeMap_set"} {
+		if !bodyCallsCompiledDirect(buildBody, call) {
+			t.Fatalf("expected native TreeMap build lowering to contain a direct %q call:\n%s", call, buildBody)
 		}
 	}
 	for _, fragment := range []string{
@@ -141,12 +144,15 @@ func TestCompilerPersistentMapStaticCarrierStaysNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"var values *PersistentMap",
-		"__able_compiled_method_PersistentMap_empty",
-		"__able_compiled_method_PersistentMap_set",
 		"values = __able_tmp_",
 	} {
 		if !strings.Contains(buildBody, fragment) {
 			t.Fatalf("expected native PersistentMap build lowering to contain %q:\n%s", fragment, buildBody)
+		}
+	}
+	for _, call := range []string{"__able_compiled_method_PersistentMap_empty", "__able_compiled_method_PersistentMap_set"} {
+		if !bodyCallsCompiledDirect(buildBody, call) {
+			t.Fatalf("expected native PersistentMap build lowering to contain a direct %q call:\n%s", call, buildBody)
 		}
 	}
 	for _, fragment := range []string{

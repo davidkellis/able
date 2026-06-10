@@ -5,29 +5,18 @@ import (
 )
 
 func (g *generator) renderRuntimeFutureHelpers(buf *bytes.Buffer) {
+	g.renderRuntimeFutureDeclarations(buf)
+	contextFields := g.asyncPayloadContextFields()
+	awaitStateField := g.asyncPayloadAwaitStateField()
 	buf.WriteString(`
-var __able_future_error_def *runtime.StructDefinitionValue
-var __able_future_status_defs map[string]*runtime.StructDefinitionValue
-var __able_future_status_pending runtime.Value
-var __able_future_status_resolved runtime.Value
-var __able_future_status_cancelled runtime.Value
-var __able_future_status_once sync.Once
-var __able_future_defs_mu sync.Mutex
-
-type __able_compiled_yield struct {
-	result runtime.Value
-	err    error
-	done   bool
-}
-
 type __able_async_payload struct {
 	handle       *runtime.FutureValue
-	started      atomic.Bool
+` + contextFields + `	started      atomic.Bool
 	yield        chan __able_compiled_yield
 	resume       chan struct{}
-	awaitBlocked bool
+	awaitBlocked atomic.Bool
 	resumeTask   func()
-	awaitStates  map[*ast.AwaitExpression]*__able_await_state
+` + awaitStateField + `
 }
 
 type __able_serial_task struct {
@@ -48,6 +37,7 @@ type __able_serial_executor struct {
 	paused    bool
 	syncDepth int
 	forceAuto int
+	workerInFlight int
 }
 
 type __able_future_executor_iface interface {
@@ -61,9 +51,12 @@ type __able_future_executor_iface interface {
 }
 
 type __able_goroutine_executor struct {
-	pending atomic.Int64
-	blocked atomic.Int64
-	handles sync.Map
+	pending      atomic.Int64
+	blocked      atomic.Int64
+	handles      sync.Map
+	progressMu   sync.Mutex
+	progressCond *sync.Cond
+	progress     uint64
 }
 
 type __able_goroutine_handle_state struct {
@@ -232,7 +225,7 @@ func __able_future_make_error(details string) runtime.Value {
 func __able_future_error_details(val runtime.Value) string {
 	if v, ok := val.(*runtime.StructInstanceValue); ok {
 		if v != nil && __able_future_error_struct() != nil && v.Definition == __able_future_error_struct() {
-			if detail, ok := v.Fields["details"]; ok {
+			if detail, ok := __able_struct_named_field_value(v, "details"); ok {
 				if str, ok := detail.(runtime.StringValue); ok {
 					return str.Val
 				}
@@ -351,7 +344,7 @@ func __able_future_register_awaiter(handle *runtime.FutureValue, waker runtime.V
 	if handle == nil {
 		return nil, fmt.Errorf("register requires future handle")
 	}
-	structWaker, ok := waker.(*runtime.StructInstanceValue)
+` + g.nativeFutureAwaitWakerRegister() + `	structWaker, ok := waker.(*runtime.StructInstanceValue)
 	if !ok || structWaker == nil {
 		return nil, fmt.Errorf("register expects AwaitWaker")
 	}
@@ -605,7 +598,9 @@ func __able_apply_task_outcome(handle *runtime.FutureValue, result runtime.Value
 }
 
 func __able_new_goroutine_executor() *__able_goroutine_executor {
-	return &__able_goroutine_executor{}
+	exec := &__able_goroutine_executor{}
+	exec.progressCond = sync.NewCond(&exec.progressMu)
+	return exec
 }
 
 func (e *__able_goroutine_executor) RunFuture(env *runtime.Environment, task func(*runtime.Environment) (runtime.Value, error)) *runtime.FutureValue {
@@ -623,9 +618,13 @@ func (e *__able_goroutine_executor) RunFuture(env *runtime.Environment, task fun
 	payload := &__able_async_payload{handle: handle}
 	e.registerHandle(handle)
 	e.pending.Add(1)
+	e.notifyFlushProgress()
 	go func() {
 		defer e.unregisterHandle(handle)
-		defer e.pending.Add(-1)
+		defer func() {
+			e.pending.Add(-1)
+			e.notifyFlushProgress()
+		}()
 		handle.MarkStarted()
 		result, err := __able_run_compiled_task(payload, env, task)
 		__able_apply_task_outcome(handle, result, err)
@@ -634,17 +633,53 @@ func (e *__able_goroutine_executor) RunFuture(env *runtime.Environment, task fun
 }
 
 func (e *__able_goroutine_executor) Flush() {
+	if e == nil {
+		return
+	}
+	e.progressMu.Lock()
+	defer e.progressMu.Unlock()
 	for {
 		pending := e.pending.Load()
 		if pending <= 0 {
 			return
 		}
 		blocked := e.blocked.Load()
-		if blocked >= pending && pending > 0 {
+		if blocked >= pending && pending > 0 && !e.hasCancellingBlockedTask() {
 			return
 		}
-		time.Sleep(0)
+		progress := e.progress
+		for progress == e.progress {
+			e.progressCond.Wait()
+		}
 	}
+}
+
+func (e *__able_goroutine_executor) hasCancellingBlockedTask() bool {
+	if e == nil {
+		return false
+	}
+	found := false
+	e.handles.Range(func(handleAny, stateAny any) bool {
+		handle, handleOK := handleAny.(*runtime.FutureValue)
+		state, stateOK := stateAny.(*__able_goroutine_handle_state)
+		if handleOK && stateOK && handle != nil && state != nil &&
+			state.blocked.Load() && handle.Status() == runtime.FuturePending && handle.CancelRequested() {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func (e *__able_goroutine_executor) notifyFlushProgress() {
+	if e == nil {
+		return
+	}
+	e.progressMu.Lock()
+	e.progress++
+	e.progressCond.Broadcast()
+	e.progressMu.Unlock()
 }
 
 func (e *__able_goroutine_executor) PendingTasks() int {
@@ -674,6 +709,7 @@ func (e *__able_goroutine_executor) unregisterHandle(handle *runtime.FutureValue
 		if state, ok := stateAny.(*__able_goroutine_handle_state); ok {
 			if state.blocked.Load() {
 				e.blocked.Add(-1)
+				e.notifyFlushProgress()
 			}
 		}
 	}
@@ -687,6 +723,7 @@ func (e *__able_goroutine_executor) MarkBlocked(handle *runtime.FutureValue) {
 		if state, ok := stateAny.(*__able_goroutine_handle_state); ok {
 			if state.blocked.CompareAndSwap(false, true) {
 				e.blocked.Add(1)
+				e.notifyFlushProgress()
 			}
 		}
 	}
@@ -700,6 +737,7 @@ func (e *__able_goroutine_executor) MarkUnblocked(handle *runtime.FutureValue) {
 		if state, ok := stateAny.(*__able_goroutine_handle_state); ok {
 			if state.blocked.CompareAndSwap(true, false) {
 				e.blocked.Add(-1)
+				e.notifyFlushProgress()
 			}
 		}
 	}
@@ -774,7 +812,7 @@ func (e *__able_serial_executor) loop() {
 		if !ok {
 			return
 		}
-		if errors.Is(e.runSerialTask(task), __able_err_serial_yield) {
+		if errors.Is(e.runSerialTask(task, true), __able_err_serial_yield) {
 			continue
 		}
 	}
@@ -791,6 +829,9 @@ func (e *__able_serial_executor) nextTask() (__able_serial_task, bool) {
 	}
 	task := e.queue[0]
 	e.queue = e.queue[1:]
+	if task.handle != nil {
+		e.workerInFlight++
+	}
 	return task, true
 }
 
@@ -804,7 +845,7 @@ func (e *__able_serial_executor) Flush() {
 	e.mu.Lock()
 	e.forceAuto++
 	e.cond.Broadcast()
-	for (len(e.queue) > 0 || (e.active && !e.paused)) && !e.closed {
+	for (len(e.queue) > 0 || e.workerInFlight > 0 || (e.active && !e.paused)) && !e.closed {
 		e.cond.Wait()
 	}
 	e.forceAuto--
@@ -823,7 +864,7 @@ func (e *__able_serial_executor) Drive(handle *runtime.FutureValue) {
 		if !ok {
 			return
 		}
-		if !errors.Is(e.runSerialTask(task), __able_err_serial_yield) {
+		if !errors.Is(e.runSerialTask(task, false), __able_err_serial_yield) {
 			return
 		}
 	}
@@ -864,14 +905,13 @@ func (e *__able_serial_executor) stealTask(handle *runtime.FutureValue) (__able_
 	return __able_serial_task{}, false
 }
 
-func (e *__able_serial_executor) runSerialTask(task __able_serial_task) error {
+func (e *__able_serial_executor) runSerialTask(task __able_serial_task, workerTask bool) error {
 	if task.handle == nil {
 		return nil
 	}
+	prevCurrent, prevActive, prevPaused := e.swapCurrent(task.handle, workerTask)
 	if task.handle.Status() != runtime.FuturePending {
-		e.mu.Lock()
-		e.cond.Broadcast()
-		e.mu.Unlock()
+		e.restoreCurrent(prevCurrent, prevActive, prevPaused)
 		return nil
 	}
 	e.mu.Lock()
@@ -890,7 +930,7 @@ func (e *__able_serial_executor) runSerialTask(task __able_serial_task) error {
 		task.payload = payload
 	}
 	payload.handle = task.handle
-	payload.awaitBlocked = false
+	payload.awaitBlocked.Store(false)
 	payload.resumeTask = func() {
 		e.mu.Lock()
 		if e.blocked != nil {
@@ -899,7 +939,6 @@ func (e *__able_serial_executor) runSerialTask(task __able_serial_task) error {
 		e.mu.Unlock()
 		e.enqueue(task)
 	}
-
 	if payload.started.CompareAndSwap(false, true) {
 		go func(task __able_serial_task, payload *__able_async_payload) {
 			<-payload.resume
@@ -907,15 +946,13 @@ func (e *__able_serial_executor) runSerialTask(task __able_serial_task) error {
 			payload.yield <- __able_compiled_yield{result: result, err: err, done: true}
 		}(task, payload)
 	}
-
 	task.handle.MarkStarted()
-	prevCurrent, prevActive, prevPaused := e.swapCurrent(task.handle)
 	payload.resume <- struct{}{}
 	event := <-payload.yield
 	e.restoreCurrent(prevCurrent, prevActive, prevPaused)
 
 	if !event.done {
-		if payload.awaitBlocked {
+		if payload.awaitBlocked.Load() {
 			e.mu.Lock()
 			if e.blocked != nil {
 				e.blocked[task.handle] = task
@@ -926,12 +963,10 @@ func (e *__able_serial_executor) runSerialTask(task __able_serial_task) error {
 		e.enqueue(task)
 		return __able_err_serial_yield
 	}
-
 	__able_apply_task_outcome(task.handle, event.result, event.err)
 	return event.err
 }
-
-func (e *__able_serial_executor) swapCurrent(handle *runtime.FutureValue) (*runtime.FutureValue, bool, bool) {
+func (e *__able_serial_executor) swapCurrent(handle *runtime.FutureValue, workerTask bool) (*runtime.FutureValue, bool, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	prev := e.current
@@ -940,9 +975,12 @@ func (e *__able_serial_executor) swapCurrent(handle *runtime.FutureValue) (*runt
 	e.current = handle
 	e.active = true
 	e.paused = false
+	if workerTask && e.workerInFlight > 0 {
+		e.workerInFlight--
+		e.cond.Broadcast()
+	}
 	return prev, prevActive, prevPaused
 }
-
 func (e *__able_serial_executor) restoreCurrent(prev *runtime.FutureValue, prevActive bool, prevPaused bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -952,4 +990,5 @@ func (e *__able_serial_executor) restoreCurrent(prev *runtime.FutureValue, prevA
 	e.cond.Broadcast()
 }
 `)
+	g.renderExecutionContextRuntime(buf)
 }

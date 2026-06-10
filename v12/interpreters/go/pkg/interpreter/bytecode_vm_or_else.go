@@ -41,13 +41,14 @@ func (vm *bytecodeVM) execOrElse(instr bytecodeInstruction) (bool, error) {
 		if val == nil {
 			val = runtime.NilValue{}
 		}
-		vm.stack = append(vm.stack, val)
+		vm.appendStackValue(val)
 		vm.ip = instr.target
 		return false, nil
 	}
-	vm.env = runtime.NewEnvironment(vm.env)
 	if instr.name != "" && failureKind == "error" {
-		vm.env.Define(instr.name, failureValue)
+		vm.env = runtime.NewEnvironmentWithSingleBinding(vm.env, 1, instr.name, failureValue)
+	} else {
+		vm.env = runtime.NewEnvironment(vm.env)
 	}
 	vm.ip++
 	return false, nil

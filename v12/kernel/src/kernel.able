@@ -650,19 +650,23 @@ extern typescript fn __able_String_from_builtin(value: String) -> _ {}
 extern typescript fn __able_String_to_builtin(bytes: _) -> String {}
 extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
 extern typescript fn __able_char_to_codepoint(value: char) -> i32 {}
+extern typescript fn __able_char_simple_fold_next(value: char) -> char {}
 extern go fn __able_String_from_builtin(value: String) -> _ {}
 extern go fn __able_String_to_builtin(bytes: _) -> String {}
 extern go fn __able_char_from_codepoint(value: i32) -> char {}
 extern go fn __able_char_to_codepoint(value: char) -> i32 {}
+extern go fn __able_char_simple_fold_next(value: char) -> char {}
 
 ## Numeric bridges
 extern typescript fn __able_ratio_from_float(value: f64) -> _ {}
 extern typescript fn __able_f32_bits(value: f32) -> u32 {}
 extern typescript fn __able_f64_bits(value: f64) -> u64 {}
+extern typescript fn __able_f64_sqrt(value: f64) -> f64 {}
 extern typescript fn __able_u64_mul(lhs: u64, rhs: u64) -> u64 {}
 extern go fn __able_ratio_from_float(value: f64) -> _ {}
 extern go fn __able_f32_bits(value: f32) -> u32 {}
 extern go fn __able_f64_bits(value: f64) -> u64 {}
+extern go fn __able_f64_sqrt(value: f64) -> f64 {}
 extern go fn __able_u64_mul(lhs: u64, rhs: u64) -> u64 {}
 
 ## Channel primitives

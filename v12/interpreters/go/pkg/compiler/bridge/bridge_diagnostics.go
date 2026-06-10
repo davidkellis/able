@@ -1,10 +1,10 @@
 package bridge
 
 import (
+	"errors"
 	"fmt"
 
 	"able/interpreter-go/pkg/ast"
-	"able/interpreter-go/pkg/interpreter"
 	"able/interpreter-go/pkg/runtime"
 )
 
@@ -25,7 +25,7 @@ func RaisedError(rt *Runtime, node ast.Node, value runtime.Value) error {
 		return fmt.Errorf("%v", value)
 	}
 	env := rt.currentEnv()
-	err := interpreter.Raise(rt.interp, value, env)
+	err := rt.interp.RaiseValue(value, env)
 	if node != nil {
 		err = attachRuntimeContext(rt, err, node, env)
 	}
@@ -51,7 +51,23 @@ func RaisedErrorIn(rt *Runtime, ctx *runtime.NativeCallContext, value runtime.Va
 		}
 		return fmt.Errorf("%v", value)
 	}
-	return interpreter.Raise(rt.interp, value, env)
+	return rt.interp.RaiseValue(value, env)
+}
+
+// RaisedValue exposes the value carried by an interpreter raise signal. A
+// compiled boundary uses it to preserve typed rescue semantics instead of
+// collapsing the signal into an ordinary Go runtime error.
+func RaisedValue(err error) (runtime.Value, bool) {
+	if err == nil {
+		return nil, false
+	}
+	var raised interface {
+		RaisedValue() runtime.Value
+	}
+	if !errors.As(err, &raised) {
+		return nil, false
+	}
+	return raised.RaisedValue(), true
 }
 
 // RaiseWithContext raises a value with attached runtime diagnostics.
@@ -82,6 +98,15 @@ func RegisterNodeOrigin(rt *Runtime, node ast.Node, origin string) {
 		return
 	}
 	rt.interp.AddNodeOrigin(node, origin)
+}
+
+// ReserveNodeOrigins pre-sizes compiled diagnostic origin storage before a
+// generated launcher registers its complete node set.
+func ReserveNodeOrigins(rt *Runtime, capacity int) {
+	if rt == nil || rt.interp == nil || capacity <= 0 {
+		return
+	}
+	rt.interp.ReserveNodeOrigins(capacity)
 }
 
 // PushCallFrame records a compiled call expression for later diagnostics.

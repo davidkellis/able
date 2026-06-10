@@ -1,0 +1,56 @@
+{
+  "kind": "able-compiler-positional-boundary-zero-reach-closure",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "rebase-compiler-scope-after-complete-zero-reach-proof",
+  "catalog": {
+    "application_count": 63,
+    "strict_emissions": 63,
+    "interpreter_free_graphs": 63
+  },
+  "census": {
+    "path": "v12/docs/perf-baselines/2026-07-27-compiler-positional-boundary-reach-census.tsv",
+    "sha256": "72ee4aa385e6d07d5087bd57f4783ebbd5a2b77231317f7523caa8b2341d66c7",
+    "byte_identical_repetitions": 2
+  },
+  "ratio_boundary": {
+    "generated_helper_occurrences": 189,
+    "linked_applications": 41,
+    "unlinked_applications": 22,
+    "linked_diagnostic_applications": 41,
+    "verified_sentinel_no_hit_applications": 41,
+    "reached_applications": 0,
+    "positive_control_reached": true
+  },
+  "map_spread_boundary": {
+    "generated_source_applications": 0,
+    "linked_diagnostic_applications": 0,
+    "reached_applications": 0
+  },
+  "measurement": {
+    "fresh_timing_rows_required": 0,
+    "rationale": "No current portable application executes either corrected branch; retained scorecard timings do not measure changed execution."
+  },
+  "release_evidence": {
+    "path": "v12/docs/perf-baselines/2026-07-27-compiler-release-positional-nominal-boundary-repair.md",
+    "sha256": "ae2aae6fa9d87c2a4144387aa0186d66d70622932c4478cba6d9501e1018e719"
+  },
+  "compiler_scope": {
+    "file_count": 281,
+    "previous_tree_sha256": "cc6df4aa7f65a2de5c3053be1cc216bb48d66d8e92b476d9aa338af6380f35a5",
+    "current_tree_sha256": "30e71f61e48405c87191288c7683da108e5de641d314ac1570f778ac4770b13d"
+  },
+  "ledger": {
+    "closure_count": 21,
+    "current_count": 21,
+    "invalidated_count": 0,
+    "selection_sha256": "e6a6ccacc9620f9e1b89e2510cab52a85114ddbf2f41e33abae7c6d8a70241f8"
+  },
+  "cleanup": {
+    "removed_generated_workspace_gib": 5.6,
+    "removed_go_cache_gib": 4.9,
+    "ram_backed_able_temp_paths_remaining": 0
+  },
+  "production_change": false,
+  "performance_claim": false
+}

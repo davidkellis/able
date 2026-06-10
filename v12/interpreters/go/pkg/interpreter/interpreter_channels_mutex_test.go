@@ -287,6 +287,49 @@ func TestMutexLocksCoordinateFutures(t *testing.T) {
 	}
 }
 
+func TestBytecodeMutexUnlockWakesMultipleBlockedFutures(t *testing.T) {
+	interp := NewBytecodeWithExecutor(NewGoroutineExecutor(nil))
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("mutex"), ast.Call("__able_mutex_new")))
+	mustEval(ast.Assign(ast.ID("count"), ast.Int(0)))
+	mustEval(ast.Call("__able_mutex_lock", ast.ID("mutex")))
+
+	workers := make([]*runtime.FutureValue, 0, 4)
+	for range 4 {
+		value := mustEval(ast.Spawn(ast.Block(
+			ast.Call("__able_mutex_lock", ast.ID("mutex")),
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("count"), ast.Bin("+", ast.ID("count"), ast.Int(1))),
+			ast.Call("__able_mutex_unlock", ast.ID("mutex")),
+			ast.Nil(),
+		)))
+		worker, ok := value.(*runtime.FutureValue)
+		if !ok || worker == nil {
+			t.Fatalf("expected future handle, got %#v", value)
+		}
+		workers = append(workers, worker)
+	}
+
+	interp.executor.Flush()
+	mustEval(ast.Call("__able_mutex_unlock", ast.ID("mutex")))
+	for _, worker := range workers {
+		if !waitForStatus(worker, runtime.FutureResolved, 500*time.Millisecond) {
+			t.Fatalf("blocked mutex worker did not resolve: %v", futureStatus(worker))
+		}
+	}
+	if got := mustGetInt(t, global, "count"); got != 4 {
+		t.Fatalf("mutex workers updated count %d times, want 4", got)
+	}
+}
+
 func TestNilChannelSendBlocksUntilCancelled(t *testing.T) {
 	interp := newAsyncInterpreter(t)
 	global := interp.GlobalEnvironment()

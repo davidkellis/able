@@ -1,0 +1,127 @@
+{
+  "kind": "able-compiled-aot-native-carrier-owner-closure",
+  "date": "2026-07-26",
+  "decision": "retain-no-production-change",
+  "test_only_change": {
+    "file": "v12/interpreters/go/pkg/interpreter/interpreter_extern_test.go",
+    "reason": "build the initially valid plugin in a short-lived helper before corrupting its on-disk artifact; avoid truncating a plugin mapped in the current process",
+    "production_behavior_changed": false,
+    "focused_repetitions": 3,
+    "focused_seconds_range": [0.47, 0.53]
+  },
+  "compiler_sha256": "28697a5adf4f73918f3d83fbcddc211407dc7e539240f64e4127a4e3dd4ddcab",
+  "compiler_batches": [
+    {
+      "batch": 19,
+      "seconds": [185.073, 183.61, 187.11],
+      "mean_seconds": 185.2643333333,
+      "largest_test_seconds": 46.23,
+      "individual_test_over_60_seconds": false
+    },
+    {
+      "batch": 28,
+      "seconds": [75.304, 76.3, 77.81],
+      "mean_seconds": 76.4713333333,
+      "largest_test_seconds": 23.33,
+      "individual_test_over_60_seconds": false
+    },
+    {
+      "batch": 29,
+      "seconds": [93.208, 89.6, 87.9],
+      "mean_seconds": 90.236,
+      "largest_test_seconds": 22.79,
+      "individual_test_over_60_seconds": false
+    }
+  ],
+  "applications": [
+    {
+      "benchmark": "nbody",
+      "able_seconds": 0.082,
+      "go_seconds": 0.0354,
+      "ratio": 2.3163841808,
+      "dependency_packages": 96,
+      "interpreter_dependency_matches": 0,
+      "cpu_profiles_per_language": 20,
+      "able_cpu_samples_seconds": 1.11,
+      "go_cpu_samples_seconds": 0.59,
+      "able_main_allocated_bytes": 1096,
+      "able_main_allocations": 41,
+      "able_main_gc_count": 0,
+      "go_main_allocated_bytes": 376,
+      "go_main_allocations": 6,
+      "typed_boundary_counts": {
+        "any_to_runtime": 2
+      },
+      "owner": "native generated advance over static float64 arrays"
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "able_seconds": 0.164,
+      "go_seconds": 0.0082,
+      "ratio": 20.0,
+      "dependency_packages": 96,
+      "interpreter_dependency_matches": 0,
+      "cpu_profiles_per_language": 20,
+      "able_cpu_samples_seconds": 1.82,
+      "go_cpu_samples_seconds": 0.11,
+      "able_main_allocated_bytes_mean": 17038154.6667,
+      "able_main_allocations": 553063,
+      "able_main_gc_count": 5,
+      "go_main_allocated_bytes": 296000,
+      "go_main_allocations": 41,
+      "typed_boundary_counts": {
+        "control_from_error": 811010
+      },
+      "representative_exact_flat_allocations": {
+        "bridge.ToDynamicI64": 270336,
+        "__able_nullable_i64_from_value": 135169
+      },
+      "owner": "runtime-backed generic Map hashing, equality, and nullable result recovery"
+    },
+    {
+      "benchmark": "unicode_scalar_pipeline",
+      "able_seconds": 0.112,
+      "go_seconds": 0.0101,
+      "ratio": 11.0891089109,
+      "dependency_packages": 96,
+      "interpreter_dependency_matches": 0,
+      "cpu_profiles_per_language": 20,
+      "able_cpu_samples_seconds": 1.6,
+      "go_cpu_samples_seconds": 0.14,
+      "able_main_allocated_bytes_mean": 24808378.6667,
+      "able_main_allocations": 2629753,
+      "able_main_gc_count": 9,
+      "go_main_allocated_bytes": 197032,
+      "go_main_allocations": 10,
+      "typed_boundary_counts": {
+        "control_from_error": 1769472
+      },
+      "representative_exact_flat_allocations": {
+        "__able_compiled_fn_utf8_decode": 1016741,
+        "__able_union__IteratorEnd_or_rune_wrap_rune": 293986
+      },
+      "owner": "UTF-8 iterator work and shared nominal iterator-union encoding"
+    }
+  ],
+  "verified_processes": {
+    "smoke": 3,
+    "able_cpu": 60,
+    "go_cpu": 60,
+    "able_allocation_counters": 9,
+    "go_allocation_counters": 9,
+    "able_allocation_profiles": 9,
+    "go_allocation_profiles": 9,
+    "typed_boundary_telemetry": 3
+  },
+  "full_handoff": {
+    "passed": true,
+    "compiler_batch_19_seconds": 187.613,
+    "compiler_batch_28_seconds": 75.397,
+    "compiler_batch_29_seconds": 88.214,
+    "bytecode_fixture_seconds": 86.579
+  },
+  "shared_material_exact_owner": null,
+  "prototype_entered": false,
+  "ab_cohort_entered": false,
+  "next": "full strict-corpus report-only typed-boundary callsite census"
+}

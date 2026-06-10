@@ -1,0 +1,6 @@
+{
+  "description": "Levenshtein distance dynamic programming benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -1,0 +1,40 @@
+File: run
+Build ID: 24a3d6a86bf0e4114fd7fd1978ec6ebd28f8e768
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_packet_codecs/compiled_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_packet_codecs/compiled_merged.cpu.pprof
+Time: 2026-07-23 23:55:06 CDT
+Duration: 1.33s, Total samples = 3.12s (233.91%)
+Showing nodes accounting for 1.43s, 45.83% of 3.12s total
+Dropped 53 nodes (cum <= 0.02s)
+Showing top 25 nodes out of 91
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      3.10s 99.36%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%     0%      3.10s 99.36%  main.__able_run_compiled_task
+         0     0%     0%      3.09s 99.04%  main.__able_compiled_fn_decode_stream
+         0     0%     0%      3.06s 98.08%  runtime.systemstack
+         0     0%     0%      3.03s 97.12%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%     0%      3.03s 97.12%  runtime.Stack
+         0     0%     0%      3.03s 97.12%  runtime.Stack.func1
+         0     0%     0%      2.88s 92.31%  runtime.traceback (inline)
+         0     0%     0%      2.88s 92.31%  runtime.traceback1
+         0     0%     0%      2.63s 84.29%  runtime.traceback1.func1
+     0.02s  0.64%  0.64%      2.62s 83.97%  runtime.traceback2
+         0     0%  0.64%      2.10s 67.31%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+     0.03s  0.96%  1.60%      1.64s 52.56%  runtime.printlock
+         0     0%  1.60%      1.61s 51.60%  runtime.lock (inline)
+     0.38s 12.18% 13.78%      1.61s 51.60%  runtime.lock2
+         0     0% 13.78%      1.61s 51.60%  runtime.lockWithRank (inline)
+         0     0% 13.78%      1.54s 49.36%  main.__able_compiled_entry_impl_PacketCodec_decode_0
+         0     0% 13.78%      1.54s 49.36%  main.__able_compiled_entry_impl_PacketCodec_decode_0_a
+         0     0% 13.78%      1.54s 49.36%  main.__able_iface_PacketCodec_adapter_ptr_DeltaCodec.decode
+         0     0% 13.78%      1.54s 49.36%  main.__able_iface_PacketCodec_adapter_ptr_RunCodec.decode
+     0.02s  0.64% 14.42%      1.05s 33.65%  runtime.printArgs
+         0     0% 14.42%      0.98s 31.41%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 14.42%      0.98s 31.41%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 14.42%      0.98s 31.41%  runtime.procyield (inline)
+     0.98s 31.41% 45.83%      0.98s 31.41%  runtime.procyieldAsm
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_packet_codecs/compiled_merged.cpu.pprof

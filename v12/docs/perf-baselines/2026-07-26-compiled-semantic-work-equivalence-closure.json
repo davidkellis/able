@@ -1,0 +1,72 @@
+{
+  "date": "2026-07-26",
+  "decision": "retain_no_code",
+  "compiler_sha256": "28697a5adf4f73918f3d83fbcddc211407dc7e539240f64e4127a4e3dd4ddcab",
+  "strict_graphs": {"checked": 5, "interpreter_free": 5, "packages_each": 96},
+  "timing": {
+    "runs_per_lane": 5,
+    "verified_processes": 50,
+    "raw_sha256": "5be88fc7109ae87b2694b37fab64a2c9bb5413230ef07d6ae1d725dd2f1c4360",
+    "rows": [
+      {"benchmark":"tapelang_alphabet","able_seconds":3.74,"go_seconds":1.924,"ratio":1.9438669439},
+      {"benchmark":"fib","able_seconds":3.36,"go_seconds":3.128,"ratio":1.074168798},
+      {"benchmark":"sudoku_masks","able_seconds":1.648,"go_seconds":0.568,"ratio":2.9014084507},
+      {"benchmark":"matrixmultiply","able_seconds":1.096,"go_seconds":1.032,"ratio":1.0620155039},
+      {"benchmark":"pidigits","able_seconds":1.074,"go_seconds":1.176,"ratio":0.9132653061}
+    ]
+  },
+  "fib": {
+    "calls": 2269806339,
+    "nonbase_calls": 1134903169,
+    "generated_control_tests": 2269806338,
+    "generated_assembly": {"bytes":166,"instructions":52,"calls":5,"branches":5},
+    "go_assembly": {"bytes":84,"instructions":27,"calls":3,"branches":3},
+    "classification": "single-family total-function effect ABI"
+  },
+  "tapelang_alphabet": {
+    "go_instruction_visits": 690455687,
+    "able_flat_dispatches": 1268239314,
+    "extra_dispatches": 577783627,
+    "extra_dispatch_percent": 83.68,
+    "counts": {
+      "increments": 603786263,
+      "moves": 57780405,
+      "loop_tests": 317780806,
+      "loop_backedges": 288891813,
+      "prints": 27
+    },
+    "classification": "benchmark algorithm and program-representation inequivalence"
+  },
+  "sudoku_masks": {
+    "find_calls": 1918450,
+    "solve_calls": 1918450,
+    "scanned_cells": 155394450,
+    "empty_cells": 64090010,
+    "bit_count_calls": 64090010,
+    "bit_count_iterations": 166923250,
+    "best_updates": 3893780,
+    "able_find_best_empty_allocations": 7787560,
+    "allocations_per_best_update": 2,
+    "tried_digits": 1918350,
+    "backtracks": 1912510,
+    "classification": "benchmark result-representation inequivalence"
+  },
+  "controls": {
+    "matrixmultiply": {"kernel_multiply_adds":1000000000,"classification":"same work, noisy target boundary"},
+    "pidigits": {
+      "candidate_digits":22454,
+      "term_iterations":33209,
+      "extract_calls":44908,
+      "eliminations":10000,
+      "classification":"Able source performs fewer expensive big-integer operations"
+    }
+  },
+  "shared_admissible_candidate_reach": 0,
+  "verification": {
+    "command": "./run_all_tests.sh",
+    "status": "pass",
+    "compiler_batches": 32,
+    "final_bytecode_fixture_seconds": 85.166
+  },
+  "next": "Normalize benchmark semantic-work equivalence before selecting another compiled optimization."
+}

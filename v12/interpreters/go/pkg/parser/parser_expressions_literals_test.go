@@ -68,6 +68,56 @@ func TestParseLiteralExpressions(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestUnescapeInterpolationTextStandardEscapes(t *testing.T) {
+	input := "line\\nreturn\\rtab\\tbackspace\\bformfeed\\fquote\\\"single\\'solidus\\/slash\\\\unicode\\u{1F642}ascii\\u0041"
+	want := "line\nreturn\rtab\tbackspace\bformfeed\fquote\"single'solidus/slash\\unicode🙂asciiA"
+	got, err := unescapeInterpolationText(input)
+	if err != nil {
+		t.Fatalf("unescape interpolation text: %v", err)
+	}
+	if got != want {
+		t.Fatalf("unescaped interpolation text = %q, want %q", got, want)
+	}
+
+	special, err := unescapeInterpolationText("literal \\` \\$")
+	if err != nil {
+		t.Fatalf("unescape interpolation special escapes: %v", err)
+	}
+	if special != "literal ` $" {
+		t.Fatalf("unescaped interpolation special text = %q", special)
+	}
+
+	if _, err := unescapeInterpolationText("bad\\q"); err == nil {
+		t.Fatal("expected invalid interpolation escape error")
+	}
+}
+
+func TestParseInterpolatedStringStandardEscapes(t *testing.T) {
+	source := "value := `first\\nsecond\\t\\u{0041} ${1} tail`\n"
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	expected := ast.NewModule([]ast.Statement{
+		ast.Assign(ast.ID("value"), ast.NewStringInterpolation([]ast.Expression{
+			ast.Str("first\nsecond\tA "),
+			ast.Int(1),
+			ast.Str(" tail"),
+		})),
+	}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
 func TestParseMatchExpression(t *testing.T) {
 	source := `struct Point {
   x: i32,
@@ -293,7 +343,7 @@ func TestParseCastExpressionNewlineTermination(t *testing.T) {
 }
 
 func TestParsePropagationAndOrElse(t *testing.T) {
-source := `fn handlers(opt: ?i32, res: !i32) -> !i32 {
+	source := `fn handlers(opt: ?i32, res: !i32) -> !i32 {
  	value := opt! or { 0 }
  	processed := res! or { err => err }
  	processed

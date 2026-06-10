@@ -1,0 +1,14 @@
+package exec_13_09_qualified_interface_identity
+
+import exec_13_09_qualified_interface_identity.iface_defs.{Display}
+import exec_13_09_qualified_interface_identity.factory.{make_display}
+
+## The imported Display must remain distinct from able.kernel.Display.
+fn render(display: Display) -> String {
+  display.render()
+}
+
+fn main() -> void {
+  display: Display = make_display("Ada") as Display
+  print(render(display))
+}

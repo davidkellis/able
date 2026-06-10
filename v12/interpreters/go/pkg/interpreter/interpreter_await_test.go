@@ -575,7 +575,10 @@ func TestAwaitCancellationStopsPendingArms(t *testing.T) {
 
 	timerArm := ast.Call(
 		"__able_await_sleep_ms",
-		ast.Int(15),
+		// Keep a generous pending window: this test verifies cancellation of an
+		// already-registered timer arm, not host scheduler timing under a busy
+		// suite.
+		ast.Int(250),
 		ast.LamBlock(nil, ast.Block(
 			ast.AssignOp(ast.AssignmentAssign, ast.ID("hits"), ast.Bin("+", ast.ID("hits"), ast.Int(1))),
 			ast.Ret(ast.Str("timer")),
@@ -603,7 +606,7 @@ func TestAwaitCancellationStopsPendingArms(t *testing.T) {
 		t.Fatalf("expected cancelled status, got %v", futureStatus(handle))
 	}
 
-	time.Sleep(25 * time.Millisecond)
+	time.Sleep(275 * time.Millisecond)
 
 	if got := intFromValue(t, mustEval(ast.ID("hits"))); got != 0 {
 		t.Fatalf("expected timer callback to be cancelled, hits=%d", got)

@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-07-14T16:39:20.904267Z",
+  "suite": "custom",
+  "benchmarks": [
+    "quicksort",
+    "sudoku",
+    "sudoku_masks"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-14-full-scorecard-generality-go-reference.json",
+  "cpu_affinity": "15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "quicksort",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.93,
+        "avg_user_seconds": 1.77,
+        "avg_sys_seconds": 0.07,
+        "avg_gc": 5.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/quicksort/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "d0d07db0afd4266c1b6de5e76438bfa6aa974727e06c74e280aa7b497ca0e8b3"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 2.6809,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 0.7199074937520982
+        }
+      }
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "sudoku",
+        "mode": "compiled",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null,
+        "validation": {
+          "status": "not-run",
+          "verifier": "/home/david/sync/projects/benchmarks/sudoku/verify.rb",
+          "verified_runs": 0,
+          "failed_runs": 0,
+          "stdout_sha256": []
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.1534,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": null
+        }
+      }
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "sudoku_masks",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 9.11,
+        "avg_user_seconds": 8.91,
+        "avg_sys_seconds": 0.1,
+        "avg_gc": 189.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/sudoku-masks/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.5779,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 15.76397300571033
+        }
+      }
+    }
+  ]
+}

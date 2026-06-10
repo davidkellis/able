@@ -1,0 +1,89 @@
+package bench_quicksort_file_small
+
+import able.kernel.{Array}
+import able.fs
+import able.os
+
+fn parse_numbers(bytes: Array u8) -> Array i32 {
+  count: i32 := bytes.len()
+  nums: Array i32 := Array.with_capacity(((count / 2) as i32) + 1)
+  value := 0
+  negative := false
+  in_number := false
+  i := 0
+  loop {
+    if i >= count { break }
+    byte := bytes.read_slot(i)
+    if byte == 45_u8 {
+      negative = true
+      in_number = true
+    } elsif byte >= 48_u8 && byte <= 57_u8 {
+      value = value * 10 + ((byte as i32) - 48)
+      in_number = true
+    } else {
+      if in_number {
+        if negative { nums.push(0 - value) } else { nums.push(value) }
+        value = 0
+        negative = false
+        in_number = false
+      }
+    }
+    i = i + 1
+  }
+  if in_number {
+    if negative { nums.push(0 - value) } else { nums.push(value) }
+  }
+  nums
+}
+
+fn swap(arr: Array i32, a: i32, b: i32) {
+  tmp: i32 := arr.read_slot(a)
+  arr.write_slot(a, arr.read_slot(b))
+  arr.write_slot(b, tmp)
+}
+
+fn quicksort(arr: Array i32, lo: i32, hi: i32) {
+  if lo >= hi { return }
+  pivot := arr.read_slot(((lo + hi) / 2) as i32)
+  i := lo
+  j := hi
+  loop {
+    if i > j { break }
+    loop {
+      if arr.read_slot(i) >= pivot { break }
+      i = i + 1
+    }
+    loop {
+      if arr.read_slot(j) <= pivot { break }
+      j = j - 1
+    }
+    if i <= j {
+      swap(arr, i, j)
+      i = i + 1
+      j = j - 1
+    }
+  }
+  if lo < j { quicksort(arr, lo, j) }
+  if i < hi { quicksort(arr, i, hi) }
+}
+
+fn main() {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "numbers.txt" }
+  nums := parse_numbers(fs.read_bytes(path))
+
+  quicksort(nums, 0, nums.len() - 1)
+
+  i := 0
+  loop {
+    if i >= 10 { break }
+    print(nums.read_slot(i))
+    i = i + 1
+  }
+  i = nums.len() - 10
+  loop {
+    if i >= nums.len() { break }
+    print(nums.read_slot(i))
+    i = i + 1
+  }
+}

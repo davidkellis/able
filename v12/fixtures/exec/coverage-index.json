@@ -300,6 +300,16 @@
     "focus": "blocking io reads suspend only the current task while peers continue"
   },
   {
+    "id": "exec/12_09_nested_spawn_native_context",
+    "status": "seeded",
+    "spec_sections": [
+      "12.2",
+      "12.3",
+      "12.5"
+    ],
+    "focus": "nested spawn preserves future results while tasks call native channel helpers"
+  },
+  {
     "id": "exec/09_04_methods_ufcs_basics",
     "status": "seeded",
     "spec_sections": [
@@ -390,6 +400,26 @@
       "13.7"
     ],
     "focus": "ABLE_MODULE_PATHS injects roots for static imports and dynimport"
+  },
+  {
+    "id": "exec/13_08_static_interface_dictionary_capture",
+    "status": "seeded",
+    "spec_sections": [
+      "10.3.4",
+      "13.4",
+      "13.5"
+    ],
+    "focus": "static-imported factories retain the dictionary captured for a private concrete implementation"
+  },
+  {
+    "id": "exec/13_09_qualified_interface_identity",
+    "status": "seeded",
+    "spec_sections": [
+      "10.3.4",
+      "13.4",
+      "13.5"
+    ],
+    "focus": "imported interface identity remains package-qualified through return, cast, parameter coercion, and dispatch despite a kernel short-name collision"
   },
   {
     "id": "exec/04_07_02_alias_generic_substitution",
@@ -1182,6 +1212,15 @@
     "focus": "explicit casts for numeric conversions and interface upcasts"
   },
   {
+    "id": "exec/06_03_cast_unproven_interface",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.5",
+      "11.3"
+    ],
+    "focus": "unproven explicit interface casts remain typecheck-valid and fail only at runtime"
+  },
+  {
     "id": "exec/06_03_cast_error_payload_recovery",
     "status": "seeded",
     "spec_sections": [
@@ -1240,6 +1279,182 @@
     "focus": "regex compile/match/find_all and streaming scanner spans"
   },
   {
+    "id": "exec/14_03_regex_option_rejection",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "unsupported non-Unicode regex options reject at compile time rather than silently changing matching semantics"
+  },
+  {
+    "id": "exec/14_04_regex_nfa_unicode_quantifiers",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "Unicode code-point regex NFA matching, greedy bounded quantifiers, non-overlap, and zero-length progression"
+  },
+  {
+    "id": "exec/14_05_regex_nfa_wildcards_classes",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "Unicode wildcard, positive and negated character classes, ranges, quantifiers, and invalid class ranges"
+  },
+  {
+    "id": "exec/14_06_regex_nfa_groups_alternation",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "non-capturing groups, alternation precedence, nested repetition, and explicit lookaround rejection"
+  },
+  {
+    "id": "exec/14_07_regex_nfa_absolute_anchors",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "absolute start/end anchors, Unicode byte spans, grouped anchored expressions, empty input, and invalid anchor quantification"
+  },
+  {
+    "id": "exec/14_08_regex_dot_matches_newline",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "dot_matches_newline option changes wildcard transitions while preserving the default no-newline contract"
+  },
+  {
+    "id": "exec/14_09_regex_anchored_option",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "anchored option requires complete Unicode or zero-length haystack matches through shared NFA predicates"
+  },
+  {
+    "id": "exec/14_10_regex_multiline_option",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "multiline U+000A anchor boundaries, Unicode line spans, empty lines, and anchored-option interaction"
+  },
+  {
+    "id": "exec/14_11_regex_case_insensitive",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "Unicode simple-fold literals, classes, ranges, negation, no-expansion behavior, and anchored matching"
+  },
+  {
+    "id": "exec/14_12_regex_capture_groups",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "numbered capture groups preserve source-order values and byte spans across alternation, repetition, nesting, optional groups, Unicode, empty matches, iterators, and scanners"
+  },
+  {
+    "id": "exec/14_13_regex_named_capture_groups",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "named capture groups populate ordinal and name-indexed results across repetition, nesting, alternation, optional groups, iterators, scanners, and invalid-name cases"
+  },
+  {
+    "id": "exec/14_14_regex_literal_replace",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "literal regex replacement expands whole, ordinal, named, optional, Unicode, and zero-length matches while rejecting invalid capture references"
+  },
+  {
+    "id": "exec/14_15_regex_function_replace",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "functional regex replacement receives ordered capture-aware matches, preserves Unicode zero-length progression, skips no-match callbacks, and propagates callback errors"
+  },
+  {
+    "id": "exec/14_16_regex_split",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex split preserves leading/trailing and empty segments, limits delimiter matches, and advances zero-width Unicode delimiters safely"
+  },
+  {
+    "id": "exec/14_17_regex_set",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex sets use one combined NFA, preserve source-pattern index order, share option/error semantics, and handle empty or zero-width patterns"
+  },
+  {
+    "id": "exec/14_18_regex_scanner_incremental",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex scanners preserve active NFA state across chunks, defer greedy matches until flush, and emit finalized non-overlapping spans"
+  },
+  {
+    "id": "exec/14_19_regex_scanner_boundaries",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex scanners defer absolute end-anchor matches until flush"
+  },
+  {
+    "id": "exec/14_20_regex_scanner_unicode_zero",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex scanners advance zero-width matches by Unicode scalar boundaries without rescanning earlier chunks"
+  },
+  {
+    "id": "exec/14_21_regex_scanner_multiline",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex scanners retain multiline end-anchor context when a later chunk provides the line terminator"
+  },
+  {
+    "id": "exec/14_22_regex_set_iter",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex-set span iteration uses one combined NFA with deterministic leftmost-longest non-overlap and source-ordered same-span indices"
+  },
+  {
+    "id": "exec/14_23_regex_set_iter_boundaries",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "regex-set span iteration preserves Unicode zero-width progression, multiline anchor context, and empty-set behavior"
+  },
+  {
+    "id": "exec/14_24_regex_scanner_compaction",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2"
+    ],
+    "focus": "incremental regex scanner compaction preserves later absolute literal, Unicode, and capture spans while releasing consumed input"
+  },
+  {
     "id": "exec/06_03_safe_navigation_nil_short_circuit",
     "status": "seeded",
     "spec_sections": [
@@ -1293,9 +1508,10 @@
     "id": "exec/06_10_dynamic_metaprogramming_package_object",
     "status": "seeded",
     "spec_sections": [
-      "6.10"
+      "6.10",
+      "13.4"
     ],
-    "focus": "dynamic packages, runtime definitions, and late-bound dynimport"
+    "focus": "dynamic packages, runtime definitions, and top-level/local late-bound dynimport"
   },
   {
     "id": "exec/06_11_truthiness_boolean_context",
@@ -1513,6 +1729,41 @@
       "6.12"
     ],
     "focus": "test harness discovery and doc/progress reporter emission semantics from able.test.harness and able.test.reporters"
+  },
+  {
+    "id": "exec/06_12_27_stdlib_iterator_close",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "public Iterator.close idempotence plus filter/map/filter_map/collect/each upstream close propagation"
+  },
+  {
+    "id": "exec/06_12_28_stdlib_fs_lines",
+    "status": "seeded",
+    "spec_sections": [
+      "6.12"
+    ],
+    "focus": "lazy fs.lines FileLines iteration, LF/CRLF/final-line behavior, and iterator-owned file-handle cleanup"
+  },
+  {
+    "id": "exec/06_12_29_stdlib_array_slice",
+    "status": "seeded",
+    "spec_sections": [
+      "6.8"
+    ],
+    "focus": "end-exclusive Array slice bounds, independently-backed shallow copy, and exact result capacity"
+  },
+  {
+    "id": "exec/06_12_30_stdlib_option_result",
+    "status": "seeded",
+    "spec_sections": [
+      "4.6",
+      "6.12",
+      "7.1",
+      "11.3"
+    ],
+    "focus": "generic named-union Option/Result method dispatch, chained result typing, and typed unwrap rescue"
   },
   {
     "id": "exec/04_07_types_alias_union_generic_combo",
@@ -1808,7 +2059,7 @@
       "7.4",
       "8.2.3"
     ],
-    "focus": "array-heavy recursive quicksort hot loop used for bytecode performance tracking"
+    "focus": "recursive quicksort array indexing, mutation, and control-flow semantic parity"
   },
   {
     "id": "exec/07_10_iterator_reentrancy",
@@ -2000,6 +2251,16 @@
       "4.6"
     ],
     "focus": "union-target impls dispatch via interface dictionaries"
+  },
+  {
+    "id": "exec/14_25_regex_builder_program",
+    "status": "seeded",
+    "spec_sections": [
+      "14.2",
+      "14.2.1",
+      "14.2.2"
+    ],
+    "focus": "canonical regex builder composition and immutable NFA/DFA program introspection"
   },
   {
     "id": "exec/10_13_interface_param_generic_args",

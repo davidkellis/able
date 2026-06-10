@@ -51,7 +51,10 @@ func (r *mutexAwaitRegistration) trigger() {
 	r.interp.invokeAwaitWaker(r.waker, r.env)
 }
 
-func (i *Interpreter) addMutexAwaiter(state *mutexState, waker runtime.Value, env *runtime.Environment) *mutexAwaitRegistration {
+// addMutexAwaiterLocked adds a registration while state.mu is held. Keeping the
+// locked check and the registration in one critical section prevents an unlock
+// from being missed between them.
+func (i *Interpreter) addMutexAwaiterLocked(state *mutexState, waker runtime.Value, env *runtime.Environment) *mutexAwaitRegistration {
 	if state == nil {
 		return nil
 	}
@@ -61,12 +64,10 @@ func (i *Interpreter) addMutexAwaiter(state *mutexState, waker runtime.Value, en
 		env:    env,
 		interp: i,
 	}
-	state.mu.Lock()
 	if state.awaitWaiters == nil {
 		state.awaitWaiters = make(map[*mutexAwaitRegistration]struct{})
 	}
 	state.awaitWaiters[reg] = struct{}{}
-	state.mu.Unlock()
 	return reg
 }
 
@@ -131,8 +132,8 @@ func (a *mutexAwaitable) toStruct() *runtime.StructInstanceValue {
 				a.registration = nil
 				return a.interp.makeAwaitRegistrationValue(nil), nil
 			}
+			reg := a.interp.addMutexAwaiterLocked(state, waker, callCtx.Env)
 			state.mu.Unlock()
-			reg := a.interp.addMutexAwaiter(state, waker, callCtx.Env)
 			a.registration = reg
 			cancelFn := func() {
 				if reg != nil {

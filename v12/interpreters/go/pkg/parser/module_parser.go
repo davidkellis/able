@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
@@ -12,15 +13,19 @@ import (
 
 // ModuleParser wraps a tree-sitter parser configured for Able v12 modules.
 type ModuleParser struct {
-	parser *sitter.Parser
+	parser        *sitter.Parser
+	phaseObserver ModuleParsePhaseObserver
 }
 
 // NewModuleParser constructs a parser with the Able language loaded.
 func NewModuleParser() (*ModuleParser, error) {
+	restoreTreeSitterDefaultAllocator()
 	lang := language.Able()
 	if lang == nil {
 		return nil, fmt.Errorf("parser: able language not available")
 	}
+	initializeNodeKindNames(lang)
+	initializeNodeFieldIDs(lang)
 
 	p := sitter.NewParser()
 	if err := p.SetLanguage(lang); err != nil {
@@ -43,15 +48,33 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 	if p == nil || p.parser == nil {
 		return nil, fmt.Errorf("parser: nil parser")
 	}
-
+	observer := p.phaseObserver
+	var nativeStart time.Time
+	if observer != nil {
+		nativeStart = time.Now()
+	}
 	tree := p.parser.Parse(source, nil)
+	var nativeDuration time.Duration
+	if observer != nil {
+		nativeDuration = time.Since(nativeStart)
+	}
 	defer tree.Close()
+	if observer != nil {
+		mappingStart := time.Now()
+		defer func() {
+			observer(ModuleParsePhaseSample{
+				SourceBytes: len(source),
+				NativeParse: nativeDuration,
+				ASTMapping:  time.Since(mappingStart),
+			})
+		}()
+	}
 
 	root := tree.RootNode()
 	if root == nil {
 		return nil, fmt.Errorf("parser: unexpected root node")
 	}
-	if root.Kind() != "source_file" {
+	if nodeKind(root) != "source_file" {
 		if root.HasError() {
 			return nil, syntaxError(root)
 		}
@@ -60,12 +83,12 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 	if root.HasError() && !recoverableInterfaceBaseErrors(root, source) && !recoverableWhitespaceErrors(root, source) {
 		return nil, syntaxError(root)
 	}
-
 	ctx := newParseContext(source)
 
 	var (
 		modulePackage *ast.PackageStatement
 		imports       = make([]*ast.ImportStatement, 0)
+		exports       = make([]*ast.ExportStatement, 0)
 		body          = make([]ast.Statement, 0)
 	)
 
@@ -74,7 +97,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 		if isIgnorableNode(node) {
 			continue
 		}
-		switch node.Kind() {
+		switch nodeKind(node) {
 		case "package_statement":
 			pkg, err := ctx.parsePackageStatement(node)
 			if err != nil {
@@ -82,50 +105,22 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 			}
 			modulePackage = pkg
 		case "import_statement":
-			kindNode := node.ChildByFieldName("kind")
-			if kindNode == nil {
-				return nil, wrapParseError(node, fmt.Errorf("parser: import missing kind"))
-			}
-
-			path, err := ctx.parseQualifiedIdentifier(node.ChildByFieldName("path"))
+			stmt, err := ctx.parseImportStatement(node)
 			if err != nil {
 				return nil, wrapParseError(node, err)
 			}
-
-			aliasNode := node.ChildByFieldName("alias")
-			var alias *ast.Identifier
-			if aliasNode != nil {
-				alias, err = parseIdentifier(aliasNode, ctx.source)
-				if err != nil {
-					return nil, wrapParseError(aliasNode, err)
-				}
+			switch imp := stmt.(type) {
+			case *ast.ImportStatement:
+				imports = append(imports, imp)
+			case *ast.DynImportStatement:
+				body = append(body, imp)
 			}
-
-			isWildcard, selectors, err := ctx.parseImportClause(node.ChildByFieldName("clause"))
+		case "export_statement":
+			export, err := ctx.parseExportStatement(node)
 			if err != nil {
 				return nil, wrapParseError(node, err)
 			}
-
-			if alias != nil && len(selectors) > 0 {
-				return nil, wrapParseError(node, fmt.Errorf("parser: alias cannot be combined with selectors"))
-			}
-
-			if alias == nil && !isWildcard && len(selectors) == 0 && hasLegacyImportAlias(node, ctx.source) {
-				return nil, wrapParseError(node, fmt.Errorf("parser: legacy import alias syntax is unsupported; use :: for renames"))
-			}
-
-			switch kindNode.Kind() {
-			case "import":
-				stmt := ast.NewImportStatement(path, isWildcard, selectors, alias)
-				annotateSpan(stmt, node)
-				imports = append(imports, stmt)
-			case "dynimport":
-				dyn := ast.NewDynImportStatement(path, isWildcard, selectors, alias)
-				annotateSpan(dyn, node)
-				body = append(body, dyn)
-			default:
-				return nil, wrapParseError(kindNode, fmt.Errorf("parser: unsupported import kind %q", kindNode.Kind()))
-			}
+			exports = append(exports, export)
 		case "function_definition":
 			fn, err := ctx.parseFunctionDefinition(node)
 			if err != nil {
@@ -134,13 +129,13 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 			body = append(body, fn)
 		case "elsif_clause_statement", "else_clause_statement":
 			if len(body) == 0 {
-				return nil, wrapParseError(node, fmt.Errorf("parser: %s without preceding if expression", node.Kind()))
+				return nil, wrapParseError(node, fmt.Errorf("parser: %s without preceding if expression", nodeKind(node)))
 			}
 			target := findIfExpressionTarget(body[len(body)-1])
 			if target == nil {
-				return nil, wrapParseError(node, fmt.Errorf("parser: %s without preceding if expression", node.Kind()))
+				return nil, wrapParseError(node, fmt.Errorf("parser: %s without preceding if expression", nodeKind(node)))
 			}
-			switch node.Kind() {
+			switch nodeKind(node) {
 			case "elsif_clause_statement":
 				if target.ElseBody != nil {
 					return nil, wrapParseError(node, fmt.Errorf("parser: elsif clause after else"))
@@ -151,11 +146,11 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				}
 				target.ElseIfClauses = append(target.ElseIfClauses, clause)
 				extendExpressionToNode(target, node)
-				if elseClause := node.ChildByFieldName("else_clause"); elseClause != nil {
+				if elseClause := childByFieldName(node, "else_clause"); elseClause != nil {
 					if target.ElseBody != nil {
 						return nil, wrapParseError(elseClause, fmt.Errorf("parser: duplicate else clause"))
 					}
-					bodyNode := elseClause.ChildByFieldName("alternative")
+					bodyNode := childByFieldName(elseClause, "alternative")
 					if bodyNode == nil {
 						bodyNode = firstNamedChild(elseClause)
 					}
@@ -173,7 +168,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				if target.ElseBody != nil {
 					return nil, wrapParseError(node, fmt.Errorf("parser: duplicate else clause"))
 				}
-				bodyNode := node.ChildByFieldName("alternative")
+				bodyNode := childByFieldName(node, "alternative")
 				if bodyNode == nil {
 					return nil, wrapParseError(node, fmt.Errorf("parser: else clause missing body"))
 				}
@@ -194,7 +189,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				return nil, wrapParseError(node, err)
 			}
 			if stmt == nil {
-				return nil, fmt.Errorf("parser: unsupported top-level node %q", node.Kind())
+				return nil, fmt.Errorf("parser: unsupported top-level node %q", nodeKind(node))
 			}
 			if stmt != nil {
 				if lambda, ok := stmt.(*ast.LambdaExpression); ok && len(body) > 0 {
@@ -231,10 +226,32 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 		}
 	}
 
-	module := ast.NewModule(body, imports, modulePackage)
+	module := ast.NewModuleWithExports(body, imports, exports, modulePackage)
 	module.Body = repairTypeAliasTargets(module.Body, source)
 	annotateSpan(module, root)
 	return module, nil
+}
+
+func (ctx *parseContext) parseExportStatement(node *sitter.Node) (*ast.ExportStatement, error) {
+	if node == nil || nodeKind(node) != "export_statement" {
+		return nil, fmt.Errorf("parser: expected export statement")
+	}
+	if nameNode := childByFieldName(node, "name"); nameNode != nil {
+		name, err := parseIdentifier(nameNode, ctx.source)
+		if err != nil {
+			return nil, err
+		}
+		stmt := ast.NewExportStatement(name, nil, false)
+		annotateSpan(stmt, node)
+		return stmt, nil
+	}
+	path, err := ctx.parseQualifiedIdentifier(childByFieldName(node, "path"))
+	if err != nil {
+		return nil, err
+	}
+	stmt := ast.NewExportStatement(nil, path, true)
+	annotateSpan(stmt, node)
+	return stmt, nil
 }
 
 func repairTypeAliasTargets(body []ast.Statement, source []byte) []ast.Statement {
@@ -358,7 +375,7 @@ func parseQualifiedIdentifier(node *sitter.Node, source []byte) ([]*ast.Identifi
 		return nil, fmt.Errorf("parser: expected qualified identifier")
 	}
 
-	switch node.Kind() {
+	switch nodeKind(node) {
 	case "qualified_identifier", "import_path":
 	default:
 		return nil, fmt.Errorf("parser: expected qualified identifier")
@@ -397,7 +414,7 @@ func (ctx *parseContext) parseImportClause(node *sitter.Node) (bool, []*ast.Impo
 		if isIgnorableNode(child) {
 			continue
 		}
-		switch child.Kind() {
+		switch nodeKind(child) {
 		case "import_selector":
 			selector, err := parseImportSelector(child, ctx.source)
 			if err != nil {
@@ -407,7 +424,7 @@ func (ctx *parseContext) parseImportClause(node *sitter.Node) (bool, []*ast.Impo
 		case "import_wildcard_clause":
 			isWildcard = true
 		default:
-			return false, nil, fmt.Errorf("parser: unsupported import clause node %q", child.Kind())
+			return false, nil, fmt.Errorf("parser: unsupported import clause node %q", nodeKind(child))
 		}
 	}
 
@@ -418,8 +435,51 @@ func (ctx *parseContext) parseImportClause(node *sitter.Node) (bool, []*ast.Impo
 	return isWildcard, selectors, nil
 }
 
+func (ctx *parseContext) parseImportStatement(node *sitter.Node) (ast.Statement, error) {
+	kindNode := childByFieldName(node, "kind")
+	if kindNode == nil {
+		return nil, fmt.Errorf("parser: import missing kind")
+	}
+
+	path, err := ctx.parseQualifiedIdentifier(childByFieldName(node, "path"))
+	if err != nil {
+		return nil, err
+	}
+
+	aliasNode := childByFieldName(node, "alias")
+	var alias *ast.Identifier
+	if aliasNode != nil {
+		alias, err = parseIdentifier(aliasNode, ctx.source)
+		if err != nil {
+			return nil, wrapParseError(aliasNode, err)
+		}
+	}
+
+	isWildcard, selectors, err := ctx.parseImportClause(childByFieldName(node, "clause"))
+	if err != nil {
+		return nil, err
+	}
+	if alias != nil && len(selectors) > 0 {
+		return nil, fmt.Errorf("parser: alias cannot be combined with selectors")
+	}
+	if alias == nil && !isWildcard && len(selectors) == 0 && hasLegacyImportAlias(node, ctx.source) {
+		return nil, fmt.Errorf("parser: legacy import alias syntax is unsupported; use :: for renames")
+	}
+
+	var stmt ast.Statement
+	switch nodeKind(kindNode) {
+	case "import":
+		stmt = ast.NewImportStatement(path, isWildcard, selectors, alias)
+	case "dynimport":
+		stmt = ast.NewDynImportStatement(path, isWildcard, selectors, alias)
+	default:
+		return nil, wrapParseError(kindNode, fmt.Errorf("parser: unsupported import kind %q", nodeKind(kindNode)))
+	}
+	return annotateStatement(stmt, node), nil
+}
+
 func parseImportSelector(node *sitter.Node, source []byte) (*ast.ImportSelector, error) {
-	if node == nil || node.Kind() != "import_selector" {
+	if node == nil || nodeKind(node) != "import_selector" {
 		return nil, fmt.Errorf("parser: expected import_selector node")
 	}
 

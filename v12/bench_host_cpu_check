@@ -1,0 +1,287 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Reject timing runs whose selected CPU is already occupied. This is a
+# measurement-integrity check, not a performance benchmark and it deliberately
+# reads only Linux' process-wide CPU accounting from /proc/stat.
+
+cpu=""
+rank_cpus=false
+samples=3
+interval_seconds=1
+max_busy_percent=5
+max_iowait_percent=5
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_host_cpu_check --cpu CPU [options]
+  v12/bench_host_cpu_check --rank-cpus [options]
+
+Check whether one Linux CPU is sufficiently quiet for a pinned performance
+measurement. Each sample measures the change in /proc/stat over the requested
+interval. The command succeeds only when every sample remains within both
+thresholds.
+
+Options:
+      --cpu CPU                 Required single logical CPU number
+      --rank-cpus               Rank all logical CPUs from the same samples;
+                                discovery only, not a passing preflight
+      --samples N               Consecutive samples (default: 3)
+      --interval SEC            Seconds per sample (default: 1)
+      --max-busy-percent N      Maximum non-idle/non-I/O-wait time (default: 5)
+      --max-iowait-percent N    Maximum I/O-wait time (default: 5)
+  -h, --help                    Show this help
+
+This command is intended as a preflight for CPU-pinned application benchmarks.
+It does not reserve the CPU; rerun it immediately before the benchmark command.
+EOF
+}
+
+die() {
+  echo "bench_host_cpu_check: $*" >&2
+  exit 2
+}
+
+is_nonnegative_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+is_positive_int() {
+  is_nonnegative_int "$1" && ((10#$1 > 0))
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --cpu)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --cpu"
+      cpu="$1"
+      ;;
+    --rank-cpus)
+      rank_cpus=true
+      ;;
+    --samples)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --samples"
+      samples="$1"
+      ;;
+    --interval)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --interval"
+      interval_seconds="$1"
+      ;;
+    --max-busy-percent)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --max-busy-percent"
+      max_busy_percent="$1"
+      ;;
+    --max-iowait-percent)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --max-iowait-percent"
+      max_iowait_percent="$1"
+      ;;
+    -* )
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+if [[ "$rank_cpus" == true ]]; then
+  [[ -z "$cpu" ]] || die "--rank-cpus cannot be combined with --cpu"
+else
+  [[ -n "$cpu" ]] || die "--cpu is required unless --rank-cpus is used"
+  is_nonnegative_int "$cpu" || die "--cpu must be a single non-negative CPU number"
+fi
+is_positive_int "$samples" || die "--samples must be a positive integer"
+is_positive_int "$interval_seconds" || die "--interval must be a positive integer"
+is_nonnegative_int "$max_busy_percent" || die "--max-busy-percent must be a non-negative integer"
+is_nonnegative_int "$max_iowait_percent" || die "--max-iowait-percent must be a non-negative integer"
+((10#$max_busy_percent <= 100)) || die "--max-busy-percent cannot exceed 100"
+((10#$max_iowait_percent <= 100)) || die "--max-iowait-percent cannot exceed 100"
+[[ -r /proc/stat ]] || die "/proc/stat is unavailable; this check requires Linux CPU accounting"
+if [[ "$rank_cpus" != true ]]; then
+  cpu=$((10#$cpu))
+fi
+
+read_cpu_counters() {
+  local line
+  line="$(awk -v name="cpu$cpu" '$1 == name { print; exit }' /proc/stat)"
+  [[ -n "$line" ]] || die "CPU $cpu was not found in /proc/stat"
+
+  local label user nice system idle iowait irq softirq steal
+  read -r label user nice system idle iowait irq softirq steal _ <<<"$line"
+  printf '%s %s %s %s %s %s %s %s\n' \
+    "${user:-0}" "${nice:-0}" "${system:-0}" "${idle:-0}" \
+    "${iowait:-0}" "${irq:-0}" "${softirq:-0}" "${steal:-0}"
+}
+
+read_all_cpu_counters() {
+  awk '
+    $1 ~ /^cpu[0-9]+$/ {
+      printf "%s %s %s %s %s %s %s %s %s\n", $1,
+        $2 + 0, $3 + 0, $4 + 0, $5 + 0, $6 + 0,
+        $7 + 0, $8 + 0, $9 + 0
+    }
+  ' /proc/stat
+}
+
+sum_counters() {
+  local total=0 counter
+  for counter in "$@"; do
+    total=$((total + 10#$counter))
+  done
+  printf '%s\n' "$total"
+}
+
+format_basis_points() {
+  local basis_points="$1"
+  printf '%d.%02d' "$((basis_points / 100))" "$((basis_points % 100))"
+}
+
+max_busy_basis_points=$((10#$max_busy_percent * 100))
+max_iowait_basis_points=$((10#$max_iowait_percent * 100))
+
+rank_all_cpus() {
+  local -A peak_busy=()
+  local -A peak_iowait=()
+  local -A eligible=()
+  local -A before_counters=()
+  local -A after_counters=()
+  local -a cpu_names=()
+  local sample label counters
+  local -a before after
+  local before_total after_total total_delta idle_delta iowait_delta busy_delta
+  local busy_basis_points iowait_basis_points
+
+  for ((sample = 1; sample <= 10#$samples; sample++)); do
+    before_counters=()
+    while read -r label counters; do
+      [[ -n "$label" && -n "$counters" ]] || continue
+      before_counters["$label"]="$counters"
+      if ((sample == 1)); then
+        cpu_names+=("$label")
+        peak_busy["$label"]=0
+        peak_iowait["$label"]=0
+        eligible["$label"]=true
+      fi
+    done < <(read_all_cpu_counters)
+    ((${#cpu_names[@]} > 0)) || die "no logical CPUs were found in /proc/stat"
+
+    sleep "$interval_seconds"
+
+    after_counters=()
+    while read -r label counters; do
+      [[ -n "$label" && -n "$counters" ]] || continue
+      after_counters["$label"]="$counters"
+    done < <(read_all_cpu_counters)
+
+    for label in "${cpu_names[@]}"; do
+      [[ -n "${before_counters[$label]:-}" ]] || die "$label disappeared from /proc/stat"
+      [[ -n "${after_counters[$label]:-}" ]] || die "$label disappeared from /proc/stat"
+      read -r -a before <<<"${before_counters[$label]}"
+      read -r -a after <<<"${after_counters[$label]}"
+      before_total="$(sum_counters "${before[@]}")"
+      after_total="$(sum_counters "${after[@]}")"
+      total_delta=$((after_total - before_total))
+      ((total_delta > 0)) || die "$label accounting did not advance"
+
+      idle_delta=$((10#${after[3]} - 10#${before[3]}))
+      iowait_delta=$((10#${after[4]} - 10#${before[4]}))
+      busy_delta=$((total_delta - idle_delta - iowait_delta))
+      ((busy_delta >= 0)) || die "$label accounting produced a negative busy delta"
+      busy_basis_points=$((busy_delta * 10000 / total_delta))
+      iowait_basis_points=$((iowait_delta * 10000 / total_delta))
+
+      if ((busy_basis_points > peak_busy[$label])); then
+        peak_busy["$label"]="$busy_basis_points"
+      fi
+      if ((iowait_basis_points > peak_iowait[$label])); then
+        peak_iowait["$label"]="$iowait_basis_points"
+      fi
+      if ((busy_basis_points > max_busy_basis_points || iowait_basis_points > max_iowait_basis_points)); then
+        eligible["$label"]=false
+      fi
+    done
+  done
+
+  printf 'CPU ranking across %s sample(s), %ss interval; limits busy<=%s%% iowait<=%s%%\n' \
+    "$samples" "$interval_seconds" "$max_busy_percent" "$max_iowait_percent"
+  while IFS=$'\t' read -r failed score cpu_number label busy iowait; do
+    if [[ "$failed" == 0 ]]; then
+      state="eligible"
+    else
+      state="not-quiet"
+    fi
+    printf 'CPU %s: peak busy=%s%% peak iowait=%s%% status=%s\n' \
+      "$cpu_number" "$(format_basis_points "$busy")" \
+      "$(format_basis_points "$iowait")" "$state"
+  done < <(
+    for label in "${cpu_names[@]}"; do
+      cpu_number="${label#cpu}"
+      score="${peak_busy[$label]}"
+      if ((peak_iowait[$label] > score)); then
+        score="${peak_iowait[$label]}"
+      fi
+      if [[ "${eligible[$label]}" == true ]]; then
+        failed=0
+      else
+        failed=1
+      fi
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$failed" "$score" "$cpu_number" "$label" \
+        "${peak_busy[$label]}" "${peak_iowait[$label]}"
+    done | sort -n -k1,1 -k2,2 -k3,3
+  )
+  echo "bench_host_cpu_check: ranking only; rerun with --cpu CPU immediately before timing"
+}
+
+if [[ "$rank_cpus" == true ]]; then
+  rank_all_cpus
+  exit 0
+fi
+
+failed=false
+
+for ((sample = 1; sample <= 10#$samples; sample++)); do
+  read -r -a before <<<"$(read_cpu_counters)"
+  sleep "$interval_seconds"
+  read -r -a after <<<"$(read_cpu_counters)"
+
+  before_total="$(sum_counters "${before[@]}")"
+  after_total="$(sum_counters "${after[@]}")"
+  total_delta=$((after_total - before_total))
+  ((total_delta > 0)) || die "CPU $cpu accounting did not advance"
+
+  idle_delta=$((10#${after[3]} - 10#${before[3]}))
+  iowait_delta=$((10#${after[4]} - 10#${before[4]}))
+  busy_delta=$((total_delta - idle_delta - iowait_delta))
+  ((busy_delta >= 0)) || die "CPU $cpu accounting produced a negative busy delta"
+
+  busy_basis_points=$((busy_delta * 10000 / total_delta))
+  iowait_basis_points=$((iowait_delta * 10000 / total_delta))
+  printf 'CPU %s sample %d/%d: busy=%s%% iowait=%s%% (limits busy<=%s%% iowait<=%s%%)\n' \
+    "$cpu" "$sample" "$samples" \
+    "$(format_basis_points "$busy_basis_points")" \
+    "$(format_basis_points "$iowait_basis_points")" \
+    "$max_busy_percent" "$max_iowait_percent"
+
+  if ((busy_basis_points > max_busy_basis_points || iowait_basis_points > max_iowait_basis_points)); then
+    failed=true
+  fi
+done
+
+if [[ "$failed" == true ]]; then
+  echo "bench_host_cpu_check: CPU $cpu is not quiet enough for a pinned timing run" >&2
+  exit 1
+fi
+
+echo "bench_host_cpu_check: CPU $cpu passed the quiet-host preflight"

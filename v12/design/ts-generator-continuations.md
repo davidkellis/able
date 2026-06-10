@@ -1,17 +1,20 @@
-# TypeScript Generator Continuations
+# Historical TypeScript Generator Continuation Proposal
 
-> Archived: the TypeScript interpreter was removed from v12. This document is kept
-> for historical context only.
+> **Status (archived 2026-07-14):** The TypeScript interpreter is not present
+> in v12. This proposal is kept for historical context only. Active generator
+> and iterator semantics live in spec §§6.7 and 14 and in the Go reference
+> implementation; `06_07_iterator_pipeline` is an executable semantic guard.
+> `FutureYieldSignal`, TypeScript continuation frames, and the implementation
+> plan below are not current language or runtime backlog.
 
-Status: Draft – implementation pending  
-Owners: Able v12 TypeScript interpreter track
+Status: Historical draft; no active owner
 
-## Goals
+## Historical Goals
 - Add lazy iterator semantics to the TypeScript interpreter that match §6.7 / §14 of the v12 spec and the new Go runtime implementation.
 - Support generator literals (`Iterator { gen => ... }`) and the `Iterator`/`Iterable` protocol without forcing eager precomputation of elements.
 - Keep the implementation incremental: surface the iterator runtime primitives first, then port `for` loops and stdlib helpers to consume them lazily.
 
-## Requirements Recap
+## Historical Requirements Recap
 - Generator bodies run imperatively and may contain the full Able statement set (loops, match, rescue/ensure, nested blocks). Every `gen.yield(expr)` must suspend execution, surface `expr` to the consumer, and resume from the following statement on the next `next()` call.
 - `gen.stop()` terminates the iterator. Subsequent `next()` calls return the singleton `IteratorEnd`.
 - Iterators participate in member dispatch:
@@ -20,14 +23,14 @@ Owners: Able v12 TypeScript interpreter track
 - Iteration consumers (e.g. `for` loops) drive arrays, ranges, or iterator values lazily, mirroring the Go interpreter.
 - Prevent re-entrancy: calling `next()` again while the generator body is mid-yield should produce a deterministic runtime error (same as Go’s “re-entered while suspended” guard).
 
-## Implementation Options Considered
+## Historical Implementation Options Considered
 1. **Reuse the future scheduler.** Treat generator bodies as hidden spawned tasks and expose the yielded value via the cooperative scheduler (`FutureYieldSignal`). This would let generators “pause” without new infrastructure, but resuming would re-run the body from the beginning unless we encoded manual stage variables (what future tests currently do). That fails the spec requirement to resume automatically after `yield`.
 2. **Compile generator literals to explicit state machines (desugaring).** Translate the AST into a switch-based state machine stored on a closure. This quickly becomes intractable: we would need to model every statement form—including nested loops, `match`, error handling, and pattern assignments—to preserve semantics, effectively re-implementing the interpreter as a compiler pass.
 3. **Introduce interpreter continuations for generators.** Instrument the evaluator so that, when running under a generator context, it records enough frame state (current node, environment, loop indices, etc.) to resume after a `YieldStatement`. Suspension is signalled via a dedicated error, and resumption walks the saved frame stack. This keeps semantics close to the existing interpreter and mirrors the Go coroutine runner.
 
 **Decision:** adopt option (3). It requires targeted changes across the evaluator but keeps Able semantics authoritative, preserves host parity, and avoids a one-off lowering pass that would diverge from future interpreter features.
 
-## Design Overview
+## Historical Design Overview
 
 ### Runtime Values
 - Extend `RuntimeValue` with:
@@ -78,7 +81,7 @@ Owners: Able v12 TypeScript interpreter track
 - Update `members.ts` so `next` on `IteratorValue` and UFCS fallbacks map to the runtime helper.
 - Extend `stringify.ts` with cases for iterator values/end sentinels to match Go parity.
 
-## Incremental Implementation Plan
+## Historical Incremental Implementation Plan
 1. **Scaffolding**
    - Define `IteratorValue` / `IteratorEndValue` in `values.ts`.
    - Add `GeneratorYieldSignal` / `GeneratorStopSignal`.
@@ -92,12 +95,12 @@ Owners: Able v12 TypeScript interpreter track
 4. **Member Dispatch & Stdlib Hooks**
    - Surface `IteratorEnd`, ensure `iterator()` dispatch works, and update stdlib/channel helpers once runtime is stable.
 
-## Testing Strategy
+## Historical Testing Strategy
 - Mirror the Go tests in `interpreter-go/pkg/interpreter/interpreter_iterators_test.go` with Bun tests under `v12/interpreters/ts/test/runtime/iterators.test.ts`.
 - Add fixture coverage (`fixtures/ast/*`) once the runtime semantics are solid so both interpreters stay in lockstep.
 - Run `./run_all_tests.sh` before landing to keep TypeScript + Go parity green.
 
-## Open Questions
+## Historical Open Questions
 - Should we expose `Iterator::close` to Able code now or keep it internal until the spec calls for it?
 - How does `ensure`/`rescue` inside generators interact with suspension? (Plan: bubbles through the same as in Go; document expectations.)
 - Do we need cross-interpreter fixture updates immediately, or can TypeScript land first with local unit tests before regenerating fixtures?

@@ -1,0 +1,111 @@
+package wide_integer_records
+
+import able.core.iteration.{IteratorEnd}
+import able.numbers.int128.{Int128}
+import able.numbers.uint128.{UInt128}
+import able.text.string
+
+RECORD_COUNT: i32 := 12_000
+CHECKSUM_MODULUS: u64 := 1_000_000_007_u64
+
+fn unsigned_record(index: i32) -> String {
+  slot := index % 6
+  if slot == 0 { "0" }
+  elsif slot == 1 { "18446744073709551615" }
+  elsif slot == 2 { "18446744073709551616" }
+  elsif slot == 3 { "79228162514264337593543950335" }
+  elsif slot == 4 { "170141183460469231731687303715884105727" }
+  else { "340282366920938463463374607431768211455" }
+}
+
+fn signed_record(index: i32) -> String {
+  slot := index % 6
+  if slot == 0 { "-170141183460469231731687303715884105727" }
+  elsif slot == 1 { "-9223372036854775809" }
+  elsif slot == 2 { "-1" }
+  elsif slot == 3 { "1" }
+  elsif slot == 4 { "9223372036854775808" }
+  else { "170141183460469231731687303715884105727" }
+}
+
+fn parse_unsigned(text: String) -> UInt128 {
+  value := UInt128.zero()
+  ten := UInt128.from_u64(10_u64)
+  iter := text.bytes()
+  loop {
+    iter.next() match {
+      case _: IteratorEnd => { break },
+      case byte: u8 => {
+        digit := (byte - 48_u8) as u64
+        value = value.mul(ten).add(UInt128.from_u64(digit))
+      }
+    }
+  }
+  value
+}
+
+fn parse_signed(text: String) -> Int128 {
+  value := Int128.zero()
+  ten := Int128.from_i64(10_i64)
+  negative := false
+  position := 0
+  iter := text.bytes()
+  loop {
+    iter.next() match {
+      case _: IteratorEnd => { break },
+      case byte: u8 => {
+        if position == 0 && byte == 45_u8 {
+          negative = true
+        } else {
+          digit := ((byte as i64) - 48_i64)
+          value = value.mul(ten).add(Int128.from_i64(digit))
+        }
+        position = position + 1
+      }
+    }
+  }
+  if negative { value.negate() } else { value }
+}
+
+fn main() -> void {
+  unsigned_modulus := UInt128.from_u64(CHECKSUM_MODULUS)
+  signed_modulus := Int128.from_i64(CHECKSUM_MODULUS as i64)
+  unsigned_min := UInt128.zero()
+  unsigned_max := UInt128.zero()
+  signed_min := Int128.zero()
+  signed_max := Int128.zero()
+  unsigned_checksum := 0_u64
+  signed_checksum := 0_u64
+  index := 0
+  loop {
+    if index >= RECORD_COUNT { break }
+
+    unsigned_value := parse_unsigned(unsigned_record(index))
+    signed_value := parse_signed(signed_record(index))
+    if index == 0 {
+      unsigned_min = unsigned_value
+      unsigned_max = unsigned_value
+      signed_min = signed_value
+      signed_max = signed_value
+    } else {
+      unsigned_min = unsigned_min.min(unsigned_value)
+      unsigned_max = unsigned_max.max(unsigned_value)
+      signed_min = signed_min.min(signed_value)
+      signed_max = signed_max.max(signed_value)
+    }
+
+    unsigned_remainder := unsigned_value.rem(unsigned_modulus)
+    signed_remainder := signed_value.abs().rem(signed_modulus)
+    unsigned_checksum = (
+      unsigned_checksum + unsigned_remainder.low + ((index % 97) as u64)
+    ) % CHECKSUM_MODULUS
+    signed_checksum = (
+      signed_checksum + signed_remainder.low + ((index % 89) as u64)
+    ) % CHECKSUM_MODULUS
+    index = index + 1
+  }
+
+  print(`${RECORD_COUNT}:${unsigned_checksum}:${signed_checksum}`)
+  print(`${unsigned_min.to_string()}:${unsigned_max.to_string()}`)
+  print(`${signed_min.to_string()}:${signed_max.to_string()}`)
+}

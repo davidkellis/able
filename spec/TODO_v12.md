@@ -2,25 +2,102 @@
 
 This list tracks the remaining v12 items after audit; completed work should be removed.
 
-## Parser gaps
-- None currently tracked (cast `as` line breaks fixed 2026-02-06).
-
 ## Compiler AOT gaps
 - None currently tracked.
 
 ## Stdlib externalization gaps
 - None currently tracked.
 
+## Regex engine status
+- The canonical `able.text.regex` module implements Unicode-code-point
+  literals/escapes, wildcard, character classes (including ranges and
+  negation), quantifiers, alternation, and explicit non-capturing groups
+  (`(?:...)`), absolute `^` / `$` anchors, and the `dot_matches_newline`
+  wildcard option, `anchored=true`, and `multiline=true` through a
+  Thompson-NFA core. `case_insensitive=true` uses Unicode simple-case-fold
+  cycles for literal and class/range membership without multi-code-point
+  expansion. Ordinary `(...)` groups use tagged NFA transitions and populate
+  `Match.groups` in zero-based opening-parenthesis order, with UTF-8 byte
+  spans, final repeated captures, nested captures, and `nil` values/spans for
+  nonparticipating groups. Named `(?P<name>...)` captures use ASCII identifier
+  names, reject duplicates, retain their ordinal position, and populate the
+  same `Group` in `named_groups`.
+  Every remaining unsupported option (`unicode=false`, `unicode_case`, and
+  `grapheme_mode`) must return `RegexUnsupportedFeature`; they must never be
+  accepted and silently ignored. Its internal byte-index range is represented
+  separately from the public `Span` so all public match offsets remain `u64`.
+- `Regex.replace` supports both literal templates and `ReplacementFunction`.
+  A callback receives exactly one fully populated `Match` for each
+  non-overlapping match, in search order; it is not called when no match is
+  found. Callback replacement shares the literal form's one-Unicode-scalar
+  zero-length progression and propagates raised errors unchanged. The focused
+  fixture passes in tree-walker, bytecode, and compiled execution.
+- `Regex.split` uses the shared NFA match/span path, preserves empty edge
+  segments, treats `limit` as a delimiter-match cap, and advances zero-width
+  delimiters by one Unicode scalar. `exec/14_16_regex_split` proves ordinary,
+  limited, zero-width Unicode, anchored, no-match, empty-input, and whole-input
+  cases in every Go execution mode without compiled fallbacks.
+- `RegexSet` compiles all supplied patterns into one combined NFA with a
+  state-indexed source-pattern accept map. `matches` returns every matching
+  source index exactly once in source order; `is_match` is its boolean form.
+  It shares regex compile options and error behavior, including empty sets and
+  zero-width/capturing patterns. `exec/14_17_regex_set` passes in tree-walker,
+  bytecode, and compiled execution without compiled fallbacks.
+- `RegexScanner` now retains active NFA threads and capture tags across `feed`
+  calls, emits only finalized leftmost-longest non-overlapping matches, and
+  uses explicit idempotent `flush()` to resolve EOF-dependent candidates.
+  `next()` may be temporarily empty before flush, and feeding after flush
+  raises `RegexScannerClosed`. The focused state, EOF-anchor, Unicode-zero,
+  and multiline fixtures (`exec/14_18` through `exec/14_21`) pass in every Go
+  execution mode with strict zero-fallback compiler audits. Existing capture
+  fixtures also exercise the flushed scanner path.
+- `RegexSet.iter` now returns `RegexSetMatch { pattern_index, span }` records
+  from the existing combined NFA. It uses deterministic leftmost-longest,
+  non-overlapping spans and emits same-span pattern identities in source order;
+  zero-width results advance one Unicode scalar. `exec/14_22` and `exec/14_23`
+  prove source-order ties, longer-vs-shorter selection, overlap suppression,
+  Unicode, multiline anchors, and empty sets in every Go execution mode with
+  strict compiler audits.
+- `RegexScanner` now compacts consumed bytes/code points after each feed and
+  finalization. It retains the prefix referenced by the earliest active thread,
+  pending candidate, or capture tag, tracks a global byte base plus previous
+  scalar, and preserves public absolute spans. `exec/14_24` proves post-prune
+  literal, Unicode, and capture results in every Go execution mode with a
+  strict compiler audit.
+- `RegexBuilder` now composes the supported expression vocabulary without
+  reparsing text. Combining or wrapping builders preserves deterministic
+  capture order by reindexing nested expressions; invalid bounds, malformed
+  names, and duplicate names return ordinary regex errors. `Regex.to_program`
+  returns a deep `RegexProgram` snapshot with deterministic capture metadata.
+  Its NFA snapshot is always available; DFA export is explicitly fallible for
+  transition kinds the shared DFA converter cannot preserve. The
+  `exec/14_25_regex_builder_program` fixture covers composition, captures,
+  deep snapshots, classes, options, DFA availability, and invalid bounds in
+  tree-walker, bytecode, and compiled execution with a strict boundary audit.
+- No remaining regex engine/API gaps are tracked. Future regex work must add a
+  new specified reusable API rather than a host shim or named-container/
+  benchmark-specific lowering rule.
+
 ## Compiler AOT performance / dynamic-carrier staged limits
 - `runtime.Value` usage categories are now documented in `spec/full_spec_v12.md` under the AOT boundary section.
-- Native-lowering target is now captured in `v12/design/compiler-native-lowering.md`: static compiled code should primarily manipulate native Go carriers, not interpreter object-model values.
+- Native-lowering target is now captured in
+  `v12/design/compiler-native-lowering-guardrails.md`: static compiled code
+  should primarily manipulate native Go carriers, not interpreter object-model
+  values.
 - Control-flow target is now captured in `v12/design/compiler-no-panic-flow-control.md`: compiled control flow should use ordinary Go branches/returns plus explicit control-result signaling, not IIFEs or `panic`/`recover`.
 - Desired end-state: compiled polymorphism lowers primarily to host-native mechanisms (Go interfaces/concrete dispatch/generic specialization), with `runtime.Value` used only for explicit dynamic boundaries and residual non-representable cases.
 - Native-lowering mandate: static compiled code should represent nominal/user-defined program values with host-native concrete structures (not interpreter object-model carriers) and should never invoke interpreter execution paths unless entering explicit dynamic features.
 - Desired container end-state: compiled arrays use native Go array-backed storage on static paths; `runtime.ArrayValue`, `ArrayStore*`, and kernel `storage_handle` are boundary mechanisms only, not the compiler's internal static representation.
-- Desired nominal-type end-state: compiled structs remain Go structs/pointers and compiled unions lower to generated Go interfaces plus native variant carriers; `any` is a staged fallback only, not the target union ABI.
+- Current nominal-type rule: compiled structs remain Go structs/pointers and
+  representable unions lower to generated Go interfaces plus native variant
+  carriers. `any`/`runtime.Value` are explicit dynamic/ABI or genuinely
+  non-representable cases, not members of a partially native union ABI.
 - Array-native closure note: representable static arrays now default to compiler-native specialized carriers, including same-scope-evidenced fresh untyped local `Array.new()` / `Array.with_capacity()` factories, empty array literals, fresh-array `if` / `match` control-flow joins, typed call-argument evidence on those fresh locals, recoverable runtime/`any` array-pattern subjects that still retain concrete static metadata, direct static `*Array <-> *__able_array_*` carrier coercions, direct static `runtime.Value -> *Array` carrier coercions, direct mono-array wrapper/lambda boundary helpers, direct generic `Array_apply` plus `Array_to` / `Array_to_seen` edges for raw runtime arrays and `Array` struct instances, direct generic `*Array` wrapper/lambda/native-interface/runtime-value entry conversions for both raw runtime arrays and explicit `Array` struct-instance boundaries, and a shared explicit struct-instance reader for generic `Array_from` plus mono-array `*_from` helpers. Remaining `runtime.ArrayValue` / `ArrayStore*` use is now limited to explicit dynamic or ABI edges plus the unspecialized wildcard-array ABI, so array-native lowering no longer blocks the active compiler-native finish line.
-- Union-ABI target and bring-up order are now captured in `v12/design/compiler-union-abi.md`; the first code-bearing slice should replace `any` for nullable value carriers before widening to closed nominal unions.
+- Union carrier status is recorded in `v12/design/compiler-union-abi.md`.
+  The old bring-up order is complete: representable static nullable, union,
+  result, and fully bound interface-member shapes use shared native carriers;
+  dynamic conversion remains an explicit boundary. That document is a current
+  guardrail plus historical record, not a pending union-lowering workstream.
 - Current progress note: the native nullable-value slice now covers the
   compiler-native scalar family: `?bool`, `?String`, `?char`, `?f32`, `?f64`,
   `?isize`, `?usize`, `?i8`, `?i16`, `?i32`, `?i64`, `?u8`, `?u16`, `?u32`,
@@ -28,33 +105,13 @@ This list tracks the remaining v12 items after audit; completed work should be r
   with explicit generated boundary helpers for compiled-wrapper/lambda
   conversion, native typed `match` nil/payload checks, and native `or {}` nil
   branching instead of routing those cases through `any`.
-- Current progress note: the first closed two-member native union slice is now
-  landed for direct `UnionTypeExpression` shapes and named union definitions
-  that normalize to the same two-branch native carrier form. Those shapes now
-  use generated Go interfaces plus wrapper carrier structs on compiled static
-  paths, explicit boundary helpers for wrapper/lambda conversion, and native
-  typed `match` branch extraction helpers instead of `__able_try_cast(...)`.
-  Static `or {}` now also recognizes native `Error`-implementer failure
-  branches on those carriers and keeps the success path native, converting the
-  failure payload to `runtime.Value` only at the handler edge when an `err`
-  binding is requested. Static `case err: Error => ...` match branches on
-  those same carriers now also discriminate natively, converting the matched
-  whole error value to `runtime.Value` only at the branch binding edge.
-- Current progress note: the first native `!T` slice is now landed for
-  `ResultTypeExpression` shapes that normalize to the same
-  `runtime.ErrorValue | T` two-member native carrier form. Compiled
-  returns/propagation on those shapes now stay on the native carrier, and
-  no-bootstrap concrete `Error` implementers derive `runtime.ErrorValue`
-  messages through compiled `Error.message()` impls instead of the old
-  interpreter-dependent bridge fallback.
-- Current progress note: the broader native-union carrier widening tranche is
-  now landed for this phase too. Multi-member nominal unions, generic alias
-  unions that normalize to native nullable/result carrier families, and
-  interface/open unions like `String | Tag` now stay on generated native union
-  carriers instead of collapsing the whole union to `any`. When a branch is
-  not yet representable as a host-native carrier, it stays explicit as a
-  residual `runtime.Value` member inside that generated union carrier rather
-  than forcing the entire union path back through `any`.
+- Current union record: direct and named unions, multi-member unions, generic
+  `Option`/`Result` aliases, nested representable members, and fully bound
+  interface/callable members all synthesize shared generated carriers on
+  static compiled paths. `!T` propagation and native `Error` handling use the
+  same carrier/boundary discipline. A native union is formed only when every
+  member is representable; a broad `runtime.Value` or `any` member is not
+  retained inside a partially native carrier.
 - Current progress note: plain `Error` type positions now also use the native
   `runtime.ErrorValue` carrier on compiled static paths, which keeps explicit
   `Error` returns and explicit `String | Error` unions off `runtime.Value`.
@@ -537,12 +594,14 @@ This list tracks the remaining v12 items after audit; completed work should be r
   bound `gen.yield` callables lower directly, and native nilable/static
   carrier conditions now use direct nil checks, which keeps
   `Iterator.filter_map` on the static path.
-- Current staged Go compiler limit on this family: the next work is no longer
-  iterator-literal/controller cleanup; it is the next hot
-  generic-container/runtime edge beyond the now-closed
-  `map/filter/filter_map/collect` iterator family.
-- Pending workstream: implement the revised monomorphized container ABI
-  (`Array<T>` specialized compiler-owned wrappers over native Go slices) under
-  the existing gated rollout plumbing; accepted proposal captured in
-  `v12/design/monomorphized-container-abi.md`.
-- Pending workstream: broaden native lowering beyond arrays (struct/union/interface-call-site specialization where statically representable) and add regression guards that fail when new static paths regress to dynamic carrier helpers.
+- Historical staged Go compiler record: the iterator and mono-array closure
+  work listed above is complete. The current direct compiler uses
+  compiler-owned native array wrappers on eligible static paths; runtime-array
+  conversion is boundary-only. `v12/design/monomorphized-container-abi.md` is
+  the historical staging record, while active generic/native constraints live
+  in `v12/design/compiler-monomorphization.md` and
+  `v12/design/compiler-native-lowering-guardrails.md`.
+- No array/container/native-lowering workstream is selected from this history.
+  A new compiler candidate needs a material semantic change or a fresh,
+  verifier-backed shared non-nominal leaf across unlike applications; existing
+  strict generated-source and no-fallback audits remain the regression guard.

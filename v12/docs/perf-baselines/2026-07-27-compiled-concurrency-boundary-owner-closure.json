@@ -1,0 +1,233 @@
+{
+  "date": "2026-07-27",
+  "decision": "no_production_candidate",
+  "scope": {
+    "applications": [
+      "await_channel_mux",
+      "mutex_await_journal",
+      "mutex_work_queue"
+    ],
+    "strict_no_fallbacks": true,
+    "interpreter_dependency": false,
+    "executor": "goroutine",
+    "cpu_affinity": "0-3",
+    "gomaxprocs": 4,
+    "gomemlimit": "1GiB",
+    "gogc": 50
+  },
+  "verification": {
+    "profile_processes": 27,
+    "current_gid_counter_processes": 15,
+    "boundary_counter_processes": 30,
+    "go_reference_processes": 24,
+    "fixed_context_diagnostic_processes": 24,
+    "total_processes": 120,
+    "verifier_failures": 0,
+    "timeouts": 0
+  },
+  "applications": [
+    {
+      "application": "await_channel_mux",
+      "stdout_sha256": "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693",
+      "cpu": {
+        "launches": 5,
+        "merged_samples_seconds": 1.72,
+        "current_gid_cumulative_percent": 85.47,
+        "runtime_stack_cumulative_percent": 85.47,
+        "call_value_fast_cumulative_percent": 63.37
+      },
+      "current_gid_calls": {
+        "launches": 5,
+        "samples": [23555, 23555, 23555, 23555, 23555],
+        "mean": 23555,
+        "coefficient_of_variation_percent": 0
+      },
+      "main_allocations": {
+        "launches": 3,
+        "allocated_bytes_samples": [10947968, 10954920, 10947232],
+        "allocated_bytes_mean": 10950040,
+        "allocation_samples": [194069, 194078, 194064],
+        "allocations_mean": 194070.33333333334,
+        "gc_count_samples": [10, 11, 10],
+        "gc_count_mean": 10.333333333333334,
+        "go_allocated_bytes_samples": [315560, 314376, 313544],
+        "go_allocated_bytes_mean": 314493.3333333333,
+        "go_allocation_samples": [4118, 4114, 4110],
+        "go_allocations_mean": 4114,
+        "allocation_object_amplification": 47.17314859828229,
+        "current_gid_alloc_objects_percent": 13.39
+      },
+      "typed_boundary_means": {
+        "integer_from_runtime": 3074,
+        "array_to_runtime": 1024,
+        "union_from_runtime": 1536,
+        "interface_from_runtime": 4096,
+        "interface_to_runtime": 2560,
+        "callable_to_runtime": 2560,
+        "control_from_error": 10756,
+        "control_to_error": 2560
+      },
+      "dynamic_boundary_counts": {
+        "explicit_dynamic_call": 1538,
+        "residual_polymorphic_call": 1025,
+        "host_abi_call": 1,
+        "runtime_service_call": 2560
+      },
+      "fixed_context_diagnostic": {
+        "current_gid_cumulative_percent": 87.23,
+        "main_allocated_bytes_samples": [11332224, 11327704, 11331248],
+        "main_allocated_bytes_mean": 11330392,
+        "main_allocation_samples": [200743, 200734, 200734],
+        "main_allocations_mean": 200737
+      }
+    },
+    {
+      "application": "mutex_await_journal",
+      "stdout_sha256": "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e",
+      "cpu": {
+        "launches": 5,
+        "merged_samples_seconds": 4.82,
+        "current_gid_cumulative_percent": 91.08,
+        "runtime_stack_cumulative_percent": 90.25,
+        "call_value_fast_cumulative_percent": 88.38
+      },
+      "current_gid_calls": {
+        "launches": 5,
+        "samples": [28490, 29160, 27533, 28205, 26011],
+        "mean": 27879.8,
+        "coefficient_of_variation_percent": 4.29
+      },
+      "main_allocations": {
+        "launches": 3,
+        "allocated_bytes_samples": [7065728, 7127728, 7098840],
+        "allocated_bytes_mean": 7097432,
+        "allocation_samples": [124481, 125740, 125170],
+        "allocations_mean": 125130.33333333333,
+        "gc_count_samples": [5, 5, 5],
+        "gc_count_mean": 5,
+        "go_allocated_bytes_samples": [3424, 3664, 3440],
+        "go_allocated_bytes_mean": 3509.3333333333335,
+        "go_allocation_samples": [25, 27, 25],
+        "go_allocations_mean": 25.666666666666668,
+        "allocation_object_amplification": 4875.207792207792,
+        "current_gid_alloc_objects_percent": 17.01
+      },
+      "typed_boundary_means": {
+        "integer_from_runtime": 6144,
+        "array_to_runtime": 2048,
+        "union_from_runtime": 0,
+        "interface_from_runtime": 2048,
+        "interface_to_runtime": 2048,
+        "callable_to_runtime": 2048,
+        "control_from_error": 12294,
+        "control_to_error": 4964
+      },
+      "dynamic_boundary_counts": {
+        "explicit_dynamic_call": 1,
+        "residual_polymorphic_call": 2049,
+        "host_abi_call": 1,
+        "runtime_service_call": 2052
+      },
+      "fixed_context_diagnostic": {
+        "current_gid_cumulative_percent": 92.58,
+        "main_allocated_bytes_samples": [8405752, 8400472, 8021448],
+        "main_allocated_bytes_mean": 8275890.666666667,
+        "main_allocation_samples": [150979, 151141, 143375],
+        "main_allocations_mean": 148498.33333333334
+      }
+    },
+    {
+      "application": "mutex_work_queue",
+      "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58",
+      "cpu": {
+        "launches": 5,
+        "merged_samples_seconds": 9.38,
+        "current_gid_cumulative_percent": 91.36,
+        "runtime_stack_cumulative_percent": 90.94,
+        "call_value_fast_cumulative_percent": 83.48
+      },
+      "current_gid_calls": {
+        "launches": 5,
+        "samples": [63552, 62451, 62527, 62801, 63741],
+        "mean": 63014.4,
+        "coefficient_of_variation_percent": 0.94
+      },
+      "main_allocations": {
+        "launches": 3,
+        "allocated_bytes_samples": [18188480, 18207008, 18284224],
+        "allocated_bytes_mean": 18226570.666666668,
+        "allocation_samples": [329139, 329631, 331261],
+        "allocations_mean": 330010.3333333333,
+        "gc_count_samples": [14, 14, 14],
+        "gc_count_mean": 14,
+        "go_allocated_bytes_samples": [3336, 3448, 3784],
+        "go_allocated_bytes_mean": 3522.6666666666665,
+        "go_allocation_samples": [25, 26, 29],
+        "go_allocations_mean": 26.666666666666668,
+        "allocation_object_amplification": 12375.3875,
+        "current_gid_alloc_objects_percent": 22.73
+      },
+      "typed_boundary_means": {
+        "integer_from_runtime": 20488,
+        "array_to_runtime": 4096,
+        "union_from_runtime": 4,
+        "interface_from_runtime": 4100,
+        "interface_to_runtime": 4096,
+        "callable_to_runtime": 4096,
+        "control_from_error": 32782,
+        "control_to_error": 8500.4
+      },
+      "dynamic_boundary_counts": {
+        "explicit_dynamic_call": 1,
+        "residual_polymorphic_call": 4097,
+        "host_abi_call": 1,
+        "runtime_service_call": 4100
+      },
+      "fixed_context_diagnostic": {
+        "current_gid_cumulative_percent": 92.94,
+        "main_allocated_bytes_samples": [17889848, 17310128, 16299392],
+        "main_allocated_bytes_mean": 17166456,
+        "main_allocation_samples": [323339, 311645, 291414],
+        "main_allocations_mean": 308799.3333333333
+      }
+    }
+  ],
+  "shared_owner": {
+    "path": [
+      "generated runtime-callable or Awaitable boundary",
+      "__able_call_value_fast",
+      "bridge.Runtime.Env",
+      "bridge.currentGID",
+      "runtime.Stack"
+    ],
+    "classification": "closed_broad_execution_context_boundary",
+    "reason": "The retained native-interface context experiment does not carry context through generated native callables and captured lambdas. Removing the goroutine-ID lookup requires the broader callable execution-context ABI excluded by this tranche. A Channel, Mutex, Future, Awaitable, or benchmark-specific shortcut is not admissible."
+  },
+  "candidate_disposition": {
+    "production_change": false,
+    "ab_timing_run": false,
+    "reason": "No exact shared non-closed owner remained after attribution. An A/B timing claim without an eligible implementation candidate would not satisfy the admission gate."
+  },
+  "retained_changes": [
+    "typed-boundary report rendering compatibility",
+    "debug-only currentGID counter overlay generator",
+    "standalone Go-reference phase profiler",
+    "profiles and counter evidence"
+  ],
+  "cleanup": {
+    "removed_disk_backed_workspace": "/var/tmp/able-v12-concurrency-owner.05iLZG",
+    "removed_approximate_size_gib": 1.9,
+    "ram_backed_able_directories_remaining": 0
+  },
+  "excluded_changes": [
+    "compiler production lowering",
+    "generated runtime production code",
+    "bridge/runtime production code",
+    "interpreter",
+    "bytecode VM",
+    "canonical stdlib",
+    "language",
+    "dependency",
+    "WASM"
+  ]
+}

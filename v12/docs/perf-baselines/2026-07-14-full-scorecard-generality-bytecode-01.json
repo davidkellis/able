@@ -1,0 +1,102 @@
+{
+  "generated_at": "2026-07-14T16:49:51.581843Z",
+  "suite": "custom",
+  "benchmarks": [
+    "fib",
+    "binarytrees",
+    "matrixmultiply"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-14-full-scorecard-generality-interpreter-reference.json",
+  "go_reference_json": null,
+  "cpu_affinity": "15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "fib",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "fib",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.23,
+        "avg_user_seconds": 0.13,
+        "avg_sys_seconds": 0.03,
+        "avg_gc": 6.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/fib/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+          ]
+        }
+      },
+      "comparisons": {
+        "ruby": {
+          "reference_real_seconds": 44.8618,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.00512685625632498
+        }
+      }
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "binarytrees",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null,
+        "validation": {
+          "status": "not-run",
+          "verifier": "/home/david/sync/projects/benchmarks/binarytrees/verify.rb",
+          "verified_runs": 0,
+          "failed_runs": 0,
+          "stdout_sha256": []
+        }
+      },
+      "comparisons": {}
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "matrixmultiply",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 4.46,
+        "avg_user_seconds": 4.39,
+        "avg_sys_seconds": 0.05,
+        "avg_gc": 21.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/matrixmultiply/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          ]
+        }
+      },
+      "comparisons": {}
+    }
+  ]
+}

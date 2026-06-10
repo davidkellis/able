@@ -44,104 +44,103 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 
 	source := ctx.source
 
-	switch node.Kind() {
-	case "identifier":
-	case "keyword_identifier":
+	switch nodeKind(node) {
+	case "identifier", "keyword_identifier":
 		expr, err := parseIdentifier(node, source)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "number_literal":
 		expr, err := ctx.parseNumberLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "boolean_literal":
 		expr, err := ctx.parseBooleanLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "nil_literal":
 		expr, err := ctx.parseNilLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "string_literal":
 		expr, err := ctx.parseStringLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "character_literal":
 		expr, err := ctx.parseCharLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "array_literal":
 		expr, err := ctx.parseArrayLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "map_literal":
 		expr, err := ctx.parseMapLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "struct_literal":
 		expr, err := ctx.parseStructLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "block":
 		expr, err := ctx.parseBlock(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "expression_list":
 		expr, err := ctx.parseExpressionList(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "do_expression":
 		expr, err := ctx.parseDoExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "verbose_lambda_expression":
 		expr, err := ctx.parseVerboseLambdaExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "lambda_expression":
 		expr, err := ctx.parseLambdaExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "postfix_expression":
 		expr, err := ctx.parsePostfixExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "call_target":
 		expr, err := ctx.parsePostfixExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "member_access":
 		if node.NamedChildCount() < 2 {
 			return nil, fmt.Errorf("parser: malformed member access")
@@ -155,7 +154,7 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			return nil, err
 		}
 		memberAccess := ast.NewMemberAccessExpression(objectExpr, memberExpr)
-		if opNode := node.ChildByFieldName("operator"); opNode != nil {
+		if opNode := childByFieldName(node, "operator"); opNode != nil {
 			operatorText := strings.TrimSpace(sliceContent(opNode, source))
 			if operatorText == "?." {
 				memberAccess.Safe = true
@@ -167,115 +166,115 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "await_expression":
 		expr, err := ctx.parseAwaitExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "loop_expression":
 		expr, err := ctx.parseLoopExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "breakpoint_expression":
 		expr, err := ctx.parseBreakpointExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "handling_expression":
 		expr, err := ctx.parseHandlingExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "rescue_expression":
 		expr, err := ctx.parseRescueExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "ensure_expression":
 		expr, err := ctx.parseEnsureExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "if_expression":
 		expr, err := ctx.parseIfExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "if_expression_with_else":
 		expr, err := ctx.parseIfExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "if_expression_without_else":
 		expr, err := ctx.parseIfExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "match_expression":
 		expr, err := ctx.parseMatchExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "range_expression":
 		expr, err := ctx.parseRangeExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "assignment_expression":
 		expr, err := ctx.parseAssignmentExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "cast_expression":
 		expr, err := ctx.parseCastExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "unary_expression":
 		expr, err := ctx.parseUnaryExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "implicit_member_expression":
 		expr, err := ctx.parseImplicitMemberExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "placeholder_expression":
 		expr, err := ctx.parsePlaceholderExpression(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "interpolated_string":
 		expr, err := ctx.parseInterpolatedString(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "iterator_literal":
 		expr, err := ctx.parseIteratorLiteral(node)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "parenthesized_expression":
 		if child := firstNamedChild(node); child != nil {
 			expr, err := parseExpressionInternal(ctx, child)
@@ -290,13 +289,13 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "low_precedence_pipe_expression":
 		expr, err := ctx.parsePipeExpression(node, "|>>")
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	case "matchable_expression":
 		if child := firstNamedChild(node); child != nil {
 			expr, err := parseExpressionInternal(ctx, child)
@@ -315,12 +314,12 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 		}
 	}
 
-	if operators, ok := infixOperatorSets[node.Kind()]; ok {
+	if operators, ok := infixOperatorSets[nodeKind(node)]; ok {
 		expr, err := ctx.parseInfixExpression(node, operators)
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(expr, node), nil
+		return expr, nil
 	}
 
 	if child := firstNamedChild(node); child != nil && child != node {
@@ -335,7 +334,7 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 		return annotateExpression(id, node), nil
 	}
 
-	return nil, fmt.Errorf("parser: unsupported expression kind %q", node.Kind())
+	return nil, fmt.Errorf("parser: unsupported expression kind %q", nodeKind(node))
 }
 
 func (ctx *parseContext) parsePostfixExpression(node *sitter.Node) (ast.Expression, error) {
@@ -358,9 +357,9 @@ func (ctx *parseContext) parsePostfixExpression(node *sitter.Node) (ast.Expressi
 	for i := uint(1); i < node.NamedChildCount(); i++ {
 		suffix := node.NamedChild(i)
 		prev := result
-		switch suffix.Kind() {
+		switch nodeKind(suffix) {
 		case "member_access":
-			memberNode := suffix.ChildByFieldName("member")
+			memberNode := childByFieldName(suffix, "member")
 			if memberNode == nil {
 				memberNode = firstNamedChild(suffix)
 			}
@@ -373,7 +372,7 @@ func (ctx *parseContext) parsePostfixExpression(node *sitter.Node) (ast.Expressi
 				err        error
 			)
 
-			if memberNode.Kind() == "numeric_member" {
+			if nodeKind(memberNode) == "numeric_member" {
 				valueText := sliceContent(memberNode, source)
 				if valueText == "" {
 					return nil, fmt.Errorf("parser: empty numeric member access")
@@ -390,7 +389,7 @@ func (ctx *parseContext) parsePostfixExpression(node *sitter.Node) (ast.Expressi
 				}
 			}
 			memberAccess := ast.NewMemberAccessExpression(prev, memberExpr)
-			if opNode := suffix.ChildByFieldName("operator"); opNode != nil {
+			if opNode := childByFieldName(suffix, "operator"); opNode != nil {
 				operatorText := strings.TrimSpace(sliceContent(opNode, source))
 				if operatorText == "?." {
 					memberAccess.Safe = true
@@ -487,7 +486,7 @@ func (ctx *parseContext) parsePostfixExpression(node *sitter.Node) (ast.Expressi
 			result = prop
 			lastCall = nil
 		default:
-			return nil, fmt.Errorf("parser: unsupported postfix suffix %q", suffix.Kind())
+			return nil, fmt.Errorf("parser: unsupported postfix suffix %q", nodeKind(suffix))
 		}
 	}
 
@@ -529,7 +528,7 @@ func parseTypeArgumentList(node *sitter.Node, source []byte) ([]ast.TypeExpressi
 		}
 		typeExpr := parseTypeExpression(child, source)
 		if typeExpr == nil {
-			return nil, fmt.Errorf("parser: unsupported type argument kind %q", child.Kind())
+			return nil, fmt.Errorf("parser: unsupported type argument kind %q", nodeKind(child))
 		}
 		args = append(args, typeExpr)
 	}
@@ -538,7 +537,7 @@ func parseTypeArgumentList(node *sitter.Node, source []byte) ([]ast.TypeExpressi
 }
 
 func (ctx *parseContext) parseAssignmentExpression(node *sitter.Node) (ast.Expression, error) {
-	operatorNode := node.ChildByFieldName("operator")
+	operatorNode := childByFieldName(node, "operator")
 	if operatorNode == nil {
 		child := firstNamedChild(node)
 		if child == nil {
@@ -550,8 +549,8 @@ func (ctx *parseContext) parseAssignmentExpression(node *sitter.Node) (ast.Expre
 		}
 		return annotateExpression(expr, node), nil
 	}
-	leftNode := node.ChildByFieldName("left")
-	rightNode := node.ChildByFieldName("right")
+	leftNode := childByFieldName(node, "left")
+	rightNode := childByFieldName(node, "right")
 	if leftNode == nil || rightNode == nil {
 		return nil, fmt.Errorf("parser: malformed assignment expression")
 	}
@@ -575,7 +574,7 @@ func (ctx *parseContext) parseAssignmentTarget(node *sitter.Node) (ast.Assignmen
 	if node == nil {
 		return nil, fmt.Errorf("parser: nil assignment target")
 	}
-	switch node.Kind() {
+	switch nodeKind(node) {
 	case "assignment_target":
 		if child := firstNamedChild(node); child != nil {
 			return ctx.parseAssignmentTarget(child)
@@ -689,7 +688,7 @@ func (ctx *parseContext) parsePipeExpression(node *sitter.Node, operator string)
 func (ctx *parseContext) parseInfixExpression(node *sitter.Node, operators []string) (ast.Expression, error) {
 	count := node.NamedChildCount()
 	if count == 0 {
-		return nil, fmt.Errorf("parser: empty %s", node.Kind())
+		return nil, fmt.Errorf("parser: empty %s", nodeKind(node))
 	}
 	if count == 1 {
 		expr, err := ctx.parseExpression(node.NamedChild(0))
@@ -711,7 +710,7 @@ func (ctx *parseContext) parseInfixExpression(node *sitter.Node, operators []str
 		}
 		operator := extractOperatorBetween(prevNode, rightNode, ctx.source, operators)
 		if operator == "" {
-			return nil, fmt.Errorf("parser: could not determine operator between operands in %s", node.Kind())
+			return nil, fmt.Errorf("parser: could not determine operator between operands in %s", nodeKind(node))
 		}
 		prev := result
 		result = annotateCompositeExpression(ast.NewBinaryExpression(operator, result, rightExpr), prev, rightNode)
@@ -754,15 +753,15 @@ func mapAssignmentOperator(op string) (ast.AssignmentOperator, error) {
 }
 
 func (ctx *parseContext) parseLambdaExpression(node *sitter.Node) (ast.Expression, error) {
-	if node == nil || node.Kind() != "lambda_expression" {
+	if node == nil || nodeKind(node) != "lambda_expression" {
 		return nil, fmt.Errorf("parser: expected lambda expression")
 	}
 
 	var params []*ast.FunctionParameter
-	if paramsNode := node.ChildByFieldName("parameters"); paramsNode != nil {
+	if paramsNode := childByFieldName(node, "parameters"); paramsNode != nil {
 		for i := uint(0); i < paramsNode.NamedChildCount(); i++ {
 			paramNode := paramsNode.NamedChild(i)
-			if paramNode == nil || paramNode.Kind() != "lambda_parameter" {
+			if paramNode == nil || nodeKind(paramNode) != "lambda_parameter" {
 				continue
 			}
 			param, err := parseLambdaParameter(paramNode, ctx.source)
@@ -774,11 +773,11 @@ func (ctx *parseContext) parseLambdaExpression(node *sitter.Node) (ast.Expressio
 	}
 
 	var returnType ast.TypeExpression
-	if returnNode := node.ChildByFieldName("return_type"); returnNode != nil {
+	if returnNode := childByFieldName(node, "return_type"); returnNode != nil {
 		returnType = ctx.parseReturnType(returnNode)
 	}
 
-	bodyNode := node.ChildByFieldName("body")
+	bodyNode := childByFieldName(node, "body")
 	if bodyNode == nil {
 		return nil, fmt.Errorf("parser: lambda missing body")
 	}
@@ -789,7 +788,7 @@ func (ctx *parseContext) parseLambdaExpression(node *sitter.Node) (ast.Expressio
 	}
 	// Preserve historical AST shape for single-expression lambdas while allowing
 	// expression_list bodies for multi-expression lambdas.
-	if bodyNode.Kind() == "expression_list" {
+	if nodeKind(bodyNode) == "expression_list" {
 		if block, ok := bodyExpr.(*ast.BlockExpression); ok && block != nil && len(block.Body) == 1 {
 			if expr, ok := block.Body[0].(ast.Expression); ok {
 				bodyExpr = expr
@@ -801,26 +800,26 @@ func (ctx *parseContext) parseLambdaExpression(node *sitter.Node) (ast.Expressio
 }
 
 func (ctx *parseContext) parseVerboseLambdaExpression(node *sitter.Node) (ast.Expression, error) {
-	if node == nil || node.Kind() != "verbose_lambda_expression" {
+	if node == nil || nodeKind(node) != "verbose_lambda_expression" {
 		return nil, fmt.Errorf("parser: expected verbose lambda expression")
 	}
 
-	params, err := ctx.parseParameterList(node.ChildByFieldName("parameters"))
+	params, err := ctx.parseParameterList(childByFieldName(node, "parameters"))
 	if err != nil {
 		return nil, err
 	}
 
-	returnType := ctx.parseReturnType(node.ChildByFieldName("return_type"))
-	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), ctx.source)
+	returnType := ctx.parseReturnType(childByFieldName(node, "return_type"))
+	generics, err := parseTypeParameters(childByFieldName(node, "type_parameters"), ctx.source)
 	if err != nil {
 		return nil, err
 	}
-	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), ctx.source)
+	whereClause, err := parseWhereClause(childByFieldName(node, "where_clause"), ctx.source)
 	if err != nil {
 		return nil, err
 	}
 
-	bodyNode := node.ChildByFieldName("body")
+	bodyNode := childByFieldName(node, "body")
 	if bodyNode == nil {
 		return nil, fmt.Errorf("parser: verbose lambda missing body")
 	}
@@ -833,11 +832,11 @@ func (ctx *parseContext) parseVerboseLambdaExpression(node *sitter.Node) (ast.Ex
 }
 
 func parseLambdaParameter(node *sitter.Node, source []byte) (*ast.FunctionParameter, error) {
-	if node == nil || node.Kind() != "lambda_parameter" {
+	if node == nil || nodeKind(node) != "lambda_parameter" {
 		return nil, fmt.Errorf("parser: expected lambda parameter")
 	}
 
-	nameNode := node.ChildByFieldName("name")
+	nameNode := childByFieldName(node, "name")
 	if nameNode == nil {
 		return nil, fmt.Errorf("parser: lambda parameter missing name")
 	}
@@ -894,7 +893,7 @@ func (ctx *parseContext) parseExpressionList(node *sitter.Node) (*ast.BlockExpre
 		if child == nil || !child.IsNamed() {
 			continue
 		}
-		if child.Kind() == "expression_list" {
+		if nodeKind(child) == "expression_list" {
 			block, err := ctx.parseExpressionList(child)
 			if err != nil {
 				return nil, err

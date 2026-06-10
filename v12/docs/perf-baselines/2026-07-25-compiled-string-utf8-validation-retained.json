@@ -1,0 +1,191 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain",
+  "candidate": "canonical primitive String native UTF-8 validation",
+  "settings": {
+    "cpu_affinity": "9",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timed_runs_per_lane": 20,
+    "warmups_per_lane": 2,
+    "order_balanced": true,
+    "cpu_profiles_per_candidate_application": 10,
+    "allocation_profiles_per_candidate_application": 3,
+    "strict_no_fallbacks": true,
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_mean_nanoseconds": 107140352.65,
+      "candidate_mean_nanoseconds": 104597864.6,
+      "go_mean_nanoseconds": 3077272.65,
+      "candidate_change_percent": -2.373,
+      "candidate_over_go": 33.9904,
+      "go_performance_percent": 2.942,
+      "samples_nanoseconds": {
+        "baseline": [
+          98827479, 105582729, 99792424, 108436361, 116461121,
+          115667167, 117746133, 107595061, 109722991, 104630750,
+          97723553, 108806070, 100199573, 112429828, 119421152,
+          102913625, 102123294, 108022016, 100976842, 105728884
+        ],
+        "candidate": [
+          122718055, 100592668, 103704155, 109767357, 109783098,
+          105637702, 116191658, 104005810, 100012691, 97719738,
+          95190253, 97366669, 97683075, 97265241, 107339322,
+          106622249, 98570433, 131186190, 99394682, 91206246
+        ],
+        "go": [
+          3394462, 3074837, 2710418, 3307984, 2955827,
+          3359202, 3234525, 2936912, 3838268, 2699249,
+          2726746, 3683018, 2775218, 3274746, 3513379,
+          2569277, 2688667, 2956499, 3035245, 2810974
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 15936829.3333,
+        "candidate_samples_bytes_allocations_gc": [
+          [14686968, 264833, 9],
+          [14686936, 264833, 9],
+          [14687352, 264836, 10]
+        ],
+        "candidate_mean_bytes": 14687085.3333,
+        "bytes_change_percent": -7.8419,
+        "baseline_mean_allocations": 421381.6667,
+        "candidate_mean_allocations": 264834,
+        "allocations_change_percent": -37.151,
+        "baseline_mean_gc": 10,
+        "candidate_mean_gc": 9.3333
+      },
+      "candidate_exact_objects": {
+        "bridge_to_string": 38274,
+        "slice_bytes": 33101
+      },
+      "candidate_sha256": "90a777b3256a0b0ea873076177df7b6a0a56eb6b7f27c9e7766de8cfa52991d7"
+    },
+    {
+      "name": "Word Frequency",
+      "baseline_mean_nanoseconds": 22222542.65,
+      "candidate_mean_nanoseconds": 18661026.85,
+      "go_mean_nanoseconds": 3764625.95,
+      "candidate_change_percent": -16.0266,
+      "candidate_over_go": 4.9569,
+      "go_performance_percent": 20.1737,
+      "samples_nanoseconds": {
+        "baseline": [
+          20993832, 21542816, 22238068, 21549889, 21907829,
+          21281506, 21500688, 24174874, 23148471, 22417841,
+          25486248, 24741768, 22044852, 22569537, 22445875,
+          20513234, 23607683, 21582370, 20474372, 20229100
+        ],
+        "candidate": [
+          19432919, 20057799, 18874983, 16682665, 17215706,
+          17131738, 16846974, 19857930, 19306107, 17718774,
+          16840789, 20708761, 20098673, 18147112, 18857262,
+          17493444, 16987071, 20747229, 22183627, 18030974
+        ],
+        "go": [
+          4012961, 3436560, 3320459, 3938691, 3720869,
+          3575734, 3758850, 4148934, 3881049, 3499549,
+          3547872, 4046083, 3463892, 3851658, 3717284,
+          4131092, 4335693, 3298874, 3940973, 3665442
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 6269920,
+        "candidate_samples_bytes_allocations_gc": [
+          [5222656, 135165, 5],
+          [5222688, 135165, 6],
+          [5222688, 135165, 6]
+        ],
+        "candidate_mean_bytes": 5222677.3333,
+        "bytes_change_percent": -16.7026,
+        "baseline_mean_allocations": 266044,
+        "candidate_mean_allocations": 135165,
+        "allocations_change_percent": -49.1945,
+        "baseline_mean_gc": 6.3333,
+        "candidate_mean_gc": 5.6667
+      },
+      "candidate_exact_objects": {
+        "bridge_to_string": 35959,
+        "slice_bytes": 33684
+      },
+      "candidate_sha256": "2f5a974fa37124f303d0c1836dbfebabe6f10312832007ada2e4597089aa5193"
+    },
+    {
+      "name": "Sensor Calibration",
+      "baseline_mean_nanoseconds": 28858969.35,
+      "candidate_mean_nanoseconds": 25491463.85,
+      "go_mean_nanoseconds": 3259451.95,
+      "candidate_change_percent": -11.6688,
+      "candidate_over_go": 7.8208,
+      "go_performance_percent": 12.7864,
+      "samples_nanoseconds": {
+        "baseline": [
+          29590073, 27567584, 26251746, 52549999, 29264382,
+          27098183, 26063951, 29845349, 30057165, 28867939,
+          25022402, 26956731, 30123634, 32358107, 24793703,
+          25234513, 26023113, 26286072, 26599997, 26624744
+        ],
+        "candidate": [
+          22024365, 23424970, 27196459, 44160663, 25509926,
+          23326932, 21989154, 26895659, 24676616, 26154839,
+          27527927, 21736651, 25925982, 27002148, 21306028,
+          26233782, 25867576, 24432749, 22245627, 22191224
+        ],
+        "go": [
+          3148366, 3162481, 2919680, 3211447, 3450295,
+          3345666, 3378267, 3614742, 3809736, 3465449,
+          2996763, 2932372, 3566038, 3492755, 3010188,
+          3355213, 3260500, 2936743, 3010565, 3121773
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 11938891,
+        "candidate_samples_bytes_allocations_gc": [
+          [10255360, 324801, 10],
+          [10255392, 324801, 9],
+          [10255344, 324801, 9]
+        ],
+        "candidate_mean_bytes": 10255365.3333,
+        "bytes_change_percent": -14.1012,
+        "baseline_mean_allocations": 534977,
+        "candidate_mean_allocations": 324801,
+        "allocations_change_percent": -39.2869,
+        "baseline_mean_gc": 11.3333,
+        "candidate_mean_gc": 9.3333
+      },
+      "candidate_exact_objects": {
+        "bridge_to_string": 48898,
+        "slice_bytes": 63991
+      },
+      "candidate_sha256": "e6d0246657ab5da3cc59f202ac7a2d4a57615d95dc2906756f4bed259dd5b06b"
+    }
+  ],
+  "geometric_mean_change_percent": {
+    "wall_time": -10.2002,
+    "allocated_bytes": -12.9603,
+    "allocations": -42.1242
+  },
+  "rejected_candidate": {
+    "name": "caller-owned utf8_decode result slot",
+    "reason": "the union interface made the nominal result pointer escape; allocation ownership moved to the caller without reducing exact totals",
+    "word_frequency_main_bytes": 6269888,
+    "word_frequency_main_allocations": 266044,
+    "retained": false
+  },
+  "verification": {
+    "timed_processes_passed_public_verifier": 180,
+    "warmup_processes_passed_public_verifier": 18,
+    "candidate_profile_processes_passed_public_verifier": 39,
+    "strict_dependency_graphs_without_interpreter": 3,
+    "focused_utf8_tests_passed": true,
+    "ablec_package_passed": true
+  },
+  "stdlib_changed": false,
+  "runtime_changed": false,
+  "interpreter_changed": false,
+  "wasm_changed": false
+}

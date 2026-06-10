@@ -13,8 +13,9 @@ func (i *Interpreter) initRatioBuiltins() {
 		return
 	}
 	ratioFromFloat := runtime.NativeFunctionValue{
-		Name:  "__able_ratio_from_float",
-		Arity: 1,
+		Name:       "__able_ratio_from_float",
+		Arity:      1,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_ratio_from_float expects one argument")
@@ -32,8 +33,9 @@ func (i *Interpreter) initRatioBuiltins() {
 	}
 
 	f32Bits := runtime.NativeFunctionValue{
-		Name:  "__able_f32_bits",
-		Arity: 1,
+		Name:       "__able_f32_bits",
+		Arity:      1,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_f32_bits expects one argument")
@@ -58,8 +60,9 @@ func (i *Interpreter) initRatioBuiltins() {
 	}
 
 	f64Bits := runtime.NativeFunctionValue{
-		Name:  "__able_f64_bits",
-		Arity: 1,
+		Name:       "__able_f64_bits",
+		Arity:      1,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_f64_bits expects one argument")
@@ -82,10 +85,35 @@ func (i *Interpreter) initRatioBuiltins() {
 			}
 		},
 	}
+	f64Sqrt := runtime.NativeFunctionValue{
+		Name:       "__able_f64_sqrt",
+		Arity:      1,
+		BorrowArgs: true,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("__able_f64_sqrt expects one argument")
+			}
+			switch val := args[0].(type) {
+			case runtime.FloatValue:
+				if val.TypeSuffix != runtime.FloatF64 {
+					return nil, fmt.Errorf("__able_f64_sqrt expects f64 input")
+				}
+				return runtime.FloatValue{Val: math.Sqrt(val.Val), TypeSuffix: runtime.FloatF64}, nil
+			case *runtime.FloatValue:
+				if val == nil || val.TypeSuffix != runtime.FloatF64 {
+					return nil, fmt.Errorf("__able_f64_sqrt expects f64 input")
+				}
+				return runtime.FloatValue{Val: math.Sqrt(val.Val), TypeSuffix: runtime.FloatF64}, nil
+			default:
+				return nil, fmt.Errorf("__able_f64_sqrt expects f64 input")
+			}
+		},
+	}
 
 	u64Mul := runtime.NativeFunctionValue{
-		Name:  "__able_u64_mul",
-		Arity: 2,
+		Name:       "__able_u64_mul",
+		Arity:      2,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 2 {
 				return nil, fmt.Errorf("__able_u64_mul expects two arguments")
@@ -105,6 +133,7 @@ func (i *Interpreter) initRatioBuiltins() {
 	i.global.Define("__able_ratio_from_float", ratioFromFloat)
 	i.global.Define("__able_f32_bits", f32Bits)
 	i.global.Define("__able_f64_bits", f64Bits)
+	i.global.Define("__able_f64_sqrt", f64Sqrt)
 	i.global.Define("__able_u64_mul", u64Mul)
 	i.ratioReady = true
 }

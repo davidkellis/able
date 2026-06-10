@@ -1,0 +1,29 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: cpu
+Time: 2026-07-11 23:28:34 CDT
+Duration: 3.45s, Total samples = 3390ms (98.33%)
+Showing nodes accounting for 50ms, 1.47% of 3390ms total
+Dropped 43 nodes (cum <= 16.95ms)
+Showing top 20 nodes out of 95
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%     0%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%     0%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%     0%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%     0%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%     0%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%     0%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runDetached
+      50ms  1.47%  1.47%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%  1.47%     3190ms 94.10%  able/interpreter-go/pkg/interpreter.BenchmarkBytecodeProgramRuntime
+         0     0%  1.47%     3190ms 94.10%  testing.(*B).run1.func1
+         0     0%  1.47%     3190ms 94.10%  testing.(*B).runN
+         0     0%  1.47%     3080ms 90.86%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0%  1.47%     2730ms 80.53%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateExternFunctionBody.(*Interpreter).makeExternNative.func1
+         0     0%  1.47%     2730ms 80.53%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeExternHostFunction
+         0     0%  1.47%     2730ms 80.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execAndFinishExactNativeCall
+         0     0%  1.47%     2730ms 80.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallStaticMember
+         0     0%  1.47%     2730ms 80.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execExactNativeCall
+         0     0%  1.47%     2730ms 80.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStaticMemberCallable
+         0     0%  1.47%     1160ms 34.22%  able/interpreter-go/pkg/interpreter.buildExternPrimitiveByteArrayFastInvoker.func3
+         0     0%  1.47%     1160ms 34.22%  plugin/unnamed-fd977a3d36305ae39ba131aa4614e1e38c0ff114.AbleExtern_decode_bytes

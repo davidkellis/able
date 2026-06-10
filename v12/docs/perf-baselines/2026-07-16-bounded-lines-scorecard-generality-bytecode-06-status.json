@@ -1,0 +1,207 @@
+{
+  "generated_at": "2026-07-16T09:21:17.574597Z",
+  "suite": "custom",
+  "benchmarks": [
+    "nbody",
+    "tapelang_alphabet"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-16-bounded-lines-scorecard-generality-interpreter-reference-status.json",
+  "go_reference_json": null,
+  "cpu_affinity": null,
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "nbody",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "nbody",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null,
+        "samples": [
+          {
+            "run": 1,
+            "status": "timeout",
+            "real_seconds": null,
+            "user_seconds": null,
+            "sys_seconds": null,
+            "gc_count": null,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": null
+          }
+        ],
+        "validation": {
+          "status": "not-run",
+          "verifier": "/home/david/sync/projects/benchmarks/nbody/verify.rb",
+          "verified_runs": 0,
+          "failed_runs": 0,
+          "stdout_sha256": []
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/nbody.able",
+          "sha256": "697e6d589629213c9fcbcaf7b2607fb7f9d98035dce04ef829ce71e2c12acef9"
+        }
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [],
+        "provenance": "measured",
+        "sha256": "68182ac2abb0287ac46e6e5aa63023c6dcca19a2fb7626f0dfc15d16ef3db7cc",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/nbody/verify.rb",
+          "sha256": "6eee2164d361669652467e8115dbd61c11fbb60fc446e912c67957553e4a7e60"
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 1.8558,
+          "reference_implementation": "python-3.14",
+          "ratio": null,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/nbody/python-3.14/run.py",
+            "sha256": "13e3640944e9cb31985e622e38223e1c2093dffcdd9b32cc9c022f1dfd1a695b",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 1.855752186,
+              "stdout_sha256": "7fee18aa4de449f07aa173bae7a37df103ff0317ed8055566e6f3c9358c09b2c"
+            }
+          ]
+        },
+        "ruby": {
+          "reference_real_seconds": 3.0844,
+          "reference_implementation": "ruby-4.0",
+          "ratio": null,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/nbody/ruby-4.0/run.rb",
+            "sha256": "009b17efa869fad1ec8d49638a469ab3642b35a9d3d686b21ad9a52fd39f99f0",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 3.084393705,
+              "stdout_sha256": "7fee18aa4de449f07aa173bae7a37df103ff0317ed8055566e6f3c9358c09b2c"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "tapelang_alphabet",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null,
+        "samples": [
+          {
+            "run": 1,
+            "status": "timeout",
+            "real_seconds": null,
+            "user_seconds": null,
+            "sys_seconds": null,
+            "gc_count": null,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": null
+          }
+        ],
+        "validation": {
+          "status": "not-run",
+          "verifier": "/home/david/sync/projects/benchmarks/tapelang-alphabet/verify.rb",
+          "verified_runs": 0,
+          "failed_runs": 0,
+          "stdout_sha256": []
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/tapelang_alphabet/tapelang_alphabet.able",
+          "sha256": "426a40e33840f3a0e9e62d5f9b9519a6840edd2733b8031df6a280e4b782fdb8"
+        }
+      },
+      "benchmark_contract": {
+        "input_files": [
+          {
+            "argument": "benchmark.tape",
+            "path": "/home/david/sync/projects/benchmarks/tapelang-alphabet/benchmark.tape",
+            "sha256": "de3c18839cb57355b9ab7e8a9030b2378e85c613fb817a6a7e3f39d0a2f82354"
+          }
+        ],
+        "program_args": [
+          "benchmark.tape"
+        ],
+        "provenance": "measured",
+        "sha256": "01224f9b42882e58e69d8b1b64dd2711c8f629f3e0c7bb688ed7e5787a9e07f8",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/tapelang-alphabet/verify.rb",
+          "sha256": "e3cbee1ac374d917b396a334c9b4ebe1d7474e5e9428de722c2d36b3f1bbb193"
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 54.1871,
+          "reference_implementation": "python-3.14",
+          "ratio": null,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/tapelang-alphabet/python-3.14/run.py",
+            "sha256": "0bfb786c312b67354a391d59f00cdb9a13844419c46199274e95b5372c66687f",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 54.187146572,
+              "stdout_sha256": "a8ac3a1054c1aa7ac25f9b1e652a96a7ac86a1c1130687fc53b90e20c766d149"
+            }
+          ]
+        },
+        "ruby": {
+          "reference_real_seconds": 68.5713,
+          "reference_implementation": "ruby-4.0",
+          "ratio": null,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/tapelang-alphabet/ruby-4.0/run.rb",
+            "sha256": "f77051cd0751f82e73ece8ff9981b340b085a9ab6c02061f9e6a861dc15ddfc0",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 68.571260756,
+              "stdout_sha256": "a8ac3a1054c1aa7ac25f9b1e652a96a7ac86a1c1130687fc53b90e20c766d149"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

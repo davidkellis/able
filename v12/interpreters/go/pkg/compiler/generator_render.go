@@ -11,6 +11,7 @@ import (
 func (g *generator) render() (map[string][]byte, error) {
 	g.resolveStaticFunctionIntegerFacts()
 	g.resolveStaticFunctionIntegerReturnFacts()
+	g.resolveCompiledEnvironmentIndependence()
 	if err := g.preparePackageInitBodies(); err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 	var body bytes.Buffer
 
 	if g.hasFunctions() {
-		fmt.Fprintf(&body, "const __able_experimental_mono_arrays = %t\n\n", g.monoArraysEnabled())
+		fmt.Fprintf(&body, "const __able_native_static_arrays = %t\n\n", g.monoArraysEnabled())
 		fmt.Fprintf(&body, "var __able_runtime *bridge.Runtime\n\n")
 		g.ensurePackageEnvVars()
 		if len(g.packageEnvOrder) > 0 {
@@ -144,10 +145,13 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderAdditionalCompiledBodies(&body, renderedMethods, renderedFunctions)
 		g.renderPendingCompiledMethodFallbacks(&body, renderedMethods)
 		g.renderPendingCompiledFunctionFallbacks(&body, renderedFunctions)
-		// Emit shared native interfaces and unions only after the compiled body
-		// graph has stabilized so the generated adapter/default-method bodies are
-		// final on first emission.
-		g.renderNativeInterfaces(&body)
+		// Adapters can discover a concrete inherited default method after the
+		// initial body pass. Close that shared graph before emitting unions so no
+		// generated adapter can reference an unrendered specialization.
+		g.renderNativeInterfaceSpecializationBodies(&body, renderedMethods, renderedFunctions)
+		// Boundary conversion has another generic adapter-discovery path. Warm it
+		// before its final emitted form so its inherited defaults are rendered too.
+		g.stabilizeNativeInterfaceBoundarySpecializations(&body, renderedMethods, renderedFunctions)
 		g.renderNativeUnions(&body)
 		// Boundary/apply helpers must wait until every body/specialization pass
 		// has settled so their interface-adapter switch tables are complete.
@@ -155,6 +159,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderNativeInterfaceApplyRuntimeHelpers(&body)
 		g.renderNativeCallables(&body)
 		g.renderNominalCoercions(&body)
+		g.renderTypedBoundaryTelemetryMetadata(&body)
 		g.renderDiagnosticGlobals(&body)
 	} else {
 		g.renderMonoArrayTypes(&body)
@@ -165,6 +170,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		g.renderNativeUnions(&body)
 		for g.renderPendingNativeInterfaceConcreteAdapters(&body) {
 		}
+		g.renderTypedBoundaryTelemetryMetadata(&body)
 	}
 
 	// Now render the header with imports (flags are set by body rendering).
@@ -240,10 +246,13 @@ func (g *generator) importsForCompiled(compiledBody string) []string {
 		importSet["sync"] = struct{}{}
 		importSet["sync/atomic"] = struct{}{}
 		importSet["time"] = struct{}{}
+		importSet["unicode"] = struct{}{}
 		importSet["unicode/utf8"] = struct{}{}
 		importSet["able/interpreter-go/pkg/compiler/bridge"] = struct{}{}
 		importSet["able/interpreter-go/pkg/ast"] = struct{}{}
-		importSet["able/interpreter-go/pkg/interpreter"] = struct{}{}
+		if g.requiresBootstrapExecution() {
+			importSet["able/interpreter-go/pkg/interpreter"] = struct{}{}
+		}
 	}
 	if needsRuntime {
 		importSet["able/interpreter-go/pkg/runtime"] = struct{}{}
@@ -274,7 +283,6 @@ func (g *generator) importsForCompiled(compiledBody string) []string {
 func (g *generator) importsForCompiledPackageAggregators() []string {
 	imports := []string{
 		"able/interpreter-go/pkg/compiler/bridge",
-		"able/interpreter-go/pkg/interpreter",
 		"able/interpreter-go/pkg/runtime",
 	}
 	sort.Strings(imports)
@@ -285,7 +293,6 @@ func (g *generator) importsForCompiledRegister() []string {
 	imports := []string{
 		"able/interpreter-go/pkg/ast",
 		"able/interpreter-go/pkg/compiler/bridge",
-		"able/interpreter-go/pkg/interpreter",
 		"able/interpreter-go/pkg/runtime",
 		"fmt",
 	}

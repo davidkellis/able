@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-07-24T20:35:40.547785Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_packet_codecs/concurrent_packet_codecs.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-packet-codecs",
+  "runs": 5,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 60,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "0-3",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.364,
+      "avg_user_seconds": 0.49,
+      "avg_sys_seconds": 0.058,
+      "avg_gc": 6.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.44,
+          "user_seconds": 0.82,
+          "sys_seconds": 0.13,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.34,
+          "user_seconds": 0.4,
+          "sys_seconds": 0.04,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.34,
+          "user_seconds": 0.39,
+          "sys_seconds": 0.05,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.35,
+          "user_seconds": 0.39,
+          "sys_seconds": 0.03,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.35,
+          "user_seconds": 0.45,
+          "sys_seconds": 0.04,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/concurrent-packet-codecs/verify.rb",
+        "verified_runs": 5,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        ]
+      }
+    }
+  ]
+}

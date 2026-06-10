@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-07-22T11:46:03.002645Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/manifest_normalization/manifest_normalization.able",
+  "run_from": "/home/david/sync/projects/benchmarks/manifest-normalization",
+  "runs": 2,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode-runtime"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 8,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [
+    "manifests.txt"
+  ],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": null,
+  "results": [
+    {
+      "mode": "bytecode-runtime",
+      "ok_runs": 2,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 18.37,
+      "avg_user_seconds": 17.965,
+      "avg_sys_seconds": 0.29,
+      "avg_gc": 32.5,
+      "avg_ns_per_op": 1662512766.0,
+      "avg_bytes_per_op": 85722770.0,
+      "avg_allocs_per_op": 1209931.0,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 19.09,
+          "user_seconds": 18.59,
+          "sys_seconds": 0.34,
+          "gc_count": 33.0,
+          "ns_per_op": 1752358275.0,
+          "bytes_per_op": 85661960.0,
+          "allocs_per_op": 1209925.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 17.65,
+          "user_seconds": 17.34,
+          "sys_seconds": 0.24,
+          "gc_count": 32.0,
+          "ns_per_op": 1572667257.0,
+          "bytes_per_op": 85783580.0,
+          "allocs_per_op": 1209937.0,
+          "stdout_sha256": null
+        }
+      ],
+      "validation": {
+        "status": "unavailable",
+        "verifier": null,
+        "verified_runs": 0,
+        "failed_runs": 0,
+        "stdout_sha256": []
+      }
+    }
+  ]
+}

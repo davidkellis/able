@@ -1,0 +1,70 @@
+{
+  "kind": "able-truthiness-cast-sudoku-quotient-closure-reach",
+  "schema_version": 1,
+  "date": "2026-07-21",
+  "benchmark": "sudoku_masks",
+  "source_sha256": "88294708698dd72bd6ac6a6249633cc7fddf4274a33587930f8e932b00b199a5",
+  "generated_source_sha256": "baeb8b71c8b810febac7872428f1d22f3f06a50e32598383e59c2cc4fcd28c0b",
+  "profiled_binary_sha256": "65758296b0fc4fd03eb3b87e12c8228f732ddc2b030ffd3b5750013f43aa4665",
+  "generated_application_bodies": {
+    "count": 9,
+    "semantic_truthy_calls": 0,
+    "explicit_runtime_cast_calls": 0,
+    "bridge_is_truthy_calls": 0,
+    "bridge_cast_calls": 0,
+    "interpreter_cast_calls": 0,
+    "source_explicit_cast_sites": 1,
+    "source_explicit_cast_lowering": "direct primitive u8-to-i32 conversion",
+    "signed_divmod_calls": 2,
+    "signed_divmod_owner": "square_index"
+  },
+  "dynamic_boundary_process": {
+    "status": "ok",
+    "verification": "verified",
+    "explicit_dynamic_call": 100,
+    "residual_polymorphic_call": 100,
+    "host_abi_call": 100,
+    "runtime_service_call": 0,
+    "corrected_truthiness_or_cast_helper_reached": false
+  },
+  "main_cpu_profiles": {
+    "profile_count": 2,
+    "same_binary": true,
+    "verified_processes": 2,
+    "total_samples_seconds": 3.91,
+    "signed_divmod_flat_seconds": 0.45,
+    "signed_divmod_flat_percent": 11.51,
+    "signed_divmod_cumulative_seconds": 0.49,
+    "signed_divmod_cumulative_percent": 12.53,
+    "square_index_cumulative_percent": 35.04,
+    "find_best_empty_cumulative_percent": 89.0,
+    "shared_truthiness_cast_cpu_samples": 0
+  },
+  "target_ceiling": {
+    "pooled_able_seconds": 2.073,
+    "pooled_go_seconds": 0.6373188688,
+    "able_go_ratio": 3.2526888838286347,
+    "required_speedup_for_95_percent_go": 3.090054439637203,
+    "perfect_signed_divmod_removal_speedup": 1.1432491139819365,
+    "remaining_required_speedup_after_perfect_removal": 2.7028706183506617
+  },
+  "breadth_controls": [
+    {
+      "benchmark": "rational_series",
+      "result": "different i128 nominal division/GCD owner; signed i32 helper receives zero samples"
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "result": "selected NFA path leaves quotient-bearing DFA midpoint sites cold"
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "result": "formatting quotient is too rare to receive a CPU sample beside map/string conversion"
+    }
+  ],
+  "decision": {
+    "disposition": "closed-insufficient-breadth",
+    "candidate": null,
+    "reason": "Signed i32 Euclidean quotient remains material only in Sudoku, and even impossible complete removal cannot close the current target gap."
+  }
+}

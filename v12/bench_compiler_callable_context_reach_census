@@ -1,0 +1,308 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+workdir=""
+output=""
+benchmark_repo="$(realpath "$SCRIPT_DIR/../../benchmarks")"
+ablec=""
+benchmarks_csv="$(bench_external_suite_csv coverage)"
+modes_csv="default,experimental"
+emit_timeout=60
+build_timeout=60
+run_timeout=60
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_compiler_callable_context_reach_census \
+    --workdir DIR \
+    --output FILE \
+    [--benchmark-repo DIR] \
+    [--ablec FILE] \
+    [--benchmarks CSV] \
+    [--modes default,experimental]
+
+Strictly emits, links, and verifier-runs the portable catalog in default and
+experimental execution-context modes. Experimental applications that emit the
+callable-context ABI receive a diagnostic-only overlay that counts actual
+callable-helper and await-helper execution.
+EOF
+}
+
+die() {
+  echo "bench_compiler_callable_context_reach_census: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --output)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output"
+      output="$1"
+      ;;
+    --benchmark-repo)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"
+      benchmark_repo="$1"
+      ;;
+    --ablec)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --ablec"
+      ablec="$1"
+      ;;
+    --benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      ;;
+    --modes)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --modes"
+      modes_csv="$1"
+      ;;
+    --emit-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --emit-timeout"
+      emit_timeout="$1"
+      ;;
+    --build-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --build-timeout"
+      build_timeout="$1"
+      ;;
+    --run-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --run-timeout"
+      run_timeout="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$workdir" ]] || die "--workdir is required"
+[[ -n "$output" ]] || die "--output is required"
+workdir="$(realpath -m "$workdir")"
+output="$(realpath -m "$output")"
+benchmark_repo="$(realpath "$benchmark_repo")"
+stdlib_root="$(realpath "$SCRIPT_DIR/../../able-stdlib/src")"
+mkdir -p "$workdir"/{bin,generated,probe,tmp,gocache,extern} "$(dirname "$output")"
+[[ -d "$benchmark_repo" ]] || die "benchmark repo not found: $benchmark_repo"
+
+if [[ -z "$ablec" ]]; then
+  ablec="$workdir/bin/ablec"
+  echo ">>> Building retained ablec"
+  TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" \
+    go build -C "$GO_DIR" -o "$ablec" ./cmd/ablec
+else
+  ablec="$(realpath "$ablec")"
+fi
+[[ -x "$ablec" ]] || die "ablec not executable: $ablec"
+
+count_matches() {
+  local pattern="$1"
+  local file="$2"
+  local count
+  count="$({ rg -c "$pattern" "$file" 2>/dev/null || true; } | tail -n 1)"
+  printf '%s\n' "${count:-0}"
+}
+
+tmp_output="$(mktemp "$workdir/census.XXXXXX")"
+trap 'rm -f "$tmp_output"' EXIT
+printf '%s\n' \
+  $'benchmark\tmode\tsource_sha256\tcompiled_sha256\tbinary_sha256\tprobe_binary_sha256\tinterpreter_free\tentry_await_sites\texecution_context_type\tcallable_context_helper\tcallable_context_param_sites\tlinked_callable_helper\tcall_value_fast_calls\tawait_calls\trun_status\tverifier_status\tstdout_sha256' \
+  >"$tmp_output"
+
+IFS=',' read -r -a benchmarks <<<"$benchmarks_csv"
+IFS=',' read -r -a modes <<<"$modes_csv"
+for mode in "${modes[@]}"; do
+  [[ "$mode" == default || "$mode" == experimental ]] ||
+    die "unsupported mode: $mode"
+done
+for index in "${!benchmarks[@]}"; do
+  benchmark="${benchmarks[$index]}"
+  echo ">>> [$((index + 1))/${#benchmarks[@]}] $benchmark"
+  target="$(realpath "$(bench_external_target "$SCRIPT_DIR" "$benchmark")")"
+  suite_dir="$(bench_external_suite_dir "$benchmark_repo" "$benchmark")"
+  run_dir="$(bench_external_run_dir "$benchmark_repo" "$benchmark")"
+  verifier="$suite_dir/verify.rb"
+  [[ -f "$target" ]] || die "source missing for $benchmark: $target"
+  [[ -d "$suite_dir" && -d "$run_dir" ]] ||
+    die "benchmark directories missing for $benchmark"
+  [[ -f "$verifier" ]] || die "public verifier missing for $benchmark"
+
+  if [[ -f "$suite_dir/setup.rb" ]]; then
+    (cd "$suite_dir" && ruby setup.rb >/dev/null)
+  fi
+
+  source_root_env=()
+  if bench_external_source_root_only "$benchmark"; then
+    source_root_env=(ABLE_SOURCE_ROOT_ONLY=1)
+  fi
+  args=()
+  while IFS= read -r argument; do
+    [[ -n "$argument" ]] || continue
+    args+=("$argument")
+  done < <(bench_external_program_args "$benchmark")
+  executor="$(bench_external_executor_policy "$benchmark")"
+  logical_cpus="$(bench_external_logical_cpu_budget "$benchmark" compiled)"
+  entry_await_sites="$(count_matches '\bawait\b' "$target")"
+
+  for mode in "${modes[@]}"; do
+    app_root="$workdir/generated/$mode/$benchmark"
+    probe_root="$workdir/probe/$benchmark"
+    mkdir -p "$app_root"
+    mode_args=()
+    if [[ "$mode" == experimental ]]; then
+      mode_args=(--experimental-execution-context)
+    fi
+    (
+      cd "$run_dir"
+      timeout --signal=INT --kill-after=5 "$emit_timeout" \
+        env \
+          TMPDIR="$workdir/tmp" \
+          GOCACHE="$workdir/gocache" \
+          ABLE_EXTERN_CACHE="$workdir/extern" \
+          ABLE_PATH= \
+          ABLE_MODULE_PATHS= \
+          ABLE_STDLIB_ROOT="$stdlib_root" \
+          GOMEMLIMIT=1GiB \
+          GOGC=50 \
+          GOMAXPROCS=1 \
+          "${source_root_env[@]}" \
+          "$ablec" -main -pkg main -o "$app_root" --no-fallbacks \
+          "${mode_args[@]}" "$target"
+    ) >/dev/null
+
+    compiled="$app_root/compiled.go"
+    execution_context_type="$(count_matches '^type __able_execution_context struct' "$compiled")"
+    callable_context_helper="$(count_matches '^func __able_call_value_fast_ctx' "$compiled")"
+    callable_context_param_sites="$(
+      count_matches '__able_exec_ctx \*__able_execution_context' "$compiled"
+    )"
+    deps="$(
+      TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" \
+        go list -C "$app_root" -mod=mod -deps .
+    )"
+    interpreter_free=true
+    if rg -q '^able/interpreter-go/pkg/interpreter$' <<<"$deps"; then
+      interpreter_free=false
+    fi
+    [[ "$interpreter_free" == true ]] ||
+      die "$benchmark/$mode linked pkg/interpreter"
+
+    timeout --signal=INT --kill-after=5 "$build_timeout" \
+      env TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" GOMAXPROCS=1 \
+      go build -C "$app_root" -mod=mod -o "$app_root/compiled" . >/dev/null
+    linked_callable_helper=false
+    if { go tool nm "$app_root/compiled" 2>/dev/null || true; } |
+      rg -q '__able_call_value_fast_ctx'; then
+      linked_callable_helper=true
+    fi
+
+    run_binary="$app_root/compiled"
+    probe_binary_sha=n/a
+    call_value_fast_calls=0
+    await_calls=0
+    if [[ "$mode" == experimental && "$callable_context_helper" -gt 0 ]]; then
+      mkdir -p "$probe_root/instrumented"
+      overlay="$probe_root/overlay.json"
+      python3 "$SCRIPT_DIR/bench_compiler_callable_context_reach_instrument.py" \
+        --module-dir "$app_root" \
+        --output-dir "$probe_root/instrumented" \
+        --overlay "$overlay"
+      timeout --signal=INT --kill-after=5 "$build_timeout" \
+        env TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" GOMAXPROCS=1 \
+        go build -C "$app_root" -overlay="$overlay" -mod=mod \
+        -o "$probe_root/compiled" . >/dev/null
+      run_binary="$probe_root/compiled"
+      probe_binary_sha="$(sha256sum "$run_binary" | cut -d' ' -f1)"
+    fi
+
+    stdout="$app_root/stdout"
+    stderr="$app_root/stderr"
+    set +e
+    (
+      cd "$run_dir"
+      timeout --signal=INT --kill-after=5 "$run_timeout" \
+        env \
+          TMPDIR="$workdir/tmp" \
+          ABLE_PATH= \
+          ABLE_MODULE_PATHS= \
+          ABLE_STDLIB_ROOT="$stdlib_root" \
+          ABLE_EXECUTOR="$executor" \
+          GOMAXPROCS="$logical_cpus" \
+          "$run_binary" "${args[@]}"
+    ) >"$stdout" 2>"$stderr"
+    run_rc=$?
+    set -e
+
+    run_status=pass
+    if [[ "$run_rc" -ne 0 ]]; then
+      run_status="exit-$run_rc"
+    fi
+    verifier_status=not-run
+    if [[ "$run_rc" -eq 0 ]] && ruby "$verifier" <"$stdout"; then
+      verifier_status=pass
+    elif [[ "$run_rc" -eq 0 ]]; then
+      verifier_status=fail
+    fi
+    [[ "$run_status" == pass && "$verifier_status" == pass ]] ||
+      die "$benchmark/$mode failed: $run_status/$verifier_status"
+
+    if [[ "$mode" == experimental && "$callable_context_helper" -gt 0 ]]; then
+      reach_json="$(
+        sed -n 's/^__ABLE_CALLABLE_CONTEXT_REACH__=//p' "$stderr" | tail -n 1
+      )"
+      [[ -n "$reach_json" ]] || die "$benchmark missing callable reach report"
+      read -r call_value_fast_calls await_calls < <(
+        python3 - "$reach_json" <<'PY'
+import json
+import sys
+data = json.loads(sys.argv[1])
+print(data["call_value_fast"], data["await"])
+PY
+      )
+    fi
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$benchmark" \
+      "$mode" \
+      "$(sha256sum "$target" | cut -d' ' -f1)" \
+      "$(sha256sum "$compiled" | cut -d' ' -f1)" \
+      "$(sha256sum "$app_root/compiled" | cut -d' ' -f1)" \
+      "$probe_binary_sha" \
+      "$interpreter_free" \
+      "$entry_await_sites" \
+      "$execution_context_type" \
+      "$callable_context_helper" \
+      "$callable_context_param_sites" \
+      "$linked_callable_helper" \
+      "$call_value_fast_calls" \
+      "$await_calls" \
+      "$run_status" \
+      "$verifier_status" \
+      "$(sha256sum "$stdout" | cut -d' ' -f1)" \
+      >>"$tmp_output"
+  done
+done
+
+mv "$tmp_output" "$output"
+trap - EXIT
+echo "wrote $((${#benchmarks[@]} * ${#modes[@]})) rows to $output"

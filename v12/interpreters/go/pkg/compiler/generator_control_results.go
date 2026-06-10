@@ -78,12 +78,31 @@ func (g *generator) raiseControlExpr(nodeExpr string, valueExpr string) string {
 func (g *generator) nilPropagationReturnLines(ctx *compileContext) ([]string, bool) {
 	expr, ok := g.nilPropagationReturnExpr(ctx)
 	if !ok {
+		lines, ok := g.nilPropagationTypeMismatchLines(ctx)
+		if ok {
+			return lines, true
+		}
 		if ctx != nil {
 			ctx.setReason("nil propagation requires nil-compatible return type")
 		}
 		return nil, false
 	}
 	return []string{fmt.Sprintf("return %s, nil", expr)}, true
+}
+
+func (g *generator) nilPropagationTypeMismatchLines(ctx *compileContext) ([]string, bool) {
+	if g == nil || ctx == nil || ctx.returnType == "" {
+		return nil, false
+	}
+	expected := typeExpressionToString(ctx.returnTypeExpr)
+	if expected == "" || expected == "<?>" {
+		expected = typeNameFromGoType(ctx.returnType)
+	}
+	if expected == "" {
+		return nil, false
+	}
+	controlExpr := fmt.Sprintf("__able_raise_return_type_mismatch(nil, %q, %q)", expected, "nil")
+	return g.lowerControlTransfer(ctx, controlExpr)
 }
 
 func (g *generator) nilPropagationReturnExpr(ctx *compileContext) (string, bool) {

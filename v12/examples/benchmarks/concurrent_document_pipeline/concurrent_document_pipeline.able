@@ -1,0 +1,130 @@
+package concurrent_document_pipeline
+
+import able.fs
+import able.kernel.{Array, Channel}
+import able.os
+
+LINE_LIMIT: i32 := 32
+DEFAULT_ROUNDS: i32 := 32
+WORKER_COUNT: i32 := 4
+
+struct DocumentTask {
+  sequence: i64,
+  line: String
+}
+
+struct DocumentScore {
+  sequence: i64,
+  bucket: i32,
+  value: i64
+}
+
+methods DocumentScore {
+  fn checksum(self: Self) -> i64 {
+    self.value * ((self.bucket as i64) + 3_i64) + self.sequence * 11_i64
+  }
+}
+
+fn score_line(line: String, sequence: i64, salt: i64) -> DocumentScore {
+  bucket := if line.contains("error") { 0 }
+    elsif line.contains("warn") { 1 }
+    elsif line.contains("cache") { 2 }
+    else { 3 }
+  state := (line.len_bytes() as i64) * 31_i64 + sequence * 7_i64 + salt
+  step := 0_i64
+  loop {
+    if step >= 4_i64 { break }
+    if line.contains("cache") {
+      state = (state * 131_i64 + sequence + step) % 1_000_003_i64
+    } elsif line.contains("error") {
+      state = (state * 97_i64 + step * 3_i64 + salt) % 1_000_003_i64
+    } else {
+      state = (state * 67_i64 + (bucket as i64) + step) % 1_000_003_i64
+    }
+    step = step + 1_i64
+  }
+  DocumentScore { sequence, bucket, value: state }
+}
+
+fn process_task(task: DocumentTask, scorer: (String, i64) -> DocumentScore) -> DocumentScore {
+  scorer(task.line, task.sequence)
+}
+
+fn work(jobs: Channel DocumentTask, results: Channel DocumentScore) -> i64 {
+  processed := 0_i64
+  salt := 23_i64
+  scorer := { line, sequence => score_line(line, sequence, salt) }
+  loop {
+    jobs.receive() match {
+      case nil => {
+        results.send(DocumentScore { sequence: -1_i64, bucket: -1, value: processed })
+        break
+      },
+      case task: DocumentTask => {
+        results.send(process_task(task, scorer))
+        processed = processed + 1_i64
+      }
+    }
+  }
+  processed
+}
+
+fn pipeline_rounds(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" { 1 } else { DEFAULT_ROUNDS }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "documents.txt" }
+  lines := fs.read_lines_prefix(path, LINE_LIMIT)
+  rounds := pipeline_rounds(args)
+  task_count := lines.len() * rounds
+  jobs: Channel DocumentTask = Channel.new(task_count)
+  results: Channel DocumentScore = Channel.new(task_count + WORKER_COUNT)
+  first := spawn { work(jobs, results) }
+  second := spawn { work(jobs, results) }
+  third := spawn { work(jobs, results) }
+  fourth := spawn { work(jobs, results) }
+
+  sequence := 0_i64
+  round := 0
+  loop {
+    if round >= rounds { break }
+    index := 0
+    loop {
+      if index >= lines.len() { break }
+      jobs.send(DocumentTask { sequence, line: lines.get(index)! })
+      sequence = sequence + 1_i64
+      index = index + 1
+    }
+    round = round + 1
+  }
+  jobs.close()
+  future_flush()
+
+  finished := 0
+  worker_total := 0_i64
+  count0 := 0_i64
+  count1 := 0_i64
+  count2 := 0_i64
+  count3 := 0_i64
+  total := 0_i64
+  checksum := 0_i64
+  loop {
+    if finished >= WORKER_COUNT { break }
+    score := results.receive()!
+    if score.sequence < 0_i64 {
+      worker_total = worker_total + score.value
+      finished = finished + 1
+    } else {
+      if score.bucket == 0 { count0 = count0 + 1_i64 }
+      elsif score.bucket == 1 { count1 = count1 + 1_i64 }
+      elsif score.bucket == 2 { count2 = count2 + 1_i64 }
+      else { count3 = count3 + 1_i64 }
+      total = total + score.value
+      checksum = (checksum + score.checksum()) % 1_000_003_i64
+    }
+  }
+
+  print(`${task_count}:${worker_total}:${count0},${count1},${count2},${count3}:${total}:${checksum}`)
+}

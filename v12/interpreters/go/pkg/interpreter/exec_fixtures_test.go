@@ -67,6 +67,45 @@ func TestBuildExecSearchPathsRejectsDistinctStdlibRoots(t *testing.T) {
 	}
 }
 
+func TestBuildExecSearchPathsSourceRootOnlyExcludesWorkingDirectoryPackage(t *testing.T) {
+	root := t.TempDir()
+	entryDir := filepath.Join(root, "entry")
+	dataDir := filepath.Join(root, "data")
+	entryPath := filepath.Join(entryDir, "main.able")
+	for _, dir := range []string{entryDir, dataDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(entryPath, []byte("package sample\n\nfn main() {}\n"), 0o600); err != nil {
+		t.Fatalf("write entry: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "run.able"), []byte("package sample\n\nfn main() {}\n"), 0o600); err != nil {
+		t.Fatalf("write data source: %v", err)
+	}
+
+	t.Chdir(dataDir)
+	t.Setenv("ABLE_SOURCE_ROOT_ONLY", "1")
+	paths, err := buildExecSearchPaths(entryPath, dataDir, fixtureManifest{})
+	if err != nil {
+		t.Fatalf("buildExecSearchPaths() error: %v", err)
+	}
+	for _, path := range paths {
+		if path.Kind == driver.RootUser && path.Path == dataDir {
+			t.Fatalf("source-root-only search paths included working directory %s", dataDir)
+		}
+	}
+
+	loader, err := driver.NewLoader(paths)
+	if err != nil {
+		t.Fatalf("new loader: %v", err)
+	}
+	defer loader.Close()
+	if _, err := loader.Load(entryPath); err != nil {
+		t.Fatalf("load explicit entry with duplicate data package: %v", err)
+	}
+}
+
 func collectExecFixtures(t *testing.T, root string) []string {
 	t.Helper()
 	if root == "" {
@@ -154,6 +193,7 @@ func runExecFixture(t *testing.T, dir string, execMode testExecMode) {
 	}
 
 	executor := selectFixtureExecutor(t, manifest.Executor)
+	defer closeFixtureExecutor(executor)
 	interp := newTestInterpreter(t, execMode, executor)
 	mode := configureFixtureTypechecker(interp)
 	var stdout []string
@@ -270,6 +310,12 @@ func selectFixtureExecutor(t *testing.T, name string) Executor {
 	}
 }
 
+func closeFixtureExecutor(executor Executor) {
+	if closer, ok := executor.(interface{ Close() }); ok {
+		closer.Close()
+	}
+}
+
 func buildExecSearchPaths(entryPath string, fixtureDir string, manifest fixtureManifest) ([]driver.SearchPath, error) {
 	entryAbs, err := filepath.Abs(entryPath)
 	if err != nil {
@@ -305,8 +351,10 @@ func buildExecSearchPaths(entryPath string, fixtureDir string, manifest fixtureM
 	for _, extra := range []string{manifestRoot, entryDir} {
 		add(extra, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
+	if !sourceRootOnlyFixtureSearchPaths() {
+		if cwd, err := os.Getwd(); err == nil {
+			add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
+		}
 	}
 	for _, entry := range resolveFixturePathList(ablePathEnv, fixtureDir) {
 		add(entry, driver.RootUser, driver.StdlibSourceEnv)
@@ -317,15 +365,23 @@ func buildExecSearchPaths(entryPath string, fixtureDir string, manifest fixtureM
 	for _, entry := range findKernelRoots(entryDir) {
 		add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 	}
-	for _, entry := range findStdlibRoots(entryDir) {
-		add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
+	stdlibRootsAdded := false
+	addStdlibRoots := func(start string) {
+		for _, entry := range findStdlibRoots(start) {
+			pathCount := len(paths)
+			add(entry, driver.RootStdlib, fixtureStdlibRootSource(entry))
+			if len(paths) > pathCount {
+				stdlibRootsAdded = true
+			}
+		}
 	}
+	addStdlibRoots(entryDir)
 	if cwd, err := os.Getwd(); err == nil {
 		for _, entry := range findKernelRoots(cwd) {
 			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 		}
-		for _, entry := range findStdlibRoots(cwd) {
-			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
+		if !stdlibRootsAdded {
+			addStdlibRoots(cwd)
 		}
 	}
 	if exe, err := os.Executable(); err == nil {
@@ -333,11 +389,23 @@ func buildExecSearchPaths(entryPath string, fixtureDir string, manifest fixtureM
 		for _, entry := range findKernelRoots(exeDir) {
 			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
 		}
-		for _, entry := range findStdlibRoots(exeDir) {
-			add(entry, driver.RootStdlib, driver.StdlibSourceUnknown)
+		if !stdlibRootsAdded {
+			addStdlibRoots(exeDir)
 		}
 	}
 	return driver.ResolveCanonicalStdlibSearchPaths(paths, false)
+}
+
+// sourceRootOnlyFixtureSearchPaths mirrors the CLI's source-root-only mode for
+// the complete-program benchmark harness. The caller's CWD can supply input
+// data without becoming a second source root containing a duplicate package.
+func sourceRootOnlyFixtureSearchPaths() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ABLE_SOURCE_ROOT_ONLY"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveFixtureEnv(key string, env map[string]string, fallback string) string {
@@ -426,8 +494,8 @@ func findStdlibRoots(start string) []string {
 			roots = append(roots, candidate)
 		}
 	}
-	if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
-		add(installed)
+	if configured := strings.TrimSpace(os.Getenv("ABLE_STDLIB_ROOT")); configured != "" {
+		add(configured)
 		return roots
 	}
 	dir := start
@@ -448,5 +516,29 @@ func findStdlibRoots(start string) []string {
 		}
 		dir = parent
 	}
+	if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
+		add(installed)
+	}
 	return roots
+}
+
+func fixtureStdlibRootSource(root string) driver.StdlibSourceClass {
+	canonical, err := driver.CanonicalizeStdlibCandidateRoot(root)
+	if err != nil {
+		return driver.StdlibSourceUnknown
+	}
+	if configured := strings.TrimSpace(os.Getenv("ABLE_STDLIB_ROOT")); configured != "" {
+		if configuredRoot, err := driver.CanonicalizeStdlibCandidateRoot(configured); err == nil && configuredRoot == canonical {
+			return driver.StdlibSourceEnv
+		}
+	}
+	if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
+		if installedRoot, err := driver.CanonicalizeStdlibCandidateRoot(installed); err == nil && installedRoot == canonical {
+			return driver.StdlibSourceCache
+		}
+	}
+	if filepath.Base(filepath.Dir(canonical)) == "able-stdlib" {
+		return driver.StdlibSourceOverride
+	}
+	return driver.StdlibSourceUnknown
 }

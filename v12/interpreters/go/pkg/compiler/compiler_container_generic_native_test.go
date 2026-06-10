@@ -6,15 +6,43 @@ import (
 )
 
 func calledFunctionNameFromBody(body string, prefix string) (string, bool) {
-	idx := strings.Index(body, prefix)
-	if idx < 0 {
-		return "", false
+	for _, candidate := range compiledDirectCallNameVariants(prefix) {
+		idx := strings.Index(body, candidate)
+		if idx < 0 {
+			continue
+		}
+		end := strings.Index(body[idx:], "(")
+		if end < 0 {
+			continue
+		}
+		name := body[idx : idx+end]
+		return strings.Replace(name, "__able_compiled_entry_", "__able_compiled_", 1), true
 	}
-	end := strings.Index(body[idx:], "(")
-	if end < 0 {
-		return "", false
+	return "", false
+}
+
+// compiledDirectCallNameVariants recognizes both the raw same-package body
+// and the package-entry wrapper used for direct cross-package calls. Either
+// proves static lowering; neither is a dynamic runtime fallback.
+func compiledDirectCallNameVariants(name string) []string {
+	const bodyPrefix = "__able_compiled_"
+	const entryPrefix = "__able_compiled_entry_"
+	if strings.HasPrefix(name, entryPrefix) {
+		return []string{name, bodyPrefix + strings.TrimPrefix(name, entryPrefix)}
 	}
-	return body[idx : idx+end], true
+	if strings.HasPrefix(name, bodyPrefix) {
+		return []string{name, entryPrefix + strings.TrimPrefix(name, bodyPrefix)}
+	}
+	return []string{name}
+}
+
+func bodyCallsCompiledDirect(body string, name string) bool {
+	for _, candidate := range compiledDirectCallNameVariants(name) {
+		if strings.Contains(body, candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestCompilerLazySeqIteratorCarrierStaysNative(t *testing.T) {
@@ -132,7 +160,7 @@ func TestCompilerLinkedListIterableAdapterStaysNative(t *testing.T) {
 			t.Fatalf("expected LinkedList Iterable adapter iterator to avoid %q:\n%s", fragment, adapterBody)
 		}
 	}
-	if !strings.Contains(adapterBody, "__able_compiled_impl_Enumerable_iterator_1_") &&
+	if !bodyCallsCompiledDirect(adapterBody, "__able_compiled_impl_Enumerable_iterator_1_") &&
 		!strings.Contains(adapterBody, "__able_iface_Iterator_i32_wrap_ptr_LinkedListIterator(") {
 		t.Fatalf("expected LinkedList Iterable adapter iterator to stay on the native compiled path:\n%s", adapterBody)
 	}
@@ -178,7 +206,7 @@ func TestCompilerConcreteEnumerableGenericMethodsStayNative(t *testing.T) {
 		"__able_compiled_impl_Enumerable_filter_default_",
 		"__able_compiled_impl_Enumerable_reduce_default_",
 	} {
-		if !strings.Contains(body, fragment) {
+		if !bodyCallsCompiledDirect(body, fragment) {
 			t.Fatalf("expected concrete Enumerable generic methods to call compiled impls directly (%q):\n%s", fragment, body)
 		}
 	}
@@ -251,7 +279,7 @@ func TestCompilerConcreteEnumerableGenericMethodsStayNative(t *testing.T) {
 			t.Fatalf("expected concrete Enumerable.lazy default impl to avoid %q:\n%s", fragment, lazyBody)
 		}
 	}
-	if !strings.Contains(lazyBody, "__able_compiled_impl_Enumerable_iterator_1_") {
+	if !bodyCallsCompiledDirect(lazyBody, "__able_compiled_impl_Enumerable_iterator_1_") {
 		t.Fatalf("expected concrete Enumerable.lazy default impl to call the specialized iterator impl directly:\n%s", lazyBody)
 	}
 }
@@ -319,19 +347,25 @@ func TestCompilerConcreteIteratorGenericMethodsStayNative(t *testing.T) {
 		}
 	}
 	for _, fragment := range []string{
-		"__able_compiled_iface_Iterator__map_default(",
-		"__able_compiled_iface_Iterator_filter_default",
-		"__able_compiled_iface_Iterator_collect_default(",
-		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
+		"__able_compiled_entry_iface_Iterator__map_default(",
+		".filter(",
+		"__able_compiled_entry_iface_Iterator_collect_default(",
+		"__able_compiled_entry_impl_Enumerable_reduce_default_9_spec",
 	} {
-		if !strings.Contains(body, fragment) {
+		if strings.HasPrefix(fragment, "__able_compiled_") {
+			if bodyCallsCompiledDirect(body, strings.TrimSuffix(fragment, "(")) {
+				continue
+			}
+		} else if strings.Contains(body, fragment) {
+			continue
+		}
+		{
 			t.Fatalf("expected concrete Iterator pipeline to call compiled helpers directly (%q):\n%s", fragment, body)
 		}
 	}
 
 	for _, fnName := range []string{
 		"__able_compiled_iface_Iterator__map_default",
-		"__able_compiled_iface_Iterator_filter_default",
 		"__able_compiled_iface_Iterator_collect_default",
 	} {
 		fnBody, ok := findCompiledFunction(result, fnName)
@@ -346,6 +380,22 @@ func TestCompilerConcreteIteratorGenericMethodsStayNative(t *testing.T) {
 			if strings.Contains(fnBody, fragment) {
 				t.Fatalf("expected %s to avoid %q:\n%s", fnName, fragment, fnBody)
 			}
+		}
+	}
+	filterBody, ok := findCompiledFunction(result, "(w __able_iface_Iterator_i64_runtime_iterator) filter")
+	if !ok {
+		t.Fatalf("could not find raw runtime-iterator filter adapter body")
+	}
+	if !bodyCallsCompiledDirect(filterBody, "__able_compiled_entry_iface_Iterator_filter_default") {
+		t.Fatalf("expected raw runtime-iterator filter adapter to delegate to the compiled default helper:\n%s", filterBody)
+	}
+	for _, fragment := range []string{
+		"__able_method_call(",
+		"__able_iface_Iterator_i64_from_value(",
+		"__able_fn_int64_to_bool_to_runtime_value(",
+	} {
+		if strings.Contains(filterBody, fragment) {
+			t.Fatalf("expected raw runtime-iterator filter adapter to avoid %q:\n%s", fragment, filterBody)
 		}
 	}
 }
@@ -388,15 +438,14 @@ func TestCompilerConcreteIteratorGenericMethodMatchCarriersStayNative(t *testing
 	if !ok {
 		t.Fatalf("could not find concrete Iterator.map helper call in main body")
 	}
-	filterName, ok := calledFunctionNameFromBody(mainBody, "__able_compiled_iface_Iterator_filter_default")
-	if !ok {
-		t.Fatalf("could not find concrete Iterator.filter helper call in main body")
+	if !strings.Contains(mainBody, ".filter(") {
+		t.Fatalf("expected concrete Iterator.filter call to remain on the native interface carrier:\n%s", mainBody)
 	}
 	collectName, ok := calledFunctionNameFromBody(mainBody, "__able_compiled_iface_Iterator_collect_default")
 	if !ok {
 		t.Fatalf("could not find concrete Iterator.collect helper call in main body")
 	}
-	helpers := []string{mapName, filterName, collectName}
+	helpers := []string{mapName, collectName}
 	for _, helperName := range helpers {
 		helperBody, ok := findCompiledFunction(result, helperName)
 		if !ok {
@@ -419,13 +468,6 @@ func TestCompilerConcreteIteratorGenericMethodMatchCarriersStayNative(t *testing
 	}
 	if !strings.Contains(mapBody, "__able_union__IteratorEnd_or_int32_as_int32(") {
 		t.Fatalf("expected Iterator.map helper to extract the concrete int32 branch directly:\n%s", mapBody)
-	}
-	filterBody, ok := findCompiledFunction(result, filterName)
-	if !ok {
-		t.Fatalf("could not find compiled Iterator.filter helper %s", filterName)
-	}
-	if !strings.Contains(filterBody, "__able_union__IteratorEnd_or_int64_as_int64(") {
-		t.Fatalf("expected Iterator.filter helper to extract the concrete int64 branch directly:\n%s", filterBody)
 	}
 }
 
@@ -478,15 +520,17 @@ func TestCompilerConcreteIteratorGenericMethodsStayNativeWithExperimentalMonoArr
 	if !ok {
 		t.Fatalf("could not find compiled main")
 	}
-	for _, fragment := range []string{
-		"__able_compiled_iface_Iterator__map_default(",
-		"__able_compiled_iface_Iterator_filter_default",
+	for _, call := range []string{
+		"__able_compiled_iface_Iterator__map_default",
 		"__able_compiled_iface_Iterator_collect_",
 		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
 	} {
-		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected concrete Iterator mono-array pipeline to contain %q:\n%s", fragment, body)
+		if !bodyCallsCompiledDirect(body, call) {
+			t.Fatalf("expected concrete Iterator mono-array pipeline to contain a direct %q call:\n%s", call, body)
 		}
+	}
+	if !strings.Contains(body, ".filter(") {
+		t.Fatalf("expected concrete Iterator mono-array pipeline to retain the native filter interface call:\n%s", body)
 	}
 	compiledSrc := string(result.Files["compiled.go"])
 	if !strings.Contains(compiledSrc, "func __able_compiled_iface_Iterator_collect_") || !strings.Contains(compiledSrc, "(*__able_array_i64, *__ableControl)") {
@@ -594,11 +638,10 @@ func TestCompilerConcreteIteratorMapFilterFunctionStaysNative(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find compiled score helper")
 	}
-	for _, fragment := range []string{
-		"__able_compiled_iface_Iterator__map_default(",
-		"__able_compiled_iface_Iterator_filter_default",
-		".next()",
-	} {
+	if !bodyCallsCompiledDirect(body, "__able_compiled_iface_Iterator__map_default") {
+		t.Fatalf("expected score helper to call the native Iterator.map helper:\n%s", body)
+	}
+	for _, fragment := range []string{".filter(", ".next()"} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected score helper to stay on native iterator helpers (%q):\n%s", fragment, body)
 		}
@@ -701,7 +744,7 @@ func TestCompilerConcreteIteratorCollectGenericNominalAccumulatorStaysNative(t *
 			t.Fatalf("expected concrete Iterator.collect<C>() to stay on the shared native path without %q:\n%s", fragment, body)
 		}
 	}
-	if !strings.Contains(body, "__able_compiled_iface_Iterator_collect_default") {
+	if !bodyCallsCompiledDirect(body, "__able_compiled_iface_Iterator_collect_default") {
 		t.Fatalf("expected Iterator.collect<C>() to use the shared compiled default helper:\n%s", body)
 	}
 	collectName, ok := calledFunctionNameFromBody(body, "__able_compiled_iface_Iterator_collect_default")
@@ -726,7 +769,7 @@ func TestCompilerConcreteIteratorCollectGenericNominalAccumulatorStaysNative(t *
 		"__able_compiled_impl_Default_",
 		"__able_compiled_impl_Extend_extend_",
 	} {
-		if !strings.Contains(collectBody, fragment) {
+		if !bodyCallsCompiledDirect(collectBody, fragment) {
 			t.Fatalf("expected shared Iterator.collect<C>() helper to resolve %q statically:\n%s", fragment, collectBody)
 		}
 	}

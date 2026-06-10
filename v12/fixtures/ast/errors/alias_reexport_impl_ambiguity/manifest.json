@@ -7,7 +7,7 @@
   ],
   "expect": {
     "errors": [
-      "Unnamed impl for (Taggable, Widget) already exists"
+      "Unnamed impl for (alias_reexport_impl_ambiguity_base.Taggable, Widget) already exists"
     ],
     "typecheckDiagnostics": [
       "typechecker: v12/fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"

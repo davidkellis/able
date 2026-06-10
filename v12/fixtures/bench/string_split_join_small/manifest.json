@@ -1,0 +1,6 @@
+{
+  "description": "string split and join benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

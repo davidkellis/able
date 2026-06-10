@@ -1,0 +1,28 @@
+File: able
+Build ID: 594d75b5254c69d4cd3e7b4ab6644e73355cf0a7
+Type: inuse_space
+Time: 2026-07-11 23:27:28 CDT
+Showing nodes accounting for 116.85MB, 97.44% of 119.92MB total
+Dropped 26 nodes (cum <= 0.60MB)
+Showing top 20 nodes out of 94
+      flat  flat%   sum%        cum   cum%
+   41.05MB 34.24% 34.24%    41.05MB 34.24%  able/interpreter-go/pkg/runtime.ArrayEnsureCapacity
+   25.85MB 21.56% 55.80%    25.85MB 21.56%  able/interpreter-go/pkg/interpreter.bytecodeBoxedIntegerValue
+   23.59MB 19.67% 75.47%    23.59MB 19.67%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+    7.17MB  5.98% 81.45%    10.17MB  8.48%  able/interpreter-go/pkg/interpreter.(*Interpreter).trackArrayValueLocked
+    4.60MB  3.83% 85.28%     4.60MB  3.83%  able/interpreter-go/pkg/interpreter.(*bytecodeLoweringContext).emit (inline)
+       3MB  2.50% 87.78%        3MB  2.50%  weak.runtime_registerWeakPointer
+    1.99MB  1.66% 89.44%     1.99MB  1.66%  plugin/unnamed-16f9f1ae6a7743e92015f02bd771b60e0189c073.fs_read_lines_fast
+    1.56MB  1.30% 90.74%     1.56MB  1.30%  able/interpreter-go/pkg/interpreter.(*Interpreter).SetNodeOrigins
+    1.56MB  1.30% 92.04%     1.56MB  1.30%  able/interpreter-go/pkg/ast.annotateOrigins
+    1.54MB  1.28% 93.32%     1.54MB  1.28%  able/interpreter-go/pkg/runtime.arrayStoreUpdateLeaseLocked
+       1MB  0.83% 94.16%        1MB  0.83%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+       1MB  0.83% 94.99%        1MB  0.83%  able/interpreter-go/pkg/interpreter.init.func1
+    0.80MB  0.67% 95.66%     0.80MB  0.67%  able/interpreter-go/pkg/interpreter.externCloneValueSlice
+    0.62MB  0.52% 96.18%     0.62MB  0.52%  able/interpreter-go/pkg/runtime.growArrayHandleKindCache
+    0.51MB  0.42% 96.60%     3.18MB  2.65%  able/interpreter-go/pkg/runtime.ArrayStoreEnsure
+    0.50MB  0.42% 97.02%     4.57MB  3.81%  able/interpreter-go/pkg/interpreter.(*Interpreter).lowerFunctionDefinitionBytecodeWithMethodSetEnv
+    0.50MB  0.42% 97.44%     1.53MB  1.27%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateMethodsDefinition
+         0     0% 97.44%     1.56MB  1.30%  able/interpreter-go/pkg/ast.AnnotateOrigins
+         0     0% 97.44%        1MB  0.83%  able/interpreter-go/pkg/ast.ID
+         0     0% 97.44%     1.56MB  1.30%  able/interpreter-go/pkg/ast.annotateValue

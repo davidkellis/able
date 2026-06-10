@@ -1,0 +1,91 @@
+{
+  "date": "2026-07-22",
+  "decision": "no_new_removable_shared_allocation_owner",
+  "retained_change": false,
+  "profile_binary_sha256": "7d6040f01b5396a91fce31125a284f4892a226bf5081e8ff9025ba62c2909ab6",
+  "profile_build_id": "3fc961f5f7986c29154bc4349c8bef659d60b78d",
+  "guardrails": {
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "gomaxprocs": 1,
+    "timeout_seconds": 55,
+    "warmup_calls": 1,
+    "measured_calls": 1,
+    "normal_typechecking": true,
+    "source_root_only": true,
+    "canonical_external_stdlib": true,
+    "memprofile_rate_bytes": 65536,
+    "counter_samples_per_application": 5
+  },
+  "profile_sha256": {
+    "array_slice_window": "d96cd3a83cc6db635cd338370f961770b550ec9a3f4e6f734d4b9d430a1a198e",
+    "concurrent_event_routing": "21078607d088e7b23d96f6838f9748d768fb3a2c5e0a2a944773c4441f1954b0",
+    "distance_field": "26d3e3a5ab59547f8225b4f5d67fd7a66f36d687e3e975d3eaabc40f446e7bf5",
+    "fixed_width_128": "ade37e2c983d385aaf795fd7eaa91b8f926500c3860e0f9f8f005cdadb23b556",
+    "reverse_complement": "d7a51b086a6ab08419d450b704892520ab9ad321e85f4559e36be748dfa58074",
+    "word_frequency": "82ad8792ec58078dba6e7ab3293b6ff113154e8601ce4a81d7d82017c7887bd0"
+  },
+  "exact_counter_five_process_means": [
+    {"workload":"array_slice_window","mean_bytes_per_op":14170147.2,"byte_span":37256,"mean_objects_per_op":422262.4,"object_span":62},
+    {"workload":"concurrent_event_routing","mean_bytes_per_op":284531776.0,"byte_span":850040,"mean_objects_per_op":2808239.8,"object_span":153},
+    {"workload":"distance_field","mean_bytes_per_op":368061289.6,"byte_span":31760,"mean_objects_per_op":26000136.8,"object_span":59},
+    {"workload":"fixed_width_128","mean_bytes_per_op":1242248091.2,"byte_span":37288,"mean_objects_per_op":30858357.4,"object_span":62},
+    {"workload":"reverse_complement","mean_bytes_per_op":213587099.2,"byte_span":38864,"mean_objects_per_op":3542935.0,"object_span":96},
+    {"workload":"word_frequency","mean_bytes_per_op":48398153.6,"byte_span":239248,"mean_objects_per_op":637276.4,"object_span":89}
+  ],
+  "sampled_object_denominators": {
+    "array_slice_window": 355791,
+    "concurrent_event_routing": 2732176,
+    "distance_field": 18451596,
+    "fixed_width_128": 25649729,
+    "reverse_complement": 3638987,
+    "word_frequency": 661293
+  },
+  "flat_object_percent": {
+    "bytecodeBoxedIntegerValue": [1.92,1.65,0.0,6.89,42.07,5.58],
+    "NewStructInstancePositionalSized": [0.0,6.58,0.0,8.80,0.0,21.62],
+    "arrayStoreRegisterLeaseCleanupLocked": [4.61,1.80,0.0,0.0,0.0,6.19],
+    "ArrayStoreValueViewFromHandle": [2.11,1.05,0.0,0.0,0.0,4.75]
+  },
+  "flat_space_percent": {
+    "bytecodeBoxedIntegerValue": [1.08,0.73,0.0,6.74,31.87,2.68],
+    "NewStructInstancePositionalSized": [0.0,7.63,0.0,22.95,0.0,27.73],
+    "trackArrayValueLocked": [2.91,1.45,0.0,0.0,0.0,4.37]
+  },
+  "line_reconciliation": {
+    "bytecodeBoxedIntegerValue": {
+      "line_249": ["array_slice_window","concurrent_event_routing","word_frequency"],
+      "line_295": ["fixed_width_128","reverse_complement"],
+      "decision": "line 249 is the already-closed direct large-i64 boundary; line 295 is the separate bounded dynamic-cache capacity path"
+    },
+    "NewStructInstancePositionalSized": {
+      "line": 6,
+      "concurrent_event_routing": "multiple Event/Route records; 97.4 percent of sampled constructor objects run below async executor tasks and cross concurrency boundaries",
+      "fixed_width_128": "UInt128 result values from checked member operations and ordinary struct literals",
+      "word_frequency": "the prior identity census establishes Utf8DecodeResult as the dominant definition and return-to-pattern/field-read lifetime",
+      "decision": "same allocator, different definitions and lifetimes; no shared scalar-replacement, frame-ownership, or pooling rule"
+    }
+  },
+  "dominant_object_owner": {
+    "array_slice_window": "bytecodeRawIntegerResultValue",
+    "concurrent_event_routing": "newEnvironmentBase and Environment.mutex",
+    "distance_field": "bytecodeNormalizedRawFloatSlotValue and bytecodeMaterializeRawFloatValue",
+    "fixed_width_128": "math/big.nat.make and UInt128 result construction",
+    "reverse_complement": "u8ToValue and bytecodeBoxedIntegerValue",
+    "word_frequency": "NewStructInstancePositionalSized and String host builtins"
+  },
+  "excluded_profile_contamination": [
+    "initBytecodeSmallIntBoxCache",
+    "interpreter init.func1",
+    "testing alarm setup"
+  ],
+  "closed_mechanisms": [
+    "direct large-i64 boxing and dynamic integer cache variants",
+    "primitive Array shell, view, lease, and cleanup ownership",
+    "generic positional struct pooling or frame ownership",
+    "returned nominal scalar transport without shared lifetime proof",
+    "raw float value substitution and owned-cell variants",
+    "raw integer result carriers"
+  ],
+  "next": "compiled closed-world typed semantic-boundary coverage census across unlike high-excess applications"
+}

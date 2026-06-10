@@ -1,3 +1,5 @@
+//go:build !(js && wasm)
+
 package interpreter
 
 import (
@@ -9,17 +11,18 @@ import (
 	"plugin"
 	"reflect"
 	"strings"
+	"time"
 
 	"able/interpreter-go/pkg/ast"
 )
 
 func buildExternModule(pkgName string, target ast.HostTarget, state *externTargetState, hash string) (*externHostModule, error) {
-	cacheDir := filepath.Join(os.TempDir(), "able-v12-extern-go", sanitizePackageName(pkgName), hash)
+	cacheDir := filepath.Join(externHostCacheRoot(), sanitizePackageName(pkgName), hash)
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return nil, fmt.Errorf("extern cache mkdir: %w", err)
 	}
 	sourcePath := filepath.Join(cacheDir, "extern.go")
-	pluginPath := filepath.Join(cacheDir, "extern.so")
+	pluginPath := externPluginArtifactPath(cacheDir)
 
 	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
 		source, err := renderGoHostModule(state)
@@ -40,25 +43,95 @@ func buildExternModule(pkgName string, target ast.HostTarget, state *externTarge
 	}
 
 	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
-		cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", pluginPath, sourcePath)
-		cmd.Dir = cacheDir
-		var output bytes.Buffer
-		cmd.Stdout = &output
-		cmd.Stderr = &output
-		if err := cmd.Run(); err != nil {
-			return nil, fmt.Errorf("extern host build failed: %w\n%s", err, output.String())
+		if err := buildExternPlugin(cacheDir, pluginPath); err != nil {
+			return nil, err
 		}
 	}
 
 	plug, err := plugin.Open(pluginPath)
 	if err != nil {
-		return nil, fmt.Errorf("extern host plugin open: %w", err)
+		fallbackPath := filepath.Join(cacheDir, fmt.Sprintf("extern-rebuilt-%d.so", time.Now().UnixNano()))
+		if buildErr := buildExternPlugin(cacheDir, fallbackPath); buildErr != nil {
+			return nil, fmt.Errorf("extern host plugin open: %w; rebuild failed: %v", err, buildErr)
+		}
+		plug, err = plugin.Open(fallbackPath)
+		if err != nil {
+			return nil, fmt.Errorf("extern host rebuilt plugin open: %w", err)
+		}
+		// The rebuilt plugin is already safe for this process. A marker write is
+		// only a cross-process cache improvement, so do not turn its failure into
+		// an application execution failure.
+		_ = writeExternPluginArtifactPath(cacheDir, filepath.Base(fallbackPath))
 	}
 	return &externHostModule{
 		hash:    hash,
 		plugin:  plug,
 		symbols: make(map[string]reflect.Value),
 	}, nil
+}
+
+func externHostCacheRoot() string {
+	if configured := strings.TrimSpace(os.Getenv(externCacheDirEnv)); configured != "" {
+		if absolute, err := filepath.Abs(configured); err == nil {
+			return absolute
+		}
+		return filepath.Clean(configured)
+	}
+	return filepath.Join(os.TempDir(), "able-v12-extern-go")
+}
+
+func externPluginArtifactPath(cacheDir string) string {
+	markerPath := filepath.Join(cacheDir, "plugin-artifact")
+	contents, err := os.ReadFile(markerPath)
+	if err == nil {
+		name := strings.TrimSpace(string(contents))
+		if name != "" && name == filepath.Base(name) && strings.HasSuffix(name, ".so") {
+			candidate := filepath.Join(cacheDir, name)
+			if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+				return candidate
+			}
+		}
+	}
+	return filepath.Join(cacheDir, "extern.so")
+}
+
+func writeExternPluginArtifactPath(cacheDir, artifactName string) error {
+	if artifactName == "" || artifactName != filepath.Base(artifactName) || !strings.HasSuffix(artifactName, ".so") {
+		return fmt.Errorf("extern cache invalid plugin artifact name %q", artifactName)
+	}
+	temp, err := os.CreateTemp(cacheDir, "plugin-artifact-*")
+	if err != nil {
+		return fmt.Errorf("extern cache marker: %w", err)
+	}
+	tempPath := temp.Name()
+	defer os.Remove(tempPath)
+	if _, err := temp.WriteString(artifactName + "\n"); err != nil {
+		temp.Close()
+		return fmt.Errorf("extern cache marker: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("extern cache marker: %w", err)
+	}
+	if err := os.Rename(tempPath, filepath.Join(cacheDir, "plugin-artifact")); err != nil {
+		return fmt.Errorf("extern cache marker: %w", err)
+	}
+	return nil
+}
+
+func buildExternPlugin(cacheDir, pluginPath string) error {
+	// Build the generated module rather than passing its source file directly.
+	// A source-file build gives every artifact an anonymous plugin identity;
+	// building "." preserves the unique content-addressed module path in
+	// go.mod, which the Go plugin loader uses to distinguish loaded modules.
+	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", pluginPath, ".")
+	cmd.Dir = cacheDir
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("extern host build failed: %w\n%s", err, output.String())
+	}
+	return nil
 }
 
 func renderGoHostModule(state *externTargetState) (string, error) {
@@ -78,6 +151,7 @@ func renderGoHostModule(state *externTargetState) (string, error) {
 	builder.WriteString("type hostError struct{ message string }\n")
 	builder.WriteString("func (e hostError) Error() string { return e.message }\n")
 	builder.WriteString("func host_error[T any](message string) (T, error) { var zero T; return zero, hostError{message} }\n\n")
+	builder.WriteString("func able_borrowed_bytes(data []byte) []byte { return data }\n\n")
 
 	for _, extern := range state.externs {
 		if extern == nil || extern.Signature == nil || extern.Signature.ID == nil {

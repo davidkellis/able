@@ -17,7 +17,7 @@ func TestCompilerNormalizesCallCompiledThunkDispatch(t *testing.T) {
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "func __able_compiled_thunk_value(bytecode any) (interpreter.CompiledThunk, bool, bool) {") {
+	if !strings.Contains(compiledSrc, "func __able_compiled_thunk_value(bytecode any) (runtime.CompiledThunk, bool, bool) {") {
 		t.Fatalf("expected shared compiled-thunk unwrapping helper to be emitted")
 	}
 
@@ -35,7 +35,7 @@ func TestCompilerNormalizesCallCompiledThunkDispatch(t *testing.T) {
 	if strings.Contains(segment, "if thunk, ok := bytecode.(func(*runtime.Environment, []runtime.Value) (runtime.Value, error)); ok && thunk != nil {") {
 		t.Fatalf("expected legacy direct function-type assertion branch to be removed from __able_call_compiled_thunk")
 	}
-	if strings.Contains(segment, "if thunk, ok := bytecode.(interpreter.CompiledThunk); ok && thunk != nil {") {
+	if strings.Contains(segment, "if thunk, ok := bytecode.(runtime.CompiledThunk); ok && thunk != nil {") {
 		t.Fatalf("expected legacy direct CompiledThunk assertion branch to be removed from __able_call_compiled_thunk")
 	}
 	if !strings.Contains(segment, "thunk, ok, nilPtr := __able_compiled_thunk_value(bytecode)") {

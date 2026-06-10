@@ -1,0 +1,96 @@
+package bench_toposort_small
+
+import able.collections.queue.{Queue}
+import able.kernel.{Array}
+
+fn build_edges(node: i32, size: i32) -> Array i32 {
+  edges: Array i32 = Array.with_capacity(4)
+  if node + 1 < size { edges.push(node + 1) }
+  if node + 3 < size { edges.push(node + 3) }
+  if node + 7 < size { edges.push(node + 7) }
+  if (node % 5) == 0 && node + 11 < size { edges.push(node + 11) }
+  edges
+}
+
+fn build_graph(size: i32) -> Array (Array i32) {
+  graph: Array (Array i32) = Array.with_capacity(size)
+  node := 0
+  loop {
+    if node >= size { break }
+    graph.push(build_edges(node, size))
+    node = node + 1
+  }
+  graph
+}
+
+fn topo_score(graph: Array (Array i32)) -> i64 {
+  size := graph.len()
+  indegree: Array i32 = Array.with_capacity(size)
+  node := 0
+  loop {
+    if node >= size { break }
+    indegree.push(0)
+    node = node + 1
+  }
+
+  node = 0
+  loop {
+    if node >= size { break }
+    edges := graph[node]!
+    edge_idx := 0
+    loop {
+      if edge_idx >= edges.len() { break }
+      next := edges[edge_idx]!
+      indegree[next] = indegree[next]! + 1
+      edge_idx = edge_idx + 1
+    }
+    node = node + 1
+  }
+
+  queue: Queue i32 = Queue.with_capacity(size)
+  node = 0
+  loop {
+    if node >= size { break }
+    if indegree[node]! == 0 {
+      queue.enqueue(node)
+    }
+    node = node + 1
+  }
+
+  processed := 0
+  total: i64 = 0_i64
+  loop {
+    queue.dequeue() match {
+      case nil => { break },
+      case node: i32 => {
+        processed = processed + 1
+        total = total + (node as i64) + (processed as i64)
+        edges := graph[node]!
+        edge_idx := 0
+        loop {
+          if edge_idx >= edges.len() { break }
+          next := edges[edge_idx]!
+          indegree[next] = indegree[next]! - 1
+          if indegree[next]! == 0 {
+            queue.enqueue(next)
+          }
+          edge_idx = edge_idx + 1
+        }
+      }
+    }
+  }
+
+  total + (processed as i64)
+}
+
+fn main() -> void {
+  graph := build_graph(512)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 6 { break }
+    total = total + topo_score(graph)
+    rounds = rounds + 1
+  }
+  print(total)
+}

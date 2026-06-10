@@ -1,0 +1,77 @@
+package bench_graph_bfs_small
+
+import able.collections.queue.{Queue}
+import able.kernel.{Array}
+
+fn build_neighbors(node: i32, size: i32) -> Array i32 {
+  edges: Array i32 = Array.with_capacity(4)
+  edges.push((node + 1) % size)
+  edges.push(((node * 3) + 7) % size)
+  edges.push(((node * 5) + 11) % size)
+  edges.push((node + (size // 2)) % size)
+  edges
+}
+
+fn build_graph(size: i32) -> Array (Array i32) {
+  graph: Array (Array i32) = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    graph.push(build_neighbors(i, size))
+    i = i + 1
+  }
+  graph
+}
+
+fn bfs(graph: Array (Array i32), start: i32) -> i64 {
+  size := graph.len()
+  visited: Array bool = Array.with_capacity(size)
+  distance: Array i32 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    visited.push(false)
+    distance.push(0)
+    i = i + 1
+  }
+
+  queue: Queue i32 = Queue.with_capacity(size)
+  visited[start] = true
+  queue.enqueue(start)
+  total: i64 = 0_i64
+
+  loop {
+    queue.dequeue() match {
+      case nil => { break },
+      case node: i32 => {
+        total = total + (node as i64) + (distance[node]! as i64)
+        neighbors := graph[node]!
+        edge_idx := 0
+        loop {
+          if edge_idx >= neighbors.len() { break }
+          next := neighbors[edge_idx]!
+          if !visited[next]! {
+            visited[next] = true
+            distance[next] = distance[node]! + 1
+            queue.enqueue(next)
+          }
+          edge_idx = edge_idx + 1
+        }
+      }
+    }
+  }
+  total
+}
+
+fn main() -> void {
+  graph := build_graph(1_024)
+  starts: Array i32 = [0, 17, 91, 255, 511, 777]
+  total: i64 = 0_i64
+  idx := 0
+  loop {
+    if idx >= starts.len() { break }
+    total = total + bfs(graph, starts[idx]!)
+    idx = idx + 1
+  }
+  print(total)
+}

@@ -33,7 +33,7 @@ func (vm *bytecodeVM) execAssignPattern(instr bytecodeInstruction) error {
 	if result == nil {
 		result = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, result)
+	vm.appendStackValue(result)
 	vm.ip++
 	return nil
 }
@@ -74,7 +74,7 @@ func (vm *bytecodeVM) execBindPattern(instr bytecodeInstruction) (bool, error) {
 			}
 			frame := vm.loopStack[len(vm.loopStack)-1]
 			vm.env = frame.env
-			vm.stack = append(vm.stack, errVal)
+			vm.appendStackValue(errVal)
 			vm.ip = frame.breakTarget
 			return true, nil
 		}
@@ -106,10 +106,7 @@ func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
 		}
 		return err
 	}
-	current := vm.slots[instr.target]
-	if vm.hasI32RegisterFrame() {
-		current = vm.slotRuntimeValue(instr.target)
-	}
+	current := vm.slotRuntimeValue(instr.target)
 	computed, err := applyBinaryOperator(vm.interp, binaryOp, current, val)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
@@ -118,6 +115,8 @@ func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
 		}
 		return err
 	}
+	vm.clearActiveValueSlotI32(instr.target)
+	vm.clearActiveValueSlotFloat(instr.target)
 	vm.slots[instr.target] = computed
 	if vm.hasI32RegisterFrame() {
 		vm.setI32RegisterValue(instr.target, computed)
@@ -128,7 +127,7 @@ func (vm *bytecodeVM) execCompoundAssignSlot(instr bytecodeInstruction) error {
 	if computed == nil {
 		computed = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, computed)
+	vm.appendStackValue(computed)
 	vm.ip++
 	return nil
 }
@@ -165,7 +164,7 @@ func (vm *bytecodeVM) execAssignNameCompound(instr bytecodeInstruction) error {
 		}
 		return err
 	}
-	if err := vm.env.Assign(instr.name, computed); err != nil {
+	if err := vm.env.Assign(instr.name, vm.environmentValue(computed)); err != nil {
 		if instr.node != nil {
 			return vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
 		}
@@ -174,7 +173,7 @@ func (vm *bytecodeVM) execAssignNameCompound(instr bytecodeInstruction) error {
 	if computed == nil {
 		computed = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, computed)
+	vm.appendStackValue(computed)
 	vm.ip++
 	return nil
 }

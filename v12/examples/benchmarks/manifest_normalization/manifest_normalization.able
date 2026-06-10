@@ -1,0 +1,135 @@
+package manifest_normalization
+
+import able.core.interfaces.{Error}
+import able.core.options.*
+import able.fs
+import able.kernel.{Array}
+import able.os
+
+RECORD_LIMIT: i32 := 32
+DEFAULT_ROUNDS: i32 := 128
+
+struct ManifestError { code: i32 }
+
+impl Error for ManifestError {
+  fn message(self: Self) -> String { "invalid service manifest" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct ManifestRecord {
+  service: String,
+  environment: String,
+  region: String,
+  owner: String,
+  label: String
+}
+
+struct NormalizedManifest {
+  bucket: i32,
+  value: i64
+}
+
+fn manifest_error(code: i32) -> Error {
+  error: Error = ManifestError { code }
+  error
+}
+
+fn parse_manifest(line: String) -> Result ManifestRecord {
+  fields := line.split("|")
+  if fields.len() != 5 { return manifest_error(1) }
+  [service: String, environment: String, region: String, owner: String, label: String] := fields
+  if service.len_bytes() == 0 { return manifest_error(2) }
+  if environment != "prod" && environment != "stage" && environment != "dev" {
+    return manifest_error(3)
+  }
+  if region != "us" && region != "eu" && region != "ap" { return manifest_error(4) }
+  if label.len_bytes() < 4 { return manifest_error(5) }
+  ManifestRecord { service, environment, region, owner, label }
+}
+
+fn optional_owner(owner: String) -> Option String {
+  if owner == "-" { nil } else { owner }
+}
+
+fn default_owner(region: String) -> String { `default-${region}` }
+
+fn environment_bucket(environment: String) -> i32 {
+  if environment == "prod" { 0 }
+  elsif environment == "stage" { 1 }
+  else { 2 }
+}
+
+fn normalize(record: ManifestRecord, sequence: i64, salt: i64) -> NormalizedManifest {
+  owner := optional_owner(record.owner)
+    .or_else({ => default_owner(record.region) })
+    .map<String>({ value => `${value}-ops` })
+    .unwrap_or("unknown-ops")
+  bucket := environment_bucket(record.environment)
+  state := (record.service.len_bytes() as i64) * 31_i64
+  state = state + (record.region.len_bytes() as i64) * 13_i64
+  state = state + (owner.len_bytes() as i64) * 17_i64
+  state = state + (record.label.len_bytes() as i64) * 7_i64 + sequence * 3_i64 + salt
+  step := 0_i64
+  loop {
+    if step >= 4_i64 { break }
+    if record.label.contains("blue") {
+      state = (state * 131_i64 + sequence + step) % 1_000_003_i64
+    } elsif owner.contains("default") {
+      state = (state * 79_i64 + (bucket as i64) + step) % 1_000_003_i64
+    } else {
+      state = (state * 67_i64 + salt + step) % 1_000_003_i64
+    }
+    step = step + 1_i64
+  }
+  NormalizedManifest { bucket, value: state }
+}
+
+fn normalization_rounds(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" { 1 } else { DEFAULT_ROUNDS }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "manifests.txt" }
+  lines := fs.read_lines_prefix(path, RECORD_LIMIT)
+  rounds := normalization_rounds(args)
+  salt := 29_i64
+  normalizer := { record, sequence => normalize(record, sequence, salt) }
+
+  counts: Array i64 := Array.with_capacity(3)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  accepted := 0_i64
+  rejected := 0_i64
+  total := 0_i64
+  checksum := 0_i64
+  sequence := 0_i64
+  round := 0
+  loop {
+    if round >= rounds { break }
+    index := 0
+    loop {
+      if index >= lines.len() { break }
+      resolved := parse_manifest(lines.get(index)!).map<NormalizedManifest>({ record => normalizer(record, sequence) })
+      if resolved.is_ok() {
+        accepted = accepted + 1_i64
+        normalized := resolved.unwrap_or(NormalizedManifest { bucket: 0, value: 0_i64 })
+        bucket := normalized.bucket
+        counts.write_slot(bucket, counts.read_slot(bucket) + 1_i64)
+        total = total + normalized.value
+        checksum = (checksum + normalized.value * 7_i64 + (bucket as i64) * 19_i64 + sequence * 3_i64) % 1_000_003_i64
+      } else {
+        rejected = rejected + 1_i64
+        fallback := 97_i64 + (sequence % 101_i64)
+        total = total + fallback
+        checksum = (checksum + fallback * 11_i64 + 23_i64 + sequence * 5_i64) % 1_000_003_i64
+      }
+      sequence = sequence + 1_i64
+      index = index + 1
+    }
+    round = round + 1
+  }
+
+  print(`${sequence}:${accepted}:${rejected}:${counts.read_slot(0)},${counts.read_slot(1)},${counts.read_slot(2)}:${total}:${checksum}`)
+}

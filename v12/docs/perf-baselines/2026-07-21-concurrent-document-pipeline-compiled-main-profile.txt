@@ -1,0 +1,38 @@
+File: app
+Build ID: ddd07160ba66f8159072ebc9c7d15fc5e2bbdb32
+Type: cpu
+Time: 2026-07-21 22:24:18 CDT
+Duration: 425.48ms, Total samples = 460ms (108.11%)
+Showing nodes accounting for 460ms, 100% of 460ms total
+Showing top 30 nodes out of 100
+      flat  flat%   sum%        cum   cum%
+      90ms 19.57% 19.57%       90ms 19.57%  runtime.step
+      50ms 10.87% 30.43%       50ms 10.87%  runtime.unlock2
+      40ms  8.70% 39.13%       40ms  8.70%  runtime.memmove
+      40ms  8.70% 47.83%      140ms 30.43%  runtime.pcvalue
+      20ms  4.35% 52.17%       50ms 10.87%  runtime.(*unwinder).resolveInternal
+      20ms  4.35% 56.52%       90ms 19.57%  runtime.gwrite
+      20ms  4.35% 60.87%       20ms  4.35%  runtime.lock2
+      20ms  4.35% 65.22%       50ms 10.87%  runtime.printlock
+      20ms  4.35% 69.57%       80ms 17.39%  runtime.printunlock
+      10ms  2.17% 71.74%       10ms  2.17%  indexbytebody
+      10ms  2.17% 73.91%       10ms  2.17%  internal/runtime/gc/scan.scanSpanPackedAVX512
+      10ms  2.17% 76.09%       10ms  2.17%  internal/runtime/maps.(*ctrlGroup).setEmpty
+      10ms  2.17% 78.26%       10ms  2.17%  internal/strconv.formatBase10
+      10ms  2.17% 80.43%       10ms  2.17%  main.__able_unwrap_interface
+      10ms  2.17% 82.61%       10ms  2.17%  runtime.(*moduledata).textAddr
+      10ms  2.17% 84.78%       10ms  2.17%  runtime.alignDown
+      10ms  2.17% 86.96%       30ms  6.52%  runtime.lockWithRank (inline)
+      10ms  2.17% 89.13%       30ms  6.52%  runtime.printhexopts
+      10ms  2.17% 91.30%       80ms 17.39%  runtime.printstring
+      10ms  2.17% 93.48%       50ms 10.87%  runtime.recordForPanic
+      10ms  2.17% 95.65%       20ms  4.35%  runtime.scanSpan
+      10ms  2.17% 97.83%      380ms 82.61%  runtime.traceback2
+      10ms  2.17%   100%       60ms 13.04%  runtime.unlock (inline)
+         0     0%   100%       90ms 19.57%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%      120ms 26.09%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%       80ms 17.39%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%      120ms 26.09%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%       80ms 17.39%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%      120ms 26.09%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      410ms 89.13%  able/interpreter-go/pkg/compiler/bridge.currentGID

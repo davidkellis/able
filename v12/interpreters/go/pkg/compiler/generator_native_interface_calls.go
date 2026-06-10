@@ -23,34 +23,6 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 	if !ok || method == nil {
 		return nil, "", "", false
 	}
-	if method.DefaultDefinition != nil && !g.nativeInterfaceReceiverUsesConcreteAdapterWrapper(receiverType, receiverExpr) {
-		defaultMethod := &nativeInterfaceGenericMethod{
-			Name:              method.Name,
-			GoName:            method.GoName,
-			InterfaceName:     method.InterfaceName,
-			InterfacePackage:  method.InterfacePackage,
-			InterfaceArgs:     method.InterfaceArgs,
-			ParamTypeExprs:    method.ParamTypeExprs,
-			ReturnTypeExpr:    method.ReturnTypeExpr,
-			DefaultDefinition: method.DefaultDefinition,
-		}
-		if directLines, expr, retType, ok := g.compileStaticNativeInterfaceGenericDefaultMethodCall(
-			ctx,
-			call,
-			expected,
-			receiverExpr,
-			receiverType,
-			defaultMethod,
-			method.ParamTypeExprs,
-			method.ParamGoTypes,
-			method.ReturnTypeExpr,
-			method.ReturnGoType,
-			nil,
-			callNode,
-		); ok {
-			return directLines, expr, retType, true
-		}
-	}
 	callArgCount := len(call.Arguments)
 	paramCount := len(method.ParamGoTypes)
 	if callArgCount != paramCount {
@@ -82,7 +54,12 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 		}
 		args = append(args, zeroExpr)
 	}
-	callExpr := fmt.Sprintf("%s.%s(%s)", receiverExpr, method.GoName, strings.Join(args, ", "))
+	methodGoName := method.GoName
+	if g.executionContextsEnabled() && ctx.executionContextExpr != "" {
+		methodGoName = nativeInterfaceContextMethodName(method)
+		args = append(args, ctx.executionContextExpr)
+	}
+	callExpr := fmt.Sprintf("%s.%s(%s)", receiverExpr, methodGoName, strings.Join(args, ", "))
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines := append([]string{}, argLines...)
@@ -190,7 +167,7 @@ func (g *generator) compileConcreteNativeInterfaceMethodCall(ctx *compileContext
 	}
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", resultTemp, controlTemp, g.compiledCallTargetName(ctx.packageName, impl.Info), strings.Join(args, ", ")))
+	lines = append(lines, fmt.Sprintf("%s, %s := %s(%s)", resultTemp, controlTemp, g.compiledContextCallTargetName(ctx, ctx.packageName, impl.Info), g.compiledCallArgs(ctx, args)))
 	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false

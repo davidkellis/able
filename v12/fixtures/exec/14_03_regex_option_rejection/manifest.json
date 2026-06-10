@@ -1,0 +1,8 @@
+{
+  "description": "unsupported regex matching options reject instead of silently changing semantics",
+  "expect": {
+    "stdout": [
+      "unicode_false rejected"
+    ]
+  }
+}

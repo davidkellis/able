@@ -8,13 +8,18 @@ import (
 )
 
 func (vm *bytecodeVM) execIndexGet(instr bytecodeInstruction) error {
-	if len(vm.stack) < 2 {
+	if vm.stackDepth() < 2 {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	idxVal := vm.stack[len(vm.stack)-1]
-	obj := vm.stack[len(vm.stack)-2]
+	idxVal := vm.stackValue(vm.stackDepth() - 1)
+	obj := vm.stackValue(vm.stackDepth() - 2)
 	var err error
-	result, err := vm.resolveIndexGet(obj, idxVal)
+	var (
+		result            runtime.Value
+		elementToken      uint16
+		elementTokenKnown bool
+	)
+	result, elementToken, elementTokenKnown, err = vm.resolveIndexGetWithToken(obj, idxVal)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
 		if instr.node != nil {
@@ -23,17 +28,30 @@ func (vm *bytecodeVM) execIndexGet(instr bytecodeInstruction) error {
 		return err
 	}
 	vm.replaceTop2Unchecked(result)
+	if elementTokenKnown && vm.canSkipArrayGetSuccessPropagation(result, elementToken, true) {
+		vm.ip += 2
+		return nil
+	}
+	if !elementTokenKnown && vm.canSkipSuccessPropagation(result) {
+		vm.ip += 2
+		return nil
+	}
 	vm.ip++
 	return nil
 }
 
 func (vm *bytecodeVM) execIndexSet(instr bytecodeInstruction) error {
-	if len(vm.stack) < 3 {
+	if vm.stackDepth() < 3 {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	idxVal := vm.stack[len(vm.stack)-1]
-	obj := vm.stack[len(vm.stack)-2]
-	val := vm.stack[len(vm.stack)-3]
+	idxVal := vm.stackValue(vm.stackDepth() - 1)
+	obj := vm.stackValue(vm.stackDepth() - 2)
+	val := vm.materializePrimitiveValue(bytecodeMaterializationRequiredDynamic, bytecodeMaterializationReasonInterfaceUnion, vm.stackValue(vm.stackDepth()-3))
+	if arr, ok := obj.(*runtime.ArrayValue); ok {
+		vm.observeBytecodeArrayOwnershipArrayWrite(arr, val)
+	} else {
+		vm.markBytecodeArrayOwnershipValueEscaped(val, bytecodeArrayOwnershipEscapeAggregate)
+	}
 	if instr.operator == "" {
 		return fmt.Errorf("bytecode index set missing operator")
 	}
@@ -53,17 +71,129 @@ func (vm *bytecodeVM) execIndexSet(instr bytecodeInstruction) error {
 	return nil
 }
 
+func bytecodeDirectStructMemberValue(receiver runtime.Value, memberName string, preferMethods bool) (runtime.Value, bool) {
+	if memberName == "" {
+		return nil, false
+	}
+	inst, ok := receiver.(*runtime.StructInstanceValue)
+	if !ok || inst == nil {
+		return nil, false
+	}
+	if !preferMethods {
+		return structNamedFieldValue(inst, memberName)
+	}
+	val, ok := structNamedFieldValue(inst, memberName)
+	if !ok || !isCallableRuntimeValue(val) {
+		return nil, false
+	}
+	return val, true
+}
+
+func bytecodeNamedStructMemberPlanAt(program *bytecodeProgram, ip int) (bytecodeNamedStructMemberPlan, bool) {
+	if program == nil || ip < 0 || program.namedStructMembers == nil {
+		return bytecodeNamedStructMemberPlan{}, false
+	}
+	plan, ok := program.namedStructMembers[ip]
+	return plan, ok
+}
+
+func bytecodeNamedStructMemberPlanForInstruction(program *bytecodeProgram, ip int, instr *bytecodeInstruction) (bytecodeNamedStructMemberPlan, bool) {
+	plan, ok := bytecodeNamedStructMemberPlanAt(program, ip)
+	if !ok || instr == nil || instr.name == "" {
+		return bytecodeNamedStructMemberPlan{}, false
+	}
+	if plan.definition == nil || plan.definition.Node == nil || plan.fieldIndex < 0 || plan.fieldIndex >= len(plan.definition.Node.Fields) {
+		return bytecodeNamedStructMemberPlan{}, false
+	}
+	field := plan.definition.Node.Fields[plan.fieldIndex]
+	if field == nil || field.Name == nil || field.Name.Name != instr.name {
+		return bytecodeNamedStructMemberPlan{}, false
+	}
+	return plan, true
+}
+
+func bytecodeStructInstanceMatchesMemberPlan(inst *runtime.StructInstanceValue, def *runtime.StructDefinitionValue) bool {
+	if inst == nil || inst.Definition == nil || def == nil {
+		return false
+	}
+	return inst.Definition == def || (inst.Definition.Node != nil && def.Node != nil && inst.Definition.Node == def.Node)
+}
+
+func bytecodeDirectPlannedStructMemberValue(receiver runtime.Value, plan bytecodeNamedStructMemberPlan, preferMethods bool) (runtime.Value, bool) {
+	if plan.definition == nil {
+		return nil, false
+	}
+	inst, ok := receiver.(*runtime.StructInstanceValue)
+	if !ok || inst == nil || inst.Definition == nil || inst.Positional == nil {
+		return nil, false
+	}
+	if !bytecodeStructInstanceMatchesMemberPlan(inst, plan.definition) {
+		return nil, false
+	}
+	if plan.fieldIndex < 0 || plan.fieldIndex >= len(inst.Positional) {
+		return nil, false
+	}
+	val := inst.Positional[plan.fieldIndex]
+	if preferMethods && !isCallableRuntimeValue(val) {
+		return nil, false
+	}
+	return val, true
+}
+
+func bytecodeDirectPlannedStructMemberSet(interp *Interpreter, receiver runtime.Value, plan bytecodeNamedStructMemberPlan, value runtime.Value, op ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, bool, error) {
+	if plan.definition == nil {
+		return nil, false, nil
+	}
+	inst, ok := receiver.(*runtime.StructInstanceValue)
+	if !ok || inst == nil || inst.Definition == nil || inst.Positional == nil {
+		return nil, false, nil
+	}
+	if !bytecodeStructInstanceMatchesMemberPlan(inst, plan.definition) {
+		return nil, false, nil
+	}
+	if plan.fieldIndex < 0 || plan.fieldIndex >= len(inst.Positional) {
+		return nil, false, nil
+	}
+	if op == ast.AssignmentAssign {
+		inst.Positional[plan.fieldIndex] = value
+		return value, true, nil
+	}
+	if !isCompound {
+		return nil, true, fmt.Errorf("unsupported assignment operator %s", op)
+	}
+	current := inst.Positional[plan.fieldIndex]
+	computed, err := applyBinaryOperator(interp, binaryOp, current, value)
+	if err != nil {
+		return nil, true, err
+	}
+	inst.Positional[plan.fieldIndex] = computed
+	return computed, true, nil
+}
+
 func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
-	if len(vm.stack) < 1 {
+	if vm.stackDepth() < 1 {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	obj := vm.stack[len(vm.stack)-1]
+	obj := vm.stackValue(vm.stackDepth() - 1)
 	if instr.safe && isNilRuntimeValue(obj) {
 		vm.replaceTop1Unchecked(runtime.NilValue{})
 		vm.ip++
 		return nil
 	}
+	obj = vm.materializePrimitiveValue(bytecodeMaterializationRequiredDynamic, bytecodeMaterializationReasonInterfaceUnion, obj)
 	memberName := instr.name
+	if plan, ok := bytecodeNamedStructMemberPlanForInstruction(vm.currentProgram, vm.ip, &instr); ok {
+		if val, ok := bytecodeDirectPlannedStructMemberValue(obj, plan, instr.preferMethods); ok {
+			vm.replaceTop1Unchecked(val)
+			vm.ip++
+			return nil
+		}
+	}
+	if val, ok := bytecodeDirectStructMemberValue(obj, memberName, instr.preferMethods); ok {
+		vm.replaceTop1Unchecked(val)
+		vm.ip++
+		return nil
+	}
 	memberExpr := ast.Expression(nil)
 	if instr.node != nil {
 		if member, ok := instr.node.(*ast.MemberAccessExpression); ok && member != nil {
@@ -74,6 +204,11 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 				}
 			}
 		}
+	}
+	if val, ok := bytecodeDirectStructMemberValue(obj, memberName, instr.preferMethods); ok {
+		vm.replaceTop1Unchecked(val)
+		vm.ip++
+		return nil
 	}
 	if memberExpr == nil && memberName != "" {
 		ident := ast.Identifier{Name: memberName}
@@ -107,18 +242,16 @@ func (vm *bytecodeVM) execMemberAccess(instr bytecodeInstruction) error {
 }
 
 func (vm *bytecodeVM) execMemberSet(instr bytecodeInstruction) error {
-	memberExpr, ok := instr.node.(*ast.MemberAccessExpression)
-	if !ok || memberExpr == nil {
-		return fmt.Errorf("bytecode member set expects member access node")
-	}
-	if memberExpr.Safe {
+	if instr.safe {
 		return fmt.Errorf("Cannot assign through safe navigation")
 	}
-	if len(vm.stack) < 2 {
+	if vm.stackDepth() < 2 {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	obj := vm.stack[len(vm.stack)-1]
-	val := vm.stack[len(vm.stack)-2]
+	obj := vm.stackValue(vm.stackDepth() - 1)
+	// Raw scalar stack cells are reused by later expressions. A member write is
+	// an aggregate escape, so it must retain an ordinary independent value.
+	val := vm.materializePrimitiveValue(bytecodeMaterializationRequiredDynamic, bytecodeMaterializationReasonInterfaceUnion, vm.stackValue(vm.stackDepth()-2))
 	if instr.operator == "" {
 		return fmt.Errorf("bytecode member set missing operator")
 	}
@@ -127,6 +260,27 @@ func (vm *bytecodeVM) execMemberSet(instr bytecodeInstruction) error {
 		return fmt.Errorf("Cannot use := on member access")
 	}
 	binaryOp, isCompound := binaryOpForAssignment(op)
+	if plan, ok := bytecodeNamedStructMemberPlanForInstruction(vm.currentProgram, vm.ip, &instr); ok {
+		if result, handled, err := bytecodeDirectPlannedStructMemberSet(vm.interp, obj, plan, val, op, binaryOp, isCompound); handled {
+			if err != nil {
+				err = vm.interp.wrapStandardRuntimeError(err)
+				if instr.node != nil {
+					err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
+				}
+				return err
+			}
+			vm.replaceTop2Unchecked(result)
+			vm.ip++
+			return nil
+		}
+	}
+	memberExpr, ok := instr.node.(*ast.MemberAccessExpression)
+	if !ok || memberExpr == nil {
+		return fmt.Errorf("bytecode member set expects member access node")
+	}
+	if memberExpr.Safe {
+		return fmt.Errorf("Cannot assign through safe navigation")
+	}
 	result, err := vm.assignMemberValue(obj, memberExpr.Member, val, op, binaryOp, isCompound)
 	if err != nil {
 		err = vm.interp.wrapStandardRuntimeError(err)
@@ -145,10 +299,12 @@ func (vm *bytecodeVM) execImplicitMemberSet(instr bytecodeInstruction) error {
 	if !ok || implicitExpr == nil {
 		return fmt.Errorf("bytecode implicit member set expects node")
 	}
-	if len(vm.stack) < 1 {
+	if vm.stackDepth() < 1 {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	val := vm.stack[len(vm.stack)-1]
+	// Like an explicit member write, an implicit-receiver field write retains
+	// the value as aggregate state beyond the reusable raw stack position.
+	val := vm.materializePrimitiveValue(bytecodeMaterializationRequiredDynamic, bytecodeMaterializationReasonInterfaceUnion, vm.stackValue(vm.stackDepth()-1))
 	if instr.operator == "" {
 		return fmt.Errorf("bytecode implicit member set missing operator")
 	}
@@ -207,7 +363,7 @@ func (vm *bytecodeVM) assignMemberValue(target runtime.Value, member ast.Express
 			}
 			if op == ast.AssignmentAssign {
 				state.Values[idx] = value
-				vm.interp.syncArrayValues(arrayVal.Handle, state)
+				vm.interp.syncTrackedArrayWrite(arrayVal, state, idx, value)
 				return value, nil
 			}
 			if !isCompound {
@@ -219,18 +375,17 @@ func (vm *bytecodeVM) assignMemberValue(target runtime.Value, member ast.Express
 				return nil, err
 			}
 			state.Values[idx] = computed
-			vm.interp.syncArrayValues(arrayVal.Handle, state)
+			vm.interp.syncTrackedArrayWrite(arrayVal, state, idx, computed)
 			return computed, nil
 		case *ast.Identifier:
 			if op != ast.AssignmentAssign {
 				return nil, fmt.Errorf("unsupported assignment operator %s", op)
 			}
-			state, err := vm.interp.ensureArrayState(arrayVal, 0)
-			if err != nil {
-				return nil, err
-			}
 			switch mem.Name {
 			case "storage_handle":
+				if _, err := vm.interp.ensureArrayStateForMetadata(arrayVal, 0); err != nil {
+					return nil, err
+				}
 				intVal, ok := value.(runtime.IntegerValue)
 				if !ok {
 					return nil, fmt.Errorf("array storage_handle must be an integer")
@@ -242,23 +397,39 @@ func (vm *bytecodeVM) assignMemberValue(target runtime.Value, member ast.Express
 				if handle <= 0 {
 					return nil, fmt.Errorf("array storage_handle must be positive")
 				}
+				prevHandle := arrayVal.Handle
+				if prevHandle == 0 {
+					prevHandle = arrayVal.TrackedHandle
+				}
 				newState, err := runtime.ArrayStoreEnsureHandle(handle, 0, 0)
 				if err != nil {
 					return nil, err
 				}
 				vm.interp.trackArrayValue(handle, arrayVal)
 				arrayVal.Elements = newState.Values
-				vm.interp.syncArrayValues(handle, newState)
+				if handle == prevHandle {
+					vm.interp.syncTrackedArrayState(arrayVal, newState)
+				} else {
+					vm.interp.syncArrayValues(handle, newState)
+				}
 				return value, nil
 			case "length":
+				state, err := vm.interp.ensureArrayStateForMetadata(arrayVal, 0)
+				if err != nil {
+					return nil, err
+				}
 				newLen, err := arrayIndexFromValue(value)
 				if err != nil {
 					return nil, fmt.Errorf("array length must be a non-negative integer")
 				}
 				setArrayLength(state, newLen)
-				vm.interp.syncArrayValues(arrayVal.Handle, state)
+				vm.interp.syncArrayHandleLength(arrayVal.Handle, state)
 				return value, nil
 			case "capacity":
+				state, err := vm.interp.ensureArrayStateForMetadata(arrayVal, 0)
+				if err != nil {
+					return nil, err
+				}
 				newCap, err := arrayIndexFromValue(value)
 				if err != nil {
 					return nil, fmt.Errorf("array capacity must be a non-negative integer")
@@ -271,7 +442,7 @@ func (vm *bytecodeVM) assignMemberValue(target runtime.Value, member ast.Express
 				} else if newCap > state.Capacity {
 					state.Capacity = newCap
 				}
-				vm.interp.syncArrayValues(arrayVal.Handle, state)
+				vm.interp.syncArrayHandleMetadata(arrayVal.Handle, state)
 				return value, nil
 			default:
 				return nil, fmt.Errorf("Array has no member '%s'", mem.Name)

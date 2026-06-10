@@ -1,0 +1,178 @@
+{
+  "closed_tier_routes": [
+    {
+      "id": "generic-safe-typed-region-executor",
+      "reason": "The exact sequences differed, and the shared out-of-line executor regressed all three governing applications.",
+      "result": "rejected-broad-wall-time"
+    },
+    {
+      "id": "whole-function-register-executor",
+      "reason": "Allocation-neutral frames and continuation-probe removal did not make the register engine beat the ordinary VM across guards.",
+      "result": "rejected-broad-wall-time"
+    },
+    {
+      "id": "go-cross-suite-pgo",
+      "reason": "Runtime extern plugins require the exact training profile, and matched-profile JSON still regressed.",
+      "result": "rejected-deployability-and-guard"
+    },
+    {
+      "id": "current-exact-semantic-operation",
+      "reason": "The six-family semantic-work audit admits zero exact operation or operation family.",
+      "result": "rejected-insufficient-shared-materiality"
+    }
+  ],
+  "kind": "able-bytecode-semantic-region-feasibility",
+  "next_architecture_lane": {
+    "admission": "Prototype only if the design covers one hot function/region class in at least three unlike verifier-backed applications and an optimistic end-to-end model can close or materially reduce all three target gaps.",
+    "id": "bytecode-native-hot-code-tier-design",
+    "requirements": [
+      "typed primitive and boxed runtime.Value inputs/outputs",
+      "GC-visible roots and identity-preserving nominal values",
+      "calls, returns, errors, rescue/ensure, suspension, futures, and cancellation",
+      "extern/plugin ABI compatibility without retaining a training-profile dependency",
+      "deoptimization or fallback at every unproved dynamic boundary",
+      "portable backend policy and bounded code-cache lifecycle"
+    ],
+    "scope": "Design, but do not yet implement, a genuine native hot-code tier that removes host-language dispatch rather than adding another Go-level executor.",
+    "why": "Direct opcode/layout work, the generic typed-region executor, whole-function register execution, and Go PGO have already failed broad wall-time or deployability gates. A materially different tier must cross the native-code boundary and preserve the complete v12 semantic contract."
+  },
+  "schema_version": 1,
+  "sources": {
+    "architecture_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
+      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+    },
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-bytecode-semantic-region-feasibility.json",
+      "sha256": "4d099d67fba875d8ecc55e14bb56f7b4f3d87b048e0b9f94e2ff1d277b8b39f6"
+    },
+    "frontier": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+    },
+    "ownership_census": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",
+      "sha256": "d2673c1762a3ab122435d0a08d6be3f6e01e45b23a83a4d879d6c7225ccd576a"
+    },
+    "pgo_gate": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-18-bytecode-cross-suite-go-pgo-rejection.md",
+      "sha256": "e817246351d442772ca07b97c46e8a625f993c1ce5e0b53a92b96fae91b9a59d"
+    },
+    "register_control_gate": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-register-control-flow-attribution-gate.md",
+      "sha256": "0218bf5e22219b53b48517bc0d69b423fe34e92a11e6b19f028064bf91f6c149"
+    },
+    "register_member_gate": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-register-member-access-gate.md",
+      "sha256": "027b892082b5303145aec8f0ed03ec311a722e66e99b5cf0709171f7e8cf0f9a"
+    },
+    "semantic_work": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-semantic-work-amplification.json",
+      "sha256": "1915762096132fae8e27d309c77165292ffe6fbb8d7b7ea9d28c175e2bdbeec7"
+    },
+    "typed_region_gate": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-18-bytecode-typed-loop-block-gate.md",
+      "sha256": "7ecaf9d2f77501ceed9ce836acc1836a4cb72dc39f7a7c036c1c52b90c8408f2"
+    }
+  },
+  "summary": {
+    "candidate_eligible": false,
+    "current_semantic_candidate_count": 0,
+    "decision": "no-go-current-semantic-region-tier",
+    "material_region_family_count": 5,
+    "minimum_remaining_speedup_after_free_transport": 7.788121,
+    "minimum_unlike_families": 3,
+    "prototype_application_count": 3,
+    "prototype_regression_count": 3,
+    "rankable_current_region_rows": 4,
+    "uniform_cost_model_target_closures": 1
+  },
+  "typed_region_bounds": [
+    {
+      "benchmark": "monte_carlo_pi",
+      "current_rankable": true,
+      "current_seconds": 2.644,
+      "family": "stochastic-numeric",
+      "instruction_share_percent": 41.7938,
+      "remaining_speedup_in_uniform_cost_model": 0.856788,
+      "required_speedup": 1.471988,
+      "scope": "full",
+      "target_budget_seconds": 1.7962105263157893,
+      "uniform_cost_model_reaches_target": true,
+      "uniform_instruction_cost_free_region_speedup": 1.71803
+    },
+    {
+      "benchmark": "rms_norm",
+      "current_rankable": true,
+      "current_seconds": 4.754,
+      "family": "float-array",
+      "instruction_share_percent": 11.7647,
+      "remaining_speedup_in_uniform_cost_model": 5.149206,
+      "required_speedup": 5.835767,
+      "scope": "full",
+      "target_budget_seconds": 0.8146315789473684,
+      "uniform_cost_model_reaches_target": false,
+      "uniform_instruction_cost_free_region_speedup": 1.133333
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "current_rankable": true,
+      "current_seconds": 8.522,
+      "family": "wide-numeric",
+      "instruction_share_percent": 6.6174,
+      "remaining_speedup_in_uniform_cost_model": 21.575805,
+      "required_speedup": 23.104737,
+      "scope": "full",
+      "target_budget_seconds": 0.36884210526315786,
+      "uniform_cost_model_reaches_target": false,
+      "uniform_instruction_cost_free_region_speedup": 1.070863
+    },
+    {
+      "benchmark": "future_await_race",
+      "current_rankable": true,
+      "current_seconds": 0.152,
+      "family": "concurrency",
+      "instruction_share_percent": 48.2013,
+      "remaining_speedup_in_uniform_cost_model": 2.252931,
+      "required_speedup": 4.349398,
+      "scope": "full",
+      "target_budget_seconds": 0.03494736842105263,
+      "uniform_cost_model_reaches_target": false,
+      "uniform_instruction_cost_free_region_speedup": 1.93055
+    },
+    {
+      "benchmark": "quicksort",
+      "current_rankable": false,
+      "family": "file-sorting",
+      "instruction_share_percent": 11.4468,
+      "scope": "reduced-4000-input-census"
+    }
+  ],
+  "typed_region_prototype": {
+    "kept": false,
+    "mechanism": "generic-out-of-line-safe-typed-region-executor",
+    "rows": [
+      {
+        "baseline_seconds": 2.749152,
+        "benchmark": "monte_carlo_pi",
+        "candidate_seconds": 2.869319,
+        "change_percent": 4.37,
+        "pairs": 10
+      },
+      {
+        "baseline_seconds": 4.909369,
+        "benchmark": "rms_norm",
+        "candidate_seconds": 4.934215,
+        "change_percent": 0.51,
+        "pairs": 5
+      },
+      {
+        "baseline_seconds": 1.164481,
+        "benchmark": "quicksort",
+        "candidate_seconds": 1.213043,
+        "change_percent": 4.17,
+        "pairs": 10
+      }
+    ]
+  }
+}

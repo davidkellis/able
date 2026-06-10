@@ -127,6 +127,9 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 			} else {
 				assignable := typeAssignable(bodyType, expectedReturn)
 				if !assignable {
+					assignable = c.typeAssignableToExpectedInterfaceMember(bodyType, expectedReturn)
+				}
+				if !assignable {
 					if isResultType(expectedReturn) {
 						if ok, _ := c.typeImplementsInterface(bodyType, InterfaceType{InterfaceName: "Error"}, nil); ok {
 							assignable = true
@@ -499,6 +502,9 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 			} else {
 				assignable := typeAssignable(returnType, expected)
 				if !assignable {
+					assignable = c.typeAssignableToExpectedInterfaceMember(returnType, expected)
+				}
+				if !assignable {
 					if iface, args, ok := interfaceFromType(expected); ok {
 						if ok, _ := c.typeImplementsInterface(returnType, iface, args); ok {
 							assignable = true
@@ -583,6 +589,34 @@ func (c *Checker) checkMethodsDefinition(env *Environment, def *ast.MethodsDefin
 		defer c.popConstraintScope()
 	}
 	return diags
+}
+
+// typeAssignableToExpectedInterfaceMember recognizes a concrete implementation
+// when an expected union includes an interface. For example, a function that
+// returns `Value | Error` may directly return a concrete Error implementation.
+func (c *Checker) typeAssignableToExpectedInterfaceMember(actual, expected Type) bool {
+	if c == nil || actual == nil || expected == nil {
+		return false
+	}
+	if iface, args, ok := interfaceFromType(expected); ok {
+		implemented, _ := c.typeImplementsInterface(actual, iface, args)
+		return implemented
+	}
+	switch target := expected.(type) {
+	case UnionLiteralType:
+		for _, member := range target.Members {
+			if c.typeAssignableToExpectedInterfaceMember(actual, member) {
+				return true
+			}
+		}
+	case UnionType:
+		for _, member := range target.Variants {
+			if c.typeAssignableToExpectedInterfaceMember(actual, member) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func literalOverflowMessage(actual Type, expected Type) (string, bool) {

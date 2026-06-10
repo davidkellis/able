@@ -1,0 +1,66 @@
+{
+  "schema": "able.semanticabi.heap-conformance.v1",
+  "decision": "retain-shared-value-heap-conformance-contract",
+  "manifest_identity": "79e60c725176e314b2d0840fc99b667531f6f5866c5285de695e96b7144b9c7e",
+  "runtime_kinds": 31,
+  "shared_heap_layouts": 20,
+  "internal_heap_layouts": 7,
+  "host_layouts": 4,
+  "mutable_heap_layouts": 11,
+  "immutable_heap_layouts": 16,
+  "deterministic_vector_count": 8,
+  "vectors": [
+    {
+      "name": "alias-mutation",
+      "detail": "two cells preserve one identity; revision=1; reachable=2"
+    },
+    {
+      "name": "immutable-rejection",
+      "detail": "String mutation rejected by layout policy"
+    },
+    {
+      "name": "unrooted-cycle",
+      "detail": "self-cycle collected with no roots"
+    },
+    {
+      "name": "closure-environment-cycle",
+      "detail": "function/environment/binding cycle survives root then all 3 collect"
+    },
+    {
+      "name": "stale-generation",
+      "detail": "slot 1 reused at generation 2; generation 1 rejected"
+    },
+    {
+      "name": "host-held-root",
+      "detail": "canceled Future retains result until registry release"
+    },
+    {
+      "name": "interface-error-iterator-chain",
+      "detail": "iterator -\u003e error -\u003e interface -\u003e array graph retains 7 objects"
+    },
+    {
+      "name": "root-frame-lifetime",
+      "detail": "root replacement drops old identity and retains new identity"
+    }
+  ],
+  "gates": {
+    "exhaustive_shared_layouts": true,
+    "exhaustive_host_layouts": true,
+    "descriptor_driven": true,
+    "generation_checked": true,
+    "cycle_safe_tracing": true,
+    "host_held_roots": true,
+    "production_change": false
+  },
+  "next_lane": "shared-value-heap-go-binding-conformance",
+  "exclusions": [
+    "production runtime migration",
+    "foreign heap",
+    "cgo runtime",
+    "JIT or backend",
+    "executable memory",
+    "benchmark branch",
+    "named-container or non-primitive nominal special case",
+    "WASM"
+  ]
+}

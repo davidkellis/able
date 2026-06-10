@@ -25,18 +25,21 @@ func externReflectStringResult(value reflect.Value) (runtime.Value, bool) {
 	return runtime.StringValue{Val: value.String()}, true
 }
 
-func externReflectStringSliceResult(value reflect.Value) (runtime.Value, bool) {
+func externReflectStringSliceResult(i *Interpreter, value reflect.Value) (runtime.Value, bool) {
 	value = externUnwrapHostReflectValue(value)
 	if !value.IsValid() || value.Kind() != reflect.Slice || value.Type().Elem().Kind() != reflect.String {
 		return nil, false
 	}
 	if stringsValue, ok := value.Interface().([]string); ok {
-		return externStringSliceResult(stringsValue), true
+		return externStringSliceResult(i, stringsValue), true
 	}
 	length := value.Len()
 	elements := make([]runtime.Value, length)
 	for idx := 0; idx < length; idx++ {
 		elements[idx] = runtime.StringValue{Val: value.Index(idx).String()}
+	}
+	if i != nil {
+		return i.newArrayValue(elements, len(elements)), true
 	}
 	return &runtime.ArrayValue{Elements: elements}, true
 }
@@ -53,6 +56,20 @@ func externReflectU8SliceBytes(value reflect.Value) ([]byte, bool) {
 	bytes := make([]byte, length)
 	reflect.Copy(reflect.ValueOf(bytes), value)
 	return bytes, true
+}
+
+func externReflectF64SliceValues(value reflect.Value) ([]float64, bool) {
+	value = externUnwrapHostReflectValue(value)
+	if !value.IsValid() || value.Kind() != reflect.Slice || value.Type().Elem().Kind() != reflect.Float64 {
+		return nil, false
+	}
+	if values, ok := value.Interface().([]float64); ok {
+		return values, true
+	}
+	length := value.Len()
+	values := make([]float64, length)
+	reflect.Copy(reflect.ValueOf(values), value)
+	return values, true
 }
 
 func externIsArrayStringType(expr ast.TypeExpression) bool {
@@ -75,6 +92,16 @@ func externIsArrayU8Type(expr ast.TypeExpression) bool {
 		externSimpleTypeName(generic.Arguments[0]) == "u8"
 }
 
+func externIsArrayF64Type(expr ast.TypeExpression) bool {
+	generic, ok := expr.(*ast.GenericTypeExpression)
+	if !ok || generic == nil {
+		return false
+	}
+	return externSimpleTypeName(generic.Base) == "Array" &&
+		len(generic.Arguments) == 1 &&
+		externSimpleTypeName(generic.Arguments[0]) == "f64"
+}
+
 func externUnionHasArrayStringMember(expr ast.TypeExpression) bool {
 	union, ok := expr.(*ast.UnionTypeExpression)
 	if !ok || union == nil {
@@ -88,6 +115,19 @@ func externUnionHasArrayStringMember(expr ast.TypeExpression) bool {
 	return false
 }
 
+func externUnionHasStringMember(expr ast.TypeExpression) bool {
+	union, ok := expr.(*ast.UnionTypeExpression)
+	if !ok || union == nil {
+		return false
+	}
+	for _, member := range union.Members {
+		if externSimpleTypeName(member) == "String" {
+			return true
+		}
+	}
+	return false
+}
+
 func externUnionHasArrayU8Member(expr ast.TypeExpression) bool {
 	union, ok := expr.(*ast.UnionTypeExpression)
 	if !ok || union == nil {
@@ -95,6 +135,19 @@ func externUnionHasArrayU8Member(expr ast.TypeExpression) bool {
 	}
 	for _, member := range union.Members {
 		if externIsArrayU8Type(member) {
+			return true
+		}
+	}
+	return false
+}
+
+func externUnionHasArrayF64Member(expr ast.TypeExpression) bool {
+	union, ok := expr.(*ast.UnionTypeExpression)
+	if !ok || union == nil {
+		return false
+	}
+	for _, member := range union.Members {
+		if externIsArrayF64Type(member) {
 			return true
 		}
 	}
@@ -127,6 +180,13 @@ func externUnionPreferredMemberForHostValue(union *ast.UnionTypeExpression, valu
 		if value.Type().Elem().Kind() == reflect.Uint8 {
 			for _, member := range union.Members {
 				if externIsArrayU8Type(member) {
+					return member
+				}
+			}
+		}
+		if value.Type().Elem().Kind() == reflect.Float64 {
+			for _, member := range union.Members {
+				if externIsArrayF64Type(member) {
 					return member
 				}
 			}

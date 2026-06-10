@@ -1,0 +1,31 @@
+package exec_14_08_regex_dot_matches_newline
+
+import able.text.regex.{Regex, RegexOptions, Match}
+
+## Semantics: dot_matches_newline affects only wildcard NFA transitions.
+
+fn show_span(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile(".") match {
+    case regex: Regex => show_span("default", regex.match("\n")),
+    case _ => print("default compile error")
+  }
+
+  options := RegexOptions.default()
+  options.dot_matches_newline = true
+  Regex.compile_with_options(".", options) match {
+    case regex: Regex => show_span("enabled", regex.match("\n")),
+    case _ => print("enabled compile error")
+  }
+
+  Regex.compile_with_options("^(?:a.|b)+$", options) match {
+    case regex: Regex => show_span("grouped", regex.match("a\nb")),
+    case _ => print("grouped compile error")
+  }
+}

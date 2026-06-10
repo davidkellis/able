@@ -1,0 +1,15 @@
+{
+  "description": "Named and wildcard source re-exports retain the source value",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 42
+    }
+  },
+  "entry": "module.json",
+  "setup": [
+    "source.json",
+    "named.json",
+    "wildcard.json"
+  ]
+}

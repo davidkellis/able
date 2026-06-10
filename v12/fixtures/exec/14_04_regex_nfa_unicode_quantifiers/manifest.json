@@ -1,0 +1,15 @@
+{
+  "description": "Unicode code-point Thompson-NFA regex matching preserves greedy byte spans and zero-length progression",
+  "expect": {
+    "stdout": [
+      "unicode éé 1-5",
+      "bounded aaaa 0-4",
+      "multiple",
+      "- aa 0-2",
+      "- aa 4-6",
+      "zero",
+      "-  0-0",
+      "-  1-1"
+    ]
+  }
+}

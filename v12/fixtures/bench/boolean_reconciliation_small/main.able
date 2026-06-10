@@ -1,0 +1,44 @@
+package bench_boolean_reconciliation_small
+
+import able.kernel.{Array}
+
+fn build_flags(size: i32, revised: bool) -> Array bool {
+  flags: Array bool = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    flag := i % 3 == 0 || i % 7 == 0
+    if revised && i % 11 == 0 {
+      flag = !flag
+    }
+    flags.push(flag)
+    i = i + 1
+  }
+  flags
+}
+
+fn reconcile(expected: Array bool, observed: Array bool) -> i64 {
+  checksum: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= 96 { break }
+    i := 0
+    loop {
+      if i >= expected.len() { break }
+      if expected.read_slot(i) == observed.read_slot(i) {
+        checksum = checksum + ((i as i64) * 3_i64 + (round as i64))
+      } else {
+        checksum = checksum - ((i as i64) + 7_i64)
+      }
+      i = i + 1
+    }
+    round = round + 1
+  }
+  checksum
+}
+
+fn main() -> void {
+  expected := build_flags(4_096, false)
+  observed := build_flags(4_096, true)
+  print(reconcile(expected, observed))
+}

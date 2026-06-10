@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-07-20T15:17:11.394617Z",
+  "suite": "custom",
+  "benchmarks": [
+    "inventory_reconciliation"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": null,
+  "cpu_affinity": "0-3",
+  "cpu_affinity_pool": "0-3",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "inventory_reconciliation",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "inventory_reconciliation",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.46,
+        "avg_user_seconds": 0.35,
+        "avg_sys_seconds": 0.04,
+        "avg_gc": 10.0,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 0.46,
+            "user_seconds": 0.35,
+            "sys_seconds": 0.04,
+            "gc_count": 10.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/inventory-reconciliation/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/inventory_reconciliation/inventory_reconciliation.able",
+          "sha256": "16c408486e1f3fb1003c795b5ed0ee63b310cd2fecba4a85d9b4081c381e8d9f"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "serial"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [],
+        "provenance": "measured",
+        "sha256": "ddf1fee5c2e53f19e531a1cbd4d858b1282548c78b535ac5b66f79f5253f6b6a",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/inventory-reconciliation/verify.rb",
+          "sha256": "6c14774ccb84c6541ecd0d1ff4963630230a46b95db1eef76acc9523ffcfd4eb"
+        }
+      },
+      "comparisons": {}
+    }
+  ]
+}

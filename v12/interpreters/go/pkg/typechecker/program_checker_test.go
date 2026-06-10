@@ -326,6 +326,47 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 	}
 }
 
+func TestProgramCheckerHydratesForwardStructFieldsAcrossPackageBoundary(t *testing.T) {
+	dep := ast.Mod(
+		[]ast.Statement{
+			ast.StructDef("Holder", []*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("Payload"), "payload"),
+			}, ast.StructKindNamed, nil, nil, false),
+			ast.StructDef("Payload", []*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "value"),
+			}, ast.StructKindNamed, nil, nil, false),
+		},
+		nil,
+		ast.Pkg([]interface{}{"dep"}, false),
+	)
+	app := ast.Mod(
+		[]ast.Statement{
+			ast.Fn(
+				"read_value",
+				[]*ast.FunctionParameter{ast.Param("holder", ast.Ty("Holder"))},
+				[]ast.Statement{ast.Ret(ast.Member(ast.Member(ast.ID("holder"), "payload"), "value"))},
+				ast.Ty("i32"),
+				nil, nil, false, false,
+			),
+		},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"dep"}, false, []*ast.ImportSelector{ast.ImpSel("Holder", nil)}, nil)},
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+
+	depModule := annotatedModule("dep", dep, "dep.able", nil)
+	appModule := annotatedModule("app", app, "app.able", []string{"dep"})
+	result, err := NewProgramChecker().Check(&driver.Program{
+		Modules: []*driver.Module{depModule, appModule},
+		Entry:   appModule,
+	})
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if len(result.Diagnostics) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", result.Diagnostics)
+	}
+}
+
 func TestProgramCheckerAllowsDuplicateNamesAcrossPackages(t *testing.T) {
 	first := ast.Mod(
 		[]ast.Statement{

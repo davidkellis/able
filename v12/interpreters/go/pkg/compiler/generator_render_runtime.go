@@ -3,12 +3,16 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "var __able_divmod_def *runtime.StructDefinitionValue\n")
 	fmt.Fprintf(buf, "var __able_index_error_def *runtime.StructDefinitionValue\n\n")
 	g.renderControlHelpers(buf)
+	g.renderDynamicBoundaryTelemetryHelpers(buf)
+	g.renderCallPathTelemetryHelpers(buf)
+	g.renderTypedBoundaryTelemetryHelpers(buf)
 	g.renderRuntimeBuiltinHelpers(buf)
 	g.renderRuntimeAnyHelpers(buf)
 	fmt.Fprintf(buf, "func __able_runtime_value_or_nil(value runtime.Value) runtime.Value {\n")
@@ -45,6 +49,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	g.renderRuntimeFutureHelpers(buf)
 	g.renderRuntimeAwaitHelpers(buf)
 	g.renderRuntimeInterfaceDispatch(buf)
+	g.renderRuntimeHelperContextAdapters(buf)
 	fmt.Fprintf(buf, "func __able_index(obj runtime.Value, idx runtime.Value) (runtime.Value, *__ableControl) {\n")
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
@@ -83,7 +88,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif inst := __able_struct_instance(base); inst != nil {\n")
 	fmt.Fprintf(buf, "\t\tif inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil && inst.Definition.Node.ID.Name == \"Array\" {\n")
-	fmt.Fprintf(buf, "\t\t\thandleVal, ok := inst.Fields[\"storage_handle\"]\n")
+	fmt.Fprintf(buf, "\t\t\thandleVal, ok := __able_struct_named_field_value(inst, \"storage_handle\")\n")
 	fmt.Fprintf(buf, "\t\t\tif !ok {\n")
 	fmt.Fprintf(buf, "\t\t\t\treturn runtime.NilValue{}, __able_runtime_error_control(nil, fmt.Errorf(\"array value missing storage_handle\"))\n")
 	fmt.Fprintf(buf, "\t\t\t}\n")
@@ -112,7 +117,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\t\treturn val, nil\n")
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\tif inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil && inst.Definition.Node.ID.Name == \"HashMap\" {\n")
-	fmt.Fprintf(buf, "\t\t\thandleVal, ok := inst.Fields[\"handle\"]\n")
+	fmt.Fprintf(buf, "\t\t\thandleVal, ok := __able_struct_named_field_value(inst, \"handle\")\n")
 	fmt.Fprintf(buf, "\t\t\tif !ok {\n")
 	fmt.Fprintf(buf, "\t\t\t\treturn runtime.NilValue{}, __able_runtime_error_control(nil, fmt.Errorf(\"hash map value missing handle\"))\n")
 	fmt.Fprintf(buf, "\t\t\t}\n")
@@ -243,7 +248,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif inst := __able_struct_instance(base); inst != nil {\n")
 	fmt.Fprintf(buf, "\t\tif inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil && inst.Definition.Node.ID.Name == \"Array\" {\n")
-	fmt.Fprintf(buf, "\t\t\thandleVal, ok := inst.Fields[\"storage_handle\"]\n")
+	fmt.Fprintf(buf, "\t\t\thandleVal, ok := __able_struct_named_field_value(inst, \"storage_handle\")\n")
 	fmt.Fprintf(buf, "\t\t\tif !ok {\n")
 	fmt.Fprintf(buf, "\t\t\t\treturn runtime.NilValue{}, __able_runtime_error_control(nil, fmt.Errorf(\"array value missing storage_handle\"))\n")
 	fmt.Fprintf(buf, "\t\t\t}\n")
@@ -268,7 +273,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, nil\n")
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\tif inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil && inst.Definition.Node.ID.Name == \"HashMap\" {\n")
-	fmt.Fprintf(buf, "\t\t\thandleVal, ok := inst.Fields[\"handle\"]\n")
+	fmt.Fprintf(buf, "\t\t\thandleVal, ok := __able_struct_named_field_value(inst, \"handle\")\n")
 	fmt.Fprintf(buf, "\t\t\tif !ok {\n")
 	fmt.Fprintf(buf, "\t\t\t\treturn runtime.NilValue{}, __able_runtime_error_control(nil, fmt.Errorf(\"hash map value missing handle\"))\n")
 	fmt.Fprintf(buf, "\t\t\t}\n")
@@ -292,20 +297,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\treturn val, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 	g.renderRuntimeCallHelpers(buf)
-	if len(g.diagNodes) > 0 {
-		fmt.Fprintf(buf, "func __able_register_diag_nodes() {\n")
-		fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
-		fmt.Fprintf(buf, "\t\treturn\n")
-		fmt.Fprintf(buf, "\t}\n")
-		for _, info := range g.diagNodes {
-			span := info.Span
-			fmt.Fprintf(buf, "\tast.SetSpan(%s, ast.Span{Start: ast.Position{Line: %d, Column: %d}, End: ast.Position{Line: %d, Column: %d}})\n", info.Name, span.Start.Line, span.Start.Column, span.End.Line, span.End.Column)
-			if info.Origin != "" {
-				fmt.Fprintf(buf, "\tbridge.RegisterNodeOrigin(__able_runtime, %s, %q)\n", info.Name, info.Origin)
-			}
-		}
-		fmt.Fprintf(buf, "}\n\n")
-	}
+	g.renderDiagnosticNodeRegistration(buf)
 	fmt.Fprintf(buf, "func __able_panic_on_error(err error) {\n")
 	fmt.Fprintf(buf, "\tif err == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn\n")
@@ -366,6 +358,7 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\treturn &runtime.StructInstanceValue{Fields: fields}\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_struct_instance(value runtime.Value) *runtime.StructInstanceValue {\n")
+	fmt.Fprintf(buf, "\tif materializer, ok := value.(runtime.RuntimeValueMaterializer); ok {\n\t\tvalue = materializer.MaterializeRuntimeValue()\n\t}\n")
 	fmt.Fprintf(buf, "\tif inst, ok, nilPtr := __able_runtime_struct_instance_value(value); ok || nilPtr {\n")
 	fmt.Fprintf(buf, "\t\tif nilPtr {\n")
 	fmt.Fprintf(buf, "\t\t\treturn nil\n")
@@ -508,6 +501,16 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\treturn result, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_checked_mul_signed(a int64, b int64, width int, node ast.Node) (int64, *__ableControl) {\n")
+	fmt.Fprintf(buf, "\tif a >= 0 && b >= 0 {\n")
+	fmt.Fprintf(buf, "\t\t_, max := __able_signed_bounds(width)\n")
+	fmt.Fprintf(buf, "\t\tif a == 0 || b == 0 {\n")
+	fmt.Fprintf(buf, "\t\t\treturn 0, nil\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\tif a <= max/b {\n")
+	fmt.Fprintf(buf, "\t\t\treturn a * b, nil\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\treturn 0, __able_raise_overflow(node)\n")
+	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif width >= 64 {\n")
 	fmt.Fprintf(buf, "\t\tabsA := __able_abs_u64(a)\n")
 	fmt.Fprintf(buf, "\t\tabsB := __able_abs_u64(b)\n")
@@ -684,15 +687,17 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\t}\n")
 	fmt.Fprintf(buf, "\t\treturn val, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tif val, ok, err := interpreter.ApplyBinaryOperatorFast(op, left, right); ok {\n")
-	fmt.Fprintf(buf, "\t\tif err != nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, __able_control_from_error(err)\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\tif val == nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, nil\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\treturn val, nil\n")
-	fmt.Fprintf(buf, "\t}\n")
+	if g.requiresBootstrapExecution() {
+		fmt.Fprintf(buf, "\tif val, ok, err := interpreter.ApplyBinaryOperatorFast(op, left, right); ok {\n")
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, __able_control_from_error(err)\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\tif val == nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, nil\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\treturn val, nil\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -706,15 +711,17 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\treturn val, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_unary_op(op string, operand runtime.Value) (runtime.Value, *__ableControl) {\n")
-	fmt.Fprintf(buf, "\tif val, ok, err := interpreter.ApplyUnaryOperatorFast(op, operand); ok {\n")
-	fmt.Fprintf(buf, "\t\tif err != nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, __able_control_from_error(err)\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\tif val == nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, nil\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\treturn val, nil\n")
-	fmt.Fprintf(buf, "\t}\n")
+	if g.requiresBootstrapExecution() {
+		fmt.Fprintf(buf, "\tif val, ok, err := interpreter.ApplyUnaryOperatorFast(op, operand); ok {\n")
+		fmt.Fprintf(buf, "\t\tif err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, __able_control_from_error(err)\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\tif val == nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn runtime.NilValue{}, nil\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\treturn val, nil\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	fmt.Fprintf(buf, "\tif __able_runtime == nil {\n")
 	fmt.Fprintf(buf, "\t\tpanic(fmt.Errorf(\"compiler: missing runtime\"))\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -730,6 +737,17 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "func __able_divmod_signed(a int64, b int64, bits int, node ast.Node) (int64, int64, *__ableControl) {\n")
 	fmt.Fprintf(buf, "\tif b == 0 {\n")
 	fmt.Fprintf(buf, "\t\treturn 0, 0, __able_raise_division_by_zero(node)\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif a >= 0 && b > 0 {\n")
+	fmt.Fprintf(buf, "\t\tq := a / b\n")
+	fmt.Fprintf(buf, "\t\tr := a %% b\n")
+	fmt.Fprintf(buf, "\t\tif bits < 64 {\n")
+	fmt.Fprintf(buf, "\t\t\t_, max := __able_signed_bounds(bits)\n")
+	fmt.Fprintf(buf, "\t\t\tif q > max || r > max {\n")
+	fmt.Fprintf(buf, "\t\t\t\treturn 0, 0, __able_raise_overflow(node)\n")
+	fmt.Fprintf(buf, "\t\t\t}\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\treturn q, r, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tmin, max := __able_signed_bounds(bits)\n")
 	fmt.Fprintf(buf, "\tif b == -1 && a == min {\n")
@@ -791,6 +809,73 @@ func (g *generator) renderRuntimeHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "}\n\n")
 }
 
+// renderRuntimeHelperContextAdapters provides a fixed-pointer surface for the
+// helper set reached by source-level static lowering.  Existing _impl names
+// remain the ABI used by dynamic and generated-runtime boundaries.  The
+// concurrency helpers receive the pointer so their current async bookkeeping
+// remains correct while the direct compiled caller avoids constructing a
+// variadic argument slice.
+func (g *generator) renderRuntimeHelperContextAdapters(buf *bytes.Buffer) {
+	if g == nil || buf == nil || !g.executionContextsEnabled() {
+		return
+	}
+	for _, helper := range runtimeHelperContextAdapterNames {
+		fmt.Fprintf(buf, "func %s(args []runtime.Value, __able_exec_ctx *%s) (runtime.Value, error) {\n", runtimeHelperContextName(helper), strings.TrimPrefix(executionContextType, "*"))
+		if contextAwareConcurrencyHelper(helper) {
+			fmt.Fprintf(buf, "\treturn %s(args, __able_exec_ctx)\n", helper)
+		} else {
+			fmt.Fprintf(buf, "\t_ = __able_exec_ctx\n")
+			fmt.Fprintf(buf, "\treturn %s(args)\n", helper)
+		}
+		fmt.Fprintf(buf, "}\n\n")
+	}
+}
+
+var runtimeHelperContextAdapterNames = []string{
+	"__able_array_new_impl",
+	"__able_array_with_capacity_impl",
+	"__able_array_size_impl",
+	"__able_array_capacity_impl",
+	"__able_array_set_len_impl",
+	"__able_array_read_impl",
+	"__able_array_write_impl",
+	"__able_array_reserve_impl",
+	"__able_array_clone_impl",
+	"__able_hash_map_new_impl",
+	"__able_hash_map_with_capacity_impl",
+	"__able_hash_map_get_impl",
+	"__able_hash_map_set_impl",
+	"__able_hash_map_remove_impl",
+	"__able_hash_map_contains_impl",
+	"__able_hash_map_size_impl",
+	"__able_hash_map_clear_impl",
+	"__able_hash_map_for_each_impl",
+	"__able_hash_map_clone_impl",
+	"__able_string_from_builtin_impl",
+	"__able_string_to_builtin_impl",
+	"__able_char_from_codepoint_impl",
+	"__able_char_to_codepoint_impl",
+	"__able_char_simple_fold_next_impl",
+	"__able_ratio_from_float_impl",
+	"__able_f32_bits_impl",
+	"__able_f64_bits_impl",
+	"__able_f64_sqrt_impl",
+	"__able_u64_mul_impl",
+	"__able_channel_new_impl",
+	"__able_channel_send_impl",
+	"__able_channel_receive_impl",
+	"__able_channel_try_send_impl",
+	"__able_channel_try_receive_impl",
+	"__able_channel_await_try_recv_impl",
+	"__able_channel_await_try_send_impl",
+	"__able_channel_close_impl",
+	"__able_channel_is_closed_impl",
+	"__able_mutex_new_impl",
+	"__able_mutex_lock_impl",
+	"__able_mutex_unlock_impl",
+	"__able_mutex_await_lock_impl",
+}
+
 func (g *generator) renderIteratorHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "type __able_generator_stop struct{}\n\n")
 	fmt.Fprintf(buf, "func (__able_generator_stop) Error() string { return \"generator stopped\" }\n\n")
@@ -815,7 +900,7 @@ func (g *generator) renderIteratorHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tdone bool\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_new_iterator(run func(gen *__able_generator) error) *runtime.IteratorValue {\n")
-	fmt.Fprintf(buf, "\tgen := &__able_generator{requests: make(chan struct{}), results: make(chan __able_generator_result)}\n")
+	fmt.Fprintf(buf, "\tgen := &__able_generator{requests: make(chan struct{}), results: make(chan __able_generator_result, 1)}\n")
 	fmt.Fprintf(buf, "\tgo gen.run(run)\n")
 	fmt.Fprintf(buf, "\treturn runtime.NewIteratorValue(gen.next, gen.close)\n")
 	fmt.Fprintf(buf, "}\n\n")

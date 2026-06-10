@@ -1,0 +1,42 @@
+package bench_persistent_queue_i32_small
+
+import able.collections.persistent_queue.{PersistentQueue}
+
+fn build(size: i32) -> PersistentQueue i32 {
+  values: PersistentQueue i32 = PersistentQueue.empty()
+  i := 0
+  loop {
+    if i >= size { break }
+    values = values.enqueue((i * 7) + 1)
+    i = i + 1
+  }
+  values
+}
+
+fn cycle(initial: PersistentQueue i32, steps: i32) -> i64 {
+  values := initial
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= steps { break }
+    peeked := values.peek()
+    value: i32 := peeked or { 0 }
+    total = total + (value as i64)
+    values = values.dequeue()
+    values = values.enqueue((value + (i * 5) + 3) % 65_521)
+    i = i + 1
+  }
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  values := build(5_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 4 { break }
+    total = total + cycle(values, 7_500)
+    rounds = rounds + 1
+  }
+  print(total)
+}

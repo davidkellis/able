@@ -17,7 +17,7 @@ func (vm *bytecodeVM) execRescue(instr bytecodeInstruction) error {
 		if val == nil {
 			val = runtime.NilValue{}
 		}
-		vm.stack = append(vm.stack, val)
+		vm.appendStackValue(val)
 		vm.ip++
 		return nil
 	}
@@ -25,12 +25,15 @@ func (vm *bytecodeVM) execRescue(instr bytecodeInstruction) error {
 	if !ok {
 		return err
 	}
-	for _, clause := range rescueExpr.Clauses {
+	plans := vm.interp.rescueExpressionClausePlans(rescueExpr)
+	for idx, clause := range rescueExpr.Clauses {
 		if clause == nil {
 			continue
 		}
-		clauseEnv, matched := vm.interp.matchPattern(clause.Pattern, rs.value, vm.env)
+		plan := plans[idx]
+		clauseEnv, matched, transientEnv, transientBindings := vm.interp.matchPatternForClauseTransient(clause.Pattern, rs.value, vm.env, plan)
 		if !matched {
+			vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
 			continue
 		}
 		state := vm.interp.stateFromEnv(clauseEnv)
@@ -39,22 +42,25 @@ func (vm *bytecodeVM) execRescue(instr bytecodeInstruction) error {
 			guardVal, err := vm.evalExpressionBytecode(clause.Guard, clauseEnv)
 			if err != nil {
 				state.popRaise()
+				vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
 				return err
 			}
 			if !vm.interp.isTruthy(guardVal) {
 				state.popRaise()
+				vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
 				continue
 			}
 		}
 		val, bodyErr := vm.evalExpressionBytecode(clause.Body, clauseEnv)
 		state.popRaise()
+		vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
 		if bodyErr != nil {
 			return bodyErr
 		}
 		if val == nil {
 			val = runtime.NilValue{}
 		}
-		vm.stack = append(vm.stack, val)
+		vm.appendStackValue(val)
 		vm.ip++
 		return nil
 	}

@@ -1,56 +1,9 @@
 package compiler
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-
-	"able/interpreter-go/pkg/driver"
 )
-
-func compileNoFallbackPackage(t *testing.T, pkgName string, files map[string]string) *Result {
-	t.Helper()
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "package.yml"), []byte("name: "+pkgName+"\n"), 0o600); err != nil {
-		t.Fatalf("write package.yml: %v", err)
-	}
-	entryPath := filepath.Join(root, "main.able")
-	for rel, content := range files {
-		path := filepath.Join(root, rel)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-		}
-		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-			t.Fatalf("write %s: %v", rel, err)
-		}
-	}
-
-	loader, err := driver.NewLoader(nil)
-	if err != nil {
-		t.Fatalf("loader init: %v", err)
-	}
-	t.Cleanup(func() { loader.Close() })
-
-	program, err := loader.Load(entryPath)
-	if err != nil {
-		t.Fatalf("load program: %v", err)
-	}
-
-	result, err := New(Options{
-		PackageName:        "main",
-		RequireNoFallbacks: true,
-		EmitMain:           true,
-		EntryPath:          entryPath,
-	}).Compile(program)
-	if err != nil {
-		t.Fatalf("compile with no fallbacks: %v", err)
-	}
-	if len(result.Fallbacks) != 0 {
-		t.Fatalf("expected no fallbacks, got %v", result.Fallbacks)
-	}
-	return result
-}
 
 func TestCompilerImportedPackageSelectorCallStaysNative(t *testing.T) {
 	result := compileNoFallbackPackage(t, "demo", map[string]string{
@@ -75,7 +28,7 @@ func TestCompilerImportedPackageSelectorCallStaysNative(t *testing.T) {
 	})
 
 	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
-	if !strings.Contains(mainBody, "__able_compiled_fn_dir(") {
+	if !bodyCallsCompiledDirect(mainBody, "__able_compiled_fn_dir") {
 		t.Fatalf("expected imported package selector call to lower to a compiled direct call:\n%s", mainBody)
 	}
 	for _, fragment := range []string{"__able_call_named(", "__able_call_value(", "__able_method_call_node(", "__able_member_get_method("} {
@@ -106,7 +59,7 @@ func TestCompilerImportedZeroArgPackageSelectorCallStaysNative(t *testing.T) {
 	})
 
 	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
-	if !strings.Contains(mainBody, "__able_compiled_fn_stdout(") {
+	if !bodyCallsCompiledDirect(mainBody, "__able_compiled_fn_stdout") {
 		t.Fatalf("expected imported zero-arg package selector call to lower to a compiled direct call:\n%s", mainBody)
 	}
 	for _, fragment := range []string{"__able_call_named(", "__able_call_value(", "__able_method_call_node(", "__able_member_get_method("} {
@@ -141,7 +94,7 @@ func TestCompilerImportedNominalStaticMethodCallStaysNative(t *testing.T) {
 	})
 
 	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
-	if !strings.Contains(mainBody, "__able_compiled_method_TempDir_new(") {
+	if !bodyCallsCompiledDirect(mainBody, "__able_compiled_method_TempDir_new") {
 		t.Fatalf("expected imported nominal static method call to lower to a compiled direct call:\n%s", mainBody)
 	}
 	for _, fragment := range []string{"__able_call_named(", "__able_call_value(", "__able_method_call_node(", "__able_member_get_method(", "__able_member_get(__able_env_get(\"temp\""} {
@@ -320,7 +273,7 @@ func TestCompilerStdlibStaticOverloadedMethodChainStaysNative(t *testing.T) {
 		"__able_compiled_method_AutomataExpr_to_nfa(",
 		"__able_compiled_method_NFA_matches(",
 	} {
-		if !strings.Contains(mainBody, fragment) {
+		if !bodyCallsCompiledDirect(mainBody, strings.TrimSuffix(fragment, "(")) {
 			t.Fatalf("expected static automata method chain to lower through %q:\n%s", fragment, mainBody)
 		}
 	}
@@ -676,12 +629,19 @@ func TestCompilerSpawnSiblingCapturedReceiverDispatchBuildsAndStaysNative(t *tes
 			t.Fatalf("expected sibling spawned captured receiver dispatch to avoid %q:\n%s", fragment, mainBody)
 		}
 	}
-	for _, fragment := range []string{
-		"__able_compiled_method_Channel_send_spec(",
-		"__able_compiled_method_Channel_receive(ready)",
+	for _, targets := range [][]string{
+		{"__able_compiled_method_Channel_send_spec(", "__able_compiled_entry_method_Channel_send_spec("},
+		{"__able_compiled_method_Channel_receive(ready)", "__able_compiled_entry_method_Channel_receive(ready)"},
 	} {
-		if !strings.Contains(mainBody, fragment) {
-			t.Fatalf("expected sibling spawned captured receiver dispatch to stay on compiled methods %q:\n%s", fragment, mainBody)
+		found := false
+		for _, target := range targets {
+			if strings.Contains(mainBody, target) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected sibling spawned captured receiver dispatch to stay on a direct compiled target %q:\n%s", targets, mainBody)
 		}
 	}
 
@@ -966,6 +926,10 @@ func TestCompilerGenericExpectationResultCarrierStaysNative(t *testing.T) {
 	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
 	if !strings.Contains(mainBody, "__able_compiled_method_Expectation_to_spec") {
 		t.Fatalf("expected result-backed expectation call to stay on compiled nominal dispatch:\n%s", mainBody)
+	}
+	matcherBody := mustCompiledFunctionBody(t, result, "__able_compiled_impl_Matcher_matches_0_spec")
+	if strings.Contains(matcherBody, "__able_binary_op(") {
+		t.Fatalf("expected specialized Result equality to remain native:\n%s", matcherBody)
 	}
 	for _, fragment := range []string{
 		"__able_iface_Matcher_Result_from_value(",

@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -10,6 +11,65 @@ import (
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
+
+func TestSerialExecutorStartsWorkerOnFirstTask(t *testing.T) {
+	executor := NewSerialExecutor(nil)
+	defer executor.Close()
+
+	executor.mu.Lock()
+	started := executor.started
+	executor.mu.Unlock()
+	if started {
+		t.Fatal("serial executor started a worker before it had work")
+	}
+
+	handle := executor.RunFuture(func(context.Context) (runtime.Value, error) {
+		return runtime.NewSmallInt(42, runtime.IntegerI32), nil
+	})
+	if !waitForStatus(handle, runtime.FutureResolved, 200*time.Millisecond) {
+		t.Fatalf("serial task did not resolve, status=%v", futureStatus(handle))
+	}
+
+	executor.mu.Lock()
+	started = executor.started
+	executor.mu.Unlock()
+	if !started {
+		t.Fatal("serial executor did not start a worker for its first task")
+	}
+}
+
+func TestSerialExecutorFlushWaitsForDequeuedTask(t *testing.T) {
+	executor := NewSerialExecutor(nil)
+	defer executor.Close()
+
+	handle := runtime.NewFuture()
+	executor.mu.Lock()
+	executor.queue = append(executor.queue, serialTask{handle: handle})
+	executor.mu.Unlock()
+
+	if _, ok := executor.nextTask(); !ok {
+		t.Fatal("expected queued task")
+	}
+
+	flushed := make(chan struct{})
+	go func() {
+		executor.Flush()
+		close(flushed)
+	}()
+
+	select {
+	case <-flushed:
+		t.Fatal("Flush returned while the dequeued worker task was still in flight")
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	executor.finishWorkerTask()
+	select {
+	case <-flushed:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Flush did not return after the worker task completed")
+	}
+}
 
 func TestSerialExecutorFutureYieldFairness(t *testing.T) {
 	interp := New()

@@ -1,0 +1,106 @@
+package exec_14_25_regex_builder_program
+
+import able.kernel.{Array}
+import able.core.interfaces.{Error}
+import able.text.automata.{DFA, NFA}
+import able.text.regex.{Match, Regex, RegexBuilder, RegexCharRange, RegexOptions, RegexProgram}
+
+fn show_builder_capture(regex: Regex) -> void {
+  regex.match("catdog!") match {
+    case found: Match => {
+      found.groups.read_slot(0).value match {
+        case value: String => print(`builder-match ${value} ${found.span.start}-${found.span.end}`),
+        case _ => print("builder-match missing")
+      }
+    },
+    case _ => print("builder-match none")
+  }
+}
+
+fn show_program(program: RegexProgram) -> void {
+  nfa: NFA := program.nfa_snapshot()
+  nfa.accept_states.clear()
+  fresh: NFA := program.nfa_snapshot()
+  print(`program ${program.captured_names().len()} ${nfa.matches("catdog!")} ${fresh.matches("catdog!")}`)
+  program.dfa_snapshot() match {
+    case _: DFA => print("captured-dfa available"),
+    case _: Error => print("captured-dfa unavailable")
+  }
+}
+
+fn show_reindexed_captures(regex: Regex) -> void {
+  regex.match("ab") match {
+    case found: Match => {
+      outer := found.groups.read_slot(0)
+      left := found.groups.read_slot(1)
+      right := found.groups.read_slot(2)
+      outer.value match {
+        case outer_value: String => left.value match {
+          case left_value: String => right.value match {
+            case right_value: String => print(`capture-order ${found.groups.len()} ${outer_value} ${left_value} ${right_value}`),
+            case _ => print("capture-order right missing")
+          },
+          case _ => print("capture-order left missing")
+        },
+        case _ => print("capture-order outer missing")
+      }
+    },
+    case _ => print("capture-order none")
+  }
+}
+
+fn main() -> void {
+  branch := RegexBuilder.literal("cat").alternate(RegexBuilder.literal("dog"))
+  branch.one_or_more().named_capture("word") match {
+    case builder: RegexBuilder => {
+      Regex.from_builder(builder.concat(RegexBuilder.literal("!")), RegexOptions.default()) match {
+        case regex: Regex => {
+          show_builder_capture(regex)
+          show_program(regex.to_program())
+        },
+        case _: Error => print("builder compile error")
+      }
+    },
+    case _: Error => print("builder capture error")
+  }
+
+  chars: Array char := Array.new()
+  chars.push('x')
+  ranges: Array RegexCharRange := Array.new()
+  ranges.push(RegexCharRange { start: '0', end: '9' })
+  RegexBuilder.char_class(chars, ranges, false).one_or_more().build() match {
+    case regex: Regex => print(`class ${regex.is_match("7x")}`),
+    case _: Error => print("class compile error")
+  }
+
+  options := RegexOptions.default()
+  options.case_insensitive = true
+  RegexBuilder.literal("k").build_with_options(options) match {
+    case regex: Regex => print(`fold ${regex.is_match("K")}`),
+    case _: Error => print("fold compile error")
+  }
+
+  RegexBuilder.literal("ab").build() match {
+    case regex: Regex => regex.to_program().dfa_snapshot() match {
+      case dfa: DFA => print(`literal-dfa ${dfa.matches("ab")}`),
+      case _: Error => print("literal-dfa unavailable")
+    },
+    case _: Error => print("literal compile error")
+  }
+
+  RegexBuilder.literal("a").named_capture("left") match {
+    case first: RegexBuilder => RegexBuilder.literal("b").named_capture("right") match {
+      case second: RegexBuilder => first.concat(second).capture_group().build() match {
+        case regex: Regex => show_reindexed_captures(regex),
+        case _: Error => print("capture-order compile error")
+      },
+      case _: Error => print("capture-order second error")
+    },
+    case _: Error => print("capture-order first error")
+  }
+
+  RegexBuilder.literal("x").repeat(2, 1) match {
+    case _: Error => print("repeat-invalid"),
+    case _ => print("repeat-invalid accepted")
+  }
+}

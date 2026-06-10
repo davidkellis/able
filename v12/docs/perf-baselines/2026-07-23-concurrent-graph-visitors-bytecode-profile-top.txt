@@ -1,0 +1,197 @@
+File: interpreter.test
+Build ID: 6f45f521c0dd61d3c2b0907a5b8d7f47b60868ff
+Type: cpu
+Time: 2026-07-23 13:41:08 CDT
+Duration: 30.69s, Total samples = 30.61s (99.73%)
+Showing nodes accounting for 22.47s, 73.41% of 30.61s total
+Dropped 565 nodes (cum <= 0.15s)
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     26.95s 88.04%  able/interpreter-go/pkg/interpreter.(*GoroutineExecutor).runTask
+         0     0%     0%     26.95s 88.04%  able/interpreter-go/pkg/interpreter.(*Interpreter).runAsyncBytecodeProgram
+         0     0%     0%     26.95s 88.04%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execSpawn.func1
+     0.90s  2.94%  2.94%     26.95s 88.04%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%  2.94%     26.95s 88.04%  able/interpreter-go/pkg/interpreter.(*executorBase).safeInvoke
+     0.11s  0.36%  3.30%     18.30s 59.78%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+     0.24s  0.78%  4.08%     14.77s 48.25%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMember
+     0.02s 0.065%  4.15%      6.81s 22.25%  runtime.systemstack
+     0.24s  0.78%  4.93%      4.91s 16.04%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).storeCachedMemberMethod
+     0.47s  1.54%  6.47%      4.85s 15.84%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).lookupCachedMemberMethodEntry
+     0.11s  0.36%  6.83%      4.47s 14.60%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMemberArraySlot
+     1.70s  5.55% 12.38%      3.80s 12.41%  runtime.tryDeferToSpanScan
+         0     0% 12.38%      3.57s 11.66%  runtime.gcBgMarkWorker
+         0     0% 12.38%      3.57s 11.66%  runtime.gcBgMarkWorker.func2
+     0.05s  0.16% 12.54%      3.57s 11.66%  runtime.gcDrain
+         0     0% 12.54%      3.57s 11.66%  runtime.gcDrainMarkWorkerFractional (inline)
+     0.13s  0.42% 12.97%      3.13s 10.23%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineResolvedCallFromStack
+     0.12s  0.39% 13.36%      3.02s  9.87%  runtime.mapassign
+     0.63s  2.06% 15.42%         3s  9.80%  runtime.scanSpan
+     0.07s  0.23% 15.65%      2.75s  8.98%  runtime.mallocgc
+     0.25s  0.82% 16.47%      2.52s  8.23%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodLexicalState
+     2.40s  7.84% 24.31%      2.40s  7.84%  sync/atomic.(*Int32).Add (inline)
+     0.02s 0.065% 24.37%      2.20s  7.19%  runtime.newobject (partial-inline)
+     0.30s  0.98% 25.35%      2.15s  7.02%  runtime.mapaccess2
+     0.01s 0.033% 25.38%      2.09s  6.83%  runtime.wbBufFlush
+         0     0% 25.38%      2.07s  6.76%  runtime.wbBufFlush.func1
+     0.34s  1.11% 26.49%      2.07s  6.76%  runtime.wbBufFlush1
+     0.02s 0.065% 26.56%      1.83s  5.98%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).bytecodeCalleeEnv
+     1.78s  5.82% 32.38%      1.78s  5.82%  aeshashbody
+     1.71s  5.59% 37.96%      1.71s  5.59%  runtime.spanClass.sizeclass (inline)
+     0.09s  0.29% 38.26%      1.70s  5.55%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishInlineReturn
+     0.12s  0.39% 38.65%      1.59s  5.19%  runtime.mallocgcSmallScanNoHeader
+     0.04s  0.13% 38.78%      1.53s  5.00%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedResolvedMemberCall
+     0.36s  1.18% 39.95%      1.53s  5.00%  runtime.bulkBarrierPreWrite
+     0.02s 0.065% 40.02%      1.50s  4.90%  type:.hash.able/interpreter-go/pkg/interpreter.bytecodeMemberMethodCacheKey
+     0.20s  0.65% 40.67%      1.41s  4.61%  gcWriteBarrier
+     0.09s  0.29% 40.97%      1.40s  4.57%  sync.(*RWMutex).RLock (inline)
+     0.01s 0.033% 41.00%      1.37s  4.48%  able/interpreter-go/pkg/interpreter.(*Interpreter).resolveDirectCallMemberCallable
+     0.03s 0.098% 41.10%      1.37s  4.48%  runtime.scanObject
+         0     0% 41.10%      1.31s  4.28%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineMemberCallableFromStack
+         0     0% 41.10%      1.29s  4.21%  internal/runtime/maps.(*table).rehash
+         0     0% 41.10%      1.29s  4.21%  internal/runtime/maps.(*table).split
+     0.03s 0.098% 41.20%      1.24s  4.05%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallName
+     0.10s  0.33% 41.52%      1.23s  4.02%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+     0.07s  0.23% 41.75%      1.22s  3.99%  able/interpreter-go/pkg/interpreter.(*Interpreter).resolveMethodCallableFromPool
+     1.21s  3.95% 45.70%      1.21s  3.95%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.03s 0.098% 45.80%      1.10s  3.59%  runtime.wbMove
+     0.36s  1.18% 46.98%      1.06s  3.46%  runtime.scanObjectsSmall
+     0.05s  0.16% 47.14%      1.01s  3.30%  sync.(*RWMutex).RUnlock (partial-inline)
+     0.01s 0.033% 47.17%      0.97s  3.17%  internal/runtime/maps.newobject
+     0.03s 0.098% 47.27%      0.95s  3.10%  runtime.deductAssistCredit
+         0     0% 47.27%      0.92s  3.01%  runtime.gcAssistAlloc
+         0     0% 47.27%      0.92s  3.01%  runtime.gcAssistAlloc.func2
+         0     0% 47.27%      0.92s  3.01%  runtime.gcAssistAlloc1
+         0     0% 47.27%      0.92s  3.01%  runtime.gcDrainN
+     0.13s  0.42% 47.70%      0.91s  2.97%  able/interpreter-go/pkg/runtime.(*Environment).LookupWithOwnerAndRevisionHint
+     0.09s  0.29% 47.99%      0.90s  2.94%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMemberFastPath
+     0.12s  0.39% 48.38%      0.89s  2.91%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodLexicalStateHeader
+     0.02s 0.065% 48.45%      0.88s  2.87%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedCallName
+         0     0% 48.45%      0.88s  2.87%  runtime.(*mcache).nextFree
+     0.01s 0.033% 48.48%      0.87s  2.84%  runtime.(*mcache).refill
+         0     0% 48.48%      0.84s  2.74%  able/interpreter-go/pkg/runtime.NewEnvironment (inline)
+         0     0% 48.48%      0.84s  2.74%  able/interpreter-go/pkg/runtime.NewEnvironmentWithValueCapacity (inline)
+     0.15s  0.49% 48.97%      0.84s  2.74%  able/interpreter-go/pkg/runtime.newEnvironmentBase (inline)
+         0     0% 48.97%      0.84s  2.74%  able/interpreter-go/pkg/runtime.newEnvironmentWithStoredValueCapacity (inline)
+     0.23s  0.75% 49.72%      0.82s  2.68%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).switchRunProgramWithActiveLookupState
+     0.05s  0.16% 49.89%      0.82s  2.68%  runtime.(*wbBuf).get2 (inline)
+     0.05s  0.16% 50.05%      0.80s  2.61%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStructLiteralNamedFast
+     0.27s  0.88% 50.93%      0.77s  2.52%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).pushCallFrame
+     0.33s  1.08% 52.01%      0.77s  2.52%  runtime.mapaccess2_faststr
+     0.38s  1.24% 53.25%      0.77s  2.52%  runtime.scanObjectSmall
+     0.08s  0.26% 53.51%      0.76s  2.48%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotOpcode
+         0     0% 53.51%      0.75s  2.45%  runtime.(*mcentral).cacheSpan
+     0.09s  0.29% 53.81%      0.70s  2.29%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runtimeData
+     0.07s  0.23% 54.03%      0.68s  2.22%  able/interpreter-go/pkg/interpreter.ApplyBinaryOperatorFast
+     0.15s  0.49% 54.52%      0.67s  2.19%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).cachedMemberMethodBindingNameRevisionWithShape
+     0.02s 0.065% 54.59%      0.67s  2.19%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedMemberMethodFastPath
+     0.03s 0.098% 54.69%      0.65s  2.12%  able/interpreter-go/pkg/runtime.(*Environment).SetRuntimeData
+     0.04s  0.13% 54.82%      0.60s  1.96%  able/interpreter-go/pkg/runtime.(*Environment).RevisionWithHint
+     0.19s  0.62% 55.44%      0.57s  1.86%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).popCallFrameFields
+     0.05s  0.16% 55.60%      0.55s  1.80%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlotOpcode
+         0     0% 55.60%      0.55s  1.80%  runtime.(*mcentral).grow
+         0     0% 55.60%      0.51s  1.67%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execAndFinishExactNativeCall
+     0.05s  0.16% 55.77%      0.51s  1.67%  able/interpreter-go/pkg/runtime.(*Environment).mutex
+     0.17s  0.56% 56.32%      0.51s  1.67%  runtime.mapaccess2_fast64
+     0.05s  0.16% 56.48%      0.50s  1.63%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlot
+     0.01s 0.033% 56.52%      0.47s  1.54%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execIndexGet
+     0.02s 0.065% 56.58%      0.47s  1.54%  able/interpreter-go/pkg/runtime.(*Environment).BindingNameRevision
+     0.02s 0.065% 56.65%      0.46s  1.50%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execExactNativeCall
+         0     0% 56.65%      0.45s  1.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).arrayValueFromHandle
+         0     0% 56.65%      0.45s  1.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).arrayValueFromStructFieldValues
+         0     0% 56.65%      0.45s  1.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).arrayValueFromStructMetadata
+     0.03s 0.098% 56.75%      0.44s  1.44%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).switchRunProgram (inline)
+     0.08s  0.26% 57.01%      0.43s  1.40%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCastOpcode
+     0.06s   0.2% 57.20%      0.43s  1.40%  able/interpreter-go/pkg/runtime.(*Environment).RuntimeData
+     0.43s  1.40% 58.61%      0.43s  1.40%  runtime.memclrNoHeapPointers
+     0.03s 0.098% 58.71%      0.42s  1.37%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotStructField
+     0.02s 0.065% 58.77%      0.42s  1.37%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodImplContextState
+     0.02s 0.065% 58.84%      0.42s  1.37%  runtime.typedmemmove
+     0.05s  0.16% 59.00%      0.40s  1.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).currentMethodCacheVersion
+     0.01s 0.033% 59.03%      0.40s  1.31%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodFastPathForFunction
+         0     0% 59.03%      0.39s  1.27%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).resolveIndexGetWithToken
+         0     0% 59.03%      0.38s  1.24%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).bytecodeMethodCacheVersion (inline)
+         0     0% 59.03%      0.38s  1.24%  runtime.(*mspan).initHeapBits
+     0.37s  1.21% 60.24%      0.37s  1.21%  able/interpreter-go/pkg/interpreter.bytecodeRawIntegerValueInfo
+     0.05s  0.16% 60.41%      0.35s  1.14%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).inlineResolvedCallEnvForBindings
+     0.08s  0.26% 60.67%      0.35s  1.14%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodFastPathFor
+     0.15s  0.49% 61.16%      0.35s  1.14%  able/interpreter-go/pkg/interpreter.bytecodeNamedStructMemberPlanForInstruction
+     0.04s  0.13% 61.29%      0.34s  1.11%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineCachedCallNameDirectFromStack
+     0.01s 0.033% 61.32%      0.34s  1.11%  internal/runtime/maps.typedmemmove
+     0.02s 0.065% 61.39%      0.34s  1.11%  runtime.convT
+     0.07s  0.23% 61.61%      0.32s  1.05%  able/interpreter-go/pkg/runtime.(*Environment).lookupCurrentValueNoLock
+     0.10s  0.33% 61.94%      0.32s  1.05%  runtime.mapaccess1_faststr
+     0.02s 0.065% 62.01%      0.31s  1.01%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).restoreOrSetActiveLookupProgram (inline)
+     0.15s  0.49% 62.50%      0.30s  0.98%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendStackValue (inline)
+     0.01s 0.033% 62.53%      0.30s  0.98%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execArrayLenMemberFast
+     0.05s  0.16% 62.69%      0.30s  0.98%  able/interpreter-go/pkg/interpreter.evaluateArithmeticFast
+         0     0% 62.69%      0.30s  0.98%  able/interpreter-go/pkg/runtime.ArrayStoreValueViewFromHandle
+     0.02s 0.065% 62.76%      0.29s  0.95%  able/interpreter-go/pkg/interpreter.(*Interpreter).matchesType
+     0.29s  0.95% 63.70%      0.29s  0.95%  runtime.extractHeapBitsSmall
+         0     0% 63.70%      0.28s  0.91%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execArrayPushMemberFast
+     0.06s   0.2% 63.90%      0.28s  0.91%  runtime.mapassign_fast64
+     0.27s  0.88% 64.78%      0.27s  0.88%  memeqbody
+     0.01s 0.033% 64.82%      0.27s  0.88%  type:.hash.able/interpreter-go/pkg/interpreter.typeExpressionSliceKey
+     0.05s  0.16% 64.98%      0.26s  0.85%  able/interpreter-go/pkg/interpreter.structNamedFieldValue
+         0     0% 64.98%      0.26s  0.85%  able/interpreter-go/pkg/runtime.ArrayStoreTrackArrayValueLease
+         0     0% 64.98%      0.26s  0.85%  able/interpreter-go/pkg/runtime.arrayStoreTrackArrayValueLeaseLocked
+         0     0% 64.98%      0.26s  0.85%  able/interpreter-go/pkg/runtime.arrayStoreTrackLeaseOwnerLocked[go.shape.struct { Elements []able/interpreter-go/pkg/runtime.Value; Handle int64; State *able/interpreter-go/pkg/runtime.ArrayState; TrackedHandle int64; TrackedAliases bool; Lease able/interpreter-go/pkg/runtime.ArrayStoreLease }]
+     0.01s 0.033% 65.01%      0.25s  0.82%  able/interpreter-go/pkg/interpreter.(*Interpreter).canonicalTypeNamePair
+     0.14s  0.46% 65.47%      0.25s  0.82%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendSlotStackValueChecked
+     0.01s 0.033% 65.50%      0.25s  0.82%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execMemberAccess
+     0.01s 0.033% 65.53%      0.25s  0.82%  sync.(*Mutex).Lock (inline)
+     0.10s  0.33% 65.86%      0.24s  0.78%  able/interpreter-go/pkg/runtime.ArrayStoreSize
+     0.04s  0.13% 65.99%      0.24s  0.78%  internal/runtime/maps.(*table).uncheckedPutSlot
+     0.23s  0.75% 66.74%      0.24s  0.78%  internal/sync.(*Mutex).Lock (inline)
+         0     0% 66.74%      0.23s  0.75%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreImplicitSlot
+     0.14s  0.46% 67.20%      0.23s  0.75%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodCacheIdentity
+     0.01s 0.033% 67.23%      0.23s  0.75%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).resolveCachedIdentifierName
+         0     0% 67.23%      0.23s  0.75%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).typedSlotAssignmentValues
+         0     0% 67.23%      0.23s  0.75%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 67.23%      0.23s  0.75%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+     0.23s  0.75% 67.98%      0.23s  0.75%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.02s 0.065% 68.05%      0.22s  0.72%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).lookupCachedIdentifierName
+         0     0% 68.05%      0.22s  0.72%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).resolveDirectArrayIndexGetWithValidatedHandleAndToken
+         0     0% 68.05%      0.22s  0.72%  able/interpreter-go/pkg/runtime.(*Environment).Lookup
+         0     0% 68.05%      0.22s  0.72%  internal/runtime/maps.newTable
+     0.06s   0.2% 68.25%      0.21s  0.69%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).storeMemberMethodDirect (inline)
+     0.12s  0.39% 68.64%      0.21s  0.69%  able/interpreter-go/pkg/interpreter.bytecodeDirectSameTypeSmallIntPair
+     0.20s  0.65% 69.29%      0.21s  0.69%  runtime.(*mspan).writeHeapBitsSmall
+     0.16s  0.52% 69.81%      0.21s  0.69%  runtime.findObject
+         0     0% 69.81%      0.21s  0.69%  runtime.heapSetTypeNoHeader (inline)
+     0.02s 0.065% 69.88%      0.21s  0.69%  runtime.wbZero
+     0.01s 0.033% 69.91%      0.20s  0.65%  able/interpreter-go/pkg/interpreter.(*Interpreter).lookupMethodScopeCallable
+         0     0% 69.91%      0.20s  0.65%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).arraySizeI32Fast
+     0.05s  0.16% 70.08%      0.20s  0.65%  able/interpreter-go/pkg/interpreter.bytecodeDirectIntegerValue
+         0     0% 70.08%      0.20s  0.65%  internal/runtime/maps.(*table).reset
+     0.20s  0.65% 70.73%      0.20s  0.65%  runtime.typePointers.next
+         0     0% 70.73%      0.19s  0.62%  able/interpreter-go/pkg/interpreter.(*Interpreter).initArrayBuiltins.func3
+     0.02s 0.065% 70.79%      0.19s  0.62%  able/interpreter-go/pkg/interpreter.(*Interpreter).memberAccessOnValueWithOptions
+     0.07s  0.23% 71.02%      0.19s  0.62%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).resolvedMemberMethodFastPath
+     0.08s  0.26% 71.28%      0.19s  0.62%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryStoreRawIntegerSlotValue
+         0     0% 71.28%      0.19s  0.62%  able/interpreter-go/pkg/interpreter.bindMemberMethodTemplate (inline)
+     0.03s 0.098% 71.38%      0.19s  0.62%  able/interpreter-go/pkg/interpreter.bytecodeMaterializeRawValue
+     0.05s  0.16% 71.55%      0.19s  0.62%  able/interpreter-go/pkg/interpreter.bytecodeTryMaterializedProgramReturnNoCoercion
+         0     0% 71.55%      0.18s  0.59%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMemberStructCallableField
+         0     0% 71.55%      0.18s  0.59%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).resolveDirectArrayIndexGetAtHandleReadyWithToken
+         0     0% 71.55%      0.18s  0.59%  able/interpreter-go/pkg/interpreter.arrayHandleForCapacity
+     0.01s 0.033% 71.58%      0.18s  0.59%  able/interpreter-go/pkg/runtime.ArrayStoreWrite
+     0.10s  0.33% 71.90%      0.18s  0.59%  runtime.(*spanInlineMarkBits).tryAcquire
+     0.18s  0.59% 72.49%      0.18s  0.59%  runtime.memmove
+     0.01s 0.033% 72.53%      0.18s  0.59%  type:.hash.able/interpreter-go/pkg/interpreter.bytecodeMemberMethodFastPathCacheKey
+     0.03s 0.098% 72.62%      0.17s  0.56%  able/interpreter-go/pkg/interpreter.(*Interpreter).arrayMemberWithOverrides
+     0.02s 0.065% 72.69%      0.17s  0.56%  able/interpreter-go/pkg/interpreter.(*Interpreter).canonicalTypeNames
+         0     0% 72.69%      0.17s  0.56%  able/interpreter-go/pkg/interpreter.(*Interpreter).propagationErrorValue
+     0.01s 0.033% 72.72%      0.17s  0.56%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallStaticMember
+     0.03s 0.098% 72.82%      0.17s  0.56%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execMemberSet
+         0     0% 72.82%      0.17s  0.56%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execPropagation
+     0.05s  0.16% 72.98%      0.17s  0.56%  able/interpreter-go/pkg/interpreter.evaluateDivModFast
+     0.01s 0.033% 73.02%      0.17s  0.56%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     0.01s 0.033% 73.05%      0.17s  0.56%  able/interpreter-go/pkg/runtime.arrayHandleKindLocked
+         0     0% 73.05%      0.17s  0.56%  runtime.(*mheap).alloc
+         0     0% 73.05%      0.17s  0.56%  runtime.(*mheap).alloc.func1
+         0     0% 73.05%      0.16s  0.52%  able/interpreter-go/pkg/interpreter.(*Interpreter).coerceValueToType
+     0.02s 0.065% 73.11%      0.16s  0.52%  able/interpreter-go/pkg/interpreter.(*Interpreter).lookupBoundMethodCache
+         0     0% 73.11%      0.16s  0.52%  able/interpreter-go/pkg/interpreter.(*Interpreter).tryFastArrayTypeCoercion
+     0.06s   0.2% 73.31%      0.16s  0.52%  able/interpreter-go/pkg/interpreter.bytecodeMaterializeRawIntegerValue
+     0.02s 0.065% 73.37%      0.16s  0.52%  able/interpreter-go/pkg/interpreter.lookupIntegerInfo (inline)
+     0.01s 0.033% 73.41%      0.16s  0.52%  able/interpreter-go/pkg/runtime.ArrayStoreMonoPrimitiveReadInfoIntoFresh
+         0     0% 73.41%      0.16s  0.52%  able/interpreter-go/pkg/runtime.ArrayStoreNewReservedCapacity

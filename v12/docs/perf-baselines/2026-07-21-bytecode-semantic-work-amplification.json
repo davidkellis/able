@@ -1,0 +1,531 @@
+{
+  "admission_rule": {
+    "minimum_unlike_families": 3,
+    "requires_exact_shared_mechanism": true,
+    "requires_material_amplification_in_every_application": true
+  },
+  "applications": [
+    {
+      "able_source": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+      "allocated_bytes": 1348450616,
+      "allocated_bytes_per_logical_unit": 674.225308,
+      "allocation_evidence": "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+      "allocations": 31911044,
+      "allocations_per_logical_unit": 15.955522,
+      "benchmark": "fixed_width_128",
+      "call_operations_per_logical_unit": 2.110486,
+      "category_counts": {
+        "binding-environment-storage": 12879426,
+        "calls-callables-dynamic-dispatch": 4220973,
+        "control-return-scope-error": 13125016,
+        "definitions-imports": 0,
+        "iteration-concurrency-suspension": 0,
+        "nominal-collection-text": 1000006,
+        "scalar-numeric-conversion": 10000000,
+        "transport": 19221015
+      },
+      "dominant_semantic_category": "control-return-scope-error",
+      "dominant_semantic_operations": 13125016,
+      "family": "wide-numeric",
+      "logical_unit": "hot loop iteration",
+      "logical_units": 2000000,
+      "operations_per_logical_unit": 30.223218,
+      "reference_boundary": "Python tuples and Ruby arrays implement the same two-word add/subtract/compare algorithm; this row has no bulk-library shortcut that explains the whole gap.",
+      "reference_directory": "fixed-width-128",
+      "semantic_operations": 41225421,
+      "semantic_operations_per_logical_unit": 20.61271,
+      "top_semantic_operations": {
+        "CallName": 2000006,
+        "Cast": 3000000,
+        "JumpIfBinaryCompareFalse": 3283452,
+        "LoadSlotStructField": 6816906,
+        "Return": 2875010,
+        "StoreSlotNew": 4000006
+      },
+      "total_operations": 60446436,
+      "unit_derivation": "Two source-equivalent loops of 1,000,000 iterations."
+    },
+    {
+      "able_source": "v12/examples/benchmarks/distance_field/distance_field.able",
+      "allocated_bytes": 368035900,
+      "allocated_bytes_per_logical_unit": 184.01795,
+      "allocation_evidence": "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+      "allocations": 26000120,
+      "allocations_per_logical_unit": 13.00006,
+      "benchmark": "distance_field",
+      "call_operations_per_logical_unit": 3.000001,
+      "category_counts": {
+        "binding-environment-storage": 4000028,
+        "calls-callables-dynamic-dispatch": 6000001,
+        "control-return-scope-error": 16000029,
+        "definitions-imports": 0,
+        "iteration-concurrency-suspension": 0,
+        "nominal-collection-text": 0,
+        "scalar-numeric-conversion": 20000025,
+        "transport": 32000082
+      },
+      "dominant_semantic_category": "scalar-numeric-conversion",
+      "dominant_semantic_operations": 20000025,
+      "family": "float-numeric",
+      "logical_unit": "distance update",
+      "logical_units": 2000000,
+      "operations_per_logical_unit": 39.000082,
+      "reference_boundary": "All three programs perform the same scalar recurrence and call a native hypot implementation once per update.",
+      "reference_directory": "distance-field",
+      "semantic_operations": 46000083,
+      "semantic_operations_per_logical_unit": 23.000041,
+      "top_semantic_operations": {
+        "Binary": 4000000,
+        "BinaryIntAdd": 4000008,
+        "CallName": 4000001,
+        "JumpIfBinaryCompareFalse": 8000000,
+        "Return": 4000001,
+        "StoreSlotFloatRegion": 6000000
+      },
+      "total_operations": 78000165,
+      "unit_derivation": "One source-equivalent loop of 2,000,000 updates."
+    },
+    {
+      "able_source": "v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able",
+      "allocated_bytes": 289347356,
+      "allocated_bytes_per_logical_unit": 70641.444336,
+      "allocation_evidence": "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+      "allocations": 2820542,
+      "allocations_per_logical_unit": 688.608887,
+      "benchmark": "concurrent_event_routing",
+      "call_operations_per_logical_unit": 444.424072,
+      "category_counts": {
+        "binding-environment-storage": 3222309,
+        "calls-callables-dynamic-dispatch": 1820361,
+        "control-return-scope-error": 5560984,
+        "definitions-imports": 0,
+        "iteration-concurrency-suspension": 4,
+        "nominal-collection-text": 239393,
+        "scalar-numeric-conversion": 1307539,
+        "transport": 9216986
+      },
+      "dominant_semantic_category": "control-return-scope-error",
+      "dominant_semantic_operations": 5560984,
+      "family": "concurrency",
+      "logical_unit": "routed task",
+      "logical_units": 4096,
+      "operations_per_logical_unit": 5216.693359,
+      "reference_boundary": "Python and Ruby use native String split, queues, threads, and built-in maps/arrays; Able performs equivalent work through language-level Result, HashMap, Channel, and worker code.",
+      "reference_directory": "concurrent-event-routing",
+      "semantic_operations": 12150590,
+      "semantic_operations_per_logical_unit": 2966.452637,
+      "top_semantic_operations": {
+        "CallName": 908323,
+        "Jump": 1212825,
+        "JumpIfIntCompareSlotFalse": 798592,
+        "JumpIfNotTypedPattern": 955791,
+        "Return": 763181,
+        "StoreSlotNew": 2206998
+      },
+      "total_operations": 21367576,
+      "unit_derivation": "The first 32 records are routed for 128 rounds; each accepted task also performs five scoring steps."
+    },
+    {
+      "able_source": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+      "allocated_bytes": 54292720,
+      "allocated_bytes_per_logical_unit": 3019.785305,
+      "allocation_evidence": "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+      "allocations": 625866,
+      "allocations_per_logical_unit": 34.810946,
+      "benchmark": "word_frequency",
+      "call_operations_per_logical_unit": 87.847155,
+      "category_counts": {
+        "binding-environment-storage": 2374511,
+        "calls-callables-dynamic-dispatch": 1579404,
+        "control-return-scope-error": 4567269,
+        "definitions-imports": 0,
+        "iteration-concurrency-suspension": 31759,
+        "nominal-collection-text": 194724,
+        "scalar-numeric-conversion": 1046849,
+        "transport": 7797373
+      },
+      "dominant_semantic_category": "control-return-scope-error",
+      "dominant_semantic_operations": 4567269,
+      "family": "text-map",
+      "logical_input": "../benchmarks/word-frequency/corpus.md",
+      "logical_unit": "nonempty word",
+      "logical_units": 17979,
+      "operations_per_logical_unit": 978.468713,
+      "reference_boundary": "Python and Ruby use native String split and built-in hash tables; Able uses canonical stdlib split, iteration, Result, and HashMap implementations.",
+      "reference_directory": "word-frequency",
+      "semantic_operations": 9794516,
+      "semantic_operations_per_logical_unit": 544.775349,
+      "top_semantic_operations": {
+        "CallName": 796567,
+        "Jump": 1025404,
+        "JumpIfIntCompareSlotFalse": 671451,
+        "JumpIfNotTypedPattern": 778084,
+        "Return": 673761,
+        "StoreSlotNew": 1859411
+      },
+      "total_operations": 17591889,
+      "unit_derivation": "Nonempty literal-space-delimited words in the canonical corpus."
+    },
+    {
+      "able_source": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "allocated_bytes": 17000376,
+      "allocated_bytes_per_logical_unit": 59.029083,
+      "allocation_evidence": "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+      "allocations": 415169,
+      "allocations_per_logical_unit": 1.441559,
+      "benchmark": "array_slice_window",
+      "call_operations_per_logical_unit": 3.250958,
+      "category_counts": {
+        "binding-environment-storage": 792279,
+        "calls-callables-dynamic-dispatch": 936276,
+        "control-return-scope-error": 1368543,
+        "definitions-imports": 0,
+        "iteration-concurrency-suspension": 0,
+        "nominal-collection-text": 300003,
+        "scalar-numeric-conversion": 2485041,
+        "transport": 2869097
+      },
+      "dominant_semantic_category": "scalar-numeric-conversion",
+      "dominant_semantic_operations": 2485041,
+      "family": "array-iterator",
+      "logical_unit": "window element",
+      "logical_units": 288000,
+      "operations_per_logical_unit": 30.386247,
+      "reference_boundary": "Python and Ruby copy each window with a native slice operation, then perform the weighted element loop at language level; Able uses canonical Array.slice and language-level iteration.",
+      "reference_directory": "array-slice-window",
+      "semantic_operations": 5882142,
+      "semantic_operations_per_logical_unit": 20.424104,
+      "top_semantic_operations": {
+        "ArrayReadSlot": 288000,
+        "BinaryIntAdd": 624259,
+        "CallMemberArraySlot": 888266,
+        "Cast": 912005,
+        "Jump": 624263,
+        "StoreSlotBinaryIntSlotConst": 588259
+      },
+      "total_operations": 8751239,
+      "unit_derivation": "12,000 copied windows of width 24; the two-element copy probe is intentionally excluded from the normalizer."
+    },
+    {
+      "able_source": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+      "allocated_bytes": 266698992,
+      "allocated_bytes_per_logical_unit": 133.349496,
+      "allocation_evidence": "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+      "allocations": 4069474,
+      "allocations_per_logical_unit": 2.034737,
+      "benchmark": "reverse_complement",
+      "call_operations_per_logical_unit": 4.03353,
+      "category_counts": {
+        "binding-environment-storage": 4066722,
+        "calls-callables-dynamic-dispatch": 8067059,
+        "control-return-scope-error": 18167345,
+        "definitions-imports": 0,
+        "iteration-concurrency-suspension": 0,
+        "nominal-collection-text": 4033361,
+        "scalar-numeric-conversion": 8033900,
+        "transport": 18234283
+      },
+      "dominant_semantic_category": "control-return-scope-error",
+      "dominant_semantic_operations": 18167345,
+      "family": "byte-text",
+      "logical_input": "../benchmarks/reverse-complement/reverse-complement-input.fasta",
+      "logical_unit": "sequence base",
+      "logical_units": 2000000,
+      "operations_per_logical_unit": 30.301335,
+      "reference_boundary": "Python bytes.translate plus reverse slicing and Ruby String.tr plus reverse are native bulk operations; Able explicitly reads, translates, appends, and wraps each byte.",
+      "reference_directory": "reverse-complement",
+      "semantic_operations": 42368387,
+      "semantic_operations_per_logical_unit": 21.184193,
+      "top_semantic_operations": {
+        "ArrayReadSlot": 4033354,
+        "CallMemberArraySlot": 8067000,
+        "Jump": 6066958,
+        "JumpIfIntCompareSlotConstFalse": 10066952,
+        "StoreSlotBinaryIntSlotConst": 6033607,
+        "StoreSlotNew": 4033381
+      },
+      "total_operations": 60602670,
+      "unit_derivation": "Non-header, non-newline bases in the three-record canonical FASTA input."
+    }
+  ],
+  "evidence": [
+    "v12/docs/perf-baselines/2026-07-21-bytecode-architecture-target-budget.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-call-continuation-abi-gate.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-frame-attribution-gate.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-control-flow-attribution-gate.md"
+  ],
+  "kind": "able-bytecode-semantic-work-amplification",
+  "mechanisms": [
+    {
+      "application_count": 4,
+      "applications": [
+        "fixed_width_128",
+        "concurrent_event_routing",
+        "word_frequency",
+        "reverse_complement"
+      ],
+      "disposition": "rejected-insufficient-amplified-breadth",
+      "eligible": false,
+      "id": "new-local-binding-store",
+      "kind": "exact-opcode",
+      "material_amplification_applications": [
+        "concurrent_event_routing",
+        "word_frequency"
+      ],
+      "material_unlike_family_count": 2,
+      "reason": "StoreSlotNew is about two operations per logical unit in Fixed Width and Reverse Complement, but 538.8 per routed task and 103.4 per word in the two stdlib-heavy programs. Only two unlike families establish amplification, and their language-level pipelines differ.",
+      "unlike_family_count": 4
+    },
+    {
+      "application_count": 4,
+      "applications": [
+        "fixed_width_128",
+        "distance_field",
+        "concurrent_event_routing",
+        "word_frequency"
+      ],
+      "disposition": "rejected-closed-and-insufficient-amplified-breadth",
+      "eligible": false,
+      "id": "named-call-return",
+      "kind": "exact-opcode-family",
+      "material_amplification_applications": [
+        "concurrent_event_routing",
+        "word_frequency"
+      ],
+      "material_unlike_family_count": 2,
+      "reason": "CallName and Return recur, but numeric rows perform expected per-iteration calls while the two amplified rows traverse different stdlib paths. Direct call, frame, continuation, and return candidates have already failed broad gates.",
+      "unlike_family_count": 4
+    },
+    {
+      "application_count": 2,
+      "applications": [
+        "array_slice_window",
+        "reverse_complement"
+      ],
+      "disposition": "rejected-insufficient-unlike-breadth",
+      "eligible": false,
+      "id": "array-slot-member-dispatch",
+      "kind": "exact-opcode-family",
+      "material_amplification_applications": [
+        "array_slice_window",
+        "reverse_complement"
+      ],
+      "material_unlike_family_count": 2,
+      "reason": "CallMemberArraySlot and ArrayReadSlot are material in two unlike applications, below the three-family threshold; the existing direct Array-slot path reports no inline misses.",
+      "unlike_family_count": 2
+    },
+    {
+      "application_count": 2,
+      "applications": [
+        "concurrent_event_routing",
+        "word_frequency"
+      ],
+      "disposition": "rejected-insufficient-unlike-breadth",
+      "eligible": false,
+      "id": "typed-result-pattern-control",
+      "kind": "exact-opcode-family",
+      "material_amplification_applications": [
+        "concurrent_event_routing",
+        "word_frequency"
+      ],
+      "material_unlike_family_count": 2,
+      "reason": "Typed-pattern and nullable Result control is large in Event Routing and Word Frequency but does not recur materially in a third unlike row.",
+      "unlike_family_count": 2
+    },
+    {
+      "application_count": 4,
+      "applications": [
+        "concurrent_event_routing",
+        "word_frequency",
+        "array_slice_window",
+        "reverse_complement"
+      ],
+      "disposition": "rejected-not-one-mechanism",
+      "eligible": false,
+      "id": "native-bulk-library-boundary",
+      "kind": "aggregate-boundary",
+      "material_amplification_applications": [
+        "concurrent_event_routing",
+        "word_frequency",
+        "array_slice_window",
+        "reverse_complement"
+      ],
+      "material_unlike_family_count": 4,
+      "reason": "The reference interpreters cross native boundaries, but the exact operations split among queues/threads, String split and hash lookup, Array slicing, and byte translation/reversal. Treating all native library calls as one optimization would hide distinct semantics.",
+      "unlike_family_count": 4
+    },
+    {
+      "application_count": 6,
+      "applications": [
+        "fixed_width_128",
+        "distance_field",
+        "concurrent_event_routing",
+        "word_frequency",
+        "array_slice_window",
+        "reverse_complement"
+      ],
+      "disposition": "rejected-not-one-mechanism",
+      "eligible": false,
+      "id": "allocation-volume",
+      "kind": "aggregate-runtime-parent",
+      "material_amplification_applications": [
+        "fixed_width_128",
+        "distance_field",
+        "concurrent_event_routing",
+        "word_frequency",
+        "array_slice_window",
+        "reverse_complement"
+      ],
+      "material_unlike_family_count": 6,
+      "reason": "Allocation is broad, but exact owner reports divide among wide nominal values, float materialization, concurrency environments, String/HashMap state, Array slicing, and byte Array conversion/snapshots.",
+      "unlike_family_count": 6
+    }
+  ],
+  "protocol": "Fresh deterministic ABLE_BYTECODE_STATS=1 diagnostic processes from one current interpreter binary; counts are observer evidence, not timings.",
+  "recommendation": "Do not build a semantic optimization from these six rows. Next test the only concrete two-family survivor, the direct Array semantic boundary, against Matrix Multiply as a third unlike application and numeric/text guards. Admit work only if one exact Array storage or member operation is material in all three and its end-to-end savings are large enough; otherwise close that boundary and return to the compiled residual frontier.",
+  "schema_version": 1,
+  "sources": {
+    "applications": {
+      "array_slice_window": {
+        "able": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+          "sha256": "64c65a525023e5fc7000f13b9d36875716b7d8b936060fede904381b58156b4e"
+        },
+        "allocation_evidence": {
+          "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+          "sha256": "223085915e235f65580e0d862c62f5c9f33ce3b4e46ba245c6062c9fe89b0f62"
+        },
+        "python": {
+          "path": "/home/david/sync/projects/benchmarks/array-slice-window/python-3.14/run.py",
+          "sha256": "81a554ebbdae62eef642e766d86f3d49d33666842435eb4e9a6765d979af55e9"
+        },
+        "ruby": {
+          "path": "/home/david/sync/projects/benchmarks/array-slice-window/ruby-4.0/run.rb",
+          "sha256": "5fa9c8c230542bb1bc30cbfc44302181df6880c6e3bb0646cb90178d4b06d017"
+        }
+      },
+      "concurrent_event_routing": {
+        "able": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able",
+          "sha256": "23d12e189b92ee44f83917df8a8fa8a84f2ab77242f9785474df345fbe5e274b"
+        },
+        "allocation_evidence": {
+          "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+          "sha256": "3228d2b0f7449c93d9d1bb197ef0af288566f4c25fb3280ca5de117077c48790"
+        },
+        "python": {
+          "path": "/home/david/sync/projects/benchmarks/concurrent-event-routing/python-3.14/run.py",
+          "sha256": "e6d26914edd3bd99c1999b95ed463675b795970683339356e7a179d451a8d34b"
+        },
+        "ruby": {
+          "path": "/home/david/sync/projects/benchmarks/concurrent-event-routing/ruby-4.0/run.rb",
+          "sha256": "9e1de4cd0d2f8fb60807a5d5bae77c250f190c7eb4ae9546530c838e1afde681"
+        }
+      },
+      "distance_field": {
+        "able": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/distance_field/distance_field.able",
+          "sha256": "80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88"
+        },
+        "allocation_evidence": {
+          "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+          "sha256": "f2f42c6cdfdcad98fb2bc48a281e82c5020c695bbfd4b59727e9f3986c4a7b95"
+        },
+        "python": {
+          "path": "/home/david/sync/projects/benchmarks/distance-field/python-3.14/run.py",
+          "sha256": "96edeaa2e1ca51879516235f8650439549bade854a466efad1cd42ae7f51b331"
+        },
+        "ruby": {
+          "path": "/home/david/sync/projects/benchmarks/distance-field/ruby-4.0/run.rb",
+          "sha256": "6b5dbf5ed985f485c811eb0deb383cbb3356ffdcf68280b16f025029c29fa92e"
+        }
+      },
+      "fixed_width_128": {
+        "able": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+          "sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e"
+        },
+        "allocation_evidence": {
+          "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+          "sha256": "aa36b9164d84e6c4dfad70a4725e4fc045866034acef47f3cdc02e19abda6976"
+        },
+        "python": {
+          "path": "/home/david/sync/projects/benchmarks/fixed-width-128/python-3.14/run.py",
+          "sha256": "9b1e7b1cb5f737c0726e0ef0490152098786925ccb090a40ca1caea7543279f7"
+        },
+        "ruby": {
+          "path": "/home/david/sync/projects/benchmarks/fixed-width-128/ruby-4.0/run.rb",
+          "sha256": "7655ea9f640810e2cdb796e9323389ec22367e63bb50c2715577aa25a0f51e1f"
+        }
+      },
+      "reverse_complement": {
+        "able": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+          "sha256": "4bd16d4b6c65362efc5b2515548f59686144553a91eadcc65a0cde6df537e5f9"
+        },
+        "allocation_evidence": {
+          "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+          "sha256": "f2f42c6cdfdcad98fb2bc48a281e82c5020c695bbfd4b59727e9f3986c4a7b95"
+        },
+        "logical_input": {
+          "path": "/home/david/sync/projects/benchmarks/reverse-complement/reverse-complement-input.fasta",
+          "sha256": "22636537929cac4ff37192456e48e9a918e244c15745ad48d2be1b05f947b15a"
+        },
+        "python": {
+          "path": "/home/david/sync/projects/benchmarks/reverse-complement/python-3.14/run.py",
+          "sha256": "0ebe3d5c98324ba53472cd75208b8ba13c311134cf3f1caae47077929a5ca1a1"
+        },
+        "ruby": {
+          "path": "/home/david/sync/projects/benchmarks/reverse-complement/ruby-4.0/run.rb",
+          "sha256": "cd44c852891f5c29601171b001e47f7569f2d3b74d9a5a47d49e90f51ed422bc"
+        }
+      },
+      "word_frequency": {
+        "able": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/word_frequency/word_frequency.able",
+          "sha256": "ad6e5d39c1685931dfb7b86fb7ce2afe783a1088ffc646a5482540606cd79a3f"
+        },
+        "allocation_evidence": {
+          "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+          "sha256": "3228d2b0f7449c93d9d1bb197ef0af288566f4c25fb3280ca5de117077c48790"
+        },
+        "logical_input": {
+          "path": "/home/david/sync/projects/benchmarks/word-frequency/corpus.md",
+          "sha256": "eea236b8dc71ecc6c306719e9a1cfd842309c616438d5c4c84e13c44056c9164"
+        },
+        "python": {
+          "path": "/home/david/sync/projects/benchmarks/word-frequency/python-3.14/run.py",
+          "sha256": "07f6d7bf1629dfa4d3c06c74c5e5b7593bc01cded12d30659da36f4fe641a18c"
+        },
+        "ruby": {
+          "path": "/home/david/sync/projects/benchmarks/word-frequency/ruby-4.0/run.rb",
+          "sha256": "6c31037565a1d96128a4874a8dd99ef1c91ab3905682ebb99a37caaf585d6758"
+        }
+      }
+    },
+    "architecture": {
+      "path": "/home/david/sync/projects/able/v12/bench-bytecode-architecture-budget.json",
+      "sha256": "232d1edb57f4df4f15c143baae195bfc5211eed2c34889b8c7c4b53ee95a94bd"
+    },
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-semantic-work-amplification.json",
+      "sha256": "20460cad88a070556afcff765781a9243d06237f43043eb14bc6b17fbcc9943b"
+    }
+  },
+  "summary": {
+    "application_count": 6,
+    "decision": "no-go-current-six-semantic-candidate",
+    "eligible_mechanism_count": 0,
+    "reviewed_mechanism_count": 6,
+    "total_allocated_bytes": 2343825960,
+    "total_allocations": 65842215,
+    "total_dynamic_operations": 246759975,
+    "total_semantic_operations": 157421139,
+    "total_transport_operations": 89338836,
+    "unlike_family_count": 6
+  }
+}

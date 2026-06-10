@@ -1,0 +1,25 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: inuse_space
+Time: 2026-07-11 23:28:47 CDT
+Showing nodes accounting for 32372.56kB, 100% of 32372.56kB total
+      flat  flat%   sum%        cum   cum%
+30159.64kB 93.16% 93.16% 30159.64kB 93.16%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+ 1184.27kB  3.66% 96.82%  1184.27kB  3.66%  runtime/pprof.StartCPUProfile
+  516.64kB  1.60% 98.42%   516.64kB  1.60%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).acquireSlotFrame
+  512.01kB  1.58%   100%   512.01kB  1.58%  able/interpreter-go/pkg/interpreter.init.func1 (inline)
+         0     0%   100%   516.64kB  1.60%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%   100%   516.64kB  1.60%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%   100%   516.64kB  1.60%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%   100%   516.64kB  1.60%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%   100%   516.64kB  1.60%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%   100%   516.64kB  1.60%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%   100%  1700.91kB  5.25%  able/interpreter-go/pkg/interpreter.BenchmarkBytecodeProgramRuntime
+         0     0%   100%   512.01kB  1.58%  able/interpreter-go/pkg/interpreter.init
+         0     0%   100% 30159.64kB 93.16%  able/interpreter-go/pkg/interpreter.init.0
+         0     0%   100%  1184.27kB  3.66%  able/interpreter-go/pkg/interpreter.startBytecodeProgramRuntimeCPUProfile
+         0     0%   100% 30671.65kB 94.75%  runtime.doInit (inline)
+         0     0%   100% 30671.65kB 94.75%  runtime.doInit1
+         0     0%   100% 30671.65kB 94.75%  runtime.main
+         0     0%   100%  1700.91kB  5.25%  testing.(*B).run1.func1
+         0     0%   100%  1700.91kB  5.25%  testing.(*B).runN

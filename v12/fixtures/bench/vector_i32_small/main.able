@@ -1,0 +1,43 @@
+package bench_vector_i32_small
+
+import able.collections.vector.{Vector}
+
+fn build(size: i32) -> Vector i32 {
+  values: Vector i32 = Vector.new()
+  i := 0
+  loop {
+    if i >= size { break }
+    values = values.push((i * 3) - 7)
+    i = i + 1
+  }
+  values
+}
+
+fn score(initial: Vector i32, size: i32) -> i64 {
+  values := initial
+  total: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= 4 { break }
+    i := 0
+    loop {
+      if i >= size { break }
+      maybe_value := values.get(i)
+      value: i32 := maybe_value or { 0 }
+      total = total + (value as i64)
+      if i % 31 == 0 {
+        values = values.set(i, value + round + 1)
+      }
+      i = i + 1
+    }
+    values = values.push(round)
+    values = values.pop()
+    round = round + 1
+  }
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  values := build(6_000)
+  print(score(values, 6_000))
+}

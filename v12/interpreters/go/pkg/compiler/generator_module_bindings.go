@@ -263,6 +263,8 @@ func goTypeForIntegerSuffix(suffix string) (string, bool) {
 		return "int32", true
 	case "runtime.IntegerI64":
 		return "int64", true
+	case "runtime.IntegerI128":
+		return "runtime.Int128", true
 	case "runtime.IntegerU8":
 		return "uint8", true
 	case "runtime.IntegerU16":
@@ -271,6 +273,8 @@ func goTypeForIntegerSuffix(suffix string) (string, bool) {
 		return "uint32", true
 	case "runtime.IntegerU64":
 		return "uint64", true
+	case "runtime.IntegerU128":
+		return "runtime.Uint128", true
 	}
 	return "", false
 }
@@ -286,6 +290,9 @@ func (g *generator) evaluatedConstantExpr(pkgName string, name string) (string, 
 	goType, ok := goTypeForIntegerSuffix(c.suffix)
 	if !ok || goType == "" {
 		return "", "", false
+	}
+	if expr, ok := g.integerLiteralExprForType(c.val, goType); ok {
+		return expr, goType, true
 	}
 	return goType + "(" + c.val.String() + ")", goType, true
 }

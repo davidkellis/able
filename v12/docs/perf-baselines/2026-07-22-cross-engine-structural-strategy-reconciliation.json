@@ -1,0 +1,349 @@
+{
+  "closure_ledger": {
+    "closure_count": 21,
+    "current_count": 21,
+    "decision": "no-invalidated-closure",
+    "invalidated_count": 0,
+    "reason_counts": {},
+    "selected_by_mode": {
+      "bytecode": [],
+      "compiled": []
+    },
+    "selected_closures": []
+  },
+  "kind": "able-cross-engine-structural-strategy-reconciliation",
+  "next_lane": {
+    "admission": "Admit an executable prototype only after one backend class, ABI, ownership model, supported-platform policy, and conformance/fallback plan are concrete. The retained timing model must cover at least three of the five serial governing families at 25% target-excess reduction each, and JSON plus PiDigits must retain exact ordinary-VM fallback guards.",
+    "exclusions": "No WASM, benchmark or application branches, named-container rules, non-primitive nominal fast paths, per-opcode cgo callbacks, or retry of Go-level region/register executors.",
+    "id": "portable-vm-backend-abi-dependency-adr",
+    "scope": "Resolve whether a non-WASM portable lower-level engine can own whole bytecode activations across boxed and effectful boundaries without per-opcode foreign callbacks or a semantically divergent second runtime. Compare whole-engine C-ABI, portable JIT-library, and direct-codegen classes; select the value/root ABI, effect/resume protocol, toolchain and distribution policy, or close the route."
+  },
+  "routes": {
+    "compiled_general_nominal_abi_simplification": {
+      "cost": {
+        "completed_rejection_equivalence": "current-direct-method-and-boundary-descendants-are-closed",
+        "concrete_mechanism": null,
+        "deployment_cost": "low",
+        "id": "compiled-general-nominal-abi-simplification",
+        "implementation_cost": "high",
+        "model": "make every currently attributed exact compiled mechanism free and require one shared mechanism to remain material in three unlike families",
+        "semantic_risk": "medium"
+      },
+      "decision": "reject-current-route",
+      "eligible_mechanism_count": 0,
+      "maximum_material_unlike_family_count": 2,
+      "mechanisms": [
+        {
+          "disposition": "insufficient-three-family-cpu-leverage",
+          "eligible": false,
+          "id": "builtin-string-conversion",
+          "material_unlike_family_count": 2
+        },
+        {
+          "disposition": "causally-closed-and-insufficient-three-family-cpu-leverage",
+          "eligible": false,
+          "id": "bridge-to-uint",
+          "material_unlike_family_count": 2
+        },
+        {
+          "disposition": "single-family",
+          "eligible": false,
+          "id": "loop-carried-nominal-result",
+          "material_unlike_family_count": 1
+        },
+        {
+          "disposition": "single-family",
+          "eligible": false,
+          "id": "regex-nfa-storage",
+          "material_unlike_family_count": 1
+        },
+        {
+          "disposition": "single-family-and-causally-closed",
+          "eligible": false,
+          "id": "goroutine-identity-discovery",
+          "material_unlike_family_count": 1
+        }
+      ],
+      "passes_breadth_gate": false,
+      "reason": "shared typed-boundary counters descend into divergent owners and no exact mechanism is material in three unlike families",
+      "typed_boundary_intersection_application_count": 3,
+      "typed_boundary_profile_dispositions": [
+        {
+          "benchmark": "option_result_config",
+          "disposition": "serial allocation and generic-union type matching"
+        },
+        {
+          "benchmark": "dependency_wave_validation",
+          "disposition": "closed currentGID/runtime.Stack execution-context wall"
+        },
+        {
+          "benchmark": "concurrent_document_pipeline",
+          "disposition": "closed currentGID/runtime.Stack execution-context wall"
+        }
+      ]
+    },
+    "portable_lower_level_vm_backend": {
+      "concrete_mechanism": false,
+      "cost": {
+        "completed_rejection_equivalence": "distinct-only-if-it-crosses-boxed-and-effectful-boundaries-at-whole-activation-granularity",
+        "concrete_mechanism": null,
+        "deployment_cost": "high",
+        "id": "portable-lower-level-vm-backend",
+        "implementation_cost": "very-high",
+        "model": "substitute the current semantics-preserving compiled whole-application time for each bytecode row",
+        "semantic_risk": "very-high"
+      },
+      "decision": "performance-capable-design-only",
+      "full_corpus_material_row_count": 5,
+      "full_corpus_row_count": 6,
+      "passes_phase_one_performance_gate": true,
+      "phase_one_governing_row_count": 5,
+      "phase_one_material_row_count": 5,
+      "prototype_admitted": false,
+      "reason": "the whole-engine proxy clears the phase-one breadth and materiality gates, but no backend, ABI, ownership model, or distribution policy is concrete",
+      "rows": [
+        {
+          "benchmark": "fixed_width_128",
+          "current_seconds": 8.522,
+          "current_target_excess_seconds": 8.153157895,
+          "family": "wide-numeric",
+          "modeled_seconds": 0.206,
+          "modeled_target_excess_seconds": 0.0,
+          "passes_materiality_gate": true,
+          "phase_one_governing": true,
+          "target_budget_seconds": 0.36884210526315786,
+          "target_excess_reduction_percent": 100.0
+        },
+        {
+          "benchmark": "distance_field",
+          "current_seconds": 5.914,
+          "current_target_excess_seconds": 5.505894737,
+          "family": "float-numeric",
+          "modeled_seconds": 0.09,
+          "modeled_target_excess_seconds": 0.0,
+          "passes_materiality_gate": true,
+          "phase_one_governing": true,
+          "target_budget_seconds": 0.4081052631578947,
+          "target_excess_reduction_percent": 100.0
+        },
+        {
+          "benchmark": "concurrent_event_routing",
+          "current_seconds": 3.256,
+          "current_target_excess_seconds": 3.220631579,
+          "family": "concurrency-text",
+          "modeled_seconds": 2.914,
+          "modeled_target_excess_seconds": 2.878631579,
+          "passes_materiality_gate": false,
+          "phase_one_governing": false,
+          "target_budget_seconds": 0.03536842105263158,
+          "target_excess_reduction_percent": 10.619035
+        },
+        {
+          "benchmark": "word_frequency",
+          "current_seconds": 1.414,
+          "current_target_excess_seconds": 1.389368421,
+          "family": "text-map",
+          "modeled_seconds": 0.18,
+          "modeled_target_excess_seconds": 0.155368421,
+          "passes_materiality_gate": true,
+          "phase_one_governing": true,
+          "target_budget_seconds": 0.02463157894736842,
+          "target_excess_reduction_percent": 88.817335
+        },
+        {
+          "benchmark": "array_slice_window",
+          "current_seconds": 0.744,
+          "current_target_excess_seconds": 0.679789474,
+          "family": "array-iterator",
+          "modeled_seconds": 0.098,
+          "modeled_target_excess_seconds": 0.033789474,
+          "passes_materiality_gate": true,
+          "phase_one_governing": true,
+          "target_budget_seconds": 0.06421052631578947,
+          "target_excess_reduction_percent": 95.029421
+        },
+        {
+          "benchmark": "reverse_complement",
+          "current_seconds": 3.758,
+          "current_target_excess_seconds": 3.718105263,
+          "family": "byte-text",
+          "modeled_seconds": 0.114,
+          "modeled_target_excess_seconds": 0.074105263,
+          "passes_materiality_gate": true,
+          "phase_one_governing": true,
+          "target_budget_seconds": 0.03989473684210527,
+          "target_excess_reduction_percent": 98.006908
+        }
+      ]
+    },
+    "typed_bytecode_semantic_specialization": {
+      "cost": {
+        "completed_rejection_equivalence": "partly-overlaps-rejected-go-region-register-and-slot-hint-routes",
+        "concrete_mechanism": "extend typed lowering facts into specialized bytecodes and representations while retaining ordinary semantic fallback",
+        "deployment_cost": "low",
+        "id": "typed-bytecode-semantic-specialization",
+        "implementation_cost": "high",
+        "model": "make every dynamically observed instruction carrying a checked primitive proof free at uniform instruction cost",
+        "semantic_risk": "medium"
+      },
+      "decision": "reject-current-route",
+      "governing_row_count": 6,
+      "material_row_count": 3,
+      "passes_every_governing_row": false,
+      "reason": "the optimistic free-proof model fails materiality in governing rows and overlaps completed Go-level specialization rejections",
+      "rows": [
+        {
+          "benchmark": "fixed_width_128",
+          "current_seconds": 8.522,
+          "current_target_excess_seconds": 8.153157895,
+          "family": "wide-numeric",
+          "modeled_seconds": 5.68816346,
+          "modeled_target_excess_seconds": 5.319321355,
+          "passes_materiality_gate": true,
+          "proved_instruction_share_percent": 33.253186,
+          "target_excess_reduction_percent": 34.757533
+        },
+        {
+          "benchmark": "distance_field",
+          "current_seconds": 5.914,
+          "current_target_excess_seconds": 5.505894737,
+          "family": "float-numeric",
+          "modeled_seconds": 3.487745083,
+          "modeled_target_excess_seconds": 3.07963982,
+          "passes_materiality_gate": true,
+          "proved_instruction_share_percent": 41.025616,
+          "target_excess_reduction_percent": 44.066497
+        },
+        {
+          "benchmark": "concurrent_event_routing",
+          "current_seconds": 3.256,
+          "current_target_excess_seconds": 3.220631579,
+          "family": "concurrency-text",
+          "modeled_seconds": 2.973491138,
+          "modeled_target_excess_seconds": 2.938122717,
+          "passes_materiality_gate": false,
+          "proved_instruction_share_percent": 8.676562,
+          "target_excess_reduction_percent": 8.771847
+        },
+        {
+          "benchmark": "word_frequency",
+          "current_seconds": 1.414,
+          "current_target_excess_seconds": 1.389368421,
+          "family": "text-map",
+          "modeled_seconds": 1.288091636,
+          "modeled_target_excess_seconds": 1.263460057,
+          "passes_materiality_gate": false,
+          "proved_instruction_share_percent": 8.90441,
+          "target_excess_reduction_percent": 9.062273
+        },
+        {
+          "benchmark": "array_slice_window",
+          "current_seconds": 0.744,
+          "current_target_excess_seconds": 0.679789474,
+          "family": "array-iterator",
+          "modeled_seconds": 0.525632399,
+          "modeled_target_excess_seconds": 0.461421873,
+          "passes_materiality_gate": true,
+          "proved_instruction_share_percent": 29.350484,
+          "target_excess_reduction_percent": 32.122828
+        },
+        {
+          "benchmark": "reverse_complement",
+          "current_seconds": 3.758,
+          "current_target_excess_seconds": 3.718105263,
+          "family": "byte-text",
+          "modeled_seconds": 2.883608791,
+          "modeled_target_excess_seconds": 2.843714054,
+          "passes_materiality_gate": false,
+          "proved_instruction_share_percent": 23.267462,
+          "target_excess_reduction_percent": 23.517118
+        }
+      ]
+    }
+  },
+  "schema_version": 1,
+  "semantic_obligations": [
+    {
+      "id": "values-identity-and-gc",
+      "requirement": "Preserve primitive values, boxed values, nominal identity, aliases, mutation, and liveness without retaining movable Go pointers in foreign memory."
+    },
+    {
+      "id": "dispatch-and-nominal-semantics",
+      "requirement": "Preserve overload, interface, generic-union, inherent-method, dynamic member, and general non-primitive nominal translation rules without named-type exceptions."
+    },
+    {
+      "id": "errors-and-structured-unwind",
+      "requirement": "Preserve source-attached errors, raise/rescue/ensure/rethrow, propagation, cleanup, break/continue, and return coercion."
+    },
+    {
+      "id": "concurrency-and-suspension",
+      "requirement": "Preserve spawn, Future, await, cancellation, yielding, serial scheduling, goroutine scheduling, and bounded fairness polls."
+    },
+    {
+      "id": "externs-and-host-interop",
+      "requirement": "Preserve extern calls, host values, package/runtime state, and callback reentrancy without depending on an unstable Go ABI."
+    },
+    {
+      "id": "diagnostics-and-exact-resume",
+      "requirement": "Retain original instruction and source identity for failures, side exits, fallback, and reproducible diagnostics."
+    },
+    {
+      "id": "portable-fallback-and-distribution",
+      "requirement": "Define supported platforms, dependency and license policy, executable-memory policy, compile latency, bounded caches, and exact ordinary-VM fallback."
+    }
+  ],
+  "sources": {
+    "closure_ledger": {
+      "path": "/home/david/sync/projects/able/v12/bench-performance-closure-ledger.json",
+      "sha256": "f00e9fafd2ad222c018de0748093957687bfd555f3bceb711825ef23191c3ffc"
+    },
+    "compiled_boundary_census": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-compiled-full-typed-semantic-boundary-census.json",
+      "sha256": "cdf4dca6e1d4261bf74cec27c122dbfb0af737a8b0578ee71293d0f429901718"
+    },
+    "compiled_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
+      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+    },
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-cross-engine-structural-strategy.json",
+      "sha256": "fe1cf82452279882de0373dcff65752eec03e06e18d16b67855e1d0b159d7d25"
+    },
+    "frontier": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+    },
+    "native_tier_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
+      "sha256": "7e58450b286d7b45a25383708bfbcfda7f86865e8943a102c11a3acbfdb24167"
+    }
+  },
+  "summary": {
+    "bytecode_target_excess_seconds": 153.74063158,
+    "closure_count": 21,
+    "concrete_admitted_route_count": 0,
+    "decision": "portable-backend-performance-capable-but-no-concrete-mechanism",
+    "invalidated_closure_count": 0,
+    "minimum_target_excess_reduction_percent": 25.0,
+    "minimum_unlike_families": 3,
+    "performance_capable_route_count": 1,
+    "prototype_admitted": false,
+    "selected_rows": 119,
+    "target_misses": 111,
+    "total_target_excess_seconds": 188.45157894736843
+  },
+  "target_guards": [
+    {
+      "benchmark": "json",
+      "current_target_excess_seconds": 0.0,
+      "proxy_reaches_target": true,
+      "required_strategy": "exact-ordinary-vm-fallback-until-profitable"
+    },
+    {
+      "benchmark": "pidigits",
+      "current_target_excess_seconds": 0.0,
+      "proxy_reaches_target": true,
+      "required_strategy": "exact-ordinary-vm-fallback-until-profitable"
+    }
+  ]
+}

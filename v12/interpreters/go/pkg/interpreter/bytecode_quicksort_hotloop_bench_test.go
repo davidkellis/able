@@ -8,7 +8,10 @@ import (
 	"able/interpreter-go/pkg/driver"
 )
 
-const quicksortHotloopBenchFixture = "v12/fixtures/exec/07_10_bytecode_quicksort_hotloop"
+const (
+	quicksortHotloopBenchFixture = "v12/fixtures/exec/07_10_bytecode_quicksort_hotloop"
+	quicksortHotloopBenchSource  = "v12/interpreters/go/pkg/interpreter/testdata/quicksort_hotloop/main.able"
+)
 
 func suspendMemProfileSampling() func() {
 	prev := runtime.MemProfileRate
@@ -33,11 +36,7 @@ func BenchmarkBytecodeQuicksortHotloopRuntime(b *testing.B) {
 	}
 	dir := filepath.Join(root, filepath.FromSlash(quicksortHotloopBenchFixture))
 	manifest := readManifest(b, dir)
-	entry := manifest.Entry
-	if entry == "" {
-		entry = "main.able"
-	}
-	entryPath := filepath.Join(dir, entry)
+	entryPath := filepath.Join(root, filepath.FromSlash(quicksortHotloopBenchSource))
 
 	searchPaths, err := buildExecSearchPaths(entryPath, dir, manifest)
 	if err != nil {

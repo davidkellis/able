@@ -1,0 +1,6 @@
+{
+  "description": "persistent queue benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

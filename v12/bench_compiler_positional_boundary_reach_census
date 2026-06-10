@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+generated_root=""
+probe_root=""
+positive_control_stderr=""
+benchmark_repo="$(realpath "$SCRIPT_DIR/../../benchmarks")"
+output=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_compiler_positional_boundary_reach_census \
+    --generated-root DIR \
+    --probe-root DIR \
+    --positive-control-stderr FILE \
+    --output FILE \
+    [--benchmark-repo DIR]
+
+Scans strict generated applications for the corrected Ratio and map-literal
+spread boundaries. Applications whose final binary retains the Ratio helper
+must have a verifier-backed sentinel run under --probe-root. The positive
+control must contain the same sentinel marker.
+EOF
+}
+
+die() {
+  echo "bench_compiler_positional_boundary_reach_census: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --generated-root)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --generated-root"
+      generated_root="$1"
+      ;;
+    --probe-root)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --probe-root"
+      probe_root="$1"
+      ;;
+    --positive-control-stderr)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --positive-control-stderr"
+      positive_control_stderr="$1"
+      ;;
+    --benchmark-repo)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"
+      benchmark_repo="$1"
+      ;;
+    --output)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output"
+      output="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$generated_root" ]] || die "--generated-root is required"
+[[ -n "$probe_root" ]] || die "--probe-root is required"
+[[ -n "$positive_control_stderr" ]] || die "--positive-control-stderr is required"
+[[ -n "$output" ]] || die "--output is required"
+generated_root="$(realpath "$generated_root")"
+probe_root="$(realpath "$probe_root")"
+positive_control_stderr="$(realpath "$positive_control_stderr")"
+benchmark_repo="$(realpath "$benchmark_repo")"
+output="$(realpath -m "$output")"
+[[ -d "$generated_root" ]] || die "generated root not found: $generated_root"
+[[ -d "$probe_root" ]] || die "probe root not found: $probe_root"
+[[ -d "$benchmark_repo" ]] || die "benchmark repo not found: $benchmark_repo"
+[[ -f "$positive_control_stderr" ]] || die "positive control not found: $positive_control_stderr"
+rg -q '__ABLE_RATIO_POSITIONAL_BOUNDARY_REACHED__' "$positive_control_stderr" ||
+  die "positive control did not reach the Ratio sentinel"
+mkdir -p "$(dirname "$output")"
+
+count_matches() {
+  local pattern="$1"
+  local file="$2"
+  { rg -c "$pattern" "$file" 2>/dev/null || true; } | tail -n 1
+}
+
+tmp_output="$(mktemp "${output}.tmp.XXXXXX")"
+trap 'rm -f "$tmp_output"' EXIT
+printf '%s\n' \
+  $'benchmark\tsource_sha256\tcompiled_sha256\tbinary_sha256\tinterpreter_free\tratio_source_occurrences\tratio_linked_symbol\tratio_linked_diagnostic\tratio_probe_status\tratio_probe_stdout_sha256\tmap_spread_source_sites\tmap_spread_linked_diagnostic' \
+  >"$tmp_output"
+
+IFS=',' read -r -a benchmarks <<<"$(bench_external_suite_csv coverage)"
+for benchmark in "${benchmarks[@]}"; do
+  source_path="$(bench_external_target "$SCRIPT_DIR" "$benchmark")"
+  app_root="$generated_root/$benchmark"
+  compiled_path="$app_root/compiled.go"
+  binary_path="$app_root/compiled"
+  [[ -f "$source_path" ]] || die "source missing for $benchmark: $source_path"
+  [[ -f "$compiled_path" ]] || die "compiled source missing for $benchmark: $compiled_path"
+  [[ -x "$binary_path" ]] || die "compiled binary missing for $benchmark: $binary_path"
+
+  deps="$(
+    GOCACHE="${GOCACHE:-$GO_DIR/.gocache}" \
+      go list -C "$app_root" -mod=mod -deps .
+  )"
+  interpreter_free=true
+  if rg -q '^able/interpreter-go/pkg/interpreter$' <<<"$deps"; then
+    interpreter_free=false
+  fi
+
+  ratio_source_occurrences="$(
+    count_matches '__able_ratio_parts_from_struct' "$compiled_path"
+  )"
+  ratio_linked_symbol=false
+  ratio_symbol_count="$(
+    { go tool nm "$binary_path" 2>/dev/null || true; } |
+      { rg -c '__able_ratio_parts_from_struct' || true; }
+  )"
+  if ((ratio_symbol_count > 0)); then
+    ratio_linked_symbol=true
+  fi
+  ratio_linked_diagnostic=false
+  ratio_diagnostic_count="$(
+    strings "$binary_path" |
+      { rg -c 'ratio value missing num' || true; }
+  )"
+  if ((ratio_diagnostic_count > 0)); then
+    ratio_linked_diagnostic=true
+  fi
+
+  ratio_probe_status=not-linked
+  ratio_probe_stdout_sha=n/a
+  if [[ "$ratio_linked_symbol" == true || "$ratio_linked_diagnostic" == true ]]; then
+    stdout_path="$probe_root/$benchmark.stdout"
+    stderr_path="$probe_root/$benchmark.stderr"
+    verifier="$(bench_external_suite_dir "$benchmark_repo" "$benchmark")/verify.rb"
+    [[ -f "$stdout_path" && -f "$stderr_path" ]] ||
+      die "probe output missing for $benchmark"
+    [[ -f "$verifier" ]] || die "verifier missing for $benchmark: $verifier"
+    if rg -q '__ABLE_RATIO_POSITIONAL_BOUNDARY_REACHED__' "$stderr_path"; then
+      ratio_probe_status=reached
+    else
+      ruby "$verifier" <"$stdout_path" ||
+        die "probe verifier failed for $benchmark"
+      ratio_probe_status=verified-no-hit
+    fi
+    ratio_probe_stdout_sha="$(sha256sum "$stdout_path" | cut -d' ' -f1)"
+  fi
+
+  map_source_sites="$(
+    count_matches 'map literal spread expects HashMap value' "$compiled_path"
+  )"
+  map_linked_diagnostic=false
+  map_diagnostic_count="$(
+    strings "$binary_path" |
+      { rg -c 'map literal spread expects HashMap value' || true; }
+  )"
+  if ((map_diagnostic_count > 0)); then
+    map_linked_diagnostic=true
+  fi
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$benchmark" \
+    "$(sha256sum "$source_path" | cut -d' ' -f1)" \
+    "$(sha256sum "$compiled_path" | cut -d' ' -f1)" \
+    "$(sha256sum "$binary_path" | cut -d' ' -f1)" \
+    "$interpreter_free" \
+    "$ratio_source_occurrences" \
+    "$ratio_linked_symbol" \
+    "$ratio_linked_diagnostic" \
+    "$ratio_probe_status" \
+    "$ratio_probe_stdout_sha" \
+    "$map_source_sites" \
+    "$map_linked_diagnostic" \
+    >>"$tmp_output"
+done
+
+mv "$tmp_output" "$output"
+trap - EXIT
+echo "wrote ${#benchmarks[@]} rows to $output"

@@ -1,0 +1,81 @@
+{
+  "generated_at": "2026-07-22T12:58:51.239785Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/policy_record_dispatch/policy_record_dispatch.able",
+  "run_from": "/home/david/sync/projects/benchmarks/policy-record-dispatch",
+  "runs": 3,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode-runtime"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 2,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [
+    "records.txt"
+  ],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": null,
+  "results": [
+    {
+      "mode": "bytecode-runtime",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 36.55,
+      "avg_user_seconds": 36.1367,
+      "avg_sys_seconds": 0.24,
+      "avg_gc": 32.33,
+      "avg_ns_per_op": 7252571409.0,
+      "avg_bytes_per_op": 141543529.0,
+      "avg_allocs_per_op": 1452277.0,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 36.8,
+          "user_seconds": 36.41,
+          "sys_seconds": 0.23,
+          "gc_count": 33.0,
+          "ns_per_op": 7547756333.0,
+          "bytes_per_op": 141538048.0,
+          "allocs_per_op": 1452283.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 35.93,
+          "user_seconds": 35.56,
+          "sys_seconds": 0.23,
+          "gc_count": 32.0,
+          "ns_per_op": 6951770938.0,
+          "bytes_per_op": 141629100.0,
+          "allocs_per_op": 1452275.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 36.92,
+          "user_seconds": 36.44,
+          "sys_seconds": 0.26,
+          "gc_count": 32.0,
+          "ns_per_op": 7258186957.0,
+          "bytes_per_op": 141463440.0,
+          "allocs_per_op": 1452274.0,
+          "stdout_sha256": null
+        }
+      ],
+      "validation": {
+        "status": "unavailable",
+        "verifier": null,
+        "verified_runs": 0,
+        "failed_runs": 0,
+        "stdout_sha256": []
+      }
+    }
+  ]
+}

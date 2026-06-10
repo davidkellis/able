@@ -1,9 +1,29 @@
-# Compiler Go Lowering Completion Plan
+# Compiler Go Lowering Completion Record and Active Guardrails
 
 ## Status
 
-This is the ordered execution plan for reaching the lowering architecture defined
-in `v12/design/compiler-go-lowering-spec.md`.
+This is the historical completion record for the Go-lowering milestone, plus
+the small set of guardrails that remain active for future compiler changes. It
+is not an active feature queue and does not authorize a typed-core-IR rewrite,
+new runtime ABI, named-container lowering rule, or a benchmark-specific
+optimization.
+
+Current ownership:
+- `spec/full_spec_v12.md` defines Able semantics.
+- `interpreter-go/pkg/compiler/compiler.go` and its direct AST-to-Go generator
+  define the current implementation path: typecheck, collect the program,
+  classify dynamic features, enforce fallback policy, and render Go.
+- `compiler-go-lowering-spec.md` and
+  `compiler-native-lowering-guardrails.md` provide
+  lowering guardrails; focused compiler audits plus
+  `docs/compiler-full-matrix.md` provide verification evidence.
+- `PLAN.md` alone selects performance work. A candidate must expose the same
+  shared, non-nominal leaf in unlike verified applications; completion history
+  is not evidence for a new optimization.
+
+The experimental execution-context ABI remains opt-in under its existing broad
+performance gate. No part of this record changes that gate or broadens the
+permitted static/dynamic boundary.
 
 Compiler completion status:
 - release validation completed on 2026-03-30.
@@ -19,12 +39,14 @@ Compiler completion status:
   complete on 2026-04-14; representable static carrier families now only
   admit `runtime.Value` / `any` at explicit dynamic/open or ABI edges.
 
-This plan is deliberately organized around completion goals, not around whatever
-local emitter file was touched most recently.
+The dated material below records how this milestone was completed. It is useful
+for regression archaeology, but source and tests—not this record—settle the
+current compiler behavior.
 
-## Finish Line
+## Historical finish line
 
-The compiler is done when it satisfies all of these conditions together:
+The milestone considered the compiler complete when it satisfied all of these
+conditions together:
 
 1. Every statically representable Able value uses a native Go carrier.
 2. Static control flow, patterns, and joins stay on native carriers.
@@ -35,7 +57,7 @@ The compiler is done when it satisfies all of these conditions together:
 6. The benchmarked compiled path is fast and free of known avoidable dynamic
    scaffolding.
 
-## Rules For The Remaining Work
+## Active lowering guardrails
 
 1. Do not add new named-nominal fast paths for non-primitive types.
 2. Do not fix static compiler bugs by routing through interpreter helpers.
@@ -45,10 +67,11 @@ The compiler is done when it satisfies all of these conditions together:
 5. Treat interpreters as the behavioral oracle and dynamic-boundary engine, not
    as the implementation substrate for static compiled semantics.
 
-## Current State Summary
+## Historical completion summary
 
-Compiler release validation is complete, but stronger compiler-native encoding
-completion is not:
+The initial release validation completed before the stronger compiler-native
+encoding closure. The following details record that progression and its final
+closure; they are not an open implementation queue:
 - large parts of arrays, structs, interfaces, callables, joins, and control
   flow now stay native
 - explicit dynamic-boundary enforcement exists
@@ -279,7 +302,7 @@ completion is not:
     `runtime.Value` / `any` members beyond the desired final host-native end-state
   - transitional mono-array/runtime-store machinery still present in-tree
 
-## Ordered Work Program
+## Historical ordered work program
 
 This ordered work program is complete and retained as the record of how the
 compiler was brought to release shape.
@@ -694,9 +717,9 @@ Status:
     instead of always selecting default helpers
   - union-aware numeric operator typing for all-numeric unions
 
-## Immediate Ordered Queue
+## Historical queue closure
 
-This is the concrete next queue derived from the stronger compiler-native finish
+This was the concrete queue derived from the stronger compiler-native finish
 line.
 
 Status:
@@ -713,10 +736,12 @@ Status:
   of interpreter registries.
 - top-level compiler release gates reran green on 2026-04-14.
 
-This stronger compiler-native finish-line queue is now closed. The next active
-project queue is the bytecode performance program in `PLAN.md`.
+This stronger compiler-native finish-line queue is closed. Current project work
+is selected only from `PLAN.md`; absent a recurrent shared performance leaf,
+documentation and verification reconciliation are the appropriate bounded
+work, not a speculative compiler change.
 
-## How To Judge Proposed Compiler Changes
+## Active criteria for proposed compiler changes
 
 A proposed compiler change is correct when the answer to all of these is yes:
 

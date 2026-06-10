@@ -1,0 +1,38 @@
+File: compiled
+Build ID: ffa77121317b7ddb1b421c90cee161e444251eae
+Type: cpu
+Time: 2026-07-27 23:58:15 CDT
+Duration: 128.28ms, Total samples = 200ms (155.91%)
+Showing nodes accounting for 200ms, 100% of 200ms total
+Showing top 30 nodes out of 99
+      flat  flat%   sum%        cum   cum%
+      60ms 30.00% 30.00%       60ms 30.00%  runtime.procyieldAsm
+      20ms 10.00% 40.00%       90ms 45.00%  runtime.printlock
+      10ms  5.00% 45.00%       10ms  5.00%  able/interpreter-go/pkg/compiler/bridge.AsInt
+      10ms  5.00% 50.00%       10ms  5.00%  internal/bytealg.IndexByteString
+      10ms  5.00% 55.00%       10ms  5.00%  runtime.(*moduledata).textAddr
+      10ms  5.00% 60.00%       10ms  5.00%  runtime.futex
+      10ms  5.00% 65.00%       20ms 10.00%  runtime.futexsleep
+      10ms  5.00% 70.00%       70ms 35.00%  runtime.lock2
+      10ms  5.00% 75.00%       10ms  5.00%  runtime.memmove
+      10ms  5.00% 80.00%       20ms 10.00%  runtime.pcvalue
+      10ms  5.00% 85.00%       20ms 10.00%  runtime.printhex
+      10ms  5.00% 90.00%       30ms 15.00%  runtime.printstring
+      10ms  5.00% 95.00%       40ms 20.00%  runtime.recordForPanic
+      10ms  5.00%   100%       10ms  5.00%  runtime.step
+         0     0%   100%      120ms 60.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%       10ms  5.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%       10ms  5.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%       10ms  5.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%       10ms  5.00%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%       30ms 15.00%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      170ms 85.00%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%       30ms 15.00%  able/interpreter-go/pkg/runtime.(*FutureValue).Resolve
+         0     0%   100%      150ms 75.00%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%       30ms 15.00%  main.RunRegisteredMain
+         0     0%   100%       30ms 15.00%  main.RunRegisteredMain.func1
+         0     0%   100%       30ms 15.00%  main.__able_apply_task_outcome
+         0     0%   100%       10ms  5.00%  main.__able_await_ctx
+         0     0%   100%       10ms  5.00%  main.__able_await_value_ctx
+         0     0%   100%       10ms  5.00%  main.__able_await_with_state_ctx
+         0     0%   100%       10ms  5.00%  main.__able_builtin_future_register

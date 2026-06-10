@@ -19,7 +19,7 @@ func (vm *bytecodeVM) execImport(instr bytecodeInstruction) error {
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }
@@ -36,7 +36,7 @@ func (vm *bytecodeVM) execDynImport(instr bytecodeInstruction) error {
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }

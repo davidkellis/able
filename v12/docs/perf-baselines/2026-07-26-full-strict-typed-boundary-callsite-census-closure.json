@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "date": "2026-07-26",
+  "decision": "retain_report_only_observer_only",
+  "repository_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+  "coverage": {
+    "strict_applications_built": 61,
+    "strict_applications_verified": 61,
+    "semantic_refinement_applications_built": 17,
+    "semantic_refinement_applications_verified": 17,
+    "interpreter_free_dependency_graphs": 61,
+    "dependency_count_min": 96,
+    "dependency_count_max": 119,
+    "observed_concrete_shapes": 107,
+    "shapes_reaching_three_applications": 14
+  },
+  "artifacts": {
+    "full_corpus_compiler_sha256": "7a8f7386d0d3e623008a660ced6b594e9cd6488b9539f78e3f375c56044d63be",
+    "refined_observer_compiler_sha256": "b828cdfd9fe7ebfc479e132235625eccc64047d699fd34cc8575d62fb69455a0",
+    "full_corpus_report_sha256": "dbeaa5b54f7cc88fcb07a7110406697a7c8727ab1fa3d94ec6589537940b32f7",
+    "integer_refinement_report_sha256": "2d63b99f883451afd944840bfe6a77f21ed572b3e773fb7051920f9f80ee114f"
+  },
+  "recurrent_shapes": [
+    {"shape": "error_to_compiled_control", "applications": 44, "events": 15649215, "disposition": "closed_control_nil_check"},
+    {"shape": "array_string_from_runtime", "applications": 33, "events": 33, "disposition": "one_ingress_event_per_application"},
+    {"shape": "io_error_or_string_from_runtime", "applications": 19, "events": 19, "disposition": "one_io_result_boundary_per_application"},
+    {"shape": "channel_handle_to_int64", "applications": 14, "events": 238838, "disposition": "closed_explicit_concurrency_service_abi"},
+    {"shape": "channel_capacity_to_int64", "applications": 14, "events": 30, "disposition": "construction_only"},
+    {"shape": "any_to_runtime", "applications": 10, "events": 15, "disposition": "startup_only"},
+    {"shape": "compiled_control_to_error", "applications": 4, "events": 18945, "disposition": "closed_runtime_callable_abi"},
+    {"shape": "io_error_or_i32_from_runtime", "applications": 4, "events": 4, "disposition": "one_program_result_boundary_per_application"},
+    {"shape": "mutex_handle_to_int64", "applications": 3, "events": 43016, "disposition": "related_mutex_family_only"},
+    {"shape": "awaitable_i64_from_runtime", "applications": 3, "events": 8704, "disposition": "related_scheduler_family_only"},
+    {"shape": "awaitable_i64_to_runtime", "applications": 3, "events": 8704, "disposition": "related_scheduler_family_only"},
+    {"shape": "array_awaitable_i64_to_runtime", "applications": 3, "events": 7168, "disposition": "related_scheduler_family_only"},
+    {"shape": "future_i64_from_runtime", "applications": 3, "events": 1544, "disposition": "material_in_one_application_only"},
+    {"shape": "error_or_i64_from_runtime", "applications": 3, "events": 1544, "disposition": "material_in_one_application_only"}
+  ],
+  "profile_gate": {
+    "new_shape_cleared": false,
+    "new_profiles_collected": false,
+    "reason": "all recurrent material-looking leaves are closed routes or one related runtime-service family"
+  },
+  "production_candidate": null,
+  "stdlib_changed": false,
+  "wasm_changed": false,
+  "next": "audit generated-Go semantic-work equivalence for Tapelang Alphabet, Fib, and Sudoku Masks with Matrix Multiply and Pidigits as controls"
+}

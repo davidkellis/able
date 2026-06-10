@@ -1,50 +1,29 @@
-# Monomorphized Container ABI (Compiler-Native Arrays, Go AOT)
+# Monomorphized Container ABI — Historical Staging Record
 
 Date: 2026-03-19
 Owners: Able compiler/runtime contributors
 
-## Purpose
+## Scope and current ownership
 
-Define the accepted direction for monomorphized `Array<T>` lowering in the Go
-AOT compiler.
+This is the dated record of the 2026 mono-array migration. Its staged ABI
+shapes, benchmark readings, open questions, and checklists are historical; it
+does not define a current compiler ABI or work queue.
 
-This note supersedes the earlier runtime-typed-store / handle-tag rollout plan
-as the target architecture. Existing flag plumbing and historical experiments
-may remain in-tree temporarily, but new implementation work must converge on
-compiler-owned native Go storage on static compiled paths.
+Current static compiler facts are source-backed: eligible `Array<T>` paths use
+compiler-owned wrappers with native `Elements []T` storage, and conversion to
+or from `runtime.ArrayValue` happens at a dynamic or host boundary. The
+compatibility-named `ExperimentalMonoArrays` option and the legacy CLI/env
+switches are accepted for source/tooling compatibility but can no longer
+disable native static Array lowering.
 
-Named stdlib/container examples in this document are proof cases for shared
-lowering machinery, not architecture exceptions.
+Active rules belong to
+[`compiler-native-lowering-guardrails.md`](./compiler-native-lowering-guardrails.md)
+and [`compiler-monomorphization.md`](./compiler-monomorphization.md). `Array`
+is a language-syntax/kernel-boundary case; all other non-primitive nominal
+types must use shared nominal lowering. This record cannot authorize an
+Array-, `HashMap`-, `LinkedList`-, or other named-container optimization.
 
-This design supports:
-
-- the v12 AOT no-fallback contract,
-- the compiler native-lowering contract,
-- reduction of `runtime.Value` boxing on hot compiled array paths,
-- performance work that does not reintroduce interpreter/runtime structural
-  carriers as the default compiled representation.
-
-## Status
-
-Current repo state:
-
-- `--experimental-mono-arrays` / `ABLE_EXPERIMENTAL_MONO_ARRAYS` plumbing
-  exists.
-- historical experimental work added typed runtime stores plus boundary tests.
-- static compiled array lowering today already stays on the compiler-owned
-  `Array` carrier for direct paths, but that carrier still stores elements as
-  `[]runtime.Value`.
-
-Accepted direction after the 2026-03-19 audit:
-
-- the old typed-runtime-store / `storage_handle`-tag plan is not the final ABI;
-- future mono-array work must specialize compiler-owned array carriers over
-  native Go element storage;
-- `runtime.ArrayValue`, `ArrayStore*`, and runtime typed stores are boundary /
-  residual machinery only, not the representation that static compiled code
-  should manipulate directly.
-
-## Non-Negotiable Constraints
+## Historical constraints
 
 1. Static compiled array values must stay on compiler-owned native Go storage.
 2. Explicit dynamic boundaries may adapt to/from runtime carriers, but those
@@ -62,7 +41,7 @@ Accepted direction after the 2026-03-19 audit:
    no new IIFEs, no panic/recover for ordinary flow, and no regression to broad
    `runtime.Value` dispatch helpers on static paths.
 
-## Rejected Direction
+## Historical rejected direction
 
 The following are explicitly rejected as the final mono-array architecture:
 
@@ -79,7 +58,7 @@ Historical runtime-store work can still be used as compatibility scaffolding or
 measurement reference, but it is not the end state and should not receive new
 feature surface area unless required strictly for boundary compatibility.
 
-## Target Representation
+## Historical target representation
 
 For statically monomorphic arrays, the compiler should emit specialized,
 compiler-owned wrapper types selected by the resolved element type.
@@ -106,7 +85,7 @@ current compiler already exposes on the generic carrier:
 The element backing storage, however, must be native Go storage for the element
 kind, not `[]runtime.Value`.
 
-## ABI Shape
+## Historical ABI shapes
 
 ### Specialized wrapper form
 
@@ -147,7 +126,7 @@ That fallback is acceptable only as a residual static compiler path while
 specialization coverage expands. It does not justify routing specialized arrays
 through runtime carriers.
 
-## Lowering Rules
+## Historical lowering rules
 
 When the mono-array flag is enabled and `Array<T>` resolves to a staged element
 kind:
@@ -165,7 +144,7 @@ kind:
    - at residual runtime-polymorphic surfaces that are still intentionally
      unspecialized.
 
-## Boundary Rules
+## Historical boundary rules
 
 Boundary adapters are allowed only at explicit dynamic/ABI edges.
 
@@ -185,7 +164,7 @@ Boundary adapters must:
 - preserve mutation writeback when the runtime side mutates the array,
 - avoid leaking runtime handles back into the default static compiled path.
 
-## Implementation Order
+## Historical implementation order
 
 1. Freeze the revised architecture in docs and guardrail tests.
 2. Add compiler-generated specialized wrapper emission for the first staged
@@ -197,7 +176,7 @@ Boundary adapters must:
 6. Re-benchmark compiled mode and decide whether the flag behavior/default
    should change.
 
-## Guardrails
+## Historical guardrails
 
 The following must remain true while the implementation is in progress:
 
@@ -210,7 +189,7 @@ The following must remain true while the implementation is in progress:
 - every new mono-array lowering slice must come with targeted compiler tests and
   dynamic-boundary tests.
 
-## Validation Gates
+## Historical validation evidence
 
 Correctness:
 
@@ -547,7 +526,7 @@ Performance:
 - historical runtime-store perf numbers are reference data only, not proof that
   the accepted architecture is complete.
 
-## Open Questions
+## Historical questions
 
 1. Should specialized wrapper names be fully concrete per element type, or share
    a generated internal generic helper pattern where Go typing allows it?
@@ -557,7 +536,7 @@ Performance:
 3. How much of pattern/destructuring lowering should be specialized before
    widening to maps/sets/other containers?
 
-## Commit-Ready Checklist
+## Historical commit-ready checklist
 
 - [x] Revise the mono-array design so the final target is compiler-owned native
       Go storage rather than runtime typed stores / handle tagging.

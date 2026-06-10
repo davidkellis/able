@@ -1,0 +1,440 @@
+{
+  "target_path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-scene-tiles",
+  "trace": {
+    "enabled": true,
+    "total_hits": 215064,
+    "entries": [
+      {
+        "hits": 24576,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 60,
+        "column": 6
+      },
+      {
+        "hits": 24576,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 61,
+        "column": 9
+      },
+      {
+        "hits": 12288,
+        "op": "call_member",
+        "name": "record",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 230,
+        "column": 15
+      },
+      {
+        "hits": 12288,
+        "op": "call_member",
+        "name": "signature",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 78,
+        "column": 9
+      },
+      {
+        "hits": 12288,
+        "op": "call_member",
+        "name": "signature",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 83,
+        "column": 9
+      },
+      {
+        "hits": 12288,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 74,
+        "column": 21
+      },
+      {
+        "hits": 12288,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 187,
+        "column": 21
+      },
+      {
+        "hits": 12288,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 189,
+        "column": 20
+      },
+      {
+        "hits": 12288,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 190,
+        "column": 9
+      },
+      {
+        "hits": 12284,
+        "op": "call_member",
+        "name": "sample",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 229,
+        "column": 17
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 148,
+        "column": 11
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 149,
+        "column": 11
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 167,
+        "column": 11
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 168,
+        "column": 11
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "max_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 150,
+        "column": 14
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "max_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 169,
+        "column": 16
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "max_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 170,
+        "column": 23
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "max_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 171,
+        "column": 15
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "max_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 171,
+        "column": 36
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "min_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 151,
+        "column": 14
+      },
+      {
+        "hits": 6144,
+        "op": "call_name",
+        "name": "min_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 170,
+        "column": 15
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "report",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 235,
+        "column": 3
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "sample",
+        "lookup": "resolved_method",
+        "dispatch": "generic",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 229,
+        "column": 17
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "args",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 255,
+        "column": 11
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 239,
+        "column": 6
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 247,
+        "column": 6
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 299,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 300,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 301,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 302,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "__able_os_args",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able-stdlib/src/os.able",
+        "line": 84,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "future_flush",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 297,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_shader",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 280,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_shader",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 281,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_shader",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 282,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_shader",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 283,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "print",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 329,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "render_tile",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 286,
+        "column": 5
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "render_tile",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 289,
+        "column": 5
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "render_tile",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 292,
+        "column": 5
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "render_tile",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 295,
+        "column": 5
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "scene_height",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 257,
+        "column": 13
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "scene_width",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "line": 256,
+        "column": 12
+      }
+    ]
+  }
+}

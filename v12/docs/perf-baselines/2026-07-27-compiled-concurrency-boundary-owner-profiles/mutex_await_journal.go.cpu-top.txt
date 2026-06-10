@@ -1,0 +1,34 @@
+File: compiled
+Build ID: 3f079223d212f58a409d8b697f7a848c2d135ed9
+Type: cpu
+Time: 2026-07-27 22:20:23 CDT
+Duration: 143.78ms, Total samples = 180ms (125.19%)
+Showing nodes accounting for 180ms, 100% of 180ms total
+      flat  flat%   sum%        cum   cum%
+     100ms 55.56% 55.56%      100ms 55.56%  main.entryScore (inline)
+      20ms 11.11% 66.67%      170ms 94.44%  main.runLane
+      20ms 11.11% 77.78%       20ms 11.11%  runtime.procyieldAsm
+      10ms  5.56% 83.33%       40ms 22.22%  internal/sync.(*Mutex).Lock (inline)
+      10ms  5.56% 88.89%       30ms 16.67%  internal/sync.(*Mutex).lockSlow
+      10ms  5.56% 94.44%       10ms  5.56%  runtime.(*guintptr).cas (inline)
+      10ms  5.56%   100%       10ms  5.56%  runtime.releaseSudog
+         0     0%   100%       10ms  5.56%  internal/sync.(*Mutex).Unlock (inline)
+         0     0%   100%       10ms  5.56%  internal/sync.(*Mutex).unlockSlow
+         0     0%   100%       10ms  5.56%  internal/sync.runtime_Semrelease
+         0     0%   100%       20ms 11.11%  internal/sync.runtime_doSpin
+         0     0%   100%       10ms  5.56%  main.benchmarkMain
+         0     0%   100%       10ms  5.56%  main.main
+         0     0%   100%       10ms  5.56%  runtime.goready (inline)
+         0     0%   100%       10ms  5.56%  runtime.main
+         0     0%   100%       20ms 11.11%  runtime.procyield (inline)
+         0     0%   100%       10ms  5.56%  runtime.ready
+         0     0%   100%       10ms  5.56%  runtime.readyWithTime
+         0     0%   100%       10ms  5.56%  runtime.readyWithTime.goready.func1
+         0     0%   100%       10ms  5.56%  runtime.runqput
+         0     0%   100%       10ms  5.56%  runtime.semacquire1
+         0     0%   100%       10ms  5.56%  runtime.semrelease1
+         0     0%   100%       10ms  5.56%  runtime.systemstack
+         0     0%   100%       40ms 22.22%  sync.(*Mutex).Lock (inline)
+         0     0%   100%       10ms  5.56%  sync.(*Mutex).Unlock (inline)
+         0     0%   100%       10ms  5.56%  sync.(*WaitGroup).Wait
+         0     0%   100%       10ms  5.56%  sync.runtime_SemacquireWaitGroup

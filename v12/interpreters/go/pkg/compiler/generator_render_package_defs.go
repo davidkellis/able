@@ -35,10 +35,12 @@ func (g *generator) renderCompiledPackageDefinitionFile(pkgName string, idx int)
 	imports := []string{
 		"able/interpreter-go/pkg/ast",
 		"able/interpreter-go/pkg/compiler/bridge",
-		"able/interpreter-go/pkg/interpreter",
 		"able/interpreter-go/pkg/runtime",
 		"fmt",
 		"math/big",
+	}
+	if g.retainsPackageInterfaceDefaultBodies() {
+		imports = append(imports, "able/interpreter-go/pkg/interpreter")
 	}
 	sort.Strings(imports)
 	fmt.Fprintf(&buf, "import (\n")
@@ -46,6 +48,9 @@ func (g *generator) renderCompiledPackageDefinitionFile(pkgName string, idx int)
 		fmt.Fprintf(&buf, "\t%q\n", imp)
 	}
 	fmt.Fprintf(&buf, ")\n\n")
+	if g.retainsPackageInterfaceDefaultBodies() {
+		fmt.Fprintf(&buf, "var _ = interpreter.DecodeNodeJSON\n\n")
+	}
 	fmt.Fprintf(&buf, "var (\n")
 	fmt.Fprintf(&buf, "\t_ = ast.NewIdentifier\n")
 	fmt.Fprintf(&buf, "\t_ = big.NewInt\n")
@@ -54,23 +59,29 @@ func (g *generator) renderCompiledPackageDefinitionFile(pkgName string, idx int)
 	fmt.Fprintf(&buf, "\t_ runtime.Value\n")
 	fmt.Fprintf(&buf, ")\n\n")
 	fnName := g.packageDefinitionRegistrarFuncName(pkgName, idx)
-	fmt.Fprintf(&buf, "func %s(rt *bridge.Runtime, interp *interpreter.Interpreter, pkgEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
+	fmt.Fprintf(&buf, "func %s(rt *bridge.Runtime, interp bridge.Interpreter, pkgEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
 	fmt.Fprintf(&buf, "\t_ = rt\n")
 	fmt.Fprintf(&buf, "\t_ = interp\n")
 	fmt.Fprintf(&buf, "\t_ = pkgEnv\n")
 	fmt.Fprintf(&buf, "\t_ = __able_bootstrapped_metadata\n")
+	structLookupPackages := runtimeStructLookupPackageNames(pkgName)
 	for _, info := range g.sortedStructInfosForPackage(pkgName) {
 		defExpr, ok := g.renderStructDefinitionExpr(info)
 		if !ok {
 			continue
 		}
 		localDefVar := sanitizeIdent(info.Name) + "_def"
-		fmt.Fprintf(&buf, "\tif existingDef, ok := pkgEnv.StructDefinition(%q); ok {\n", info.Name)
+		fmt.Fprintf(&buf, "\tif existingDef, ok := pkgEnv.StructDefinitionInCurrentScope(%q); ok {\n", info.Name)
 		fmt.Fprintf(&buf, "\t\tif _, err := pkgEnv.Get(%q); err != nil {\n", info.Name)
 		fmt.Fprintf(&buf, "\t\t\tpkgEnv.Define(%q, existingDef)\n", info.Name)
 		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t\tif interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\t\tinterp.RegisterPackageSymbol(%q, %q, existingDef)\n", pkgName, info.Name)
+		fmt.Fprintf(&buf, "\t\t}\n")
+		fmt.Fprintf(&buf, "\t\tif rt != nil {\n")
+		for _, lookupPackage := range structLookupPackages {
+			fmt.Fprintf(&buf, "\t\t\trt.RegisterQualifiedStructDefinition(%q, %q, existingDef)\n", lookupPackage, info.Name)
+		}
 		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t} else {\n")
 		fmt.Fprintf(&buf, "\t\t%s := %s\n", localDefVar, defExpr)
@@ -79,15 +90,22 @@ func (g *generator) renderCompiledPackageDefinitionFile(pkgName string, idx int)
 		fmt.Fprintf(&buf, "\t\tif interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\t\tinterp.RegisterPackageSymbol(%q, %q, %s)\n", pkgName, info.Name, localDefVar)
 		fmt.Fprintf(&buf, "\t\t}\n")
+		fmt.Fprintf(&buf, "\t\tif rt != nil {\n")
+		for _, lookupPackage := range structLookupPackages {
+			fmt.Fprintf(&buf, "\t\t\trt.RegisterQualifiedStructDefinition(%q, %q, %s)\n", lookupPackage, info.Name, localDefVar)
+		}
+		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t}\n")
 	}
+	retainInterfaceDefaultBodies := g.retainsPackageInterfaceDefaultBodies()
 	for _, def := range g.sortedInterfaceDefsForPackage(pkgName) {
-		defExpr, ok := g.renderInterfaceDefinitionExpr(def, "pkgEnv")
+		defExpr, ok := g.renderInterfaceDefinitionExpr(def, "pkgEnv", retainInterfaceDefaultBodies)
 		if !ok || def == nil || def.ID == nil || strings.TrimSpace(def.ID.Name) == "" {
 			continue
 		}
 		localVar := fmt.Sprintf("__able_iface_%s", sanitizeIdent(def.ID.Name))
 		fmt.Fprintf(&buf, "\t%s := %s\n", localVar, defExpr)
+		fmt.Fprintf(&buf, "\t%s.QualifiedName = %q\n", localVar, runtimeInterfaceIdentity(pkgName, def.ID.Name))
 		fmt.Fprintf(&buf, "\tif interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\tinterp.RegisterInterfaceDefinition(%q, %s)\n", def.ID.Name, localVar)
 		fmt.Fprintf(&buf, "\t}\n")

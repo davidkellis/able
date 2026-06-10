@@ -1,0 +1,63 @@
+File: app
+Build ID: b76a140c16c85af78a3b9b99dcc8758dd91f157a
+Type: cpu
+Time: 2026-07-28 06:36:08 CDT
+Duration: 73.89ms, Total samples = 70ms (94.73%)
+Showing nodes accounting for 70ms, 100% of 70ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%       60ms 85.71%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%     0%       60ms 85.71%  main.__able_compiled_fn_run_lane_ctx
+         0     0%     0%       60ms 85.71%  main.__able_run_compiled_task
+         0     0%     0%       60ms 85.71%  main.__able_spawn_context.func1
+         0     0%     0%       50ms 71.43%  main.__able_await_ctx
+         0     0%     0%       50ms 71.43%  main.__able_await_value_ctx
+         0     0%     0%       40ms 57.14%  main.__able_await_with_state_ctx
+         0     0%     0%       40ms 57.14%  main.__able_compiled_fn_main_ctx.func1
+         0     0%     0%       40ms 57.14%  main.__able_complete_await_ctx
+         0     0%     0%       30ms 42.86%  main.(*__able_mutex_awaitable).NativeAwaitableCommit
+         0     0%     0%       30ms 42.86%  main.(*__able_mutex_awaitable).commit
+         0     0%     0%       30ms 42.86%  main.__able_invoke_awaitable_method_ctx
+         0     0%     0%       20ms 28.57%  main.__able_call_value_fast_ctx
+         0     0%     0%       20ms 28.57%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0%     0%       20ms 28.57%  runtime.convT
+         0     0%     0%       20ms 28.57%  runtime.mallocgc
+         0     0%     0%       10ms 14.29%  able/interpreter-go/pkg/compiler/bridge.ToInt
+      10ms 14.29% 14.29%       10ms 14.29%  gcWriteBarrier
+      10ms 14.29% 28.57%       10ms 14.29%  main.(*__able_await_state).clearWaker
+         0     0% 28.57%       10ms 14.29%  main.(*__able_await_state).releaseReusable
+      10ms 14.29% 42.86%       10ms 14.29%  main.__able_await_arm_is_default_ctx
+         0     0% 42.86%       10ms 14.29%  main.__able_cleanup_await_state_ctx
+         0     0% 42.86%       10ms 14.29%  main.__able_collect_await_arms_ctx
+         0     0% 42.86%       10ms 14.29%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 42.86%       10ms 14.29%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 42.86%       10ms 14.29%  main.__able_compiled_fn_run_lane_ctx.func1
+         0     0% 42.86%       10ms 14.29%  main.__able_compiled_method_Mutex_await_lock_spec_ctx
+         0     0% 42.86%       10ms 14.29%  main.__able_compiled_method_Mutex_unlock_ctx
+         0     0% 42.86%       10ms 14.29%  main.__able_iface_Awaitable_i64_from_value
+         0     0% 42.86%       10ms 14.29%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0% 42.86%       10ms 14.29%  main.__able_initialize_await_state_ctx
+      10ms 14.29% 57.14%       10ms 14.29%  main.__able_mutex_lock_impl
+      10ms 14.29% 71.43%       10ms 14.29%  main.__able_mutex_unlock_impl
+         0     0% 71.43%       10ms 14.29%  runtime.(*mcache).nextFree
+         0     0% 71.43%       10ms 14.29%  runtime.(*mcache).refill
+         0     0% 71.43%       10ms 14.29%  runtime.(*mcentral).uncacheSpan
+      10ms 14.29% 85.71%       10ms 14.29%  runtime.(*spanSet).push
+         0     0% 85.71%       10ms 14.29%  runtime.acquirep
+         0     0% 85.71%       10ms 14.29%  runtime.acquirepNoTrace
+         0     0% 85.71%       10ms 14.29%  runtime.deductAssistCredit
+         0     0% 85.71%       10ms 14.29%  runtime.findRunnable
+         0     0% 85.71%       10ms 14.29%  runtime.gcAssistAlloc
+         0     0% 85.71%       10ms 14.29%  runtime.gcAssistAlloc.func2
+         0     0% 85.71%       10ms 14.29%  runtime.gcAssistAlloc1
+         0     0% 85.71%       10ms 14.29%  runtime.gcDrainN
+         0     0% 85.71%       10ms 14.29%  runtime.gcstopm
+         0     0% 85.71%       10ms 14.29%  runtime.goschedImpl
+         0     0% 85.71%       10ms 14.29%  runtime.mallocgcSmallScanNoHeader
+         0     0% 85.71%       10ms 14.29%  runtime.markroot
+         0     0% 85.71%       10ms 14.29%  runtime.markrootBlock
+         0     0% 85.71%       10ms 14.29%  runtime.morestack
+         0     0% 85.71%       10ms 14.29%  runtime.newstack
+      10ms 14.29%   100%       10ms 14.29%  runtime.scanblock
+         0     0%   100%       10ms 14.29%  runtime.schedule
+         0     0%   100%       10ms 14.29%  runtime.stopm
+         0     0%   100%       10ms 14.29%  runtime.systemstack

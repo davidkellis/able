@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-07-23T18:57:41.697283Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-stateful-pipeline",
+  "runs": 3,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 60,
+  "modes": [
+    "bytecode-runtime"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 10,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "bytecode-runtime",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 2.6067,
+      "avg_user_seconds": 2.5367,
+      "avg_sys_seconds": 0.0567,
+      "avg_gc": 18.0,
+      "avg_ns_per_op": 175014371.0,
+      "avg_bytes_per_op": 24896482.0,
+      "avg_allocs_per_op": 448749.0,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 2.6,
+          "user_seconds": 2.53,
+          "sys_seconds": 0.06,
+          "gc_count": 18.0,
+          "ns_per_op": 173759991.0,
+          "bytes_per_op": 24899796.0,
+          "allocs_per_op": 448757.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 2.59,
+          "user_seconds": 2.52,
+          "sys_seconds": 0.05,
+          "gc_count": 18.0,
+          "ns_per_op": 174451807.0,
+          "bytes_per_op": 24894849.0,
+          "allocs_per_op": 448743.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 2.63,
+          "user_seconds": 2.56,
+          "sys_seconds": 0.06,
+          "gc_count": 18.0,
+          "ns_per_op": 176831316.0,
+          "bytes_per_op": 24894801.0,
+          "allocs_per_op": 448746.0,
+          "stdout_sha256": null
+        }
+      ],
+      "validation": {
+        "status": "unavailable",
+        "verifier": null,
+        "verified_runs": 0,
+        "failed_runs": 0,
+        "stdout_sha256": []
+      }
+    }
+  ]
+}

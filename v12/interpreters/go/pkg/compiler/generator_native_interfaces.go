@@ -472,7 +472,16 @@ func normalizeTypeExprForPackage(g *generator, pkgName string, expr ast.TypeExpr
 }
 
 func normalizeTypeExprString(g *generator, pkgName string, expr ast.TypeExpression) string {
-	return typeExpressionToString(normalizeTypeExprForPackage(g, pkgName, expr))
+	normalized := normalizeTypeExprForPackage(g, pkgName, expr)
+	if g != nil && normalized != nil {
+		if cached, ok := g.normalizedTypeExprStringCache[normalized]; ok {
+			return cached
+		}
+		rendered := typeExpressionToString(normalized)
+		g.normalizedTypeExprStringCache[normalized] = rendered
+		return rendered
+	}
+	return typeExpressionToString(normalized)
 }
 
 func normalizeTypeExprListKey(g *generator, pkgName string, exprs []ast.TypeExpression) string {

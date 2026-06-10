@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-07-15T08:51:50.826208Z",
+  "suite": "custom",
+  "benchmarks": [
+    "nbody",
+    "tapelang_alphabet"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-15-full-coverage-scorecard-generality-interpreter-reference.json",
+  "go_reference_json": null,
+  "cpu_affinity": "14",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "nbody",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "nbody",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 3,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null,
+        "validation": {
+          "status": "not-run",
+          "verifier": "/home/david/sync/projects/benchmarks/nbody/verify.rb",
+          "verified_runs": 0,
+          "failed_runs": 0,
+          "stdout_sha256": []
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 1.7544,
+          "reference_implementation": "python-3.14",
+          "ratio": null
+        },
+        "ruby": {
+          "reference_real_seconds": 2.7624,
+          "reference_implementation": "ruby-4.0",
+          "ratio": null
+        }
+      }
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "tapelang_alphabet",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 3,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null,
+        "validation": {
+          "status": "not-run",
+          "verifier": "/home/david/sync/projects/benchmarks/tapelang-alphabet/verify.rb",
+          "verified_runs": 0,
+          "failed_runs": 0,
+          "stdout_sha256": []
+        }
+      },
+      "comparisons": {}
+    }
+  ]
+}

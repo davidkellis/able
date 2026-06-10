@@ -1,0 +1,22 @@
+==================
+Empty Named Implementation
+==================
+
+Fancy = impl Marker for Widget {}
+
+---
+
+(source_file
+  (named_implementation_definition
+    name: (identifier)
+    implementation: (implementation_definition
+      interface: (qualified_identifier
+        (identifier))
+      target: (type_union
+        (type_arrow
+          (type_suffix
+            (type_prefix
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier)))))))))))

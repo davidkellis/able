@@ -38,12 +38,26 @@ func placeholderPlanForExpression(expr ast.Expression) (placeholderPlan, bool, e
 }
 
 func emitBlock(ctx *bytecodeLoweringContext, i *Interpreter, block *ast.BlockExpression) error {
+	return emitBlockWithFinalResult(ctx, i, block, true)
+}
+
+// emitBlockDiscardingFinalResult lowers a block used only for its effects.
+// In particular, it emits a final if expression with statement semantics, so
+// every branch discards its own result instead of relying on one trailing Pop.
+func emitBlockDiscardingFinalResult(ctx *bytecodeLoweringContext, i *Interpreter, block *ast.BlockExpression) error {
+	return emitBlockWithFinalResult(ctx, i, block, false)
+}
+
+func emitBlockWithFinalResult(ctx *bytecodeLoweringContext, i *Interpreter, block *ast.BlockExpression, keepFinalResult bool) error {
 	if block == nil {
 		return bytecodeUnsupported("nil block")
 	}
-	ctx.enterScope()
+	ctx.enterBlockScope(block)
 	if len(block.Body) == 0 {
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
+		if !keepFinalResult {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
+		}
 		ctx.exitScope()
 		return nil
 	}
@@ -62,33 +76,19 @@ func emitBlock(ctx *bytecodeLoweringContext, i *Interpreter, block *ast.BlockExp
 		if stmt == nil {
 			return bytecodeUnsupported("nil statement in block")
 		}
-		if loop, ok := stmt.(*ast.LoopExpression); ok && idx+1 < len(block.Body)-1 {
-			if receiverSlot, ok := bytecodeF64DotLoopResultAppendReceiverSlot(ctx, loop, block.Body[idx+1]); ok {
-				loopEnter, err := emitLoopExpressionCore(ctx, i, loop)
-				if err != nil {
-					return err
-				}
-				ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
-				pushStart := len(ctx.instructions)
-				if err := emitStatement(ctx, i, block.Body[idx+1], false); err != nil {
-					return err
-				}
-				pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[pushStart:])
-				if pushIP >= 0 && ctx.f64DotLoops != nil {
-					plan := ctx.f64DotLoops[loopEnter]
-					if plan.successTarget > loopEnter {
-						plan.resultAppend = true
-						plan.resultReceiverSlot = receiverSlot
-						plan.resultPushIP = pushStart + pushIP
-						plan.resultTarget = len(ctx.instructions)
-						ctx.f64DotLoops[loopEnter] = plan
-					}
-				}
-				idx++
-				continue
-			}
+		if consumed, err := emitFloatMulAddMulCompareConstTempIfStatement(ctx, i, block.Body[idx:]); err != nil {
+			return err
+		} else if consumed {
+			idx += 2
+			continue
 		}
-		if err := emitStatement(ctx, i, stmt, idx == len(block.Body)-1); err != nil {
+		if consumed, err := emitTryFloatUpdatePair(ctx, i, block.Body[idx:]); err != nil {
+			return err
+		} else if consumed {
+			idx++
+			continue
+		}
+		if err := emitStatement(ctx, i, stmt, keepFinalResult && idx == len(block.Body)-1); err != nil {
 			return err
 		}
 	}
@@ -158,7 +158,7 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 	if err := emitBlock(ctx, i, expr.IfBody); err != nil {
 		return err
 	}
-	if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+	if !bytecodeDiscardTrailingBlockResult(ctx, expr.IfBody, bodyStart) {
 		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
 	}
 	jumpToEnd := []int{ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1})}
@@ -176,7 +176,7 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 		if err := emitBlock(ctx, i, clause.Body); err != nil {
 			return err
 		}
-		if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+		if !bytecodeDiscardTrailingBlockResult(ctx, clause.Body, bodyStart) {
 			ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
 		}
 		jumpToEnd = append(jumpToEnd, ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1}))
@@ -188,7 +188,7 @@ func emitIfStatement(ctx *bytecodeLoweringContext, i *Interpreter, expr *ast.IfE
 		if err := emitBlock(ctx, i, expr.ElseBody); err != nil {
 			return err
 		}
-		if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
+		if !bytecodeDiscardTrailingBlockResult(ctx, expr.ElseBody, bodyStart) {
 			ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
 		}
 	}
@@ -214,20 +214,13 @@ func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *
 		return -1, nil
 	}
 	dotLoop, hasDotLoop := bytecodeF64DotLoopPlanForLoop(ctx, loop)
-	matrixRowLoop, hasMatrixRowLoop := bytecodeF64MatrixRowLoopPlanForLoop(ctx, loop)
-	affineRowLoop, hasAffineRowLoop := bytecodeF64AffineRowLoopPlanForLoop(ctx, loop)
-	transposeRowLoop, hasTransposeRowLoop := bytecodeF64TransposeRowLoopPlanForLoop(ctx, loop)
 	loopEnter := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopEnter, loopBreak: -1, loopContinue: -1})
 	loopStart := len(ctx.instructions)
 	ctx.pushLoop(loopStart)
-	bodyStart := len(ctx.instructions)
-	if err := emitBlock(ctx, i, loop.Body); err != nil {
+	if err := emitBlockDiscardingFinalResult(ctx, i, loop.Body); err != nil {
 		return -1, err
 	}
-	if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
-		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
-	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
+	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart, node: loop})
 	loopExit := ctx.emit(bytecodeInstruction{op: bytecodeOpLoopExit})
 	ctx.popLoop(loopExit)
 	ctx.patchLoopTargets(loopEnter, loopExit, loopStart)
@@ -235,41 +228,11 @@ func emitLoopExpressionCore(ctx *bytecodeLoweringContext, i *Interpreter, loop *
 		dotLoop.successTarget = len(ctx.instructions)
 		ctx.setF64DotLoopPlan(loopEnter, dotLoop)
 	}
-	if hasMatrixRowLoop {
-		if pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[loopStart:loopExit]); pushIP >= 0 {
-			matrixRowLoop.resultPushIP = loopStart + pushIP
-			matrixRowLoop.successTarget = len(ctx.instructions)
-			ctx.setF64MatrixRowLoopPlan(loopEnter, matrixRowLoop)
-		}
-	}
-	if hasAffineRowLoop {
-		if pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[loopStart:loopExit]); pushIP >= 0 {
-			affineRowLoop.resultPushIP = loopStart + pushIP
-			affineRowLoop.successTarget = len(ctx.instructions)
-			ctx.setF64AffineRowLoopPlan(loopEnter, affineRowLoop)
-		}
-	}
-	if hasTransposeRowLoop {
-		if pushIP := bytecodeFindArrayPushSlotCall(ctx.instructions[loopStart:loopExit]); pushIP >= 0 {
-			transposeRowLoop.resultPushIP = loopStart + pushIP
-			transposeRowLoop.successTarget = len(ctx.instructions)
-			ctx.setF64TransposeRowLoopPlan(loopEnter, transposeRowLoop)
-		}
-	}
 	return loopEnter, nil
 }
 
-func bytecodeFindArrayPushSlotCall(instructions []bytecodeInstruction) int {
-	for idx, instr := range instructions {
-		if instr.op == bytecodeOpCallMemberArraySlot && instr.name == "push" && instr.argCount == 1 && !instr.safe {
-			return idx
-		}
-	}
-	return -1
-}
-
-func bytecodeDiscardTrailingBlockResult(ctx *bytecodeLoweringContext, start int) bool {
-	if ctx == nil || start < 0 || len(ctx.instructions) <= start {
+func bytecodeDiscardTrailingBlockResult(ctx *bytecodeLoweringContext, block *ast.BlockExpression, start int) bool {
+	if ctx == nil || block == nil || len(block.Body) == 0 || start < 0 || len(ctx.instructions) <= start {
 		return false
 	}
 	idx := len(ctx.instructions) - 1
@@ -279,13 +242,22 @@ func bytecodeDiscardTrailingBlockResult(ctx *bytecodeLoweringContext, start int)
 	if idx < start {
 		return false
 	}
+	last := block.Body[len(block.Body)-1]
+	if last == nil || ctx.instructions[idx].node != last {
+		return false
+	}
 	switch ctx.instructions[idx].op {
 	case bytecodeOpStoreSlotI32,
 		bytecodeOpCompoundAssignSlotI32,
 		bytecodeOpStoreSlotBinaryIntSlotConst,
 		bytecodeOpStoreSlotIntMulConstAdd,
+		bytecodeOpStoreSlotIntMulConstModConst,
 		bytecodeOpStoreSlotIntMulConstAddFromSlot,
+		bytecodeOpStoreSlotFloatAffine,
+		bytecodeOpStoreSlotFloatRegion,
+		bytecodeOpStoreSlotFloatAddSub,
 		bytecodeOpStoreSlotFloatAddMul,
+		bytecodeOpStoreSlotFloatAddMulSlot,
 		bytecodeOpStoreSlotFloatAddMulArrayGet:
 		ctx.instructions[idx].discardResult = true
 		return true
@@ -326,14 +298,10 @@ func emitWhileLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.While
 		}
 		jumpToNoBreak = ctx.emit(bytecodeInstruction{op: bytecodeOpJumpIfFalse, target: -1})
 	}
-	bodyStart := len(ctx.instructions)
-	if err := emitBlock(ctx, i, loop.Body); err != nil {
+	if err := emitBlockDiscardingFinalResult(ctx, i, loop.Body); err != nil {
 		return err
 	}
-	if !bytecodeDiscardTrailingBlockResult(ctx, bodyStart) {
-		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
-	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
+	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart, node: loop})
 	noBreak := len(ctx.instructions)
 	ctx.patchJump(jumpToNoBreak, noBreak)
 	ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.VoidValue{}})
@@ -389,27 +357,25 @@ func emitForLoop(ctx *bytecodeLoweringContext, i *Interpreter, loop *ast.ForLoop
 
 	bodyStart := len(ctx.instructions)
 	ctx.patchJump(jumpToBody, bodyStart)
-	ctx.enterScope()
 	if ctx.frameLayout != nil {
 		if ident, ok := loop.Pattern.(*ast.Identifier); ok {
+			ctx.enterScope(false, true, false)
 			slot := ctx.declareSlot(ident.Name)
 			ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotNew, target: slot, name: ident.Name})
 			ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
 		} else {
+			ctx.enterScope(true, false, false)
 			ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop})
 		}
 	} else {
+		ctx.enterScope(true, false, false)
 		ctx.emit(bytecodeInstruction{op: bytecodeOpBindPattern, node: loop})
 	}
-	blockStart := len(ctx.instructions)
-	if err := emitBlock(ctx, i, loop.Body); err != nil {
+	if err := emitBlockDiscardingFinalResult(ctx, i, loop.Body); err != nil {
 		return err
 	}
-	if !bytecodeDiscardTrailingBlockResult(ctx, blockStart) {
-		ctx.emit(bytecodeInstruction{op: bytecodeOpPop})
-	}
 	ctx.exitScope()
-	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart})
+	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: loopStart, node: loop})
 
 	breakCleanup := len(ctx.instructions)
 	ctx.emit(bytecodeInstruction{op: bytecodeOpIterClose})
@@ -458,7 +424,9 @@ func emitBreakStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt *ast.
 	if err != nil {
 		return err
 	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope, argCount: exitCount})
+	if exitCount > 0 {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope, argCount: exitCount})
+	}
 	jumpIdx := ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: -1})
 	ctx.appendBreakJump(jumpIdx)
 	return nil
@@ -479,30 +447,82 @@ func emitContinueStatement(ctx *bytecodeLoweringContext, _ *Interpreter, stmt *a
 	if err != nil {
 		return err
 	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope, argCount: exitCount})
-	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: ctx.currentLoopStart()})
+	if exitCount > 0 {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope, argCount: exitCount})
+	}
+	ctx.emit(bytecodeInstruction{op: bytecodeOpJump, target: ctx.currentLoopStart(), node: stmt})
 	return nil
 }
 
-func (ctx *bytecodeLoweringContext) enterScope() {
-	if ctx.frameLayout == nil || ctx.frameLayout.needsEnvScopes {
-		ctx.emit(bytecodeInstruction{op: bytecodeOpEnterScope})
+func (ctx *bytecodeLoweringContext) enterBlockScope(block *ast.BlockExpression) {
+	if ctx == nil {
+		return
 	}
-	ctx.scopeDepth++
-	if ctx.frameLayout != nil {
+	localBindings := blockLocalBindingCapacity(block) > 0
+	runtimeScope := blockDirectEnvScope(block)
+	slotScope := false
+	transientRuntimeScope := false
+	if ctx.frameLayout == nil {
+		runtimeScope = runtimeScope || localBindings
+		transientRuntimeScope = runtimeScope && localBindings &&
+			!blockDirectEnvScope(block) &&
+			blockAllowsTransientRuntimeScope(block)
+	} else {
+		slotScope = localBindings
+	}
+	ctx.enterScope(runtimeScope, slotScope, transientRuntimeScope)
+}
+
+func blockDirectEnvScope(block *ast.BlockExpression) bool {
+	if block == nil {
+		return false
+	}
+	for _, stmt := range block.Body {
+		switch stmt.(type) {
+		case *ast.StructDefinition, *ast.UnionDefinition, *ast.TypeAliasDefinition,
+			*ast.InterfaceDefinition, *ast.ExternFunctionBody,
+			*ast.ImportStatement, *ast.DynImportStatement:
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *bytecodeLoweringContext) enterScope(runtimeScope bool, slotScope bool, transientRuntimeScope bool) {
+	if ctx == nil {
+		return
+	}
+	if runtimeScope {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpEnterScope, argCount: 1, transientScope: transientRuntimeScope})
+		ctx.scopeDepth++
+	}
+	ctx.scopeStack = append(ctx.scopeStack, bytecodeLexicalScope{runtime: runtimeScope, slots: slotScope})
+	if ctx.frameLayout != nil && slotScope {
 		ctx.slotScopes = append(ctx.slotScopes, make(map[string]int))
+		ctx.implicitSlotScopes = append(ctx.implicitSlotScopes, make(map[string]int))
 	}
 }
 
 func (ctx *bytecodeLoweringContext) exitScope() {
-	if ctx.frameLayout == nil || ctx.frameLayout.needsEnvScopes {
-		ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope})
+	if ctx == nil {
+		return
 	}
-	if ctx.scopeDepth > 0 {
+	scope := bytecodeLexicalScope{}
+	if count := len(ctx.scopeStack); count > 0 {
+		scope = ctx.scopeStack[count-1]
+		ctx.scopeStack = ctx.scopeStack[:count-1]
+	}
+	if scope.runtime {
+		ctx.emit(bytecodeInstruction{op: bytecodeOpExitScope, argCount: 1})
+	}
+	if scope.runtime && ctx.scopeDepth > 0 {
 		ctx.scopeDepth--
 	}
-	if ctx.frameLayout != nil && len(ctx.slotScopes) > 1 {
+	if ctx.frameLayout != nil && scope.slots && len(ctx.slotScopes) > 1 {
 		ctx.slotScopes = ctx.slotScopes[:len(ctx.slotScopes)-1]
+	}
+	if ctx.frameLayout != nil && scope.slots && len(ctx.implicitSlotScopes) > 1 {
+		ctx.implicitSlotScopes = ctx.implicitSlotScopes[:len(ctx.implicitSlotScopes)-1]
 	}
 }
 
@@ -515,6 +535,33 @@ func (ctx *bytecodeLoweringContext) lookupSlot(name string) (int, bool) {
 	return 0, false
 }
 
+func (ctx *bytecodeLoweringContext) lookupAnySlot(name string) (int, bool, bool) {
+	for i := len(ctx.slotScopes) - 1; i >= 0; i-- {
+		if slot, ok := ctx.slotScopes[i][name]; ok {
+			return slot, false, true
+		}
+		if i < len(ctx.implicitSlotScopes) {
+			if slot, ok := ctx.implicitSlotScopes[i][name]; ok {
+				return slot, true, true
+			}
+		}
+	}
+	return 0, false, false
+}
+
+func (ctx *bytecodeLoweringContext) canGuardImplicitSlot(name string) bool {
+	if ctx == nil || ctx.frameLayout == nil || name == "" {
+		return false
+	}
+	if ctx.currentFunctionName != "" && name == ctx.currentFunctionName {
+		return false
+	}
+	if _, _, found := ctx.lookupAnySlot(name); found {
+		return false
+	}
+	return ctx.definitionEnv == nil || !ctx.definitionEnv.Has(name)
+}
+
 func (ctx *bytecodeLoweringContext) declareSlot(name string) int {
 	return ctx.declareSlotWithKind(name, bytecodeCellKindValue)
 }
@@ -523,10 +570,39 @@ func (ctx *bytecodeLoweringContext) declareSlotWithKind(name string, kind byteco
 	slot := ctx.nextSlot
 	ctx.nextSlot++
 	ctx.setSlotKind(slot, kind)
+	ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckUnknown)
 	if len(ctx.slotScopes) > 0 {
 		ctx.slotScopes[len(ctx.slotScopes)-1][name] = slot
 	}
 	return slot
+}
+
+func (ctx *bytecodeLoweringContext) declareImplicitSlotWithKind(name string, kind bytecodeCellKind) int {
+	slot := ctx.nextSlot
+	ctx.nextSlot++
+	ctx.setSlotKind(slot, kind)
+	ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckUnknown)
+	if len(ctx.implicitSlotScopes) > 0 {
+		ctx.implicitSlotScopes[len(ctx.implicitSlotScopes)-1][name] = slot
+	}
+	return slot
+}
+
+func (ctx *bytecodeLoweringContext) setSlotExactStructDef(slot int, def *runtime.StructDefinitionValue) {
+	if slot < 0 {
+		return
+	}
+	for len(ctx.slotExactStructDefs) <= slot {
+		ctx.slotExactStructDefs = append(ctx.slotExactStructDefs, nil)
+	}
+	ctx.slotExactStructDefs[slot] = def
+}
+
+func (ctx *bytecodeLoweringContext) slotExactStructDef(slot int) *runtime.StructDefinitionValue {
+	if slot < 0 || slot >= len(ctx.slotExactStructDefs) {
+		return nil
+	}
+	return ctx.slotExactStructDefs[slot]
 }
 
 func (ctx *bytecodeLoweringContext) setSlotKind(slot int, kind bytecodeCellKind) {
@@ -589,7 +665,7 @@ func (ctx *bytecodeLoweringContext) loopExitCount() (int, error) {
 	}
 	loop := ctx.loopStack[len(ctx.loopStack)-1]
 	exitCount := ctx.scopeDepth - loop.scopeDepth
-	if exitCount <= 0 {
+	if exitCount < 0 {
 		return 0, bytecodeUnsupported("loop scope mismatch")
 	}
 	return exitCount, nil

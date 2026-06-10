@@ -1,0 +1,29 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: cpu
+Time: 2026-07-11 23:24:09 CDT
+Duration: 7.04s, Total samples = 6.89s (97.84%)
+Showing nodes accounting for 0.91s, 13.21% of 6.89s total
+Dropped 135 nodes (cum <= 0.03s)
+Showing top 20 nodes out of 163
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      6.20s 89.99%  able/interpreter-go/pkg/interpreter.BenchmarkBytecodeProgramRuntime
+         0     0%     0%      6.20s 89.99%  testing.(*B).run1.func1
+         0     0%     0%      6.20s 89.99%  testing.(*B).runN
+         0     0%     0%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%     0%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%     0%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%     0%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%     0%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%     0%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%     0%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runDetached
+     0.26s  3.77%  3.77%      6.19s 89.84%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+     0.07s  1.02%  4.79%      2.89s 41.94%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+     0.18s  2.61%  7.40%      2.26s 32.80%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMemberArraySlot
+         0     0%  7.40%      1.23s 17.85%  runtime.systemstack
+     0.02s  0.29%  7.69%      1.22s 17.71%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotOpcode
+     0.15s  2.18%  9.87%      1.20s 17.42%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendSlotStackValueChecked
+     0.03s  0.44% 10.30%      1.19s 17.27%  able/interpreter-go/pkg/interpreter.bytecodeBoxedIntegerValue
+     0.03s  0.44% 10.74%      1.04s 15.09%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execArrayPushMemberFast
+         0     0% 10.74%      1.02s 14.80%  able/interpreter-go/pkg/interpreter.bytecodeStackSnapshotIntegerPointerValue
+     0.17s  2.47% 13.21%      0.93s 13.50%  runtime.mapaccess2_fast64

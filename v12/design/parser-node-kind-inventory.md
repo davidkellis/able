@@ -1,6 +1,17 @@
-# Tree-sitter Node Inventory (Able v12)
+# Tree-sitter Node Inventory (Historical Scaffold)
 
-This note records the tree-sitter node kinds we must handle in the Go parser for every feature tracked in `design/parser-ast-coverage.md`. Use it as the handoff checklist while we extend `parseExpression`, `parseStatement`, and related helpers.
+**Status:** historical node-mapping inventory, reconciled 2026-07-14.
+
+This note preserves the early grammar bring-up labels and missing-production
+notes. It is not the current parser backlog: several rows below intentionally
+describe syntax that is now parsed and mapped. The active sources of truth are
+`spec/full_spec_v12.md`, `parser/tree-sitter-able/grammar.js`, generated
+`node-types.json`, the Go mapper, and `design/parser-ast-coverage.md`.
+
+Do not use a historical “needs grammar support” entry below to add an opcode,
+AST shape, or parser branch. A newly specified syntax change must update the
+active coverage matrix, a tree-sitter corpus case, and the Go source-fixture
+round-trip harness instead.
 
 ## Expressions & Literals
 | Feature | Tree-sitter node kinds | Grammar notes |

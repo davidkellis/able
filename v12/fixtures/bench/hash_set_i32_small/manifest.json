@@ -1,0 +1,6 @@
+{
+  "description": "hash-set membership and mutation benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

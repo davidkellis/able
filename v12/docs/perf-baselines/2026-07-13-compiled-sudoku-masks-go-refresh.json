@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-07-13T15:49:56Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 1,
+  "timeout_seconds": 120,
+  "cpu_affinity": "15",
+  "gomaxprocs": 1,
+  "rows": [
+    {
+      "benchmark": "sudoku_masks",
+      "source": "/home/david/sync/projects/benchmarks/sudoku-masks/go-1.26/app.go",
+      "requested_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.5746,
+      "validation": "verified",
+      "stdout_sha256": [
+        "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+      ]
+    }
+  ]
+}

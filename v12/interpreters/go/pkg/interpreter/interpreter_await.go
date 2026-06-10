@@ -44,6 +44,56 @@ func (s *awaitEvalState) signal() {
 	}
 }
 
+func (s *awaitEvalState) consumeWakePending() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.wakePending {
+		return false
+	}
+	s.waiting = false
+	s.wakePending = false
+	return true
+}
+
+// beginWaiting marks the state before registering its arms. An awaitable is
+// allowed to wake synchronously during registration, so publishing this state
+// afterward would erase that wake and leave the task parked forever.
+func (s *awaitEvalState) beginWaiting() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.waiting {
+		return false
+	}
+	s.waiting = true
+	s.wakePending = false
+	return true
+}
+
+func (s *awaitEvalState) clearWaiting() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.waiting = false
+	s.wakePending = false
+	s.mu.Unlock()
+}
+
+func (s *awaitEvalState) markWakePending() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.wakePending = true
+	s.mu.Unlock()
+}
+
 func (p *asyncContextPayload) getAwaitState(expr *ast.AwaitExpression) *awaitEvalState {
 	if p == nil || expr == nil {
 		return nil
@@ -186,21 +236,19 @@ func (i *Interpreter) awaitWithState(payload *asyncContextPayload, expr *ast.Awa
 			i.cleanupAwaitState(payload, expr, state, env)
 			return nil, context.Canceled
 		}
-		if state.wakePending {
-			state.waiting = false
-			state.wakePending = false
+		if state.consumeWakePending() {
+			i.clearAwaitRegistrations(state, env)
 			continue
 		}
-		if !state.waiting {
+		if state.beginWaiting() {
 			if err := i.registerAwaitState(state, env); err != nil {
+				state.clearWaiting()
 				return nil, err
 			}
-			state.waiting = true
-			state.wakePending = false
 		}
 
 		waitCh := state.ensureWaitCh()
-		payload.awaitBlocked = true
+		payload.setAwaitBlocked(true)
 
 		if _, ok := i.executor.(*SerialExecutor); ok {
 			if payload != nil && payload.compiled && payload.compiledYield != nil && payload.compiledResume != nil {
@@ -224,14 +272,14 @@ func (i *Interpreter) awaitWithState(payload *asyncContextPayload, expr *ast.Awa
 		case <-waitCh:
 		case <-ctx.Done():
 			i.markUnblocked(handle)
-			payload.awaitBlocked = false
+			payload.setAwaitBlocked(false)
 			i.cleanupAwaitState(payload, expr, state, env)
 			return nil, ctx.Err()
 		}
 		i.markUnblocked(handle)
-		payload.awaitBlocked = false
-		state.waiting = false
-		state.wakePending = false
+		payload.setAwaitBlocked(false)
+		i.clearAwaitRegistrations(state, env)
+		state.clearWaiting()
 	}
 }
 
@@ -314,7 +362,10 @@ func (i *Interpreter) registerAwaitState(state *awaitEvalState, env *runtime.Env
 		return fmt.Errorf("Await waker not initialised")
 	}
 	for _, arm := range state.arms {
-		if arm == nil || arm.isDefault || arm.registration != nil {
+		if arm == nil || arm.isDefault {
+			continue
+		}
+		if arm.registration != nil {
 			continue
 		}
 		reg, err := i.invokeAwaitableMethod(arm.awaitable, "register", []runtime.Value{state.waker}, env)
@@ -339,7 +390,7 @@ func (i *Interpreter) completeAwait(payload *asyncContextPayload, expr *ast.Awai
 		return nil, err
 	}
 	i.cleanupAwaitState(payload, expr, state, env)
-	payload.awaitBlocked = false
+	payload.setAwaitBlocked(false)
 	if result == nil {
 		return runtime.NilValue{}, nil
 	}
@@ -347,18 +398,28 @@ func (i *Interpreter) completeAwait(payload *asyncContextPayload, expr *ast.Awai
 }
 
 func (i *Interpreter) cleanupAwaitState(payload *asyncContextPayload, expr *ast.AwaitExpression, state *awaitEvalState, env *runtime.Environment) {
+	i.clearAwaitRegistrations(state, env)
+	state.clearWaiting()
+	if payload != nil {
+		payload.setAwaitBlocked(false)
+		payload.clearAwaitState(expr)
+	}
+}
+
+// clearAwaitRegistrations discards registrations after a wake as well as at
+// final cleanup. A wake only says that the awaitable should be checked again;
+// another task can win it before this task commits, in which case its old
+// registration cannot be reused for the next wait cycle.
+func (i *Interpreter) clearAwaitRegistrations(state *awaitEvalState, env *runtime.Environment) {
+	if state == nil {
+		return
+	}
 	for _, arm := range state.arms {
 		if arm == nil {
 			continue
 		}
 		i.cancelAwaitRegistration(arm.registration, env)
 		arm.registration = nil
-	}
-	state.waiting = false
-	state.wakePending = false
-	if payload != nil {
-		payload.awaitBlocked = false
-		payload.clearAwaitState(expr)
 	}
 }
 
@@ -391,18 +452,13 @@ func (i *Interpreter) makeAwaitWaker(payload *asyncContextPayload, state *awaitE
 		Definition: i.awaitWakerStruct,
 		Fields:     make(map[string]runtime.Value),
 	}
-	triggered := false
 	wakeFn := runtime.NativeFunctionValue{
 		Name:  "AwaitWaker.wake",
 		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
-			if triggered {
-				return runtime.NilValue{}, nil
-			}
-			triggered = true
-			state.wakePending = true
+			state.markWakePending()
 			if payload != nil {
-				payload.awaitBlocked = false
+				payload.setAwaitBlocked(false)
 			}
 			state.signal()
 			if payload != nil && payload.resume != nil {

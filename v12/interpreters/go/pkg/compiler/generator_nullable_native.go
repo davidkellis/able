@@ -23,6 +23,8 @@ var nativeNullableSpecs = []nativeNullableSpec{
 	{PtrType: "*uint16", InnerType: "uint16", HelperStem: "u16"},
 	{PtrType: "*uint32", InnerType: "uint32", HelperStem: "u32"},
 	{PtrType: "*uint64", InnerType: "uint64", HelperStem: "u64"},
+	{PtrType: "*runtime.Int128", InnerType: "runtime.Int128", HelperStem: "i128"},
+	{PtrType: "*runtime.Uint128", InnerType: "runtime.Uint128", HelperStem: "u128"},
 }
 
 func nativeNullableSpecForPointer(goType string) (nativeNullableSpec, bool) {

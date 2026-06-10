@@ -11,11 +11,11 @@ import (
 )
 
 type fixtureManifest struct {
-	Description string   `json:"description"`
-	Entry       string   `json:"entry"`
-	Setup       []string `json:"setup"`
-	Executor    string   `json:"executor"`
-	SkipTargets []string `json:"skipTargets"`
+	Description string            `json:"description"`
+	Entry       string            `json:"entry"`
+	Setup       []string          `json:"setup"`
+	Executor    string            `json:"executor"`
+	SkipTargets []string          `json:"skipTargets"`
 	Env         map[string]string `json:"env"`
 	Expect      struct {
 		Result *struct {

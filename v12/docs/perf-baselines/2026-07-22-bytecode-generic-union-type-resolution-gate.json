@@ -1,0 +1,90 @@
+{
+  "date": "2026-07-22",
+  "decision": "reject_all_runtime_candidates",
+  "retained_runtime_change": false,
+  "guardrails": {
+    "gomaxprocs": 1,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "timeout_seconds_per_process": 55,
+    "source_root_only": true,
+    "direct_processes_verified": 70,
+    "direct_failures": 0,
+    "direct_timeouts": 0,
+    "profile_calibration_timeouts": 1
+  },
+  "baseline_profile_cumulative_percent": {
+    "binary_event_log": {
+      "resolve_static_generic_union_method": 5.18,
+      "static_generic_union_method_matches": 4.45,
+      "generic_union_method_matches_static_receiver": 4.25,
+      "new_union_type_expression": 1.59
+    },
+    "option_result_config": {
+      "resolve_static_generic_union_method": 5.93,
+      "static_generic_union_method_matches": 5.42,
+      "generic_union_method_matches_static_receiver": 5.27,
+      "new_union_type_expression": 2.43
+    },
+    "manifest_normalization": {
+      "resolve_static_generic_union_method": 2.56,
+      "static_generic_union_method_matches": 1.95,
+      "generic_union_method_matches_static_receiver": 1.95,
+      "new_union_type_expression": 0.60
+    }
+  },
+  "copy_on_write_warmed_gate": [
+    {
+      "workload": "binary_event_log",
+      "control_ns_per_op": 7552184210,
+      "candidate_ns_per_op": 7365815022,
+      "time_delta_percent": -2.4678,
+      "bytes_delta_percent": -4.2006,
+      "allocs_delta_percent": -4.1154
+    },
+    {
+      "workload": "option_result_config",
+      "control_ns_per_op": 1024979220.5,
+      "candidate_ns_per_op": 997634756,
+      "time_delta_percent": -2.6678,
+      "bytes_delta_percent": -2.5632,
+      "allocs_delta_percent": -2.8027
+    },
+    {
+      "workload": "manifest_normalization",
+      "control_ns_per_op": 1674600129,
+      "candidate_ns_per_op": 1681365684,
+      "time_delta_percent": 0.4040,
+      "bytes_delta_percent": -1.8624,
+      "allocs_delta_percent": -2.3157
+    }
+  ],
+  "unrelated_controls": [
+    {
+      "workload": "string_split_join_small",
+      "candidate_ns_per_op": 1088370240,
+      "restored_ns_per_op": 1092962988,
+      "delta_percent": -0.4202,
+      "processes_per_variant": 5
+    },
+    {
+      "workload": "linked_list_iterator_collect_i64_small",
+      "candidate_ns_per_op": 445385779,
+      "restored_ns_per_op": 434601933,
+      "delta_percent": 2.4813,
+      "processes_per_variant": 5
+    },
+    {
+      "workload": "array_map_i32_small",
+      "candidate_ns_per_op": 77694018,
+      "prior_control_ns_per_op": 77668204,
+      "delta_percent": 0.0332,
+      "candidate_processes": 5
+    }
+  ],
+  "rejected_mechanisms": [
+    "bounded method-versioned generic-union match map cache",
+    "copy-on-write unchanged static receiver type-expression reuse"
+  ],
+  "raw_artifacts": "v12/.profiles/20260722_bytecode_union_cohort"
+}

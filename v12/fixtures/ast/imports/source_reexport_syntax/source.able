@@ -1,0 +1,3 @@
+import source_reexport_named.{value};
+export value;
+value()

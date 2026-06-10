@@ -277,7 +277,7 @@ func TestCompilerStructFunctionParamAndReturnStayNative(t *testing.T) {
 	if !strings.Contains(mainBody, "var p *Point =") {
 		t.Fatalf("fn_main should keep p as a native *Point local:\n%s", mainBody)
 	}
-	if !strings.Contains(mainBody, "__able_compiled_fn_make_point()") || !strings.Contains(mainBody, "__able_compiled_fn_sum_point(") {
+	if !strings.Contains(mainBody, "__able_compiled_fn_make_point_into(") || !strings.Contains(mainBody, "__able_compiled_fn_sum_point(") {
 		t.Fatalf("fn_main should call compiled native functions directly:\n%s", mainBody)
 	}
 

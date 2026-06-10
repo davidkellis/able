@@ -103,6 +103,21 @@ func TestCompilerHashMapLiteralStaysNative(t *testing.T) {
 	}
 }
 
+func TestCompilerHashMapLiteralSpreadUsesSharedNamedFieldAccessor(t *testing.T) {
+	result := compileExecFixtureResult(t, "06_01_bytecode_map_spread")
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatal("could not find compiled map-spread main function")
+	}
+	sharedLookup := `__able_struct_named_field_value(inst, "handle")`
+	if !strings.Contains(body, sharedLookup) {
+		t.Fatalf("expected map spread to use shared lookup %q:\n%s", sharedLookup, body)
+	}
+	if strings.Contains(body, `inst.Fields["handle"]`) {
+		t.Fatalf("expected map spread to avoid representation-specific handle lookup:\n%s", body)
+	}
+}
+
 func TestCompilerHashMapCarrierArrayStaysSpecialized(t *testing.T) {
 	result := compileNoFallbackExecSource(t, "ablec-hashmap-native-array", strings.Join([]string{
 		"package demo",
@@ -237,6 +252,42 @@ func TestCompilerHashMapNativeCarrierExecutes(t *testing.T) {
 	})
 	if strings.TrimSpace(stdout) != "10" {
 		t.Fatalf("expected native HashMap carrier program to print 10, got %q", stdout)
+	}
+}
+
+func TestCompilerHashMapU64PrimitiveKeysExecute(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"import able.kernel.{HashMap}",
+		"",
+		"fn main() -> void {",
+		"  counts: HashMap u64 i32 = HashMap.with_capacity(4)",
+		"  counts.raw_set(1_u64, 7)",
+		"  counts.raw_set(2_u64, 11)",
+		"  first := counts.raw_get(1_u64) match {",
+		"    case nil => 0",
+		"    case value: i32 => value",
+		"  }",
+		"  second := counts.raw_get(2_u64) match {",
+		"    case nil => 0",
+		"    case value: i32 => value",
+		"  }",
+		"  missing := counts.raw_get(3_u64) match {",
+		"    case nil => 0",
+		"    case value: i32 => value",
+		"  }",
+		"  print(first + second + missing)",
+		"}",
+		"",
+	}, "\n")
+
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-hashmap-u64-keys-exec", source, Options{
+		PackageName: "main",
+		EmitMain:    true,
+	})
+	if strings.TrimSpace(stdout) != "18" {
+		t.Fatalf("expected HashMap<u64, i32> program to print 18, got %q", stdout)
 	}
 }
 
@@ -567,7 +618,7 @@ func compileAndRunExecSourceWithOptions(t *testing.T, tempPrefix string, source 
 
 	outputDir := filepath.Join(workDir, "out")
 	opts.EntryPath = entryPath
-	result, err := New(opts).Compile(program)
+	result, err := New(compilerFixtureOptions(t, opts)).Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}

@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-07-23T18:49:33.858634Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_graph_visitors/concurrent_graph_visitors.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-graph-visitors",
+  "runs": 3,
+  "timeout_seconds": 90,
+  "build_timeout_seconds": 90,
+  "modes": [
+    "bytecode-runtime"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 5,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "bytecode-runtime",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 5.99,
+      "avg_user_seconds": 5.84,
+      "avg_sys_seconds": 0.1067,
+      "avg_gc": 20.0,
+      "avg_ns_per_op": 678332415.0,
+      "avg_bytes_per_op": 87546051.0,
+      "avg_allocs_per_op": 1103924.0,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 6.01,
+          "user_seconds": 5.83,
+          "sys_seconds": 0.1,
+          "gc_count": 20.0,
+          "ns_per_op": 679156930.0,
+          "bytes_per_op": 87553358.0,
+          "allocs_per_op": 1105021.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 5.98,
+          "user_seconds": 5.85,
+          "sys_seconds": 0.11,
+          "gc_count": 20.0,
+          "ns_per_op": 679407661.0,
+          "bytes_per_op": 87855654.0,
+          "allocs_per_op": 1103401.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 5.98,
+          "user_seconds": 5.84,
+          "sys_seconds": 0.11,
+          "gc_count": 20.0,
+          "ns_per_op": 676432653.0,
+          "bytes_per_op": 87229140.0,
+          "allocs_per_op": 1103349.0,
+          "stdout_sha256": null
+        }
+      ],
+      "validation": {
+        "status": "unavailable",
+        "verifier": null,
+        "verified_runs": 0,
+        "failed_runs": 0,
+        "stdout_sha256": []
+      }
+    }
+  ]
+}

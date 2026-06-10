@@ -1,0 +1,96 @@
+{
+  "date": "2026-07-25",
+  "decision": "reject",
+  "retained_code": false,
+  "route": "static_i64_checked_addition",
+  "arithmetic_helper_microbranches_closed": true,
+  "compiler_sha256": {
+    "baseline": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e",
+    "authoritative_candidate": "a177a698dc84e0bbf14deba5b70c23cd6565ea69a5b554b5885e28c53f895162",
+    "excluded_exploratory_candidate": "173a0cd9251a4847c5c905761786919c382d4d231d5ca33f1e35def7cb768755"
+  },
+  "protocol": {
+    "cohorts": 2,
+    "triplets_per_cohort_per_application": 60,
+    "warmup_triplets_per_cohort_per_application": 12,
+    "orders": 6,
+    "repetitions_per_order": 10,
+    "accepted_processes_per_kind_per_application": 120,
+    "authoritative_accepted_processes": 1800,
+    "authoritative_warmup_processes": 360,
+    "verifier_backed": true
+  },
+  "strict_dependency_graph": {
+    "packages": 96,
+    "interpreter_packages": 0
+  },
+  "results": [
+    {
+      "application": "Concurrent Scene Tiles",
+      "role": "admitted",
+      "static_i64_calls": 53,
+      "cohort_1_change_percent": -1.009,
+      "cohort_2_change_percent": -1.150,
+      "pooled_baseline_ms": 4.488281,
+      "pooled_candidate_ms": 4.439375,
+      "pooled_go_ms": 1.137173,
+      "pooled_change_percent": -1.090,
+      "baseline_go_ratio": 3.9469,
+      "candidate_go_ratio": 3.9039
+    },
+    {
+      "application": "Array Slice Window",
+      "role": "admitted",
+      "static_i64_calls": 5,
+      "cohort_1_change_percent": -6.801,
+      "cohort_2_change_percent": -3.231,
+      "pooled_baseline_ms": 6.390354,
+      "pooled_candidate_ms": 6.072644,
+      "pooled_go_ms": 1.678722,
+      "pooled_change_percent": -4.972,
+      "baseline_go_ratio": 3.8067,
+      "candidate_go_ratio": 3.6174
+    },
+    {
+      "application": "Option/Result Config",
+      "role": "negative_regression_control",
+      "static_i64_calls": 5,
+      "cohort_1_change_percent": -1.116,
+      "cohort_2_change_percent": 0.877,
+      "pooled_baseline_ms": 16.314534,
+      "pooled_candidate_ms": 16.309221,
+      "pooled_go_ms": 1.218656,
+      "pooled_change_percent": -0.033,
+      "baseline_go_ratio": 13.3873,
+      "candidate_go_ratio": 13.3830
+    },
+    {
+      "application": "Sensor Calibration",
+      "role": "admitted",
+      "static_i64_calls": 29,
+      "cohort_1_change_percent": -2.974,
+      "cohort_2_change_percent": 2.550,
+      "pooled_baseline_ms": 10.347833,
+      "pooled_candidate_ms": 10.332102,
+      "pooled_go_ms": 2.624448,
+      "pooled_change_percent": -0.152,
+      "baseline_go_ratio": 3.9429,
+      "candidate_go_ratio": 3.9369
+    },
+    {
+      "application": "Monte Carlo Pi",
+      "role": "zero_reach_go_competitive_control",
+      "static_i64_calls": 0,
+      "cohort_1_change_percent": 0.114,
+      "cohort_2_change_percent": -0.769,
+      "pooled_baseline_ms": 145.844282,
+      "pooled_candidate_ms": 145.362775,
+      "pooled_go_ms": 233.006632,
+      "pooled_change_percent": -0.330,
+      "baseline_go_ratio": 0.6259,
+      "candidate_go_ratio": 0.6239
+    }
+  ],
+  "rejection_reason": "Sensor Calibration, an admitted material row, reversed from improvement to regression and was neutral pooled.",
+  "next": "Run a six-or-more-application typed runtime-value boundary census with main-only CPU and allocation correlation."
+}

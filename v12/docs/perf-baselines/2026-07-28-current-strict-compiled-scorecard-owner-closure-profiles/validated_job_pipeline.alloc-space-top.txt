@@ -1,0 +1,76 @@
+File: compiled
+Build ID: 8699b28d7d5668d5bf56f89f6c5752800168aa2e
+Type: alloc_space
+Time: 2026-07-28 09:44:05 CDT
+Showing nodes accounting for 9784.91kB, 97.23% of 10063.58kB total
+Dropped 190 nodes (cum <= 50.32kB)
+      flat  flat%   sum%        cum   cum%
+ 4418.78kB 43.91% 43.91%  4418.78kB 43.91%  runtime/pprof.allFrames
+ 1819.85kB 18.08% 61.99%  1879.08kB 18.67%  runtime/pprof.(*profileBuilder).emitLocation
+     648kB  6.44% 68.43%  1171.88kB 11.64%  compress/flate.NewWriter (inline)
+     576kB  5.72% 74.15%      576kB  5.72%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     408kB  4.05% 78.21%  8274.30kB 82.22%  runtime/pprof.writeHeapInternal
+     320kB  3.18% 81.39%   523.88kB  5.21%  compress/flate.(*compressor).init
+  271.12kB  2.69% 84.08%  7866.30kB 78.17%  runtime/pprof.writeHeapProto
+  257.12kB  2.56% 86.64%   257.12kB  2.56%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     200kB  1.99% 88.63%      200kB  1.99%  compress/flate.newDeflateFast (inline)
+  192.70kB  1.91% 90.54%   192.70kB  1.91%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+  192.52kB  1.91% 92.45%   192.75kB  1.92%  able/interpreter-go/pkg/compiler/bridge.ToInt
+  170.02kB  1.69% 94.14%   233.66kB  2.32%  main.__able_compiled_fn_validation_error_ctx
+   93.25kB  0.93% 95.07%    93.25kB  0.93%  runtime/pprof.(*protobuf).string (inline)
+   72.67kB  0.72% 95.79%    72.72kB  0.72%  able/interpreter-go/pkg/runtime.ChannelStoreNew
+   64.02kB  0.64% 96.43%    65.12kB  0.65%  main.__able_host_fn_fs_read_lines_prefix_text_fast
+      48kB  0.48% 96.90%   432.28kB  4.30%  main.__able_compiled_fn_produce_ctx
+   32.06kB  0.32% 97.22%  1170.27kB 11.63%  main.__able_compiled_fn_work_ctx
+    0.50kB 0.005% 97.23%  6299.83kB 62.60%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.21kB 0.0021% 97.23%   181.59kB  1.80%  main.__able_compiled_fn_main_ctx
+    0.03kB 0.00031% 97.23%    67.55kB  0.67%  main.__able_compiled_fn_fs_read_lines_prefix_text_fast_ctx
+    0.02kB 0.00023% 97.23%  8274.67kB 82.22%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00023% 97.23%   181.63kB  1.80%  main.RunRegisteredMain
+         0     0% 97.23%   224.77kB  2.23%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 97.23%   224.77kB  2.23%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 97.23%   225.12kB  2.24%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0% 97.23%  8274.67kB 82.22%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 97.23%  8274.67kB 82.22%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 97.23%  1178.62kB 11.71%  compress/gzip.(*Writer).Write
+         0     0% 97.23%   193.66kB  1.92%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0% 97.23%   193.66kB  1.92%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0% 97.23%   192.23kB  1.91%  internal/sync.(*entry[go.shape.interface {},go.shape.interface {}]).swap
+         0     0% 97.23%  1604.70kB 15.95%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 97.23%   181.61kB  1.80%  main.RunRegisteredMain.func1
+         0     0% 97.23%    72.81kB  0.72%  main.__able_channel_new_ctx (inline)
+         0     0% 97.23%    72.81kB  0.72%  main.__able_channel_new_impl
+         0     0% 97.23%    68.63kB  0.68%  main.__able_compiled_entry_fn_read_lines_prefix_ctx
+         0     0% 97.23%   448.33kB  4.45%  main.__able_compiled_entry_method_String_contains_ctx
+         0     0% 97.23%   181.61kB  1.80%  main.__able_compiled_fn_main
+         0     0% 97.23%   432.33kB  4.30%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 97.23%   261.48kB  2.60%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 97.23%   285.07kB  2.83%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 97.23%   329.21kB  3.27%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 97.23%   294.69kB  2.93%  main.__able_compiled_fn_main_ctx.func5
+         0     0% 97.23%    68.63kB  0.68%  main.__able_compiled_fn_read_lines_prefix_ctx
+         0     0% 97.23%   737.16kB  7.32%  main.__able_compiled_fn_transform_ctx_into
+         0     0% 97.23%   709.39kB  7.05%  main.__able_compiled_fn_validate_ctx
+         0     0% 97.23%   352.78kB  3.51%  main.__able_compiled_method_Channel_send_spec_a_ctx
+         0     0% 97.23%   384.28kB  3.82%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0% 97.23%   181.61kB  1.80%  main.__able_register_compiled_call.func1
+         0     0% 97.23%  1604.70kB 15.95%  main.__able_run_compiled_task
+         0     0% 97.23%  1602.90kB 15.93%  main.__able_spawn_context.func1
+         0     0% 97.23%   352.69kB  3.50%  main.__able_struct_JobResult_to (inline)
+         0     0% 97.23%   352.69kB  3.50%  main.__able_struct_JobResult_to_seen
+         0     0% 97.23%      384kB  3.82%  main.__able_struct_JobTask_to (inline)
+         0     0% 97.23%      384kB  3.82%  main.__able_struct_JobTask_to_seen
+         0     0% 97.23%    63.64kB  0.63%  main.__able_struct_ValidationError_to (inline)
+         0     0% 97.23%    63.64kB  0.63%  main.__able_struct_ValidationError_to_seen
+         0     0% 97.23%   181.61kB  1.80%  main.__able_wrap_fn_main
+         0     0% 97.23%  8456.30kB 84.03%  main.main
+         0     0% 97.23%  8456.30kB 84.03%  main.runMain
+         0     0% 97.23%  8274.67kB 82.22%  main.startMainProfilePhase (inline)
+         0     0% 97.23%  8456.30kB 84.03%  runtime.main
+         0     0% 97.23%  8274.30kB 82.22%  runtime/pprof.(*Profile).WriteTo
+         0     0% 97.23%    93.25kB  0.93%  runtime/pprof.(*profileBuilder).build
+         0     0% 97.23%  1178.62kB 11.71%  runtime/pprof.(*profileBuilder).flush
+         0     0% 97.23%  1181.12kB 11.74%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 97.23%    93.25kB  0.93%  runtime/pprof.(*protobuf).strings
+         0     0% 97.23%  8274.30kB 82.22%  runtime/pprof.writeAlloc
+         0     0% 97.23%   193.66kB  1.92%  sync.(*Map).Store (inline)

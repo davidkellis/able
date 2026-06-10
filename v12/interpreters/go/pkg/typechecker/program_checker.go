@@ -41,6 +41,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 	}
 	var diagnostics []ModuleDiagnostic
 	inferred := make(map[string]InferenceMap)
+	methodSelections := make(map[string]MethodSelectionMap)
 	seenAliases := make(map[string]aliasDeclInfo)
 	for _, mod := range program.Modules {
 		if mod == nil || mod.AST == nil {
@@ -57,6 +58,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 		}
 		if mod.Package != "" {
 			inferred[mod.Package] = checker.Inference()
+			methodSelections[mod.Package] = checker.MethodSelections()
 		}
 
 		for _, diag := range importDiags {
@@ -79,12 +81,20 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 			diagnostics = append(diagnostics, diag)
 		}
 
-		pc.captureExports(mod, checker)
+		for _, diag := range pc.captureExports(mod, checker) {
+			diagnostics = append(diagnostics, ModuleDiagnostic{
+				Package:    mod.Package,
+				Files:      mod.Files,
+				Diagnostic: diag,
+				Source:     pc.hintForNode(mod, diag.Node),
+			})
+		}
 	}
 	return CheckResult{
 		Diagnostics: diagnostics,
 		Packages:    pc.clonePackageSummaries(),
 		Inferred:    inferred,
+		Methods:     methodSelections,
 	}, nil
 }
 
@@ -415,6 +425,19 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 	)
 	seen := make(map[string]struct{})
 	implSeen := make(map[string]struct{})
+	bindImport := func(name string, typ Type, node ast.Node) bool {
+		if name == "" {
+			return false
+		}
+		if existing, exists := env.Lookup(name); exists &&
+			(isNamedImplementationNamespaceType(existing) || isNamedImplementationNamespaceType(typ)) {
+			diags = append(diags, namedImplementationBindingCollisionDiagnostic(name, "an existing import", node))
+			return false
+		}
+		env.Define(name, typ)
+		hasScope = true
+		return true
+	}
 	var collectImpls func(pkg string)
 	collectImpls = func(pkg string) {
 		if pkg == "" {
@@ -472,8 +495,7 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 				if typ == nil {
 					typ = UnknownType{}
 				}
-				env.Define(name, typ)
-				hasScope = true
+				bindImport(name, typ, imp)
 			}
 			pc.addReexportsToEnv(pkgName, env)
 			continue
@@ -489,13 +511,11 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 					alias = sel.Alias.Name
 				}
 				if typ, exists := export.symbols[sel.Name.Name]; exists && typ != nil {
-					env.Define(alias, typ)
-					hasScope = true
+					bindImport(alias, typ, sel)
 					continue
 				}
 				if typ, ok := pc.resolveReexportedSymbol(pkgName, sel.Name.Name); ok && typ != nil {
-					env.Define(alias, typ)
-					hasScope = true
+					bindImport(alias, typ, sel)
 					continue
 				}
 				if export.private != nil {
@@ -541,8 +561,7 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 			pkgType.Symbols = map[string]Type{}
 			pkgType.PrivateSymbols = map[string]Type{}
 		}
-		env.Define(alias, pkgType)
-		hasScope = true
+		bindImport(alias, pkgType, imp)
 	}
 
 	if !hasScope {
@@ -551,9 +570,9 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 	return env, impls, methods, diags
 }
 
-func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
+func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) []Diagnostic {
 	if mod == nil {
-		return
+		return nil
 	}
 	var methodQualifier func(Type) string
 	methodQualifier = func(t Type) string {
@@ -711,11 +730,134 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 					continue
 				}
 				recordPrivate(def.ID.Name)
+			case *ast.ImplementationDefinition:
+				if def == nil || def.ImplName == nil || !def.IsPrivate {
+					continue
+				}
+				recordPrivate(def.ImplName.Name)
+			}
+		}
+	}
+
+	var exportDiags []Diagnostic
+	publishExport := func(name string, typ Type, node ast.Node) {
+		if name == "" || typ == nil {
+			return
+		}
+		if existing, exists := export.symbols[name]; exists {
+			if !sameType(existing, typ) {
+				exportDiags = append(exportDiags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: re-export '%s' conflicts with an existing public binding", name),
+					Node:    node,
+				})
+			}
+			return
+		}
+		export.symbols[name] = typ
+		switch value := typ.(type) {
+		case StructType:
+			export.structs[name] = value
+		case InterfaceType:
+			export.interfaces[name] = value
+		case FunctionType:
+			export.functions[name] = value
+		}
+	}
+	appendImport := func(pkgName string) {
+		if pkgName == "" {
+			return
+		}
+		for _, existing := range export.imports {
+			if existing == pkgName {
+				return
+			}
+		}
+		export.imports = append(export.imports, pkgName)
+	}
+	importedPrivateSource := func(name string) bool {
+		if mod == nil || mod.AST == nil || name == "" {
+			return false
+		}
+		for _, imp := range mod.AST.Imports {
+			if imp == nil || len(imp.Selectors) == 0 {
+				continue
+			}
+			source, ok := pc.exports[joinImportPath(imp.PackagePath)]
+			if !ok || source == nil || source.private == nil {
+				continue
+			}
+			for _, selector := range imp.Selectors {
+				if selector == nil || selector.Name == nil || selector.Name.Name == "" {
+					continue
+				}
+				localName := selector.Name.Name
+				if selector.Alias != nil && selector.Alias.Name != "" {
+					localName = selector.Alias.Name
+				}
+				if localName == name && source.private[selector.Name.Name] != nil {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if mod.AST != nil {
+		for _, stmt := range mod.AST.Exports {
+			if stmt == nil {
+				continue
+			}
+			if !stmt.IsWildcard {
+				if stmt.Name == nil || stmt.Name.Name == "" {
+					exportDiags = append(exportDiags, Diagnostic{Message: "typechecker: named export requires a binding", Node: stmt})
+					continue
+				}
+				name := stmt.Name.Name
+				if _, private := export.private[name]; private {
+					exportDiags = append(exportDiags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: cannot re-export private symbol '%s'", name),
+						Node:    stmt,
+					})
+					continue
+				}
+				if importedPrivateSource(name) {
+					exportDiags = append(exportDiags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: cannot re-export private symbol '%s'", name),
+						Node:    stmt,
+					})
+					continue
+				}
+				if checker == nil || checker.global == nil {
+					exportDiags = append(exportDiags, Diagnostic{Message: fmt.Sprintf("typechecker: export references unknown symbol '%s'", name), Node: stmt})
+					continue
+				}
+				typ, ok := checker.global.Lookup(name)
+				if !ok || typ == nil {
+					exportDiags = append(exportDiags, Diagnostic{Message: fmt.Sprintf("typechecker: export references unknown symbol '%s'", name), Node: stmt})
+					continue
+				}
+				publishExport(name, typ, stmt)
+				continue
+			}
+
+			pkgName := joinImportPath(stmt.PackagePath)
+			source, ok := pc.exports[pkgName]
+			if !ok || source == nil {
+				exportDiags = append(exportDiags, Diagnostic{Message: fmt.Sprintf("typechecker: wildcard export references unknown package '%s'", pkgName), Node: stmt})
+				continue
+			}
+			if source.visibility == "private" && pkgName != mod.Package {
+				exportDiags = append(exportDiags, Diagnostic{Message: fmt.Sprintf("typechecker: package '%s' is private", pkgName), Node: stmt})
+				continue
+			}
+			appendImport(pkgName)
+			for name, typ := range source.symbols {
+				publishExport(name, typ, stmt)
 			}
 		}
 	}
 
 	pc.exports[mod.Package] = export
+	return exportDiags
 }
 
 func joinImportPath(parts []*ast.Identifier) string {

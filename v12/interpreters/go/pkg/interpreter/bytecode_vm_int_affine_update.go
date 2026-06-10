@@ -21,30 +21,28 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 	if !hasImmediate {
 		return fmt.Errorf("bytecode int affine slot update missing integer immediate")
 	}
-	baseIdx := len(vm.stack) - 2
+	baseIdx := vm.stackDepth() - 2
 	var base, addend runtime.Value
 	switch instr.op {
 	case bytecodeOpStoreSlotIntMulConstAdd:
-		if len(vm.stack) < 2 {
+		if vm.stackDepth() < 2 {
 			return fmt.Errorf("bytecode stack underflow")
 		}
-		base = vm.stack[baseIdx]
-		addend = vm.stack[baseIdx+1]
+		base = vm.stackValue(baseIdx)
+		addend = vm.stackValue(baseIdx + 1)
 	case bytecodeOpStoreSlotIntMulConstAddFromSlot:
-		if len(vm.stack) < 1 {
+		if vm.stackDepth() < 1 {
 			return fmt.Errorf("bytecode stack underflow")
 		}
-		baseIdx = len(vm.stack) - 1
-		if vm.hasI32RegisterFrame() {
-			if raw, ok := vm.i32RegisterRaw(instr.target); ok {
-				base = bytecodeRawI32SlotCachedValue(raw)
-			} else {
-				base = vm.slots[instr.target]
-			}
+		baseIdx = vm.stackDepth() - 1
+		if value := vm.slots[instr.target]; value != nil {
+			base = value
+		} else if raw, ok := vm.slotDirectSmallI32ValueValidated(instr.target); ok && raw >= math.MinInt32 && raw <= math.MaxInt32 {
+			base = bytecodeRawI32SlotCachedValue(int32(raw))
 		} else {
-			base = vm.slots[instr.target]
+			base = vm.slotRuntimeValue(instr.target)
 		}
-		addend = vm.stack[baseIdx]
+		addend = vm.stackValue(baseIdx)
 	default:
 		return fmt.Errorf("bytecode int affine slot update opcode %d unsupported", instr.op)
 	}
@@ -60,10 +58,14 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 				return err
 			}
 			result := bytecodeRawI32SlotCachedValue(raw)
-			vm.stack = vm.stack[:baseIdx]
+			vm.truncateStack(baseIdx)
 			if vm.hasI32RegisterFrame() && vm.setI32RegisterRaw(instr.target, raw) {
+				vm.clearActiveValueSlotI32(instr.target)
+				vm.clearActiveValueSlotFloat(instr.target)
 				vm.slots[instr.target] = nil
 			} else {
+				vm.clearActiveValueSlotI32(instr.target)
+				vm.clearActiveValueSlotFloat(instr.target)
 				vm.slots[instr.target] = result
 			}
 			if instr.target == 0 {
@@ -84,10 +86,14 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 		return err
 	}
 	result = bytecodeStackResultValue(result)
-	vm.stack = vm.stack[:baseIdx]
+	vm.truncateStack(baseIdx)
 	if raw, ok := result.(bytecodeRawI32SlotValue); ok && vm.hasI32RegisterFrame() && vm.setI32RegisterRaw(instr.target, int32(raw)) {
+		vm.clearActiveValueSlotI32(instr.target)
+		vm.clearActiveValueSlotFloat(instr.target)
 		vm.slots[instr.target] = nil
 	} else {
+		vm.clearActiveValueSlotI32(instr.target)
+		vm.clearActiveValueSlotFloat(instr.target)
 		vm.slots[instr.target] = result
 		if vm.hasI32RegisterFrame() {
 			vm.setI32RegisterValue(instr.target, result)
@@ -97,7 +103,7 @@ func (vm *bytecodeVM) execStoreSlotIntMulConstAdd(instr *bytecodeInstruction) er
 		vm.setSelfFastSlot0I32Value(result)
 	}
 	if !instr.discardResult {
-		vm.stack = append(vm.stack, bytecodeSlotReadValue(result))
+		vm.appendStackValue(bytecodeSlotReadValue(result))
 	}
 	vm.ip++
 	return nil
@@ -131,10 +137,7 @@ func bytecodeIntMulConstAddFast(base runtime.Value, mulImmediate runtime.Integer
 			if result < math.MinInt32 || result > math.MaxInt32 {
 				return nil, true, newOverflowError("integer overflow")
 			}
-			if _, rawBase := base.(bytecodeRawI32SlotValue); rawBase {
-				return bytecodeRawI32SlotCachedValue(int32(result)), true, nil
-			}
-			return bytecodeBoxedIntegerI32Value(result), true, nil
+			return bytecodeRawI32ResultValue(result), true, nil
 		}
 	}
 	kind, baseRaw, addRaw, ok := bytecodeDirectSameTypeSmallIntPair(base, addend)

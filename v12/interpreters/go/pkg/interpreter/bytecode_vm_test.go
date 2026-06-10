@@ -568,6 +568,66 @@ func TestBytecodeVM_MatchGuard(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_MatchLiteralDirectAssignmentKeepsBindingScoped(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Match(
+			ast.Int(1),
+			ast.Mc(ast.LitP(ast.Int(1)), ast.Assign(ast.ID("inner"), ast.Int(9))),
+		),
+	}, nil, nil)
+
+	treeInterp := New()
+	want, treeEnv, err := treeInterp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("tree evaluation failed: %v", err)
+	}
+	if _, err := treeEnv.Get("inner"); err == nil {
+		t.Fatalf("tree match clause leaked direct assignment binding")
+	}
+
+	byteInterp := NewBytecode()
+	got, byteEnv, err := byteInterp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("bytecode evaluation failed: %v", err)
+	}
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode direct-assignment match mismatch: got=%#v want=%#v", got, want)
+	}
+	if _, err := byteEnv.Get("inner"); err == nil {
+		t.Fatalf("bytecode match clause leaked direct assignment binding")
+	}
+}
+
+func TestBytecodeVM_MatchGuardDeclarationVisibleToBody(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Match(
+			ast.Int(1),
+			ast.Mc(ast.LitP(ast.Int(1)), ast.ID("guard_value"), ast.Assign(ast.ID("guard_value"), ast.Int(7))),
+		),
+	}, nil, nil)
+
+	treeInterp := New()
+	want, treeEnv, err := treeInterp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("tree evaluation failed: %v", err)
+	}
+	if _, err := treeEnv.Get("guard_value"); err == nil {
+		t.Fatalf("tree match guard binding leaked into outer scope")
+	}
+
+	byteInterp := NewBytecode()
+	got, byteEnv, err := byteInterp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("bytecode evaluation failed: %v", err)
+	}
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode guard-declaration match mismatch: got=%#v want=%#v", got, want)
+	}
+	if _, err := byteEnv.Get("guard_value"); err == nil {
+		t.Fatalf("bytecode match guard binding leaked into outer scope")
+	}
+}
+
 func TestBytecodeVM_MatchTypedPrimitivePattern(t *testing.T) {
 	matchExpr := ast.Match(
 		ast.NewTypeCastExpression(ast.Int(7), ast.Ty("u8")),
@@ -599,6 +659,35 @@ func TestBytecodeVM_RescueExpression(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_RescueGuardDeclarationVisibleToBody(t *testing.T) {
+	rescueExpr := ast.Rescue(
+		ast.Block(ast.Raise(ast.Str("boom"))),
+		ast.Mc(ast.Wc(), ast.ID("guard_value"), ast.Assign(ast.ID("guard_value"), ast.Int(7))),
+	)
+	module := ast.Mod([]ast.Statement{rescueExpr}, nil, nil)
+
+	treeInterp := New()
+	want, treeEnv, err := treeInterp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("tree rescue evaluation failed: %v", err)
+	}
+	if _, err := treeEnv.Get("guard_value"); err == nil {
+		t.Fatalf("tree rescue guard binding leaked into outer scope")
+	}
+
+	byteInterp := NewBytecode()
+	got, byteEnv, err := byteInterp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("bytecode rescue evaluation failed: %v", err)
+	}
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode rescue guard-declaration mismatch: got=%#v want=%#v", got, want)
+	}
+	if _, err := byteEnv.Get("guard_value"); err == nil {
+		t.Fatalf("bytecode rescue guard binding leaked into outer scope")
+	}
+}
+
 func TestBytecodeVM_RaiseStatement(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.Raise(ast.Str("boom")),
@@ -613,6 +702,54 @@ func TestBytecodeVM_RaiseStatement(t *testing.T) {
 	if _, err := vm.run(program); err == nil {
 		t.Fatalf("expected raise error")
 	} else if _, ok := err.(raiseSignal); !ok {
+		t.Fatalf("expected raise signal, got %T", err)
+	}
+}
+
+func TestBytecodeVM_RaiseStatementUsesSlotExpression(t *testing.T) {
+	failDef := ast.Fn(
+		"fail",
+		[]*ast.FunctionParameter{ast.Param("message", ast.Ty("String"))},
+		[]ast.Statement{ast.Raise(ast.ID("message"))},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(failDef)
+	if err != nil {
+		t.Fatalf("bytecode function lowering failed: %v", err)
+	}
+	if program.frameLayout == nil {
+		t.Fatalf("raise function was not slot-framed")
+	}
+	foundSlotLoad := false
+	foundRaise := false
+	for _, instr := range program.instructions {
+		switch instr.op {
+		case bytecodeOpLoadSlot:
+			if instr.name == "message" {
+				foundSlotLoad = true
+			}
+		case bytecodeOpRaise:
+			foundRaise = true
+		}
+	}
+	if !foundSlotLoad || !foundRaise {
+		t.Fatalf("raise lowering did not load slot then raise: load=%v raise=%v", foundSlotLoad, foundRaise)
+	}
+
+	module := ast.Mod([]ast.Statement{
+		failDef,
+		ast.Call("fail", ast.Str("boom")),
+	}, nil, nil)
+	err = runBytecodeModuleError(t, interp, module)
+	if err == nil {
+		t.Fatalf("expected raise error")
+	}
+	if _, ok := err.(raiseSignal); !ok {
 		t.Fatalf("expected raise signal, got %T", err)
 	}
 }

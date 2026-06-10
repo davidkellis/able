@@ -14,15 +14,17 @@ import (
 )
 
 type buildConfig struct {
-	OutputDir                string
-	BinPath                  string
-	WithTests                bool
-	PrecompileStdlib         bool
-	RequireNoFallbacks       bool
-	RequireNoStaticFallbacks bool
-	ExperimentalMonoArrays   bool
-	SkipTypecheck            bool
-	ShowHelp                 bool
+	OutputDir                    string
+	BinPath                      string
+	WithTests                    bool
+	PrecompileStdlib             bool
+	RequireNoFallbacks           bool
+	RequireNoStaticFallbacks     bool
+	ExperimentalMonoArrays       bool
+	ExperimentalExecutionContext bool
+	EmitTypedBoundaryTelemetry   bool
+	SkipTypecheck                bool
+	ShowHelp                     bool
 }
 
 func runBuild(args []string) int {
@@ -127,13 +129,15 @@ func runBuild(args []string) int {
 	}
 
 	comp := compiler.New(compiler.Options{
-		PackageName:               "main",
-		EmitMain:                  true,
-		EntryPath:                 entryAbs,
-		RequireNoFallbacks:        config.RequireNoFallbacks,
-		RequireStaticNoFallbacks:  config.RequireNoStaticFallbacks,
-		ExperimentalMonoArrays:    config.ExperimentalMonoArrays,
-		ExperimentalMonoArraysSet: true,
+		PackageName:                  "main",
+		EmitMain:                     true,
+		EntryPath:                    entryAbs,
+		RequireNoFallbacks:           config.RequireNoFallbacks,
+		RequireStaticNoFallbacks:     config.RequireNoStaticFallbacks,
+		ExperimentalMonoArrays:       config.ExperimentalMonoArrays,
+		ExperimentalMonoArraysSet:    true,
+		ExperimentalExecutionContext: config.ExperimentalExecutionContext,
+		EmitTypedBoundaryTelemetry:   config.EmitTypedBoundaryTelemetry,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {
@@ -189,6 +193,11 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 		return buildConfig{}, nil, err
 	}
 	config.ExperimentalMonoArrays = experimentalMonoArrays
+	typedBoundaryTelemetry, err := resolveCompilerTypedBoundaryTelemetryFromEnv()
+	if err != nil {
+		return buildConfig{}, nil, err
+	}
+	config.EmitTypedBoundaryTelemetry = typedBoundaryTelemetry
 	if _, ok := os.LookupEnv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS"); ok {
 		config.SkipTypecheck = true
 		config.RequireNoStaticFallbacks = requireNoFallbacks
@@ -224,7 +233,11 @@ func parseBuildArguments(args []string) (buildConfig, []string, error) {
 		case arg == "--experimental-mono-arrays":
 			config.ExperimentalMonoArrays = true
 		case arg == "--no-experimental-mono-arrays":
-			config.ExperimentalMonoArrays = false
+			config.ExperimentalMonoArrays = true
+		case arg == "--experimental-execution-context":
+			config.ExperimentalExecutionContext = true
+		case arg == "--typed-boundary-telemetry":
+			config.EmitTypedBoundaryTelemetry = true
 		case arg == "--bin":
 			val, err := expectFlagValue(arg, nextArg(args, &i))
 			if err != nil {
@@ -366,12 +379,14 @@ func printBuildUsage() {
 	fmt.Fprintln(os.Stderr, "      --no-precompile-stdlib  disable stdlib/kernel package precompile discovery")
 	fmt.Fprintln(os.Stderr, "      --no-fallbacks  fail compile when any fallback wrappers are required")
 	fmt.Fprintln(os.Stderr, "      --allow-fallbacks  allow fallback wrappers (disables static default)")
-	fmt.Fprintln(os.Stderr, "      --experimental-mono-arrays  enable staged monomorphized array lowering (experimental, default on)")
-	fmt.Fprintln(os.Stderr, "      --no-experimental-mono-arrays  disable staged monomorphized array lowering")
+	fmt.Fprintln(os.Stderr, "      --experimental-mono-arrays  legacy compatibility flag; native static Array lowering is always enabled")
+	fmt.Fprintln(os.Stderr, "      --no-experimental-mono-arrays  legacy compatibility flag; native static Array lowering remains enabled")
+	fmt.Fprintln(os.Stderr, "      --experimental-execution-context  enable generated-call execution-context propagation prototype")
+	fmt.Fprintln(os.Stderr, "      --typed-boundary-telemetry  emit report-only typed/runtime boundary counters")
 	fmt.Fprintln(os.Stderr, "Environment:")
 	fmt.Fprintln(os.Stderr, "  ABLE_BUILD_PRECOMPILE_STDLIB=1|true|yes|on")
 	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=1|true|yes|on  (strict: disallow all fallbacks)")
 	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_REQUIRE_NO_FALLBACKS=0|false|no|off (allow all fallbacks, incl. static)")
-	fmt.Fprintln(os.Stderr, "  ABLE_EXPERIMENTAL_MONO_ARRAYS=1|true|yes|on       (enable staged monomorphized array lowering; default)")
-	fmt.Fprintln(os.Stderr, "  ABLE_EXPERIMENTAL_MONO_ARRAYS=0|false|no|off      (disable staged monomorphized array lowering)")
+	fmt.Fprintln(os.Stderr, "  ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY=<boolean>   emit report-only typed-boundary counters")
+	fmt.Fprintln(os.Stderr, "  ABLE_EXPERIMENTAL_MONO_ARRAYS=<boolean>            legacy compatibility setting; native static Array lowering remains enabled")
 }

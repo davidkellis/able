@@ -24,6 +24,41 @@ fn main() {
 	}
 }
 
+func TestRunEntrySourceRootOnlyExcludesWorkingDirectoryPackage(t *testing.T) {
+	root := t.TempDir()
+	entryDir := filepath.Join(root, "entry")
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(entryDir, 0o755); err != nil {
+		t.Fatalf("mkdir entry: %v", err)
+	}
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("mkdir data: %v", err)
+	}
+	entryPath := filepath.Join(entryDir, "main.able")
+	writeFile(t, entryPath, `
+package sample
+
+fn main() {
+  print("entry")
+}
+`)
+	writeFile(t, filepath.Join(dataDir, "run.able"), `
+package sample
+
+fn main() {
+  print("data")
+}
+`)
+	enterWorkingDir(t, dataDir)
+	t.Setenv("ABLE_SOURCE_ROOT_ONLY", "1")
+
+	code, stdout, stderr := captureCLI(t, []string{entryPath})
+	if code != 0 {
+		t.Fatalf("runEntry returned exit code %d, stderr: %s", code, stderr)
+	}
+	assertOutputContainsAll(t, stdout, "entry")
+}
+
 func TestRunEntryDirectFileWithManifest(t *testing.T) {
 	dir := t.TempDir()
 	enterWorkingDir(t, dir)
@@ -57,6 +92,51 @@ fn main() {
 	if code := run([]string{"solo.able"}); code != 0 {
 		t.Fatalf("run returned exit code %d, want 0", code)
 	}
+}
+
+func TestRunSkipTypecheckExecutesAlreadyValidatedTrustedSource(t *testing.T) {
+	dir := t.TempDir()
+	enterWorkingDir(t, dir)
+	writeFile(t, filepath.Join(dir, "main.able"), `
+fn rejected_by_typecheck() -> i32 {
+  "not an integer"
+}
+
+fn main() {
+  print("trusted execution")
+}
+`)
+
+	code, stdout, stderr := captureCLI(t, []string{"run", "main.able"})
+	if code == 0 {
+		t.Fatalf("ordinary run unexpectedly bypassed typechecking: stdout=%q stderr=%q", stdout, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("ordinary run printed output before typecheck failure: %q", stdout)
+	}
+	assertTextContainsAll(t, stderr, "typechecker:")
+
+	code, stdout, stderr = captureCLI(t, []string{"--exec-mode=bytecode", "run", "--skip-typecheck", "main.able"})
+	if code != 0 {
+		t.Fatalf("trusted bytecode run returned %d: %s", code, stderr)
+	}
+	assertOutputContainsAll(t, stdout, "trusted execution")
+}
+
+func TestCheckRejectsSkipTypecheck(t *testing.T) {
+	dir := t.TempDir()
+	enterWorkingDir(t, dir)
+	writeFile(t, filepath.Join(dir, "main.able"), `
+fn main() {
+  print("checked")
+}
+`)
+
+	code, _, stderr := captureCLI(t, []string{"check", "--skip-typecheck", "main.able"})
+	if code == 0 {
+		t.Fatal("check unexpectedly accepted --skip-typecheck")
+	}
+	assertTextContainsAll(t, stderr, "--skip-typecheck", "only for run")
 }
 
 func TestRunFileWithoutManifestStdlibAvailable(t *testing.T) {

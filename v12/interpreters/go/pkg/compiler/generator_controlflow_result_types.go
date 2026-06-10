@@ -159,5 +159,8 @@ func (g *generator) controlFlowNilResultExpr(resultType string) (string, bool) {
 	if resultType == "runtime.Value" {
 		return "runtime.NilValue{}", true
 	}
+	if resultType == "runtime.NilValue" {
+		return "runtime.NilValue{}", true
+	}
 	return g.typedNilExpr(resultType)
 }

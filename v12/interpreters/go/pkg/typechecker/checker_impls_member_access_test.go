@@ -116,6 +116,51 @@ func TestMethodsDefinitionMemberAccessSubstitutesGenerics(t *testing.T) {
 	}
 }
 
+func TestGenericNamedUnionMemberAccessRecordsMethodSelection(t *testing.T) {
+	checker := New()
+	union := ast.UnionDef(
+		"Outcome",
+		[]ast.TypeExpression{ast.Ty("T"), ast.Ty("nil")},
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+	)
+	method := ast.Fn(
+		"present",
+		[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+		[]ast.Statement{ast.Ret(ast.Bool(true))},
+		ast.Ty("bool"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	methods := ast.Methods(
+		ast.Gen(ast.Ty("Outcome"), ast.Ty("T")),
+		[]*ast.FunctionDefinition{method},
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+	)
+	module := ast.NewModule([]ast.Statement{union, methods}, nil, nil)
+	if diags, err := checker.CheckModule(module); err != nil || len(diags) != 0 {
+		t.Fatalf("CheckModule() = (%v, %v), want no diagnostics", diags, err)
+	}
+
+	env := NewEnvironment(checker.global)
+	env.Define("value", AppliedType{
+		Base:      UnionType{UnionName: "Outcome"},
+		Arguments: []Type{IntegerType{Suffix: "i64"}},
+	})
+	member := ast.Member(ast.ID("value"), "present")
+	if diags, _ := checker.checkMemberAccess(env, member); len(diags) != 0 {
+		t.Fatalf("checkMemberAccess() diagnostics = %v", diags)
+	}
+	selection, ok := checker.MethodSelections()[member]
+	if !ok || selection.Kind != MethodSelectionMethodSet || !selection.GenericNamedUnion || selection.MethodSet != methods {
+		t.Fatalf("method selection = %#v, want generic named-union method set", selection)
+	}
+}
+
 func TestMethodsDefinitionAllowsImplicitSelfWithoutAnnotation(t *testing.T) {
 	checker := New()
 	structDef := ast.StructDef(

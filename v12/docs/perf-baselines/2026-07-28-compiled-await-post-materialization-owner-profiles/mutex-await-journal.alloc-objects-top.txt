@@ -1,0 +1,54 @@
+File: app
+Build ID: b76a140c16c85af78a3b9b99dcc8758dd91f157a
+Type: alloc_objects
+Time: 2026-07-28 06:36:08 CDT
+Showing nodes accounting for 41332, 99.15% of 41685 total
+Dropped 199 nodes (cum <= 208)
+      flat  flat%   sum%        cum   cum%
+     13670 32.79% 32.79%      13670 32.79%  runtime/pprof.allFrames
+      4101  9.84% 42.63%       4101  9.84%  able/interpreter-go/pkg/compiler/bridge.ToInt
+      4096  9.83% 52.46%       4096  9.83%  main.__able_array_iface_Awaitable_i64_to
+      4096  9.83% 62.28%       4096  9.83%  main.__able_fn_void_to_int64_to_runtime_value
+      3527  8.46% 70.74%       3553  8.52%  runtime/pprof.(*profileBuilder).emitLocation
+      2048  4.91% 75.66%      22619 54.26%  main.__able_compiled_fn_run_lane_ctx
+      2048  4.91% 80.57%       2048  4.91%  main.__able_iface_Awaitable_i64_wrap_runtime (inline)
+      2048  4.91% 85.48%       2053  4.93%  main.__able_make_await_waker_ctx
+      2048  4.91% 90.40%       2048  4.91%  main.__able_mutex_await_lock_impl
+      2048  4.91% 95.31%       2051  4.92%  main.__able_notify_mutex_awaiters
+      1592  3.82% 99.13%      18914 45.37%  runtime/pprof.writeHeapProto
+         6 0.014% 99.14%      17236 41.35%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         1 0.0024% 99.15%      18920 45.39%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.0024% 99.15%       6211 14.90%  main.__able_await_with_state_ctx
+         1 0.0024% 99.15%       6185 14.84%  main.__able_invoke_awaitable_method_ctx
+         1 0.0024% 99.15%      18915 45.38%  runtime/pprof.writeHeapInternal
+         0     0% 99.15%      18920 45.39%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.15%      18920 45.39%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.15%      22648 54.33%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 99.15%       6151 14.76%  main.(*__able_mutex_awaitable).NativeAwaitableCommit
+         0     0% 99.15%       6151 14.76%  main.(*__able_mutex_awaitable).commit
+         0     0% 99.15%       8280 19.86%  main.__able_await_ctx
+         0     0% 99.15%       8280 19.86%  main.__able_await_value_ctx
+         0     0% 99.15%       4099  9.83%  main.__able_call_value_fast_ctx
+         0     0% 99.15%       5662 13.58%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.15%       5659 13.58%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.15%       5649 13.55%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 99.15%       5653 13.56%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 99.15%       2051  4.92%  main.__able_compiled_fn_run_lane_ctx.func1
+         0     0% 99.15%       8194 19.66%  main.__able_compiled_method_Mutex_await_lock_spec_ctx
+         0     0% 99.15%       2051  4.92%  main.__able_compiled_method_Mutex_unlock_ctx
+         0     0% 99.15%       6151 14.76%  main.__able_complete_await_ctx
+         0     0% 99.15%       4099  9.83%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0% 99.15%       2049  4.92%  main.__able_iface_Awaitable_i64_from_value
+         0     0% 99.15%       2049  4.92%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0% 99.15%       2069  4.96%  main.__able_initialize_await_state_ctx
+         0     0% 99.15%       2048  4.91%  main.__able_mutex_await_lock_ctx (inline)
+         0     0% 99.15%       2051  4.92%  main.__able_mutex_unlock_ctx (inline)
+         0     0% 99.15%       2051  4.92%  main.__able_mutex_unlock_impl
+         0     0% 99.15%      22648 54.33%  main.__able_run_compiled_task
+         0     0% 99.15%      22627 54.28%  main.__able_spawn_context.func1
+         0     0% 99.15%      19026 45.64%  main.main
+         0     0% 99.15%      19026 45.64%  main.runMain
+         0     0% 99.15%      18920 45.39%  main.startMainProfilePhase (inline)
+         0     0% 99.15%      19026 45.64%  runtime.main
+         0     0% 99.15%      18915 45.38%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.15%      18915 45.38%  runtime/pprof.writeAlloc

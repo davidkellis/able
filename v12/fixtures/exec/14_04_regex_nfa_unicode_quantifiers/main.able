@@ -1,0 +1,52 @@
+package exec_14_04_regex_nfa_unicode_quantifiers
+
+import able.text.regex.{Regex, Match}
+
+## Semantics: the regex NFA matches Unicode code points, greedy bounds, iteration, and empty spans.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("é+") match {
+    case regex: Regex => show_match("unicode", regex.match("xééd")),
+    case _ => print("unicode compile error")
+  }
+
+  Regex.compile("a{2,3}a") match {
+    case regex: Regex => show_match("bounded", regex.match("aaaa")),
+    case _ => print("bounded compile error")
+  }
+
+  Regex.compile("a+") match {
+    case regex: Regex => {
+      print("multiple")
+      iter := regex.find_all("aa baa")
+      loop {
+        iter.next() match {
+          case m: Match => print(`- ${m.matched} ${m.span.start}-${m.span.end}`),
+          case _ => { break }
+        }
+      }
+    },
+    case _ => print("multiple compile error")
+  }
+
+  Regex.compile("a*") match {
+    case regex: Regex => {
+      print("zero")
+      iter := regex.find_all("b")
+      loop {
+        iter.next() match {
+          case m: Match => print(`- ${m.matched} ${m.span.start}-${m.span.end}`),
+          case _ => { break }
+        }
+      }
+    },
+    case _ => print("zero compile error")
+  }
+}

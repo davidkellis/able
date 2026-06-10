@@ -278,6 +278,7 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 		return nil, false
 	}
 	subjectTemp := ctx.newTemp()
+	subjectTypeExpr, _ := g.inferLocalTypeExpr(ctx, match.Subject, subjectType)
 	matchedTemp := ctx.newTemp()
 	matchNode := g.diagNodeName(match, "*ast.MatchExpression", "match")
 	lines := append([]string{}, subjectLines...)
@@ -293,6 +294,9 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 		}
 		clauseCtx := ctx.child()
 		clauseSubjectLines, clauseSubjectExpr := g.narrowedNativeUnionSubjectExpr(clauseCtx, subjectTemp, subjectType, clauseSubjectType)
+		if clauseCtx.matchSubjectTypeExpr == nil && subjectTypeExpr != nil {
+			clauseCtx.matchSubjectTypeExpr = g.lowerNormalizedTypeExpr(clauseCtx, subjectTypeExpr)
+		}
 		condLines, cond, bindLines, ok := g.compileMatchPattern(clauseCtx, clause.Pattern, clauseSubjectExpr, clauseSubjectType)
 		if !ok {
 			ctx.setReason(clauseCtx.reason)
@@ -318,14 +322,18 @@ func (g *generator) compileMatchStatement(ctx *compileContext, match *ast.MatchE
 				return nil, false
 			}
 		} else {
-			exprLines, expr, _, ok := g.compileTailExpression(clauseCtx, "", clause.Body)
+			exprLines, expr, exprType, ok := g.compileDiscardedTailExpression(clauseCtx, clause.Body)
 			if !ok {
 				ctx.setReason(clauseCtx.reason)
 				return nil, false
 			}
 			bodyLines = append(bodyLines, exprLines...)
 			if expr != "" {
-				bodyLines = append(bodyLines, fmt.Sprintf("_ = %s", expr))
+				bodyLines, ok = g.discardStatementResult(clauseCtx, bodyLines, expr, exprType)
+				if !ok {
+					ctx.setReason(clauseCtx.reason)
+					return nil, false
+				}
 			}
 		}
 		branchLines := append([]string{}, bindLines...)

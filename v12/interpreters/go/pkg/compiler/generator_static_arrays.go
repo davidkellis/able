@@ -133,6 +133,9 @@ func (g *generator) inferStaticCallResultTypeExpr(ctx *compileContext, call *ast
 		if !ok || memberIdent == nil {
 			return nil, false
 		}
+		if resultExpr, ok := g.genericNamedUnionMethodResultTypeExpr(ctx, call, callee); ok && resultExpr != nil {
+			return g.wrapSafeNavigationTypeExpr(ctx, g.dispatchReceiverTypeExpr(ctx, callee.Object), callee.Safe, resultExpr), true
+		}
 		if typeIdent, ok := callee.Object.(*ast.Identifier); ok && typeIdent != nil && typeIdent.Name == "Array" {
 			switch memberIdent.Name {
 			case "new", "with_capacity":

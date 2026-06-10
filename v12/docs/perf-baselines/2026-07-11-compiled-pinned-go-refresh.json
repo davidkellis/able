@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-07-11T21:32:02Z",
+  "method": {
+    "go_version": "go1.26.4",
+    "runs": 3,
+    "timeout_seconds": 45,
+    "cpu_affinity": "2",
+    "gomaxprocs": 1,
+    "verification": "suite verify.rb after each timed process"
+  },
+  "rows": [
+    {"benchmark": "fib", "able_seconds": 3.3567, "go_seconds": 3.1752, "able_over_go": 1.0572, "go_validation": "verified"},
+    {"benchmark": "binarytrees", "able_seconds": 31.26, "go_seconds": 34.3861, "able_over_go": 0.9091, "go_validation": "verified"},
+    {"benchmark": "quicksort", "able_seconds": 1.97, "go_seconds": 2.7058, "able_over_go": 0.7281, "go_validation": "verified"},
+    {"benchmark": "i_before_e", "able_seconds": 0.1367, "go_seconds": 0.0687, "able_over_go": 1.9898, "go_validation": "verified"},
+    {"benchmark": "base64", "able_seconds": 2.5, "go_seconds": 2.6438, "able_over_go": 0.9456, "go_validation": "verified"},
+    {"benchmark": "json", "able_seconds": 0.7767, "go_seconds": 1.5587, "able_over_go": 0.4983, "go_validation": "verified"},
+    {"benchmark": "monte_carlo_pi", "able_seconds": 0.2133, "go_seconds": 0.2178, "able_over_go": 0.9793, "go_validation": "verified-nondeterministic"},
+    {"benchmark": "pidigits", "able_seconds": 1.3733, "go_seconds": 1.2814, "able_over_go": 1.0717, "go_validation": "verified"},
+    {"benchmark": "mandelbrot", "able_seconds": 0.1567, "go_seconds": 0.0534, "able_over_go": 2.9345, "go_validation": "verified"},
+    {"benchmark": "reverse_complement", "able_seconds": 0.1367, "go_seconds": 0.0167, "able_over_go": 8.1856, "go_validation": "verified"}
+  ]
+}

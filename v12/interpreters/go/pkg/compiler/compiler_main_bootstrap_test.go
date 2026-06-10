@@ -33,6 +33,114 @@ func TestCompilerMainSkipsProgramEvaluationWhenStaticAndFallbackFree(t *testing.
 	}
 }
 
+func TestCompilerStaticGeneratedCodeOmitsInterpreterRoots(t *testing.T) {
+	mainSrc, compiledSrc := compileOutputs(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"fn main() -> i32 {",
+			"  1 + 2",
+			"}",
+			"",
+		}, "\n"),
+	})
+	if strings.Contains(mainSrc, "interpreter.") {
+		t.Fatalf("static launcher retains a concrete interpreter reference:\n%s", mainSrc)
+	}
+	var interpreterRoots []string
+	for _, line := range strings.Split(compiledSrc, "\n") {
+		if strings.Contains(line, "interpreter.") {
+			interpreterRoots = append(interpreterRoots, strings.TrimSpace(line))
+		}
+	}
+	sort.Strings(interpreterRoots)
+	if len(interpreterRoots) != 0 {
+		t.Fatalf("static generated interpreter roots = %q, want none", interpreterRoots)
+	}
+	if strings.Contains(compiledSrc, "\"able/interpreter-go/pkg/interpreter\"") {
+		t.Fatalf("static generated code retains the interpreter import")
+	}
+}
+
+func TestCompilerStaticMainOmitsPackageInterfaceDefaultASTMetadata(t *testing.T) {
+	mainSrc, compiledSrc := compileOutputs(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"struct Point { x: i32, y: i32 }",
+			"",
+			"interface MyEq {",
+			"  fn eq(self: Self, other: Self) -> bool",
+			"  fn ne(self: Self, other: Self) -> bool { !self.eq(other) }",
+			"}",
+			"",
+			"impl MyEq for Point {",
+			"  fn eq(self: Self, other: Self) -> bool { self.x == other.x && self.y == other.y }",
+			"}",
+			"",
+			"fn main() -> bool {",
+			"  a := Point { x: 1, y: 2 }",
+			"  b := Point { x: 1, y: 3 }",
+			"  a.ne(b)",
+			"}",
+			"",
+		}, "\n"),
+	})
+	if strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected static launcher to avoid interpreter bootstrap")
+	}
+	if !strings.Contains(mainSrc, "RegisterIn(nil, entryEnv)") {
+		t.Fatalf("expected static launcher to use compiled registration")
+	}
+	if !strings.Contains(compiledSrc, "ast.NewFunctionSignature(ast.NewIdentifier(\"ne\")") {
+		t.Fatalf("expected static package interface signature metadata")
+	}
+	if strings.Contains(compiledSrc, "interpreter.DecodeNodeJSON([]byte(") {
+		t.Fatalf("expected static package interface defaults to omit unreachable AST metadata")
+	}
+}
+
+func TestCompilerBootstrapMainRetainsPackageInterfaceDefaultASTMetadata(t *testing.T) {
+	mainSrc, compiledSrc := compileOutputs(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"interface Value {",
+			"  fn value(self: Self) -> i32 { 7 }",
+			"}",
+			"",
+			"struct Box { value: i32 }",
+			"",
+			"fn make_box() -> Box {",
+			"  Box { value: 7 }",
+			"}",
+			"",
+			"methods Box {",
+			"  fn unsupported(self: Self) -> i64 {",
+			"    missing_runtime_fn()",
+			"  }",
+			"}",
+			"",
+			"fn main() -> i64 {",
+			"  make_box().unsupported()",
+			"}",
+			"",
+		}, "\n"),
+	})
+	if !strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected fallback launcher to retain interpreter bootstrap")
+	}
+	if !strings.Contains(compiledSrc, "interpreter.DecodeNodeJSON([]byte(") {
+		t.Fatalf("expected bootstrap package interface defaults to retain AST metadata")
+	}
+	if !strings.Contains(compiledSrc, "interpreter.ApplyBinaryOperatorFast(") {
+		t.Fatalf("expected bootstrap generated code to retain dynamic binary operator semantics")
+	}
+	if !strings.Contains(compiledSrc, "interpreter.ApplyUnaryOperatorFast(") {
+		t.Fatalf("expected bootstrap generated code to retain dynamic unary operator semantics")
+	}
+}
+
 func TestCompilerMainKeepsProgramEvaluationWhenDynamicFeaturesPresent(t *testing.T) {
 	mainSrc := compileMainSource(t, "demo", strings.Join([]string{
 		"package demo",
@@ -71,10 +179,19 @@ func TestCompilerMainUsesInstalledStdlibDiscoveryBeforeSiblingLookup(t *testing.
 	if !strings.Contains(mainSrc, "profilehook.StartFromEnv()") {
 		t.Fatalf("expected emitted main.go to install opt-in profiling hook")
 	}
-	if !strings.Contains(mainSrc, "func runMain() int") {
+	if !strings.Contains(mainSrc, "profilehook.NewPhaseProfilerFromEnv()") {
+		t.Fatalf("expected emitted main.go to install opt-in phase profiling hook")
+	}
+	if !strings.Contains(mainSrc, "phaseProfiler.StartBootstrap()") {
+		t.Fatalf("expected emitted main.go to begin bootstrap phase profiling")
+	}
+	if !strings.Contains(mainSrc, "func runMain(phaseProfiler *profilehook.PhaseProfiler) int") {
 		t.Fatalf("expected emitted main.go to route execution through runMain for profile flushing")
 	}
-	if !strings.Contains(mainSrc, "interpreter.ExecutorKindFromEnvironment()") {
+	if !strings.Contains(mainSrc, "startMainProfilePhase(phaseProfiler)") {
+		t.Fatalf("expected emitted main.go to transition profiling before registered main")
+	}
+	if !strings.Contains(mainSrc, "bridge.ExecutorKindFromEnvironment()") {
 		t.Fatalf("expected emitted main.go to resolve ABLE_EXECUTOR for static launchers")
 	}
 	if !strings.Contains(mainSrc, "rt.SetExecutorKind(executorKind)") {
@@ -98,11 +215,41 @@ func TestCompilerMainSkipsProgramEvaluationWhenStaticUsesHelpers(t *testing.T) {
 	if strings.Contains(mainSrc, "EvaluateProgram(") {
 		t.Fatalf("expected static launcher with helpers to skip interpreter program evaluation")
 	}
-	if !strings.Contains(mainSrc, "interpreter.ExecutorKindFromEnvironment()") {
+	if !strings.Contains(mainSrc, "bridge.ExecutorKindFromEnvironment()") {
 		t.Fatalf("expected static launcher to resolve ABLE_EXECUTOR without interpreter bootstrap")
 	}
 	if !strings.Contains(mainSrc, "rt.SetExecutorKind(executorKind)") {
 		t.Fatalf("expected static launcher to propagate executor kind into the runtime")
+	}
+}
+
+func TestCompilerMainStaticHostExternsUseNoBootstrapBridge(t *testing.T) {
+	mainSrc := compileMainSource(t, "demo", strings.Join([]string{
+		"package demo",
+		"",
+		"extern go fn temp_dir() -> String {",
+		"  return os.TempDir()",
+		"}",
+		"",
+		"fn main() -> String {",
+		"  temp_dir()",
+		"}",
+		"",
+	}, "\n"))
+	if strings.Contains(mainSrc, "EvaluateProgram(") {
+		t.Fatalf("expected static host-extern launcher to avoid full interpreter program evaluation")
+	}
+	if strings.Contains(mainSrc, "interpreter.NewWithExecutor(exec)") {
+		t.Fatalf("expected static host-extern launcher to avoid constructing an interpreter")
+	}
+	if !strings.Contains(mainSrc, "entryEnv := runtime.NewEnvironment(nil)") {
+		t.Fatalf("expected static host-extern launcher to create a standalone entry environment")
+	}
+	if !strings.Contains(mainSrc, "rt, err := RegisterIn(nil, entryEnv)") {
+		t.Fatalf("expected static host-extern launcher to register against a nil interpreter")
+	}
+	if !strings.Contains(mainSrc, "if err := RunRegisteredMain(rt, nil, entryEnv); err != nil {") {
+		t.Fatalf("expected static host-extern launcher to execute without interpreter fallback")
 	}
 }
 

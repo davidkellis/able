@@ -1,0 +1,10 @@
+{
+  "description": "dot_matches_newline enables newline consumption through the shared wildcard NFA transition",
+  "expect": {
+    "stdout": [
+      "default nil",
+      "enabled 0-1",
+      "grouped 0-3"
+    ]
+  }
+}

@@ -23,6 +23,7 @@ func (g *generator) renderStructs(buf *bytes.Buffer) {
 		}
 		if info.Name == "Array" {
 			fmt.Fprintf(buf, "\tElements []runtime.Value\n")
+			fmt.Fprintf(buf, "\tarrayStoreLease runtime.ArrayStoreLease\n")
 		}
 		fmt.Fprintf(buf, "}\n\n")
 		info.Rendered = true
@@ -122,6 +123,25 @@ func (g *generator) renderStructTryFrom(buf *bytes.Buffer, info *structInfo) {
 
 func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "func __able_struct_%s_from(value runtime.Value) (*%s, error) {\n", info.GoName, info.GoName)
+	source := g.typedBoundaryAbleSource(info.Package, info.Node, info.Name)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "struct_from_runtime",
+		GeneratedFunction: "__able_struct_" + info.GoName + "_from",
+		AbleSource:        source,
+		Carrier:           "runtime.Value",
+		ImmediateConsumer: "*" + info.GoName,
+		Reason:            "recover a nominal Able value from semantic runtime encoding",
+	}, "\t")
+	if info.Name == "Array" {
+		g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+			Category:          "array_from_runtime",
+			GeneratedFunction: "__able_struct_" + info.GoName + "_from",
+			AbleSource:        source,
+			Carrier:           "runtime.Value",
+			ImmediateConsumer: "*" + info.GoName,
+			Reason:            "recover the generic Array carrier from runtime representation",
+		}, "\t")
+	}
 	fmt.Fprintf(buf, "\tout := &%s{}\n", info.GoName)
 	fmt.Fprintf(buf, "\tcurrent := __able_unwrap_interface(value)\n")
 	fmt.Fprintf(buf, "\tif _, isNil := current.(runtime.NilValue); isNil {\n")
@@ -145,6 +165,9 @@ func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\tout.Storage_handle = raw.Handle\n")
 		fmt.Fprintf(buf, "\t\t__able_struct_Array_sync(out)\n")
+		fmt.Fprintf(buf, "\t\tif err := __able_struct_Array_track_handle(out); err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn out, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\treturn out, nil\n")
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tif inst, ok := current.(*runtime.StructInstanceValue); ok && inst != nil {\n")
@@ -156,7 +179,13 @@ func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t\tout.Storage_handle = sourceHandle\n")
 		fmt.Fprintf(buf, "\t\tout.Length = sourceLength\n")
 		fmt.Fprintf(buf, "\t\tout.Capacity = sourceCapacity\n")
+		fmt.Fprintf(buf, "\t\tif err := runtime.ArrayStoreTrackStructInstanceLease(inst, sourceHandle); err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn out, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\t__able_struct_Array_sync(out)\n")
+		fmt.Fprintf(buf, "\t\tif err := __able_struct_Array_track_handle(out); err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn out, err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\treturn out, nil\n")
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn out, fmt.Errorf(\"expected Array value\")\n")
@@ -205,9 +234,6 @@ func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
 			g.renderFieldFromPositional(buf, field, idx)
 		}
 	} else {
-		fmt.Fprintf(buf, "\tif inst.Fields == nil {\n")
-		fmt.Fprintf(buf, "\t\treturn out, fmt.Errorf(\"missing fields for %s\")\n", info.Name)
-		fmt.Fprintf(buf, "\t}\n")
 		for _, field := range info.Fields {
 			g.renderFieldFromNamed(buf, field)
 		}
@@ -218,7 +244,7 @@ func (g *generator) renderStructFrom(buf *bytes.Buffer, info *structInfo) {
 
 func (g *generator) renderFieldFromNamed(buf *bytes.Buffer, field fieldInfo) {
 	fmt.Fprintf(buf, "\t{\n")
-	fmt.Fprintf(buf, "\t\tfieldValue, ok := inst.Fields[%q]\n", field.Name)
+	fmt.Fprintf(buf, "\t\tfieldValue, ok := __able_struct_named_field_value(inst, %q)\n", field.Name)
 	fmt.Fprintf(buf, "\t\tif !ok {\n")
 	fmt.Fprintf(buf, "\t\t\treturn out, fmt.Errorf(\"missing field %s\")\n", field.Name)
 	fmt.Fprintf(buf, "\t\t}\n")
@@ -242,6 +268,14 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 	}
 	fmt.Fprintf(buf, "func __able_struct_%s_to(rt *bridge.Runtime, value *%s) (runtime.Value, error) {\n", info.GoName, info.GoName)
 	if info.Name == "Array" {
+		g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+			Category:          "array_to_runtime",
+			GeneratedFunction: "__able_struct_" + info.GoName + "_to",
+			AbleSource:        g.typedBoundaryAbleSource(info.Package, info.Node, info.Name),
+			Carrier:           "*" + info.GoName,
+			ImmediateConsumer: "runtime.Value",
+			Reason:            "encode the generic Array carrier for runtime-visible semantics",
+		}, "\t")
 		fmt.Fprintf(buf, "\tif rt == nil {\n")
 		fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 		fmt.Fprintf(buf, "\t}\n")
@@ -249,6 +283,9 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing %s value\")\n", info.Name)
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\t__able_struct_Array_sync(value)\n")
+		fmt.Fprintf(buf, "\tif err := __able_struct_Array_track_handle(value); err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tcapHint := __able_struct_Array_capacity_hint(value)\n")
 		fmt.Fprintf(buf, "\telems := __able_struct_Array_clone_elements(value.Elements, capHint)\n")
 		fmt.Fprintf(buf, "\tif value.Storage_handle == 0 {\n")
@@ -260,7 +297,11 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tstate.Values = elems\n")
 		fmt.Fprintf(buf, "\tstate.Capacity = cap(elems)\n")
-		fmt.Fprintf(buf, "\treturn &runtime.ArrayValue{Elements: state.Values, Handle: value.Storage_handle}, nil\n")
+		fmt.Fprintf(buf, "\tresult := &runtime.ArrayValue{Elements: state.Values, Handle: value.Storage_handle}\n")
+		fmt.Fprintf(buf, "\tif err := runtime.ArrayStoreTrackArrayValueLease(result, result.Handle); err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t}\n")
+		fmt.Fprintf(buf, "\treturn result, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
 		fmt.Fprintf(buf, "func __able_struct_%s_to_seen(rt *bridge.Runtime, value *%s, seen map[any]runtime.Value) (runtime.Value, error) {\n", info.GoName, info.GoName)
 		fmt.Fprintf(buf, "\treturn __able_struct_%s_to(rt, value)\n", info.GoName)
@@ -271,6 +312,14 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "}\n\n")
 	}
 	fmt.Fprintf(buf, "func __able_struct_%s_to_seen(rt *bridge.Runtime, value *%s, seen map[any]runtime.Value) (runtime.Value, error) {\n", info.GoName, info.GoName)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "struct_to_runtime",
+		GeneratedFunction: "__able_struct_" + info.GoName + "_to_seen",
+		AbleSource:        g.typedBoundaryAbleSource(info.Package, info.Node, info.Name),
+		Carrier:           "*" + info.GoName,
+		ImmediateConsumer: "runtime.Value",
+		Reason:            "encode a nominal Able value for semantic runtime visibility",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -300,10 +349,13 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 		}
 		fmt.Fprintf(buf, "\treturn out, nil\n")
 	} else {
-		fmt.Fprintf(buf, "\tout := &runtime.StructInstanceValue{Definition: def, Fields: make(map[string]runtime.Value, %d)}\n", len(info.Fields))
+		fmt.Fprintf(buf, "\tout, fields := runtime.NewStructInstancePositionalSized(def, %d, nil)\n", len(info.Fields))
+		fmt.Fprintf(buf, "\t_ = fields\n")
 		fmt.Fprintf(buf, "\tseen[value] = out\n")
-		for _, field := range info.Fields {
-			g.renderValueToRuntimeNamedWithSeen(buf, "value."+field.GoName, field.GoType, field.Name, "seen")
+		for idx, field := range info.Fields {
+			fmt.Fprintf(buf, "\t{\n")
+			g.renderValueToRuntimeAssignWithSeen(buf, "value."+field.GoName, field.GoType, fmt.Sprintf("fields[%d]", idx), "seen")
+			fmt.Fprintf(buf, "\t}\n")
 		}
 		fmt.Fprintf(buf, "\treturn out, nil\n")
 	}
@@ -321,6 +373,9 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "\ttargetCurrent := __able_unwrap_interface(target)\n")
 	if info.Name == "Array" {
 		fmt.Fprintf(buf, "\t__able_struct_Array_sync(value)\n")
+		fmt.Fprintf(buf, "\tif err := __able_struct_Array_track_handle(value); err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn err\n")
+		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tif raw, ok, nilPtr := __able_runtime_array_value(targetCurrent); ok || nilPtr {\n")
 		fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
 		fmt.Fprintf(buf, "\t\t\treturn fmt.Errorf(\"expected %s struct instance\")\n", info.Name)
@@ -334,6 +389,9 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t\t\traw.Handle = 0\n")
 		fmt.Fprintf(buf, "\t\t\traw.Elements = __able_struct_Array_clone_elements(value.Elements, capHint)\n")
 		fmt.Fprintf(buf, "\t\t\tvalue.Storage_handle = 0\n")
+		fmt.Fprintf(buf, "\t\t\tif err := __able_struct_Array_track_handle(value); err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\t\treturn err\n")
+		fmt.Fprintf(buf, "\t\t\t}\n")
 		fmt.Fprintf(buf, "\t\t\treturn nil\n")
 		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\tcapHint := __able_struct_Array_capacity_hint(value)\n")
@@ -347,6 +405,12 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t\traw.Handle = preferredHandle\n")
 		fmt.Fprintf(buf, "\t\traw.Elements = state.Values\n")
 		fmt.Fprintf(buf, "\t\tvalue.Storage_handle = preferredHandle\n")
+		fmt.Fprintf(buf, "\t\tif err := runtime.ArrayStoreTrackArrayValueLease(raw, raw.Handle); err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
+		fmt.Fprintf(buf, "\t\tif err := __able_struct_Array_track_handle(value); err != nil {\n")
+		fmt.Fprintf(buf, "\t\t\treturn err\n")
+		fmt.Fprintf(buf, "\t\t}\n")
 		fmt.Fprintf(buf, "\t\treturn nil\n")
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tinst, ok := targetCurrent.(*runtime.StructInstanceValue)\n")
@@ -357,7 +421,7 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\t\treturn fmt.Errorf(\"expected %s struct instance\")\n", info.Name)
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tpreferredHandle := value.Storage_handle\n")
-		fmt.Fprintf(buf, "\tif handleVal, ok := inst.Fields[\"storage_handle\"]; ok {\n")
+		fmt.Fprintf(buf, "\tif handleVal, ok := __able_struct_named_field_value(inst, \"storage_handle\"); ok {\n")
 		fmt.Fprintf(buf, "\t\thandle, herr := __able_array_handle_from_value(handleVal)\n")
 		fmt.Fprintf(buf, "\t\tif herr == nil && handle != 0 {\n")
 		fmt.Fprintf(buf, "\t\t\tpreferredHandle = handle\n")
@@ -380,7 +444,13 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 		fmt.Fprintf(buf, "\tinst.Fields[\"length\"] = bridge.ToInt(int64(len(state.Values)), runtime.IntegerI32)\n")
 		fmt.Fprintf(buf, "\tinst.Fields[\"capacity\"] = bridge.ToInt(int64(state.Capacity), runtime.IntegerI32)\n")
 		fmt.Fprintf(buf, "\tinst.Fields[\"storage_handle\"] = bridge.ToInt(preferredHandle, runtime.IntegerI64)\n")
+		fmt.Fprintf(buf, "\tif err := runtime.ArrayStoreTrackStructInstanceLease(inst, preferredHandle); err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn err\n")
+		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\tvalue.Storage_handle = preferredHandle\n")
+		fmt.Fprintf(buf, "\tif err := __able_struct_Array_track_handle(value); err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn err\n")
+		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn nil\n")
 		fmt.Fprintf(buf, "}\n\n")
 		return
@@ -426,85 +496,6 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "\tinst.Fields = updated.Fields\n")
 	fmt.Fprintf(buf, "\tinst.Positional = updated.Positional\n")
 	fmt.Fprintf(buf, "\treturn nil\n")
-	fmt.Fprintf(buf, "}\n\n")
-}
-
-func (g *generator) renderArrayStructHelpers(buf *bytes.Buffer) {
-	fmt.Fprintf(buf, "func __able_struct_Array_sync(value *Array) {\n")
-	fmt.Fprintf(buf, "\tif value == nil {\n")
-	fmt.Fprintf(buf, "\t\treturn\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tvalue.Length = int32(len(value.Elements))\n")
-	fmt.Fprintf(buf, "\tvalue.Capacity = int32(cap(value.Elements))\n")
-	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_struct_Array_capacity_hint(value *Array) int {\n")
-	fmt.Fprintf(buf, "\tif value == nil {\n")
-	fmt.Fprintf(buf, "\t\treturn 0\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tcapHint := cap(value.Elements)\n")
-	fmt.Fprintf(buf, "\tif capHint < int(value.Capacity) {\n")
-	fmt.Fprintf(buf, "\t\tcapHint = int(value.Capacity)\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tif capHint < len(value.Elements) {\n")
-	fmt.Fprintf(buf, "\t\tcapHint = len(value.Elements)\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\treturn capHint\n")
-	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_struct_Array_clone_elements(values []runtime.Value, capacityHint int) []runtime.Value {\n")
-	fmt.Fprintf(buf, "\tif capacityHint < len(values) {\n")
-	fmt.Fprintf(buf, "\t\tcapacityHint = len(values)\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tcloned := make([]runtime.Value, len(values), capacityHint)\n")
-	fmt.Fprintf(buf, "\tcopy(cloned, values)\n")
-	fmt.Fprintf(buf, "\treturn cloned\n")
-	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_array_struct_instance_state(inst *runtime.StructInstanceValue) ([]runtime.Value, int64, int32, int32, error) {\n")
-	fmt.Fprintf(buf, "\tif inst == nil || inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil || inst.Definition.Node.ID.Name != \"Array\" {\n")
-	fmt.Fprintf(buf, "\t\treturn nil, 0, 0, 0, fmt.Errorf(\"expected Array value\")\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tvar sourceValues []runtime.Value\n")
-	fmt.Fprintf(buf, "\tvar sourceHandle int64\n")
-	fmt.Fprintf(buf, "\tvar sourceLength int32\n")
-	fmt.Fprintf(buf, "\tvar sourceCapacity int32\n")
-	fmt.Fprintf(buf, "\tif lengthVal, ok := inst.Fields[\"length\"]; ok {\n")
-	fmt.Fprintf(buf, "\t\tlength, err := bridge.AsInt(lengthVal, 32)\n")
-	fmt.Fprintf(buf, "\t\tif err != nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn nil, 0, 0, 0, err\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\tsourceLength = int32(length)\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tif capacityVal, ok := inst.Fields[\"capacity\"]; ok {\n")
-	fmt.Fprintf(buf, "\t\tcapacity, err := bridge.AsInt(capacityVal, 32)\n")
-	fmt.Fprintf(buf, "\t\tif err != nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn nil, 0, 0, 0, err\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\tsourceCapacity = int32(capacity)\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tif handleVal, ok := inst.Fields[\"storage_handle\"]; ok {\n")
-	fmt.Fprintf(buf, "\t\thandle, err := __able_array_handle_from_value(handleVal)\n")
-	fmt.Fprintf(buf, "\t\tif err != nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn nil, 0, 0, 0, err\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\tsourceHandle = handle\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tif sourceHandle != 0 {\n")
-	fmt.Fprintf(buf, "\t\tstate, err := runtime.ArrayStoreState(sourceHandle)\n")
-	fmt.Fprintf(buf, "\t\tif err != nil {\n")
-	fmt.Fprintf(buf, "\t\t\treturn nil, 0, 0, 0, err\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\tsourceValues = make([]runtime.Value, len(state.Values), state.Capacity)\n")
-	fmt.Fprintf(buf, "\t\tcopy(sourceValues, state.Values)\n")
-	fmt.Fprintf(buf, "\t\tsourceLength = int32(len(state.Values))\n")
-	fmt.Fprintf(buf, "\t\tsourceCapacity = int32(state.Capacity)\n")
-	fmt.Fprintf(buf, "\t} else {\n")
-	fmt.Fprintf(buf, "\t\tif sourceCapacity < sourceLength {\n")
-	fmt.Fprintf(buf, "\t\t\tsourceCapacity = sourceLength\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\tif sourceCapacity > 0 {\n")
-	fmt.Fprintf(buf, "\t\t\tsourceValues = make([]runtime.Value, int(sourceLength), int(sourceCapacity))\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\treturn sourceValues, sourceHandle, sourceLength, sourceCapacity, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 }
 
@@ -625,21 +616,44 @@ func (g *generator) renderValueToRuntime(buf *bytes.Buffer, valueExpr, goType, t
 	g.renderValueToRuntimeWithSeen(buf, valueExpr, goType, targetSlice, "")
 }
 
+func (g *generator) renderStructValueToRuntimeWithSeen(
+	buf *bytes.Buffer,
+	valueExpr, goType, seenVar, indent, assignmentFormat string,
+) bool {
+	if seenVar == "" || g.typeCategory(goType) != "struct" {
+		return false
+	}
+	baseName, ok := g.structHelperName(goType)
+	if !ok {
+		return false
+	}
+	renderConverted := func(level string) {
+		fmt.Fprintf(buf, "%s{\n", level)
+		fmt.Fprintf(buf, "%s\tconverted, err := __able_struct_%s_to_seen(rt, %s, %s)\n", level, baseName, valueExpr, seenVar)
+		fmt.Fprintf(buf, "%s\tif err != nil {\n", level)
+		fmt.Fprintf(buf, "%s\t\treturn nil, err\n", level)
+		fmt.Fprintf(buf, "%s\t}\n", level)
+		fmt.Fprintf(buf, "%s\t%s\n", level, fmt.Sprintf(assignmentFormat, "converted"))
+		fmt.Fprintf(buf, "%s}\n", level)
+	}
+	if g.goTypeHasNilZeroValue(goType) {
+		fmt.Fprintf(buf, "%sif (%s) == nil {\n", indent, valueExpr)
+		fmt.Fprintf(buf, "%s\t%s\n", indent, fmt.Sprintf(assignmentFormat, "runtime.NilValue{}"))
+		fmt.Fprintf(buf, "%s} else {\n", indent)
+		renderConverted(indent + "\t")
+		fmt.Fprintf(buf, "%s}\n", indent)
+		return true
+	}
+	renderConverted(indent)
+	return true
+}
+
 func (g *generator) renderValueToRuntimeWithSeen(buf *bytes.Buffer, valueExpr, goType, targetSlice, seenVar string) {
 	if seenVar != "" {
-		switch g.typeCategory(goType) {
-		case "struct":
-			if baseName, ok := g.structHelperName(goType); ok {
-				fmt.Fprintf(buf, "\t{\n")
-				fmt.Fprintf(buf, "\t\tconverted, err := __able_struct_%s_to_seen(rt, %s, %s)\n", baseName, valueExpr, seenVar)
-				fmt.Fprintf(buf, "\t\tif err != nil {\n")
-				fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
-				fmt.Fprintf(buf, "\t\t}\n")
-				fmt.Fprintf(buf, "\t\t%s = append(%s, converted)\n", targetSlice, targetSlice)
-				fmt.Fprintf(buf, "\t}\n")
-				return
-			}
-		case "any":
+		if g.renderStructValueToRuntimeWithSeen(buf, valueExpr, goType, seenVar, "\t", fmt.Sprintf("%s = append(%s, %%s)", targetSlice, targetSlice)) {
+			return
+		}
+		if g.typeCategory(goType) == "any" {
 			fmt.Fprintf(buf, "\t%s = append(%s, __able_any_to_value_seen(%s, %s))\n", targetSlice, targetSlice, valueExpr, seenVar)
 			return
 		}
@@ -742,17 +756,10 @@ func (g *generator) renderValueToRuntimeAssign(buf *bytes.Buffer, valueExpr, goT
 
 func (g *generator) renderValueToRuntimeAssignWithSeen(buf *bytes.Buffer, valueExpr, goType, targetExpr, seenVar string) {
 	if seenVar != "" {
-		switch g.typeCategory(goType) {
-		case "struct":
-			if baseName, ok := g.structHelperName(goType); ok {
-				fmt.Fprintf(buf, "\t\tconverted, err := __able_struct_%s_to_seen(rt, %s, %s)\n", baseName, valueExpr, seenVar)
-				fmt.Fprintf(buf, "\t\tif err != nil {\n")
-				fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
-				fmt.Fprintf(buf, "\t\t}\n")
-				fmt.Fprintf(buf, "\t\t%s = converted\n", targetExpr)
-				return
-			}
-		case "any":
+		if g.renderStructValueToRuntimeWithSeen(buf, valueExpr, goType, seenVar, "\t\t", targetExpr+" = %s") {
+			return
+		}
+		if g.typeCategory(goType) == "any" {
 			fmt.Fprintf(buf, "\t\t%s = __able_any_to_value_seen(%s, %s)\n", targetExpr, valueExpr, seenVar)
 			return
 		}
@@ -847,19 +854,10 @@ func (g *generator) renderValueToRuntimeNamed(buf *bytes.Buffer, valueExpr, goTy
 
 func (g *generator) renderValueToRuntimeNamedWithSeen(buf *bytes.Buffer, valueExpr, goType, fieldName, seenVar string) {
 	if seenVar != "" {
-		switch g.typeCategory(goType) {
-		case "struct":
-			if baseName, ok := g.structHelperName(goType); ok {
-				fmt.Fprintf(buf, "\t{\n")
-				fmt.Fprintf(buf, "\t\tconverted, err := __able_struct_%s_to_seen(rt, %s, %s)\n", baseName, valueExpr, seenVar)
-				fmt.Fprintf(buf, "\t\tif err != nil {\n")
-				fmt.Fprintf(buf, "\t\t\treturn nil, err\n")
-				fmt.Fprintf(buf, "\t\t}\n")
-				fmt.Fprintf(buf, "\t\tout.Fields[%q] = converted\n", fieldName)
-				fmt.Fprintf(buf, "\t}\n")
-				return
-			}
-		case "any":
+		if g.renderStructValueToRuntimeWithSeen(buf, valueExpr, goType, seenVar, "\t", fmt.Sprintf("out.Fields[%q] = %%s", fieldName)) {
+			return
+		}
+		if g.typeCategory(goType) == "any" {
 			fmt.Fprintf(buf, "\tout.Fields[%q] = __able_any_to_value_seen(%s, %s)\n", fieldName, valueExpr, seenVar)
 			return
 		}

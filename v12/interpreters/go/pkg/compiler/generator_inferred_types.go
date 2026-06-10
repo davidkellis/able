@@ -55,7 +55,129 @@ func (g *generator) functionDeclaredOrInferredReturnTypeExpr(info *functionInfo)
 	if info.Definition.ReturnType != nil {
 		return normalizeTypeExprForPackage(g, info.Package, info.Definition.ReturnType)
 	}
-	return g.inferredBodyTypeExpr(info.Package, info.Definition.Body)
+	inferred := g.inferredBodyTypeExpr(info.Package, info.Definition.Body)
+	if isNilTypeExpression(inferred) && !functionBodyHasExplicitNilTail(info.Definition.Body) {
+		hasValueReturn, hasNonNilValueReturn := functionBodyValueReturnShape(info.Definition.Body)
+		switch {
+		case hasNonNilValueReturn:
+			// The checker can report the implicit fallthrough nil even when an
+			// earlier branch returns a value. Keep the carrier open until those
+			// branch return types are joined.
+			return ast.NewWildcardTypeExpression()
+		case !hasValueReturn && g.functionHasImplicitVoidConditionalTail(info):
+			// A final if-without-else joins its side-effect-only branch with an
+			// implicit nil in the checker. It has no observable value when every
+			// branch is void, so keep recursive calls on the static void ABI.
+			return ast.Ty("void")
+		case hasValueReturn:
+			// Explicit `return nil` is an observable nil result.
+			return inferred
+		}
+		return ast.NewWildcardTypeExpression()
+	}
+	return inferred
+}
+
+func functionBodyHasExplicitNilTail(body *ast.BlockExpression) bool {
+	if body == nil || len(body.Body) == 0 {
+		return false
+	}
+	switch tail := body.Body[len(body.Body)-1].(type) {
+	case *ast.NilLiteral:
+		return tail != nil
+	case *ast.ReturnStatement:
+		_, ok := tail.Argument.(*ast.NilLiteral)
+		return ok
+	default:
+		return false
+	}
+}
+
+func functionBodyValueReturnShape(body *ast.BlockExpression) (hasValueReturn bool, hasNonNilValueReturn bool) {
+	if body == nil {
+		return false, false
+	}
+	ast.Walk(body, func(node ast.Node) bool {
+		if hasNonNilValueReturn {
+			return false
+		}
+		switch current := node.(type) {
+		case *ast.FunctionDefinition, *ast.LambdaExpression, *ast.IteratorLiteral:
+			// A nested callable owns its own return contract.
+			return false
+		case *ast.ReturnStatement:
+			if current == nil || current.Argument == nil {
+				return false
+			}
+			hasValueReturn = true
+			if _, isNil := current.Argument.(*ast.NilLiteral); !isNil {
+				hasNonNilValueReturn = true
+			}
+			return false
+		default:
+			return true
+		}
+	})
+	return hasValueReturn, hasNonNilValueReturn
+}
+
+func (g *generator) functionHasImplicitVoidConditionalTail(info *functionInfo) bool {
+	if g == nil || info == nil || info.Definition == nil || info.Definition.Body == nil {
+		return false
+	}
+	body := info.Definition.Body.Body
+	if len(body) == 0 {
+		return false
+	}
+	tail, ok := body[len(body)-1].(*ast.IfExpression)
+	if !ok || tail == nil || tail.ElseBody != nil {
+		return false
+	}
+	if g.blockMayProduceNonNilTail(info, tail.IfBody) {
+		return false
+	}
+	for _, clause := range tail.ElseIfClauses {
+		if clause != nil && g.blockMayProduceNonNilTail(info, clause.Body) {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *generator) blockMayProduceNonNilTail(info *functionInfo, body *ast.BlockExpression) bool {
+	if body == nil || len(body.Body) == 0 {
+		return false
+	}
+	if inferred := g.inferredBodyTypeExpr(info.Package, body); inferred != nil {
+		return !isNilTypeExpression(inferred) && typeExpressionToString(inferred) != "void"
+	}
+	switch tail := body.Body[len(body.Body)-1].(type) {
+	case *ast.NilLiteral:
+		return false
+	case *ast.ReturnStatement:
+		if tail == nil || tail.Argument == nil {
+			return false
+		}
+		_, isNil := tail.Argument.(*ast.NilLiteral)
+		return !isNil
+	case *ast.FunctionCall:
+		ident, ok := tail.Callee.(*ast.Identifier)
+		return !ok || ident == nil || info.Definition.ID == nil || ident.Name != info.Definition.ID.Name
+	case *ast.IfExpression:
+		if tail == nil || g.blockMayProduceNonNilTail(info, tail.IfBody) {
+			return true
+		}
+		for _, clause := range tail.ElseIfClauses {
+			if clause != nil && g.blockMayProduceNonNilTail(info, clause.Body) {
+				return true
+			}
+		}
+		return tail.ElseBody != nil && g.blockMayProduceNonNilTail(info, tail.ElseBody)
+	case *ast.BlockExpression:
+		return g.blockMayProduceNonNilTail(info, tail)
+	default:
+		return true
+	}
 }
 
 func (g *generator) typeExprFromInferredType(typ typechecker.Type) ast.TypeExpression {

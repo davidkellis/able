@@ -1,0 +1,697 @@
+{
+  "kind": "external-application-variance-report",
+  "measurement_source": "Verifier-backed external scorecards. Embedded successful per-run samples are used when available; legacy reports contribute one aggregate sample per input. This report describes variability only; it is not a timing threshold gate.",
+  "sources": [
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-c1-binarytrees-compiled.json",
+      "generated_at": "2026-07-21T01:44:22.703692Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-c1-quicksort-compiled.json",
+      "generated_at": "2026-07-21T01:46:53.850542Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-c1-json-compiled.json",
+      "generated_at": "2026-07-21T01:50:04.611061Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-c1-json-bytecode.json",
+      "generated_at": "2026-07-21T02:03:24.657931Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-c1-pidigits-bytecode.json",
+      "generated_at": "2026-07-21T02:04:27.347812Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-c2-compiled.json",
+      "generated_at": "2026-07-21T03:27:24.852057Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-c2-bytecode.json",
+      "generated_at": "2026-07-21T03:28:52.043981Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "ruby",
+        "python"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "binarytrees",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 10.214,
+          "ratios": {
+            "go": 0.9338941208740972
+          },
+          "reference_samples": {
+            "go": [
+              11.012266834,
+              10.752544234,
+              10.839146954,
+              11.303149022,
+              10.777658227
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 10.982,
+          "ratios": {
+            "go": 0.9754841001954166
+          },
+          "reference_samples": {
+            "go": [
+              10.962979451,
+              11.102305438,
+              11.328096468,
+              11.52906239,
+              11.367366825
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 10,
+        "mean": 10.598,
+        "median": 10.495000000000001,
+        "minimum": 10.1,
+        "maximum": 11.17,
+        "range": 1.0700000000000003,
+        "half_spread_pct": 5.048122287224006,
+        "sample_stdev": 0.4350427820596754,
+        "coefficient_of_variation_pct": 4.104951708432491
+      },
+      "reference_seconds": {
+        "go": {
+          "samples": 10,
+          "mean": 11.097457584299999,
+          "median": 11.057286136,
+          "minimum": 10.752544234,
+          "maximum": 11.52906239,
+          "range": 0.7765181559999998,
+          "half_spread_pct": 3.498630880547676,
+          "sample_stdev": 0.27243012000322264,
+          "coefficient_of_variation_pct": 2.454887688767921
+        }
+      },
+      "ratios": {
+        "go": {
+          "samples": 2,
+          "mean": 0.9546891105347569,
+          "median": 0.9546891105347569,
+          "minimum": 0.9338941208740972,
+          "maximum": 0.9754841001954166,
+          "range": 0.04158997932131947,
+          "half_spread_pct": 2.1781949150977207,
+          "sample_stdev": 0.029408556407513282,
+          "coefficient_of_variation_pct": 3.080432790423309
+        }
+      }
+    },
+    {
+      "benchmark": "json",
+      "mode": "bytecode",
+      "samples": [
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.816,
+          "ratios": {
+            "python": 0.3025023169601483,
+            "ruby": 0.4741704921843221
+          },
+          "reference_samples": {
+            "python": [
+              2.627662897,
+              2.67761106,
+              2.738689196,
+              2.813797672,
+              2.629719424
+            ],
+            "ruby": [
+              1.810220205,
+              1.734380944,
+              1.663597717,
+              1.799211134,
+              1.597175454
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.998,
+          "ratios": {
+            "ruby": 0.593447107094012,
+            "python": 0.35608520355371603
+          },
+          "reference_samples": {
+            "ruby": [
+              1.675432904,
+              1.688741947,
+              1.625158229,
+              1.722273105,
+              1.696955234
+            ],
+            "python": [
+              2.71219577,
+              2.731215112,
+              2.678617406,
+              3.006059047,
+              2.885638865
+            ]
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 10,
+        "mean": 0.907,
+        "median": 0.85,
+        "minimum": 0.71,
+        "maximum": 1.36,
+        "range": 0.6500000000000001,
+        "half_spread_pct": 35.832414553472994,
+        "sample_stdev": 0.19125608196574795,
+        "coefficient_of_variation_pct": 21.086668353445198
+      },
+      "reference_seconds": {
+        "python": {
+          "samples": 10,
+          "mean": 2.7501206449,
+          "median": 2.721705441,
+          "minimum": 2.627662897,
+          "maximum": 3.006059047,
+          "range": 0.37839614999999993,
+          "half_spread_pct": 6.879628184707497,
+          "sample_stdev": 0.12005254305869843,
+          "coefficient_of_variation_pct": 4.365355508360389
+        },
+        "ruby": {
+          "samples": 10,
+          "mean": 1.7013146873,
+          "median": 1.6928485905000001,
+          "minimum": 1.597175454,
+          "maximum": 1.810220205,
+          "range": 0.21304475099999998,
+          "half_spread_pct": 6.261180033016222,
+          "sample_stdev": 0.06822435204436884,
+          "coefficient_of_variation_pct": 4.010095989510408
+        }
+      },
+      "ratios": {
+        "python": {
+          "samples": 2,
+          "mean": 0.32929376025693213,
+          "median": 0.32929376025693213,
+          "minimum": 0.3025023169601483,
+          "maximum": 0.35608520355371603,
+          "range": 0.05358288659356775,
+          "half_spread_pct": 8.136031267607317,
+          "sample_stdev": 0.0378888224658615,
+          "coefficient_of_variation_pct": 11.506085762541831
+        },
+        "ruby": {
+          "samples": 2,
+          "mean": 0.533808799639167,
+          "median": 0.533808799639167,
+          "minimum": 0.4741704921843221,
+          "maximum": 0.593447107094012,
+          "range": 0.11927661490968994,
+          "half_spread_pct": 11.172222618877402,
+          "sample_stdev": 0.08434130323961822,
+          "coefficient_of_variation_pct": 15.79990874946788
+        }
+      }
+    },
+    {
+      "benchmark": "json",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.858,
+          "ratios": {
+            "go": 0.5881546476556073
+          },
+          "reference_samples": {
+            "go": [
+              1.442268883,
+              1.429407467,
+              1.481928166,
+              1.501325996,
+              1.439302292
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.774,
+          "ratios": {
+            "go": 0.5332782141380736
+          },
+          "reference_samples": {
+            "go": [
+              1.482446205,
+              1.508669273,
+              1.510505106,
+              1.365837901,
+              1.38972425
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 10,
+        "mean": 0.8160000000000001,
+        "median": 0.77,
+        "minimum": 0.69,
+        "maximum": 1.09,
+        "range": 0.40000000000000013,
+        "half_spread_pct": 24.509803921568636,
+        "sample_stdev": 0.13276545735494105,
+        "coefficient_of_variation_pct": 16.270276636634932
+      },
+      "reference_seconds": {
+        "go": {
+          "samples": 10,
+          "mean": 1.4551415539,
+          "median": 1.4620985245,
+          "minimum": 1.365837901,
+          "maximum": 1.510505106,
+          "range": 0.1446672050000002,
+          "half_spread_pct": 4.970898006873288,
+          "sample_stdev": 0.05039819886309506,
+          "coefficient_of_variation_pct": 3.463456783844859
+        }
+      },
+      "ratios": {
+        "go": {
+          "samples": 2,
+          "mean": 0.5607164308968404,
+          "median": 0.5607164308968404,
+          "minimum": 0.5332782141380736,
+          "maximum": 0.5881546476556073,
+          "range": 0.054876433517533685,
+          "half_spread_pct": 4.893421210232892,
+          "sample_stdev": 0.03880349826758081,
+          "coefficient_of_variation_pct": 6.920342641915518
+        }
+      }
+    },
+    {
+      "benchmark": "pidigits",
+      "mode": "bytecode",
+      "samples": [
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.356,
+          "ratios": {
+            "python": 0.5627478144556441,
+            "ruby": 0.23169136664470386
+          },
+          "reference_samples": {
+            "python": [
+              4.457748849,
+              3.94164728,
+              4.187475608,
+              4.273691066,
+              4.072238169
+            ],
+            "ruby": [
+              10.500234175,
+              10.013073718,
+              10.294746393,
+              10.035870284,
+              9.999737381
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.518,
+          "ratios": {
+            "ruby": 0.23540410414621601,
+            "python": 0.6199679921211375
+          },
+          "reference_samples": {
+            "ruby": [
+              10.493484327,
+              10.957310753,
+              11.367823003,
+              10.616527575,
+              10.047255984
+            ],
+            "python": [
+              4.115512144,
+              4.046607182,
+              4.084471662,
+              4.082817477,
+              3.977979846
+            ]
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 10,
+        "mean": 2.4370000000000003,
+        "median": 2.465,
+        "minimum": 2.15,
+        "maximum": 2.63,
+        "range": 0.48,
+        "half_spread_pct": 9.848173984407056,
+        "sample_stdev": 0.16262089519971154,
+        "coefficient_of_variation_pct": 6.672995289278274
+      },
+      "reference_seconds": {
+        "python": {
+          "samples": 10,
+          "mean": 4.1240189283,
+          "median": 4.0836445695000005,
+          "minimum": 3.94164728,
+          "maximum": 4.457748849,
+          "range": 0.5161015689999995,
+          "half_spread_pct": 6.2572647940385,
+          "sample_stdev": 0.15070159159168572,
+          "coefficient_of_variation_pct": 3.6542410258482456
+        },
+        "ruby": {
+          "samples": 10,
+          "mean": 10.4326063593,
+          "median": 10.39411536,
+          "minimum": 9.999737381,
+          "maximum": 11.367823003,
+          "range": 1.3680856220000006,
+          "half_spread_pct": 6.556777735510168,
+          "sample_stdev": 0.45708430032118375,
+          "coefficient_of_variation_pct": 4.3813049642549045
+        }
+      },
+      "ratios": {
+        "python": {
+          "samples": 2,
+          "mean": 0.5913579032883909,
+          "median": 0.5913579032883909,
+          "minimum": 0.5627478144556441,
+          "maximum": 0.6199679921211375,
+          "range": 0.057220177665493366,
+          "half_spread_pct": 4.838032716507762,
+          "sample_stdev": 0.04046077564796939,
+          "coefficient_of_variation_pct": 6.842011482890024
+        },
+        "ruby": {
+          "samples": 2,
+          "mean": 0.23354773539545992,
+          "median": 0.23354773539545992,
+          "minimum": 0.23169136664470386,
+          "maximum": 0.23540410414621601,
+          "range": 0.003712737501512159,
+          "half_spread_pct": 0.7948562411075156,
+          "sample_stdev": 0.002625301864084847,
+          "coefficient_of_variation_pct": 1.1240964763111472
+        }
+      }
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.078,
+          "ratios": {
+            "go": 0.7571782538988484
+          },
+          "reference_samples": {
+            "go": [
+              3.098219385,
+              2.73012629,
+              2.767695787,
+              2.606963077,
+              2.518844048
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 1.904,
+          "ratios": {
+            "go": 0.7223339276907318
+          },
+          "reference_samples": {
+            "go": [
+              2.659953011,
+              2.615942085,
+              2.650010746,
+              2.637620188,
+              2.616144864
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 10,
+        "mean": 1.991,
+        "median": 1.935,
+        "minimum": 1.86,
+        "maximum": 2.56,
+        "range": 0.7,
+        "half_spread_pct": 17.57910597689603,
+        "sample_stdev": 0.20593688353473744,
+        "coefficient_of_variation_pct": 10.343389429168127
+      },
+      "reference_seconds": {
+        "go": {
+          "samples": 10,
+          "mean": 2.6901519481,
+          "median": 2.643815467,
+          "minimum": 2.518844048,
+          "maximum": 3.098219385,
+          "range": 0.5793753370000001,
+          "half_spread_pct": 10.768450038838907,
+          "sample_stdev": 0.1586974210169567,
+          "coefficient_of_variation_pct": 5.899199155982304
+        }
+      },
+      "ratios": {
+        "go": {
+          "samples": 2,
+          "mean": 0.7397560907947901,
+          "median": 0.7397560907947901,
+          "minimum": 0.7223339276907318,
+          "maximum": 0.7571782538988484,
+          "range": 0.034844326208116616,
+          "half_spread_pct": 2.3551226303983555,
+          "sample_stdev": 0.0246386593476354,
+          "coefficient_of_variation_pct": 3.3306463649611526
+        }
+      }
+    }
+  ],
+  "required_successful_runs": 5
+}

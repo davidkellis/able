@@ -1,0 +1,54 @@
+File: compiled
+Build ID: 1aafddd2d2f3d94f98f15ce6e9e2da2b69ad3b12
+Type: alloc_space
+Time: 2026-07-28 09:45:23 CDT
+Showing nodes accounting for 12184.73kB, 98.29% of 12397.23kB total
+Dropped 100 nodes (cum <= 61.99kB)
+      flat  flat%   sum%        cum   cum%
+ 5306.47kB 42.80% 42.80%  5306.47kB 42.80%  runtime/pprof.allFrames
+ 1911.43kB 15.42% 58.22%  3144.78kB 25.37%  runtime/pprof.(*profileBuilder).emitLocation
+ 1590.91kB 12.83% 71.05%  1590.91kB 12.83%  able/interpreter-go/pkg/runtime.(*HashMapValue).AppendEntry (inline)
+     648kB  5.23% 76.28%  1171.88kB  9.45%  compress/flate.NewWriter (inline)
+  561.86kB  4.53% 80.81%   561.86kB  4.53%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+     480kB  3.87% 84.69%  9373.91kB 75.61%  runtime/pprof.writeHeapInternal
+  450.55kB  3.63% 88.32%   450.55kB  3.63%  strings.genSplit
+  325.12kB  2.62% 90.94%  8893.91kB 71.74%  runtime/pprof.writeHeapProto
+     320kB  2.58% 93.52%   523.88kB  4.23%  compress/flate.(*compressor).init
+     200kB  1.61% 95.14%      200kB  1.61%  compress/flate.newDeflateFast (inline)
+  136.50kB  1.10% 96.24%   146.12kB  1.18%  os.readFileContents
+  128.02kB  1.03% 97.27%   296.34kB  2.39%  main.__able_host_fn_fs_read_lines_fast
+   93.25kB  0.75% 98.02%    93.25kB  0.75%  runtime/pprof.(*protobuf).string (inline)
+   32.02kB  0.26% 98.28%   328.37kB  2.65%  main.__able_compiled_fn_fs_read_lines_fast_ctx
+    0.50kB 0.004% 98.29%  8453.22kB 68.19%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.05kB 0.00038% 98.29%  3022.94kB 24.38%  main.__able_compiled_fn_main_ctx
+    0.02kB 0.00019% 98.29%  9374.25kB 75.62%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00019% 98.29%  3022.98kB 24.38%  main.RunRegisteredMain
+         0     0% 98.29%  9374.25kB 75.62%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 98.29%  9374.25kB 75.62%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 98.29%  1178.62kB  9.51%  compress/gzip.(*Writer).Write
+         0     0% 98.29%  3022.96kB 24.38%  main.RunRegisteredMain.func1
+         0     0% 98.29%   328.37kB  2.65%  main.__able_compiled_entry_fn_read_lines_ctx
+         0     0% 98.29%   339.16kB  2.74%  main.__able_compiled_fn_lookup_ctx
+         0     0% 98.29%  3022.96kB 24.38%  main.__able_compiled_fn_main
+         0     0% 98.29%   418.55kB  3.38%  main.__able_compiled_fn_main_ctx.func1 (inline)
+         0     0% 98.29%   328.37kB  2.65%  main.__able_compiled_fn_read_lines_ctx
+         0     0% 98.29%   339.16kB  2.74%  main.__able_compiled_impl_Map_get_0_spec_ctx
+         0     0% 98.29%   339.16kB  2.74%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0% 98.29%  1895.88kB 15.29%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0% 98.29%  1895.88kB 15.29%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0% 98.29%  1590.91kB 12.83%  main.__able_hash_map_set_ctx (inline)
+         0     0% 98.29%  1590.91kB 12.83%  main.__able_hash_map_set_impl
+         0     0% 98.29%   339.16kB  2.74%  main.__able_iface_Map_String_i32_adapter_ptr_HashMap_String_i32.__able_ctx_get
+         0     0% 98.29%  3022.96kB 24.38%  main.__able_register_compiled_call.func1
+         0     0% 98.29%  3022.96kB 24.38%  main.__able_wrap_fn_main
+         0     0% 98.29% 12397.23kB   100%  main.main
+         0     0% 98.29% 12397.23kB   100%  main.runMain
+         0     0% 98.29%  9374.25kB 75.62%  main.startMainProfilePhase (inline)
+         0     0% 98.29%   146.77kB  1.18%  os.ReadFile
+         0     0% 98.29% 12397.23kB   100%  runtime.main
+         0     0% 98.29%  9373.91kB 75.61%  runtime/pprof.(*Profile).WriteTo
+         0     0% 98.29%    93.25kB  0.75%  runtime/pprof.(*profileBuilder).build
+         0     0% 98.29%  1178.62kB  9.51%  runtime/pprof.(*profileBuilder).flush
+         0     0% 98.29%    93.25kB  0.75%  runtime/pprof.(*protobuf).strings
+         0     0% 98.29%  9373.91kB 75.61%  runtime/pprof.writeAlloc
+         0     0% 98.29%   450.55kB  3.63%  strings.Split (inline)

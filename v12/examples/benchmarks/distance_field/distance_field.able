@@ -1,0 +1,27 @@
+package distance_field
+
+import able.math
+
+fn main() {
+  x := 0.25
+  y := -0.75
+  total := 0.0
+  i := 0
+
+  loop {
+    if i >= 2000000 { break }
+
+    x = x * 1.000000119 + 0.000031
+    if x > 2.0 { x = x - 4.0 }
+
+    y = y * 0.999999937 - 0.0000155
+    if y < -2.0 { y = y + 4.0 }
+
+    dx := x - y
+    dy := (x + y) * 0.5
+    total = total + math.hypot(dx, dy)
+    i = i + 1
+  }
+
+  print(total)
+}

@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-07-12T04:16:43.063305Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/channel_rollup/channel_rollup.able",
+  "run_from": "/home/david/sync/projects/benchmarks",
+  "runs": 3,
+  "timeout_seconds": 45,
+  "modes": [
+    "compiled"
+  ],
+  "compiled_build_args": [
+    "--experimental-static-builtin-print"
+  ],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [
+    "i-before-e/wordlist.txt"
+  ],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "2",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 1.8967,
+      "avg_user_seconds": 1.8,
+      "avg_sys_seconds": 0.0467,
+      "avg_gc": 6.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/channel-rollup/verify.rb",
+        "verified_runs": 3,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+        ]
+      }
+    }
+  ]
+}

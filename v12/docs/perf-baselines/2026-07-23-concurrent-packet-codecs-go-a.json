@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-24T04:52:20Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 60,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-packet-codecs/go-1.26/app.go",
+      "source_sha256": "2f39269e10153deb8b9777298344d4f5f6750d682b14fb01583921e4da045323",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0038,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.004678343,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.003860946,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.003320991,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.003394828,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.003581149,
+          "stdout_sha256": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    }
+  ]
+}

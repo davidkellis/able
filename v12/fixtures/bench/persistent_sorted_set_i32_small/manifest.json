@@ -1,0 +1,6 @@
+{
+  "description": "persistent sorted set range and mutation benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -1,0 +1,58 @@
+package bench_persistent_sorted_set_i32_small
+
+import able.collections.persistent_sorted_set.{PersistentSortedSet}
+
+fn build(size: i32) -> PersistentSortedSet i32 {
+  values: PersistentSortedSet i32 = PersistentSortedSet.empty()
+  i := 0
+  loop {
+    if i >= size { break }
+    values = values.insert(((i * 37) + 1) % (size * 3))
+    i = i + 1
+  }
+  values
+}
+
+fn score(initial: PersistentSortedSet i32, size: i32) -> i64 {
+  values := initial
+  total: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= 3 { break }
+    i := 0
+    loop {
+      if i >= size * 2 { break }
+      key := ((i * 41) + (round * 13) + 5) % (size * 4)
+      if values.contains(key) {
+        total = total + (key as i64)
+      } else {
+        values = values.insert(key)
+      }
+      if i % 9 == 0 {
+        values = values.remove((i * 17) % (size * 4))
+      }
+      i = i + 1
+    }
+    start := size // 3
+    stop := (size * 2) // 3
+    window := values.range(start, stop)
+    j := 0
+    loop {
+      if j >= window.len() { break }
+      total = total + (window.read_slot(j) as i64)
+      j = j + 1
+    }
+    values.for_each(fn(value: i32) -> void {
+      if value % 257 == 0 {
+        total = total + (value as i64)
+      }
+    })
+    round = round + 1
+  }
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  values := build(900)
+  print(score(values, 900))
+}

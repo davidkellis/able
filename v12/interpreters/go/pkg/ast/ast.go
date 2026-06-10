@@ -76,6 +76,7 @@ const (
 	NodePackageStatement         NodeType = "PackageStatement"
 	NodeImportSelector           NodeType = "ImportSelector"
 	NodeImportStatement          NodeType = "ImportStatement"
+	NodeExportStatement          NodeType = "ExportStatement"
 	NodeModule                   NodeType = "Module"
 	NodeReturnStatement          NodeType = "ReturnStatement"
 	NodeDynImportStatement       NodeType = "DynImportStatement"
@@ -353,7 +354,7 @@ type TypeCastExpression struct {
 	expressionMarker
 	statementMarker
 
-	Expression Expression    `json:"expression"`
+	Expression Expression     `json:"expression"`
 	TargetType TypeExpression `json:"targetType"`
 }
 
@@ -641,10 +642,10 @@ type IfExpression struct {
 	expressionMarker
 	statementMarker
 
-	IfCondition    Expression        `json:"ifCondition"`
-	IfBody         *BlockExpression  `json:"ifBody"`
-	ElseIfClauses  []*ElseIfClause   `json:"elseIfClauses"`
-	ElseBody       *BlockExpression  `json:"elseBody,omitempty"`
+	IfCondition   Expression       `json:"ifCondition"`
+	IfBody        *BlockExpression `json:"ifBody"`
+	ElseIfClauses []*ElseIfClause  `json:"elseIfClauses"`
+	ElseBody      *BlockExpression `json:"elseBody,omitempty"`
 }
 
 func NewIfExpression(ifCondition Expression, ifBody *BlockExpression, elseIfClauses []*ElseIfClause, elseBody *BlockExpression) *IfExpression {

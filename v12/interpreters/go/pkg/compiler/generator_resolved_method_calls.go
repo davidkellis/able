@@ -281,7 +281,7 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		ctx.setReason("missing method call")
 		return nil, "", "", false
 	}
-	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok && member != nil {
+	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok && member != nil && !method.ConcreteResolved {
 		if method.ExpectsSelf {
 			method = g.concreteMethodCallInfo(ctx, call, method, member.Object, receiverType, expected)
 		} else {
@@ -427,12 +427,35 @@ func (g *generator) compileResolvedMethodCall(ctx *compileContext, call *ast.Fun
 		}
 		args = append(args, zeroExpr)
 	}
-	callExpr := fmt.Sprintf("%s(%s)", g.compiledCallTargetName(ctx.packageName, info), strings.Join(args, ", "))
+	callTarget := g.compiledContextCallTargetName(ctx, ctx.packageName, info)
+	if resultInfo := g.callerOwnedResultInfo(info); resultInfo != nil && !ctx.analysisOnly {
+		resultSlot := ""
+		if ctx.callerOwnedResultSlot != "" && ctx.callerOwnedTailExpr == call {
+			resultSlot = ctx.callerOwnedResultSlot
+		} else {
+			slotTemp := ctx.newTemp()
+			argPreLines = append(argPreLines, fmt.Sprintf("var %s %s", slotTemp, resultInfo.GoName))
+			resultSlot = "&" + slotTemp
+		}
+		args = append(args, resultSlot)
+		callTarget = callerOwnedResultVariantName(callTarget)
+	}
+	callExpr := fmt.Sprintf("%s(%s)", callTarget, g.compiledCallArgs(ctx, args))
+	if literalCallExpr, ok := g.canonicalPrimitiveStringContainsLiteralCallExpr(ctx, call, method, args, callTarget); ok {
+		callExpr = literalCallExpr
+	}
+	if lenBytesCallExpr, ok := g.canonicalPrimitiveStringLenBytesCallExpr(ctx, method, args, callTarget); ok {
+		callExpr = lenBytesCallExpr
+	}
+	if splitCallExpr, ok := g.canonicalPrimitiveStringSplitCallExpr(ctx, method, args, callTarget); ok {
+		callExpr = splitCallExpr
+	}
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines := append(argPreLines, []string{
 		fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr),
 	}...)
+	ctx.recordResultSource(resultTemp, info)
 	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 	if !ok {
 		return nil, "", "", false
@@ -522,7 +545,21 @@ func (g *generator) appendStaticNominalReceiverWriteback(ctx *compileContext, ac
 	default:
 		return nil, false
 	}
-	if strings.HasPrefix(actualType, "*") {
+	if g.isArrayStructType(actualType) {
+		targetExpr := actualExpr
+		if !strings.HasPrefix(actualType, "*") {
+			targetExpr = "&" + targetExpr
+		}
+		sourceExpr := convertedExpr
+		if !strings.HasPrefix(actualType, "*") {
+			sourceExpr = "&" + sourceExpr
+		}
+		moveLines, ok := g.appendArrayCarrierMoveControlLines(ctx, targetExpr, sourceExpr)
+		if !ok {
+			return nil, false
+		}
+		lines = append(lines, moveLines...)
+	} else if strings.HasPrefix(actualType, "*") {
 		lines = append(lines, fmt.Sprintf("*%s = *%s", actualExpr, convertedExpr))
 	} else {
 		lines = append(lines, fmt.Sprintf("%s = *%s", actualExpr, convertedExpr))

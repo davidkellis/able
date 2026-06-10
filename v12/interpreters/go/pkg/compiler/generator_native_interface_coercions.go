@@ -429,7 +429,18 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 		convertedTemp := ctx.newTemp()
 		errTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
-		lines := append([]string{}, valueLines...)
+		var lines []string
+		if g.typedBoundaryCarrierFullyConcrete(ctx, actual) {
+			lines = g.typedBoundaryTelemetryShapeLines(typedBoundaryShape{
+				Category:          "interface_lift_via_runtime",
+				GeneratedFunction: g.typedBoundaryGeneratedFunction(ctx),
+				AbleSource:        g.typedBoundaryCurrentSource(ctx, "static-interface-lift"),
+				Carrier:           g.typedBoundaryCarrierLabel(actual),
+				ImmediateConsumer: g.typedBoundaryCarrierLabel(expected),
+				Reason:            "statically known concrete carrier boxed through runtime.Value to recover a lifted native interface",
+			})
+		}
+		lines = append(lines, valueLines...)
 		lines = append(lines,
 			fmt.Sprintf("%s, %s := %s(__able_runtime, %s)", convertedTemp, errTemp, info.FromRuntimeHelper, valueExpr),
 			fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),

@@ -1,21 +1,37 @@
-# Compiler Monomorphization Design
+# Compiler Monomorphization — Historical Record and Active Generic Guardrails
 
-This note refines [compiler-native-lowering.md](./compiler-native-lowering.md)
+This note refines [compiler-native-lowering-guardrails.md](./compiler-native-lowering-guardrails.md)
 for generic/container-heavy code generation.
 
-Named stdlib/container examples in this document are proof cases for shared
-lowering machinery, not architecture exceptions.
+## Status and ownership
 
-## Goal
+The direct compiler uses generic specialization and compiler-owned native
+carriers where the type is statically representable. `ExperimentalMonoArrays`
+is a compatibility-only name retained in compiler options and tooling; it can
+no longer disable native static Array lowering. That name and the staged history
+below do not authorize a new Array- or container-specific optimization.
+
+`Array<T>` may receive language-syntax/kernel-boundary lowering, but all other
+non-primitive nominal types—including stdlib containers and user types—must
+use the same shared nominal specialization machinery. `Box<T>` and `Heap<T>`
+are proof cases, not compiler branches. `PLAN.md` selects future performance
+work only after a shared non-nominal leaf recurs across unlike verified
+applications.
+
+The completed execution checklist is retained as historical regression context.
+Current compiler source and focused strict/no-fallback tests settle behavior.
+
+## Active generic-lowering guardrails
 
 Use monomorphization and static specialization to keep compiled code on native
 Go carriers instead of dynamic/interpreter carriers.
 
 Monomorphization is a means to the native-lowering end state. It is not a
 license to keep `Array<T>` on top of `runtime.ArrayValue`, `ArrayStore*`,
-`runtime.Value`, or `any` on otherwise static paths.
+`runtime.Value`, or `any` on otherwise static paths. Runtime arrays are
+boundary conversion forms, not static-array storage.
 
-## Representation Targets
+## Representative static shapes
 
 | Able type | Target compiled representation |
 | --- | --- |
@@ -31,7 +47,7 @@ license to keep `Array<T>` on top of `runtime.ArrayValue`, `ArrayStore*`,
 explicit dynamic boundary. It is not the target representation for compiled
 union values or generic containers.
 
-## Arrays
+## Language `Array` lowering
 
 ### Required direction
 
@@ -53,18 +69,12 @@ generate adapters:
 That conversion is boundary logic only. It must not leak back into the default
 static lowering path.
 
-### Revised mono-array design reference
+### Historical mono-array staging reference
 
-The detailed staged plan now lives in
-[monomorphized-container-abi.md](./monomorphized-container-abi.md).
-
-Important update from the 2026-03-19 audit:
-
-- the older typed-runtime-store / handle-tag rollout plan is superseded as the
-  final architecture;
-- future mono-array work must target compiler-owned specialized wrappers over
-  native Go slices;
-- existing runtime-store experiments are historical scaffolding only.
+The dated [monomorphized-container ABI note](./monomorphized-container-abi.md)
+records the staging transition. It is not a current work plan. Its durable
+conclusion is that compiler-owned native wrappers are static storage and
+runtime-store machinery is boundary compatibility only.
 
 ## Unions And Generics
 
@@ -77,7 +87,7 @@ For generic code that cannot be fully specialized yet:
 Pattern matching should eventually compile to native Go type checks over those
 generated interfaces/variants rather than runtime-value inspection.
 
-## Current Work To Avoid
+## Active prohibitions
 
 The following are not acceptable as final monomorphization outcomes:
 
@@ -92,7 +102,10 @@ The following are not acceptable as final monomorphization outcomes:
 - struct-local boxing into `runtime.Value` to paper over missing static ABI
   work.
 
-## Execution Order
+## Historical execution record (complete)
+
+All checklist items below are complete milestone evidence, not an active queue
+or a list of permitted benchmark-specific follow-ups.
 
 1. [x] Freeze the compiler-native mono-array ABI in docs and guardrail tests.
 2. [x] Emit specialized array wrapper types for staged element kinds.
@@ -531,21 +544,20 @@ The following are not acceptable as final monomorphization outcomes:
   - Result: compiled 3-run average `0.1633s` / `8.33` GC, direct compiled
     output `382455000`.
 
-## Next Category
+## Current selection result
 
-The next monomorphization/container-lowering category is now beyond the
-audited stdlib families already covered, beyond the generic-container
-correctness fixes, and beyond the first benchmark-worthy generic-container hot
-path (`LinkedList -> Iterable -> Iterator`) and the next concrete
-generic/default-method slice (`LinkedList.map/filter/reduce`) and its
-follow-up callback/runtime carrier cleanup and ordinary default iterator-method
-slice and the mono-array-enabled iterator-collect closure and the shared
-generic nominal-method specialization tranche and the bound generic
-field/member carrier refinement tranche and the shared static
-nominal receiver/struct-literal closure tranche:
+The 2026-07-13 generic-nominal selection audit closes the historical “next
+container edge” search for the currently implemented v12 surface. It sampled
+the language/kernel `Array` wrapper boundary, generic `LinkedList -> Enumerable ->
+Iterator` default methods and `collect<C>()`, `TreeMap`/`PersistentMap`, and
+generic interface specialization. Their generated static paths remain native
+and reject dynamic call/member/bridge helpers. The two executable iterator
+controls also pass under no-fallback compilation.
 
-1. Identify the next benchmark-worthy generic container/runtime edge that
-   still crosses residual runtime carriers.
-2. Then broaden performance-oriented carrier reduction across the next
-   benchmark-worthy generic container/runtime edges that are still hot enough
-   to matter.
+There is therefore no active generic-container/runtime carrier crossing to
+optimize. Do not invent a `HashMap`, `Heap`, `LinkedList`, `TreeMap`, or other
+nominal-type path to satisfy this historical category. A new carrier-reduction
+candidate is eligible only when a newly implemented language feature or a
+fresh verifier-backed application exposes the same concrete static-boundary
+cost in at least two unlike programs. The selection record is
+`v12/docs/perf-baselines/2026-07-13-generic-nominal-static-lowering-selection.md`.

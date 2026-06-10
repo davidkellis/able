@@ -1,0 +1,46 @@
+package bench_string_split_join_small
+
+import able.core.interfaces.{Error}
+import able.text.string.{String, StringBuilder}
+
+fn build_lines(count: i32) -> String {
+  builder := StringBuilder.with_capacity(count * 24)
+  i := 0
+  loop {
+    if i >= count { break }
+    builder.push_string(`line${i}`)
+    builder.push_char(':')
+    builder.push_string(`value${(i * 13) % 257}`)
+    builder.push_char('\n')
+    i = i + 1
+  }
+  builder.finish() match {
+    case text: String => text,
+    case err: Error => { raise err }
+  }
+}
+
+fn score(text: String) -> i64 {
+  parts := text.split("\n")
+  joined := String.join(parts, "|")
+  total: i64 = joined.len_bytes() as i64
+  idx := 0
+  loop {
+    if idx >= parts.len() { break }
+    total = total + (parts[idx]!.len_bytes() as i64)
+    idx = idx + 1
+  }
+  total
+}
+
+fn main() -> void {
+  text := build_lines(1_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 6 { break }
+    total = total + score(text)
+    rounds = rounds + 1
+  }
+  print(total)
+}

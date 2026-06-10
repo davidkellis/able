@@ -1,0 +1,99 @@
+package dependency_plan
+
+import able.collections.queue.{Queue}
+import able.kernel.{Array}
+
+## Resolve a deterministic deployment order for a service fleet. Every edge
+## points from a service to one of the services that can start after it.
+
+SERVICE_COUNT: i32 := 1_024
+PLAN_ROUNDS: i32 := 12
+
+fn downstream_for(service: i32, count: i32) -> Array i32 {
+  downstream: Array i32 = Array.with_capacity(4)
+  if service + 1 < count { downstream.push(service + 1) }
+  if service + 3 < count { downstream.push(service + 3) }
+  if service + 7 < count { downstream.push(service + 7) }
+  if (service % 5) == 0 && service + 11 < count {
+    downstream.push(service + 11)
+  }
+  downstream
+}
+
+fn build_deployment_graph(count: i32) -> Array (Array i32) {
+  graph: Array (Array i32) = Array.with_capacity(count)
+  service := 0
+  loop {
+    if service >= count { break }
+    graph.push(downstream_for(service, count))
+    service = service + 1
+  }
+  graph
+}
+
+fn resolve_deployment_plan(graph: Array (Array i32)) -> i64 {
+  count := graph.len()
+  indegree: Array i32 = Array.with_capacity(count)
+  service := 0
+  loop {
+    if service >= count { break }
+    indegree.push(0)
+    service = service + 1
+  }
+
+  service = 0
+  loop {
+    if service >= count { break }
+    downstream := graph[service]!
+    index := 0
+    loop {
+      if index >= downstream.len() { break }
+      next := downstream[index]!
+      indegree[next] = indegree[next]! + 1
+      index = index + 1
+    }
+    service = service + 1
+  }
+
+  ready: Queue i32 = Queue.with_capacity(count)
+  service = 0
+  loop {
+    if service >= count { break }
+    if indegree[service]! == 0 { ready.enqueue(service) }
+    service = service + 1
+  }
+
+  processed := 0
+  checksum: i64 = 0_i64
+  loop {
+    ready.dequeue() match {
+      case nil => { break },
+      case service: i32 => {
+        processed = processed + 1
+        checksum = checksum + (service as i64) + (processed as i64)
+        downstream := graph[service]!
+        index := 0
+        loop {
+          if index >= downstream.len() { break }
+          next := downstream[index]!
+          indegree[next] = indegree[next]! - 1
+          if indegree[next]! == 0 { ready.enqueue(next) }
+          index = index + 1
+        }
+      }
+    }
+  }
+  checksum + (processed as i64)
+}
+
+fn main() -> void {
+  graph := build_deployment_graph(SERVICE_COUNT)
+  round := 0
+  total: i64 = 0_i64
+  loop {
+    if round >= PLAN_ROUNDS { break }
+    total = total + resolve_deployment_plan(graph)
+    round = round + 1
+  }
+  print(`${graph.len()}:${total}`)
+}

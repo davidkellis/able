@@ -1,0 +1,87 @@
+package bench_union_find_small
+
+import able.kernel.{Array}
+
+fn build_parent(size: i32) -> Array i32 {
+  parent: Array i32 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    parent.push(i)
+    i = i + 1
+  }
+  parent
+}
+
+fn build_ranks(size: i32) -> Array i32 {
+  ranks: Array i32 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    ranks.push(0)
+    i = i + 1
+  }
+  ranks
+}
+
+fn find_root(parent: Array i32, start: i32) -> i32 {
+  root := start
+  loop {
+    next := parent[root]!
+    if next == root { break }
+    root = next
+  }
+
+  current := start
+  loop {
+    if current == root { break }
+    next := parent[current]!
+    parent[current] = root
+    current = next
+  }
+  root
+}
+
+fn link(parent: Array i32, ranks: Array i32, left: i32, right: i32) -> void {
+  left_root := find_root(parent, left)
+  right_root := find_root(parent, right)
+  if left_root == right_root { return }
+
+  left_rank := ranks[left_root]!
+  right_rank := ranks[right_root]!
+  if left_rank < right_rank {
+    parent[left_root] = right_root
+  } elsif right_rank < left_rank {
+    parent[right_root] = left_root
+  } else {
+    parent[right_root] = left_root
+    ranks[left_root] = left_rank + 1
+  }
+}
+
+fn score(size: i32, edges: i32) -> i64 {
+  parent := build_parent(size)
+  ranks := build_ranks(size)
+
+  edge := 0
+  loop {
+    if edge >= edges { break }
+    left := ((edge * 17) + 3) % size
+    right := ((edge * 29) + 11) % size
+    link(parent, ranks, left, right)
+    edge = edge + 1
+  }
+
+  total: i64 = 0_i64
+  idx := 0
+  loop {
+    if idx >= size { break }
+    total = total + (find_root(parent, idx) as i64)
+    idx = idx + 1
+  }
+  total
+}
+
+fn main() -> void {
+  print(score(4_096, 18_000))
+}

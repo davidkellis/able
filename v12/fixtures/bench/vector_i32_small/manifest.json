@@ -1,0 +1,6 @@
+{
+  "description": "persistent vector read/update benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

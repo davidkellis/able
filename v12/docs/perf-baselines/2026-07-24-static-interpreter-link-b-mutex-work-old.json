@@ -1,0 +1,166 @@
+{
+  "generated_at": "2026-07-24T21:22:42.061991Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/mutex_work_queue/mutex_work_queue.able",
+  "run_from": "/home/david/sync/projects/benchmarks/mutex-work-queue",
+  "runs": 10,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 60,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 10,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.743,
+      "avg_user_seconds": 0.708,
+      "avg_sys_seconds": 0.025,
+      "avg_gc": 4.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.76,
+          "user_seconds": 0.73,
+          "sys_seconds": 0.02,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.72,
+          "user_seconds": 0.68,
+          "sys_seconds": 0.03,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.73,
+          "user_seconds": 0.69,
+          "sys_seconds": 0.03,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.73,
+          "user_seconds": 0.7,
+          "sys_seconds": 0.02,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.71,
+          "user_seconds": 0.68,
+          "sys_seconds": 0.02,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 6,
+          "status": "ok",
+          "real_seconds": 0.76,
+          "user_seconds": 0.72,
+          "sys_seconds": 0.03,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 7,
+          "status": "ok",
+          "real_seconds": 0.77,
+          "user_seconds": 0.74,
+          "sys_seconds": 0.02,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 8,
+          "status": "ok",
+          "real_seconds": 0.76,
+          "user_seconds": 0.72,
+          "sys_seconds": 0.03,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 9,
+          "status": "ok",
+          "real_seconds": 0.78,
+          "user_seconds": 0.74,
+          "sys_seconds": 0.03,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        },
+        {
+          "run": 10,
+          "status": "ok",
+          "real_seconds": 0.71,
+          "user_seconds": 0.68,
+          "sys_seconds": 0.02,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/mutex-work-queue/verify.rb",
+        "verified_runs": 10,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+        ]
+      }
+    }
+  ]
+}

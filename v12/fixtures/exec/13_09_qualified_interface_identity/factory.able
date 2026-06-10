@@ -1,0 +1,13 @@
+package factory
+
+import exec_13_09_qualified_interface_identity.iface_defs.{Display}
+
+private struct Hidden { label: String }
+
+private impl Display for Hidden {
+  fn render(self: Self) -> String { self.label }
+}
+
+fn make_display(label: String) -> Display {
+  Hidden { label }
+}

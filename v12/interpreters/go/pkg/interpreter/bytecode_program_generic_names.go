@@ -5,7 +5,7 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func buildFunctionGenericNameSet(def *ast.FunctionDefinition, methodSet *runtime.MethodSet) map[string]struct{} {
+func buildFunctionGenericNameSet(node ast.Node, methodSet *runtime.MethodSet) map[string]struct{} {
 	var names map[string]struct{}
 	add := func(name string) {
 		if name == "" {
@@ -16,13 +16,18 @@ func buildFunctionGenericNameSet(def *ast.FunctionDefinition, methodSet *runtime
 		}
 		names[name] = struct{}{}
 	}
-	if def != nil {
-		for _, gp := range def.GenericParams {
-			if gp == nil || gp.Name == nil {
-				continue
-			}
-			add(gp.Name.Name)
+	var genericParams []*ast.GenericParameter
+	switch decl := node.(type) {
+	case *ast.FunctionDefinition:
+		genericParams = decl.GenericParams
+	case *ast.LambdaExpression:
+		genericParams = decl.GenericParams
+	}
+	for _, gp := range genericParams {
+		if gp == nil || gp.Name == nil {
+			continue
 		}
+		add(gp.Name.Name)
 	}
 	if methodSet != nil {
 		for _, gp := range methodSet.GenericParams {
@@ -40,15 +45,46 @@ func setFunctionBytecodeProgram(fn *runtime.FunctionValue, program *bytecodeProg
 		return
 	}
 	if program != nil {
-		switch decl := fn.Declaration.(type) {
-		case *ast.FunctionDefinition:
-			program.returnGenericNames = buildFunctionGenericNameSet(decl, fn.MethodSet)
-		default:
-			program.returnGenericNames = nil
+		// Programs cached for repeated lambda evaluations are shared by several
+		// FunctionValue instances. Callable metadata is immutable for a given
+		// declaration, so initialize it once before publishing the program and
+		// never rewrite it on later attachments.
+		if !program.returnGenericNamesCached {
+			program.returnGenericNames = buildFunctionGenericNameSet(fn.Declaration, fn.MethodSet)
+			program.returnGenericNamesCached = true
 		}
-		program.returnGenericNamesCached = true
+		if !program.returnTypeMetadataCached {
+			setBytecodeProgramReturnTypeMetadata(fn, program)
+		}
 	}
 	fn.Bytecode = program
+}
+
+func callableReturnType(node ast.Node) ast.TypeExpression {
+	switch decl := node.(type) {
+	case *ast.FunctionDefinition:
+		if decl != nil {
+			return decl.ReturnType
+		}
+	case *ast.LambdaExpression:
+		if decl != nil {
+			return decl.ReturnType
+		}
+	}
+	return nil
+}
+
+func setBytecodeProgramReturnTypeMetadata(fn *runtime.FunctionValue, program *bytecodeProgram) {
+	if fn == nil || program == nil {
+		return
+	}
+	returnType := callableReturnType(fn.Declaration)
+	program.returnType = returnType
+	program.returnSimpleType = cachedSimpleTypeName(returnType)
+	program.returnSimpleCheck = bytecodeSimpleTypeCheckForName(program.returnSimpleType)
+	program.returnNullableSimple = cachedNullableSimpleTypeName(returnType)
+	program.returnTypeUsesGenerics = typeExpressionUsesGenerics(returnType, program.returnGenericNames)
+	program.returnTypeMetadataCached = true
 }
 
 func bytecodeProgramReturnGenericNames(fn *runtime.FunctionValue, program *bytecodeProgram) map[string]struct{} {
@@ -62,6 +98,12 @@ func bytecodeProgramReturnGenericNames(fn *runtime.FunctionValue, program *bytec
 }
 
 func bytecodeInlineReturnGenericNames(fn *runtime.FunctionValue, program *bytecodeProgram) map[string]struct{} {
+	if program != nil && program.frameLayout != nil && !program.frameLayout.returnTypeUsesGenerics {
+		return nil
+	}
+	if program != nil && program.returnTypeMetadataCached && !program.returnTypeUsesGenerics {
+		return nil
+	}
 	if program != nil && program.returnGenericNamesCached {
 		return program.returnGenericNames
 	}

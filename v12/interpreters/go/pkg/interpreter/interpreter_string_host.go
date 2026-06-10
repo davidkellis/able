@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"unicode"
 	"unicode/utf8"
 
 	"able/interpreter-go/pkg/runtime"
@@ -19,23 +20,63 @@ func (i *Interpreter) initStringHostBuiltins() {
 		return
 	}
 
-	int64FromValue := func(val runtime.Value, label string) (int64, error) {
+	int64ValueInfo := func(val runtime.Value) (int64, bool, bool) {
 		switch v := val.(type) {
 		case runtime.IntegerValue:
 			if n, ok := v.ToInt64(); ok {
-				return n, nil
+				return n, true, true
 			}
-			return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
+			return 0, true, false
 		case *runtime.IntegerValue:
 			if v == nil {
-				return 0, fmt.Errorf("%s is nil", label)
+				return 0, false, false
 			}
 			if n, ok := v.ToInt64(); ok {
+				return n, true, true
+			}
+			return 0, true, false
+		default:
+			return 0, false, false
+		}
+	}
+
+	int64FromValue := func(val runtime.Value, label string) (int64, error) {
+		if n, ok, fits := int64ValueInfo(val); ok {
+			if fits {
 				return n, nil
 			}
 			return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
+		}
+		if val == nil {
+			return 0, fmt.Errorf("%s is nil", label)
+		}
+		return 0, fmt.Errorf("%s must be an integer", label)
+	}
+
+	arrayForStringBytes := func(value runtime.Value) (*runtime.ArrayValue, error) {
+		for {
+			switch v := value.(type) {
+			case *runtime.InterfaceValue:
+				if v == nil {
+					value = nil
+				} else {
+					value = v.Underlying
+				}
+			case runtime.InterfaceValue:
+				value = v.Underlying
+			default:
+				goto resolvedArrayValue
+			}
+		}
+	resolvedArrayValue:
+		switch v := value.(type) {
+		case *runtime.ArrayValue:
+			if v == nil {
+				return nil, fmt.Errorf("array argument is nil")
+			}
+			return v, nil
 		default:
-			return 0, fmt.Errorf("%s must be an integer", label)
+			return i.toArrayValue(value)
 		}
 	}
 
@@ -76,7 +117,7 @@ func (i *Interpreter) initStringHostBuiltins() {
 		if bytesVal == nil {
 			return nil, fmt.Errorf("string bytes are missing")
 		}
-		arr, err := i.toArrayValue(bytesVal)
+		arr, err := arrayForStringBytes(bytesVal)
 		if err != nil {
 			kind := "<nil>"
 			if bytesVal != nil {
@@ -94,8 +135,10 @@ func (i *Interpreter) initStringHostBuiltins() {
 	}
 
 	stringFromBuiltin := runtime.NativeFunctionValue{
-		Name:  "__able_String_from_builtin",
-		Arity: 1,
+		Name:        "__able_String_from_builtin",
+		Arity:       1,
+		BorrowArgs:  true,
+		SkipContext: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_String_from_builtin expects one argument")
@@ -127,6 +170,7 @@ func (i *Interpreter) initStringHostBuiltins() {
 				return nil, fmt.Errorf("argument must be a string")
 			}
 			data := []byte(input)
+			i.recordBytecodeStringFromBuiltin(len(data))
 			elements := make([]runtime.Value, len(data))
 			for idx, b := range data {
 				elements[idx] = runtime.NewSmallInt(int64(b), runtime.IntegerU8)
@@ -136,31 +180,48 @@ func (i *Interpreter) initStringHostBuiltins() {
 	}
 
 	stringToBuiltin := runtime.NativeFunctionValue{
-		Name:  "__able_String_to_builtin",
-		Arity: 1,
+		Name:        "__able_String_to_builtin",
+		Arity:       1,
+		BorrowArgs:  true,
+		SkipContext: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_String_to_builtin expects one argument")
 			}
-			arr, err := i.toArrayValue(args[0])
+			arr, err := arrayForStringBytes(args[0])
 			if err != nil {
 				return nil, fmt.Errorf("argument must be an array: %w", err)
+			}
+			if bytes, ok, err := runtime.ArrayStoreMonoBorrowedU8BytesIfAvailable(arrayValueHandle(arr)); err != nil {
+				return nil, err
+			} else if ok {
+				valid := utf8.Valid(bytes)
+				i.recordBytecodeStringToBuiltin(len(bytes), true, valid)
+				if !valid {
+					return nil, fmt.Errorf("invalid UTF-8 byte sequence")
+				}
+				return runtime.StringValue{Val: string(bytes)}, nil
 			}
 			if _, err := i.ensureArrayState(arr, 0); err != nil {
 				return nil, err
 			}
 			bytes := make([]byte, len(arr.Elements))
 			for idx, element := range arr.Elements {
-				num, convErr := int64FromValue(element, fmt.Sprintf("array element %d", idx))
-				if convErr != nil {
-					return nil, convErr
+				num, ok, fits := int64ValueInfo(element)
+				if !ok {
+					return nil, fmt.Errorf("array element %d must be an integer", idx)
+				}
+				if !fits {
+					return nil, fmt.Errorf("array element %d must fit in 64-bit integer", idx)
 				}
 				if num < 0 || num > 0xff {
 					return nil, fmt.Errorf("array element %d must be in range 0..255", idx)
 				}
 				bytes[idx] = byte(num)
 			}
-			if !utf8.Valid(bytes) {
+			valid := utf8.Valid(bytes)
+			i.recordBytecodeStringToBuiltin(len(bytes), false, valid)
+			if !valid {
 				return nil, fmt.Errorf("invalid UTF-8 byte sequence")
 			}
 			return runtime.StringValue{Val: string(bytes)}, nil
@@ -168,8 +229,10 @@ func (i *Interpreter) initStringHostBuiltins() {
 	}
 
 	charFromCodepoint := runtime.NativeFunctionValue{
-		Name:  "__able_char_from_codepoint",
-		Arity: 1,
+		Name:        "__able_char_from_codepoint",
+		Arity:       1,
+		BorrowArgs:  true,
+		SkipContext: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_char_from_codepoint expects one argument")
@@ -190,20 +253,45 @@ func (i *Interpreter) initStringHostBuiltins() {
 	}
 
 	charToCodepoint := runtime.NativeFunctionValue{
-		Name:  "__able_char_to_codepoint",
-		Arity: 1,
+		Name:        "__able_char_to_codepoint",
+		Arity:       1,
+		BorrowArgs:  true,
+		SkipContext: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_char_to_codepoint expects one argument")
 			}
 			switch v := args[0].(type) {
 			case runtime.CharValue:
-				return runtime.NewSmallInt(int64(v.Val), runtime.IntegerI32), nil
+				return boxedOrSmallIntegerValue(runtime.IntegerI32, int64(v.Val)), nil
 			case *runtime.CharValue:
 				if v == nil {
 					return nil, fmt.Errorf("char argument is nil")
 				}
-				return runtime.NewSmallInt(int64(v.Val), runtime.IntegerI32), nil
+				return boxedOrSmallIntegerValue(runtime.IntegerI32, int64(v.Val)), nil
+			default:
+				return nil, fmt.Errorf("argument must be a char")
+			}
+		},
+	}
+
+	charSimpleFoldNext := runtime.NativeFunctionValue{
+		Name:        "__able_char_simple_fold_next",
+		Arity:       1,
+		BorrowArgs:  true,
+		SkipContext: true,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("__able_char_simple_fold_next expects one argument")
+			}
+			switch v := args[0].(type) {
+			case runtime.CharValue:
+				return runtime.CharValue{Val: unicode.SimpleFold(v.Val)}, nil
+			case *runtime.CharValue:
+				if v == nil {
+					return nil, fmt.Errorf("char argument is nil")
+				}
+				return runtime.CharValue{Val: unicode.SimpleFold(v.Val)}, nil
 			default:
 				return nil, fmt.Errorf("argument must be a char")
 			}
@@ -214,5 +302,6 @@ func (i *Interpreter) initStringHostBuiltins() {
 	i.global.Define("__able_String_to_builtin", stringToBuiltin)
 	i.global.Define("__able_char_from_codepoint", charFromCodepoint)
 	i.global.Define("__able_char_to_codepoint", charToCodepoint)
+	i.global.Define("__able_char_simple_fold_next", charSimpleFoldNext)
 	i.stringHostReady = true
 }

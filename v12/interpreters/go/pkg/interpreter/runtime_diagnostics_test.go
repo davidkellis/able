@@ -146,6 +146,50 @@ func TestAppendRuntimeCallFrame(t *testing.T) {
 	}
 }
 
+func TestFinishCompletedCallAppendsCallFrameToExistingRuntimeContext(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	root := runtimeDiagnosticRoot()
+	if root == "" {
+		t.Fatalf("expected diagnostic root path")
+	}
+
+	path := filepath.Join(root, "v12/fixtures/exec/07_10_iterator_reentrancy/main.able")
+	errorNode := ast.ID("boom")
+	callNode := ast.Call("outer")
+	ast.SetSpan(errorNode, ast.Span{
+		Start: ast.Position{Line: 9, Column: 32},
+		End:   ast.Position{Line: 9, Column: 40},
+	})
+	ast.SetSpan(callNode, ast.Span{
+		Start: ast.Position{Line: 16, Column: 3},
+		End:   ast.Position{Line: 16, Column: 12},
+	})
+
+	interp.SetNodeOrigins(map[ast.Node]string{
+		errorNode: path,
+		callNode:  path,
+	})
+
+	err := interp.AttachRuntimeContextWithCallStack(fmt.Errorf("boom"), errorNode, nil, nil)
+	_, finishErr := vm.finishCompletedCall(nil, err, callNode, nil)
+	if finishErr == nil {
+		t.Fatalf("expected finishCompletedCall to return the existing error")
+	}
+
+	diag := interp.BuildRuntimeDiagnostic(finishErr)
+	got := DescribeRuntimeDiagnostic(diag)
+	expectedPath := normalizeRuntimePath(path)
+	expected := fmt.Sprintf(
+		"runtime: %s:9:32 boom\nnote: %s:16:3 called from here",
+		expectedPath,
+		expectedPath,
+	)
+	if got != expected {
+		t.Fatalf("unexpected completed-call diagnostic output:\nexpected: %s\ngot: %s", expected, got)
+	}
+}
+
 func TestAttachRuntimeContextPreservesCallStackAcrossUnwind(t *testing.T) {
 	interp := New()
 	state := newEvalState()

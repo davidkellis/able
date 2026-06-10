@@ -20,7 +20,7 @@ func (vm *bytecodeVM) execPropagation(program **bytecodeProgram, instructions *[
 	if errVal, ok := vm.interp.propagationErrorValue(val, vm.env); ok {
 		return false, raiseSignal{value: errVal}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return false, nil
 }

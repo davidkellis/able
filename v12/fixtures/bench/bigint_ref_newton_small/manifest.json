@@ -1,0 +1,6 @@
+{
+  "description": "independent BigIntRef Newton-iteration benchmark fixture",
+  "expect": {
+    "exit": 0
+  }
+}

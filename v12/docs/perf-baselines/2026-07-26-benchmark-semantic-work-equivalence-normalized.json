@@ -1,0 +1,127 @@
+{
+  "date": "2026-07-26",
+  "decision": "retain_benchmark_and_reference_normalization",
+  "scope": {
+    "benchmarks": [
+      "tapelang_alphabet",
+      "sudoku_masks"
+    ],
+    "compiler_changes": 0,
+    "runtime_changes": 0,
+    "stdlib_changes": 0,
+    "wasm_changes": 0
+  },
+  "tapelang_alphabet": {
+    "contract": "flat structure-of-arrays bytecode and jump-table dispatch in both Able and Go",
+    "old_go_parser_issue": {
+      "description": "Unrecognized bytes appended the zero-value INC opcode instead of being ignored.",
+      "input_bytes": 275,
+      "recognized_bytes": 193,
+      "ignored_bytes": 82
+    },
+    "dynamic_counts": {
+      "increments": 577783636,
+      "moves": 57780404,
+      "inputs": 0,
+      "prints": 27,
+      "loop_starts": 288891814,
+      "loop_ends": 288891813,
+      "total_dispatches": 1213347694
+    },
+    "output_sha256": "a8ac3a1054c1aa7ac25f9b1e652a96a7ac86a1c1130687fc53b90e20c766d149"
+  },
+  "sudoku_masks": {
+    "contract": "slice-backed i32 boards and masks in both languages, with one reusable position record per recursive solve call",
+    "dynamic_counts": {
+      "find_calls": 1918450,
+      "scanned_cells": 155394450,
+      "empty_cells": 64090010,
+      "bit_count_iterations": 166923250,
+      "best_updates": 3893780,
+      "choices_tried": 1918350,
+      "backtracks": 1912510
+    },
+    "removed_source_chosen_heap_allocations": 7787560,
+    "escape_evidence": {
+      "generated_able_hot_position": "does not escape",
+      "go_best_parameter": "does not escape"
+    },
+    "output_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+  },
+  "strict_generated_graphs": {
+    "checked": 2,
+    "packages_each": 96,
+    "interpreter_free": 2,
+    "hot_functions_with_runtime_value_or_bridge_calls": 0
+  },
+  "authoritative_comparison": {
+    "runs_per_lane": 5,
+    "cpu_affinity": "0",
+    "go_version": "go version go1.26.4 linux/amd64",
+    "verified_processes": 20,
+    "comparison_sha256": "d1fb7f6be4b974234381a33a981f232a06771d46fb807f15ecea5563824b6641",
+    "go_reference_sha256": "c0f0a04d6a9dc4d7744b36d36d37b6e55b28c462cd2118f15cc9b23a3b3b7d06",
+    "rows": [
+      {
+        "benchmark": "tapelang_alphabet",
+        "able_seconds": 3.706,
+        "go_seconds": 2.9649,
+        "ratio": 1.2499578401,
+        "able_gc_mean": 0.0
+      },
+      {
+        "benchmark": "sudoku_masks",
+        "able_seconds": 1.574,
+        "go_seconds": 0.7027,
+        "ratio": 2.239931692,
+        "able_gc_mean": 0.0
+      }
+    ]
+  },
+  "independent_balanced_comparison": {
+    "runs_per_lane": 5,
+    "verified_processes": 20,
+    "raw_sha256": "c4ac38ac27b94bda0d15124a29750eb3dd9c944bed86ff2b27d4d6525c8558be",
+    "rows": [
+      {
+        "benchmark": "tapelang_alphabet",
+        "able_seconds": 3.526,
+        "go_seconds": 2.886,
+        "ratio": 1.2217602218
+      },
+      {
+        "benchmark": "sudoku_masks",
+        "able_seconds": 1.364,
+        "go_seconds": 0.638,
+        "ratio": 2.1379310345
+      }
+    ]
+  },
+  "source_sha256": {
+    "able_tapelang": "426a40e33840f3a0e9e62d5f9b9519a6840edd2733b8031df6a280e4b782fdb8",
+    "able_sudoku": "fd918bf940bf22973fb205b1f1fa1be9de07a8774ad79138c9bc8a95acb43d6b",
+    "go_tapelang": "e53f36775b30177debe262c6693c40ff0c3db9a552fcf2dd8cb6c5a37174f775",
+    "go_sudoku": "0731d83377fde41add93bd6f503a7b42b9f612b8c1a07a2d3ec440e301b7ee99",
+    "external_able_sudoku": "fd918bf940bf22973fb205b1f1fa1be9de07a8774ad79138c9bc8a95acb43d6b"
+  },
+  "verification": {
+    "feature_coverage": "pass",
+    "operation_depth": "pass",
+    "catalog": "pass",
+    "public_verifiers": "pass",
+    "external_scoreboard": "pass",
+    "bytecode_status": {
+      "runs": 1,
+      "timeout_seconds": 55,
+      "status": "timeout",
+      "classification": "unselected status row unchanged"
+    },
+    "full_suite": {
+      "command": "./run_all_tests.sh",
+      "status": "pass",
+      "compiler_batches": 32,
+      "final_bytecode_fixture_seconds": 80.691
+    }
+  },
+  "next": "Profile the normalized equal-work Tapelang and Sudoku rows with the unchanged equal-algorithm Fib sentinel, then admit only a general generated-code owner material across three unlike programs."
+}

@@ -1,0 +1,48 @@
+{
+  "date": "2026-07-22",
+  "decision": "reject_immutable_error_interface_name_arrays",
+  "retained_change": false,
+  "profile_binary_sha256": "883a6ff6eaa828076a32dd5738f8844e2bec1803778bf2be86fb7e19ec650a00",
+  "candidate_binary_sha256": "d4dde8fb9c219cbfbbf81faa8ff9437568d2e57f531b7915c009e6e7c03ca1f3",
+  "guardrails": {"gomemlimit":"1GiB","gogc":50,"gomaxprocs":1,"timeout_seconds":59,"warmup_calls":1,"measured_calls":1,"normal_typechecking":true,"source_root_only":true},
+  "profile_runs": [
+    {"workload":"binary_event_log","ns_per_op":7033713408,"bytes_per_op":465602848,"allocs_per_op":8361497},
+    {"workload":"option_result_config","ns_per_op":738988580,"bytes_per_op":67946296,"allocs_per_op":1167871},
+    {"workload":"manifest_normalization","ns_per_op":1273848104,"bytes_per_op":63650512,"allocs_per_op":916244},
+    {"workload":"policy_record_dispatch","ns_per_op":7575187570,"bytes_per_op":132395304,"allocs_per_op":1402554}
+  ],
+  "shared_cpu_flat_percent": {
+    "finishInlineReturn": [0.29,5.33,2.36,1.86],
+    "popCallFrameFields": [0.43,2.67,0.79,1.86],
+    "pushCallFrame": [0.43,2.67,1.57,0.27],
+    "releaseSlotFrameRawCells": [0.0,2.67,0.79,0.53],
+    "bytecodeRawIntegerValueInfo": [2.57,0.0,0.79,1.59]
+  },
+  "sampled_error_interface_name_allocations": {"binary_event_log":344074,"option_result_config":49153,"manifest_normalization":16384,"policy_record_dispatch":49153},
+  "gate_means": [
+    {"workload":"binary_event_log","processes_per_variant":8,"control_ns_per_op":7007115148.125,"candidate_ns_per_op":7193503882.750,"time_delta_percent":2.659992,"bytes_delta_percent":-2.167803,"allocs_delta_percent":-3.771984},
+    {"workload":"option_result_config","processes_per_variant":3,"control_ns_per_op":745367994.667,"candidate_ns_per_op":698142745.667,"time_delta_percent":-6.335830,"bytes_delta_percent":-6.101942,"allocs_delta_percent":-11.089409},
+    {"workload":"manifest_normalization","processes_per_variant":3,"control_ns_per_op":1296911301.667,"candidate_ns_per_op":1262638991.667,"time_delta_percent":-2.642610,"bytes_delta_percent":-0.798820,"allocs_delta_percent":-2.011106},
+    {"workload":"policy_record_dispatch","processes_per_variant":8,"control_ns_per_op":6525365549.875,"candidate_ns_per_op":6511611867.375,"time_delta_percent":-0.210773,"bytes_delta_percent":-0.255661,"allocs_delta_percent":-0.657739}
+  ],
+  "samples": {
+    "binary_event_log": {
+      "control": [[1,7290703655,465565496,8361435],[2,7384170886,465565512,8361435],[3,7082173827,465565496,8361435],[4,6785311199,465565512,8361435],[5,6816844027,465565480,8361435],[6,6949949118,465565496,8361435],[7,6964302998,465565512,8361435],[8,6783465475,465565496,8361435]],
+      "candidate": [[1,7214529644,455472952,8046043],[2,9555638589,455472968,8046043],[3,6825164161,455472952,8046043],[4,6705584502,455472968,8046043],[5,6978447765,455472952,8046043],[6,6773509964,455472952,8046043],[7,6881070704,455472952,8046043],[8,6614085733,455472968,8046043]]
+    },
+    "option_result_config": {
+      "control": [[1,750743599,67914976,1167817],[2,707975323,67914992,1167817],[3,777385062,67914992,1167817]],
+      "candidate": [[1,686607357,63770848,1038313],[2,701270309,63770864,1038313],[3,706550571,63770848,1038313]]
+    },
+    "manifest_normalization": {
+      "control": [[1,1281003988,63593384,916177],[2,1289694749,64366184,916254],[3,1320035168,63905384,916206]],
+      "candidate": [[1,1173810643,63644968,897803],[2,1329592794,63774760,897818],[3,1284513538,62912568,897738]]
+    },
+    "policy_record_dispatch": {
+      "control": [[1,6745969900,133298056,1402575],[2,6173163671,132135192,1402438],[3,6265970986,132210984,1402487],[4,6768723748,132635456,1402537],[5,6351018216,132431904,1402503],[6,6744371909,132263400,1402458],[7,6351151906,132173136,1402464],[8,6802554063,132578600,1402495]],
+      "candidate": [[1,6490582977,132320488,1393277],[2,6355409857,132137528,1393291],[3,6498021608,131839872,1393220],[4,7017843595,132173712,1393282],[5,6248214454,132396512,1393326],[6,6622343780,131878000,1393245],[7,6574846462,132099192,1393264],[8,6285632206,132172120,1393254]]
+    }
+  },
+  "sample_columns": ["run","ns_per_op","bytes_per_op","allocs_per_op"],
+  "next": "stats-only return-frame composition census across four owners and three controls"
+}

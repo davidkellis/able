@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-07-21T22:07:37.675644Z",
+  "suite": "custom",
+  "benchmarks": [
+    "matrixmultiply"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-go-reference.json",
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "matrixmultiply",
+        "mode": "compiled",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.406,
+        "avg_user_seconds": 1.336,
+        "avg_sys_seconds": 0.042,
+        "avg_gc": 3.2,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 1.43,
+            "user_seconds": 1.31,
+            "sys_seconds": 0.04,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 1.43,
+            "user_seconds": 1.38,
+            "sys_seconds": 0.04,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 1.4,
+            "user_seconds": 1.35,
+            "sys_seconds": 0.04,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 1.41,
+            "user_seconds": 1.34,
+            "sys_seconds": 0.05,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 1.36,
+            "user_seconds": 1.3,
+            "sys_seconds": 0.04,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/matrixmultiply/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/matrixmultiply.able",
+          "sha256": "f4e1ae5575094ab725db5ee0adb81eb6783221844aac9ef99b8f820f56c18246"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "serial"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [
+          "1000"
+        ],
+        "provenance": "measured",
+        "sha256": "d6d0b31186e8a0a8662640729b0ae94c49cbc7f93de643a5a2c1090ffecb1c99",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/matrixmultiply/verify.rb",
+          "sha256": "f57a6ee5eb62abeda1a99a9ede38851aca39cb1ff2d7eec5dfcbfc97e1173b00"
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 1.1455,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 1.227411610650371,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/matrixmultiply/go-1.26/app.go",
+            "sha256": "4b77c1e4f0add1763c830c9da22a9d92c43d14e48432bab021e2146e3ccb1e42",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 1.185291712,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 1.179147029,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 1.132111163,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 1.124120939,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 1.106704633,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            }
+          ],
+          "execution_contract": {
+            "mode": "compiled",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "serial"
+          }
+        }
+      }
+    }
+  ]
+}

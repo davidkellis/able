@@ -1,4 +1,13 @@
-# Able v12 String & Text Plan
+# Able v12 String & Text Proposal (Historical)
+
+> **Status (reconciled 2026-07-14):** This is a historical design proposal,
+> not an active v12 roadmap or specification TODO. The canonical implementation
+> lives in the external [`able-stdlib`](../../../able-stdlib) repository,
+> principally at `src/text/string.able`. The current API/coverage decision is
+> [Filesystem, I/O, and text roadmap reconciliation](../docs/perf-baselines/2026-07-14-fs-io-text-roadmap-reconciliation.md).
+> Do not infer a missing feature or select implementation work from the
+> proposals below without a new specified behavior and its normal cross-mode
+> coverage.
 
 ## Goals
 - Treat `String` as the canonical, host-independent representation of textual data while preserving the existing `string` primitive for literals and interoperable APIs.
@@ -7,18 +16,36 @@
 - Keep the implementation portable: the TypeScript and Go runtimes must share the same data layout (`Array u8` + cached `len_bytes`) and call the same extern shims for host-specific work.
 - Document the plan so downstream work (regex, formatting, IO, diagnostics) can rely on these contracts.
 
-## Current Status (2025-02)
-- `stdlib/src/text/string.able` defines `String`, `Grapheme`, `StringBuilder`, `StringChars`, and grapheme iterators with basic UTF-8 decoding plus `split`, `concat`, and `join`.
-- `StringBuilder` can push chars/bytes/Strings and emit a validated `String`, but it lacks `reserve`, `into_string`, or formatting helpers.
-- Grapheme iteration currently advances one Unicode scalar at a time; full extended grapheme-cluster detection is deferred until Unicode tables land.
-- Missing API surface:
-  - No byte/char/grapheme length helpers beyond `len_bytes`.
-  - No substring, slice, or prefix/suffix helpers; existing Able code falls back to the primitive `string` type for these operations.
+## Historical Snapshot (2025-02)
+
+The following snapshot is retained to explain the proposal; it is not a
+statement of the current implementation. Its original in-tree
+`stdlib/src/text/string.able` location is retired. The canonical external
+stdlib now supplies `String`/`Grapheme`/`StringBuilder`, UTF-8 byte, char, and
+grapheme lengths, `substring`, `contains`, `split`, `replace`,
+`starts_with`/`ends_with`, and the established builder construction/push/finish
+surface.
+
+At the time this proposal was written:
+
+- `StringBuilder` could push chars/bytes/Strings and emit a validated `String`,
+  but did not expose `reserve`, `into_string`, or formatting helpers.
+- Grapheme iteration advanced one Unicode scalar at a time; full extended
+  grapheme-cluster detection was deferred until Unicode tables landed.
+- Proposed, but not v12-required, API surface included:
+  - normalization (`to_nfc`), case conversion (`to_lower`, `casefold`), and
+    whitespace utilities (`trim_*`, `split_whitespace`);
+  - a zero-copy view type and incremental parsing/string-builder APIs.
+
+The remaining bullets below are historical design ideas, not a missing-feature
+backlog.
+
+- Historical proposed API surface:
   - No normalization (`to_nfc`), case conversion (`to_lower`, `casefold`), or whitespace utilities (`trim_*`, `split_whitespace`).
   - No view type for zero-copy spans; regex and parsers must clone substrings.
   - No runtime story for incremental parsing (cursor/scanner) or streaming string building.
 
-## Target API Surface
+## Historical Proposed API Surface (non-roadmap)
 
 ### Construction & Inspection
 - `fn len_chars(self) -> i32` and `fn len_graphemes(self) -> i32` derived via iterators with optional cached counts.
@@ -77,7 +104,7 @@
 - `able.text.scanner`: `StringCursor` plus tokenization helpers.
 - These modules keep `String` lean while avoiding cyclic dependencies (e.g., regex only depends on views + unicode helpers).
 
-## Runtime & Host Requirements
+## Historical Potential Runtime & Host Requirements
 - Existing externs:
   - `__able_string_from_builtin(string) -> Array u8`
   - `__able_string_to_builtin(Array u8) -> string`
@@ -92,7 +119,7 @@
 - Each extern should be pure and allocation-safe so the Able layer can wrap them in `Result`.
 - Both runtimes must expose shared tests verifying that host + Able implementations agree on tricky Unicode samples (combining marks, emoji, RTL, etc.).
 
-## Testing & Fixtures
+## Historical Testing & Fixture Considerations
 - Extend `stdlib/tests/text/` with new suites:
   - `string_lengths.test.able` for `len_chars`/`len_graphemes`.
   - `string_slice.test.able` for `slice_*`, views, and prefix helpers.
@@ -102,7 +129,7 @@
 - Add AST fixtures under `fixtures/ast/strings/` for trimming, substring, casefold, etc., so both interpreters exercise the same code paths.
 - Update the spec TODO (string entry) once the docs derived from this plan land and tests exist.
 
-## Phase Breakdown
+## Historical Phase Breakdown
 1. **Phase 0 (done):** landed baseline `String`, iterators, builder, `split/join/concat`.
 2. **Phase 1 – Foundational helpers:**
    - Implement `len_chars`, `len_graphemes`, `starts_with`, `ends_with`, `contains`, `index_of`, byte/charmap `slice` APIs, and `StringView` with ASCII-only validation.
@@ -122,7 +149,7 @@
 
 Each phase should update `PLAN.md` + spec references and add parity tests before merging.
 
-## Open Questions & Risks
+## Historical Open Questions & Risks
 - **Normalization data:** Do we embed Unicode tables in the interpreters or rely on host ICU APIs? Decision impacts wasm portability and bundle size.
 - **Caching strategy:** Should `String` cache `len_chars`/`len_graphemes`? Pros: faster queries. Cons: extra memory + invalidation complexity when cloning builders.
 - **Locale handling:** How many locales do we expose via `String::compare` / `to_title(locale)`? Minimal viable plan is locale-agnostic binary comparison; full locale support may slip to v12.
@@ -130,4 +157,7 @@ Each phase should update `PLAN.md` + spec references and add parity tests before
 - **Mutable slices:** We deliberately avoid exposing mutable views to preserve `String` immutability. Builders remain the only mutation path.
 - **Interop with primitive `string`:** Long term we may alias `string` literals to the stdlib `String` without copies; this requires interpreter work (interning, lifetime tracking) and is outside this plan’s first three phases.
 
-This document supersedes the earlier short-form note; keep it updated as phases land so spec writers and interpreter owners can rely on a single authoritative plan.
+This proposal is retained as design history. The v12 specification, canonical
+external stdlib, fixtures, and the current roadmap determine active behavior
+and work selection; do not update this document as though it were an
+authoritative implementation plan.

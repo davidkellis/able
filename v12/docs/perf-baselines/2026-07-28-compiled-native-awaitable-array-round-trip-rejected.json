@@ -1,0 +1,142 @@
+{
+  "kind": "able-compiled-native-awaitable-array-round-trip-rejected",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "reject-and-remove",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "cpu_affinity": "0-3",
+  "gomaxprocs": 4,
+  "executor": "goroutine",
+  "inputs": {
+    "baseline_census_sha256": "f5fb876caa34e70c3d4cdd58f56d34f7d7dbcce93a657f8599a71e43499021e8",
+    "candidate_census_sha256": "707f492ffd9c92b7033cea743567b5e3ee389b6e65e3244ce28382dbba8d706c",
+    "final_census_sha256": "e642159809f6cb0c700f93dcefbae0653d11e9a71763fa85dc6c5503190f9924",
+    "counter_samples_sha256": "36601e79d67b3da654fe0c4a7996b2cee3edd112503e93d5ac7eaf070fb7aa4f",
+    "allocation_samples_sha256": "0a0cbd570ae01f5c9dd0b4809744bc055a2cf78c99953e3b8b0839f5ab799ad6",
+    "timing_samples_sha256": "569745bcf7531adc4dc8f87941ebe56a3fb5fcacd46f0d145d4b896c1a3678a1",
+    "instrument_sha256": "1a3e9100a4f24b7730ec6cc5e7e0f6c4747283decb7e6c0fa6046d553564673c"
+  },
+  "runs": {
+    "counter_per_side_per_application": 3,
+    "allocation_per_side_per_application": 5,
+    "timing_cohorts_per_application": 15
+  },
+  "benchmarks": [
+    {
+      "benchmark": "await_channel_mux",
+      "source_sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+      "stdout_sha256": "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693",
+      "baseline_binary_sha256": "471d645f3eb28a7663be0070ffaf872a1b8dcf2a701830ac43280eb9629f5d82",
+      "candidate_binary_sha256": "090f1e4384281ab7c341e76c7e2ff714c5c5dc96bff42f9b8b4ce033a1d801b7",
+      "interpreter_free": true,
+      "counters": {
+        "baseline_runtime_array_conversions": 1024,
+        "baseline_runtime_array_elements": 2560,
+        "candidate_runtime_array_conversions": 0,
+        "candidate_native_array_collections": 1024,
+        "candidate_native_array_elements": 2560,
+        "interface_each_direction": 2560,
+        "await_method_calls": 7680
+      },
+      "allocation": {
+        "baseline_bytes": [6612600, 6623072, 6612920, 6611096, 6610344],
+        "candidate_bytes": [6475568, 6471736, 6470152, 6477544, 6473704],
+        "baseline_objects": [112677, 112736, 112673, 112661, 112658],
+        "candidate_objects": [110615, 110630, 110610, 110658, 110627],
+        "bytes_change_percent": -2.12,
+        "objects_change_percent": -1.82
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0891151592,
+        "candidate_mean_seconds": 0.0887753671,
+        "go_mean_seconds": 0.0032533104,
+        "candidate_change_percent": -0.3813,
+        "paired_change_percent": 0.0090,
+        "paired_ci95_percent": [-3.7517, 3.7697],
+        "candidate_go_time_ratio": 27.2877
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "source_sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696",
+      "stdout_sha256": "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e",
+      "baseline_binary_sha256": "3c019befcd607de52c1bb805431e2665c0536a5bf16f3ce984299754420ef07e",
+      "candidate_binary_sha256": "e4e0f881b54f13242e7b02e19f2c0fd33a7a3a08f3549b4c261b1cb5a60a6924",
+      "interpreter_free": true,
+      "counters": {
+        "baseline_runtime_array_conversions": 2048,
+        "baseline_runtime_array_elements": 2048,
+        "candidate_runtime_array_conversions": 0,
+        "candidate_native_array_collections": 2048,
+        "candidate_native_array_elements": 2048,
+        "interface_each_direction": 2048,
+        "await_method_calls": 6144
+      },
+      "allocation": {
+        "baseline_bytes": [2787288, 2828352, 2769872, 2834216, 2805960],
+        "candidate_bytes": [2575496, 2598800, 2554176, 2620560, 2586160],
+        "baseline_objects": [45563, 46199, 45296, 46288, 45856],
+        "candidate_objects": [41662, 42101, 41411, 42356, 41904],
+        "bytes_change_percent": -7.77,
+        "objects_change_percent": -8.62
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0089037617,
+        "candidate_mean_seconds": 0.0093191640,
+        "go_mean_seconds": 0.0024392615,
+        "candidate_change_percent": 4.6655,
+        "paired_change_percent": 6.8372,
+        "paired_ci95_percent": [-3.6023, 17.2767],
+        "candidate_go_time_ratio": 3.8205
+      }
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "source_sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113",
+      "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58",
+      "baseline_binary_sha256": "100219e05e20e20d0943d93564c144e9973c07450bb43f3ff99c692a262c9c5a",
+      "candidate_binary_sha256": "3de69c9430882e27ebc0673336146b3c28333b4c1f1973399959b5a6c3f8b067",
+      "interpreter_free": true,
+      "counters": {
+        "baseline_runtime_array_conversions": 4096,
+        "baseline_runtime_array_elements": 4096,
+        "candidate_runtime_array_conversions": 0,
+        "candidate_native_array_collections": 4096,
+        "candidate_native_array_elements": 4096,
+        "interface_each_direction": 4096,
+        "await_method_calls": 12288
+      },
+      "allocation": {
+        "baseline_bytes": [5764752, 5852896, 5875040, 5779536, 5834928],
+        "candidate_bytes": [5357456, 5326832, 5411768, 5351824, 5340112],
+        "baseline_objects": [95103, 96455, 96805, 95327, 96185],
+        "candidate_objects": [87701, 87230, 88537, 87619, 87439],
+        "bytes_change_percent": -7.97,
+        "objects_change_percent": -8.62
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0155102933,
+        "candidate_mean_seconds": 0.0157231474,
+        "go_mean_seconds": 0.0028663239,
+        "candidate_change_percent": 1.3723,
+        "paired_change_percent": 2.4874,
+        "paired_ci95_percent": [-5.8908, 10.8655],
+        "candidate_go_time_ratio": 5.4855
+      }
+    }
+  ],
+  "verification": {
+    "counter_processes": 18,
+    "allocation_processes": 30,
+    "selected_timing_processes": 135,
+    "strict_census_processes": 6,
+    "final_strict_census_processes": 3,
+    "public_verifier_failures": 0,
+    "strict_interpreter_dependencies": 0,
+    "focused_candidate_tests": "pass",
+    "focused_final_tests": "pass",
+    "final_generated_source_matches_baseline": true,
+    "production_candidate_retained": false
+  },
+  "next": "Measure the remaining per-element native Awaitable interface-to-runtime crossing and prototype a general typed arm representation only if it preserves dynamic fallbacks without introducing escape costs."
+}

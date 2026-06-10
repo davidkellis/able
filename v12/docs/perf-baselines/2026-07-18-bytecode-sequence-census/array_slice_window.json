@@ -1,0 +1,2276 @@
+{
+  "Enabled": true,
+  "OpCounts": [
+    372531,
+    24261,
+    12002,
+    0,
+    0,
+    0,
+    0,
+    12001,
+    480020,
+    648519,
+    624259,
+    12002,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    12257,
+    12000,
+    0,
+    0,
+    0,
+    0,
+    912005,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    12002,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    288000,
+    0,
+    0,
+    0,
+    0,
+    12006,
+    24002,
+    12002,
+    0,
+    0,
+    0,
+    888266,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    624263,
+    336261,
+    0,
+    12001,
+    0,
+    0,
+    0,
+    0,
+    0,
+    300003,
+    0,
+    0,
+    0,
+    0,
+    12001,
+    0,
+    24003,
+    24003,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    36008,
+    2004545,
+    312001,
+    0,
+    0,
+    0,
+    132014,
+    312001,
+    0,
+    0,
+    0,
+    0,
+    0,
+    588259,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "OpCountsByName": {
+    "ArrayIndexGetSlot": 0,
+    "ArrayIndexSetSlot": 0,
+    "ArrayIndexSwapSlot": 0,
+    "ArrayLiteral": 0,
+    "ArrayReadSlot": 288000,
+    "ArrayReadSlotI32": 0,
+    "ArraySlotSwapSlot": 0,
+    "AssignName": 0,
+    "AssignNameCompound": 0,
+    "AssignPattern": 0,
+    "Await": 0,
+    "Binary": 648519,
+    "BinaryCastSlotFloatConstDiv": 0,
+    "BinaryFloatMulSlotConst": 0,
+    "BinaryI32Add": 0,
+    "BinaryI32Sub": 0,
+    "BinaryIntAdd": 624259,
+    "BinaryIntAddSlotConst": 0,
+    "BinaryIntCompareSlotConst": 0,
+    "BinaryIntDivCast": 0,
+    "BinaryIntLessEqual": 0,
+    "BinaryIntLessEqualSlotConst": 0,
+    "BinaryIntModSlotConst": 12000,
+    "BinaryIntMulSlotConst": 12257,
+    "BinaryIntSub": 12002,
+    "BinaryIntSubSlotConst": 0,
+    "BindPattern": 0,
+    "BoxI32": 0,
+    "BreakLabel": 0,
+    "BreakSignal": 0,
+    "Breakpoint": 0,
+    "Call": 0,
+    "CallMember": 24002,
+    "CallMemberArrayGet": 0,
+    "CallMemberArrayNew": 0,
+    "CallMemberArraySlot": 888266,
+    "CallMemberNext": 0,
+    "CallName": 12006,
+    "CallSelf": 0,
+    "CallSelfIntSubSlotConst": 0,
+    "CallStaticMember": 12002,
+    "Cast": 912005,
+    "CompoundAssignImplicitSlot": 0,
+    "CompoundAssignSlot": 0,
+    "CompoundAssignSlotI32": 0,
+    "Const": 372531,
+    "ConstI32": 0,
+    "ContinueSignal": 0,
+    "DeclareName": 0,
+    "DefineExtern": 0,
+    "DefineFunction": 0,
+    "DefineImplementation": 0,
+    "DefineInterface": 0,
+    "DefineMethods": 0,
+    "DefineStruct": 0,
+    "DefineTypeAlias": 0,
+    "DefineUnion": 0,
+    "Dup": 12001,
+    "DynImport": 0,
+    "Ensure": 0,
+    "EnsureEnd": 0,
+    "EnterScope": 0,
+    "ExitScope": 0,
+    "ForLoop": 0,
+    "ImplicitMember": 0,
+    "ImplicitMemberSet": 0,
+    "Import": 0,
+    "IndexGet": 0,
+    "IndexSet": 0,
+    "IterClose": 0,
+    "IterInit": 0,
+    "IterNext": 0,
+    "IteratorLiteral": 0,
+    "Jump": 624263,
+    "JumpIfArrayIndexSlotCompareSlotFalse": 0,
+    "JumpIfArrayReadSlotCompareSlotFalse": 0,
+    "JumpIfBoolSlotFalse": 0,
+    "JumpIfFalse": 336261,
+    "JumpIfFloatAddCompareConstFalse": 0,
+    "JumpIfFloatMulAddMulCompareConstFalse": 0,
+    "JumpIfIntCompareSlotConstFalse": 0,
+    "JumpIfIntCompareSlotFalse": 300003,
+    "JumpIfIntLessEqualSlotConstFalse": 12001,
+    "JumpIfNil": 0,
+    "JumpIfNotNil": 0,
+    "JumpIfNotTypedPattern": 12001,
+    "LoadImplicitSlot": 312001,
+    "LoadName": 24261,
+    "LoadSlot": 2004545,
+    "LoadSlotI32": 0,
+    "LoadSlotStructField": 0,
+    "LoadStaticReceiver": 12002,
+    "LoopEnter": 24003,
+    "LoopExit": 24003,
+    "MakeFunction": 0,
+    "MapLiteral": 0,
+    "Match": 0,
+    "MatchNoClause": 0,
+    "MemberAccess": 0,
+    "MemberSet": 0,
+    "OrElse": 0,
+    "Pipe": 0,
+    "PlaceholderLambda": 0,
+    "PlaceholderValue": 0,
+    "Pop": 480020,
+    "Propagation": 0,
+    "Raise": 0,
+    "Range": 0,
+    "Rescue": 0,
+    "Rethrow": 0,
+    "Return": 36008,
+    "ReturnBinary": 0,
+    "ReturnBinaryIntAdd": 0,
+    "ReturnBinaryIntAddI32": 0,
+    "ReturnConstIfIntLessEqualSlotConst": 0,
+    "ReturnIfIntLessEqualSlotConst": 0,
+    "Spawn": 0,
+    "StoreImplicitSlot": 312001,
+    "StoreSlot": 0,
+    "StoreSlotBinaryIntSlotConst": 588259,
+    "StoreSlotCastSlotFloatConstDiv": 0,
+    "StoreSlotFloatAddMul": 0,
+    "StoreSlotFloatAddMulArrayGet": 0,
+    "StoreSlotFloatAddMulSlot": 0,
+    "StoreSlotFloatAddSub": 0,
+    "StoreSlotFloatAffine": 0,
+    "StoreSlotFloatBinary": 0,
+    "StoreSlotFloatRegion": 0,
+    "StoreSlotI32": 0,
+    "StoreSlotIntMulConstAdd": 0,
+    "StoreSlotIntMulConstAddFromSlot": 0,
+    "StoreSlotIntMulConstModConst": 0,
+    "StoreSlotNew": 132014,
+    "StringInterpolation": 1,
+    "StructLiteral": 0,
+    "StructLiteralNamedFast": 12002,
+    "TryArrayPushF64AffineProduct": 0,
+    "TryArrayPushF64NestedGet": 0,
+    "TryFloatUpdatePair": 0,
+    "Unary": 0,
+    "UnboxI32": 0,
+    "Yield": 0
+  },
+  "TopOps": [
+    {
+      "op": 117,
+      "name": "LoadSlot",
+      "count": 2004545
+    },
+    {
+      "op": 24,
+      "name": "Cast",
+      "count": 912005
+    },
+    {
+      "op": 72,
+      "name": "CallMemberArraySlot",
+      "count": 888266
+    },
+    {
+      "op": 9,
+      "name": "Binary",
+      "count": 648519
+    },
+    {
+      "op": 88,
+      "name": "Jump",
+      "count": 624263
+    },
+    {
+      "op": 10,
+      "name": "BinaryIntAdd",
+      "count": 624259
+    },
+    {
+      "op": 129,
+      "name": "StoreSlotBinaryIntSlotConst",
+      "count": 588259
+    },
+    {
+      "op": 8,
+      "name": "Pop",
+      "count": 480020
+    },
+    {
+      "op": 0,
+      "name": "Const",
+      "count": 372531
+    },
+    {
+      "op": 89,
+      "name": "JumpIfFalse",
+      "count": 336261
+    },
+    {
+      "op": 118,
+      "name": "LoadImplicitSlot",
+      "count": 312001
+    },
+    {
+      "op": 123,
+      "name": "StoreImplicitSlot",
+      "count": 312001
+    },
+    {
+      "op": 97,
+      "name": "JumpIfIntCompareSlotFalse",
+      "count": 300003
+    },
+    {
+      "op": 61,
+      "name": "ArrayReadSlot",
+      "count": 288000
+    },
+    {
+      "op": 122,
+      "name": "StoreSlotNew",
+      "count": 132014
+    },
+    {
+      "op": 116,
+      "name": "Return",
+      "count": 36008
+    },
+    {
+      "op": 1,
+      "name": "LoadName",
+      "count": 24261
+    },
+    {
+      "op": 104,
+      "name": "LoopEnter",
+      "count": 24003
+    },
+    {
+      "op": 105,
+      "name": "LoopExit",
+      "count": 24003
+    },
+    {
+      "op": 67,
+      "name": "CallMember",
+      "count": 24002
+    },
+    {
+      "op": 18,
+      "name": "BinaryIntMulSlotConst",
+      "count": 12257
+    },
+    {
+      "op": 66,
+      "name": "CallName",
+      "count": 12006
+    },
+    {
+      "op": 11,
+      "name": "BinaryIntSub",
+      "count": 12002
+    },
+    {
+      "op": 68,
+      "name": "CallStaticMember",
+      "count": 12002
+    },
+    {
+      "op": 2,
+      "name": "LoadStaticReceiver",
+      "count": 12002
+    },
+    {
+      "op": 53,
+      "name": "StructLiteralNamedFast",
+      "count": 12002
+    },
+    {
+      "op": 7,
+      "name": "Dup",
+      "count": 12001
+    },
+    {
+      "op": 91,
+      "name": "JumpIfIntLessEqualSlotConstFalse",
+      "count": 12001
+    },
+    {
+      "op": 102,
+      "name": "JumpIfNotTypedPattern",
+      "count": 12001
+    },
+    {
+      "op": 19,
+      "name": "BinaryIntModSlotConst",
+      "count": 12000
+    },
+    {
+      "op": 25,
+      "name": "StringInterpolation",
+      "count": 1
+    }
+  ],
+  "TopOpPairs": [
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 948009
+    },
+    {
+      "first": 129,
+      "first_name": "StoreSlotBinaryIntSlotConst",
+      "second": 88,
+      "second_name": "Jump",
+      "count": 588259
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 576002
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 89,
+      "second_name": "JumpIfFalse",
+      "count": 324260
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 10,
+      "second_name": "BinaryIntAdd",
+      "count": 312258
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 72,
+      "second_name": "CallMemberArraySlot",
+      "count": 312002
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 0,
+      "second_name": "Const",
+      "count": 300001
+    },
+    {
+      "first": 123,
+      "first_name": "StoreImplicitSlot",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 300001
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 10,
+      "second_name": "BinaryIntAdd",
+      "count": 300000
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 300000
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 123,
+      "second_name": "StoreImplicitSlot",
+      "count": 300000
+    },
+    {
+      "first": 72,
+      "first_name": "CallMemberArraySlot",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 300000
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 129,
+      "second_name": "StoreSlotBinaryIntSlotConst",
+      "count": 300000
+    },
+    {
+      "first": 72,
+      "first_name": "CallMemberArraySlot",
+      "second": 72,
+      "second_name": "CallMemberArraySlot",
+      "count": 288002
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 72,
+      "second_name": "CallMemberArraySlot",
+      "count": 288002
+    },
+    {
+      "first": 61,
+      "first_name": "ArrayReadSlot",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 288000
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 288000
+    },
+    {
+      "first": 118,
+      "first_name": "LoadImplicitSlot",
+      "second": 61,
+      "second_name": "ArrayReadSlot",
+      "count": 288000
+    },
+    {
+      "first": 122,
+      "first_name": "StoreSlotNew",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 132014
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 84008
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 0,
+      "second_name": "Const",
+      "count": 36005
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 36002
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 1,
+      "second_name": "LoadName",
+      "count": 24259
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 88,
+      "second_name": "Jump",
+      "count": 24003
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 116,
+      "second_name": "Return",
+      "count": 24003
+    },
+    {
+      "first": 105,
+      "first_name": "LoopExit",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 24003
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 104,
+      "second_name": "LoopEnter",
+      "count": 24003
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 24001
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 67,
+      "second_name": "CallMember",
+      "count": 24001
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 12259
+    },
+    {
+      "first": 18,
+      "first_name": "BinaryIntMulSlotConst",
+      "second": 0,
+      "second_name": "Const",
+      "count": 12257
+    },
+    {
+      "first": 66,
+      "first_name": "CallName",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 12002
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 12002
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 12002
+    },
+    {
+      "first": 89,
+      "first_name": "JumpIfFalse",
+      "second": 0,
+      "second_name": "Const",
+      "count": 12002
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 53,
+      "second_name": "StructLiteralNamedFast",
+      "count": 12002
+    },
+    {
+      "first": 104,
+      "first_name": "LoopEnter",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 12002
+    },
+    {
+      "first": 53,
+      "first_name": "StructLiteralNamedFast",
+      "second": 116,
+      "second_name": "Return",
+      "count": 12002
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 7,
+      "second_name": "Dup",
+      "count": 12001
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 12001
+    },
+    {
+      "first": 11,
+      "first_name": "BinaryIntSub",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 12001
+    },
+    {
+      "first": 72,
+      "first_name": "CallMemberArraySlot",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 12001
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 10,
+      "second_name": "BinaryIntAdd",
+      "count": 12001
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 123,
+      "second_name": "StoreImplicitSlot",
+      "count": 12001
+    },
+    {
+      "first": 7,
+      "first_name": "Dup",
+      "second": 89,
+      "second_name": "JumpIfFalse",
+      "count": 12001
+    },
+    {
+      "first": 97,
+      "first_name": "JumpIfIntCompareSlotFalse",
+      "second": 0,
+      "second_name": "Const",
+      "count": 12001
+    },
+    {
+      "first": 102,
+      "first_name": "JumpIfNotTypedPattern",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 12001
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 11,
+      "second_name": "BinaryIntSub",
+      "count": 12001
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 68,
+      "second_name": "CallStaticMember",
+      "count": 12001
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 102,
+      "second_name": "JumpIfNotTypedPattern",
+      "count": 12001
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 12001
+    },
+    {
+      "first": 2,
+      "first_name": "LoadStaticReceiver",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 12001
+    },
+    {
+      "first": 104,
+      "first_name": "LoopEnter",
+      "second": 97,
+      "second_name": "JumpIfIntCompareSlotFalse",
+      "count": 12001
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 91,
+      "second_name": "JumpIfIntLessEqualSlotConstFalse",
+      "count": 12001
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 118,
+      "second_name": "LoadImplicitSlot",
+      "count": 12001
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 2,
+      "second_name": "LoadStaticReceiver",
+      "count": 12001
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 12000
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 12000
+    },
+    {
+      "first": 19,
+      "first_name": "BinaryIntModSlotConst",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 12000
+    },
+    {
+      "first": 118,
+      "first_name": "LoadImplicitSlot",
+      "second": 19,
+      "second_name": "BinaryIntModSlotConst",
+      "count": 12000
+    },
+    {
+      "first": 118,
+      "first_name": "LoadImplicitSlot",
+      "second": 118,
+      "second_name": "LoadImplicitSlot",
+      "count": 12000
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 12000
+    },
+    {
+      "first": 123,
+      "first_name": "StoreImplicitSlot",
+      "second": 88,
+      "second_name": "Jump",
+      "count": 12000
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 258
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 72,
+      "second_name": "CallMemberArraySlot",
+      "count": 257
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 0,
+      "second_name": "Const",
+      "count": 257
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 18,
+      "second_name": "BinaryIntMulSlotConst",
+      "count": 257
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 0,
+      "second_name": "Const",
+      "count": 4
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 72,
+      "second_name": "CallMemberArraySlot",
+      "count": 3
+    },
+    {
+      "first": 72,
+      "first_name": "CallMemberArraySlot",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 2
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 0,
+      "second_name": "Const",
+      "count": 2
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 1
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 88,
+      "second_name": "Jump",
+      "count": 1
+    },
+    {
+      "first": 11,
+      "first_name": "BinaryIntSub",
+      "second": 0,
+      "second_name": "Const",
+      "count": 1
+    },
+    {
+      "first": 72,
+      "first_name": "CallMemberArraySlot",
+      "second": 1,
+      "second_name": "LoadName",
+      "count": 1
+    },
+    {
+      "first": 72,
+      "first_name": "CallMemberArraySlot",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 1
+    },
+    {
+      "first": 66,
+      "first_name": "CallName",
+      "second": 116,
+      "second_name": "Return",
+      "count": 1
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 67,
+      "second_name": "CallMember",
+      "count": 1
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 66,
+      "second_name": "CallName",
+      "count": 1
+    },
+    {
+      "first": 118,
+      "first_name": "LoadImplicitSlot",
+      "second": 116,
+      "second_name": "Return",
+      "count": 1
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 11,
+      "second_name": "BinaryIntSub",
+      "count": 1
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 68,
+      "second_name": "CallStaticMember",
+      "count": 1
+    },
+    {
+      "first": 2,
+      "first_name": "LoadStaticReceiver",
+      "second": 1,
+      "second_name": "LoadName",
+      "count": 1
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 66,
+      "second_name": "CallName",
+      "count": 1
+    },
+    {
+      "first": 25,
+      "first_name": "StringInterpolation",
+      "second": 66,
+      "second_name": "CallName",
+      "count": 1
+    }
+  ],
+  "ConditionalBinaryJumpOperators": [
+    {
+      "operator": "\u003e=",
+      "count": 312259
+    },
+    {
+      "operator": "\u003e",
+      "count": 12001
+    }
+  ],
+  "ValueStackDeltas": [
+    372531,
+    24261,
+    12002,
+    0,
+    0,
+    0,
+    0,
+    12001,
+    -480020,
+    -648519,
+    -624259,
+    -12002,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    12257,
+    12000,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -24004,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    288000,
+    0,
+    0,
+    0,
+    0,
+    12002,
+    -48004,
+    -24004,
+    0,
+    0,
+    0,
+    -864524,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -336261,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1,
+    2004545,
+    312001,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "ValueStackDeltasByName": {
+    "ArrayIndexGetSlot": 0,
+    "ArrayIndexSetSlot": 0,
+    "ArrayIndexSwapSlot": 0,
+    "ArrayLiteral": 0,
+    "ArrayReadSlot": 288000,
+    "ArrayReadSlotI32": 0,
+    "ArraySlotSwapSlot": 0,
+    "AssignName": 0,
+    "AssignNameCompound": 0,
+    "AssignPattern": 0,
+    "Await": 0,
+    "Binary": -648519,
+    "BinaryCastSlotFloatConstDiv": 0,
+    "BinaryFloatMulSlotConst": 0,
+    "BinaryI32Add": 0,
+    "BinaryI32Sub": 0,
+    "BinaryIntAdd": -624259,
+    "BinaryIntAddSlotConst": 0,
+    "BinaryIntCompareSlotConst": 0,
+    "BinaryIntDivCast": 0,
+    "BinaryIntLessEqual": 0,
+    "BinaryIntLessEqualSlotConst": 0,
+    "BinaryIntModSlotConst": 12000,
+    "BinaryIntMulSlotConst": 12257,
+    "BinaryIntSub": -12002,
+    "BinaryIntSubSlotConst": 0,
+    "BindPattern": 0,
+    "BoxI32": 0,
+    "BreakLabel": 0,
+    "BreakSignal": 0,
+    "Breakpoint": 0,
+    "Call": 0,
+    "CallMember": -48004,
+    "CallMemberArrayGet": 0,
+    "CallMemberArrayNew": 0,
+    "CallMemberArraySlot": -864524,
+    "CallMemberNext": 0,
+    "CallName": 12002,
+    "CallSelf": 0,
+    "CallSelfIntSubSlotConst": 0,
+    "CallStaticMember": -24004,
+    "Cast": 0,
+    "CompoundAssignImplicitSlot": 0,
+    "CompoundAssignSlot": 0,
+    "CompoundAssignSlotI32": 0,
+    "Const": 372531,
+    "ConstI32": 0,
+    "ContinueSignal": 0,
+    "DeclareName": 0,
+    "DefineExtern": 0,
+    "DefineFunction": 0,
+    "DefineImplementation": 0,
+    "DefineInterface": 0,
+    "DefineMethods": 0,
+    "DefineStruct": 0,
+    "DefineTypeAlias": 0,
+    "DefineUnion": 0,
+    "Dup": 12001,
+    "DynImport": 0,
+    "Ensure": 0,
+    "EnsureEnd": 0,
+    "EnterScope": 0,
+    "ExitScope": 0,
+    "ForLoop": 0,
+    "ImplicitMember": 0,
+    "ImplicitMemberSet": 0,
+    "Import": 0,
+    "IndexGet": 0,
+    "IndexSet": 0,
+    "IterClose": 0,
+    "IterInit": 0,
+    "IterNext": 0,
+    "IteratorLiteral": 0,
+    "Jump": 0,
+    "JumpIfArrayIndexSlotCompareSlotFalse": 0,
+    "JumpIfArrayReadSlotCompareSlotFalse": 0,
+    "JumpIfBoolSlotFalse": 0,
+    "JumpIfFalse": -336261,
+    "JumpIfFloatAddCompareConstFalse": 0,
+    "JumpIfFloatMulAddMulCompareConstFalse": 0,
+    "JumpIfIntCompareSlotConstFalse": 0,
+    "JumpIfIntCompareSlotFalse": 0,
+    "JumpIfIntLessEqualSlotConstFalse": 0,
+    "JumpIfNil": 0,
+    "JumpIfNotNil": 0,
+    "JumpIfNotTypedPattern": 0,
+    "LoadImplicitSlot": 312001,
+    "LoadName": 24261,
+    "LoadSlot": 2004545,
+    "LoadSlotI32": 0,
+    "LoadSlotStructField": 0,
+    "LoadStaticReceiver": 12002,
+    "LoopEnter": 0,
+    "LoopExit": 0,
+    "MakeFunction": 0,
+    "MapLiteral": 0,
+    "Match": 0,
+    "MatchNoClause": 0,
+    "MemberAccess": 0,
+    "MemberSet": 0,
+    "OrElse": 0,
+    "Pipe": 0,
+    "PlaceholderLambda": 0,
+    "PlaceholderValue": 0,
+    "Pop": -480020,
+    "Propagation": 0,
+    "Raise": 0,
+    "Range": 0,
+    "Rescue": 0,
+    "Rethrow": 0,
+    "Return": -1,
+    "ReturnBinary": 0,
+    "ReturnBinaryIntAdd": 0,
+    "ReturnBinaryIntAddI32": 0,
+    "ReturnConstIfIntLessEqualSlotConst": 0,
+    "ReturnIfIntLessEqualSlotConst": 0,
+    "Spawn": 0,
+    "StoreImplicitSlot": 0,
+    "StoreSlot": 0,
+    "StoreSlotBinaryIntSlotConst": 0,
+    "StoreSlotCastSlotFloatConstDiv": 0,
+    "StoreSlotFloatAddMul": 0,
+    "StoreSlotFloatAddMulArrayGet": 0,
+    "StoreSlotFloatAddMulSlot": 0,
+    "StoreSlotFloatAddSub": 0,
+    "StoreSlotFloatAffine": 0,
+    "StoreSlotFloatBinary": 0,
+    "StoreSlotFloatRegion": 0,
+    "StoreSlotI32": 0,
+    "StoreSlotIntMulConstAdd": 0,
+    "StoreSlotIntMulConstAddFromSlot": 0,
+    "StoreSlotIntMulConstModConst": 0,
+    "StoreSlotNew": 0,
+    "StringInterpolation": -2,
+    "StructLiteral": 0,
+    "StructLiteralNamedFast": -24004,
+    "TryArrayPushF64AffineProduct": 0,
+    "TryArrayPushF64NestedGet": 0,
+    "TryFloatUpdatePair": 0,
+    "Unary": 0,
+    "UnboxI32": 0,
+    "Yield": 0
+  },
+  "TopValueStackDeltas": [
+    {
+      "op": 117,
+      "name": "LoadSlot",
+      "delta": 2004545
+    },
+    {
+      "op": 0,
+      "name": "Const",
+      "delta": 372531
+    },
+    {
+      "op": 118,
+      "name": "LoadImplicitSlot",
+      "delta": 312001
+    },
+    {
+      "op": 61,
+      "name": "ArrayReadSlot",
+      "delta": 288000
+    },
+    {
+      "op": 1,
+      "name": "LoadName",
+      "delta": 24261
+    },
+    {
+      "op": 18,
+      "name": "BinaryIntMulSlotConst",
+      "delta": 12257
+    },
+    {
+      "op": 66,
+      "name": "CallName",
+      "delta": 12002
+    },
+    {
+      "op": 2,
+      "name": "LoadStaticReceiver",
+      "delta": 12002
+    },
+    {
+      "op": 7,
+      "name": "Dup",
+      "delta": 12001
+    },
+    {
+      "op": 19,
+      "name": "BinaryIntModSlotConst",
+      "delta": 12000
+    },
+    {
+      "op": 116,
+      "name": "Return",
+      "delta": -1
+    },
+    {
+      "op": 25,
+      "name": "StringInterpolation",
+      "delta": -2
+    },
+    {
+      "op": 11,
+      "name": "BinaryIntSub",
+      "delta": -12002
+    },
+    {
+      "op": 68,
+      "name": "CallStaticMember",
+      "delta": -24004
+    },
+    {
+      "op": 53,
+      "name": "StructLiteralNamedFast",
+      "delta": -24004
+    },
+    {
+      "op": 67,
+      "name": "CallMember",
+      "delta": -48004
+    },
+    {
+      "op": 89,
+      "name": "JumpIfFalse",
+      "delta": -336261
+    },
+    {
+      "op": 8,
+      "name": "Pop",
+      "delta": -480020
+    },
+    {
+      "op": 10,
+      "name": "BinaryIntAdd",
+      "delta": -624259
+    },
+    {
+      "op": 9,
+      "name": "Binary",
+      "delta": -648519
+    },
+    {
+      "op": 72,
+      "name": "CallMemberArraySlot",
+      "delta": -864524
+    }
+  ],
+  "TopValueStackPeakSites": [
+    {
+      "op": 2,
+      "ip": 0,
+      "name": "Array",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 14,
+      "column": 24,
+      "growth": 1
+    },
+    {
+      "op": 1,
+      "ip": 1,
+      "name": "VALUE_COUNT",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 14,
+      "column": 44,
+      "growth": 1
+    },
+    {
+      "op": 1,
+      "ip": 2,
+      "name": "WINDOW_WIDTH",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 35,
+      "column": 28,
+      "growth": 1
+    },
+    {
+      "op": 117,
+      "ip": 39,
+      "name": "end",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 42,
+      "column": 25,
+      "growth": 1
+    },
+    {
+      "op": 0,
+      "ip": 68,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 48,
+      "column": 85,
+      "growth": 1
+    },
+    {
+      "op": 117,
+      "ip": 5,
+      "name": "handle",
+      "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+      "line": 515,
+      "column": 60,
+      "growth": 1
+    }
+  ],
+  "TopValueStackDeltaSites": [
+    {
+      "op": 117,
+      "ip": 54,
+      "name": "index",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 47,
+      "column": 14,
+      "delta": 300000
+    },
+    {
+      "op": 117,
+      "ip": 55,
+      "name": "batch",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 47,
+      "column": 23,
+      "delta": 300000
+    },
+    {
+      "op": 117,
+      "ip": 43,
+      "name": "result",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 58,
+      "column": 7,
+      "delta": 288002
+    },
+    {
+      "op": 117,
+      "ip": 44,
+      "name": "self",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 58,
+      "column": 19,
+      "delta": 288002
+    },
+    {
+      "op": 117,
+      "ip": 45,
+      "name": "index",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 58,
+      "column": 34,
+      "delta": 288002
+    },
+    {
+      "op": 118,
+      "ip": 63,
+      "name": "weighted",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 48,
+      "column": 22,
+      "delta": 288000
+    },
+    {
+      "op": 61,
+      "ip": 64,
+      "name": "read_slot",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 48,
+      "column": 34,
+      "delta": 288000
+    },
+    {
+      "op": 117,
+      "ip": 66,
+      "name": "index",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 48,
+      "column": 69,
+      "delta": 288000
+    },
+    {
+      "op": 0,
+      "ip": 68,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 48,
+      "column": 85,
+      "delta": 288000
+    },
+    {
+      "op": 66,
+      "ip": 0,
+      "name": "__able_array_with_capacity",
+      "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+      "line": 514,
+      "column": 15,
+      "delta": 12002
+    },
+    {
+      "op": 0,
+      "ip": 3,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+      "line": 515,
+      "column": 21,
+      "delta": 12002
+    },
+    {
+      "op": 117,
+      "ip": 4,
+      "name": "capacity",
+      "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+      "line": 515,
+      "column": 34,
+      "delta": 12002
+    },
+    {
+      "op": 117,
+      "ip": 5,
+      "name": "handle",
+      "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+      "line": 515,
+      "column": 60,
+      "delta": 12002
+    },
+    {
+      "op": 0,
+      "ip": 39,
+      "name": "",
+      "delta": 12001
+    },
+    {
+      "op": 7,
+      "ip": 7,
+      "name": "",
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 0,
+      "name": "self",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 48,
+      "column": 14,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 4,
+      "name": "start",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 49,
+      "column": 8,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 5,
+      "name": "end",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 49,
+      "column": 16,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 11,
+      "name": "end",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 49,
+      "column": 23,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 12,
+      "name": "count",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 49,
+      "column": 29,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 23,
+      "name": "end",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 53,
+      "column": 16,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 24,
+      "name": "start",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 53,
+      "column": 22,
+      "delta": 12001
+    },
+    {
+      "op": 2,
+      "ip": 29,
+      "name": "Array",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 54,
+      "column": 24,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 30,
+      "name": "length",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 54,
+      "column": 44,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 34,
+      "name": "start",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 55,
+      "column": 14,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 54,
+      "name": "result",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 61,
+      "column": 5,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 15,
+      "name": "round",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 39,
+      "column": 8,
+      "delta": 12001
+    },
+    {
+      "op": 1,
+      "ip": 16,
+      "name": "WINDOW_ROUNDS",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 39,
+      "column": 17,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 0,
+      "name": "self",
+      "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+      "line": 519,
+      "column": 12,
+      "delta": 12001
+    },
+    {
+      "op": 117,
+      "ip": 8,
+      "name": "len",
+      "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+      "line": 520,
+      "column": 30,
+      "delta": 12001
+    },
+    {
+      "op": 0,
+      "ip": 59,
+      "name": "",
+      "delta": 12000
+    },
+    {
+      "op": 18,
+      "ip": 23,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 40,
+      "column": 16,
+      "delta": 12000
+    },
+    {
+      "op": 0,
+      "ip": 24,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 40,
+      "column": 29,
+      "delta": 12000
+    },
+    {
+      "op": 117,
+      "ip": 26,
+      "name": "starts",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 40,
+      "column": 34,
+      "delta": 12000
+    },
+    {
+      "op": 117,
+      "ip": 31,
+      "name": "start",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 41,
+      "column": 12,
+      "delta": 12000
+    },
+    {
+      "op": 1,
+      "ip": 32,
+      "name": "WINDOW_WIDTH",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 41,
+      "column": 21,
+      "delta": 12000
+    },
+    {
+      "op": 117,
+      "ip": 37,
+      "name": "values",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 42,
+      "column": 5,
+      "delta": 12000
+    },
+    {
+      "op": 117,
+      "ip": 38,
+      "name": "start",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 42,
+      "column": 18,
+      "delta": 12000
+    },
+    {
+      "op": 117,
+      "ip": 39,
+      "name": "end",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 42,
+      "column": 25,
+      "delta": 12000
+    },
+    {
+      "op": 117,
+      "ip": 43,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 43,
+      "column": 7,
+      "delta": 12000
+    },
+    {
+      "op": 0,
+      "ip": 47,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 44,
+      "column": 25,
+      "delta": 12000
+    },
+    {
+      "op": 0,
+      "ip": 50,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 45,
+      "column": 18,
+      "delta": 12000
+    },
+    {
+      "op": 118,
+      "ip": 78,
+      "name": "checksum",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 51,
+      "column": 20,
+      "delta": 12000
+    },
+    {
+      "op": 118,
+      "ip": 79,
+      "name": "weighted",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 51,
+      "column": 31,
+      "delta": 12000
+    },
+    {
+      "op": 19,
+      "ip": 80,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 51,
+      "column": 43,
+      "delta": 12000
+    },
+    {
+      "op": 0,
+      "ip": 82,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 51,
+      "column": 65,
+      "delta": 12000
+    },
+    {
+      "op": 117,
+      "ip": 9,
+      "name": "index",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 17,
+      "column": 8,
+      "delta": 258
+    },
+    {
+      "op": 1,
+      "ip": 10,
+      "name": "VALUE_COUNT",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 17,
+      "column": 17,
+      "delta": 258
+    },
+    {
+      "op": 117,
+      "ip": 17,
+      "name": "values",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 18,
+      "column": 5,
+      "delta": 257
+    },
+    {
+      "op": 18,
+      "ip": 18,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 18,
+      "column": 18,
+      "delta": 257
+    },
+    {
+      "op": 0,
+      "ip": 19,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 18,
+      "column": 31,
+      "delta": 257
+    },
+    {
+      "op": 0,
+      "ip": 21,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 18,
+      "column": 38,
+      "delta": 257
+    },
+    {
+      "op": 0,
+      "ip": 4,
+      "name": "",
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 13,
+      "name": "",
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 19,
+      "name": "",
+      "delta": 1
+    },
+    {
+      "op": 2,
+      "ip": 0,
+      "name": "Array",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 14,
+      "column": 24,
+      "delta": 1
+    },
+    {
+      "op": 1,
+      "ip": 1,
+      "name": "VALUE_COUNT",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 14,
+      "column": 44,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 5,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 15,
+      "column": 12,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 29,
+      "name": "values",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 21,
+      "column": 3,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 0,
+      "name": "values",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 25,
+      "column": 3,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 1,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 25,
+      "column": 16,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 2,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 25,
+      "column": 23,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 6,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 26,
+      "column": 5,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 10,
+      "name": "batch",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 27,
+      "column": 7,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 11,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 27,
+      "column": 24,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 12,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 27,
+      "column": 27,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 15,
+      "name": "values",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 28,
+      "column": 9,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 16,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 28,
+      "column": 26,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 19,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 28,
+      "column": 39,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 21,
+      "name": "batch",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 28,
+      "column": 52,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 22,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 28,
+      "column": 68,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 0,
+      "name": "values",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 35,
+      "column": 13,
+      "delta": 1
+    },
+    {
+      "op": 1,
+      "ip": 2,
+      "name": "WINDOW_WIDTH",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 35,
+      "column": 28,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 4,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 35,
+      "column": 43,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 8,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 36,
+      "column": 19,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 11,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 37,
+      "column": 12,
+      "delta": 1
+    },
+    {
+      "op": 118,
+      "ip": 101,
+      "name": "checksum",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "line": 57,
+      "column": 3,
+      "delta": 1
+    }
+  ],
+  "TopCallOperandBalances": null,
+  "TopLoopBackedgeBalances": [
+    {
+      "op": 88,
+      "ip": 51,
+      "name": "",
+      "origin": "/home/david/sync/projects/able-stdlib/src/collections/array.able",
+      "line": 56,
+      "column": 5,
+      "backedges": 288002,
+      "baseline": 0,
+      "excess": 576000,
+      "max_excess": 2
+    }
+  ],
+  "TopInlineFrameBalances": null,
+  "ValueStackMaxDepth": 6,
+  "ValueStackMaxCapacity": 8,
+  "ValueStackCapacityGrowths": 0,
+  "CallFrameMaxDepth": 3,
+  "LoadNameLookups": 24261,
+  "LoadNameLookupsByName": {
+    "VALUE_COUNT": 259,
+    "WINDOW_ROUNDS": 12001,
+    "WINDOW_WIDTH": 12001
+  },
+  "TopLoadNames": [
+    {
+      "name": "WINDOW_ROUNDS",
+      "count": 12001
+    },
+    {
+      "name": "WINDOW_WIDTH",
+      "count": 12001
+    },
+    {
+      "name": "VALUE_COUNT",
+      "count": 259
+    }
+  ],
+  "LoadNameHotHits": 257,
+  "LoadNameScopeHits": 23999,
+  "LoadNameGlobalHits": 0,
+  "LoadNameDirectCurrent": 5,
+  "LoadNameDirectOuter": 0,
+  "LoadNameScopeStores": 5,
+  "LoadNameGlobalStores": 0,
+  "CallNameLookups": 12006,
+  "CallNameDotFallback": 0,
+  "CallNameExactNativeHits": 12003,
+  "CallNameInlineDirectSlotHits": 2,
+  "CallNameInlineDirectStackHits": 1,
+  "CallNameInlineResolvedHits": 0,
+  "CallNameInlineGenericHits": 0,
+  "CallNameResolvedFunctionHits": 0,
+  "CallNameGenericFallbacks": 0,
+  "InlineCallHits": 36007,
+  "InlineCallMisses": 0,
+  "DirectFunctionStackHits": 0,
+  "InlineResolvedMissNoBytecode": 0,
+  "InlineResolvedMissArity": 0,
+  "InlineResolvedMissTypeArgs": 0,
+  "InlineResolvedMissGenericLambda": 0,
+  "MemberMethodCacheHits": 23999,
+  "MemberMethodCacheMiss": 21,
+  "CallMemberResolvedExactNativeHits": 0,
+  "CallMemberResolvedInlineHits": 24002,
+  "CallMemberResolvedGenericHits": 0,
+  "CallMemberResolvedFallbacks": 0,
+  "CallMemberStaticCacheHits": 12000,
+  "CallMemberStaticCacheMisses": 2,
+  "CallMemberStaticExactNativeHits": 0,
+  "CallMemberStaticInlineHits": 12002,
+  "CallMemberStaticGenericHits": 0,
+  "ExprCacheHits": 0,
+  "ExprCacheMisses": 0,
+  "ArrayIndexSlotLookups": 0,
+  "ArrayIndexSlotTrackedHits": 0,
+  "ArrayIndexSlotMonoUnsignedHits": 0,
+  "ArrayIndexSlotDirectHits": 0,
+  "ArrayIndexSlotFallbacks": 0,
+  "ArrayIndexSlotFastDisabledMiss": 0,
+  "ArrayIndexSlotReceiverMiss": 0,
+  "ArrayIndexSlotIndexMiss": 0,
+  "ArrayIndexSlotHandleMiss": 0,
+  "ArrayIndexSlotDirectMiss": 0,
+  "ArrayMemberSlotLookups": 888266,
+  "ArrayMemberSlotCacheHits": 888257,
+  "ArrayMemberSlotFastHits": 888257,
+  "ArrayMemberSlotFallbacks": 9,
+  "ArrayMemberSlotReceiverMiss": 0,
+  "ArrayMemberSlotCacheMiss": 9,
+  "ArrayMemberSlotFastPathMiss": 0
+}

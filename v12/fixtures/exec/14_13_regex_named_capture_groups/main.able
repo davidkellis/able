@@ -1,0 +1,114 @@
+package exec_14_13_regex_named_capture_groups
+
+import able.text.regex.{Regex, RegexScanner, Match, Group, Span}
+import able.collections.hash_map.{HashMap}
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case found: Match => print(`${label} ${found.matched} ${found.span.start}-${found.span.end} groups=${found.groups.len()} named=${found.named_groups.size()}`)
+  }
+}
+
+fn show_group(label: String, value: ?Group) -> void {
+  value match {
+    case nil => print(`${label} missing`),
+    case group: Group => group.name match {
+      case nil => print(`${label} unnamed`),
+      case name: String => group.value match {
+        case nil => print(`${label} ${name} nil`),
+        case text: String => group.span match {
+          case nil => print(`${label} ${name} missing-span`),
+          case span: Span => print(`${label} ${name} ${text} ${span.start}-${span.end}`)
+        }
+      }
+    }
+  }
+}
+
+fn show_named(label: String, value: ?Match, name: String) -> void {
+  value match {
+    case nil => print(`${label} no-match`),
+    case found: Match => {
+      named_groups: HashMap String Group := found.named_groups
+      show_group(label, named_groups.get(name))
+    }
+  }
+}
+
+fn show_index(label: String, value: ?Match, index: i32) -> void {
+  value match {
+    case nil => print(`${label} no-match`),
+    case found: Match => show_group(label, found.groups.get(index))
+  }
+}
+
+fn main() -> void {
+  Regex.compile("(?P<word>ab)+") match {
+    case regex: Regex => {
+      found := regex.match("zabab")
+      show_match("repeat", found)
+      show_index("repeat-index", found, 0)
+      show_named("repeat-name", found, "word")
+    },
+    case _ => print("repeat compile error")
+  }
+
+  Regex.compile("(?P<outer>(?P<inner>a)b)") match {
+    case regex: Regex => {
+      found := regex.match("zab")
+      show_named("nested-outer", found, "outer")
+      show_named("nested-inner", found, "inner")
+    },
+    case _ => print("nested compile error")
+  }
+
+  Regex.compile("(?P<choice>a|ab)c") match {
+    case regex: Regex => show_named("alternation", regex.match("zabc"), "choice"),
+    case _ => print("alternation compile error")
+  }
+
+  Regex.compile("(?P<maybe>a)?b") match {
+    case regex: Regex => show_named("optional", regex.match("b"), "maybe"),
+    case _ => print("optional compile error")
+  }
+
+  Regex.compile("(?P<word>a+)") match {
+    case regex: Regex => {
+      iterator := regex.find_all("xaaay")
+      iterator.next() match {
+        case found: Match => show_named("find-all", found, "word"),
+        case _ => print("find-all none")
+      }
+      scanner := regex.scan("")
+      scanner.feed("xa")
+      scanner.feed("aay")
+      scanner.flush()
+      scanner.next() match {
+        case found: Match => show_named("scanner", found, "word"),
+        case _ => print("scanner none")
+      }
+    },
+    case _ => print("streaming compile error")
+  }
+
+  Regex.compile("(?P<word>a)(?P<word>b)") match {
+    case _: Regex => print("duplicate accepted"),
+    case _ => print("duplicate rejected")
+  }
+
+  Regex.compile("(?P<>a)") match {
+    case _: Regex => print("empty accepted"),
+    case _ => print("empty rejected")
+  }
+
+  Regex.compile("(?P<1word>a)") match {
+    case _: Regex => print("numeric accepted"),
+    case _ => print("numeric rejected")
+  }
+
+  Regex.compile("(?<word>a)") match {
+    case _: Regex => print("alternate accepted"),
+    case _ => print("alternate rejected")
+  }
+}

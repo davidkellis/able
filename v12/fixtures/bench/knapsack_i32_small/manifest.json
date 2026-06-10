@@ -1,0 +1,6 @@
+{
+  "description": "0/1 knapsack dynamic programming benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

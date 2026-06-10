@@ -9,7 +9,7 @@ import (
 )
 
 func (ctx *parseContext) parseImplicitMemberExpression(node *sitter.Node) (ast.Expression, error) {
-	memberNode := node.ChildByFieldName("member")
+	memberNode := childByFieldName(node, "member")
 	if memberNode == nil {
 		return nil, fmt.Errorf("parser: implicit member missing identifier")
 	}
@@ -51,14 +51,17 @@ func (ctx *parseContext) parseInterpolatedString(node *sitter.Node) (ast.Express
 		if child == nil || isIgnorableNode(child) {
 			continue
 		}
-		switch child.Kind() {
+		switch nodeKind(child) {
 		case "interpolation_text":
-			text := unescapeInterpolationText(sliceContent(child, ctx.source))
+			text, err := unescapeInterpolationText(sliceContent(child, ctx.source))
+			if err != nil {
+				return nil, fmt.Errorf("parser: invalid interpolated string text: %w", err)
+			}
 			if text != "" {
 				parts = append(parts, annotateExpression(ast.Str(text), child))
 			}
 		case "string_interpolation":
-			exprNode := child.ChildByFieldName("expression")
+			exprNode := childByFieldName(child, "expression")
 			if exprNode == nil {
 				return nil, fmt.Errorf("parser: interpolation missing expression")
 			}
@@ -72,54 +75,22 @@ func (ctx *parseContext) parseInterpolatedString(node *sitter.Node) (ast.Express
 	return annotateExpression(ast.NewStringInterpolation(parts), node), nil
 }
 
-func unescapeInterpolationText(text string) string {
-	if !strings.Contains(text, "\\") {
-		return text
-	}
-	var builder strings.Builder
-	builder.Grow(len(text))
-	for i := 0; i < len(text); i++ {
-		ch := text[i]
-		if ch != '\\' {
-			builder.WriteByte(ch)
-			continue
-		}
-		if i+1 >= len(text) {
-			builder.WriteByte('\\')
-			break
-		}
-		next := text[i+1]
-		switch next {
-		case '`':
-			builder.WriteByte('`')
-			i++
-		case '$':
-			builder.WriteByte('$')
-			i++
-		case '\\':
-			builder.WriteByte('\\')
-			i++
-		default:
-			builder.WriteByte('\\')
-			builder.WriteByte(next)
-			i++
-		}
-	}
-	return builder.String()
+func unescapeInterpolationText(text string) (string, error) {
+	return unescapeLiteralText(text, "interpolated string", true)
 }
 
 func (ctx *parseContext) parseIteratorLiteral(node *sitter.Node) (ast.Expression, error) {
-	if node == nil || node.Kind() != "iterator_literal" {
+	if node == nil || nodeKind(node) != "iterator_literal" {
 		return nil, fmt.Errorf("parser: expected iterator_literal node")
 	}
 
-	bodyNode := node.ChildByFieldName("body")
+	bodyNode := childByFieldName(node, "body")
 	if bodyNode == nil {
 		return nil, fmt.Errorf("parser: iterator literal missing body")
 	}
 
 	var binding *ast.Identifier
-	if bindingNode := bodyNode.ChildByFieldName("binding"); bindingNode != nil {
+	if bindingNode := childByFieldName(bodyNode, "binding"); bindingNode != nil {
 		id, err := parseIdentifier(bindingNode, ctx.source)
 		if err != nil {
 			return nil, err
@@ -128,7 +99,7 @@ func (ctx *parseContext) parseIteratorLiteral(node *sitter.Node) (ast.Expression
 	}
 
 	var elementType ast.TypeExpression
-	if elementTypeNode := node.ChildByFieldName("element_type"); elementTypeNode != nil {
+	if elementTypeNode := childByFieldName(node, "element_type"); elementTypeNode != nil {
 		elementType = parseTypeExpression(elementTypeNode, ctx.source)
 	}
 
@@ -201,11 +172,11 @@ func extractStructLiteralType(expr ast.TypeExpression) (*ast.Identifier, []ast.T
 }
 
 func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, error) {
-	if node == nil || node.Kind() != "struct_literal" {
+	if node == nil || nodeKind(node) != "struct_literal" {
 		return nil, fmt.Errorf("parser: expected struct literal node")
 	}
 
-	typeNode := node.ChildByFieldName("type")
+	typeNode := childByFieldName(node, "type")
 	if typeNode == nil {
 		return nil, fmt.Errorf("parser: struct literal missing type")
 	}
@@ -232,7 +203,7 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 		}
 
 		var elem *sitter.Node
-		if child.Kind() == "struct_literal_element" {
+		if nodeKind(child) == "struct_literal_element" {
 			elem = firstNamedChild(child)
 		} else {
 			elem = child
@@ -241,9 +212,9 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 			continue
 		}
 
-		switch elem.Kind() {
+		switch nodeKind(elem) {
 		case "struct_literal_field":
-			nameNode := elem.ChildByFieldName("name")
+			nameNode := childByFieldName(elem, "name")
 			if nameNode == nil {
 				return nil, fmt.Errorf("parser: struct literal field missing name")
 			}
@@ -251,7 +222,7 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 			if err != nil {
 				return nil, err
 			}
-			valueNode := elem.ChildByFieldName("value")
+			valueNode := childByFieldName(elem, "value")
 			if valueNode == nil {
 				return nil, fmt.Errorf("parser: struct literal field missing value")
 			}
@@ -263,7 +234,7 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 			annotateSpan(field, elem)
 			fields = append(fields, field)
 		case "struct_literal_shorthand_field":
-			nameNode := elem.ChildByFieldName("name")
+			nameNode := childByFieldName(elem, "name")
 			if nameNode == nil {
 				nameNode = firstNamedChild(elem)
 			}
@@ -307,7 +278,7 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 }
 
 func (ctx *parseContext) parseMapLiteral(node *sitter.Node) (ast.Expression, error) {
-	if node == nil || node.Kind() != "map_literal" {
+	if node == nil || nodeKind(node) != "map_literal" {
 		return nil, fmt.Errorf("parser: expected map literal node")
 	}
 	elements := make([]ast.MapLiteralElement, 0)
@@ -316,15 +287,15 @@ func (ctx *parseContext) parseMapLiteral(node *sitter.Node) (ast.Expression, err
 		if child == nil || isIgnorableNode(child) {
 			continue
 		}
-		if child.Kind() == "map_literal_element" {
+		if nodeKind(child) == "map_literal_element" {
 			if nested := firstNamedChild(child); nested != nil {
 				child = nested
 			}
 		}
-		switch child.Kind() {
+		switch nodeKind(child) {
 		case "map_literal_entry":
-			keyNode := child.ChildByFieldName("key")
-			valueNode := child.ChildByFieldName("value")
+			keyNode := childByFieldName(child, "key")
+			valueNode := childByFieldName(child, "value")
 			if keyNode == nil || valueNode == nil {
 				return nil, fmt.Errorf("parser: map literal entry missing key or value")
 			}
@@ -340,7 +311,7 @@ func (ctx *parseContext) parseMapLiteral(node *sitter.Node) (ast.Expression, err
 			annotateSpan(entry, child)
 			elements = append(elements, entry)
 		case "map_literal_spread":
-			exprNode := child.ChildByFieldName("expression")
+			exprNode := childByFieldName(child, "expression")
 			if exprNode == nil {
 				exprNode = firstNamedChild(child)
 			}
@@ -355,7 +326,7 @@ func (ctx *parseContext) parseMapLiteral(node *sitter.Node) (ast.Expression, err
 			annotateSpan(spread, child)
 			elements = append(elements, spread)
 		default:
-			return nil, fmt.Errorf("parser: unsupported map literal element %s", child.Kind())
+			return nil, fmt.Errorf("parser: unsupported map literal element %s", nodeKind(child))
 		}
 	}
 	return annotateExpression(ast.NewMapLiteral(elements), node), nil

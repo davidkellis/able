@@ -35,7 +35,7 @@
         <h2 id="spawn">10.1 <code>spawn</code> (futures)</h2>
         <pre><code class="language-able">handle: Future String = spawn fetch_data(url)
 
-future_flush(32) ## advance cooperative scheduler (TS runtime helper)
+future_flush() ## drain currently runnable spawned work
 
 handle.status() match {
   case Pending =&gt; log("still fetching..."),
@@ -49,7 +49,7 @@ body = handle.value() else { "fallback" }</code></pre>
           <code>Future</code> exposes <code>status()</code>,
           <code>value() -&gt; !T</code>, and <code>cancel()</code>. Inside async
           bodies, use <code>future_yield()</code>, <code>future_cancelled()</code>,
-          <code>future_flush(limit?)</code>, and <code>future_pending_tasks()</code>
+          <code>future_flush()</code>, and <code>future_pending_tasks()</code>
           (diagnostic). Blocking operations must notice cancellation; nested
           <code>value()</code> calls are re-entrant.
         </p>

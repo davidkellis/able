@@ -1,0 +1,154 @@
+{
+  "kind": "able-v12-post-consolidation-release-inventory",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "authorized-exact-340-path-local-commit",
+  "repository": {
+    "head": "cbba634af6c5766e5b8aa162e8e66643654f620e",
+    "consolidation_commit": "0403ad8845e05eb3e136fa32f27db6ee4ea453a7",
+    "origin_master": "237406eccdfb025a519d898daedadee1c8d13a7b",
+    "ahead": 4,
+    "behind": 0,
+    "staged_paths": 0
+  },
+  "snapshot": {
+    "visible_dirty_paths": 386,
+    "tracked_modified_paths": 93,
+    "untracked_paths": 293,
+    "deleted_paths": 0,
+    "renamed_paths": 0,
+    "tracked_additions": 6445,
+    "tracked_deletions": 3350,
+    "porcelain_sha256": "2b9b0dccde5940fab3033ca2621e25501b1fe6902ac28410980fc882ed5cc141",
+    "manifest": "2026-07-28-post-consolidation-release-inventory.tsv",
+    "manifest_rows": 386,
+    "manifest_sha256": "dd8c6c8ea7a5dc0ea6d7563dd20fc9410c9902d46646f16e18fc76cd582b71bc"
+  },
+  "boundaries": [
+    {
+      "order": 1,
+      "id": "compiler-aot-runtime",
+      "tracked_modified": 36,
+      "untracked": 12,
+      "paths": 48,
+      "disposition": "retain",
+      "path_sha256": "27e0795515da3b2a76365d3b838bdb6e8c119553e87e2f26a57ad53d7c7070dc"
+    },
+    {
+      "order": 2,
+      "id": "benchmark-applications",
+      "tracked_modified": 0,
+      "untracked": 2,
+      "paths": 2,
+      "disposition": "retain",
+      "path_sha256": "e4eb2e85e46448638c8af9a2520d53c7c93358a4c8289530095449ec126f3465"
+    },
+    {
+      "order": 3,
+      "id": "benchmark-tools-contracts",
+      "tracked_modified": 25,
+      "untracked": 16,
+      "paths": 41,
+      "disposition": "retain",
+      "path_sha256": "6c05788965a21d77f43a56f31c2605acf32fab1a29a4eb7004d839f8382466d3"
+    },
+    {
+      "order": 4,
+      "id": "performance-evidence",
+      "tracked_modified": 19,
+      "untracked": 222,
+      "paths": 241,
+      "disposition": "retain",
+      "path_sha256": "99c174579a23749db41bfbabfd1ce050f7b6a3232126891a9156208b8370e7c6"
+    },
+    {
+      "order": 5,
+      "id": "handoff-release-tooling",
+      "tracked_modified": 5,
+      "untracked": 0,
+      "paths": 5,
+      "disposition": "retain",
+      "path_sha256": "67904e67b95e20533eb928a26248bc3dfce97956ce33ae6c2fd47c371df2efd9"
+    },
+    {
+      "order": null,
+      "id": "deferred-wasm",
+      "tracked_modified": 8,
+      "untracked": 26,
+      "paths": 34,
+      "disposition": "hold",
+      "path_sha256": "fa6e81afbeb5701dd948b2c951f07607c417a5e4a94dfdda8a884e9333086fa8"
+    },
+    {
+      "order": null,
+      "id": "generated-local",
+      "tracked_modified": 0,
+      "untracked": 15,
+      "paths": 15,
+      "disposition": "exclude",
+      "path_sha256": "fc216a58a80061f03846caa0860fb38fb2283f7e6dcd7383cf6cdfbeed77a0f0"
+    }
+  ],
+  "totals": {
+    "retained_paths": 337,
+    "retained_tracked_modified": 85,
+    "retained_untracked": 252,
+    "retained_lines": 133244,
+    "retained_bytes": 8372050,
+    "retained_path_sha256": "8eadc0b87174a6d0c09a2fd7be0bc7ab90189e950ffc3bbe719567b0d66d9026",
+    "deferred_wasm_paths": 34,
+    "generated_local_paths": 15,
+    "unmatched_paths": 0
+  },
+  "record_coverage": {
+    "root_log_new_entries": 28,
+    "v12_log_new_entries": 28,
+    "root_log_unique_dated_record_references": 28,
+    "v12_log_unique_dated_record_references": 28,
+    "missing_referenced_records": 0
+  },
+  "validation": {
+    "git_diff_check": "pass",
+    "dirty_go_files": 59,
+    "gofmt_unformatted_files": 0,
+    "dirty_hand_source_files": 96,
+    "source_files_at_or_above_1000_lines": 0,
+    "largest_source_file": {
+      "path": "v12/interpreters/go/pkg/compiler/generator_render_runtime.go",
+      "lines": 999
+    },
+    "valid_json_evidence_files": 60,
+    "valid_gzip_evidence_files": 9,
+    "evidence_paths": 241,
+    "evidence_bytes": 3174250,
+    "v10_v11_paths": 0,
+    "deprecated_stdlib_paths": 0,
+    "external_able_stdlib_paths": 0,
+    "secret_like_filenames": 0,
+    "common_secret_signature_matches": 0,
+    "cleanup_dry_run_reclaimable_gib": 12.35,
+    "stale_tmp_workspace_deleted_bytes": 10684494
+  },
+  "inventory_metadata": {
+    "self_referential_rows_in_snapshot": 0,
+    "paths_added_after_snapshot": 3,
+    "final_candidate_paths_after_identity_refresh": 340
+  },
+  "authorization": {
+    "scope": "exact-340-path-local-commit",
+    "push_authorized": false,
+    "sorted_candidate_path_sha256": "d48d0a39dc528bc23bf7f954c15cd6295eb2bd4814b6f8783a78ad731c8cfaa0",
+    "nul_pathspec_sha256": "ee5b5f59aa62af0c290cd21729fb5c7607242b9a42bda8c408d3ceaae922f4f0",
+    "retained_identity_rows": 337,
+    "retained_identity_lines": 133359,
+    "retained_identity_bytes": 8378527,
+    "retained_identity_manifest_sha256": "cd9b14be68b4d0237b3dfee1cb87c1d0286e841e3a4f8450acde5d18e09172ee",
+    "broad_git_add_used": false
+  },
+  "next": {
+    "id": "explicit-publish-authorization",
+    "why": "The exact retained boundary is consolidated locally, but pushing changes remote state and is not implied by authorization to commit.",
+    "entails": "Inspect the final commit and branch divergence, confirm the remote and expected commit range, and push only after explicit maintainer authorization.",
+    "importance": "This prevents publishing inactive WASM, machine-local artifacts, or an unintended local commit range."
+  }
+}

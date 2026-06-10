@@ -1,0 +1,54 @@
+File: compiled
+Build ID: 9fdeaa5403f794e4a542e68e79d832e17abd2daf
+Type: alloc_space
+Time: 2026-07-28 09:45:15 CDT
+Showing nodes accounting for 19091.02kB, 96.99% of 19684.05kB total
+Dropped 197 nodes (cum <= 98.42kB)
+      flat  flat%   sum%        cum   cum%
+ 8361.41kB 42.48% 42.48%  8361.41kB 42.48%  runtime/pprof.allFrames
+ 3546.18kB 18.02% 60.49%  3598.66kB 18.28%  runtime/pprof.(*profileBuilder).emitLocation
+    3056kB 15.53% 76.02%     3056kB 15.53%  main.__able_compiled_fn_regex_nfa_threads_new_ctx
+     784kB  3.98% 80.00% 14575.61kB 74.05%  runtime/pprof.writeHeapInternal
+     648kB  3.29% 83.29%  1171.88kB  5.95%  compress/flate.NewWriter (inline)
+  563.11kB  2.86% 86.15%   800.03kB  4.06%  main.__able_compiled_fn_regex_codepoints_ctx
+  552.75kB  2.81% 88.96%   552.75kB  2.81%  main.__able_compiled_fn_regex_nfa_clone_captures_ctx
+  533.12kB  2.71% 91.67% 13791.61kB 70.06%  runtime/pprof.writeHeapProto
+     320kB  1.63% 93.30%   523.88kB  2.66%  compress/flate.(*compressor).init
+     267kB  1.36% 94.65%      801kB  4.07%  main.__able_compiled_fn_regex_nfa_capture_start_ctx
+     200kB  1.02% 95.67%      200kB  1.02%  compress/flate.newDeflateFast (inline)
+  132.58kB  0.67% 96.34%   132.58kB  0.67%  main.__able_compiled_fn_utf8_decode_ctx
+  104.34kB  0.53% 96.87%   104.34kB  0.53%  main.__able_compiled_method_String_chars_ctx
+   14.25kB 0.072% 96.95%   204.57kB  1.04%  main.__able_compiled_fn_build_match_ctx
+    5.28kB 0.027% 96.97%  4783.80kB 24.30%  main.__able_compiled_fn_find_nfa_span_ctx
+    2.42kB 0.012% 96.98%   152.84kB  0.78%  main.__able_compiled_fn_build_named_capture_groups_ctx
+    0.50kB 0.0025% 96.99% 11962.03kB 60.77%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.03kB 0.00016% 96.99%  5108.04kB 25.95%  main.__able_compiled_fn_main_ctx
+    0.02kB 0.00012% 96.99% 14575.97kB 74.05%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00012% 96.99%  5108.09kB 25.95%  main.RunRegisteredMain
+         0     0% 96.99% 14575.97kB 74.05%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 96.99% 14575.97kB 74.05%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 96.99%  1178.62kB  5.99%  compress/gzip.(*Writer).Write
+         0     0% 96.99%  5108.06kB 25.95%  main.RunRegisteredMain.func1
+         0     0% 96.99%   111.10kB  0.56%  main.__able_compiled_entry_fn_read_lines_prefix_ctx
+         0     0% 96.99%   132.58kB  0.67%  main.__able_compiled_entry_impl_Iterator_next_0_c_spec_ctx
+         0     0% 96.99%   104.34kB  0.53%  main.__able_compiled_entry_method_String_chars_ctx
+         0     0% 96.99%  4783.80kB 24.30%  main.__able_compiled_fn_find_token_match_ctx
+         0     0% 96.99%  5108.06kB 25.95%  main.__able_compiled_fn_main
+         0     0% 96.99%   111.10kB  0.56%  main.__able_compiled_fn_read_lines_prefix_ctx
+         0     0% 96.99%   818.44kB  4.16%  main.__able_compiled_fn_regex_nfa_add_closure_ctx
+         0     0% 96.99%   818.44kB  4.16%  main.__able_compiled_fn_regex_nfa_move_ctx
+         0     0% 96.99%   132.58kB  0.67%  main.__able_compiled_impl_Iterator_next_0_c_spec_ctx
+         0     0% 96.99%   110.44kB  0.56%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0% 96.99%   110.44kB  0.56%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0% 96.99%  4988.37kB 25.34%  main.__able_compiled_method_Regex_match_ctx
+         0     0% 96.99%   132.58kB  0.67%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.__able_ctx_next
+         0     0% 96.99%  5108.06kB 25.95%  main.__able_register_compiled_call.func1
+         0     0% 96.99%  5108.06kB 25.95%  main.__able_wrap_fn_main
+         0     0% 96.99% 19684.05kB   100%  main.main
+         0     0% 96.99% 19684.05kB   100%  main.runMain
+         0     0% 96.99% 14575.97kB 74.05%  main.startMainProfilePhase (inline)
+         0     0% 96.99% 19684.05kB   100%  runtime.main
+         0     0% 96.99% 14575.61kB 74.05%  runtime/pprof.(*Profile).WriteTo
+         0     0% 96.99%  1178.62kB  5.99%  runtime/pprof.(*profileBuilder).flush
+         0     0% 96.99%  1187.88kB  6.03%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 96.99% 14575.61kB 74.05%  runtime/pprof.writeAlloc

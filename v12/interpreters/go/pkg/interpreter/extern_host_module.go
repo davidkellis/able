@@ -1,3 +1,5 @@
+//go:build !(js && wasm)
+
 package interpreter
 
 import (
@@ -21,6 +23,9 @@ func (m *externHostModule) lookup(name string) (reflect.Value, error) {
 		return sym, nil
 	}
 	symbolName := externSymbolName(name)
+	if m.imagePackageKey != "" {
+		symbolName = externImageSymbolName(m.imagePackageKey, name)
+	}
 	raw, err := m.plugin.Lookup(symbolName)
 	if err != nil {
 		return reflect.Value{}, fmt.Errorf("extern lookup %s: %w", name, err)

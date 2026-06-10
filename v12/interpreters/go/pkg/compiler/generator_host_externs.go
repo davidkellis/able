@@ -239,9 +239,17 @@ func (g *generator) renderGoPreludeDecls(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\terr = __able_host_error{message: message}\n")
 	fmt.Fprintf(buf, "\treturn result, err\n")
 	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func able_borrowed_bytes(data []byte) []byte { return data }\n\n")
 	for _, decl := range g.goPreludeDecls {
 		fmt.Fprintf(buf, "%s\n\n", decl)
 	}
+}
+
+func externUsesBorrowedU8ArrayArg(def *ast.ExternFunctionBody) bool {
+	if def == nil {
+		return false
+	}
+	return strings.Contains(def.Body, "able_borrowed_bytes(")
 }
 
 func (g *generator) externBodyCompileable(info *functionInfo) bool {
@@ -443,6 +451,9 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		panic(err)
 	}
 	bodyName := g.compiledBodyName(info)
+	if g.executionContextsEnabled() {
+		bodyName = g.compiledContextBodyName(info)
+	}
 	fmt.Fprintf(buf, "func %s(", bodyName)
 	for i, param := range info.Params {
 		if i > 0 {
@@ -450,7 +461,16 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		}
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
+	if g.executionContextsEnabled() {
+		if len(info.Params) > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "__able_exec_ctx %s", executionContextType)
+	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+	if g.executionContextsEnabled() {
+		fmt.Fprintf(buf, "\t_ = __able_exec_ctx\n")
+	}
 	zeroExpr, ok := g.zeroValueExpr(info.ReturnType)
 	if !ok {
 		zeroExpr = "runtime.NilValue{}"
@@ -472,7 +492,9 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		if strings.TrimSpace(hostType) == "" {
 			hostType = "any"
 		}
-		if directExpr, ok := directHostArgExpr(param.GoType, hostType, param.GoName); ok {
+		if directExpr, ok := g.directBorrowedHostArgExpr(info, param, hostType); ok {
+			fmt.Fprintf(buf, "\t__able_host_arg_%d := %s\n", idx, directExpr)
+		} else if directExpr, ok := directHostArgExpr(param.GoType, hostType, param.GoName); ok {
 			fmt.Fprintf(buf, "\t__able_host_arg_%d := %s\n", idx, directExpr)
 		} else {
 			fmt.Fprintf(buf, "\t__able_host_arg_%d, err := bridge.RuntimeValueToHost[%s](%s, %s)\n", idx, hostType, typeExprCode, runtimeExpr)
@@ -504,6 +526,13 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		if err != nil {
 			panic(err)
 		}
+		if info.ReturnType == "struct{}" {
+			fmt.Fprintf(buf, "\t%s(%s)\n", g.externHostFunctionName(info), strings.Join(hostArgs, ", "))
+			fmt.Fprintf(buf, "\treturn struct{}{}, nil\n")
+			fmt.Fprintf(buf, "}\n\n")
+			g.renderCompiledExternEntryWrapper(buf, info, bodyName)
+			return
+		}
 		fmt.Fprintf(buf, "\t__able_host_result := %s(%s)\n", g.externHostFunctionName(info), strings.Join(hostArgs, ", "))
 		if directExpr, ok := directHostReturnExpr(info.ReturnType, hostType, "__able_host_result"); ok {
 			fmt.Fprintf(buf, "\treturn %s, nil\n", directExpr)
@@ -523,9 +552,15 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 	fmt.Fprintf(buf, "\tif err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(err)\n", zeroExpr)
 	fmt.Fprintf(buf, "\t}\n")
+	if _, isResult := retExpr.(*ast.ResultTypeExpression); isResult {
+		fmt.Fprintf(buf, "\tif __able_host_err != nil {\n")
+		fmt.Fprintf(buf, "\t\treturn %s, __able_raise_control(nil, __able_runtime_result)\n", zeroExpr)
+		fmt.Fprintf(buf, "\t}\n")
+	}
 	if info.ReturnType == "struct{}" {
 		fmt.Fprintf(buf, "\treturn struct{}{}, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledExternEntryWrapper(buf, info, bodyName)
 		return
 	}
 	if info.ReturnType == "runtime.Value" {
@@ -534,6 +569,7 @@ func (g *generator) renderCompiledExternFunctionBody(buf *bytes.Buffer, info *fu
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn __able_runtime_result, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledExternEntryWrapper(buf, info, bodyName)
 		return
 	}
 	converted, ok := g.expectRuntimeValueExpr("__able_runtime_result", info.ReturnType)
@@ -550,6 +586,9 @@ func (g *generator) renderCompiledExternEntryWrapper(buf *bytes.Buffer, info *fu
 		return
 	}
 	entryName := g.compiledEntryName(info)
+	if g.executionContextsEnabled() {
+		entryName = g.compiledContextEntryName(info)
+	}
 	fmt.Fprintf(buf, "func %s(", entryName)
 	for i, param := range info.Params {
 		if i > 0 {
@@ -557,16 +596,30 @@ func (g *generator) renderCompiledExternEntryWrapper(buf *bytes.Buffer, info *fu
 		}
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
+	if g.executionContextsEnabled() {
+		if len(info.Params) > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "__able_exec_ctx %s", executionContextType)
+	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-	if envVar, ok := g.packageEnvVar(info.Package); ok {
+	if g.executionContextsEnabled() {
+		fmt.Fprintf(buf, "\t_ = __able_exec_ctx\n")
+		if envVar, ok := g.packageEnvVar(info.Package); ok {
+			writeExecutionContextPackageEnv(buf, "\t", "__able_exec_ctx", "__able_runtime", envVar)
+		}
+	} else if envVar, ok := g.packageEnvVar(info.Package); ok {
 		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
 	args := make([]string, 0, len(info.Params))
 	for _, param := range info.Params {
 		args = append(args, param.GoName)
 	}
-	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
+	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, g.compiledCallArgs(&compileContext{executionContextExpr: "__able_exec_ctx"}, args))
 	fmt.Fprintf(buf, "}\n\n")
+	if g.executionContextsEnabled() {
+		g.renderCompiledContextCompatibilityWrappers(buf, info)
+	}
 }
 
 func (g *generator) renderDirectHostReturnIfPossible(buf *bytes.Buffer, info *functionInfo, retExpr ast.TypeExpression, hostResult string) (bool, bool) {
@@ -596,14 +649,40 @@ func (g *generator) renderDirectHostReturnIfPossible(buf *bytes.Buffer, info *fu
 			fmt.Fprintf(buf, "\t}\n")
 		}
 		fmt.Fprintf(buf, "\tif __able_host_slice, ok := %s.([]%s); ok {\n", hostResult, spec.ElemGoType)
-		fmt.Fprintf(buf, "\t\treturn %s(&%s{Elements: append([]%s(nil), __able_host_slice...)}), nil\n", member.WrapHelper, spec.GoName, spec.ElemGoType)
+		if spec.Kind == monoArrayElemKindU8 {
+			fmt.Fprintf(buf, "\t\treturn %s(&%s{Elements: __able_host_slice}), nil\n", member.WrapHelper, spec.GoName)
+		} else {
+			fmt.Fprintf(buf, "\t\treturn %s(&%s{Elements: append([]%s(nil), __able_host_slice...)}), nil\n", member.WrapHelper, spec.GoName, spec.ElemGoType)
+		}
 		fmt.Fprintf(buf, "\t}\n")
 		emitted = true
 	}
 	return emitted, false
 }
 
+func (g *generator) directBorrowedHostArgExpr(info *functionInfo, param paramInfo, hostType string) (string, bool) {
+	if g == nil || info == nil || !externUsesBorrowedU8ArrayArg(info.ExternBody) {
+		return "", false
+	}
+	if strings.TrimSpace(hostType) != "[]uint8" {
+		return "", false
+	}
+	typeExpr := normalizeTypeExprForPackage(g, info.Package, param.TypeExpr)
+	spec, ok := g.monoArraySpecForArrayTypeExpr(info.Package, typeExpr)
+	if !ok || spec == nil || spec.Kind != monoArrayElemKindU8 {
+		return "", false
+	}
+	if param.GoType != spec.GoType {
+		return "", false
+	}
+	return fmt.Sprintf("func() []uint8 { if %s == nil { return nil }; return able_borrowed_bytes(%s.Elements) }()", param.GoName, param.GoName), true
+}
+
 func renderDirectHostSliceToMonoArrayReturn(buf *bytes.Buffer, spec *monoArraySpec, hostResult string) {
+	if spec != nil && spec.Kind == monoArrayElemKindU8 {
+		fmt.Fprintf(buf, "\treturn &%s{Elements: %s}, nil\n", spec.GoName, hostResult)
+		return
+	}
 	fmt.Fprintf(buf, "\treturn &%s{Elements: append([]%s(nil), %s...)}, nil\n", spec.GoName, spec.ElemGoType, hostResult)
 }
 

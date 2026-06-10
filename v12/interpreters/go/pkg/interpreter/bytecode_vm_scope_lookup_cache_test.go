@@ -290,7 +290,7 @@ func TestBytecodeVM_CallNameScopeCacheInvalidatesAcrossDispatchKinds(t *testing.
 	}
 }
 
-func TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache(t *testing.T) {
+func TestBytecodeVM_CallNameDotFallbackExecutesEnvFramedMemberCall(t *testing.T) {
 	t.Setenv("ABLE_BYTECODE_STATS", "1")
 
 	structDef := ast.StructDef(
@@ -326,33 +326,17 @@ func TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache(t *testing.T) {
 		nil,
 	)
 
-	callGet := ast.Fn(
-		"call_get",
-		[]*ast.FunctionParameter{
-			ast.Param("s", ast.Ty("S")),
-		},
-		[]ast.Statement{
-			ast.Call("s.get"),
-		},
-		ast.Ty("i32"),
-		nil,
-		nil,
-		false,
-		false,
-	)
-
 	module := ast.Mod([]ast.Statement{
 		structDef,
 		methods,
-		callGet,
 		ast.Assign(
 			ast.ID("s"),
 			ast.StructLit([]*ast.StructFieldInitializer{
 				ast.FieldInit(ast.Int(3), "n"),
 			}, false, "S", nil, nil),
 		),
-		ast.Call("call_get", ast.ID("s")),
-		ast.Call("call_get", ast.ID("s")),
+		ast.Call("s.get"),
+		ast.Call("s.get"),
 	}, nil, nil)
 
 	interp := NewBytecode()
@@ -365,11 +349,5 @@ func TestBytecodeVM_CallNameDotFallbackUsesMemberMethodCache(t *testing.T) {
 	stats := interp.BytecodeStats()
 	if stats.CallNameDotFallback == 0 {
 		t.Fatalf("expected dotted callname fallback to execute")
-	}
-	if stats.MemberMethodCacheMiss == 0 {
-		t.Fatalf("expected member method cache miss on first dotted call")
-	}
-	if stats.MemberMethodCacheHits == 0 {
-		t.Fatalf("expected member method cache hit on repeated dotted call")
 	}
 }

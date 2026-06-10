@@ -1,0 +1,32 @@
+package bench_array_fold_i32_small
+
+import able.collections.array
+import able.kernel.{Array}
+
+fn build(size: i32) -> Array i32 {
+  values: Array i32 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.push(((i * 29) + 13) % 40_009)
+    i = i + 1
+  }
+  values
+}
+
+fn main() -> void {
+  values := build(12_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 8 { break }
+    idx := 0
+    loop {
+      if idx >= values.len() { break }
+      total = total + ((values[idx]! * 13) as i64)
+      idx = idx + 1
+    }
+    rounds = rounds + 1
+  }
+  print(total)
+}

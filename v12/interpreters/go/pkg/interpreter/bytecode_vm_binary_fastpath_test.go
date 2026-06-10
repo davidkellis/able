@@ -62,6 +62,22 @@ func TestBytecodeVM_DirectIntegerComparisonFastPath(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_DirectIntegerComparisonRejectsNonIntegerKinds(t *testing.T) {
+	values := [][2]runtime.Value{
+		{runtime.BoolValue{Val: true}, runtime.BoolValue{Val: false}},
+		{runtime.CharValue{Val: 'a'}, runtime.CharValue{Val: 'b'}},
+		{runtime.StringValue{Val: "a"}, runtime.StringValue{Val: "b"}},
+		{runtime.FloatValue{Val: 1, TypeSuffix: runtime.FloatF64}, runtime.FloatValue{Val: 2, TypeSuffix: runtime.FloatF64}},
+		{bytecodeRawF32SlotValue(1), bytecodeRawF32SlotValue(2)},
+		{bytecodeRawF64SlotValue(1), bytecodeRawF64SlotValue(2)},
+	}
+	for _, pair := range values {
+		if result, handled := execBinaryDirectIntegerComparisonFast("==", pair[0], pair[1]); handled || result != nil {
+			t.Fatalf("non-integer pair %T/%T = (%#v, %v), want unhandled", pair[0], pair[1], result, handled)
+		}
+	}
+}
+
 func TestBytecodeVM_DirectSmallIntegerComparisonFastPath(t *testing.T) {
 	leftVal := runtime.NewSmallInt(4, runtime.IntegerI32)
 	rightVal := runtime.NewSmallInt(9, runtime.IntegerI32)
@@ -162,6 +178,36 @@ func TestBytecodeVM_DirectSameTypeSmallIntPair(t *testing.T) {
 	if _, _, _, ok := bytecodeDirectSameTypeSmallIntPair(leftVal, otherType); ok {
 		t.Fatalf("expected mismatched integer kinds to miss fast pair path")
 	}
+
+	rawI32Left := bytecodeRawI32SlotValue(7)
+	rawI32Right := &bytecodeRawI32StackCell{Val: 4}
+	kind, left, right, ok = bytecodeDirectSameTypeSmallIntPair(rawI32Left, rawI32Right)
+	if !ok || kind != runtime.IntegerI32 || left != 7 || right != 4 {
+		t.Fatalf("unexpected raw i32 pair: kind=%v left=%d right=%d ok=%v", kind, left, right, ok)
+	}
+	boxedI32 := runtime.NewSmallInt(3, runtime.IntegerI32)
+	kind, left, right, ok = bytecodeDirectSameTypeSmallIntPair(rawI32Left, boxedI32)
+	if !ok || kind != runtime.IntegerI32 || left != 7 || right != 3 {
+		t.Fatalf("unexpected raw/boxed i32 pair: kind=%v left=%d right=%d ok=%v", kind, left, right, ok)
+	}
+
+	rawI64Left := bytecodeRawI64ResultValue(11)
+	rawI64Right := &bytecodeRawI64SlotCell{Val: 5}
+	kind, left, right, ok = bytecodeDirectSameTypeSmallIntPair(rawI64Left, rawI64Right)
+	if !ok || kind != runtime.IntegerI64 || left != 11 || right != 5 {
+		t.Fatalf("unexpected raw i64 pair: kind=%v left=%d right=%d ok=%v", kind, left, right, ok)
+	}
+
+	boxedU64 := runtime.NewSmallInt(5, runtime.IntegerU64)
+	if _, _, _, ok := bytecodeDirectSameTypeSmallIntPair(rawI64Left, boxedU64); ok {
+		t.Fatalf("expected raw i64 and boxed u64 pair to miss")
+	}
+	rawU64Left := bytecodeRawU64ResultValue(13)
+	rawU64Right := bytecodeRawU64ResultValue(8)
+	kind, left, right, ok = bytecodeDirectSameTypeSmallIntPair(rawU64Left, rawU64Right)
+	if !ok || kind != runtime.IntegerU64 || left != 13 || right != 8 {
+		t.Fatalf("unexpected fallback raw u64 pair: kind=%v left=%d right=%d ok=%v", kind, left, right, ok)
+	}
 }
 
 func TestBytecodeVM_SubtractIntegerImmediateFast(t *testing.T) {
@@ -177,8 +223,9 @@ func TestBytecodeVM_SubtractIntegerImmediateFast(t *testing.T) {
 	if !handled {
 		t.Fatalf("expected value-path immediate subtract fast path to handle operands")
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(4, runtime.IntegerI32)) {
-		t.Fatalf("unexpected value-path immediate subtract result: got=%#v", got)
+	kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 4 {
+		t.Fatalf("unexpected value-path immediate subtract raw result: got=%#v", got)
 	}
 
 	got, handled, err = bytecodeSubtractIntegerImmediateFast(&leftPtr, rightVal)
@@ -188,8 +235,9 @@ func TestBytecodeVM_SubtractIntegerImmediateFast(t *testing.T) {
 	if !handled {
 		t.Fatalf("expected pointer-path immediate subtract fast path to handle operands")
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(7, runtime.IntegerI32)) {
-		t.Fatalf("unexpected pointer-path immediate subtract result: got=%#v", got)
+	kind, raw, ok = bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 7 {
+		t.Fatalf("unexpected pointer-path immediate subtract raw result: got=%#v", got)
 	}
 
 	if _, handled, err := bytecodeSubtractIntegerImmediateFast(leftVal, otherType); err != nil || handled {
@@ -210,8 +258,9 @@ func TestBytecodeVM_SelfCallSubtractIntegerImmediateI32Fast(t *testing.T) {
 	if !handled {
 		t.Fatalf("expected value-path self-call subtract fast path to handle operands")
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(4, runtime.IntegerI32)) {
-		t.Fatalf("unexpected value-path self-call subtract result: got=%#v", got)
+	kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 4 {
+		t.Fatalf("unexpected value-path self-call subtract raw result: got=%#v", got)
 	}
 
 	got, handled, err = bytecodeSelfCallSubtractIntegerImmediateI32Fast(&leftPtr, rightVal)
@@ -221,8 +270,9 @@ func TestBytecodeVM_SelfCallSubtractIntegerImmediateI32Fast(t *testing.T) {
 	if !handled {
 		t.Fatalf("expected pointer-path self-call subtract fast path to handle operands")
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(7, runtime.IntegerI32)) {
-		t.Fatalf("unexpected pointer-path self-call subtract result: got=%#v", got)
+	kind, raw, ok = bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 7 {
+		t.Fatalf("unexpected pointer-path self-call subtract raw result: got=%#v", got)
 	}
 
 	if _, handled, err := bytecodeSelfCallSubtractIntegerImmediateI32Fast(leftVal, otherType); err != nil || handled {
@@ -245,8 +295,9 @@ func TestBytecodeVM_SelfCallSubtractIntegerImmediateI32RawFast(t *testing.T) {
 	if !handled {
 		t.Fatalf("expected raw immediate self-call subtract to handle operands")
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(4, runtime.IntegerI32)) {
-		t.Fatalf("unexpected raw immediate self-call subtract result: got=%#v", got)
+	kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 4 {
+		t.Fatalf("unexpected raw immediate self-call subtract raw result: got=%#v", got)
 	}
 
 	otherType := runtime.NewSmallInt(6, runtime.IntegerI64)
@@ -286,8 +337,9 @@ func TestBytecodeVM_AddSmallI32PairFast(t *testing.T) {
 			if !handled {
 				t.Fatalf("expected i32 pair add fast path to handle operands")
 			}
-			if !valuesEqual(got, tc.want) {
-				t.Fatalf("unexpected i32 pair add result: got=%#v want=%#v", got, tc.want)
+			kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+			if !ok || kind != runtime.IntegerI32 || !valuesEqual(bytecodeMaterializeRawValue(got), tc.want) {
+				t.Fatalf("unexpected i32 pair add raw result: got=%#v kind=%v raw=%d ok=%v want=%#v", got, kind, raw, ok, tc.want)
 			}
 		})
 	}
@@ -304,8 +356,9 @@ func TestBytecodeVM_ReturnAddSmallI32ValuePairFast(t *testing.T) {
 	if !handled {
 		t.Fatalf("expected return-add i32 value-pair fast path to handle operands")
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(42, runtime.IntegerI32)) {
-		t.Fatalf("unexpected return-add i32 value-pair result: got=%#v", got)
+	kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 42 {
+		t.Fatalf("unexpected return-add i32 raw result: got=%#v kind=%v raw=%d ok=%v", got, kind, raw, ok)
 	}
 
 	rightPtr := runtime.NewSmallInt(23, runtime.IntegerI32)
@@ -322,42 +375,6 @@ func TestBytecodeVM_ReturnAddSmallI32ValuePairFast(t *testing.T) {
 	}
 }
 
-func TestBytecodeVM_ReturnBinaryIntAddI32ReportsKnownSimpleTypeForHandledFastPath(t *testing.T) {
-	interp := NewBytecode()
-	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
-	instr := &bytecodeInstruction{op: bytecodeOpReturnBinaryIntAddI32, operator: "+"}
-
-	vm.stack = []runtime.Value{
-		runtime.NewSmallInt(19, runtime.IntegerI32),
-		runtime.NewSmallInt(23, runtime.IntegerI32),
-	}
-	got, known, err := vm.execReturnBinaryIntAdd(instr)
-	if err != nil {
-		t.Fatalf("unexpected return-add i32 error: %v", err)
-	}
-	if known != bytecodeSimpleTypeCheckI32 {
-		t.Fatalf("expected handled i32 return-add to report known i32, got %v", known)
-	}
-	if !valuesEqual(got, runtime.NewSmallInt(42, runtime.IntegerI32)) {
-		t.Fatalf("unexpected return-add i32 result: got=%#v", got)
-	}
-
-	vm.stack = []runtime.Value{
-		runtime.NewSmallInt(19, runtime.IntegerI64),
-		runtime.NewSmallInt(23, runtime.IntegerI64),
-	}
-	got, known, err = vm.execReturnBinaryIntAdd(instr)
-	if err != nil {
-		t.Fatalf("unexpected generic return-add error: %v", err)
-	}
-	if known != bytecodeSimpleTypeCheckUnknown {
-		t.Fatalf("expected generic fallback return-add to keep unknown simple type, got %v", known)
-	}
-	if !valuesEqual(got, runtime.NewSmallInt(42, runtime.IntegerI64)) {
-		t.Fatalf("unexpected generic return-add result: got=%#v", got)
-	}
-}
-
 func TestBytecodeVM_SubtractSmallI32PairFast(t *testing.T) {
 	left := runtime.NewSmallInt(9, runtime.IntegerI32)
 	right := runtime.NewSmallInt(2, runtime.IntegerI32)
@@ -369,8 +386,9 @@ func TestBytecodeVM_SubtractSmallI32PairFast(t *testing.T) {
 	if !handled {
 		t.Fatalf("expected i32 pair subtract fast path to handle operands")
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(7, runtime.IntegerI32)) {
-		t.Fatalf("unexpected i32 pair subtract result: got=%#v", got)
+	kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 7 {
+		t.Fatalf("unexpected i32 pair subtract raw result: got=%#v", got)
 	}
 }
 
@@ -493,6 +511,7 @@ func TestBytecodeVM_LoweringEmitsIntegerBinaryHotOpcodes(t *testing.T) {
 		ast.Bin("+", ast.Int(1), ast.Int(2)),
 		ast.Bin("-", ast.Int(4), ast.Int(3)),
 		ast.Bin("<=", ast.Int(1), ast.Int(2)),
+		ast.Nil(),
 	}, nil, nil)
 
 	interp := NewBytecode()
@@ -565,68 +584,6 @@ func TestBytecodeVM_LoweringEmitsFusedSelfCallSlotConstOpcode(t *testing.T) {
 				t.Fatalf("expected fused self-call slot-const immediate, got=%v ok=%v", got, ok)
 			}
 		}
-	}
-}
-
-func TestBytecodeVM_LoweringEmitsReturnBinaryIntAddForImplicitFinalExpression(t *testing.T) {
-	def := ast.Fn(
-		"fib",
-		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
-		[]ast.Statement{
-			ast.IfExpr(
-				ast.Bin("<=", ast.ID("n"), ast.Int(1)),
-				ast.Block(ast.Ret(ast.ID("n"))),
-			),
-			ast.Bin(
-				"+",
-				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(1))),
-				ast.Call("fib", ast.Bin("-", ast.ID("n"), ast.Int(2))),
-			),
-		},
-		ast.Ty("i32"),
-		nil,
-		nil,
-		false,
-		false,
-	)
-
-	interp := NewBytecode()
-	program, err := interp.lowerFunctionDefinitionBytecode(def)
-	if err != nil {
-		t.Fatalf("bytecode lowering failed: %v", err)
-	}
-	if !bytecodeProgramContainsOpcode(program, bytecodeOpReturnBinaryIntAddI32) {
-		t.Fatalf("expected i32 lowering to emit fused return-add-i32 opcode")
-	}
-	if bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntAdd) {
-		t.Fatalf("expected fused return-add shape to replace standalone add opcode")
-	}
-	if bytecodeProgramContainsOpcode(program, bytecodeOpReturnBinaryIntAdd) {
-		t.Fatalf("expected i32 return-add shape to avoid generic return-add opcode")
-	}
-}
-
-func TestBytecodeVM_ReturnBinaryIntAddImplicitFinalExpressionParity(t *testing.T) {
-	module := ast.Mod([]ast.Statement{
-		ast.Fn(
-			"sum",
-			nil,
-			[]ast.Statement{
-				ast.Bin("+", ast.Int(19), ast.Int(23)),
-			},
-			ast.Ty("i32"),
-			nil,
-			nil,
-			false,
-			false,
-		),
-		ast.Call("sum"),
-	}, nil, nil)
-
-	want := mustEvalModule(t, New(), module)
-	got := runBytecodeModule(t, module)
-	if !valuesEqual(got, want) {
-		t.Fatalf("bytecode return-add implicit final expression mismatch: got=%#v want=%#v", got, want)
 	}
 }
 
@@ -839,7 +796,7 @@ func TestBytecodeVM_ReturnIfIntLessEqualSlotConstSameSlotFastPath(t *testing.T) 
 	if !returned {
 		t.Fatalf("expected return-if same-slot fast path to return")
 	}
-	if !valuesEqual(got, trueVal) {
+	if !valuesEqual(bytecodeMaterializeRawValue(got), trueVal) {
 		t.Fatalf("unexpected return-if value: got=%#v want=%#v", got, trueVal)
 	}
 
@@ -854,6 +811,43 @@ func TestBytecodeVM_ReturnIfIntLessEqualSlotConstSameSlotFastPath(t *testing.T) 
 	}
 	if vm.ip != 8 {
 		t.Fatalf("expected false return-if to advance ip, got %d", vm.ip)
+	}
+}
+
+func TestBytecodeVM_ReturnIfIntLessEqualSlotConstSameSlotRegisterFastPathKeepsRawI32(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	program := &bytecodeProgram{
+		frameLayout: &bytecodeFrameLayout{
+			slotCount:        1,
+			slotKinds:        []bytecodeCellKind{bytecodeCellKindI32},
+			i32RegisterFrame: true,
+		},
+	}
+	vm.currentProgram = program
+	vm.slots = []runtime.Value{nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(0, 1) {
+		t.Fatalf("expected i32 register frame to accept slot 0")
+	}
+	instr := &bytecodeInstruction{
+		op:              bytecodeOpReturnIfIntLessEqualSlotConst,
+		target:          0,
+		argCount:        0,
+		intImmediate:    runtime.NewSmallInt(1, runtime.IntegerI32),
+		hasIntImmediate: true,
+	}
+
+	got, returned, err := vm.execReturnIfIntLessEqualSlotConst(instr, nil)
+	if err != nil {
+		t.Fatalf("unexpected register-fast return-if error: %v", err)
+	}
+	if !returned {
+		t.Fatalf("expected register-fast return-if to return")
+	}
+	kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerI32 || raw != 1 {
+		t.Fatalf("unexpected register-fast raw result: got=%#v kind=%v raw=%d ok=%v", got, kind, raw, ok)
 	}
 }
 
@@ -922,6 +916,31 @@ func TestBytecodeVM_BinaryAddSlotConstParity(t *testing.T) {
 	got := runBytecodeModule(t, module)
 	if !valuesEqual(got, want) {
 		t.Fatalf("bytecode add slot-const mismatch: got=%#v want=%#v", got, want)
+	}
+}
+
+func TestBytecodeVM_BinaryModSlotConstRawI32Parity(t *testing.T) {
+	i32 := ast.IntegerTypeI32
+	module := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"even",
+			[]*ast.FunctionParameter{ast.Param("x", ast.Ty("i32"))},
+			[]ast.Statement{
+				ast.Bin("==", ast.Bin("%", ast.ID("x"), ast.Int(2)), ast.Int(0)),
+			},
+			ast.Ty("bool"),
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Call("even", ast.IntTyped(4, &i32)),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode mod slot-const raw i32 mismatch: got=%#v want=%#v", got, want)
 	}
 }
 

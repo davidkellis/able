@@ -1,0 +1,9 @@
+{
+  "description": "regex scanners defer absolute end-anchor matches until flush",
+  "expect": {
+    "stdout": [
+      "end-pending none",
+      "end-final cat 0-3"
+    ]
+  }
+}

@@ -22,8 +22,8 @@ func TestCompilerExperimentalMonoArraysStaticBodyStaysOnCompilerOwnedArrayCarrie
 	})
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "const __able_experimental_mono_arrays = true") {
-		t.Fatalf("expected mono-array feature flag constant to be enabled")
+	if !strings.Contains(compiledSrc, "const __able_native_static_arrays = true") {
+		t.Fatalf("expected native static Array contract constant to be true")
 	}
 
 	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")

@@ -1,0 +1,145 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain-general-benchmark-phase-split",
+  "compiler_sha256": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e",
+  "change": {
+    "source_emission_and_go_build_independently_bounded": true,
+    "external_gocache_honored": true,
+    "compiler_or_runtime_change": false
+  },
+  "initial_classification": {
+    "rows": 8,
+    "verified": 2,
+    "combined_preparation_timeouts": 6
+  },
+  "final_processes": {
+    "strict_verified": 40,
+    "comparison_verified": 40,
+    "timeouts": 0,
+    "failures": 0
+  },
+  "rows": [
+    {
+      "name": "mutex_ledger",
+      "strict_mean_seconds": 0.08,
+      "comparison_mean_seconds": 0.08,
+      "go_mean_seconds": 0.0048,
+      "able_go_ratio": 16.67,
+      "stdout_sha256": "58f2e2fda882a7c1e5032a2f34c4d9d05f40ced51199c0be0672ecc4d4cf14e4",
+      "binary_sha256": "de027a906a8926db08cb334a344ef5a03c0762b061863b70b5a95ecdc345b9ed",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "regex_suffix_audit",
+      "strict_mean_seconds": 0.04,
+      "comparison_mean_seconds": 0.042,
+      "go_mean_seconds": 0.0046,
+      "able_go_ratio": 9.13,
+      "stdout_sha256": "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f",
+      "binary_sha256": "3d7e709361140921f604a057bd4b1d4397c09b84fd297555746f08e16122b29d",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "regex_set_audit",
+      "strict_mean_seconds": 0.06,
+      "comparison_mean_seconds": 0.048,
+      "go_mean_seconds": 0.0051,
+      "able_go_ratio": 9.41,
+      "stdout_sha256": "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2",
+      "binary_sha256": "084200275953cf19edca647d34af17ea554a57493d475c75cab0abdc4a4353eb",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "regex_stream_audit",
+      "strict_mean_seconds": 0.04,
+      "comparison_mean_seconds": 0.066,
+      "go_mean_seconds": 0.0051,
+      "able_go_ratio": 12.94,
+      "stdout_sha256": "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b",
+      "binary_sha256": "bcaf551c48f4e67461943d11f42ff86cd244121d71bd9f930dff734dc235a271",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "log_routing_redaction",
+      "strict_mean_seconds": 0.05,
+      "comparison_mean_seconds": 0.042,
+      "go_mean_seconds": 0.0045,
+      "able_go_ratio": 9.33,
+      "stdout_sha256": "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4",
+      "binary_sha256": "db324f5af740ca25585ee23668b2917363ee64c60214b7f0785e1d99e986bcb5",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "config_validation_extraction",
+      "strict_mean_seconds": 0.042,
+      "comparison_mean_seconds": 0.042,
+      "go_mean_seconds": 0.0041,
+      "able_go_ratio": 10.24,
+      "stdout_sha256": "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1",
+      "binary_sha256": "2802fccb901244ec51140f1a518403247de6c3f06c77b671f286bc12ab509c0d",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "concurrent_state_machines",
+      "strict_mean_seconds": 0.02,
+      "comparison_mean_seconds": 0.032,
+      "go_mean_seconds": 0.0043,
+      "able_go_ratio": 7.44,
+      "stdout_sha256": "96296c1ea028df4cae0d4dde3e2f8a91533b7bb4daf1f19a611ea9b0ec2b0103",
+      "binary_sha256": "da1866cc1e31c9a37ff7cd5f56ecbdc4143df9f36537f0347069906cbbb97d64",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "policy_record_dispatch",
+      "strict_mean_seconds": 0.06,
+      "comparison_mean_seconds": 0.112,
+      "go_mean_seconds": 0.0067,
+      "able_go_ratio": 16.72,
+      "stdout_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05",
+      "binary_sha256": "19ff0c2f81a4da25e0ddc563e453394f75a6aa00cc7f1bebe2d5d515073aa2b3",
+      "dependencies": 96,
+      "interpreter_dependency": false
+    }
+  ],
+  "phase_attribution": [
+    {
+      "name": "regex_suffix_audit",
+      "emission_seconds": 25.17,
+      "go_build_seconds": 16.88
+    },
+    {
+      "name": "regex_set_audit",
+      "emission_seconds": 26.73,
+      "go_build_seconds": 16.26
+    },
+    {
+      "name": "regex_stream_audit",
+      "emission_seconds": 26.77,
+      "go_build_seconds": 15.94
+    },
+    {
+      "name": "log_routing_redaction",
+      "emission_seconds": 24.78,
+      "go_build_seconds": 15.26
+    },
+    {
+      "name": "config_validation_extraction",
+      "emission_seconds": 25.06,
+      "go_build_seconds": 15.64
+    },
+    {
+      "name": "policy_record_dispatch",
+      "emission_seconds": 31.36,
+      "go_build_seconds": 16.16
+    }
+  ],
+  "raw_comparison_sha256": "7b83fe779f0a82f2087542025489cc8d91bd337d0f4a61d382ea440641aeb13c",
+  "next": "refresh the full current compiled scorecard with phase-split preparation, five verified runs, fresh Go references, and strict interpreter-dependency audits"
+}

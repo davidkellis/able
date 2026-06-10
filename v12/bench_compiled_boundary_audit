@@ -1,0 +1,408 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+suite_name="coverage"
+benchmarks_csv=""
+benchmarks_override=false
+timeout_seconds=45
+telemetry_mode="dynamic-boundary"
+output_json=""
+output_md=""
+keep_artifacts=false
+workdir=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_compiled_boundary_audit [options]
+
+Examples:
+  v12/bench_compiled_boundary_audit --benchmarks fib,matrixmultiply
+  v12/bench_compiled_boundary_audit --suite coverage --timeout 45 --output-json /tmp/carrier.json
+
+Options:
+      --suite NAME        External application suite (default: coverage, all catalogued portable apps)
+      --telemetry MODE    Telemetry mode: dynamic-boundary (default), call-path,
+                          or typed-boundary
+      --list-suites       Print available suite names and members
+  -b, --benchmarks CSV    Explicit benchmark list
+  -t, --timeout SEC       Per-process bound (default: 45)
+      --output-json PATH  Write aggregate machine-readable report
+      --output-md PATH    Write aggregate Markdown report
+      --workdir DIR       Keep per-application artifacts in DIR
+      --keep              Keep generated artifacts
+  -h, --help              Show this help
+
+Notes:
+  - This is a debug-only reachability audit, not a timing benchmark.
+  - Every application is compiled with --no-fallbacks. The report also records
+    whether the final Go dependency graph still links the interpreter package.
+  - It asks ablec to emit the selected telemetry and keeps normal compiled
+    binaries unchanged.
+  - Successful output is verified with each sibling benchmark verifier when
+    one exists. Timeout/failure/verification status is retained in the report.
+EOF
+}
+
+die() {
+  echo "bench_compiled_boundary_audit: $*" >&2
+  exit 1
+}
+
+is_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+list_suites() {
+  local suite
+  for suite in $(bench_external_suite_names); do
+    printf '%s\t%s\n' "$suite" "$(bench_external_suite_csv "$suite")"
+  done
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --)
+      # `just recipe -- --option` forwards the separator to variadic recipes.
+      # Accept it so both direct and conventional Just invocations work.
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --suite)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --suite"
+      suite_name="$1"
+      ;;
+    --telemetry)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --telemetry"
+      telemetry_mode="$1"
+      ;;
+    --list-suites)
+      list_suites
+      exit 0
+      ;;
+    -b|--benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      benchmarks_override=true
+      ;;
+    -t|--timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-json"
+      output_json="$1"
+      ;;
+    --output-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-md"
+      output_md="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --keep)
+      keep_artifacts=true
+      ;;
+    -* )
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+is_int "$timeout_seconds" && ((timeout_seconds > 0)) || die "--timeout must be a positive integer"
+case "$telemetry_mode" in
+  dynamic-boundary)
+    telemetry_build_arg="--dynamic-boundary-telemetry"
+    telemetry_runtime_env="ABLE_COMPILER_DYNAMIC_BOUNDARY_TELEMETRY"
+    telemetry_stderr_prefix="__ABLE_DYNAMIC_BOUNDARY_TELEMETRY="
+    telemetry_keys_csv="explicit_dynamic_call,residual_polymorphic_call,host_abi_call,runtime_service_call"
+    ;;
+  call-path)
+    telemetry_build_arg="--call-path-telemetry"
+    telemetry_runtime_env="ABLE_COMPILER_CALL_PATH_TELEMETRY"
+    telemetry_stderr_prefix="__ABLE_COMPILED_CALL_PATH_TELEMETRY="
+    telemetry_keys_csv="fast_method_call,generic_union_method_call,generic_union_fallback"
+    ;;
+  typed-boundary)
+    telemetry_build_arg="--typed-boundary-telemetry"
+    telemetry_runtime_env="ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY"
+    telemetry_stderr_prefix="__ABLE_TYPED_BOUNDARY_TELEMETRY="
+    telemetry_keys_csv="any_to_runtime,integer_from_runtime,array_from_runtime,array_to_runtime,struct_from_runtime,struct_to_runtime,union_from_runtime,union_to_runtime,interface_from_runtime,interface_to_runtime,callable_from_runtime,callable_to_runtime,control_from_error,control_to_error"
+    ;;
+  *)
+    die "--telemetry must be dynamic-boundary, call-path, or typed-boundary"
+    ;;
+esac
+if [[ "$benchmarks_override" == false ]]; then
+  benchmarks_csv="$(bench_external_suite_csv "$suite_name")" || die "unknown suite: $suite_name"
+fi
+
+bench_repo="$(realpath "$REPO_ROOT/../benchmarks")"
+[[ -d "$bench_repo" ]] || die "benchmark repo not found: $bench_repo"
+command -v ruby >/dev/null 2>&1 || die "ruby is required for benchmark verification"
+
+if [[ -z "$workdir" ]]; then
+  mkdir -p "$GO_DIR/.gotmp"
+  workdir="$(mktemp -d "$GO_DIR/.gotmp/compiled-boundary-audit.XXXXXX")"
+else
+  workdir="$(realpath -m "$workdir")"
+  mkdir -p "$workdir"
+fi
+if [[ "$keep_artifacts" == false ]]; then
+  trap 'rm -rf "$workdir"' EXIT
+fi
+
+if [[ -n "$output_json" ]]; then
+  output_json="$(realpath -m "$output_json")"
+  mkdir -p "$(dirname "$output_json")"
+fi
+if [[ -n "$output_md" ]]; then
+  output_md="$(realpath -m "$output_md")"
+  mkdir -p "$(dirname "$output_md")"
+fi
+
+rows_file="$workdir/rows.jsonl"
+: > "$rows_file"
+
+IFS=',' read -r -a requested_benchmarks <<<"$benchmarks_csv"
+echo ">>> Suite: $suite_name"
+echo ">>> Benchmarks: $benchmarks_csv"
+echo ">>> Workdir: $workdir"
+
+for bench in "${requested_benchmarks[@]}"; do
+  [[ -n "$bench" ]] || continue
+  target="$(bench_external_target "$SCRIPT_DIR" "$bench")" || die "no Able target mapping for $bench"
+  target="$(realpath "$target")"
+  suite_dir="$(bench_external_suite_dir "$bench_repo" "$bench")"
+  run_from="$(bench_external_run_dir "$bench_repo" "$bench")"
+  [[ -f "$target" ]] || die "Able target not found for $bench: $target"
+  [[ -d "$suite_dir" && -d "$run_from" ]] || die "benchmark paths missing for $bench"
+
+  if [[ -f "$suite_dir/setup.rb" ]]; then
+    echo ">>> Running external setup for $bench"
+    (cd "$suite_dir" && ruby setup.rb >/dev/null)
+  fi
+
+  bench_dir="$workdir/$bench"
+  mkdir -p "$bench_dir"
+  perf_json="$bench_dir/perf.json"
+  perf_args=(
+    --runs 1
+    --timeout "$timeout_seconds"
+    --modes compiled
+    --run-from "$run_from"
+    --workdir "$bench_dir"
+    --keep
+    --output-json "$perf_json"
+    --compiled-build-arg=--no-fallbacks
+    --compiled-build-arg="$telemetry_build_arg"
+  )
+  if bench_external_source_root_only "$bench"; then
+    perf_args+=(--source-root-only)
+  fi
+  executor="$(bench_external_executor "$bench" || true)"
+  if [[ -n "$executor" ]]; then
+    perf_args+=(--executor "$executor")
+  fi
+  while IFS= read -r arg; do
+    [[ -n "$arg" ]] && perf_args+=(--program-arg "$arg")
+  done < <(bench_external_program_args "$bench")
+  if [[ -f "$suite_dir/verify.rb" ]]; then
+    perf_args+=(--verify-ruby-script "$suite_dir/verify.rb")
+  fi
+
+  echo ">>> Telemetry benchmark: $bench"
+  set +e
+  env \
+    GOMEMLIMIT="${GOMEMLIMIT:-1GiB}" \
+    GOGC="${GOGC:-50}" \
+    GOMAXPROCS="${GOMAXPROCS:-1}" \
+    "$telemetry_runtime_env=1" \
+    "$SCRIPT_DIR/bench_perf" "${perf_args[@]}" "$target"
+  perf_rc=$?
+  set -e
+
+  telemetry_payload=""
+  if [[ -f "$perf_json" ]]; then
+    telemetry_payload="$({ rg --no-filename "^${telemetry_stderr_prefix}" "$bench_dir"/compiled.stderr.* 2>/dev/null || true; } | sed -n "1s/^${telemetry_stderr_prefix}//p")"
+  fi
+  interpreter_dependency="unknown"
+  if [[ -f "$bench_dir/compiled-src/go.mod" ]]; then
+    if (cd "$bench_dir/compiled-src" && go list -deps . 2>/dev/null | rg -q '^able/interpreter-go/pkg/interpreter$'); then
+      interpreter_dependency="true"
+    else
+      interpreter_dependency="false"
+    fi
+  fi
+  python - "$rows_file" "$bench" "$perf_json" "$telemetry_payload" "$perf_rc" "$interpreter_dependency" <<'PY'
+import json
+import os
+import sys
+
+rows_path, bench, perf_path, telemetry_raw, command_rc, interpreter_dependency = sys.argv[1:]
+row = {
+    "benchmark": bench,
+    "command_exit": int(command_rc),
+    "strict_no_fallbacks": True,
+    "interpreter_dependency": (
+        interpreter_dependency == "true" if interpreter_dependency != "unknown" else None
+    ),
+    "telemetry": None,
+    "status": "unavailable",
+    "verification": "unavailable",
+}
+if os.path.exists(perf_path):
+    with open(perf_path, encoding="utf-8") as f:
+        perf = json.load(f)
+    for result in perf.get("results", []):
+        if result.get("mode") == "compiled":
+            row["status"] = "ok" if result.get("ok_runs") else (
+                "timeout" if result.get("timeouts") else "failed"
+            )
+            row["verification"] = result.get("validation", {}).get("status", "unavailable")
+            break
+if int(command_rc) in (124, 137, 143):
+    row["status"] = "timeout"
+if telemetry_raw:
+    try:
+        row["telemetry"] = json.loads(telemetry_raw)
+    except json.JSONDecodeError:
+        row["status"] = "telemetry-invalid"
+else:
+    row["status"] = "telemetry-missing" if row["status"] == "ok" else row["status"]
+with open(rows_path, "a", encoding="utf-8") as f:
+    f.write(json.dumps(row, sort_keys=True) + "\n")
+PY
+  if [[ "$keep_artifacts" == false ]]; then
+    rm -rf "$bench_dir"
+  fi
+done
+
+if [[ -n "$output_json" || -n "$output_md" ]]; then
+  python - "$rows_file" "$suite_name" "$benchmarks_csv" "$timeout_seconds" "$telemetry_mode" "$telemetry_keys_csv" "$output_json" "$output_md" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+
+rows_path, suite, benchmarks_csv, timeout, telemetry_mode, telemetry_keys_csv, json_path, md_path = sys.argv[1:]
+rows = []
+with open(rows_path, encoding="utf-8") as f:
+    for line in f:
+        if line.strip():
+            rows.append(json.loads(line))
+keys = [key for key in telemetry_keys_csv.split(",") if key]
+totals = {key: 0 for key in keys}
+for row in rows:
+    telemetry = row.get("telemetry") or {}
+    categories = telemetry.get("categories")
+    if isinstance(categories, dict):
+        telemetry = categories
+    for key in totals:
+        totals[key] += int(telemetry.get(key, 0))
+payload = {
+    "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "suite": suite,
+    "benchmarks": [item for item in benchmarks_csv.split(",") if item],
+    "timeout_seconds": int(timeout),
+    "telemetry_build": True,
+    "telemetry_mode": telemetry_mode,
+    "rows": rows,
+    "totals": totals,
+}
+if json_path:
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+if md_path:
+    labels = {
+        "dynamic-boundary": {
+            "explicit_dynamic_call": "Explicit dynamic",
+            "residual_polymorphic_call": "Residual polymorphic",
+            "host_abi_call": "Host/ABI",
+            "runtime_service_call": "Runtime service",
+        },
+        "call-path": {
+            "fast_method_call": "Fast method-value",
+            "generic_union_method_call": "Generic union method",
+            "generic_union_fallback": "Generic union fallback",
+        },
+        "typed-boundary": {
+            "any_to_runtime": "Any -> runtime",
+            "integer_from_runtime": "Runtime -> integer",
+            "array_from_runtime": "Runtime -> Array",
+            "array_to_runtime": "Array -> runtime",
+            "struct_from_runtime": "Runtime -> struct",
+            "struct_to_runtime": "Struct -> runtime",
+            "union_from_runtime": "Runtime -> union",
+            "union_to_runtime": "Union -> runtime",
+            "interface_from_runtime": "Runtime -> interface",
+            "interface_to_runtime": "Interface -> runtime",
+            "callable_from_runtime": "Runtime -> callable",
+            "callable_to_runtime": "Callable -> runtime",
+            "control_from_error": "Error -> control",
+            "control_to_error": "Control -> error",
+        },
+    }
+    titles = {
+        "dynamic-boundary": "Compiled dynamic-boundary reachability audit",
+        "call-path": "Compiled call-path reachability audit",
+        "typed-boundary": "Compiled typed/runtime-boundary reachability audit",
+    }
+    title = titles.get(telemetry_mode, "Compiled reachability audit")
+    columns = [labels.get(telemetry_mode, {}).get(key, key) for key in keys]
+    lines = [
+        f"# {title}",
+        "",
+        f"Suite: `{suite}`. This is a debug-only `{telemetry_mode}` event audit, not a timing result.",
+        "",
+        "| Benchmark | Status | Verification | Interpreter linked | " + " | ".join(columns) + " |",
+        "| --- | --- | --- | --- | " + " | ".join("---:" for _ in keys) + " |",
+    ]
+    for row in rows:
+        stats = row.get("telemetry") or {}
+        if isinstance(stats.get("categories"), dict):
+            stats = stats["categories"]
+        values = [str(stats.get(key, "n/a")) for key in keys]
+        interpreter_linked = row.get("interpreter_dependency")
+        if interpreter_linked is None:
+            interpreter_linked = "unknown"
+        else:
+            interpreter_linked = "yes" if interpreter_linked else "no"
+        lines.append("| {benchmark} | {status} | {verification} | {interpreter_linked} | {values} |".format(
+            benchmark=row["benchmark"],
+            status=row["status"],
+            verification=row["verification"],
+            interpreter_linked=interpreter_linked,
+            values=" | ".join(values),
+        ))
+    lines.extend([
+        "",
+        "Totals count events in successful telemetry payloads only. Counters are reachability evidence, not CPU or allocation attribution; use them only to select a later verifier-backed profile set.",
+        "",
+    ])
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+print(json.dumps(payload["totals"], sort_keys=True))
+PY
+fi
+
+echo ">>> Completed compiled $telemetry_mode audit"

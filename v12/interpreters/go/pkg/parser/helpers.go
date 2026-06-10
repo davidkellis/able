@@ -25,7 +25,7 @@ func (ctx *parseContext) parseQualifiedIdentifier(node *sitter.Node) ([]*ast.Ide
 }
 
 func parseIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, error) {
-	if node == nil || (node.Kind() != "identifier" && node.Kind() != "keyword_identifier") {
+	if node == nil || (nodeKind(node) != "identifier" && nodeKind(node) != "keyword_identifier") {
 		return nil, fmt.Errorf("parser: expected identifier")
 	}
 	content := sliceContent(node, source)
@@ -55,7 +55,7 @@ func hasLeadingPrivate(node *sitter.Node) bool {
 		if child == nil || isIgnorableNode(child) {
 			continue
 		}
-		if child.Kind() == "private" {
+		if nodeKind(child) == "private" {
 			return true
 		}
 		if child.IsNamed() {
@@ -100,7 +100,7 @@ func findIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, bool) {
 		return nil, false
 	}
 
-	if node.Kind() == "identifier" {
+	if nodeKind(node) == "identifier" {
 		id, err := parseIdentifier(node, source)
 		if err != nil {
 			return nil, false
@@ -202,7 +202,7 @@ func hasLegacyImportAlias(node *sitter.Node, source []byte) bool {
 }
 
 func parseLabel(node *sitter.Node, source []byte) (*ast.Identifier, error) {
-	if node == nil || node.Kind() != "label" {
+	if node == nil || nodeKind(node) != "label" {
 		return nil, fmt.Errorf("parser: expected label")
 	}
 	content := strings.TrimSpace(sliceContent(node, source))
@@ -254,14 +254,14 @@ func sameNode(a, b *sitter.Node) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	return a.Kind() == b.Kind() && a.StartByte() == b.StartByte() && a.EndByte() == b.EndByte()
+	return nodeKind(a) == nodeKind(b) && a.StartByte() == b.StartByte() && a.EndByte() == b.EndByte()
 }
 
 func isIgnorableNode(node *sitter.Node) bool {
 	if node == nil {
 		return false
 	}
-	switch node.Kind() {
+	switch nodeKind(node) {
 	case "comment", "line_comment", "block_comment", "ellipsis_statement":
 		return true
 	default:

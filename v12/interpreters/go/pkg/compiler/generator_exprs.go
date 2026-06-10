@@ -239,6 +239,9 @@ func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression
 		if expected == "runtime.Value" {
 			return "runtime.NilValue{}", "runtime.Value", true
 		}
+		if expected == "runtime.NilValue" {
+			return "runtime.NilValue{}", "runtime.NilValue", true
+		}
 		if wrapped, ok := g.nativeUnionNilExpr(expected); ok {
 			return wrapped, expected, true
 		}
@@ -347,6 +350,21 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 	}
 	actual := g.inferIntegerLiteralType(lit)
 	explicit := lit.IntegerType != nil
+	rangeType := actual
+	checkRange := explicit || expected == ""
+	if !explicit && g.isIntegerType(expected) {
+		rangeType = expected
+		checkRange = true
+	}
+	if checkRange && !g.integerLiteralFitsType(lit.Value, rangeType) {
+		literalText := lit.Value.String()
+		return fmt.Sprintf(
+			"func() runtime.Value { val, ok := new(big.Int).SetString(%q, 10); if !ok { panic(fmt.Errorf(\"invalid integer literal: %%s\", %q)) }; return runtime.NewBigIntValue(val, %s) }()",
+			literalText,
+			literalText,
+			integerSuffix(lit),
+		), "runtime.Value", true
+	}
 	if expected == "" {
 		expected = actual
 	}
@@ -371,6 +389,9 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 			ctx.setReason("integer literal type mismatch")
 			return "", "", false
 		}
+		if literalExpr, ok := g.integerLiteralExprForType(lit.Value, targetType); ok {
+			return literalExpr, targetType, true
+		}
 		return fmt.Sprintf("%s(%s)", targetType, lit.Value.String()), targetType, true
 	}
 	if innerType, ok := g.nativeNullableValueInnerType(expected); ok {
@@ -379,6 +400,9 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 			if explicit && innerType != actual {
 				ctx.setReason("integer literal type mismatch")
 				return "", "", false
+			}
+			if literalExpr, ok := g.integerLiteralExprForType(lit.Value, innerType); ok {
+				return fmt.Sprintf("__able_ptr(%s)", literalExpr), expected, true
 			}
 			return fmt.Sprintf("__able_ptr(%s(%s))", innerType, lit.Value.String()), expected, true
 		case g.isFloatType(innerType):
@@ -404,16 +428,25 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 		return fmt.Sprintf("%s(%s)", expected, lit.Value.String()), expected, true
 	}
 	if iface := g.nativeInterfaceInfoForGoType(expected); iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
+		if literalExpr, ok := g.integerLiteralExprForType(lit.Value, actual); ok {
+			return literalExpr, actual, true
+		}
 		return fmt.Sprintf("%s(%s)", actual, lit.Value.String()), actual, true
 	}
 	if ctx != nil && ctx.expectedTypeExpr != nil {
 		if iface, ok := g.ensureNativeInterfaceInfo(ctx.packageName, ctx.expectedTypeExpr); ok && iface != nil && g.nativeInterfaceAcceptsActual(iface, actual) {
+			if literalExpr, ok := g.integerLiteralExprForType(lit.Value, actual); ok {
+				return literalExpr, actual, true
+			}
 			return fmt.Sprintf("%s(%s)", actual, lit.Value.String()), actual, true
 		}
 	}
 	if !g.typeMatches(expected, actual) && !g.isIntegerType(expected) {
 		ctx.setReason(fmt.Sprintf("unsupported integer literal type (%s)", expected))
 		return "", "", false
+	}
+	if literalExpr, ok := g.integerLiteralExprForType(lit.Value, expected); ok {
+		return literalExpr, expected, true
 	}
 	return fmt.Sprintf("%s(%s)", expected, lit.Value.String()), expected, true
 }
@@ -773,8 +806,20 @@ func (g *generator) compileStructLiteral(ctx *compileContext, lit *ast.StructLit
 			sourceTemps = append(sourceTemps, temp)
 		}
 		resultTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := &%s{}", resultTemp, info.GoName))
-		lines = append(lines, fmt.Sprintf("*%s = *%s", resultTemp, sourceTemps[len(sourceTemps)-1]))
+		if info.Name == "Array" {
+			errTemp := ctx.newTemp()
+			controlTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s, %s := __able_struct_Array_clone(%s)", resultTemp, errTemp, sourceTemps[len(sourceTemps)-1]))
+			lines = append(lines, fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp))
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, controlLines...)
+		} else {
+			lines = append(lines, fmt.Sprintf("%s := &%s{}", resultTemp, info.GoName))
+			lines = append(lines, fmt.Sprintf("*%s = *%s", resultTemp, sourceTemps[len(sourceTemps)-1]))
+		}
 		for _, field := range info.Fields {
 			value, ok := fieldValues[field.GoName]
 			if !ok {
@@ -881,9 +926,9 @@ func (g *generator) compileStructLiteralRuntime(ctx *compileContext, lit *ast.St
 			lines = append(lines, fmt.Sprintf("%s := __able_struct_instance(%s)", instanceTemp, sourceTemp))
 			lines = append(lines, fmt.Sprintf("if %s == nil { panic(fmt.Errorf(\"Functional update source must be a struct instance\")) }", instanceTemp))
 			lines = append(lines, fmt.Sprintf("if %s.Definition == nil || %s.Definition.Node == nil || %s.Definition.Node.ID == nil || %s.Definition.Node.ID.Name != %q { panic(fmt.Errorf(\"Functional update source must be same struct type\")) }", instanceTemp, instanceTemp, instanceTemp, instanceTemp, structName))
-			lines = append(lines, fmt.Sprintf("if %s.Fields == nil { panic(fmt.Errorf(\"Functional update only supported for named structs\")) }", instanceTemp))
 			lines = append(lines, fmt.Sprintf("if %s == nil { %s = %s }", baseTemp, baseTemp, instanceTemp))
 			lines = append(lines, fmt.Sprintf("for k, v := range %s.Fields { %s[k] = v }", instanceTemp, fieldsTemp))
+			lines = append(lines, fmt.Sprintf("for _, defField := range %s.Definition.Node.Fields { if defField == nil || defField.Name == nil { continue }; fieldValue, ok := __able_struct_named_field_value(%s, defField.Name.Name); if !ok { panic(fmt.Errorf(\"Functional update source missing field '%%s'\", defField.Name.Name)) }; %s[defField.Name.Name] = fieldValue }", instanceTemp, instanceTemp, fieldsTemp))
 		}
 	}
 
@@ -931,146 +976,4 @@ func (g *generator) compileStructLiteralRuntime(ctx *compileContext, lit *ast.St
 	resultTemp := ctx.newTemp()
 	lines = append(lines, fmt.Sprintf("%s := &runtime.StructInstanceValue{Definition: %s, Fields: %s, TypeArguments: %s}", resultTemp, defTemp, fieldsTemp, typeArgsTemp))
 	return lines, resultTemp, "runtime.Value", true
-}
-
-func (g *generator) compileUnaryExpression(ctx *compileContext, expr *ast.UnaryExpression, expected string) ([]string, string, string, bool) {
-	if expr == nil {
-		ctx.setReason("missing unary expression")
-		return nil, "", "", false
-	}
-	switch expr.Operator {
-	case ast.UnaryOperatorNegate:
-		operandLines, operand, operandType, ok := g.compileExprLines(ctx, expr.Operand, expected)
-		if !ok {
-			return nil, "", "", false
-		}
-		if g.isIntegerType(operandType) {
-			if !g.typeMatches(expected, operandType) {
-				ctx.setReason("unary expression type mismatch")
-				return nil, "", "", false
-			}
-			nodeName := g.diagNodeName(expr, "*ast.UnaryExpression", "unary")
-			temp := ctx.newTemp()
-			bitsExpr := g.bitSizeExpr(operandType)
-			lines := append([]string{}, operandLines...)
-			lines = append(lines, fmt.Sprintf("%s := %s", temp, operand))
-			if g.isUnsignedIntegerType(operandType) {
-				resultTemp := ctx.newTemp()
-				controlTemp := ctx.newTemp()
-				lines = append(lines, fmt.Sprintf("%s, %s := __able_checked_sub_unsigned(uint64(0), uint64(%s), %s, %s)", resultTemp, controlTemp, temp, bitsExpr, nodeName))
-				controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-				if !ok {
-					return nil, "", "", false
-				}
-				lines = append(lines, controlLines...)
-				return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp), operandType, true
-			}
-			resultTemp := ctx.newTemp()
-			controlTemp := ctx.newTemp()
-			lines = append(lines, fmt.Sprintf("%s, %s := __able_checked_sub_signed(int64(0), int64(%s), %s, %s)", resultTemp, controlTemp, temp, bitsExpr, nodeName))
-			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-			if !ok {
-				return nil, "", "", false
-			}
-			lines = append(lines, controlLines...)
-			return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp), operandType, true
-		}
-		if !g.isNumericType(operandType) {
-			opConvLines, operandRuntime, ok := g.lowerRuntimeValue(ctx, operand, operandType)
-			if !ok {
-				ctx.setReason("unsupported unary operand type")
-				return nil, "", "", false
-			}
-			operandLines = append(operandLines, opConvLines...)
-			resultTemp := ctx.newTemp()
-			controlTemp := ctx.newTemp()
-			operandLines = append(operandLines, fmt.Sprintf("%s, %s := __able_unary_op(%q, %s)", resultTemp, controlTemp, string(expr.Operator), operandRuntime))
-			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-			if !ok {
-				return nil, "", "", false
-			}
-			operandLines = append(operandLines, controlLines...)
-			unaryExpr := resultTemp
-			if expected == "" || expected == "runtime.Value" {
-				return operandLines, unaryExpr, "runtime.Value", true
-			}
-			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, unaryExpr, expected)
-			if !ok {
-				ctx.setReason("unary expression type mismatch")
-				return nil, "", "", false
-			}
-			lines := append([]string{}, operandLines...)
-			lines = append(lines, convLines...)
-			return lines, converted, expected, true
-		}
-		if !g.typeMatches(expected, operandType) {
-			ctx.setReason("unary expression type mismatch")
-			return nil, "", "", false
-		}
-		return operandLines, fmt.Sprintf("(-%s)", operand), operandType, true
-	case ast.UnaryOperatorNot:
-		if expected != "" && expected != "bool" {
-			ctx.setReason("unary expression type mismatch")
-			return nil, "", "", false
-		}
-		operandLines, operand, operandType, ok := g.compileExprLines(ctx, expr.Operand, "")
-		if !ok {
-			return nil, "", "", false
-		}
-		if operandType == "bool" {
-			return operandLines, fmt.Sprintf("(!%s)", operand), "bool", true
-		}
-		operandRuntime := operand
-		if operandType != "runtime.Value" {
-			convLines, converted, ok := g.lowerRuntimeValue(ctx, operand, operandType)
-			if !ok {
-				ctx.setReason("unsupported unary operand type")
-				return nil, "", "", false
-			}
-			operandLines = append(operandLines, convLines...)
-			operandRuntime = converted
-		}
-		return operandLines, fmt.Sprintf("!__able_truthy(%s)", operandRuntime), "bool", true
-	case ast.UnaryOperatorBitNot:
-		operandLines, operand, operandType, ok := g.compileExprLines(ctx, expr.Operand, expected)
-		if !ok {
-			return nil, "", "", false
-		}
-		if !g.isIntegerType(operandType) {
-			opConvLines, operandRuntime, ok := g.lowerRuntimeValue(ctx, operand, operandType)
-			if !ok {
-				ctx.setReason("unsupported bitwise operand type")
-				return nil, "", "", false
-			}
-			operandLines = append(operandLines, opConvLines...)
-			resultTemp := ctx.newTemp()
-			controlTemp := ctx.newTemp()
-			operandLines = append(operandLines, fmt.Sprintf("%s, %s := __able_unary_op(%q, %s)", resultTemp, controlTemp, string(expr.Operator), operandRuntime))
-			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-			if !ok {
-				return nil, "", "", false
-			}
-			operandLines = append(operandLines, controlLines...)
-			unaryExpr := resultTemp
-			if expected == "" || expected == "runtime.Value" {
-				return operandLines, unaryExpr, "runtime.Value", true
-			}
-			convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, unaryExpr, expected)
-			if !ok {
-				ctx.setReason("unary expression type mismatch")
-				return nil, "", "", false
-			}
-			lines := append([]string{}, operandLines...)
-			lines = append(lines, convLines...)
-			return lines, converted, expected, true
-		}
-		if !g.typeMatches(expected, operandType) {
-			ctx.setReason("unary expression type mismatch")
-			return nil, "", "", false
-		}
-		return operandLines, fmt.Sprintf("(^%s)", operand), operandType, true
-	default:
-		ctx.setReason("unsupported unary operator")
-		return nil, "", "", false
-	}
 }

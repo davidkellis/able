@@ -1,0 +1,6 @@
+package iface_defs
+
+## This intentionally has the same short name as the kernel protocol.
+interface Display for Self {
+  fn render(self: Self) -> String
+}

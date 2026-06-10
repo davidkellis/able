@@ -1,0 +1,305 @@
+package concurrent_graph_visitors
+
+import able.collections.queue.{Queue}
+import able.kernel.{Array}
+import able.os
+
+DEFAULT_NODES: i32 := 2048
+PROFILE_NODES: i32 := 256
+VISITOR_COUNT: i64 := 4_i64
+MODULUS: i64 := 1_000_003_i64
+
+struct GraphNode {
+  id: i32,
+  weight: i64,
+  edges: Array i32
+}
+
+struct VisitItem {
+  node_id: i32,
+  depth: i32
+}
+
+struct VisitState {
+  visited: i64,
+  accepted: i64,
+  rejected: i64,
+  total: i64,
+  checksum: i64,
+  max_depth: i32
+}
+
+struct VisitReport {
+  lane: i64,
+  visited: i64,
+  accepted: i64,
+  rejected: i64,
+  total: i64,
+  checksum: i64,
+  max_depth: i32
+}
+
+methods GraphNode {
+  fn edge_count(self: Self) -> i32 {
+    self.edges.len()
+  }
+
+  fn signature(self: Self, lane: i64) -> i64 {
+    ((self.id as i64) * 43_i64
+      + self.weight * 17_i64
+      + (self.edge_count() as i64) * 29_i64
+      + lane * 31_i64) % MODULUS
+  }
+}
+
+methods VisitState {
+  fn record(
+    self: Self,
+    node: GraphNode,
+    score: i64,
+    accepted: bool,
+    depth: i32,
+    lane: i64
+  ) -> VisitState {
+    next_total := (self.total
+      + score
+      + node.signature(lane)
+      + (depth as i64) * 11_i64) % MODULUS
+    next_checksum := (self.checksum * 131_i64
+      + next_total * 7_i64
+      + score * 13_i64
+      + node.weight * 19_i64
+      + (node.id as i64) * 23_i64) % MODULUS
+    VisitState {
+      visited: self.visited + 1_i64,
+      accepted: self.accepted + if accepted { 1_i64 } else { 0_i64 },
+      rejected: self.rejected + if accepted { 0_i64 } else { 1_i64 },
+      total: next_total,
+      checksum: next_checksum,
+      max_depth: if depth > self.max_depth { depth } else { self.max_depth }
+    }
+  }
+
+  fn report(self: Self, lane: i64) -> VisitReport {
+    VisitReport {
+      lane,
+      visited: self.visited,
+      accepted: self.accepted,
+      rejected: self.rejected,
+      total: self.total,
+      checksum: self.checksum,
+      max_depth: self.max_depth
+    }
+  }
+}
+
+interface GraphVisitor {
+  fn inspect(
+    self: Self,
+    node: GraphNode,
+    state: VisitState,
+    depth: i32,
+    lane: i64,
+    score: (GraphNode, i32, i64) -> i64
+  ) -> VisitState
+}
+
+struct ThresholdVisitor {
+  threshold: i64,
+  gain: i64
+}
+
+struct StripeVisitor {
+  divisor: i64,
+  offset: i64
+}
+
+impl GraphVisitor for ThresholdVisitor {
+  fn inspect(
+    self: Self,
+    node: GraphNode,
+    state: VisitState,
+    depth: i32,
+    lane: i64,
+    score: (GraphNode, i32, i64) -> i64
+  ) -> VisitState {
+    raw := score(node, depth, self.gain)
+    marker := (raw + node.weight + self.threshold + lane) % 17_i64
+    accepted := marker < self.threshold
+    adjusted := if accepted {
+      (raw + marker * self.gain) % MODULUS
+    } else {
+      (raw + self.threshold * 37_i64 + node.signature(lane)) % MODULUS
+    }
+    state.record(node, adjusted, accepted, depth, lane)
+  }
+}
+
+impl GraphVisitor for StripeVisitor {
+  fn inspect(
+    self: Self,
+    node: GraphNode,
+    state: VisitState,
+    depth: i32,
+    lane: i64,
+    score: (GraphNode, i32, i64) -> i64
+  ) -> VisitState {
+    raw := score(node, depth, self.offset)
+    marker := ((node.id as i64) + node.weight + (depth as i64) + self.offset) % self.divisor
+    accepted := marker != 0_i64
+    adjusted := if accepted {
+      (raw + self.offset * 41_i64 + marker * 17_i64) % MODULUS
+    } else {
+      (raw + self.divisor * 53_i64 + lane * 7_i64) % MODULUS
+    }
+    state.record(node, adjusted, accepted, depth, lane)
+  }
+}
+
+fn make_scorer(
+  bias: i64,
+  factor: i64,
+  twist: i64
+) -> (GraphNode, i32, i64) -> i64 {
+  { node, depth, gain =>
+    (node.weight * factor
+      + (node.id as i64) * bias
+      + (depth as i64) * twist
+      + (node.edge_count() as i64) * gain
+      + bias * twist) % MODULUS
+  }
+}
+
+fn build_graph(lane: i64, count: i32) -> Array GraphNode {
+  nodes: Array GraphNode = Array.with_capacity(count)
+  id := 0
+  loop {
+    if id >= count { break }
+    edges: Array i32 = Array.with_capacity(4)
+    if id + 1 < count { edges.push(id + 1) }
+    if id + 3 < count && ((id as i64) + lane) % 2_i64 == 0_i64 {
+      edges.push(id + 3)
+    }
+    if id + 7 < count && ((id as i64) + lane) % 3_i64 != 0_i64 {
+      edges.push(id + 7)
+    }
+    if id + 13 < count && ((id as i64) + lane) % 5_i64 == 0_i64 {
+      edges.push(id + 13)
+    }
+    weight := (((id as i64) * 97_i64
+      + lane * 131_i64
+      + ((id as i64) % 11_i64) * 17_i64
+      + 23_i64) % 997_i64) + 1_i64
+    nodes.push(GraphNode { id, weight, edges })
+    id = id + 1
+  }
+  nodes
+}
+
+fn traverse(
+  lane: i64,
+  count: i32,
+  visitor: GraphVisitor,
+  score: (GraphNode, i32, i64) -> i64
+) -> VisitReport {
+  graph := build_graph(lane, count)
+  seen: Array bool = Array.with_capacity(count)
+  index := 0
+  loop {
+    if index >= count { break }
+    seen.push(false)
+    index = index + 1
+  }
+
+  pending: Queue VisitItem = Queue.with_capacity(count)
+  pending.enqueue(VisitItem { node_id: 0, depth: 0 })
+  state := VisitState {
+    visited: 0_i64,
+    accepted: 0_i64,
+    rejected: 0_i64,
+    total: 0_i64,
+    checksum: lane * 71_i64 + 19_i64,
+    max_depth: 0
+  }
+
+  loop {
+    pending.dequeue() match {
+      case nil => { break },
+      case item: VisitItem => {
+        if !seen[item.node_id]! {
+          seen[item.node_id] = true
+          node := graph[item.node_id]!
+          state = visitor.inspect(node, state, item.depth, lane, score)
+          edge_index := 0
+          loop {
+            if edge_index >= node.edge_count() { break }
+            next_id := node.edges[edge_index]!
+            if !seen[next_id]! {
+              pending.enqueue(VisitItem {
+                node_id: next_id,
+                depth: item.depth + 1
+              })
+            }
+            edge_index = edge_index + 1
+          }
+        }
+      }
+    }
+  }
+  state.report(lane)
+}
+
+fn node_count(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_NODES
+  } else {
+    DEFAULT_NODES
+  }
+}
+
+fn main() -> void {
+  count := node_count(os.args())
+  first_visitor: GraphVisitor = ThresholdVisitor { threshold: 9_i64, gain: 3_i64 }
+  second_visitor: GraphVisitor = StripeVisitor { divisor: 7_i64, offset: 11_i64 }
+  third_visitor: GraphVisitor = ThresholdVisitor { threshold: 11_i64, gain: 5_i64 }
+  fourth_visitor: GraphVisitor = StripeVisitor { divisor: 9_i64, offset: 17_i64 }
+
+  first_score := make_scorer(11_i64, 3_i64, 5_i64)
+  second_score := make_scorer(17_i64, 5_i64, 7_i64)
+  third_score := make_scorer(23_i64, 7_i64, 11_i64)
+  fourth_score := make_scorer(29_i64, 11_i64, 13_i64)
+
+  first := spawn { traverse(0_i64, count, first_visitor, first_score) }
+  second := spawn { traverse(1_i64, count, second_visitor, second_score) }
+  third := spawn { traverse(2_i64, count, third_visitor, third_score) }
+  fourth := spawn { traverse(3_i64, count, fourth_visitor, fourth_score) }
+  future_flush()
+
+  first_report := first.value()!
+  second_report := second.value()!
+  third_report := third.value()!
+  fourth_report := fourth.value()!
+  visited := first_report.visited
+    + second_report.visited
+    + third_report.visited
+    + fourth_report.visited
+  accepted := first_report.accepted
+    + second_report.accepted
+    + third_report.accepted
+    + fourth_report.accepted
+  rejected := first_report.rejected
+    + second_report.rejected
+    + third_report.rejected
+    + fourth_report.rejected
+  total := (first_report.total
+    + second_report.total
+    + third_report.total
+    + fourth_report.total) % MODULUS
+  checksum := (first_report.checksum * 3_i64
+    + second_report.checksum * 5_i64
+    + third_report.checksum * 7_i64
+    + fourth_report.checksum * 11_i64) % MODULUS
+  expected := (count as i64) * VISITOR_COUNT
+
+  print(`${expected}:${visited}:${accepted}:${rejected}:${first_report.total},${second_report.total},${third_report.total},${fourth_report.total}:${first_report.checksum},${second_report.checksum},${third_report.checksum},${fourth_report.checksum}:${first_report.max_depth},${second_report.max_depth},${third_report.max_depth},${fourth_report.max_depth}:${total}:${checksum}`)
+}

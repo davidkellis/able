@@ -1,0 +1,15 @@
+package exec_14_03_regex_option_rejection
+
+import able.text.regex.{Regex, RegexOptions}
+
+## Semantics: regex options without an implemented engine semantic reject at compile time.
+
+fn main() -> void {
+  options := RegexOptions.default()
+  options.unicode = false
+  Regex.compile_with_options("a", options) match {
+    case _: Regex => print("unicode_false accepted"),
+    case _ => print("unicode_false rejected")
+  }
+
+}

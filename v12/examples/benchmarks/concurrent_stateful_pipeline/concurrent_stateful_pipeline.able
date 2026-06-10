@@ -1,0 +1,227 @@
+package concurrent_stateful_pipeline
+
+import able.kernel.{Array, Channel}
+import able.os
+
+DEFAULT_ITEMS: i32 := 4096
+PROFILE_ITEMS: i32 := 256
+LANE_COUNT: i32 := 4
+MODULUS: i64 := 1_000_003_i64
+
+struct Pulse {
+  sequence: i64,
+  lane: i32,
+  magnitude: i64,
+  phase: i32
+}
+
+struct Frame {
+  pulse: Pulse,
+  value: i64,
+  trail: i64
+}
+
+struct StageState {
+  count: i64,
+  total: i64,
+  checksum: i64
+}
+
+struct StageStep {
+  frame: Frame,
+  state: StageState
+}
+
+interface StatefulStage {
+  fn apply(
+    self: Self,
+    state: StageState,
+    frame: Frame,
+    reduce: (StageState, Frame, i64, i64) -> StageState
+  ) -> StageStep
+}
+
+struct AffineStage {
+  factor: i64,
+  bias: i64
+}
+
+struct WindowStage {
+  offset: i64
+}
+
+impl StatefulStage for AffineStage {
+  fn apply(
+    self: Self,
+    state: StageState,
+    frame: Frame,
+    reduce: (StageState, Frame, i64, i64) -> StageState
+  ) -> StageStep {
+    candidate := (frame.value * self.factor
+      + frame.pulse.magnitude * ((frame.pulse.phase as i64) + 1_i64)
+      + (frame.pulse.lane as i64) * 17_i64
+      + self.bias) % MODULUS
+    next := reduce(state, frame, candidate, self.factor)
+    StageStep {
+      frame: Frame {
+        pulse: frame.pulse,
+        value: (candidate + next.total + next.count) % MODULUS,
+        trail: (frame.trail * 31_i64 + next.checksum + self.bias) % MODULUS
+      },
+      state: next
+    }
+  }
+}
+
+impl StatefulStage for WindowStage {
+  fn apply(
+    self: Self,
+    state: StageState,
+    frame: Frame,
+    reduce: (StageState, Frame, i64, i64) -> StageState
+  ) -> StageStep {
+    window := (state.total
+      + state.checksum
+      + frame.pulse.sequence * 7_i64
+      + self.offset) % MODULUS
+    candidate := if (state.count % 2_i64) == 0_i64 {
+      (frame.value + window + frame.pulse.magnitude * 3_i64) % MODULUS
+    } else {
+      (frame.value * 5_i64 + window + (frame.pulse.phase as i64)) % MODULUS
+    }
+    next := reduce(state, frame, candidate, self.offset)
+    StageStep {
+      frame: Frame {
+        pulse: frame.pulse,
+        value: (candidate + next.checksum + frame.pulse.sequence) % MODULUS,
+        trail: (frame.trail * 43_i64 + next.total + self.offset) % MODULUS
+      },
+      state: next
+    }
+  }
+}
+
+fn make_reducer(salt: i64) -> (StageState, Frame, i64, i64) -> StageState {
+  { state, frame, candidate, marker =>
+    count := state.count + 1_i64
+    weight := (count % 5_i64) + 1_i64
+    total := (state.total
+      + candidate
+      + frame.pulse.magnitude * weight
+      + salt) % MODULUS
+    checksum := (state.checksum * 131_i64
+      + candidate * 7_i64
+      + frame.pulse.sequence * 11_i64
+      + (frame.pulse.lane as i64) * 13_i64
+      + marker
+      + salt) % MODULUS
+    StageState { count, total, checksum }
+  }
+}
+
+fn produce(count: i32, output: Channel Frame) -> i64 {
+  index := 0
+  loop {
+    if index >= count { break }
+    sequence := index as i64
+    magnitude := ((sequence * 37_i64 + 17_i64) % 1_009_i64) + 1_i64
+    output.send(Frame {
+      pulse: Pulse {
+        sequence,
+        lane: index % LANE_COUNT,
+        magnitude,
+        phase: (index // 7) % 5
+      },
+      value: (sequence * 19_i64 + magnitude * 3_i64 + 101_i64) % MODULUS,
+      trail: (sequence * 23_i64 + 211_i64) % MODULUS
+    })
+    index = index + 1
+  }
+  output.close()
+  count as i64
+}
+
+fn run_stage(
+  stage: StatefulStage,
+  reduce: (StageState, Frame, i64, i64) -> StageState,
+  input: Channel Frame,
+  output: Channel Frame
+) -> StageState {
+  state := StageState { count: 0_i64, total: 0_i64, checksum: 0_i64 }
+  loop {
+    input.receive() match {
+      case nil => {
+        output.close()
+        break
+      },
+      case frame: Frame => {
+        step := stage.apply(state, frame, reduce)
+        state = step.state
+        output.send(step.frame)
+      }
+    }
+  }
+  state
+}
+
+fn item_count(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_ITEMS
+  } else {
+    DEFAULT_ITEMS
+  }
+}
+
+fn main() -> void {
+  count := item_count(os.args())
+  incoming: Channel Frame = Channel.new(count)
+  middle: Channel Frame = Channel.new(count)
+  outgoing: Channel Frame = Channel.new(count)
+  completed: Channel Frame = Channel.new(count)
+
+  first_stage: StatefulStage = AffineStage { factor: 3_i64, bias: 17_i64 }
+  second_stage: StatefulStage = WindowStage { offset: 29_i64 }
+  third_stage: StatefulStage = AffineStage { factor: 7_i64, bias: 41_i64 }
+  first_reduce := make_reducer(11_i64)
+  second_reduce := make_reducer(23_i64)
+  third_reduce := make_reducer(37_i64)
+
+  producer := spawn { produce(count, incoming) }
+  first := spawn { run_stage(first_stage, first_reduce, incoming, middle) }
+  second := spawn { run_stage(second_stage, second_reduce, middle, outgoing) }
+  third := spawn { run_stage(third_stage, third_reduce, outgoing, completed) }
+  future_flush()
+
+  lanes: Array i64 := Array.with_capacity(LANE_COUNT)
+  lanes.push(0_i64)
+  lanes.push(0_i64)
+  lanes.push(0_i64)
+  lanes.push(0_i64)
+  received := 0_i64
+  value_total := 0_i64
+  trail_total := 0_i64
+  checksum := 0_i64
+  loop {
+    completed.receive() match {
+      case nil => { break },
+      case frame: Frame => {
+        lane := frame.pulse.lane
+        lanes.write_slot(lane, lanes.read_slot(lane) + 1_i64)
+        received = received + 1_i64
+        value_total = (value_total + frame.value) % MODULUS
+        trail_total = (trail_total + frame.trail) % MODULUS
+        checksum = (checksum
+          + frame.value * 7_i64
+          + frame.trail * 3_i64
+          + frame.pulse.sequence * 11_i64
+          + (lane as i64) * 13_i64) % MODULUS
+      }
+    }
+  }
+
+  produced := producer.value()! as i64
+  first_state := first.value()!
+  second_state := second.value()!
+  third_state := third.value()!
+  print(`${count}:${produced}:${received}:${first_state.count},${second_state.count},${third_state.count}:${lanes.read_slot(0)},${lanes.read_slot(1)},${lanes.read_slot(2)},${lanes.read_slot(3)}:${value_total}:${trail_total}:${checksum}:${first_state.total},${first_state.checksum}:${second_state.total},${second_state.checksum}:${third_state.total},${third_state.checksum}`)
+}

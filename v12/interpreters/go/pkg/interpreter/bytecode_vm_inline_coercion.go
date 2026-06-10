@@ -1,10 +1,6 @@
 package interpreter
 
-import (
-	"math/big"
-
-	"able/interpreter-go/pkg/runtime"
-)
+import "able/interpreter-go/pkg/runtime"
 
 func inlineCoerceValueBySimpleType(typeName string, value runtime.Value) (runtime.Value, bool, error) {
 	if typeName == "" {
@@ -14,30 +10,8 @@ func inlineCoerceValueBySimpleType(typeName string, value runtime.Value) (runtim
 
 	targetInt := runtime.IntegerType(typeName)
 	if _, ok := lookupIntegerInfo(targetInt); ok {
-		switch val := value.(type) {
-		case runtime.IntegerValue:
-			if val.TypeSuffix == targetInt {
-				return value, true, nil
-			}
-			if integerRangeWithinKinds(val.TypeSuffix, targetInt) {
-				if intVal, ok := val.ToInt64(); ok {
-					return boxedOrSmallIntegerValue(targetInt, intVal), true, nil
-				}
-				return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetInt), true, nil
-			}
-		case *runtime.IntegerValue:
-			if val == nil {
-				return nil, false, nil
-			}
-			if val.TypeSuffix == targetInt {
-				return value, true, nil
-			}
-			if integerRangeWithinKinds(val.TypeSuffix, targetInt) {
-				if intVal, ok := val.ToInt64(); ok {
-					return boxedOrSmallIntegerValue(targetInt, intVal), true, nil
-				}
-				return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetInt), true, nil
-			}
+		if coerced, ok := coerceIntegerValueToTargetKindIfInRange(value, targetInt); ok {
+			return coerced, true, nil
 		}
 		return nil, false, nil
 	}

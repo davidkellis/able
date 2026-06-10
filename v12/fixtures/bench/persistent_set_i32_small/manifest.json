@@ -1,0 +1,6 @@
+{
+  "description": "persistent-set union intersection and mutation benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

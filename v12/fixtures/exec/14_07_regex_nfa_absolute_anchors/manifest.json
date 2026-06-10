@@ -1,0 +1,14 @@
+{
+  "description": "absolute regex anchors lower to position-aware Thompson-NFA predicates",
+  "expect": {
+    "stdout": [
+      "unicode_full é 0-2",
+      "not_prefix nil",
+      "grouped abcab 0-5",
+      "empty  0-0",
+      "end_only  2-2",
+      "anchor_quantifier rejected",
+      "shared_nfa true false"
+    ]
+  }
+}

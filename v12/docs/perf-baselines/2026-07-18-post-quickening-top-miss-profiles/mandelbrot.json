@@ -1,0 +1,57 @@
+{
+  "generated_at": "2026-07-18T18:36:33.403402Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/mandelbrot/mandelbrot.able",
+  "run_from": "/home/david/sync/projects/benchmarks/mandelbrot",
+  "runs": 1,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "bytecode",
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 6.05,
+      "avg_user_seconds": 5.98,
+      "avg_sys_seconds": 0.04,
+      "avg_gc": 38.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 6.05,
+          "user_seconds": 5.98,
+          "sys_seconds": 0.04,
+          "gc_count": 38.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/mandelbrot/verify.rb",
+        "verified_runs": 1,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        ]
+      }
+    }
+  ]
+}

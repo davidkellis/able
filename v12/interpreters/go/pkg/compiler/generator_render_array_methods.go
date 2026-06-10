@@ -3,7 +3,6 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-	"strings"
 )
 
 func isNativeArrayCoreMethod(method *methodInfo) bool {
@@ -21,6 +20,10 @@ func isNativeArrayCoreMethod(method *methodInfo) bool {
 func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *methodInfo, info *functionInfo) {
 	bodyName := g.compiledBodyName(info)
 	entryName := g.compiledEntryName(info)
+	if g.executionContextsEnabled() {
+		bodyName = g.compiledContextBodyName(info)
+		entryName = g.compiledContextEntryName(info)
+	}
 	fmt.Fprintf(buf, "func %s(", bodyName)
 	for i, param := range info.Params {
 		if i > 0 {
@@ -28,7 +31,16 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 		}
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
+	if g.executionContextsEnabled() {
+		if len(info.Params) > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "__able_exec_ctx %s", executionContextType)
+	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+	if g.executionContextsEnabled() {
+		fmt.Fprintf(buf, "\t_ = __able_exec_ctx\n")
+	}
 	arrayType := info.ReturnType
 	if method.ExpectsSelf && len(info.Params) > 0 {
 		arrayType = info.Params[0].GoType
@@ -274,14 +286,28 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 		}
 		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
 	}
+	if g.executionContextsEnabled() {
+		if len(info.Params) > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "__able_exec_ctx %s", executionContextType)
+	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
-	if envVar, ok := g.packageEnvVar(info.Package); ok {
+	if g.executionContextsEnabled() {
+		fmt.Fprintf(buf, "\t_ = __able_exec_ctx\n")
+		if envVar, ok := g.packageEnvVar(info.Package); ok {
+			writeExecutionContextPackageEnv(buf, "\t", "__able_exec_ctx", "__able_runtime", envVar)
+		}
+	} else if envVar, ok := g.packageEnvVar(info.Package); ok {
 		writeRuntimeEnvSwapIfNeeded(buf, "\t", "__able_runtime", envVar, "")
 	}
 	args := make([]string, 0, len(info.Params))
 	for _, param := range info.Params {
 		args = append(args, param.GoName)
 	}
-	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
+	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, g.compiledCallArgs(&compileContext{executionContextExpr: "__able_exec_ctx"}, args))
 	fmt.Fprintf(buf, "}\n\n")
+	if g.executionContextsEnabled() {
+		g.renderCompiledContextCompatibilityWrappers(buf, info)
+	}
 }

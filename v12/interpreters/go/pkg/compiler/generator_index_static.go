@@ -159,7 +159,7 @@ func (g *generator) compileStaticIndexSet(ctx *compileContext, target *ast.Index
 	if !ok {
 		return nil, "", "", false
 	}
-	callExpr := fmt.Sprintf("%s(%s, %s, %s)", g.compiledCallTargetName(ctx.packageName, info), receiverExpr, idxExpr, coercedValueExpr)
+	callExpr := fmt.Sprintf("%s(%s)", g.compiledContextCallTargetName(ctx, ctx.packageName, info), g.compiledCallArgs(ctx, []string{receiverExpr, idxExpr, coercedValueExpr}))
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines := append([]string{}, idxLines...)

@@ -1,0 +1,55 @@
+{
+  "date": "2026-07-26",
+  "decision": "retain_no_code",
+  "compiler_sha256": "28697a5adf4f73918f3d83fbcddc211407dc7e539240f64e4127a4e3dd4ddcab",
+  "go_version": "go1.26.4 linux/amd64",
+  "strict": {
+    "no_fallbacks": true,
+    "package_count_each": 96,
+    "interpreter_matches_each": 0
+  },
+  "applications": {
+    "tapelang_alphabet": {
+      "able_binary_sha256": "4dfe122464875b339505e21b4afbda8fd3473d0ed0ab9871fc1bdc92596a6bfa",
+      "go_binary_sha256": "22f415a37b96c17880be702f3b6fbb2dcec7d8b17be718c288e9d9ca7cdf3475",
+      "able_cpu_samples_seconds": 10.75,
+      "go_cpu_samples_seconds": 8.71,
+      "able_main_allocated_bytes": [6160, 6160, 6160],
+      "able_main_allocations": [48, 48, 48],
+      "able_main_gc": [0, 0, 0],
+      "go_allocated_bytes": [4456, 4456, 4456],
+      "go_allocations": [13, 13, 13],
+      "surviving_required_call_checks": 635564040,
+      "inlined_total_get_results": 577783654,
+      "inlined_total_ensure_results": 57780404
+    },
+    "sudoku_masks": {
+      "able_binary_sha256": "d13957f513bd6d59fae0147216b7a2e1c2904dc39b54e69c3c6fff85126e5090",
+      "go_binary_sha256": "fc3eb75dfb6c2b7ee57fb6ac5f2261868fd08df7ec80c97a41689a3c3ffab6b1",
+      "able_cpu_samples_seconds": 3.93,
+      "go_cpu_samples_seconds": 1.97,
+      "able_main_allocated_bytes": [618616, 618616, 618616],
+      "able_main_allocations": [15011, 15011, 15011],
+      "able_main_gc": [0, 0, 0],
+      "go_allocated_bytes": [64840, 59520, 59520],
+      "go_allocations": [1030, 1024, 1024],
+      "core_checked_static_results": 133935170
+    },
+    "fib": {
+      "able_binary_sha256": "4f6f8014c6ff1907185e5587dcfead900cb8ead9cfd97b5d76ce03c4f56c5bbd",
+      "go_binary_sha256": "ccf44a10b99c79d12731e508ce9026764f49791710c08f0ddca6ee0cf48e479d",
+      "able_cpu_samples_seconds": 10.69,
+      "go_cpu_samples_seconds": 8.94,
+      "able_main_allocated_bytes": [144, 144, 144],
+      "able_main_allocations": [6, 6, 6],
+      "able_main_gc": [0, 0, 0],
+      "go_allocated_bytes": [0, 0, 0],
+      "go_allocations": [0, 0, 0],
+      "unreachable_control_checks": 2269806338
+    }
+  },
+  "shared_material_exact_cpu_symbols": [],
+  "candidate": null,
+  "ab_go_gate_entered": false,
+  "next": "report-only relational static-Array, index, struct-field, and bitmask safety-proof feasibility census over the current strict corpus"
+}

@@ -1,0 +1,44 @@
+package bench_concurrent_queue_i32_small
+
+import able.concurrency.concurrent_queue.{ConcurrentQueue}
+
+fn build(size: i32) -> ConcurrentQueue i32 {
+  values: ConcurrentQueue i32 = ConcurrentQueue.new(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.enqueue(((i * 11) + 5) % 50_021)
+    i = i + 1
+  }
+  values
+}
+
+fn cycle(values: ConcurrentQueue i32, steps: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= steps { break }
+    maybe_value := values.dequeue()
+    value: i32 := maybe_value or { 0 }
+    total = total + (value as i64)
+    next := (value + (i * 7) + 13) % 65_519
+    if !values.try_enqueue(next) {
+      values.enqueue(next)
+    }
+    i = i + 1
+  }
+  total
+}
+
+fn main() -> void {
+  values := build(4_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 4 { break }
+    total = total + cycle(values, 8_000)
+    rounds = rounds + 1
+  }
+  values.close()
+  print(total)
+}

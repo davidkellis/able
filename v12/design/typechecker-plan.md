@@ -1,171 +1,127 @@
-# Able v12 Typechecker Plan (Go)
+# Able v12 Typechecker: Active Go Contract
 
-Date: 2025‑10‑19  
-Owner: Able Agents
+Status: active as of 2026-07-14
+Authority: `spec/full_spec_v12.md` defines language behaviour; this note records
+the current Go checker boundary. The tree-walker and bytecode interpreters remain
+the runtime references when a static diagnostic and runtime behaviour differ.
 
-## Goals
+The TypeScript interpreter is not part of the active v12 toolchain. Its former
+parity work is historical and does not select implementation work.
 
-- Build a static typechecker that walks the existing AST without requiring
-  structural changes.
-- Provide reusable diagnostics for both the Go interpreter and future compiler.
-- Keep inferred type metadata external to the AST (side tables) to preserve the
-  serialisable contract shared with other runtimes.
+## Purpose and ownership
 
-## Architecture sketch
+`v12/interpreters/go/pkg/typechecker` checks the shared Able AST and exposes
+diagnostics plus reusable type facts. It has three public levels:
 
-### Package layout
+- `typechecker.New().CheckModule` checks one already-parsed module.
+- `typechecker.NewProgramChecker().Check` checks the dependency-ordered modules
+  supplied by `driver.Program` and builds package summaries.
+- `interpreter.TypecheckProgram` is the Go runtime/CLI-facing alias for the
+  program-wide path.
 
-- `pkg/typechecker`
-  - `checker.go` – entry point (`CheckModule(*ast.Module) ([]Diagnostic, error)`).
-  - `env.go` – symbol tables (scoped maps of names → `TypeInfo`).
-  - `types.go` – definitions for value types, interface constraints, generics,
-    and utility builders.
-  - `diagnostics.go` – diagnostic struct with message, optional source span, and
-    severity.
-  - `constraints.go` – trait/where-clause solving utilities (likely shared with
-    interpreter impl resolution).
+Program-wide checking is the normal path for packages. It resolves imported
+public surfaces before checking a downstream module, preserves package and
+file attribution in `ModuleDiagnostic`, and returns a `CheckResult` containing:
 
-### Phases
+- diagnostics;
+- privacy-aware `PackageSummary` data (symbols, structs, interfaces,
+  functions, implementations, and method sets); and
+- an `InferenceMap` for each checked package.
 
-1. **Declaration collection** – Walk module statements to register structs,
-   unions, interfaces, and function signatures. Produces a global environment.
-2. **Implementation collection** – Validate inherent/trait impl headers and
-   record available methods for later resolution.
-3. **Body checking** – For each function/spawn, create a scoped environment
-   and recursively check expressions/statements, populating an inference map.
-4. **Constraint solving** – After body checks, ensure where-clause constraints
-   and trait obligations hold. Reuse logic from `impl_resolution.go` where
-   possible.
+Inference facts are side tables keyed by AST nodes. They must not become a
+second AST schema. `PrepareProgramForEvaluation` deliberately performs only
+the declaration-side preparation that runtime evaluation requires; it is not a
+replacement for diagnostics or a licence to give unchecked programs different
+language semantics.
 
-### Data structures
+## Current checked surface
 
-- `TypeInfo` union covering primitives, structs with generics, unions, function
-  types, interface references, and future handles.
-- `InferenceMap` keyed by `ast.Node` (pointer) storing resolved `TypeInfo`.
-- `Diagnostic` capturing message, optional `Span` (when available), and context
-  (e.g., offending identifier).
+The Go checker has declaration collection, scoped body checking, inference,
+patterns, overload and member resolution, generic substitution, interface/impl
+and method-set constraint solving, concurrency helper diagnostics, package
+imports, re-exports, visibility checks, and source-hinted diagnostics. The
+focused `checker_*_test.go` files and `program_checker_test.go` are the
+executable inventory; this list is a navigation aid, not an independent
+language authority.
 
-### Error handling
+For one module, `CheckModule` gathers declarations, applies a prelude, checks
+bodies, resolves obligations, validates implementations, and accumulates
+diagnostics where recovery is safe. For a `driver.Program`, `ProgramChecker`
+repeats that process in loader dependency order, supplies imported declarations
+through the next module's prelude, and captures its export surface after it is
+checked. Use the program-wide entry point whenever imports or visibility matter.
 
-- Checker should accumulate diagnostics and continue where safe.
-- Runtime execution can still proceed without typechecking, so the API should
-  return diagnostics but no runtime errors unless the AST is malformed.
+## Integration contract
 
-## Immediate progress
+- `able check`, normal `able run`, and `able build` use program-wide checking
+  and report diagnostics before continuing. The build command has its explicit
+  skip-check option for exceptional workflows.
+- `able test` checks its loaded production and test modules together unless its
+  explicit typecheck mode is disabled. This preserves same-package privacy
+  semantics.
+- `Interpreter.EvaluateProgram` checks by default, stops evaluation on
+  diagnostics unless `AllowDiagnostics` is requested, and provides checked
+  inference facts to bytecode execution.
+- The fixture harness defaults to strict checking. `ABLE_TYPECHECK_FIXTURES`
+  accepts `strict`, `warn`, or `off` only as an explicit diagnostic policy for
+  fixture/debug workflows; it does not alter Able runtime rules.
+- Compiler analysis uses the same `ProgramChecker` result rather than creating
+  a compiler-specific type model.
 
-- Literal, control-flow, async, and aggregate expressions now feed precise type
-  inference across the core language surface.
-- Declaration collection captures generics, where clauses, interface method
-  signatures, and flags duplicate definitions prior to body checking.
-- Pattern typing supports identifiers, wildcards, struct/array patterns, and
-  typed wrappers; tests assert inference for match/assignment scenarios.
-- Diagnostics cover undefined identifiers, duplicate declarations, arity/type
-  mismatches in calls, control-flow misuse, async helper constraints, and
-  now `Self`-scoped method-set where clauses (e.g., `Formatter<string>`).
-- TypeScript parity locked in for method-set diagnostics and typed pattern
-  tolerance, with Bun unit tests guarding the new `Self` obligation errors and
-  ensuring typed assignments remain advisory rather than hard failures.
+Diagnostic text and severity are part of tooling compatibility. Add structured
+context through `ModuleDiagnostic`, `SourceHint`, and diagnostic notes rather
+than teaching callers to parse an ad-hoc new message shape. AST source spans
+are not yet a general contract; current file/line attribution is best effort
+from loader node origins.
 
-## Next improvements
+## Selecting new checker work
 
-With spans flowing from both parsers and the diagnostics baseline stable, the
-next passes should prioritise:
+There is no active checker implementation candidate solely from this roadmap.
+The spec's open type-system items—full inference/variance/coercion rules and
+interface-dictionary details—need language decisions before a checker
+implementation is selected. Static named-implementation import collisions,
+selector renaming, and explicit source re-exports are now covered through the
+shared AST and program-wide package surface. See
+`reexport-named-implementation-import-audit.md`.
 
-1. **Export surfaces & CLI integration** – finish shaping the Go
-   `ProgramChecker` export metadata (privacy-respecting structs/interfaces/fns,
-   impl and method-set registries) and surface the summaries through the CLI so
-   package-qualified diagnostics and tooling hooks share a single schema.
-   Mirror the export capture in the TypeScript checker so Bun consumers and
-   future editors receive identical data.
-2. **TypeScript parity & fixture enforcement** – close the remaining gaps
-   (privacy/import diagnostics, outstanding constraint edges) so the Bun
-   interpreter can run `ABLE_TYPECHECK_FIXTURES=warn|strict` without skips.
-   Regenerate the shared baseline once parity lands and update CI to execute the
-   checker alongside Go.
-3. **Incremental checking** – after export surfaces stabilise, explore caching
-   package summaries/inference tables to support future compiler/LSP reuse. This
-   includes defining invalidation keys and documenting the session lifecycle.
-4. **Fixture & doc coverage** – keep extending the shared AST fixtures and
-   update design/spec notes whenever new diagnostics or export metadata land, so
-   downstream tooling stays aligned.
+A new checker change must begin with all of the following:
 
-**Status (2025-11-02):** The TypeScript checker now threads package summaries through the Bun fixture harness, reports unknown package/selector references, and enforces the shared `fixtures/ast/typecheck-baseline.json` expectations whenever `ABLE_TYPECHECK_FIXTURES=warn|strict` is set, keeping TS + Go fixture workflows aligned.
+1. A cited v12 specification rule, or a documented spec gap in `spec/TODO_v12.md`.
+2. A minimal AST/loader or source-level reproduction and a checker regression
+   test that distinguishes the intended diagnostic from runtime behaviour.
+3. A program-wide case when imports, visibility, re-exports, impl propagation,
+   or source attribution are involved.
+4. Interpreter and compiler coverage when the inferred fact can affect either
+   execution/lowering path; the change must not make static checking the sole
+   definition of a runtime rule.
+5. Documentation/spec updates in the same tranche when the diagnostic becomes
+   canonical.
 
-### Package summary schema & CLI behaviour
+Do not schedule speculative incremental caches, LSP APIs, TypeScript parity,
+or typechecker micro-optimisations. A performance change needs the same
+verifier-backed, cross-application evidence required by the active performance
+policy; no named-container, source-shape, or benchmark-only shortcut is
+permitted.
 
-- **Canonical schema**: `PackageSummary` captures the public API for each
-  module (name, exported symbol map, struct/interface/function metadata, and the
-  implementation/method-set registries) along with any recorded obligations or
-  where-clause requirements. The TypeScript definition lives in
-  `v12/interpreters/ts/src/typechecker/diagnostics.ts` and mirrors the Go struct in
-  `interpreter-go/pkg/typechecker/program_checker.go`.
-- **Go CLI**: `interpreter-go/cmd/able/main.go` prints the summary block under
-  `---- package export summary ----` whenever `able run` exits due to
-  typechecker errors (see the assertions in `main_test.go`). This keeps users
-  informed about which packages failed to export complete surfaces.
-- **Bun CLI/harness**: the Bun fixture runner (`v12/interpreters/ts/scripts/run-fixtures.ts`)
-  now emits the same summary block whenever diagnostics appear while running
-  with `ABLE_TYPECHECK_FIXTURES=warn|strict`. This mirrors the Go output so Bun
-  developers and tooling receive the same signals while we wire the broader CLI
-  together.
+## Verification
 
-Documenting the shared surface up front makes it easier to extend future CLI
-commands (`able check`, `able test`) and editor tooling without re-deriving the
-export metadata.
+Run the focused package and integration controls under the repository's
+one-process memory guard before handing off a checker change:
 
-### Multi-package typechecking roadmap (v12 alignment)
+```sh
+cd v12/interpreters/go
+env GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 GOCACHE=$(pwd)/.gocache \
+  go test ./pkg/typechecker -run '^(TestProgramChecker|TestCheckerPackage)' -count=1 -timeout 55s
+env GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 GOCACHE=$(pwd)/.gocache \
+  go test ./cmd/able -run '^TestRunProgramTypecheck' -count=1 -timeout 55s
+env GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 GOCACHE=$(pwd)/.gocache \
+  go test ./pkg/interpreter -run '^(TestInterpreterPipelineTypecheckDiagnostics|TestInterpreterTypechecker)' -count=1 -timeout 55s
+```
 
-- **Session model** – introduce a `ProgramChecker` (or similar) that owns a
-  single `Checker`, a registry of package exports, and the dependency-ordered
-  module list returned by `driver.Loader`. The session walks each module once,
-  guaranteeing that imported packages have already populated their export
-  surface before downstream modules are checked. **(Done: `typechecker.ProgramChecker`
-  now backs CLI typechecking and caches exports across modules, including struct/interface/function metadata and impl/method-set registries.)**
-- **Export surfaces** – extend declaration collection to emit public definitions
-  (`struct`, `union`, `interface`, `fn`, constants) and impl/method metadata
-  while respecting `private` visibility. The Go side needs the privacy filter
-  completed; the TypeScript checker must mirror the capture so both runtimes
-  share the same export schema.
-- **Package namespace types** – model `import foo;` bindings by introducing a
-  dedicated package namespace type that exposes the exported identifiers via
-  member access (`foo.Bar`, `foo.main`). Selective and aliased imports bind the
-  same export entries directly into scope, and `import foo.*;` splats every
-  public symbol (detecting duplicates per v12 rules).
-- **Impl propagation** – ensure implementations and method sets defined in one
-  package remain available when another package imports it. Merge per-package
-  tables into the session export data during capture so cross-package interface
-  resolution follows the spec’s visibility and coherence rules.
-- **CLI integration** – replace the per-module `Interpreter.EnableTypechecker`
-  call with a `CheckProgram` pass inside `able run`/`able check`, failing fast on
-  diagnostics and printing package-qualified paths. Update the CLI docs to
-  describe the new behaviour.
-- **Fixtures/tests** – add cross-package fixtures that exercise imports,
-  privacy, aliasing, wildcard splats, and impl visibility. Gate them in both the
-  Go CLI tests and the checker’s unit suite so parity with the v12 spec stays
-  enforced, and mirror the cases in Bun once parity lands.
+Expand the group to the changed semantic surface, then use `./run_all_tests.sh`
+before a broad handoff. Tests must remain bounded below one minute each.
 
-## Dependencies / assumptions
+## Historical record
 
-- AST contract is frozen as described in `design/ast-contract.md`.
-- No source span data yet; diagnostics should tolerate missing spans. If we add
-  spans later, extend `nodeImpl` without breaking existing fixtures.
-- Interpreter remains the execution reference; typechecker integration should be
-  optional until completeness is achieved.
-
-## Open questions
-
-- **Future typing** – represent handles as nominal `Future<T>` to mirror runtime
-  behaviour.
-- **Interfaces vs traits** – ensure checker reuses the same resolution order as
-  `impl_resolution.go` to avoid divergent semantics.
-- **Interop with compiler** – capture enough metadata (inference map, resolved
-  impls) so the future compiler can reuse the same results.
-
-## Deliverables checklist
-
-- [x] Declaration collection pass wired to `CheckModule`.
-- [x] Expression/type coverage beyond literals for the core language surface.
-- [x] Diagnostics surfaced for redefinitions and undefined symbols (extend to
-      trait/impl violations).
-- [x] Integration harness (optional flag) that runs checker before interpreter.
-- [x] Documentation updates (README/design) as features land.
+`typechecker-plan-historical.md` preserves the 2025 bootstrap, package-export,
+and retired TypeScript/Bun parity chronology. It is not an implementation queue.

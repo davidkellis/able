@@ -1,0 +1,46 @@
+File: compiled
+Build ID: 1aafddd2d2f3d94f98f15ce6e9e2da2b69ad3b12
+Type: alloc_objects
+Time: 2026-07-28 09:45:23 CDT
+Showing nodes accounting for 96744, 99.83% of 96910 total
+Dropped 108 nodes (cum <= 484)
+      flat  flat%   sum%        cum   cum%
+     36892 38.07% 38.07%      36892 38.07%  runtime/pprof.allFrames
+     35959 37.11% 75.17%      35959 37.11%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+      9718 10.03% 85.20%       9762 10.07%  runtime/pprof.(*profileBuilder).emitLocation
+      5214  5.38% 90.58%      51951 53.61%  runtime/pprof.writeHeapProto
+      3636  3.75% 94.33%       3637  3.75%  main.__able_nullable_i32_from_value
+      2860  2.95% 97.29%       2860  2.95%  able/interpreter-go/pkg/runtime.(*HashMapValue).AppendEntry (inline)
+      1938  2.00% 99.28%       1938  2.00%  strings.genSplit
+       514  0.53% 99.82%        514  0.53%  able/interpreter-go/pkg/compiler/bridge.commonI32Box.func1
+         6 0.0062% 99.82%      46667 48.15%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         3 0.0031% 99.82%      44951 46.38%  main.__able_compiled_fn_main_ctx
+         1 0.001% 99.83%        515  0.53%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         1 0.001% 99.83%      51957 53.61%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.001% 99.83%      44953 46.39%  main.RunRegisteredMain
+         1 0.001% 99.83%      51952 53.61%  runtime/pprof.writeHeapInternal
+         0     0% 99.83%        514  0.53%  able/interpreter-go/pkg/compiler/bridge.commonI32Box
+         0     0% 99.83%      51957 53.61%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.83%      51957 53.61%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.83%      44952 46.39%  main.RunRegisteredMain.func1
+         0     0% 99.83%      21629 22.32%  main.__able_compiled_fn_lookup_ctx
+         0     0% 99.83%      44952 46.39%  main.__able_compiled_fn_main
+         0     0% 99.83%       1937  2.00%  main.__able_compiled_fn_main_ctx.func1 (inline)
+         0     0% 99.83%      21629 22.32%  main.__able_compiled_impl_Map_get_0_spec_ctx
+         0     0% 99.83%      21629 22.32%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0% 99.83%      21352 22.03%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0% 99.83%      21352 22.03%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0% 99.83%       2860  2.95%  main.__able_hash_map_set_ctx (inline)
+         0     0% 99.83%       2860  2.95%  main.__able_hash_map_set_impl
+         0     0% 99.83%      21629 22.32%  main.__able_iface_Map_String_i32_adapter_ptr_HashMap_String_i32.__able_ctx_get
+         0     0% 99.83%      44952 46.39%  main.__able_register_compiled_call.func1
+         0     0% 99.83%      44952 46.39%  main.__able_wrap_fn_main
+         0     0% 99.83%      96910   100%  main.main
+         0     0% 99.83%      96910   100%  main.runMain
+         0     0% 99.83%      51957 53.61%  main.startMainProfilePhase (inline)
+         0     0% 99.83%      96910   100%  runtime.main
+         0     0% 99.83%      51952 53.61%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.83%      51952 53.61%  runtime/pprof.writeAlloc
+         0     0% 99.83%       1938  2.00%  strings.Split (inline)
+         0     0% 99.83%        515  0.53%  sync.(*Once).Do (inline)
+         0     0% 99.83%        515  0.53%  sync.(*Once).doSlow

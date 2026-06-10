@@ -33,7 +33,7 @@ func TestBytecodeVM_CallMemberUsesCanonicalStringByteIteratorNextFastPath(t *tes
 	}
 }
 
-func TestBytecodeVM_LoweringEmitsStringByteIteratorNextCallMemberOpcode(t *testing.T) {
+func TestBytecodeVM_LoweringUsesStaticCandidateForUnknownIteratorNext(t *testing.T) {
 	safeNext := ast.Member(ast.ID("maybe_iter"), "next")
 	safeNext.Safe = true
 	module := ast.Mod([]ast.Statement{
@@ -46,17 +46,17 @@ func TestBytecodeVM_LoweringEmitsStringByteIteratorNextCallMemberOpcode(t *testi
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
 
-	nextCount := 0
+	staticNextCount := 0
 	safeNextCount := 0
 	for _, instr := range program.instructions {
 		if instr.name != "next" {
 			continue
 		}
 		switch instr.op {
-		case bytecodeOpCallMemberNext:
-			nextCount++
+		case bytecodeOpCallStaticMember:
+			staticNextCount++
 			if instr.argCount != 0 || instr.safe {
-				t.Fatalf("unexpected next opcode instruction: %#v", instr)
+				t.Fatalf("unexpected static next call instruction: %#v", instr)
 			}
 		case bytecodeOpCallMember:
 			if instr.safe {
@@ -64,8 +64,8 @@ func TestBytecodeVM_LoweringEmitsStringByteIteratorNextCallMemberOpcode(t *testi
 			}
 		}
 	}
-	if nextCount != 1 {
-		t.Fatalf("next opcode count = %d, want 1", nextCount)
+	if staticNextCount != 1 {
+		t.Fatalf("static next call count = %d, want 1", staticNextCount)
 	}
 	if safeNextCount != 1 {
 		t.Fatalf("safe next CallMember count = %d, want 1", safeNextCount)

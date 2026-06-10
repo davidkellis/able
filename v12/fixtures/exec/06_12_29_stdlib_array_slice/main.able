@@ -1,0 +1,35 @@
+package exec_06_12_29_stdlib_array_slice
+
+import able.collections.array.*
+import able.core.errors.{IndexError}
+
+## Semantics: Array.slice returns an independently-backed shallow copy of an
+## end-exclusive range, including an exact-capacity empty result.
+
+fn main() -> void {
+  values := [10, 20, 30, 40]
+
+  values.slice(1_u64, 3_u64) match {
+    case part: Array i32 => {
+      print(`range ${part.len()} ${part.capacity()} ${part.read_slot(0)} ${part.read_slot(1)}`)
+      part.write_slot(0, 99)
+      values.push(50)
+      print(`independent ${values.read_slot(1)} ${part.read_slot(0)} ${values.len()} ${part.len()} ${part.capacity()}`)
+    },
+    case _: IndexError => print("range error")
+  }
+
+  values.slice(2_u64, 2_u64) match {
+    case empty: Array i32 => print(`empty ${empty.len()} ${empty.capacity()}`),
+    case _: IndexError => print("empty error")
+  }
+
+  values.slice(3_u64, 2_u64) match {
+    case _: IndexError => print("reversed error"),
+    case _: Array i32 => print("reversed value")
+  }
+  values.slice(0_u64, 99_u64) match {
+    case _: IndexError => print("end error"),
+    case _: Array i32 => print("end value")
+  }
+}

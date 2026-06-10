@@ -1,0 +1,202 @@
+{
+  "kind": "able-shared-value-heap-production-pilot",
+  "date": "2026-07-22",
+  "decision": "reject-live-cell-call-veneer-require-native-shared-ownership",
+  "candidate_retained": false,
+  "production_tree_changed": false,
+  "candidate": {
+    "boundary": "generic-interpreter-invokeFunction-call-and-return",
+    "activation": "opt-in-environment-flag",
+    "shared_by": [
+      "treewalker",
+      "bytecode-generic-call-path"
+    ],
+    "excluded_reach": [
+      "bytecode-inline-call-frames"
+    ],
+    "cell_backed_kinds": [
+      "Bool",
+      "Char",
+      "Nil",
+      "Void",
+      "small-Integer",
+      "Float",
+      "IteratorEnd"
+    ],
+    "fallback": "exact-original-Go-runtime.Value",
+    "reference_cell_policy": "reject-without-shared-owner",
+    "indirect_cell_policy": "reject-without-shared-owner",
+    "graph_conversion": false
+  },
+  "semantic_evidence": {
+    "both_interpreters": true,
+    "small_primitive_round_trip": true,
+    "array_pointer_identity": true,
+    "wide_integer_backing_identity": true,
+    "raised_error_passthrough": true,
+    "reference_without_owner_rejected": true,
+    "indirect_without_owner_rejected": true,
+    "broader_call_return_iterator_partial_rescue_guard": "pass"
+  },
+  "measurement": {
+    "applications": [
+      "array_slice_window",
+      "dependency_plan",
+      "option_result_config"
+    ],
+    "modes": [
+      "treewalker",
+      "bytecode"
+    ],
+    "runs_per_cohort": 5,
+    "cohorts_per_configuration": 2,
+    "verified_selection_processes": 120,
+    "failed_processes": 0,
+    "timed_out_processes": 0,
+    "reverse_order_pair": true,
+    "pooling": "arithmetic-mean-of-ten-processes-per-configuration-row",
+    "volatile_threshold_percent": 15.0
+  },
+  "rows": [
+    {
+      "benchmark": "array_slice_window",
+      "mode": "bytecode",
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "baseline": {
+        "cohort_means_seconds": [0.566, 0.64],
+        "samples_seconds": [0.56, 0.56, 0.59, 0.56, 0.56, 0.65, 0.62, 0.65, 0.64, 0.64],
+        "pooled_mean_seconds": 0.603,
+        "cohort_spread_percent": 13.074205,
+        "pooled_gc_count": 4.2
+      },
+      "candidate": {
+        "cohort_means_seconds": [0.588, 0.656],
+        "samples_seconds": [0.58, 0.59, 0.58, 0.57, 0.62, 0.74, 0.65, 0.61, 0.63, 0.65],
+        "pooled_mean_seconds": 0.622,
+        "cohort_spread_percent": 11.564626,
+        "pooled_gc_count": 4.0
+      },
+      "delta_percent": 3.150912,
+      "disposition": "regress"
+    },
+    {
+      "benchmark": "array_slice_window",
+      "mode": "treewalker",
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "baseline": {
+        "cohort_means_seconds": [6.074, 7.628],
+        "samples_seconds": [6.16, 6.31, 6.38, 5.79, 5.73, 8.22, 7.23, 8.0, 7.86, 6.83],
+        "pooled_mean_seconds": 6.851,
+        "cohort_spread_percent": 25.584458,
+        "pooled_gc_count": 14.1
+      },
+      "candidate": {
+        "cohort_means_seconds": [6.832, 6.93],
+        "samples_seconds": [6.61, 7.53, 6.83, 6.54, 6.65, 7.08, 7.0, 7.04, 6.84, 6.69],
+        "pooled_mean_seconds": 6.881,
+        "cohort_spread_percent": 1.434426,
+        "pooled_gc_count": 18.4
+      },
+      "delta_percent": 0.437892,
+      "disposition": "neutral-volatile-baseline"
+    },
+    {
+      "benchmark": "dependency_plan",
+      "mode": "bytecode",
+      "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38",
+      "baseline": {
+        "cohort_means_seconds": [0.542, 0.44],
+        "samples_seconds": [0.49, 0.87, 0.5, 0.42, 0.43, 0.42, 0.43, 0.43, 0.43, 0.49],
+        "pooled_mean_seconds": 0.491,
+        "cohort_spread_percent": 23.181818,
+        "pooled_gc_count": 4.2
+      },
+      "candidate": {
+        "cohort_means_seconds": [0.44, 0.516],
+        "samples_seconds": [0.54, 0.4, 0.41, 0.44, 0.41, 0.47, 0.53, 0.53, 0.56, 0.49],
+        "pooled_mean_seconds": 0.478,
+        "cohort_spread_percent": 17.272727,
+        "pooled_gc_count": 4.4
+      },
+      "delta_percent": -2.647658,
+      "disposition": "isolated-improvement-volatile"
+    },
+    {
+      "benchmark": "dependency_plan",
+      "mode": "treewalker",
+      "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38",
+      "baseline": {
+        "cohort_means_seconds": [5.472, 5.764],
+        "samples_seconds": [5.22, 5.35, 5.41, 5.77, 5.61, 5.82, 5.89, 5.71, 5.65, 5.75],
+        "pooled_mean_seconds": 5.618,
+        "cohort_spread_percent": 5.336257,
+        "pooled_gc_count": 33.9
+      },
+      "candidate": {
+        "cohort_means_seconds": [6.262, 6.778],
+        "samples_seconds": [5.95, 7.55, 5.87, 5.9, 6.04, 6.75, 6.75, 6.92, 6.24, 7.23],
+        "pooled_mean_seconds": 6.52,
+        "cohort_spread_percent": 8.240179,
+        "pooled_gc_count": 37.0
+      },
+      "delta_percent": 16.055536,
+      "disposition": "regress"
+    },
+    {
+      "benchmark": "option_result_config",
+      "mode": "bytecode",
+      "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+      "baseline": {
+        "cohort_means_seconds": [0.668, 0.662],
+        "samples_seconds": [0.67, 0.69, 0.67, 0.66, 0.65, 0.65, 0.66, 0.68, 0.64, 0.68],
+        "pooled_mean_seconds": 0.665,
+        "cohort_spread_percent": 0.906344,
+        "pooled_gc_count": 5.0
+      },
+      "candidate": {
+        "cohort_means_seconds": [0.656, 0.972],
+        "samples_seconds": [0.63, 0.66, 0.62, 0.68, 0.69, 1.28, 0.92, 0.93, 0.78, 0.95],
+        "pooled_mean_seconds": 0.814,
+        "cohort_spread_percent": 48.170732,
+        "pooled_gc_count": 5.2
+      },
+      "delta_percent": 22.406015,
+      "disposition": "regress-volatile-candidate"
+    },
+    {
+      "benchmark": "option_result_config",
+      "mode": "treewalker",
+      "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+      "baseline": {
+        "cohort_means_seconds": [1.956, 1.676],
+        "samples_seconds": [1.81, 1.91, 2.46, 1.94, 1.66, 1.77, 1.71, 1.65, 1.69, 1.56],
+        "pooled_mean_seconds": 1.816,
+        "cohort_spread_percent": 16.706444,
+        "pooled_gc_count": 7.2
+      },
+      "candidate": {
+        "cohort_means_seconds": [1.784, 2.092],
+        "samples_seconds": [1.89, 1.76, 1.78, 1.75, 1.74, 1.94, 2.16, 2.23, 2.12, 2.01],
+        "pooled_mean_seconds": 1.938,
+        "cohort_spread_percent": 17.264574,
+        "pooled_gc_count": 8.0
+      },
+      "delta_percent": 6.718062,
+      "disposition": "regress-volatile"
+    }
+  ],
+  "summary": {
+    "regressed_rows": 4,
+    "neutral_rows": 1,
+    "isolated_improved_rows": 1,
+    "broad_improvement": false,
+    "candidate_admitted": false,
+    "runtime_or_interpreter_change_retained": false,
+    "stdlib_change_retained": false,
+    "compiler_change_retained": false,
+    "wasm_change_retained": false
+  },
+  "interpretation": "A narrow cell veneer pays packing, unpacking, interface reconstruction, and temporary-storage costs while removing none of the current Go-owned environment, frame, collection, or semantic work.",
+  "next_lane": "shared-runtime-closed-region-cutover-decision",
+  "next_gate": "Advance only if one semantically closed native-ownership region avoids veneers and graph conversion, preserves pre-entry exact fallback, applies to three unlike applications, and models at least 25 percent target-excess removal in every governing row."
+}

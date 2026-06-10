@@ -1,0 +1,1312 @@
+{
+  "generated_at": "2026-07-23T03:04:56Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 90,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "fixed_width_128",
+      "source": "/home/david/sync/projects/benchmarks/fixed-width-128/go-1.26/app.go",
+      "source_sha256": "4125d090eb3cb657b79c2fc02d3170d7aaa62588f92a1e504f0140d1dbd65094",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0093,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.009423264,
+          "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.009301631,
+          "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.009241443,
+          "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.009290955,
+          "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.009225525,
+          "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "rational_series",
+      "source": "/home/david/sync/projects/benchmarks/rational-series/go-1.26/app.go",
+      "source_sha256": "118406800ba92ccce86446d5a61b837f9f75e7edcc771e7b04ddd33f260bd652",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0161,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.017099084,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.016139516,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.015528534,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.015898152,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.015865763,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "source": "/home/david/sync/projects/benchmarks/wide-integer-records/go-1.26/app.go",
+      "source_sha256": "e473d9e7fa9ed63d16d1229245f95f422412380ca16650fed918776d9c2509cd",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0309,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.029606307,
+          "stdout_sha256": "f373537521cc6bfb0fb9e1a1eb36eb93a057654b526a4521878bc269261713e5"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.029550005,
+          "stdout_sha256": "f373537521cc6bfb0fb9e1a1eb36eb93a057654b526a4521878bc269261713e5"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.030439195,
+          "stdout_sha256": "f373537521cc6bfb0fb9e1a1eb36eb93a057654b526a4521878bc269261713e5"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.03367141,
+          "stdout_sha256": "f373537521cc6bfb0fb9e1a1eb36eb93a057654b526a4521878bc269261713e5"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.031221068,
+          "stdout_sha256": "f373537521cc6bfb0fb9e1a1eb36eb93a057654b526a4521878bc269261713e5"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "f373537521cc6bfb0fb9e1a1eb36eb93a057654b526a4521878bc269261713e5"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "binary_event_log",
+      "source": "/home/david/sync/projects/benchmarks/binary-event-log/go-1.26/app.go",
+      "source_sha256": "f9d5afe5d21a6bd2f73cb9c8ca9dd003fcd0b1993f695846ea82343f5c2bd2bf",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0108,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.012098363000000001,
+          "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.012334434,
+          "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.009584314,
+          "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.009951541,
+          "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.00996215,
+          "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "word_frequency",
+      "source": "/home/david/sync/projects/benchmarks/word-frequency/go-1.26/app.go",
+      "source_sha256": "ab257b9efad063b14c0eb0ad130b845cc2721a91ba21e14bf781ed7fef2c2c53",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0073,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.009428968,
+          "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.006514533,
+          "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.008057657,
+          "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.006132449,
+          "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.006367565,
+          "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "document_audit",
+      "source": "/home/david/sync/projects/benchmarks/document-audit/go-1.26/app.go",
+      "source_sha256": "efca73563a21cd01ff3d844acc1f666176d810b92de4ad61db362a93781cf39c",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0054,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005282055,
+          "stdout_sha256": "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.00497673,
+          "stdout_sha256": "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005042412,
+          "stdout_sha256": "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.004965058,
+          "stdout_sha256": "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.006836815,
+          "stdout_sha256": "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "source": "/home/david/sync/projects/benchmarks/lexical-rollup/go-1.26/app.go",
+      "source_sha256": "e1ce0907e22b60082acbc836da6b66b9629895ce44fefd441e451d4744936c99",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0052,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.004858891,
+          "stdout_sha256": "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.00504292,
+          "stdout_sha256": "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005219781,
+          "stdout_sha256": "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005501301,
+          "stdout_sha256": "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005443071,
+          "stdout_sha256": "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "source": "/home/david/sync/projects/benchmarks/regex-suffix-audit/go-1.26/app.go",
+      "source_sha256": "4424b20eadfabba04dc90132f1606bdcd33be424fbe37b99041a2d10b356ca98",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0056,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005996887,
+          "stdout_sha256": "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.005271545,
+          "stdout_sha256": "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005653148,
+          "stdout_sha256": "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.00563474,
+          "stdout_sha256": "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005527026,
+          "stdout_sha256": "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "source": "/home/david/sync/projects/benchmarks/regex-set-audit/go-1.26/app.go",
+      "source_sha256": "ce6d01f4d9331f3ee52ff73bcca39637e226c14f3c045942f5a4765e0c3995ed",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0064,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.00831684,
+          "stdout_sha256": "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.00593889,
+          "stdout_sha256": "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005947543,
+          "stdout_sha256": "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005948919,
+          "stdout_sha256": "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.00597359,
+          "stdout_sha256": "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "source": "/home/david/sync/projects/benchmarks/regex-stream-audit/go-1.26/app.go",
+      "source_sha256": "1f45fe2a76d146be18659ac9dd6eeab88548c5afe22e2a3ccc5ac3c8c0d82be9",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0057,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005880038,
+          "stdout_sha256": "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.006755293,
+          "stdout_sha256": "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005076456,
+          "stdout_sha256": "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005138672,
+          "stdout_sha256": "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005424985,
+          "stdout_sha256": "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "source": "/home/david/sync/projects/benchmarks/log-routing-redaction/go-1.26/app.go",
+      "source_sha256": "4b9ee58bfba7e36b5c2bd530cc0b3977eb5a8ce22e14c1d5efaa656e224ce855",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0072,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.007155264,
+          "stdout_sha256": "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.006936171,
+          "stdout_sha256": "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.007474397,
+          "stdout_sha256": "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.007300012,
+          "stdout_sha256": "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.007302347,
+          "stdout_sha256": "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "config_validation_extraction",
+      "source": "/home/david/sync/projects/benchmarks/config-validation-extraction/go-1.26/app.go",
+      "source_sha256": "dd0a7582e9ac0b83d571d57000fa30cf2c09fbed5f9bd0988283755aeef74f3e",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0063,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.006282753,
+          "stdout_sha256": "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.00647784,
+          "stdout_sha256": "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.00642485,
+          "stdout_sha256": "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.007622225,
+          "stdout_sha256": "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.004695437,
+          "stdout_sha256": "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "array_slice_window",
+      "source": "/home/david/sync/projects/benchmarks/array-slice-window/go-1.26/app.go",
+      "source_sha256": "b05ef51494077012bf4dd3822d8b36edaf10331d7de66ea6532a02f86e5d0402",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0063,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005825127,
+          "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.005690725,
+          "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005635328,
+          "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005544505,
+          "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.00889087,
+          "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "dependency_plan",
+      "source": "/home/david/sync/projects/benchmarks/dependency-plan/go-1.26/app.go",
+      "source_sha256": "c0f1e22de8cdbb92823d70897d9fd87f52df8a2b814789d8831ffd655618c8d3",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0048,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005203133,
+          "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.004536678,
+          "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.004509232,
+          "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005055857,
+          "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.004806736,
+          "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "source": "/home/david/sync/projects/benchmarks/inventory-reconciliation/go-1.26/app.go",
+      "source_sha256": "958b1a85bff5e471739a502ff0af5eaf886fade65c6601aeee74b69d8ae76b44",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0119,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.011530653,
+          "stdout_sha256": "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.010253863,
+          "stdout_sha256": "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.01041165,
+          "stdout_sha256": "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.011641666,
+          "stdout_sha256": "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.015851865,
+          "stdout_sha256": "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "option_result_config",
+      "source": "/home/david/sync/projects/benchmarks/option-result-config/go-1.26/app.go",
+      "source_sha256": "3ced806f4f42b53e457f102494807d04b0bab5a93f76c9a4a1338efedcd2d68a",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0049,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.004012287,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.004291316,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.004553329,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.006790158,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.004929104,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "unicode_scalar_pipeline",
+      "source": "/home/david/sync/projects/benchmarks/unicode-scalar-pipeline/go-1.26/app.go",
+      "source_sha256": "f90b820814de944d7e8ed3e139dc16f8637e2fc12e31e347db8a933765bc64c5",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0151,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.01764286,
+          "stdout_sha256": "c9efadb7f22969600334daa4a4eed2edde38c8e86d2c81d354d6f3979c854eb9"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.016131922,
+          "stdout_sha256": "c9efadb7f22969600334daa4a4eed2edde38c8e86d2c81d354d6f3979c854eb9"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.016982812,
+          "stdout_sha256": "c9efadb7f22969600334daa4a4eed2edde38c8e86d2c81d354d6f3979c854eb9"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.01190468,
+          "stdout_sha256": "c9efadb7f22969600334daa4a4eed2edde38c8e86d2c81d354d6f3979c854eb9"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.012587875,
+          "stdout_sha256": "c9efadb7f22969600334daa4a4eed2edde38c8e86d2c81d354d6f3979c854eb9"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "c9efadb7f22969600334daa4a4eed2edde38c8e86d2c81d354d6f3979c854eb9"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "concurrent_text_index",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-text-index/go-1.26/app.go",
+      "source_sha256": "8600a1c50b2dd113912d501c320b86dbffcb83cbeda9b73d96b089831d07db59",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0084,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.008067303,
+          "stdout_sha256": "3bdc437d713ad4ddcd2c37e7367ca95879766c927643a80803b3d0eba3c249d8"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.00808866,
+          "stdout_sha256": "3bdc437d713ad4ddcd2c37e7367ca95879766c927643a80803b3d0eba3c249d8"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.008934665,
+          "stdout_sha256": "3bdc437d713ad4ddcd2c37e7367ca95879766c927643a80803b3d0eba3c249d8"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.00883625,
+          "stdout_sha256": "3bdc437d713ad4ddcd2c37e7367ca95879766c927643a80803b3d0eba3c249d8"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.00791407,
+          "stdout_sha256": "3bdc437d713ad4ddcd2c37e7367ca95879766c927643a80803b3d0eba3c249d8"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "3bdc437d713ad4ddcd2c37e7367ca95879766c927643a80803b3d0eba3c249d8"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "source": "/home/david/sync/projects/benchmarks/validated-job-pipeline/go-1.26/app.go",
+      "source_sha256": "503d3dbbbf6767c1e0717ab659109a0adc4ef24557276f97e90ce770780157a3",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0056,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.006642008,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.005323313,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005373243,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005185027,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005282737,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "source": "/home/david/sync/projects/benchmarks/dependency-wave-validation/go-1.26/app.go",
+      "source_sha256": "a1f24cf7900327dfb259cda9086ae131d6528e6eda53bdae1c925009362ea2ef",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0054,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005654361,
+          "stdout_sha256": "de00786abc00ecdc5be17fb12025be79aa7405a31b73c6c08ab7dbad9b555dc6"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.005135044,
+          "stdout_sha256": "de00786abc00ecdc5be17fb12025be79aa7405a31b73c6c08ab7dbad9b555dc6"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005132561,
+          "stdout_sha256": "de00786abc00ecdc5be17fb12025be79aa7405a31b73c6c08ab7dbad9b555dc6"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005880643,
+          "stdout_sha256": "de00786abc00ecdc5be17fb12025be79aa7405a31b73c6c08ab7dbad9b555dc6"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005445894,
+          "stdout_sha256": "de00786abc00ecdc5be17fb12025be79aa7405a31b73c6c08ab7dbad9b555dc6"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "de00786abc00ecdc5be17fb12025be79aa7405a31b73c6c08ab7dbad9b555dc6"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-event-routing/go-1.26/app.go",
+      "source_sha256": "b6707e2193637e4a257a84f8ef9cf9208671e0d1bf9ed71b978ce5ef71659e1c",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0068,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.006403182,
+          "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.007629944,
+          "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.00734936,
+          "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.006115038,
+          "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.006412423,
+          "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-document-pipeline/go-1.26/app.go",
+      "source_sha256": "bfdfcfe86bf39725d48357a348aded4a167aa0853a3a229998a6aebba18b6976",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0051,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005118007,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.004644742,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005509688,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005140705,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.004982761,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "source": "/home/david/sync/projects/benchmarks/manifest-normalization/go-1.26/app.go",
+      "source_sha256": "6bbbec6c228c0d5c525bac71bee099af423e6af69f02e5e4d0e9d394352919b6",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.006,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005347972,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.005335853,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.006554874,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005759255,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.007203384,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "source": "/home/david/sync/projects/benchmarks/policy-record-dispatch/go-1.26/app.go",
+      "source_sha256": "a31c758f4f52941e200b527621253bf7559e55b3da8561671aab5dab0c813ed5",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0059,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.006028104,
+          "stdout_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.006022304,
+          "stdout_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005854251,
+          "stdout_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005920617,
+          "stdout_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005849386,
+          "stdout_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "sensor_calibration",
+      "source": "/home/david/sync/projects/benchmarks/sensor-calibration/go-1.26/app.go",
+      "source_sha256": "89c3de53add27fe7b865a16fe379bb264c4681ae4d2e5d8802c5b83489f5e0d6",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0086,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.008254648,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.008583503,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.00835387,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.009683292,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.008189872,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}

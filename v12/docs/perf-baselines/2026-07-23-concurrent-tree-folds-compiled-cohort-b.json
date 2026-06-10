@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-07-23T20:11:30.611757Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-tree-folds",
+  "runs": 5,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 0,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "0,1,2,3",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.368,
+      "avg_user_seconds": 0.71,
+      "avg_sys_seconds": 0.12,
+      "avg_gc": 6.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.37,
+          "user_seconds": 0.7,
+          "sys_seconds": 0.12,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.37,
+          "user_seconds": 0.71,
+          "sys_seconds": 0.11,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.36,
+          "user_seconds": 0.69,
+          "sys_seconds": 0.13,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.37,
+          "user_seconds": 0.72,
+          "sys_seconds": 0.11,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.37,
+          "user_seconds": 0.73,
+          "sys_seconds": 0.13,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/concurrent-tree-folds/verify.rb",
+        "verified_runs": 5,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        ]
+      }
+    }
+  ]
+}

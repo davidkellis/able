@@ -15,6 +15,10 @@ func (vm *bytecodeVM) execJumpOpcode(instr *bytecodeInstruction, slotConstIntImm
 		return vm.execJumpIfArrayReadSlotCompareSlotFalse(instr, program)
 	case bytecodeOpJumpIfArrayIndexSlotCompareSlotFalse:
 		return vm.execJumpIfArrayIndexSlotCompareSlotFalse(instr)
+	case bytecodeOpJumpIfFloatMulAddMulCompareConstFalse:
+		return vm.execJumpIfFloatMulAddMulCompareConstFalse(instr, program)
+	case bytecodeOpJumpIfFloatAddCompareConstFalse:
+		return vm.execJumpIfFloatAddCompareConstFalse(instr, program)
 	case bytecodeOpJumpIfIntCompareSlotFalse:
 		return vm.execJumpIfIntCompareSlotFalse(instr)
 	default:

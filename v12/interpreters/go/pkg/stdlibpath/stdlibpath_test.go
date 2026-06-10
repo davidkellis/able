@@ -47,3 +47,28 @@ func TestResolveRepoOrInstalledSrcPrefersCachedAbleHome(t *testing.T) {
 		t.Fatalf("ResolveRepoOrInstalledSrc() = %q, want %q", got, cacheSrc)
 	}
 }
+
+func TestResolveRepoOrInstalledSrcPrefersSetupLockedStdlib(t *testing.T) {
+	repoRoot := t.TempDir()
+	cacheHome := filepath.Join(t.TempDir(), ".able")
+	setupRoot := filepath.Join(t.TempDir(), "setup-stdlib")
+	setupSrc := filepath.Join(setupRoot, "src")
+	cacheSrc := filepath.Join(cacheHome, "pkg", "src", "able", "0.1.0", "src")
+
+	for _, dir := range []string{setupSrc, cacheSrc} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	lock := "root: _global\npackages:\n  - name: able\n    version: 0.1.0\n    source: path:" + setupRoot + "\n"
+	if err := os.WriteFile(filepath.Join(cacheHome, "setup.lock"), []byte(lock), 0o600); err != nil {
+		t.Fatalf("write setup lock: %v", err)
+	}
+
+	t.Setenv("ABLE_STDLIB_ROOT", "")
+	t.Setenv("ABLE_HOME", cacheHome)
+
+	if got := ResolveRepoOrInstalledSrc(repoRoot); got != setupSrc {
+		t.Fatalf("ResolveRepoOrInstalledSrc() = %q, want setup-locked %q", got, setupSrc)
+	}
+}

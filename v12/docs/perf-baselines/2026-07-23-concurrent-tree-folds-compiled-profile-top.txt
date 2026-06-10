@@ -1,0 +1,24 @@
+File: compiled
+Build ID: b4a3e9559ddf07bd44d6ff20961b012fe7de9eac
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_tree_folds/compiled_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_tree_folds/compiled_merged.cpu.pprof
+Duration: 748.47ms, Total samples = 960ms (128.26%)
+
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      950ms 98.96%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%     0%      950ms 98.96%  main.__able_compiled_fn_fold_tree
+         0     0%     0%      950ms 98.96%  main.__able_run_compiled_task
+         0     0%     0%      940ms 97.92%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%     0%      940ms 97.92%  runtime.Stack
+         0     0%     0%      940ms 97.92%  runtime.Stack.func1
+         0     0%     0%      940ms 97.92%  runtime.systemstack
+         0     0%     0%      910ms 94.79%  runtime.traceback
+         0     0%     0%      810ms 84.38%  runtime.traceback2
+         0     0%  1.04%      770ms 80.21%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%  1.04%      500ms 52.08%  main.__able_compiled_entry_impl_FoldAlgebra_combine_0
+         0     0%  1.04%      450ms 46.88%  main.__able_compiled_entry_impl_FoldAlgebra_combine_0_a
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_tree_folds/compiled_merged.cpu.pprof

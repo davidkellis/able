@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""Validate and render the bytecode Array semantic-boundary decision."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from statistics import fmean
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-array-semantic-boundary.json"
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"evidence not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid evidence JSON: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError("evidence must be an object")
+    return value
+
+
+def source_record(path: Path) -> dict[str, str]:
+    try:
+        content = path.read_bytes()
+    except FileNotFoundError:
+        raise ValueError(f"source not found: {path}") from None
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+
+
+def positive_numbers(value: Any, label: str) -> list[float]:
+    if not isinstance(value, list) or len(value) < 2:
+        raise ValueError(f"{label} must contain at least two samples")
+    if any(not isinstance(item, (int, float)) or item <= 0 for item in value):
+        raise ValueError(f"{label} samples must be positive numbers")
+    return [float(item) for item in value]
+
+
+def validate_slot_counts(raw: Any, label: str) -> dict[str, int]:
+    required = {
+        "lookups", "len", "read", "write", "push", "cache_hits",
+        "fast_hits", "fallbacks", "fast_path_misses",
+    }
+    if not isinstance(raw, dict) or set(raw) != required:
+        raise ValueError(f"{label} Array-slot counts have the wrong fields")
+    if any(not isinstance(value, int) or value < 0 for value in raw.values()):
+        raise ValueError(f"{label} Array-slot counts must be non-negative integers")
+    if raw["len"] + raw["read"] + raw["write"] + raw["push"] != raw["lookups"]:
+        raise ValueError(f"{label} member-kind counts do not sum to lookups")
+    if raw["cache_hits"] + raw["fallbacks"] != raw["lookups"]:
+        raise ValueError(f"{label} cache hits plus fallbacks do not sum to lookups")
+    if raw["fast_hits"] != raw["cache_hits"] or raw["fast_path_misses"] != 0:
+        raise ValueError(f"{label} cached calls must all be fast hits with no fast miss")
+    return raw
+
+
+def build_report(path: Path) -> dict[str, Any]:
+    evidence = load_json(path)
+    if evidence.get("kind") != "able-bytecode-array-semantic-boundary-evidence":
+        raise ValueError("evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("evidence needs schema_version 1")
+    applications_raw = evidence.get("applications")
+    guards_raw = evidence.get("guards")
+    if not isinstance(applications_raw, list) or len(applications_raw) != 3:
+        raise ValueError("evidence needs exactly three applications")
+    if not isinstance(guards_raw, list) or len(guards_raw) < 2:
+        raise ValueError("evidence needs at least two guards")
+
+    sources: dict[str, Any] = {"evidence": source_record(path)}
+    applications: list[dict[str, Any]] = []
+    names: set[str] = set()
+    families: set[str] = set()
+    for raw in applications_raw:
+        if not isinstance(raw, dict):
+            raise ValueError("application entries must be objects")
+        benchmark = raw.get("benchmark")
+        family = raw.get("family")
+        if not isinstance(benchmark, str) or benchmark in names:
+            raise ValueError("application benchmark names must be unique strings")
+        if not isinstance(family, str) or family in families:
+            raise ValueError("application families must be unlike")
+        names.add(benchmark)
+        families.add(family)
+        counts = validate_slot_counts(raw.get("array_slot"), benchmark)
+        total = raw.get("total_operations")
+        if not isinstance(total, int) or total <= counts["lookups"]:
+            raise ValueError(f"{benchmark} total operations must exceed Array lookups")
+        runtime = positive_numbers(raw.get("runtime_ns"), f"{benchmark} runtime")
+        allocated = positive_numbers(raw.get("allocated_bytes"), f"{benchmark} bytes")
+        allocations = positive_numbers(raw.get("allocations"), f"{benchmark} allocations")
+        push_percent = raw.get("push_cumulative_percent")
+        slot_percent = raw.get("array_slot_cumulative_percent")
+        if not isinstance(push_percent, (int, float)) or not 0 < push_percent < 100:
+            raise ValueError(f"{benchmark} push CPU share must be between zero and 100")
+        if not isinstance(slot_percent, (int, float)) or not push_percent <= slot_percent < 100:
+            raise ValueError(f"{benchmark} Array-slot CPU share must cover push")
+        sources[benchmark] = source_record(REPO_ROOT / raw["source"])
+        applications.append(
+            {
+                **raw,
+                "runtime_mean_ns": round(fmean(runtime), 1),
+                "allocated_bytes_mean": round(fmean(allocated), 1),
+                "allocations_mean": round(fmean(allocations), 1),
+                "push_share_of_operations_percent": round(100 * counts["push"] / total, 6),
+                "cache_hit_percent": round(100 * counts["cache_hits"] / counts["lookups"], 6),
+                "perfect_push_cpu_speedup": round(1 / (1 - push_percent / 100), 6),
+            }
+        )
+
+    guards: list[dict[str, Any]] = []
+    for raw in guards_raw:
+        if not isinstance(raw, dict) or not isinstance(raw.get("benchmark"), str):
+            raise ValueError("guard entries need benchmark names")
+        benchmark = raw["benchmark"]
+        counts = validate_slot_counts(raw.get("array_slot"), benchmark)
+        sources[benchmark] = source_record(REPO_ROOT / raw["source"])
+        guards.append({**raw, "push_share_of_operations_percent": round(100 * counts["push"] / raw["total_operations"], 6)})
+
+    prior = evidence.get("prior_generic_candidate")
+    if not isinstance(prior, dict) or prior.get("result") != "rejected":
+        raise ValueError("the prior generic candidate must remain rejected")
+    sources["prior_generic_candidate"] = source_record(REPO_ROOT / prior["evidence"])
+    budget = evidence.get("target_budget_context")
+    if not isinstance(budget, dict) or budget.get("matrixmultiply_status") != "meets":
+        raise ValueError("target budget context is incomplete")
+    sources["target_budget"] = source_record(REPO_ROOT / budget["evidence"])
+
+    descendants = {app["dominant_push_descendant"] for app in applications}
+    if len(descendants) != len(applications):
+        raise ValueError("the three applications must retain distinct push descendants")
+    decision = evidence.get("decision")
+    if decision != "no-go-array-wrapper-or-storage-generalization":
+        raise ValueError("current evidence must close the Array generalization")
+    return {
+        "kind": "able-bytecode-array-semantic-boundary",
+        "schema_version": 1,
+        "sources": sources,
+        "frozen_test_binary_sha256": evidence["frozen_test_binary_sha256"],
+        "summary": {
+            "decision": decision,
+            "application_count": len(applications),
+            "unlike_family_count": len(families),
+            "guard_count": len(guards),
+            "total_array_slot_lookups": sum(app["array_slot"]["lookups"] for app in applications),
+            "total_push_lookups": sum(app["array_slot"]["push"] for app in applications),
+            "total_fast_path_misses": sum(app["array_slot"]["fast_path_misses"] for app in applications),
+            "distinct_dominant_push_descendants": len(descendants),
+            "prior_generic_candidate_rejected": True,
+        },
+        "applications": applications,
+        "guards": guards,
+        "prior_generic_candidate": prior,
+        "target_budget_context": budget,
+        "recommendation": evidence["next"],
+    }
+
+
+def render_markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Bytecode Array semantic-boundary gate",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        "The exact canonical `Array.push` route is material in three unlike applications, "
+        "but the shared wrapper is already cache-hot and its concrete storage descendants "
+        "separate. No performance candidate is retained.",
+        "",
+        "A new opt-in per-kind counter is retained in `BytecodeStatsSnapshot`; "
+        "it adds no work when stats are disabled and makes future Array attribution exact.",
+        "",
+        "## Fresh warmed-main evidence",
+        "",
+        "| Application | Mean ns/op | Bytes/op | Allocs/op | Array-slot calls | Push calls | Cache hit | Array-slot CPU | Push CPU | Perfect push removal |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for app in report["applications"]:
+        lines.append(
+            f"| `{app['benchmark']}` | {app['runtime_mean_ns']:,.1f} | "
+            f"{app['allocated_bytes_mean']:,.1f} | {app['allocations_mean']:,.1f} | "
+            f"{app['array_slot']['lookups']:,} | {app['array_slot']['push']:,} | "
+            f"{app['cache_hit_percent']:.4f}% | {app['array_slot_cumulative_percent']:.2f}% | "
+            f"{app['push_cumulative_percent']:.2f}% | {app['perfect_push_cpu_speedup']:.3f}x |"
+        )
+    lines.extend(
+        [
+            "",
+            "Each mean is two independent fresh processes. CPU percentages come from the "
+            "two merged main-only profiles, not whole-process CLI profiles. Stats counts "
+            "come from separate bounded observer processes and are not timing evidence.",
+            "",
+            "## Exact member-kind census",
+            "",
+            "| Application | len | read_slot | write_slot | push | Fast-path misses |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for app in report["applications"] + report["guards"]:
+        counts = app["array_slot"]
+        lines.append(
+            f"| `{app['benchmark']}` | {counts['len']:,} | {counts['read']:,} | "
+            f"{counts['write']:,} | {counts['push']:,} | {counts['fast_path_misses']:,} |"
+        )
+    lines.extend(["", "## Reconciliation", ""])
+    for app in report["applications"]:
+        lines.append(f"- **`{app['benchmark']}`:** {app['dominant_push_descendant']}.")
+    prior = report["prior_generic_candidate"]
+    lines.extend(
+        [
+            "",
+            f"The earlier `{prior['id']}` candidate remains rejected: {prior['reason']} "
+            "The fresh census supplies breadth but no invalidating fact: all cached calls "
+            "finish on the current fast path and there are zero fast-path misses.",
+            "",
+            "Even perfect removal of the complete push subtree would yield only the Amdahl "
+            "limits shown above. Matrix Multiply already meets the Python/Ruby target; the "
+            "4.6% and 8.7% ceilings for Array Slice and Reverse Complement cannot approach "
+            "their required 20.94x and 117.50x speedups.",
+            "",
+            "## Next recommendation",
+            "",
+            report["recommendation"],
+            "",
+            "Why: the interpreter's remaining shared Array parent is now causally closed, "
+            "while compiler performance remains an independent project target. This entails "
+            "normalizing generated-Go operations and allocations by logical work across "
+            "unlike high-excess applications, then admitting only one exact general lowering "
+            "or runtime owner present in at least three families. No WASM work is included.",
+            "",
+            "## Reproduction",
+            "",
+            "```sh",
+            "v12/bench_array_semantic_boundary \\",
+            "  --json-out v12/docs/perf-baselines/2026-07-21-bytecode-array-semantic-boundary.json \\",
+            "  --markdown-out v12/docs/perf-baselines/2026-07-21-bytecode-array-semantic-boundary.md",
+            "python3 v12/bench_array_semantic_boundary_test.py",
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        report = build_report(args.evidence)
+    except (OSError, ValueError) as error:
+        raise SystemExit(f"error: {error}") from None
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(encoded, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_out.write_text(render_markdown(report), encoding="utf-8")
+    if not args.json_out and not args.markdown_out:
+        print(encoded, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

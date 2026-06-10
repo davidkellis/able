@@ -1,0 +1,6 @@
+{
+  "description": "union-find path compression benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

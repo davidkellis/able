@@ -12,13 +12,18 @@ func (g *generator) isVoidType(goType string) bool {
 	return goType == "struct{}"
 }
 
+func (g *generator) isNilType(goType string) bool {
+	return goType == "runtime.NilValue"
+}
+
 func (g *generator) isStringType(goType string) bool {
 	return goType == "string"
 }
 
 func (g *generator) isIntegerType(goType string) bool {
 	switch goType {
-	case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64":
+	case "int", "int8", "int16", "int32", "int64", "runtime.Int128",
+		"uint", "uint8", "uint16", "uint32", "uint64", "runtime.Uint128":
 		return true
 	}
 	return false
@@ -26,7 +31,7 @@ func (g *generator) isIntegerType(goType string) bool {
 
 func (g *generator) isSignedIntegerType(goType string) bool {
 	switch goType {
-	case "int", "int8", "int16", "int32", "int64":
+	case "int", "int8", "int16", "int32", "int64", "runtime.Int128":
 		return true
 	}
 	return false
@@ -34,7 +39,7 @@ func (g *generator) isSignedIntegerType(goType string) bool {
 
 func (g *generator) isUnsignedIntegerType(goType string) bool {
 	switch goType {
-	case "uint", "uint8", "uint16", "uint32", "uint64":
+	case "uint", "uint8", "uint16", "uint32", "uint64", "runtime.Uint128":
 		return true
 	}
 	return false
@@ -46,6 +51,10 @@ func (g *generator) isFloatType(goType string) bool {
 
 func (g *generator) isNumericType(goType string) bool {
 	return g.isIntegerType(goType) || g.isFloatType(goType)
+}
+
+func (g *generator) isWideIntegerType(goType string) bool {
+	return goType == "runtime.Int128" || goType == "runtime.Uint128"
 }
 
 func (g *generator) isEqualityComparable(goType string) bool {
@@ -304,6 +313,8 @@ func (g *generator) intBits(goType string) int {
 		return 32
 	case "int64", "uint64":
 		return 64
+	case "runtime.Int128", "runtime.Uint128":
+		return 128
 	}
 	return 64
 }
@@ -361,6 +372,9 @@ func (g *generator) nativeFloatToIntBounds(targetType string) (string, string, b
 }
 
 func (g *generator) nativePrimitiveCastLines(ctx *compileContext, nodeExpr string, expr string, srcType string, targetType string) ([]string, string, string, bool) {
+	if lines, converted, ok := g.nativeWideIntegerCastLines(ctx, nodeExpr, expr, srcType, targetType); ok {
+		return lines, converted, targetType, true
+	}
 	if g != nil && ctx != nil && expr != "" && g.isIntegerType(srcType) && g.isIntegerType(targetType) {
 		valueTemp := ctx.newTemp()
 		resultTemp := ctx.newTemp()
@@ -408,6 +422,73 @@ func (g *generator) nativePrimitiveCastLines(ctx *compileContext, nodeExpr strin
 	return lines, resultTemp, targetType, true
 }
 
+func (g *generator) nativeWideIntegerCastLines(ctx *compileContext, nodeExpr string, expr string, srcType string, targetType string) ([]string, string, bool) {
+	if g == nil || ctx == nil || expr == "" || (!g.isWideIntegerType(srcType) && !g.isWideIntegerType(targetType)) {
+		return nil, "", false
+	}
+	if srcType == targetType {
+		return nil, expr, true
+	}
+	if targetType == "runtime.Int128" {
+		switch {
+		case srcType == "runtime.Uint128":
+			return nil, fmt.Sprintf("runtime.Int128FromBits(%s)", expr), true
+		case g.isSignedIntegerType(srcType):
+			return nil, fmt.Sprintf("runtime.Int128FromInt64(int64(%s))", expr), true
+		case g.isUnsignedIntegerType(srcType):
+			return nil, fmt.Sprintf("runtime.Int128FromUint64(uint64(%s))", expr), true
+		case g.isFloatType(srcType):
+			return g.nativeFloatToWideIntegerCastLines(ctx, nodeExpr, expr, srcType, targetType)
+		}
+	}
+	if targetType == "runtime.Uint128" {
+		switch {
+		case srcType == "runtime.Int128":
+			return nil, fmt.Sprintf("runtime.Uint128FromBits(%s)", expr), true
+		case g.isSignedIntegerType(srcType):
+			return nil, fmt.Sprintf("runtime.Uint128FromInt64(int64(%s))", expr), true
+		case g.isUnsignedIntegerType(srcType):
+			return nil, fmt.Sprintf("runtime.Uint128FromUint64(uint64(%s))", expr), true
+		case g.isFloatType(srcType):
+			return g.nativeFloatToWideIntegerCastLines(ctx, nodeExpr, expr, srcType, targetType)
+		}
+	}
+	if srcType == "runtime.Int128" || srcType == "runtime.Uint128" {
+		if g.isIntegerType(targetType) {
+			return nil, fmt.Sprintf("%s((%s).Low)", targetType, expr), true
+		}
+		if g.isFloatType(targetType) {
+			return nil, fmt.Sprintf("%s((%s).Float64())", targetType, expr), true
+		}
+	}
+	return nil, "", false
+}
+
+func (g *generator) nativeFloatToWideIntegerCastLines(ctx *compileContext, nodeExpr string, expr string, srcType string, targetType string) ([]string, string, bool) {
+	valueTemp := ctx.newTemp()
+	resultTemp := ctx.newTemp()
+	okTemp := ctx.newTemp()
+	helper := "runtime.Int128FromFloat64"
+	if targetType == "runtime.Uint128" {
+		helper = "runtime.Uint128FromFloat64"
+	}
+	if nodeExpr == "" {
+		nodeExpr = "nil"
+	}
+	overflowTransfer, ok := g.lowerControlTransfer(ctx, fmt.Sprintf("__able_raise_overflow(%s)", nodeExpr))
+	if !ok {
+		return nil, "", false
+	}
+	lines := []string{
+		fmt.Sprintf("%s := float64(%s)", valueTemp, expr),
+		fmt.Sprintf("%s, %s := %s(%s)", resultTemp, okTemp, helper, valueTemp),
+		fmt.Sprintf("if !%s {", okTemp),
+	}
+	lines = append(lines, indentLines(overflowTransfer, 1)...)
+	lines = append(lines, "}")
+	return lines, resultTemp, true
+}
+
 func (g *generator) integerTypeSuffix(goType string) (string, bool) {
 	switch goType {
 	case "int8":
@@ -418,6 +499,8 @@ func (g *generator) integerTypeSuffix(goType string) (string, bool) {
 		return "i32", true
 	case "int64":
 		return "i64", true
+	case "runtime.Int128":
+		return "i128", true
 	case "uint8":
 		return "u8", true
 	case "uint16":
@@ -426,6 +509,8 @@ func (g *generator) integerTypeSuffix(goType string) (string, bool) {
 		return "u32", true
 	case "uint64":
 		return "u64", true
+	case "runtime.Uint128":
+		return "u128", true
 	case "int":
 		return "isize", true
 	case "uint":
@@ -460,7 +545,7 @@ func (g *generator) inferIntegerLiteralType(lit *ast.IntegerLiteral) string {
 	case ast.IntegerTypeI64:
 		return "int64"
 	case ast.IntegerTypeI128:
-		return "runtime.Value"
+		return "runtime.Int128"
 	case ast.IntegerTypeU8:
 		return "uint8"
 	case ast.IntegerTypeU16:
@@ -470,7 +555,7 @@ func (g *generator) inferIntegerLiteralType(lit *ast.IntegerLiteral) string {
 	case ast.IntegerTypeU64:
 		return "uint64"
 	case ast.IntegerTypeU128:
-		return "runtime.Value"
+		return "runtime.Uint128"
 	default:
 		return "int32"
 	}
@@ -707,6 +792,8 @@ func typeNameFromGoType(goType string) string {
 		return "i32"
 	case "int64":
 		return "i64"
+	case "runtime.Int128":
+		return "i128"
 	case "uint8":
 		return "u8"
 	case "uint16":
@@ -715,6 +802,8 @@ func typeNameFromGoType(goType string) string {
 		return "u32"
 	case "uint64":
 		return "u64"
+	case "runtime.Uint128":
+		return "u128"
 	case "int":
 		return "isize"
 	case "uint":

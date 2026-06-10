@@ -3,55 +3,105 @@ package main
 import "testing"
 
 var compiledStdlibSuiteCases = map[string]compiledStdlibCase{
-	"BigintAndBiguintSuites": {
-		label:    "stdlib bigint/biguint",
-		relPaths: []string{"bigint.test.able", "biguint.test.able"},
-		expected: []string{"BigInt", "BigUint", "raises on underflow"},
+	"BigintSuite": {
+		label:    "stdlib bigint",
+		relPaths: []string{"bigint.test.able"},
+		expected: []string{"BigInt"},
 	},
-	"ExtendedNumericSuites": {
-		label:    "stdlib int128/uint128/rational",
-		relPaths: []string{"int128.test.able", "uint128.test.able", "rational.test.able"},
-		expected: []string{"Int128", "UInt128", "Rational", "round-trips through display helpers"},
+	"BiguintSuite": {
+		label:    "stdlib biguint",
+		relPaths: []string{"biguint.test.able"},
+		expected: []string{"BigUint", "raises on underflow"},
+	},
+	"Int128Suite": {
+		label:    "stdlib int128",
+		relPaths: []string{"int128.test.able"},
+		expected: []string{"Int128"},
+	},
+	"UInt128Suite": {
+		label:    "stdlib uint128",
+		relPaths: []string{"uint128.test.able"},
+		expected: []string{"UInt128"},
+	},
+	"RationalSuite": {
+		label:    "stdlib rational",
+		relPaths: []string{"rational.test.able"},
+		expected: []string{"Rational", "round-trips through display helpers"},
 	},
 	"NumbersNumericSuite": {
 		label:    "stdlib numbers_numeric",
 		relPaths: []string{"numbers_numeric.test.able"},
 		expected: []string{"Numeric primitives", "covers f64 fractional helpers"},
 	},
-	"FoundationalSuites": {
-		label:    "foundational stdlib suites",
-		relPaths: []string{"simple.test.able", "assertions.test.able", "enumerable.test.able"},
-		expected: []string{"simple suite verifies addition works", "able.spec assertions passes equality matcher", "Enumerable helpers maps and filters arrays"},
+	"FoundationalSimpleSuite": {
+		label:    "foundational stdlib simple suite",
+		relPaths: []string{"simple.test.able"},
+		expected: []string{"simple suite verifies addition works"},
 	},
-	"CollectionsListVectorSuites": {
-		label:    "collections list/vector suites",
-		relPaths: []string{"list.test.able", "vector.test.able"},
-		expected: []string{"List supports prepend/head/tail with structural sharing", "Vector supports set without mutating prior versions"},
+	"FoundationalAssertionsSuite": {
+		label:    "foundational stdlib assertions suite",
+		relPaths: []string{"assertions.test.able"},
+		expected: []string{"able.spec assertions passes equality matcher"},
+	},
+	"FoundationalEnumerableArraySuite": {
+		label:    "foundational stdlib enumerable Array suite",
+		relPaths: []string{"enumerable.test.able"},
+		expected: []string{"Enumerable helpers maps and filters arrays"},
+	},
+	"CollectionsListSuite": {
+		label:    "collections list suite",
+		relPaths: []string{"list.test.able"},
+		expected: []string{"List supports prepend/head/tail with structural sharing"},
+	},
+	"CollectionsVectorSuite": {
+		label:    "collections vector suite",
+		relPaths: []string{"vector.test.able"},
+		expected: []string{"Vector supports set without mutating prior versions"},
 	},
 	"CollectionsTreeMapTreeSetSuites": {
 		label:    "collections tree_map/tree_set suites",
 		relPaths: []string{"tree_map.test.able", "tree_set.test.able"},
 		expected: []string{"TreeMap inserts, updates, and retrieves entries", "TreeSet inserts unique values and iterates in order"},
 	},
-	"CollectionsPersistentMapPersistentSetSuites": {
-		label:    "collections persistent_map/persistent_set suites",
-		relPaths: []string{"persistent_map.test.able", "persistent_set.test.able"},
-		expected: []string{"PersistentMap stores, reads, and updates entries", "PersistentSet unions and intersects"},
+	"CollectionsPersistentMapSuite": {
+		label:    "collections persistent_map suite",
+		relPaths: []string{"persistent_map.test.able"},
+		expected: []string{"PersistentMap stores, reads, and updates entries"},
 	},
-	"CollectionsPersistentSortedSetAndQueueSuites": {
-		label:    "collections persistent_sorted_set/persistent_queue suites",
-		relPaths: []string{"persistent_sorted_set.test.able", "persistent_queue.test.able"},
-		expected: []string{"PersistentSortedSet keeps values ordered and unique", "PersistentQueue iterates values in FIFO order"},
+	"CollectionsPersistentSetSuite": {
+		label:    "collections persistent_set suite",
+		relPaths: []string{"persistent_set.test.able"},
+		expected: []string{"PersistentSet unions and intersects"},
 	},
-	"CollectionsLinkedListAndLazySeqSuites": {
-		label:    "collections linked_list/lazy_seq suites",
-		relPaths: []string{"linked_list.test.able", "lazy_seq.test.able"},
-		expected: []string{"LinkedList pushes and pops from both ends", "LazySeq iterates with caching and produces arrays"},
+	"CollectionsPersistentSortedSetSuite": {
+		label:    "collections persistent_sorted_set suite",
+		relPaths: []string{"persistent_sorted_set.test.able"},
+		expected: []string{"PersistentSortedSet keeps values ordered and unique"},
 	},
-	"CollectionsHashMapSmokeAndHashSetSuites": {
-		label:    "collections hash_map_smoke/hash_set suites",
-		relPaths: []string{"collections/hash_map_smoke.test.able", "collections/hash_set.test.able"},
-		expected: []string{"HashSet adds, removes, and checks membership", "HashSet subset, superset, and disjoint checks"},
+	"CollectionsPersistentQueueSuite": {
+		label:    "collections persistent_queue suite",
+		relPaths: []string{"persistent_queue.test.able"},
+		expected: []string{"PersistentQueue iterates values in FIFO order"},
+	},
+	"CollectionsLinkedListSuite": {
+		label:    "collections linked_list suite",
+		relPaths: []string{"linked_list.test.able"},
+		expected: []string{"LinkedList pushes and pops from both ends"},
+	},
+	"CollectionsLazySeqSuite": {
+		label:    "collections lazy_seq suite",
+		relPaths: []string{"lazy_seq.test.able"},
+		expected: []string{"LazySeq iterates with caching and produces arrays"},
+	},
+	"CollectionsHashMapSmokeSuite": {
+		label:    "collections hash_map_smoke suite",
+		relPaths: []string{"collections/hash_map_smoke.test.able"},
+		expected: []string{"able test: no tests to run"},
+	},
+	"CollectionsHashSetSuite": {
+		label:    "collections hash_set suite",
+		relPaths: []string{"collections/hash_set.test.able"},
+		expected: []string{"HashSet adds, removes, and checks membership", "HashSet subset, superset, and disjoint checks", "HashSet preserves collection type for eager map"},
 	},
 	"CollectionsDequeAndQueueSmokeSuites": {
 		label:    "collections deque_smoke/queue_smoke suites",
@@ -125,44 +175,84 @@ func runNamedCompiledStdlibCase(t *testing.T, name string) {
 	runCompiledStdlibCase(t, tc)
 }
 
-func TestTestCommandCompiledRunsStdlibBigintAndBiguintSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "BigintAndBiguintSuites")
+func TestTestCommandCompiledRunsStdlibBigintSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "BigintSuite")
 }
 
-func TestTestCommandCompiledRunsStdlibExtendedNumericSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "ExtendedNumericSuites")
+func TestTestCommandCompiledRunsStdlibBiguintSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "BiguintSuite")
+}
+
+func TestTestCommandCompiledRunsStdlibInt128Suite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "Int128Suite")
+}
+
+func TestTestCommandCompiledRunsStdlibUInt128Suite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "UInt128Suite")
+}
+
+func TestTestCommandCompiledRunsStdlibRationalSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "RationalSuite")
 }
 
 func TestTestCommandCompiledRunsStdlibNumbersNumericSuite(t *testing.T) {
 	runNamedCompiledStdlibCase(t, "NumbersNumericSuite")
 }
 
-func TestTestCommandCompiledRunsStdlibFoundationalSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "FoundationalSuites")
+func TestTestCommandCompiledRunsStdlibFoundationalSimpleSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "FoundationalSimpleSuite")
 }
 
-func TestTestCommandCompiledRunsStdlibCollectionsListVectorSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "CollectionsListVectorSuites")
+func TestTestCommandCompiledRunsStdlibFoundationalAssertionsSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "FoundationalAssertionsSuite")
+}
+
+func TestTestCommandCompiledRunsStdlibFoundationalEnumerableArraySuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "FoundationalEnumerableArraySuite")
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsListSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsListSuite")
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsVectorSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsVectorSuite")
 }
 
 func TestTestCommandCompiledRunsStdlibCollectionsTreeMapTreeSetSuites(t *testing.T) {
 	runNamedCompiledStdlibCase(t, "CollectionsTreeMapTreeSetSuites")
 }
 
-func TestTestCommandCompiledRunsStdlibCollectionsPersistentMapPersistentSetSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "CollectionsPersistentMapPersistentSetSuites")
+func TestTestCommandCompiledRunsStdlibCollectionsPersistentMapSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsPersistentMapSuite")
 }
 
-func TestTestCommandCompiledRunsStdlibCollectionsPersistentSortedSetAndQueueSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "CollectionsPersistentSortedSetAndQueueSuites")
+func TestTestCommandCompiledRunsStdlibCollectionsPersistentSetSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsPersistentSetSuite")
 }
 
-func TestTestCommandCompiledRunsStdlibCollectionsLinkedListAndLazySeqSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "CollectionsLinkedListAndLazySeqSuites")
+func TestTestCommandCompiledRunsStdlibCollectionsPersistentSortedSetSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsPersistentSortedSetSuite")
 }
 
-func TestTestCommandCompiledRunsStdlibCollectionsHashMapSmokeAndHashSetSuites(t *testing.T) {
-	runNamedCompiledStdlibCase(t, "CollectionsHashMapSmokeAndHashSetSuites")
+func TestTestCommandCompiledRunsStdlibCollectionsPersistentQueueSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsPersistentQueueSuite")
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsLinkedListSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsLinkedListSuite")
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsLazySeqSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsLazySeqSuite")
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsHashMapSmokeSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsHashMapSmokeSuite")
+}
+
+func TestTestCommandCompiledRunsStdlibCollectionsHashSetSuite(t *testing.T) {
+	runNamedCompiledStdlibCase(t, "CollectionsHashSetSuite")
 }
 
 func TestTestCommandCompiledRunsStdlibCollectionsDequeAndQueueSmokeSuites(t *testing.T) {

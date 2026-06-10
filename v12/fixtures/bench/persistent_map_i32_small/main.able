@@ -1,0 +1,53 @@
+package bench_persistent_map_i32_small
+
+import able.collections.map.{MapEntry}
+import able.collections.persistent_map.{PersistentMap, PersistentMapBuilder}
+
+fn build(size: i32) -> PersistentMap i32 i32 {
+  builder := PersistentMapBuilder.new<i32, i32>()
+  i := 0
+  loop {
+    if i >= size { break }
+    key := ((i * 23) + 7) % (size * 3)
+    builder.insert(key, (i * 7) - 13)
+    i = i + 1
+  }
+  builder.finish()
+}
+
+fn score(initial: PersistentMap i32 i32, size: i32) -> i64 {
+  values := initial
+  total: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= 4 { break }
+    i := 0
+    loop {
+      if i >= size * 2 { break }
+      key := ((i * 31) + (round * 17) + 3) % (size * 3)
+      values.get(key) match {
+        case nil => values = values.set(key, i - round),
+        case value: i32 => {
+          total = total + (value as i64)
+          if i % 7 == 0 {
+            values = values.set(key, value + round + 1)
+          }
+        }
+      }
+      if i % 11 == 0 {
+        values = values.remove((i * 13) % (size * 3))
+      }
+      i = i + 1
+    }
+    values.for_each(fn(entry: MapEntry i32 i32) -> void {
+      total = total + (entry.value as i64)
+    })
+    round = round + 1
+  }
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  values := build(900)
+  print(score(values, 900))
+}

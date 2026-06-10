@@ -1,0 +1,75 @@
+File: compiled
+Build ID: e1d6448b5aca144938552875252ccfdc1503bd15
+Type: cpu
+Time: 2026-07-28 09:43:37 CDT
+Duration: 679.40ms, Total samples = 850ms (125.11%)
+Showing nodes accounting for 850ms, 100% of 850ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      850ms   100%  main.RunRegisteredMain
+         0     0%     0%      850ms   100%  main.RunRegisteredMain.func1
+         0     0%     0%      850ms   100%  main.__able_compiled_fn_main
+         0     0%     0%      850ms   100%  main.__able_compiled_fn_main_ctx
+         0     0%     0%      850ms   100%  main.__able_register_compiled_call.func1
+         0     0%     0%      850ms   100%  main.__able_wrap_fn_main
+         0     0%     0%      850ms   100%  main.main
+         0     0%     0%      850ms   100%  main.runMain
+         0     0%     0%      850ms   100%  runtime.main
+      30ms  3.53%  3.53%      530ms 62.35%  runtime.newobject
+      20ms  2.35%  5.88%      510ms 60.00%  main.__able_compiled_fn_modular_add_checksum_ctx
+      80ms  9.41% 15.29%      500ms 58.82%  runtime.mallocgc
+      30ms  3.53% 18.82%      340ms 40.00%  main.__able_compiled_fn_ordered_select_checksum_ctx
+      50ms  5.88% 24.71%      300ms 35.29%  runtime.mallocgcSmallNoscan
+         0     0% 24.71%      150ms 17.65%  runtime.systemstack
+         0     0% 24.71%      120ms 14.12%  runtime.deductAssistCredit
+         0     0% 24.71%      120ms 14.12%  runtime.gcAssistAlloc
+         0     0% 24.71%      120ms 14.12%  runtime.gcAssistAlloc.func2
+         0     0% 24.71%      120ms 14.12%  runtime.gcAssistAlloc1
+         0     0% 24.71%      120ms 14.12%  runtime.gcDrainN
+      70ms  8.24% 32.94%       90ms 10.59%  main.__able_compiled_method_UInt128_add_ctx_into
+      80ms  9.41% 42.35%       80ms  9.41%  main.__able_checked_mul_signed
+      80ms  9.41% 51.76%       80ms  9.41%  runtime.nextFreeFast (inline)
+      50ms  5.88% 57.65%       50ms  5.88%  main.__able_divmod_signed
+         0     0% 57.65%       50ms  5.88%  runtime.markroot
+         0     0% 57.65%       50ms  5.88%  runtime.scanSpan
+         0     0% 57.65%       40ms  4.71%  runtime.(*mcache).nextFree
+      10ms  1.18% 58.82%       40ms  4.71%  runtime.(*mcache).refill
+         0     0% 58.82%       40ms  4.71%  runtime.markrootBlock
+      30ms  3.53% 62.35%       40ms  4.71%  runtime.scanblock
+      20ms  2.35% 64.71%       30ms  3.53%  main.__able_compiled_method_UInt128_to_u128_ctx
+         0     0% 64.71%       30ms  3.53%  runtime.(*mcentral).cacheSpan
+         0     0% 64.71%       30ms  3.53%  runtime.deductSweepCredit
+      30ms  3.53% 68.24%       30ms  3.53%  runtime.getMCache (inline)
+         0     0% 68.24%       30ms  3.53%  runtime.sweepone
+      20ms  2.35% 70.59%       30ms  3.53%  runtime.tryDeferToSpanScan
+      20ms  2.35% 72.94%       20ms  2.35%  main.__able_compiled_method_UInt128_new_ctx_into (inline)
+      10ms  1.18% 74.12%       20ms  2.35%  main.__able_compiled_method_UInt128_sub_ctx_into
+      20ms  2.35% 76.47%       20ms  2.35%  runtime.(*spanSet).reset
+      10ms  1.18% 77.65%       20ms  2.35%  runtime.(*sweepLocked).sweep
+      20ms  2.35% 80.00%       20ms  2.35%  runtime.acquirem (inline)
+         0     0% 80.00%       20ms  2.35%  runtime.finishsweep_m
+         0     0% 80.00%       20ms  2.35%  runtime.gcStart
+         0     0% 80.00%       20ms  2.35%  runtime.gcStart.func3
+      10ms  1.18% 81.18%       20ms  2.35%  runtime.gcmarknewobject
+      10ms  1.18% 82.35%       20ms  2.35%  runtime.makeSpanClass (inline)
+      10ms  1.18% 83.53%       20ms  2.35%  runtime.scanObject
+         0     0% 83.53%       10ms  1.18%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 83.53%       10ms  1.18%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+      10ms  1.18% 84.71%       10ms  1.18%  internal/runtime/gc/scan.scanSpanPackedAVX512
+      10ms  1.18% 85.88%       10ms  1.18%  main.__able_compiled_fn_uint128_to_u128_ctx
+      10ms  1.18% 87.06%       10ms  1.18%  main.__able_compiled_fn_words_less_ctx (inline)
+         0     0% 87.06%       10ms  1.18%  runtime.(*activeSweep).end
+      10ms  1.18% 88.24%       10ms  1.18%  runtime.(*cleanupQueue).flush
+      10ms  1.18% 89.41%       10ms  1.18%  runtime.(*mheap).freeMSpanLocked (inline)
+         0     0% 89.41%       10ms  1.18%  runtime.(*mheap).freeSpan (inline)
+         0     0% 89.41%       10ms  1.18%  runtime.(*mheap).freeSpanLocked
+      10ms  1.18% 90.59%       10ms  1.18%  runtime.(*mspan).base (inline)
+         0     0% 90.59%       10ms  1.18%  runtime.(*sweepLocked).sweep.(*mheap).freeSpan.func2
+      10ms  1.18% 91.76%       10ms  1.18%  runtime.bool2int (inline)
+      10ms  1.18% 92.94%       10ms  1.18%  runtime.findObject
+      10ms  1.18% 94.12%       10ms  1.18%  runtime.heapArenaOf (inline)
+      10ms  1.18% 95.29%       10ms  1.18%  runtime.markrootSpans
+      10ms  1.18% 96.47%       10ms  1.18%  runtime.memclrNoHeapPointers
+      10ms  1.18% 97.65%       10ms  1.18%  runtime.publicationBarrier
+         0     0% 97.65%       10ms  1.18%  runtime.scanObjectSmall
+      10ms  1.18% 98.82%       10ms  1.18%  runtime.scanObjectsSmall
+      10ms  1.18%   100%       10ms  1.18%  runtime.typePointers.next

@@ -1,0 +1,56 @@
+package bench_string_builder_small
+
+import able.core.interfaces.{Error}
+import able.core.iteration.{IteratorEnd}
+import able.kernel.{Array}
+import able.text.string.{String, StringBuilder}
+
+fn alphabet() -> Array char {
+  [
+    'A','B','C','D','E','F','G','H','I','J','K','L','M',
+    'N','O','P','Q','R','S','T','U','V','W','X','Y','Z'
+  ]
+}
+
+fn build_text(parts: i32) -> String {
+  builder := StringBuilder.with_capacity(parts * 48)
+  letters := alphabet()
+  i := 0
+  loop {
+    if i >= parts { break }
+    builder.push_string(`seg${i}`)
+    builder.push_char('-')
+    builder.push_char(letters[i % letters.len()]!)
+    builder.push_char(':')
+    builder.push_string(`value${(i * 7) % 101}`)
+    builder.push_char('|')
+    i = i + 1
+  }
+  builder.finish() match {
+    case text: String => text,
+    case err: Error => { raise err }
+  }
+}
+
+fn checksum(text: String) -> i64 {
+  total: i64 = 0_i64
+  iter := text.bytes().iterator()
+  loop {
+    iter.next() match {
+      case IteratorEnd {} => { break },
+      case byte: u8 => { total = total + (byte as i64) }
+    }
+  }
+  total + (text.len_bytes() as i64)
+}
+
+fn main() -> void {
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 8 { break }
+    total = total + checksum(build_text(2_000))
+    rounds = rounds + 1
+  }
+  print(total)
+}

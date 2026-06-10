@@ -1,0 +1,83 @@
+{
+  "date": "2026-07-26",
+  "decision": "retain_diagnostics_reject_production_candidate",
+  "scope": {
+    "rankable_applications": 54,
+    "verified": 54,
+    "static_return_materializations": 1678255,
+    "affected_applications": 39,
+    "dropped_sites": 0,
+    "raw_census_sha256": "023e738254c261881adac23f09bf9a6e82fe024d77032b9c6c9755b3adcd1efd",
+    "manifest_sha256": "0a756e0d678b2f43106c9dbe3ebd0253b94b20613b470eb73f9d9ddb749b60ee"
+  },
+  "artifacts": {
+    "baseline_interpreter_test_sha256": "7f56e96e8719888b3922fe4a66337fa737195ded1bade7613f6f8400914a0dbf",
+    "candidate_interpreter_test_sha256": "1ff1c734778c88f3923fa6b5fe5e0f6158fe842d7e526ee723e6bdb56f1e23c4",
+    "restored_interpreter_test_sha256": "7f56e96e8719888b3922fe4a66337fa737195ded1bade7613f6f8400914a0dbf",
+    "restored_byte_identical": true
+  },
+  "largest_consumers": [
+    {"consumer": "StoreSlot", "count": 828865, "applications": 3},
+    {"consumer": "StoreSlotNew", "count": 262858, "applications": 17},
+    {"consumer": "BinaryIntAdd", "count": 140290, "applications": 17},
+    {"consumer": "Return", "count": 95325, "applications": 9},
+    {"consumer": "StructLiteralNamedFast", "count": 68358, "applications": 8},
+    {"consumer": "superseded_precheck", "count": 12001, "applications": 1},
+    {"consumer": "public_escape", "count": 96, "applications": 1}
+  ],
+  "selected_shape": {
+    "callee_opcode": "Return",
+    "carrier": "integer_result",
+    "suffix": "i64",
+    "consumer": "StoreSlotNew",
+    "count": 210974,
+    "applications": {
+      "concurrent_audio_voices": 129050,
+      "concurrent_packet_codecs": 57344,
+      "concurrent_scene_tiles": 20484,
+      "mutex_work_queue": 4096
+    }
+  },
+  "candidate": {
+    "description": "Keep immutable raw integer returns unmaterialized only for an immediate untyped VM-owned caller slot store.",
+    "fully_reverted": true,
+    "exact_runs_per_variant": 3,
+    "results": [
+      {"benchmark": "concurrent_audio_voices", "baseline_seconds": 1.057234679, "candidate_seconds": 1.074358160, "time_change_percent": 1.6197, "bytes_change_percent": -1.7211, "allocations_change_percent": 2.2910},
+      {"benchmark": "concurrent_packet_codecs", "baseline_seconds": 0.522504278, "candidate_seconds": 0.553196064, "time_change_percent": 5.8730, "bytes_change_percent": -2.3694, "allocations_change_percent": 1.8192},
+      {"benchmark": "concurrent_scene_tiles", "baseline_seconds": 0.379427124, "candidate_seconds": 0.397787884, "time_change_percent": 4.8390, "bytes_change_percent": 0.0737, "allocations_change_percent": 0.5593}
+    ],
+    "rejection": "Allocation counts increased in all three applications; Packet and Scene materially regressed."
+  },
+  "retained": [
+    "Dedicated primitive-materialization observer mode.",
+    "Static-return saved-frame, caller-program, return-IP, next-opcode, and caller-source attribution."
+  ],
+  "not_changed": [
+    "runtime semantics",
+    "compiler lowering",
+    "tree-walker",
+    "stdlib",
+    "benchmarks",
+    "language",
+    "dependencies",
+    "WASM"
+  ],
+  "verification": {
+    "full_handoff": "./run_all_tests.sh",
+    "passed": true,
+    "compiler_batches_passed": 32,
+    "bytecode_fixture_seconds": 88.052,
+    "slow_compiler_batches": [
+      {"batch": 19, "seconds": 185.073},
+      {"batch": 28, "seconds": 75.304},
+      {"batch": 29, "seconds": 93.208}
+    ]
+  },
+  "next": {
+    "tranche": "compiled_aot_generated_native_carrier_owner_refresh",
+    "why": "Broad bytecode candidate-static materialization routes are now closed at their consumers, while compiled Go parity remains the first roadmap priority.",
+    "entails": "First audit the three over-one-minute compiler batches, then profile at least three unlike strict compiled target misses, intersect generated runtime.Value/interface/boxing owners, and admit only a repeated general primitive/static carrier rule.",
+    "importance": "Interpreter-free generated applications should approach Go when primitive carriers stay native through the full static call graph."
+  }
+}

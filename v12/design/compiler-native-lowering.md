@@ -1,30 +1,19 @@
-# Compiler Native Lowering
+# Compiler Native Lowering — Historical Completion Record
 
-## Status
+## Scope
 
-Active design constraint for the v12 compiler. This document records the target
-architecture and supersedes ad hoc decisions that keep static compiled code too
-close to interpreter/runtime object-model carriers.
+This dated record preserves the array, carrier, control, dispatch, boundary,
+benchmark, and release milestones that led to the current compiler. It does
+not define current implementation details or an active work queue.
 
-The exhaustive lowering map now lives in `v12/design/compiler-go-lowering-spec.md`.
-The ordered execution plan now lives in `v12/design/compiler-go-lowering-plan.md`.
-This document remains the short-form contract and guardrail summary.
+The active short-form contract is
+[`compiler-native-lowering-guardrails.md`](./compiler-native-lowering-guardrails.md).
+The detailed language-independent rules are in `compiler-go-lowering-spec.md`;
+the direct compiler source and focused tests decide current behavior. Named
+stdlib/container examples below are historical proof cases for shared lowering,
+not architecture exceptions.
 
-Milestone status:
-- compiler `PLAN.md` Milestone 1 is complete.
-- the compiler now has explicit shared lowering entrypoints for:
-  - type normalization and carrier synthesis
-  - join/pattern synthesis
-  - dispatch synthesis
-  - control-envelope synthesis
-  - boundary-adapter synthesis
-- source-audit enforcement for those entrypoints lives in
-  `v12/interpreters/go/pkg/compiler/compiler_lowering_facade_audit_test.go`.
-
-Named stdlib/container examples in this document are proof cases for shared
-lowering machinery, not architecture exceptions.
-
-## Vision
+## Historical vision
 
 The compiler should lower Able programs to native Go constructs whenever the
 semantics are statically representable.
@@ -34,7 +23,7 @@ more efficiently." The end state is "compiled code that primarily manipulates
 Go-native values and uses dynamic carriers only at explicit dynamic
 boundaries."
 
-## Completion Milestones
+## Historical completion milestones
 
 The compiler is not "done" when the current local fallback is smaller. It is
 "done" when these high-level conditions are true:
@@ -56,7 +45,7 @@ The compiler is not "done" when the current local fallback is smaller. It is
    the benchmarked compiled path no longer carries known avoidable runtime
    scaffolding on hot static code.
 
-## Non-Negotiable Constraints
+## Historical constraints
 
 ### Arrays
 
@@ -117,7 +106,7 @@ The compiler is not "done" when the current local fallback is smaller. It is
   extern/host ABI edge; they are not permitted as a general static lowering
   substrate.
 
-## Target Representation Map
+## Historical target representation map
 
 | Able construct | Target compiled representation |
 | --- | --- |
@@ -129,67 +118,7 @@ The compiler is not "done" when the current local fallback is smaller. It is
 | functions | native Go functions where representable |
 | dynamic features | explicit boundary adapters using runtime/interpreter values |
 
-## Control Signal Model
-
-The compiler should move toward explicit control envelopes for non-local flow.
-
-Representative shape:
-
-```go
-type __ableControlKind uint8
-
-const (
-    __ableControlNone __ableControlKind = iota
-    __ableControlReturn
-    __ableControlBreak
-    __ableControlContinue
-    __ableControlRaise
-)
-
-type __ableControl struct {
-    Kind  __ableControlKind
-    Label string
-    Value any
-}
-```
-
-Generated helpers and lowered subroutines should return enough information for
-callers to distinguish:
-
-- normal completion
-- function return
-- loop/breakpoint jump
-- raised exception
-
-The exact concrete shape may be specialized per generated helper or per static
-type, but the architectural rule is fixed: propagate control with return values,
-not `panic` / `recover`.
-
-## Current Violations To Remove
-
-- Overriding the kernel `Array` shape in compiler type mapping to
-  `Elements []runtime.Value`.
-- Converting compiled arrays through `runtime.ArrayValue` /
-  `runtime.ArrayStore*` on normal static paths.
-- Boxing struct locals into `runtime.Value` to preserve identity.
-- Lowering unions to `any` or `runtime.Value` instead of generated Go
-  interfaces.
-- Using IIFEs to manufacture expression contexts.
-- Using `panic` / `recover` for non-local jump or exception propagation in
-  normal compiled flow.
-
-## Execution Plan
-
-1. Remove static-path array/runtime hybrids and define the compiler-native array
-   ABI.
-2. Keep struct locals native and repair static dispatch around native carriers.
-3. Define the native union ABI and pattern-match lowering strategy.
-4. Replace panic/recover and IIFE-based control lowering with explicit control
-   return propagation.
-5. Add regression audits that fail when static compiled code regresses back to
-   interpreter structural carriers or panic-based flow control.
-
-## Progress Snapshot
+## Historical progress snapshot
 
 - Static compiled arrays now use a compiler-owned `Array` carrier with
   spec-visible metadata fields and hidden native slice storage on direct
@@ -1040,7 +969,29 @@ not `panic` / `recover`.
   - the stronger compiler-native completion program is closed on 2026-04-14,
     and the next active project queue is bytecode performance
 
-## Relationship To Other Design Notes
+## Caller-owned nominal result ABI
+
+- Statically compiled functions may expose an internal caller-owned result
+  entry only when the compiler proves every normal result is a fresh small
+  nominal value or a tail call to another such function.
+- The optimization is structural and shared across nominal definitions; named
+  stdlib/container/application lowering rules remain prohibited.
+- The public compiled and dynamic ABI remains pointer-based. Returns of
+  `self`, parameters, fields, aggregate members, or other existing objects must
+  preserve the original pointer rather than copy into caller storage.
+- Each ordinary static call receives distinct addressable storage. Go escape
+  analysis promotes it when its pointer escapes, preserving identity for
+  aggregates and retained aliases while eliminating only proven-nonescaping
+  heap returns.
+- Tail calls may forward the caller's slot. Raised control discards the result
+  as before, and runtime/interface wrappers continue through the ordinary ABI.
+- Loop-carried result-slot reuse is intentionally not implemented. An assignment
+  like `state = advance(state)` proves neither no aliases nor no callee capture;
+  Fixed Width also lets a conditionally adopted candidate live indefinitely.
+  Future reuse requires an interprocedural non-capture/effect proof; fixed slot
+  rotation is not a semantic substitute.
+
+## Historical relationship to other design notes
 
 - `compiler-monomorphization.md` is a subordinate design note for generic/native
   container lowering.

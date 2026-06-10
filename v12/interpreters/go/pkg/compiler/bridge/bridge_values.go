@@ -32,15 +32,7 @@ func stringFromStruct(inst *runtime.StructInstanceValue) (string, error) {
 	if inst.Definition.Node.ID.Name != "String" {
 		return "", fmt.Errorf("expected String, got %T", inst)
 	}
-	var bytesVal runtime.Value
-	if inst.Fields != nil {
-		if field, ok := inst.Fields["bytes"]; ok {
-			bytesVal = field
-		}
-	}
-	if bytesVal == nil && len(inst.Positional) > 0 {
-		bytesVal = inst.Positional[0]
-	}
+	bytesVal, _ := structNamedFieldValue(inst, "bytes")
 	if bytesVal == nil {
 		return "", fmt.Errorf("string bytes are missing")
 	}
@@ -199,6 +191,11 @@ func AsUint(value runtime.Value, bits int) (uint64, error) {
 }
 
 func ToInt(value int64, suffix runtime.IntegerType) runtime.Value {
+	if suffix == runtime.IntegerI32 {
+		if boxed, ok := commonI32Box(value); ok {
+			return boxed
+		}
+	}
 	return runtime.NewSmallInt(value, suffix)
 }
 
@@ -225,7 +222,9 @@ func unwrapInterface(value runtime.Value) runtime.Value {
 		}
 		break
 	}
-	return value
+	// Bridge value helpers are a compiler/interpreter boundary. Do not let a
+	// bytecode VM's transient scalar carriers escape after interface unwrapping.
+	return materializeBoundaryValue(value)
 }
 
 func arrayValueFromRuntime(value runtime.Value) (*runtime.ArrayValue, error) {
@@ -240,13 +239,7 @@ func arrayValueFromRuntime(value runtime.Value) (*runtime.ArrayValue, error) {
 		if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil || v.Definition.Node.ID.Name != "Array" {
 			return nil, fmt.Errorf("string bytes must be an array (got %T)", value)
 		}
-		var handleVal runtime.Value
-		if v.Fields != nil {
-			handleVal = v.Fields["storage_handle"]
-		}
-		if handleVal == nil && len(v.Positional) >= 3 {
-			handleVal = v.Positional[2]
-		}
+		handleVal, _ := structNamedFieldValue(v, "storage_handle")
 		if handleVal == nil {
 			return nil, fmt.Errorf("array value missing storage_handle")
 		}
@@ -258,6 +251,9 @@ func arrayValueFromRuntime(value runtime.Value) (*runtime.ArrayValue, error) {
 			return nil, fmt.Errorf("array handle is out of range")
 		}
 		handle := handleInt.Int64()
+		if err := runtime.ArrayStoreTrackStructInstanceLease(v, handle); err != nil {
+			return nil, err
+		}
 		arr, _, err := runtime.ArrayStoreValueFromHandle(handle, 0, 0)
 		if err != nil {
 			return nil, err

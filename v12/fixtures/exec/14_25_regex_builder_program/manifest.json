@@ -1,0 +1,15 @@
+{
+  "description": "regex builders compose literals, alternation, repetition, captures, classes, and options while program snapshots expose safe NFA/DFA introspection",
+  "expect": {
+    "stdout": [
+      "builder-match catdog 0-7",
+      "program 1 false true",
+      "captured-dfa unavailable",
+      "class true",
+      "fold true",
+      "literal-dfa true",
+      "capture-order 3 ab a b",
+      "repeat-invalid"
+    ]
+  }
+}

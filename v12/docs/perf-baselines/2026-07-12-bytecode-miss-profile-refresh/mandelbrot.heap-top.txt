@@ -1,0 +1,27 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: inuse_space
+Time: 2026-07-11 23:28:26 CDT
+Showing nodes accounting for 31053.47kB, 100% of 31053.47kB total
+Showing top 20 nodes out of 39
+      flat  flat%   sum%        cum   cum%
+26063.46kB 83.93% 83.93% 26063.46kB 83.93%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+ 1716.67kB  5.53% 89.46%  1716.67kB  5.53%  able/interpreter-go/pkg/runtime.ArrayEnsureCapacity
+ 1184.27kB  3.81% 93.27%  1184.27kB  3.81%  runtime/pprof.StartCPUProfile
+ 1024.02kB  3.30% 96.57%  1024.02kB  3.30%  able/interpreter-go/pkg/interpreter.init.func1
+  553.04kB  1.78% 98.35%   553.04kB  1.78%  able/interpreter-go/pkg/runtime.ArrayStorePromoteHandleToMonoTypeIfPossible
+  512.01kB  1.65%   100%   512.01kB  1.65%  runtime.mallocgc
+         0     0%   100%  2269.72kB  7.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%   100%  2269.72kB  7.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%   100%  2269.72kB  7.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%   100%  2269.72kB  7.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%   100%  2269.72kB  7.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%   100%   553.04kB  1.78%  able/interpreter-go/pkg/interpreter.(*Interpreter).coerceValueToType
+         0     0%   100%  2269.72kB  7.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%   100%   553.04kB  1.78%  able/interpreter-go/pkg/interpreter.(*Interpreter).tryFastArrayTypeCoercion
+         0     0%   100%  1716.67kB  5.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendTrackedArrayValueFast
+         0     0%   100%  1716.67kB  5.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execArrayPushMemberFast
+         0     0%   100%  1716.67kB  5.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMemberArraySlot
+         0     0%   100%  1716.67kB  5.53%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0%   100%   553.04kB  1.78%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlot
+         0     0%   100%   553.04kB  1.78%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlotOpcode

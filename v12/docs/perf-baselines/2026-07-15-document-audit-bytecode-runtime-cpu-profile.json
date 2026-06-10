@@ -1,0 +1,43 @@
+{
+  "generated_at": "2026-07-15T17:24:53.590498Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/document_audit/document_audit.able",
+  "run_from": "/home/david/sync/projects/benchmarks",
+  "runs": 1,
+  "timeout_seconds": 45,
+  "modes": [
+    "bytecode-runtime"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 900,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [
+    "word-frequency/corpus.md"
+  ],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "12",
+  "results": [
+    {
+      "mode": "bytecode-runtime",
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 9.91,
+      "avg_user_seconds": 9.72,
+      "avg_sys_seconds": 0.1,
+      "avg_gc": 27.0,
+      "avg_ns_per_op": 10217399.0,
+      "avg_bytes_per_op": 382511.0,
+      "avg_allocs_per_op": 611.0,
+      "validation": {
+        "status": "unavailable",
+        "verifier": null,
+        "verified_runs": 0,
+        "failed_runs": 0,
+        "stdout_sha256": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "description": "regex scanners advance zero-width matches by Unicode scalar boundaries across feed and flush",
+  "expect": {
+    "stdout": [
+      "unicode-first  0-0",
+      "unicode-last  2-2"
+    ]
+  }
+}

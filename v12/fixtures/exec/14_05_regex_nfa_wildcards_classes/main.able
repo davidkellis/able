@@ -1,0 +1,44 @@
+package exec_14_05_regex_nfa_wildcards_classes
+
+import able.text.regex.{Regex, Match}
+
+## Semantics: wildcard and character-class atoms use Unicode code-point NFA transitions.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("a.c") match {
+    case regex: Regex => show_match("wildcard", regex.match("zaéc")),
+    case _ => print("wildcard compile error")
+  }
+
+  Regex.compile("a.c") match {
+    case regex: Regex => show_match("newline", regex.match("a\nc")),
+    case _ => print("newline compile error")
+  }
+
+  Regex.compile("[a-c]{2,3}") match {
+    case regex: Regex => show_match("class", regex.match("zabcz")),
+    case _ => print("class compile error")
+  }
+
+  Regex.compile("[é-ê]+") match {
+    case regex: Regex => show_match("unicode_class", regex.match("xéêë")),
+    case _ => print("unicode_class compile error")
+  }
+
+  Regex.compile("[^0-9]+") match {
+    case regex: Regex => show_match("negated", regex.match("42Able9")),
+    case _ => print("negated compile error")
+  }
+
+  Regex.compile("[z-a]") match {
+    case _: Regex => print("range_error accepted"),
+    case _ => print("range_error rejected")
+  }
+}

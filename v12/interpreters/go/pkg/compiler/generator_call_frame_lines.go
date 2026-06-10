@@ -10,7 +10,7 @@ func (g *generator) compiledControlCheckWithCallFrameLines(ctx *compileContext, 
 	if g == nil || ctx == nil || controlExpr == "" {
 		return nil, false
 	}
-	transferLines, ok := g.controlTransferLines(ctx, controlExpr)
+	transferLines, ok := g.lowerControlTransfer(ctx, controlExpr)
 	if !ok {
 		return nil, false
 	}

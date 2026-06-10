@@ -1,0 +1,13 @@
+benchmark	run	current_gid_calls
+future_await_race	1	1284
+future_await_race	2	1276
+future_await_race	3	1272
+await_channel_mux	1	8707
+await_channel_mux	2	8707
+await_channel_mux	3	8707
+mutex_await_journal	1	165
+mutex_await_journal	2	167
+mutex_await_journal	3	141
+mutex_work_queue	1	196
+mutex_work_queue	2	211
+mutex_work_queue	3	150

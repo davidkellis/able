@@ -1,0 +1,115 @@
+{
+  "date": "2026-07-27",
+  "decision": "dependency-ordered-subsystem-consolidation",
+  "base_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+  "base_matches_origin_master": true,
+  "pre_record_status": {
+    "sha256": "e9c19c9bb6f8f27ee71ee10591196460d9336d7eb6bafa5712e5b54e670d8374",
+    "visible_paths": 5142,
+    "tracked_modified": 559,
+    "untracked": 4583,
+    "tracked_deleted": 0,
+    "tracked_renamed": 0
+  },
+  "classification_sha256": "f51e02ce5dcb3e22746d4829e979a49ff94c00bbdebbb5dbfa329210f315dd67",
+  "unmatched_paths": 0,
+  "boundaries": {
+    "language_ast_parser_typechecker": {
+      "tracked_modified": 52,
+      "untracked": 24,
+      "total": 76
+    },
+    "runtime_treewalker_bytecode": {
+      "tracked_modified": 277,
+      "untracked": 387,
+      "total": 664
+    },
+    "compiler_aot_cli_semantic_abi": {
+      "tracked_modified": 174,
+      "untracked": 161,
+      "total": 335
+    },
+    "deferred_wasm": {
+      "tracked_modified": 7,
+      "untracked": 19,
+      "total": 26
+    },
+    "benchmark_evidence_scoreboards": {
+      "tracked_modified": 7,
+      "untracked": 3857,
+      "total": 3864
+    },
+    "documentation_design_release_tooling": {
+      "tracked_modified": 42,
+      "untracked": 40,
+      "total": 82
+    },
+    "generated_local_exclude": {
+      "tracked_modified": 0,
+      "untracked": 95,
+      "total": 95,
+      "bytes": 20250349
+    }
+  },
+  "tracked_diff": {
+    "files": 559,
+    "insertions": 231755,
+    "deletions": 169548,
+    "generated_parser_insertions": 147634,
+    "generated_parser_deletions": 147281,
+    "excluding_generated_parser_files": 558,
+    "excluding_generated_parser_insertions": 84121,
+    "excluding_generated_parser_deletions": 22267
+  },
+  "performance_archive": {
+    "untracked_markdown": 1734,
+    "log_referenced_untracked_markdown": 250,
+    "supporting_untracked_markdown": 1484,
+    "multi_extension_stems": 1260,
+    "single_extension_stems": 890,
+    "profile_physical_files": 196,
+    "profile_bytes": 1858845,
+    "profile_visible_untracked_files": 102
+  },
+  "oversized_handwritten_files": [
+    {
+      "path": "v12/parser/tree-sitter-able/grammar.js",
+      "lines": 1650
+    },
+    {
+      "path": "v12/interpreters/go/pkg/compiler/generator_controlflow.go",
+      "lines": 1135
+    },
+    {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_vm_slot_const_assignment_test.go",
+      "lines": 1084
+    },
+    {
+      "path": "v12/interpreters/go/pkg/interpreter/interpreter_arrays.go",
+      "lines": 1083
+    },
+    {
+      "path": "v12/interpreters/go/pkg/compiler/compiler_array_intrinsics_test.go",
+      "lines": 1054
+    }
+  ],
+  "generated_parser": {
+    "path": "v12/parser/tree-sitter-able/src/parser.c",
+    "lines": 197036,
+    "manual_split_allowed": false
+  },
+  "gofmt_required": [
+    "v12/interpreters/go/pkg/typechecker/type_utils.go"
+  ],
+  "diff_check_errors": 0,
+  "cleanup_dry_run": {
+    "applied": false,
+    "candidate_paths": 10,
+    "reclaimable_gib": 79.52
+  },
+  "source_changed": false,
+  "files_deleted": false,
+  "git_index_changed": false,
+  "commits_created": false,
+  "history_changed": false
+}

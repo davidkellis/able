@@ -28,7 +28,7 @@ func TestCompilerConcreteIteratorFilterMapStayNative(t *testing.T) {
 	}
 	for _, fragment := range []string{
 		"__able_compiled_iface_Iterator_filter_map_default(",
-		"__able_compiled_iface_Iterator_collect_default(",
+		"__able_compiled_entry_iface_Iterator_collect_default(",
 		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
 	} {
 		if !strings.Contains(body, fragment) {
@@ -36,6 +36,8 @@ func TestCompilerConcreteIteratorFilterMapStayNative(t *testing.T) {
 		}
 	}
 	for _, fragment := range []string{
+		"__able_compiled_entry_iface_Iterator_filter_map_default(",
+		"__able_compiled_entry_impl_Enumerable_reduce_default_9_spec",
 		"__able_method_call_node(",
 		"__able_call_value(",
 		"__able_iface_Iterator_i32_to_runtime_value(",
@@ -97,6 +99,58 @@ func TestCompilerConcreteIteratorFilterMapExecutes(t *testing.T) {
 	}
 }
 
+func TestCompilerArrayIterableDefaultPipelineExecutes(t *testing.T) {
+	source := strings.Join([]string{
+		"package main",
+		"",
+		"import able.collections.array",
+		"import able.collections.enumerable",
+		"import able.kernel.{Array}",
+		"",
+		"fn main() -> void {",
+		"  values: Array i32 = Array.new()",
+		"  values.push(1)",
+		"  values.push(2)",
+		"  values.push(3)",
+		"  values.push(4)",
+		"  total := values.lazy().filter({ value => value % 2 == 0 }).map<i64>({ value => (value as i64) * 3_i64 }).collect<Array i64>().reduce<i64>(0_i64, { acc, value => acc + value })",
+		"  print(total)",
+		"}",
+		"",
+	}, "\n")
+
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-array-iterable-default-pipeline-exec", source, Options{
+		PackageName:        "main",
+		EmitMain:           true,
+		RequireNoFallbacks: true,
+	})
+	if strings.TrimSpace(stdout) != "18" {
+		t.Fatalf("expected Array Iterable default pipeline to print 18, got %q", stdout)
+	}
+}
+
+func TestCompilerArrayStringIterableDefaultPipelineBuilds(t *testing.T) {
+	source := strings.Join([]string{
+		"package main",
+		"",
+		"import able.collections.array",
+		"import able.collections.enumerable",
+		"import able.kernel.{Array}",
+		"",
+		"fn main() -> void {",
+		"  values: Array String = Array.new()",
+		"  values.push(\"fn a\")",
+		"  values.push(\"plain\")",
+		"  values.push(\"fn bb\")",
+		"  total := values.lazy().filter({ value => value.len_bytes() >= 4 }).map<i64>({ value => value.len_bytes() as i64 }).collect<Array i64>().reduce<i64>(0_i64, { acc, value => acc + value })",
+		"  print(total)",
+		"}",
+		"",
+	}, "\n")
+
+	compileAndBuildCanonicalStdlibSource(t, "ablec-array-string-iterable-default-pipeline-build", source)
+}
+
 func TestCompilerConcreteIteratorFilterMapStayNativeWithExperimentalMonoArrays(t *testing.T) {
 	result := compileNoFallbackExecSourceWithOptions(t, "ablec-linked-list-iterator-filter-map-mono-native", strings.Join([]string{
 		"package demo",
@@ -123,7 +177,7 @@ func TestCompilerConcreteIteratorFilterMapStayNativeWithExperimentalMonoArrays(t
 	}
 	for _, fragment := range []string{
 		"__able_compiled_iface_Iterator_filter_map_default(",
-		"__able_compiled_iface_Iterator_collect_",
+		"__able_compiled_entry_iface_Iterator_collect_",
 		"__able_compiled_impl_Enumerable_reduce_default_9_spec",
 	} {
 		if !strings.Contains(body, fragment) {

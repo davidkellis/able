@@ -1,0 +1,492 @@
+{
+  "applications": [
+    {
+      "benchmark": "fixed_width_128",
+      "count_evidence": "fresh-2026-07-21",
+      "current_ns_per_bytecode_operation": 140.984325,
+      "current_seconds": 8.522,
+      "family": "wide-numeric",
+      "reference_language": "python",
+      "reference_seconds": 0.3504,
+      "remaining_speedup_after_transport": 15.757795,
+      "required_speedup": 23.104737,
+      "semantic_operations": 41225421,
+      "target_budget_seconds": 0.36884210526315786,
+      "target_ns_per_remaining_semantic_operation": 8.946958,
+      "total_operations": 60446436,
+      "transport_counts": {
+        "Const": 5875015,
+        "ConstI32": 0,
+        "Dup": 0,
+        "LoadSlot": 8283481,
+        "LoadSlotI32": 0,
+        "Pop": 5062519
+      },
+      "transport_operations": 19221015,
+      "transport_share_percent": 31.798426,
+      "uniform_cost_seconds_after_transport": 5.812138,
+      "uniform_cost_transport_speedup": 1.466242
+    },
+    {
+      "benchmark": "distance_field",
+      "count_evidence": "fresh-2026-07-21",
+      "current_ns_per_bytecode_operation": 75.820352,
+      "current_seconds": 5.914,
+      "family": "float-numeric",
+      "reference_language": "ruby",
+      "reference_seconds": 0.3877,
+      "remaining_speedup_after_transport": 8.546184,
+      "required_speedup": 14.491359,
+      "semantic_operations": 46000083,
+      "target_budget_seconds": 0.4081052631578947,
+      "target_ns_per_remaining_semantic_operation": 8.871838,
+      "total_operations": 78000165,
+      "transport_counts": {
+        "Const": 8000029,
+        "ConstI32": 0,
+        "Dup": 0,
+        "LoadSlot": 22000024,
+        "LoadSlotI32": 0,
+        "Pop": 2000029
+      },
+      "transport_operations": 32000082,
+      "transport_share_percent": 41.025659,
+      "uniform_cost_seconds_after_transport": 3.487743,
+      "uniform_cost_transport_speedup": 1.695653
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "count_evidence": "fresh-2026-07-21",
+      "current_ns_per_bytecode_operation": 152.38041,
+      "current_seconds": 3.256,
+      "family": "concurrency",
+      "reference_language": "python",
+      "reference_seconds": 0.0336,
+      "remaining_speedup_after_transport": 52.349295,
+      "required_speedup": 92.059524,
+      "semantic_operations": 12150590,
+      "target_budget_seconds": 0.03536842105263158,
+      "target_ns_per_remaining_semantic_operation": 2.91084,
+      "total_operations": 21367576,
+      "transport_counts": {
+        "Const": 1227323,
+        "ConstI32": 3072,
+        "Dup": 44933,
+        "LoadSlot": 4933960,
+        "LoadSlotI32": 0,
+        "Pop": 3007698
+      },
+      "transport_operations": 9216986,
+      "transport_share_percent": 43.135384,
+      "uniform_cost_seconds_after_transport": 1.851512,
+      "uniform_cost_transport_speedup": 1.758563
+    },
+    {
+      "benchmark": "word_frequency",
+      "count_evidence": "fresh-2026-07-21",
+      "current_ns_per_bytecode_operation": 80.377951,
+      "current_seconds": 1.414,
+      "family": "text-map",
+      "reference_language": "python",
+      "reference_seconds": 0.0234,
+      "remaining_speedup_after_transport": 31.961537,
+      "required_speedup": 57.405983,
+      "semantic_operations": 9794516,
+      "target_budget_seconds": 0.02463157894736842,
+      "target_ns_per_remaining_semantic_operation": 2.514834,
+      "total_operations": 17591889,
+      "transport_counts": {
+        "Const": 924608,
+        "ConstI32": 194,
+        "Dup": 0,
+        "LoadSlot": 4406730,
+        "LoadSlotI32": 194,
+        "Pop": 2465647
+      },
+      "transport_operations": 7797373,
+      "transport_share_percent": 44.323682,
+      "uniform_cost_seconds_after_transport": 0.787263,
+      "uniform_cost_transport_speedup": 1.796096
+    },
+    {
+      "benchmark": "array_slice_window",
+      "count_evidence": "fresh-2026-07-21",
+      "current_ns_per_bytecode_operation": 85.016533,
+      "current_seconds": 0.744,
+      "family": "array-iterator",
+      "reference_language": "python",
+      "reference_seconds": 0.061,
+      "remaining_speedup_after_transport": 7.788121,
+      "required_speedup": 11.586885,
+      "semantic_operations": 5882142,
+      "target_budget_seconds": 0.06421052631578947,
+      "target_ns_per_remaining_semantic_operation": 10.916181,
+      "total_operations": 8751239,
+      "transport_counts": {
+        "Const": 372531,
+        "ConstI32": 0,
+        "Dup": 12001,
+        "LoadSlot": 2004545,
+        "LoadSlotI32": 0,
+        "Pop": 480020
+      },
+      "transport_operations": 2869097,
+      "transport_share_percent": 32.785038,
+      "uniform_cost_seconds_after_transport": 0.500079,
+      "uniform_cost_transport_speedup": 1.487764
+    },
+    {
+      "benchmark": "reverse_complement",
+      "count_evidence": "fresh-2026-07-21",
+      "current_ns_per_bytecode_operation": 62.010469,
+      "current_seconds": 3.758,
+      "family": "byte-text",
+      "reference_language": "python",
+      "reference_seconds": 0.0379,
+      "remaining_speedup_after_transport": 65.855393,
+      "required_speedup": 94.197889,
+      "semantic_operations": 42368387,
+      "target_budget_seconds": 0.03989473684210527,
+      "target_ns_per_remaining_semantic_operation": 0.941616,
+      "total_operations": 60602670,
+      "transport_counts": {
+        "Const": 66765,
+        "ConstI32": 0,
+        "Dup": 0,
+        "LoadSlot": 14100754,
+        "LoadSlotI32": 0,
+        "Pop": 4066764
+      },
+      "transport_operations": 18234283,
+      "transport_share_percent": 30.08825,
+      "uniform_cost_seconds_after_transport": 2.627284,
+      "uniform_cost_transport_speedup": 1.430375
+    }
+  ],
+  "decision_scope": "A complete typed operand-register representation as the next bytecode performance candidate, without changing the benchmark algorithms or replacing semantic operations with application-specific kernels.",
+  "empirical_gates": [
+    {
+      "applications": 6,
+      "delta_range_percent": [
+        0.0,
+        14.98
+      ],
+      "id": "register-member-access",
+      "reason": "The executable register slice reached real semantic work but was neutral or slower in all six applications.",
+      "result": "rejected"
+    },
+    {
+      "applications": 3,
+      "delta_range_percent": [
+        4.87,
+        14.01
+      ],
+      "id": "allocation-neutral-register-frames",
+      "reason": "Removing essentially all added register-frame allocations left all three applications slower.",
+      "result": "rejected"
+    },
+    {
+      "applications": 3,
+      "delta_range_percent": [
+        -4.34,
+        5.75
+      ],
+      "id": "continuation-probe-hoist",
+      "reason": "The hoist removed millions of misses, but the combined Word Frequency guard remained 5.75% slower than the ordinary VM.",
+      "result": "rejected"
+    }
+  ],
+  "evidence": [
+    "v12/docs/perf-baselines/2026-07-18-bytecode-operand-ir-feasibility-gate.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-call-continuation-abi-gate.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-admission-closure-census.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-member-access-gate.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-frame-attribution-gate.md",
+    "v12/docs/perf-baselines/2026-07-21-bytecode-register-control-flow-attribution-gate.md",
+    "v12/docs/perf-baselines/2026-07-21-cross-mode-residual-cost-model.md"
+  ],
+  "implementation_surface": {
+    "production_files": 133,
+    "production_lines": 32816,
+    "test_files": 119,
+    "test_lines": 36191
+  },
+  "kind": "able-bytecode-architecture-budget",
+  "opcode_categories": [
+    {
+      "id": "transport",
+      "opcode_count": 6,
+      "opcodes": [
+        "Const",
+        "ConstI32",
+        "LoadSlot",
+        "LoadSlotI32",
+        "Dup",
+        "Pop"
+      ],
+      "role": "removable-representation-dispatch"
+    },
+    {
+      "id": "scalar-numeric-conversion",
+      "opcode_count": 33,
+      "opcodes": [
+        "Binary",
+        "BinaryIntAdd",
+        "BinaryIntSub",
+        "BinaryIntLessEqual",
+        "BinaryIntDivCast",
+        "BinaryCastSlotFloatConstDiv",
+        "BinaryFloatMulSlotConst",
+        "BinaryIntAddSlotConst",
+        "BinaryIntSubSlotConst",
+        "BinaryIntMulSlotConst",
+        "BinaryIntModSlotConst",
+        "BinaryIntLessEqualSlotConst",
+        "BinaryIntCompareSlotConst",
+        "Unary",
+        "Range",
+        "Cast",
+        "TryFloatUpdatePair",
+        "BinaryI32Add",
+        "BinaryI32Sub",
+        "UnboxI32",
+        "BoxI32",
+        "StoreSlotCastSlotFloatConstDiv",
+        "StoreSlotFloatAffine",
+        "StoreSlotFloatRegion",
+        "StoreSlotBinaryIntSlotConst",
+        "StoreSlotIntMulConstAdd",
+        "StoreSlotIntMulConstModConst",
+        "StoreSlotIntMulConstAddFromSlot",
+        "StoreSlotFloatBinary",
+        "StoreSlotFloatAddSub",
+        "StoreSlotFloatAddMul",
+        "StoreSlotFloatAddMulSlot",
+        "StoreSlotFloatAddMulArrayGet"
+      ],
+      "role": "required-semantic-work"
+    },
+    {
+      "id": "binding-environment-storage",
+      "opcode_count": 18,
+      "opcodes": [
+        "LoadName",
+        "LoadStaticReceiver",
+        "DeclareName",
+        "AssignName",
+        "AssignPattern",
+        "AssignNameCompound",
+        "ImplicitMember",
+        "ImplicitMemberSet",
+        "BindPattern",
+        "LoadImplicitSlot",
+        "LoadSlotStructField",
+        "StoreSlot",
+        "StoreSlotNew",
+        "StoreImplicitSlot",
+        "StoreSlotI32",
+        "CompoundAssignSlotI32",
+        "CompoundAssignSlot",
+        "CompoundAssignImplicitSlot"
+      ],
+      "role": "required-semantic-work"
+    },
+    {
+      "id": "nominal-collection-text",
+      "opcode_count": 17,
+      "opcodes": [
+        "StringInterpolation",
+        "StructLiteral",
+        "StructLiteralNamedFast",
+        "MapLiteral",
+        "ArrayLiteral",
+        "IndexGet",
+        "IndexSet",
+        "ArrayIndexGetSlot",
+        "ArrayIndexSetSlot",
+        "ArrayIndexSwapSlot",
+        "ArrayReadSlot",
+        "ArrayReadSlotI32",
+        "ArraySlotSwapSlot",
+        "TryArrayPushF64AffineProduct",
+        "TryArrayPushF64NestedGet",
+        "MemberAccess",
+        "MemberSet"
+      ],
+      "role": "required-semantic-work"
+    },
+    {
+      "id": "calls-callables-dynamic-dispatch",
+      "opcode_count": 14,
+      "opcodes": [
+        "PlaceholderLambda",
+        "PlaceholderValue",
+        "MakeFunction",
+        "Call",
+        "CallName",
+        "CallMember",
+        "CallGenericUnionMember",
+        "CallStaticMember",
+        "CallMemberArrayGet",
+        "CallMemberNext",
+        "CallMemberArrayNew",
+        "CallMemberArraySlot",
+        "CallSelf",
+        "CallSelfIntSubSlotConst"
+      ],
+      "role": "required-semantic-work"
+    },
+    {
+      "id": "control-return-scope-error",
+      "opcode_count": 38,
+      "opcodes": [
+        "Breakpoint",
+        "Propagation",
+        "OrElse",
+        "Match",
+        "Rescue",
+        "Raise",
+        "Ensure",
+        "EnsureEnd",
+        "Rethrow",
+        "Pipe",
+        "BreakLabel",
+        "BreakSignal",
+        "ContinueSignal",
+        "Jump",
+        "JumpIfFalse",
+        "JumpIfBoolSlotFalse",
+        "JumpIfIntLessEqualSlotConstFalse",
+        "JumpIfIntCompareSlotConstFalse",
+        "JumpIfArrayReadSlotCompareSlotFalse",
+        "JumpIfArrayIndexSlotCompareSlotFalse",
+        "JumpIfFloatMulAddMulCompareConstFalse",
+        "JumpIfFloatAddCompareConstFalse",
+        "JumpIfIntCompareSlotFalse",
+        "ReturnIfIntLessEqualSlotConst",
+        "ReturnConstIfIntLessEqualSlotConst",
+        "JumpIfNil",
+        "JumpIfNotNil",
+        "JumpIfNotTypedPattern",
+        "MatchNoClause",
+        "LoopEnter",
+        "LoopExit",
+        "EnterScope",
+        "ExitScope",
+        "ReturnBinary",
+        "ReturnBinaryIntAddI32",
+        "ReturnBinaryIntAdd",
+        "Return",
+        "JumpIfBinaryCompareFalse"
+      ],
+      "role": "required-semantic-work"
+    },
+    {
+      "id": "iteration-concurrency-suspension",
+      "opcode_count": 8,
+      "opcodes": [
+        "Spawn",
+        "Await",
+        "IteratorLiteral",
+        "IterInit",
+        "IterNext",
+        "IterClose",
+        "Yield",
+        "ForLoop"
+      ],
+      "role": "required-semantic-work"
+    },
+    {
+      "id": "definitions-imports",
+      "opcode_count": 10,
+      "opcodes": [
+        "DefineFunction",
+        "DefineStruct",
+        "DefineUnion",
+        "DefineTypeAlias",
+        "DefineMethods",
+        "DefineInterface",
+        "DefineImplementation",
+        "DefineExtern",
+        "Import",
+        "DynImport"
+      ],
+      "role": "required-semantic-work"
+    }
+  ],
+  "recommendation": "Do not implement a complete typed/register representation as the next performance tranche. Measure semantic-work amplification per logical workload unit and select a shared language/runtime boundary that reduces semantic operations or allocations in at least three unlike applications.",
+  "schema_version": 1,
+  "semantic_closure": [
+    {
+      "current_evidence": "The prototype proved simple loops and returns, but current censuses retain merge_slot_versions and merge_value_identity failures.",
+      "id": "cfg-register-state",
+      "requirement": "Translate complete control-flow graphs with compatible boxed/raw stacks, slot versions, liveness, and merge values before effects."
+    },
+    {
+      "current_evidence": "Current VM sidecars and raw carriers are authoritative; isolated carrier and operand-lane candidates have mixed or negative broad results.",
+      "id": "value-representation",
+      "requirement": "Represent runtime.Value plus raw i32, i64, arbitrary integers, and f32/f64 lanes, with materialization at every uncertain boundary."
+    },
+    {
+      "current_evidence": "The prototype proved CallName suspend/resume, but material reach existed in only two unlike applications before later semantic slices.",
+      "id": "calls-continuations",
+      "requirement": "Preserve native, inline, generic, member, static, self, and dynamic calls plus return coercion, lookup caches, suspension, and caller restoration."
+    },
+    {
+      "current_evidence": "No complete register executor covered this closure; the ordinary VM remains authoritative.",
+      "id": "errors-unwind-scopes",
+      "requirement": "Preserve raise, rescue, ensure, rethrow, propagation, break/continue, transient scopes, diagnostics, and effect ordering."
+    },
+    {
+      "current_evidence": "Only the call continuation boundary was prototyped; generators and the full concurrency closure stayed on the ordinary VM.",
+      "id": "iteration-concurrency",
+      "requirement": "Preserve iterator cleanup, yield/resume, spawn, Future await/cancellation, executor flushing, and goroutine/serial state transfer."
+    },
+    {
+      "current_evidence": "Register-native MemberAccess reached six applications but regressed the broad wall-time gate; allocation and storage owners remain application-dependent.",
+      "id": "nominal-identity-storage",
+      "requirement": "Preserve struct, union, Array, map, member/index, ownership, mutation, aliasing, and generic nominal semantics without named-container rules."
+    },
+    {
+      "current_evidence": "These operations remained semantic/materialization boundaries in the feasibility model.",
+      "id": "dynamic-environment-definitions",
+      "requirement": "Preserve lexical/global lookup, implicit receivers, lambdas, definitions, implementations, externs, imports, dynamic imports, and cache invalidation."
+    },
+    {
+      "current_evidence": "The ordinary instruction and runtime.Value contracts remain the only complete implementation.",
+      "id": "source-errors-debugging",
+      "requirement": "Retain source nodes, precise Able errors, overflow/type diagnostics, breakpoints, and public materialized results."
+    }
+  ],
+  "sources": {
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-bytecode-architecture-budget.json",
+      "sha256": "92e479a824f9d976c6b300ee936ac59c430b5b31d2bda3dec1b645d0e89b0b0c"
+    },
+    "frontier": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "d5343f2ac726b8f2ed2f4345cda58b474834a9f2dd007150342117f568185c11"
+    },
+    "opcode_names": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_op_names.go",
+      "sha256": "41d50f4007fca39c6f096c689022343c8136b13097a9510059dd400c85d03b45"
+    }
+  },
+  "summary": {
+    "all_empirical_gates_rejected": true,
+    "application_count": 6,
+    "decision": "no-go-register-representation-only",
+    "empirical_gate_count": 3,
+    "live_opcode_count": 144,
+    "maximum_uniform_cost_transport_speedup": 1.796096,
+    "minimum_remaining_speedup_after_transport": 7.788121,
+    "opcode_category_count": 8,
+    "semantic_closure_area_count": 8,
+    "semantic_opcode_count": 138,
+    "total_dynamic_operations": 246759975,
+    "total_transport_operations": 89338836,
+    "transport_opcode_count": 6,
+    "unlike_family_count": 6,
+    "weighted_transport_share_percent": 36.204752
+  }
+}

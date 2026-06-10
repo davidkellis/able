@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-27T16:57:19Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 45,
+  "cpu_affinity": "4",
+  "cpu_affinity_pool": "4",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "fasta_generation",
+      "source": "/home/david/sync/projects/benchmarks/fasta-generation/go-1.26/app.go",
+      "source_sha256": "116e80452758cc68483d2a8da625204794ff1260878a84b1907c2703c82ae029",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0166,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.016679748,
+          "stdout_sha256": "2907f3fb66fea247549c0f26b5b5d5cd1940a055574b72dad344283e1eb0fd10"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.01654258,
+          "stdout_sha256": "2907f3fb66fea247549c0f26b5b5d5cd1940a055574b72dad344283e1eb0fd10"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.016795769,
+          "stdout_sha256": "2907f3fb66fea247549c0f26b5b5d5cd1940a055574b72dad344283e1eb0fd10"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.016554038,
+          "stdout_sha256": "2907f3fb66fea247549c0f26b5b5d5cd1940a055574b72dad344283e1eb0fd10"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.016592377,
+          "stdout_sha256": "2907f3fb66fea247549c0f26b5b5d5cd1940a055574b72dad344283e1eb0fd10"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "2907f3fb66fea247549c0f26b5b5d5cd1940a055574b72dad344283e1eb0fd10"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "4",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}

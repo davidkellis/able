@@ -66,6 +66,173 @@ func TestBytecodeVM_TypedIdentifierDeclarationUsesSlotLowering(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_TypedIdentifierAssignImplicitDeclarationUsesGuardedSlotLowering(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Fn("f", nil, []ast.Statement{
+			ast.AssignOp(ast.AssignmentAssign, ast.TypedP(ast.ID("x"), ast.Ty("i32")), ast.Int(1)),
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.Bin("+", ast.ID("x"), ast.Int(1))),
+			ast.ID("x"),
+		}, ast.Ty("i32"), nil, nil, false, false),
+		ast.Call("f"),
+	}, nil, nil)
+
+	byteInterp := NewBytecode()
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+	intResult, ok := got.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %T (%v)", got, got)
+	}
+	if val, ok := intResult.ToInt64(); !ok || val != 2 {
+		t.Fatalf("unexpected result: got=%v want=2", got)
+	}
+
+	prog := bytecodeFunctionProgramForTest(t, byteInterp, "f")
+	if prog.frameLayout == nil {
+		t.Fatalf("expected slot-enabled frame layout for typed identifier assignment")
+	}
+	sawTypedStore := false
+	sawGuardedLoad := false
+	for _, instr := range prog.instructions {
+		if instr.name != "x" {
+			continue
+		}
+		switch instr.op {
+		case bytecodeOpAssignName, bytecodeOpAssignPattern, bytecodeOpLoadName:
+			t.Fatalf("implicit typed local should use guarded slot lowering, saw %s", bytecodeOpName(instr.op))
+		case bytecodeOpStoreImplicitSlot:
+			if instr.storeTyped {
+				sawTypedStore = true
+			}
+		case bytecodeOpLoadImplicitSlot:
+			sawGuardedLoad = true
+		}
+	}
+	if !sawTypedStore {
+		t.Fatalf("expected typed guarded slot store for implicit assignment")
+	}
+	if !sawGuardedLoad {
+		t.Fatalf("expected guarded slot load for implicit assignment")
+	}
+}
+
+func TestBytecodeVM_IdentifierAssignImplicitDeclarationUsesGuardedSlotLowering(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Fn("f", nil, []ast.Statement{
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.Int(1)),
+			ast.AssignOp(ast.AssignmentAdd, ast.ID("x"), ast.Int(2)),
+			ast.ID("x"),
+		}, ast.Ty("i32"), nil, nil, false, false),
+		ast.Call("f"),
+	}, nil, nil)
+
+	byteInterp := NewBytecode()
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+	intResult, ok := got.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %T (%v)", got, got)
+	}
+	if val, ok := intResult.ToInt64(); !ok || val != 3 {
+		t.Fatalf("unexpected result: got=%v want=3", got)
+	}
+
+	prog := bytecodeFunctionProgramForTest(t, byteInterp, "f")
+	sawStore := false
+	sawCompound := false
+	sawLoad := false
+	for _, instr := range prog.instructions {
+		if instr.name != "x" {
+			continue
+		}
+		switch instr.op {
+		case bytecodeOpAssignName, bytecodeOpAssignNameCompound, bytecodeOpLoadName:
+			t.Fatalf("implicit local should use guarded slot lowering, saw %s", bytecodeOpName(instr.op))
+		case bytecodeOpStoreImplicitSlot:
+			sawStore = true
+		case bytecodeOpCompoundAssignImplicitSlot:
+			sawCompound = true
+		case bytecodeOpLoadImplicitSlot:
+			sawLoad = true
+		}
+	}
+	if !sawStore || !sawCompound || !sawLoad {
+		t.Fatalf("expected guarded store/compound/load, got store=%v compound=%v load=%v", sawStore, sawCompound, sawLoad)
+	}
+}
+
+func TestBytecodeVM_TypedIdentifierAssignPreservesFutureOuterBinding(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Fn("f", nil, []ast.Statement{
+			ast.AssignOp(ast.AssignmentAssign, ast.TypedP(ast.ID("x"), ast.Ty("i32")), ast.Int(2)),
+			ast.ID("x"),
+		}, ast.Ty("i32"), nil, nil, false, false),
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.Int(1)),
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("ignored"), ast.Call("f")),
+		ast.ID("x"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	byteInterp := NewBytecode()
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode result mismatch: got=%#v want=%#v", got, want)
+	}
+	intResult, ok := got.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %T (%v)", got, got)
+	}
+	if val, ok := intResult.ToInt64(); !ok || val != 2 {
+		t.Fatalf("unexpected final x: got=%v want=2", got)
+	}
+
+	prog := bytecodeFunctionProgramForTest(t, byteInterp, "f")
+	sawGuardedStore := false
+	sawGuardedLoad := false
+	for _, instr := range prog.instructions {
+		if instr.name == "x" && instr.op == bytecodeOpStoreImplicitSlot {
+			sawGuardedStore = true
+		}
+		if instr.name == "x" && instr.op == bytecodeOpLoadImplicitSlot {
+			sawGuardedLoad = true
+		}
+	}
+	if !sawGuardedStore || !sawGuardedLoad {
+		t.Fatalf("expected guarded store/load for future outer binding, got store=%v load=%v", sawGuardedStore, sawGuardedLoad)
+	}
+}
+
+func TestBytecodeVM_TypedIdentifierAssignPreservesExistingOuterBinding(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("x"), ast.Int(1)),
+		ast.Fn("f", nil, []ast.Statement{
+			ast.AssignOp(ast.AssignmentAssign, ast.TypedP(ast.ID("x"), ast.Ty("i32")), ast.Int(2)),
+			ast.ID("x"),
+		}, ast.Ty("i32"), nil, nil, false, false),
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("ignored"), ast.Call("f")),
+		ast.ID("x"),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	byteInterp := NewBytecode()
+	got := runBytecodeModuleWithInterpreter(t, byteInterp, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode result mismatch: got=%#v want=%#v", got, want)
+	}
+	intResult, ok := got.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %T (%v)", got, got)
+	}
+	if val, ok := intResult.ToInt64(); !ok || val != 2 {
+		t.Fatalf("unexpected final x: got=%v want=2", got)
+	}
+
+	prog := bytecodeFunctionProgramForTest(t, byteInterp, "f")
+	for _, instr := range prog.instructions {
+		if instr.name == "x" && (instr.op == bytecodeOpStoreImplicitSlot || instr.op == bytecodeOpLoadImplicitSlot) {
+			t.Fatalf("existing outer binding should not lower to guarded local slot, saw %s", bytecodeOpName(instr.op))
+		}
+	}
+}
+
 func TestBytecodeVM_UntypedSlotStoreDoesNotCacheTypedMetadata(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.Fn("f", nil, []ast.Statement{
@@ -112,6 +279,23 @@ func TestBytecodeVM_UntypedSlotStoreDoesNotCacheTypedMetadata(t *testing.T) {
 	}
 }
 
+func bytecodeFunctionProgramForTest(t *testing.T, interp *Interpreter, name string) *bytecodeProgram {
+	t.Helper()
+	fnRaw, err := interp.GlobalEnvironment().Get(name)
+	if err != nil {
+		t.Fatalf("lookup function %s: %v", name, err)
+	}
+	fn, ok := fnRaw.(*runtime.FunctionValue)
+	if !ok || fn == nil {
+		t.Fatalf("expected function value for %s, got %T", name, fnRaw)
+	}
+	prog, ok := fn.Bytecode.(*bytecodeProgram)
+	if !ok || prog == nil {
+		t.Fatalf("expected bytecode program for %s", name)
+	}
+	return prog
+}
+
 func TestBytecodeVM_ExecStoreSlotUntypedFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
@@ -128,8 +312,13 @@ func TestBytecodeVM_ExecStoreSlotUntypedFastPath(t *testing.T) {
 	if err := vm.execStoreSlot(instr); err != nil {
 		t.Fatalf("execStoreSlot returned error: %v", err)
 	}
-	if got := vm.slots[0]; !valuesEqual(got, runtime.NewSmallInt(7, runtime.IntegerI32)) {
-		t.Fatalf("unexpected slot value: got=%#v", got)
+	gotSlot := vm.slots[0]
+	kind, raw, ok := bytecodeRawIntegerValueInfo(gotSlot)
+	if !ok || kind != runtime.IntegerI32 || raw != 7 {
+		t.Fatalf("unexpected raw slot value: got=%#v", gotSlot)
+	}
+	if boxed := bytecodeMaterializeRawValue(gotSlot); !valuesEqual(boxed, runtime.NewSmallInt(7, runtime.IntegerI32)) {
+		t.Fatalf("unexpected materialized slot value: got=%#v", boxed)
 	}
 	if len(vm.stack) != 1 || !valuesEqual(vm.stack[0], runtime.NewSmallInt(7, runtime.IntegerI32)) {
 		t.Fatalf("unexpected stack state after untyped store: %#v", vm.stack)

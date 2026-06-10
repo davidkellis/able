@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (vm *bytecodeVM) finishRunResumable(runErr *error) {
@@ -23,7 +24,8 @@ func (vm *bytecodeVM) finishRunResumable(runErr *error) {
 				if _, ok := (*runErr).(continueSignal); !ok {
 					for vm.hasCallFrames() {
 						calleeSlots := vm.slots
-						returnIP, returnProgram, returnSlots, returnEnv, _, _, hasImplicitReceiver, _, ok := vm.popCallFrameFields()
+						vm.finishBytecodeArrayOwnershipError(vm.topBytecodeArrayOwnershipParent())
+						returnIP, returnProgram, returnSlots, returnEnv, _, _, hasImplicitReceiver, _, _, ok := vm.popCallFrameFields()
 						if !ok {
 							break
 						}
@@ -52,7 +54,14 @@ func (vm *bytecodeVM) finishRunResumable(runErr *error) {
 						vm.env = returnEnv
 						vm.slots = returnSlots
 						if !sameSlotFrame(calleeSlots, returnSlots) {
-							vm.releaseSlotFrame(calleeSlots)
+							switch len(calleeSlots) {
+							case 2:
+								vm.releaseSlotFrame2(calleeSlots)
+							case 4:
+								vm.releaseSlotFrame4(calleeSlots)
+							default:
+								vm.releaseSlotFrame(calleeSlots)
+							}
 						}
 					}
 				}
@@ -60,6 +69,7 @@ func (vm *bytecodeVM) finishRunResumable(runErr *error) {
 		}
 	}
 	if nonYieldExit {
+		vm.releaseAllActiveTransientRuntimeScopeEnvs()
 		vm.releaseCompletedRunFrames()
 	}
 }
@@ -72,6 +82,10 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 		vm.releaseSlotFrame(vm.slots)
 		vm.slots = nil
 	}
+	vm.releaseImplicitSlotActiveFrame(vm.implicitSlotActive)
+	vm.implicitSlotActive = nil
+	vm.releaseActiveValueSlotI32Frame()
+	vm.releaseActiveValueSlotFloatFrame()
 	vm.releaseActiveI32RegisterFrame()
 	if len(vm.callFrames) > 0 {
 		for idx := range vm.callFrames {
@@ -81,11 +95,23 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			frame.program = nil
 			frame.slots = nil
 			frame.env = nil
+			frame.transientScopeBase = 0
 			frame.returnGenericNames = nil
+			frame.returnCoercionFn = nil
+			frame.arrayOwnershipParent = nil
 			vm.releaseI32RegisterFrame(frame.i32Registers, frame.i32RegisterValid)
 			frame.i32RegisterProgram = nil
 			frame.i32Registers = nil
 			frame.i32RegisterValid = nil
+			vm.releaseImplicitSlotActiveFrame(frame.implicitSlotActive)
+			frame.implicitSlotActive = nil
+			vm.releaseValueSlotI32Frame(frame.slotI32Values, frame.slotI32Valid)
+			frame.slotI32Values = nil
+			frame.slotI32Valid = nil
+			vm.releaseValueSlotFloatFrame(frame.slotFloatValues, frame.slotFloatKinds, frame.slotFloatValid)
+			frame.slotFloatValues = nil
+			frame.slotFloatKinds = nil
+			frame.slotFloatValid = nil
 			frame.iterBase = 0
 			frame.loopBase = 0
 			frame.hasImplicitReceiver = false
@@ -99,11 +125,24 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			vm.releaseSlotFrame(frame.slots)
 			frame.returnIP = 0
 			frame.slots = nil
+			frame.env = nil
+			frame.transientScopeBase = 0
 			frame.returnGenericNames = nil
+			frame.returnCoercionFn = nil
+			frame.arrayOwnershipParent = nil
 			vm.releaseI32RegisterFrame(frame.i32Registers, frame.i32RegisterValid)
 			frame.i32RegisterProgram = nil
 			frame.i32Registers = nil
 			frame.i32RegisterValid = nil
+			vm.releaseImplicitSlotActiveFrame(frame.implicitSlotActive)
+			frame.implicitSlotActive = nil
+			vm.releaseValueSlotI32Frame(frame.slotI32Values, frame.slotI32Valid)
+			frame.slotI32Values = nil
+			frame.slotI32Valid = nil
+			vm.releaseValueSlotFloatFrame(frame.slotFloatValues, frame.slotFloatKinds, frame.slotFloatValid)
+			frame.slotFloatValues = nil
+			frame.slotFloatKinds = nil
+			frame.slotFloatValid = nil
 			frame.iterBase = 0
 			frame.loopBase = 0
 			frame.hasImplicitReceiver = false
@@ -119,12 +158,29 @@ func (vm *bytecodeVM) releaseCompletedRunFrames() {
 			frame.returnIP = 0
 			frame.slots = nil
 			frame.slot0 = nil
+			frame.env = nil
+			frame.transientScopeBase = 0
+			frame.arrayOwnershipParent = nil
 			vm.releaseI32RegisterFrame(frame.i32Registers, frame.i32RegisterValid)
 			frame.i32RegisterProgram = nil
 			frame.i32Registers = nil
 			frame.i32RegisterValid = nil
+			vm.releaseImplicitSlotActiveFrame(frame.implicitSlotActive)
+			frame.implicitSlotActive = nil
+			vm.releaseValueSlotI32Frame(frame.slotI32Values, frame.slotI32Valid)
+			frame.slotI32Values = nil
+			frame.slotI32Valid = nil
+			vm.releaseValueSlotFloatFrame(frame.slotFloatValues, frame.slotFloatKinds, frame.slotFloatValid)
+			frame.slotFloatValues = nil
+			frame.slotFloatKinds = nil
+			frame.slotFloatValid = nil
+			frame.iterBase = 0
+			frame.loopBase = 0
 			frame.slot0I32Raw = 0
 			frame.slot0I32Valid = false
+			frame.slot0FloatRaw = 0
+			frame.slot0FloatKind = runtime.FloatF64
+			frame.slot0FloatValid = false
 			frame.reusesSlots = false
 		}
 		vm.selfFastMinimal = vm.selfFastMinimal[:0]

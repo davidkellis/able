@@ -1,0 +1,80 @@
+{
+  "date": "2026-07-27",
+  "decision": "language-parser-typechecker-boundary-reviewed",
+  "staging_authorized": false,
+  "commit_created": false,
+  "history_changed": false,
+  "production_changed_by_review": false,
+  "manifest": {
+    "path": "2026-07-27-language-parser-typechecker-release-boundary-manifest.tsv",
+    "sha256": "5200fc5d8e698b828213f20659209d71caa52e4f71da468636979f3337d3482a",
+    "lines": 83,
+    "bytes": 13008,
+    "paths": 82,
+    "tracked_modified": 54,
+    "untracked": 28,
+    "unclassified": 0
+  },
+  "dispositions": {
+    "reviewed": 77,
+    "regenerate_from_grammar": 3,
+    "hold_cross_boundary": 2
+  },
+  "families": {
+    "ast_fixture": 7,
+    "go_ast": 7,
+    "go_parser": 25,
+    "go_typechecker": 26,
+    "grammar_source": 7,
+    "grammar_corpus": 3,
+    "parser_documentation": 2,
+    "generated_parser": 3,
+    "shared_contract": 2
+  },
+  "held_shared_contracts": [
+    "spec/TODO_v12.md",
+    "spec/full_spec_v12.md"
+  ],
+  "generated_parser": {
+    "manual_edit_allowed": false,
+    "regeneration_byte_identical": true,
+    "assets": {
+      "v12/parser/tree-sitter-able/src/parser.c": "054369173a78160f15ebef87bced7c4717a4aaf85cfb04ded76eb6ab1ed4c6e3",
+      "v12/parser/tree-sitter-able/src/grammar.json": "c9ed2e44a74e11f3a333ad6a9df51ce24696bd84f4314ce60c8069e048088b08",
+      "v12/parser/tree-sitter-able/src/node-types.json": "07e23952fdcb7e586c116b28bc50b8927865f7354825e4d69779b95d677d20b1"
+    }
+  },
+  "focused_verification": {
+    "changed_go_gofmt_clean": true,
+    "reviewed_handwritten_code_below_1000_lines": true,
+    "go_vet_ast_parser_typechecker": "pass",
+    "go_test_ast_parser_typechecker": "pass",
+    "typechecker_semantic_guards": "pass",
+    "cli_interpreter_integration_guards": "pass",
+    "tree_sitter_corpus_cases": 28,
+    "tree_sitter_corpus_status": "pass",
+    "source_reexport_fixture_export": "pass",
+    "forced_go_parser_relink": "pass",
+    "git_diff_check": "pass"
+  },
+  "complete_handoff": {
+    "command": "./run_all_tests.sh",
+    "status": "pass",
+    "wall_seconds": 694.57,
+    "peak_rss_kb": 4633264,
+    "compiler_batches": 33,
+    "compiler_batch_19_seconds": 134.184,
+    "compiler_batch_29_seconds": 69.186,
+    "bytecode_fixture_seconds": 85.244
+  },
+  "canonical_stdlib_rerun": false,
+  "canonical_stdlib_reason": "No production or contract change; the immediately preceding grammar tranche passed both modes.",
+  "cleanup": {
+    "project_local_python_cache_kib": 140,
+    "tranche_forced_relink_cache_mib": 72,
+    "project_cleanup_candidates_remaining": 0,
+    "reusable_caches_retained": true
+  },
+  "next_boundary": "runtime-treewalker-bytecode-vm",
+  "wasm_work_started": false
+}

@@ -1,0 +1,81 @@
+{
+  "kind": "able-bytecode-array-slot-value-role-census",
+  "schema_version": 1,
+  "date": "2026-07-22",
+  "decision": "retain-diagnostics-no-runtime-candidate",
+  "execution_contract": {
+    "census_runs_per_application": 1,
+    "trace_runs_per_application": 1,
+    "profile_runs_per_application": 1,
+    "gomaxprocs": 1,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "timeout_seconds": 55,
+    "main_only": true,
+    "verified": true
+  },
+  "rows": [
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency-text",
+      "shape_count": 136192,
+      "roles": {"push_value": 136192},
+      "array_push_u8_mono_fast_hits": 136192,
+      "push_profile_total_samples_seconds": 2.79,
+      "push_profile_cumulative_seconds": 0.0,
+      "push_profile_cumulative_percent": 0.0,
+      "programs_dropped": 0,
+      "stats_sha256": "fbea36642e966ec9ff635898d4b3482881b455d70b717f1c7a66232fc4b8cdc9",
+      "trace_sha256": "36b832e451d36915bdf0354f4c4866bd16b525afe952458fdc40f0f3abf0b632",
+      "profile_sha256": "1a6a3d791e0f08c14fcd47730ec9eb28319ee32a0e24f1f27c0df448304d4ffa"
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "bio-text-array",
+      "shape_count": 2000049,
+      "roles": {"push_value": 2000017, "write_slot_value": 32},
+      "array_push_u8_mono_fast_hits": 4033607,
+      "push_profile_total_samples_seconds": 3.29,
+      "push_profile_cumulative_seconds": 0.23,
+      "push_profile_cumulative_percent": 6.99,
+      "programs_dropped": 0,
+      "stats_sha256": "c16fbac4ab78d113fc9a57225c1f9d0c230bf3d8a1648bbefca3639cdc983b94",
+      "trace_sha256": "1f354ec45ea4fcaa9e1f5a6455b0dcd513b7c84fdbe4be0329e9396775cc1e26",
+      "profile_sha256": "80af282481878fd49f74d2b8c91409a826877721b552ef63ff533850c8fc02bf"
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "shape_count": 105125,
+      "roles": {"push_value": 105125},
+      "array_push_u8_mono_fast_hits": 105125,
+      "push_profile_total_samples_seconds": 1.23,
+      "push_profile_cumulative_seconds": 0.01,
+      "push_profile_cumulative_percent": 0.81,
+      "programs_dropped": 0,
+      "stats_sha256": "76f8692d46f60c4f78bbd1ff4272cc871c2bd914d316725b60064518e6de597d",
+      "trace_sha256": "c475d7078a7395f14fe565448e89c54ffcef6a6c76af993a0e22315c8f0d33d6",
+      "profile_sha256": "aee3e538b211379751b7222c0d77d28eb58c851e42985e63ccb3927340b4ca10"
+    }
+  ],
+  "reconciliation": {
+    "prior_shape_count": 2241366,
+    "role_attributed_count": 2241366,
+    "push_value_count": 2241334,
+    "write_slot_value_count": 32,
+    "receiver_count": 0,
+    "index_count": 0,
+    "unknown_count": 0
+  },
+  "candidate_gate": {
+    "admitted": false,
+    "reason": "The shared shape is a u8 value already consumed by the monomorphic Array.push kernel path, not an index requiring generic integer extraction. Push CPU is unsampled in Concurrent Event Routing, 0.81% cumulative in Word Frequency, and 6.99% only in Reverse Complement, so no same material removable wall reaches all three unlike applications."
+  },
+  "sources": {
+    "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "program_reach_sha256": "c53e6d70f35411f45a5587353539cbd5052fac3695001c7881443aa29c0bc31a",
+    "integer_load_shape_sha256": "8f7b41c171e2e83e0886c49425756a76d48f8f71a837f3ee9a06495c754a5fd0",
+    "array_push_sha256": "b573e91f537a9d339db54788105f363c2bfb9f864832d183452723f5dbd86c57"
+  },
+  "next_measurement": "Refresh the broad six-application clean CPU owner matrix and select the largest exact non-closed VM leaf that is material in at least three unlike families."
+}

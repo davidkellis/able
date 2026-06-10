@@ -89,6 +89,7 @@ static bool is_disallowed_type_keyword(const char *ident) {
     strcmp(ident, "import") == 0 ||
     strcmp(ident, "dynimport") == 0 ||
     strcmp(ident, "extern") == 0 ||
+    strcmp(ident, "export") == 0 ||
     strcmp(ident, "prelude") == 0 ||
     strcmp(ident, "private") == 0 ||
     strcmp(ident, "do") == 0 ||

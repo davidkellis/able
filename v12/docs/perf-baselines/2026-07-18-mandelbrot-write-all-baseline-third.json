@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-07-19T01:45:06.922602Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/mandelbrot/mandelbrot.able",
+  "run_from": "/home/david/sync/projects/benchmarks/mandelbrot",
+  "runs": 5,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "bytecode",
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 6.244,
+      "avg_user_seconds": 6.176,
+      "avg_sys_seconds": 0.05,
+      "avg_gc": 20.2,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 5.94,
+          "user_seconds": 5.87,
+          "sys_seconds": 0.05,
+          "gc_count": 20.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 5.83,
+          "user_seconds": 5.76,
+          "sys_seconds": 0.06,
+          "gc_count": 20.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 5.78,
+          "user_seconds": 5.72,
+          "sys_seconds": 0.04,
+          "gc_count": 20.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 5.95,
+          "user_seconds": 5.89,
+          "sys_seconds": 0.04,
+          "gc_count": 21.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 7.72,
+          "user_seconds": 7.64,
+          "sys_seconds": 0.06,
+          "gc_count": 20.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/mandelbrot/verify.rb",
+        "verified_runs": 5,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e"
+        ]
+      }
+    }
+  ]
+}

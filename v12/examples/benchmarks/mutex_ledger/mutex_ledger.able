@@ -1,0 +1,54 @@
+package mutex_ledger
+
+import able.concurrency.{with_lock}
+import able.kernel.{Mutex}
+
+struct Ledger {
+  total: i64,
+  commits: i64,
+  checksum: i64
+}
+
+fn entry_score(lane: i64, index: i64) -> i64 {
+  value := (lane * 1009_i64) + index + 17_i64
+  step := 0_i64
+  loop {
+    if step >= 24_i64 { break }
+    value = ((value * 48271_i64) + (lane * 97_i64) + step) % 1_000_003_i64
+    step = step + 1_i64
+  }
+  value
+}
+
+fn process(ledger: Ledger, mutex: Mutex, lane: i64, rounds: i64) -> i64 {
+  subtotal := 0_i64
+  index := 0_i64
+  loop {
+    if index >= rounds { break }
+    amount := entry_score(lane, index)
+    with_lock(mutex, fn() -> void {
+      ledger.total = ledger.total + amount
+      ledger.commits = ledger.commits + 1_i64
+      ledger.checksum = (ledger.checksum + (amount * (lane + 11_i64))) % 1_000_003_i64
+    })
+    subtotal = subtotal + amount
+    index = index + 1_i64
+  }
+  subtotal
+}
+
+fn main() -> void {
+  lanes := 4_i64
+  rounds := 2048_i64
+  ledger := Ledger { total: 0_i64, commits: 0_i64, checksum: 0_i64 }
+  mutex := Mutex.new()
+
+  first := spawn { process(ledger, mutex, 0_i64, rounds) }
+  second := spawn { process(ledger, mutex, 1_i64, rounds) }
+  third := spawn { process(ledger, mutex, 2_i64, rounds) }
+  fourth := spawn { process(ledger, mutex, 3_i64, rounds) }
+
+  future_flush()
+  worker_total := (first.value()! as i64) + (second.value()! as i64) + (third.value()! as i64) + (fourth.value()! as i64)
+  print(`${lanes}:${rounds}:${ledger.commits}:${ledger.total}:${ledger.checksum}:${worker_total}`)
+}

@@ -70,6 +70,60 @@ func TestBytecodeVM_InlineBoundMethodCallStats(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_InlineMethodShorthandNoArgCallStats(t *testing.T) {
+	t.Setenv("ABLE_BYTECODE_STATS", "1")
+
+	structDef := ast.StructDef(
+		"S",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "n"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+
+	read := ast.Fn(
+		"read",
+		nil,
+		[]ast.Statement{
+			ast.ImplicitMember("n"),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		true,
+		false,
+	)
+
+	module := ast.Mod([]ast.Statement{
+		structDef,
+		ast.Methods(ast.Ty("S"), []*ast.FunctionDefinition{read}, nil, nil),
+		ast.Assign(
+			ast.ID("s"),
+			ast.StructLit([]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(5), "n"),
+			}, false, "S", nil, nil),
+		),
+		ast.Assign(ast.ID("a"), ast.CallExpr(ast.Member(ast.ID("s"), "read"))),
+		ast.Assign(ast.ID("b"), ast.CallExpr(ast.Member(ast.ID("s"), "read"))),
+		ast.Bin("+", ast.ID("a"), ast.ID("b")),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	interp := NewBytecode()
+	got := runBytecodeModuleWithInterpreter(t, interp, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode shorthand-member inline mismatch: got=%#v want=%#v", got, want)
+	}
+
+	stats := interp.BytecodeStats()
+	if stats.InlineCallHits == 0 {
+		t.Fatalf("expected inline call hits > 0 for shorthand member call sites")
+	}
+}
+
 func TestBytecodeVM_InlineBoundGenericMethodCallStats(t *testing.T) {
 	t.Setenv("ABLE_BYTECODE_STATS", "1")
 

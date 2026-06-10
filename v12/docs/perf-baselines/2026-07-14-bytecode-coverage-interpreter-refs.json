@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-07-14T07:13:52Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "suite": "custom",
+  "runs": 3,
+  "timeout_seconds": 45,
+  "cpu_affinity": "15",
+  "runtimes": {
+    "python": {
+      "executable": "/home/david/.local/share/mise/shims/python3",
+      "variant": "python-3.14",
+      "version": "Python 3.14.5"
+    },
+    "ruby": {
+      "executable": "/home/david/.local/share/mise/shims/ruby",
+      "variant": "ruby-4.0",
+      "version": "ruby 4.0.5 (2026-05-20 revision 64336ffd0e) +PRISM [x86_64-linux]"
+    }
+  },
+  "rows": [
+    {
+      "benchmark": "word_frequency",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/word-frequency/python-3.14/run.py",
+      "requested_runs": 3,
+      "attempted_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0302,
+      "validation": "verified",
+      "stdout_sha256": [
+        "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+      ]
+    },
+    {
+      "benchmark": "word_frequency",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/word-frequency/ruby-4.0/run.rb",
+      "requested_runs": 3,
+      "attempted_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0636,
+      "validation": "verified",
+      "stdout_sha256": [
+        "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+      ]
+    },
+    {
+      "benchmark": "document_audit",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/document-audit/python-3.14/run.py",
+      "requested_runs": 3,
+      "attempted_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0264,
+      "validation": "verified",
+      "stdout_sha256": [
+        "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+      ]
+    },
+    {
+      "benchmark": "document_audit",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/document-audit/ruby-4.0/run.rb",
+      "requested_runs": 3,
+      "attempted_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0543,
+      "validation": "verified",
+      "stdout_sha256": [
+        "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+      ]
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/lexical-rollup/python-3.14/run.py",
+      "requested_runs": 3,
+      "attempted_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0296,
+      "validation": "verified",
+      "stdout_sha256": [
+        "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+      ]
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/lexical-rollup/ruby-4.0/run.rb",
+      "requested_runs": 3,
+      "attempted_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0621,
+      "validation": "verified",
+      "stdout_sha256": [
+        "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+      ]
+    }
+  ]
+}

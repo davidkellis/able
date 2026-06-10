@@ -66,6 +66,18 @@ func TestCastErrors(t *testing.T) {
 	assertCastErrorContains(t, outOfRange, "integer overflow")
 }
 
+func TestUnprovenInterfaceCastDefersFailureToRuntime(t *testing.T) {
+	display := ast.Iface("Display", []*ast.FunctionSignature{
+		ast.FnSig("render", []*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+		}, ast.Ty("String"), nil, nil, nil),
+	}, nil, nil, nil, nil, false)
+	opaque := ast.StructDef("Opaque", nil, ast.StructKindNamed, nil, nil, false)
+	cast := ast.NewTypeCastExpression(ast.StructLit(nil, false, "Opaque", nil, nil), ast.Ty("Display"))
+
+	assertCastErrorContains(t, ast.Mod([]ast.Statement{display, opaque, cast}, nil, nil), "does not implement interface Display")
+}
+
 func evalCastBoth(t *testing.T, expr ast.Expression) (runtime.Value, runtime.Value) {
 	module := ast.Mod([]ast.Statement{expr}, nil, nil)
 	tree := mustEvalModule(t, New(), module)
@@ -79,9 +91,15 @@ func assertCastErrorContains(t *testing.T, module *ast.Module, substr string) {
 	if treeErr == nil || !strings.Contains(treeErr.Error(), substr) {
 		t.Fatalf("expected tree cast error containing %q, got %v", substr, treeErr)
 	}
+	if _, ok := treeErr.(raiseSignal); !ok {
+		t.Fatalf("expected tree cast failure to raise, got %T", treeErr)
+	}
 	byteErr := runBytecodeModuleError(t, NewBytecode(), module)
 	if byteErr == nil || !strings.Contains(byteErr.Error(), substr) {
 		t.Fatalf("expected bytecode cast error containing %q, got %v", substr, byteErr)
+	}
+	if _, ok := byteErr.(raiseSignal); !ok {
+		t.Fatalf("expected bytecode cast failure to raise, got %T", byteErr)
 	}
 }
 
@@ -127,16 +145,20 @@ func assertIntValue(t *testing.T, value runtime.Value, kind runtime.IntegerType,
 func assertFloatValue(t *testing.T, value runtime.Value, kind runtime.FloatType, want float64) {
 	t.Helper()
 	var fv runtime.FloatValue
-	switch v := value.(type) {
-	case runtime.FloatValue:
-		fv = v
-	case *runtime.FloatValue:
-		if v == nil {
-			t.Fatalf("expected float value, got nil")
+	if raw, rawKind, ok := bytecodeDirectRawFloatValue(value); ok {
+		fv = runtime.FloatValue{Val: raw, TypeSuffix: rawKind}
+	} else {
+		switch v := value.(type) {
+		case runtime.FloatValue:
+			fv = v
+		case *runtime.FloatValue:
+			if v == nil {
+				t.Fatalf("expected float value, got nil")
+			}
+			fv = *v
+		default:
+			t.Fatalf("expected float value, got %T", value)
 		}
-		fv = *v
-	default:
-		t.Fatalf("expected float value, got %T", value)
 	}
 	if fv.TypeSuffix != kind {
 		t.Fatalf("expected float type %s, got %s", kind, fv.TypeSuffix)

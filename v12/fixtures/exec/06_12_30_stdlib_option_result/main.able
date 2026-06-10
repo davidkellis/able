@@ -1,0 +1,55 @@
+package exec_06_12_30_stdlib_option_result
+
+import able.core.options.*
+import able.core.interfaces.{Error}
+
+struct ProbeError { code: i32 }
+
+impl Error for ProbeError {
+  fn message(self: Self) -> String { "probe error" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn option_chain(value: Option i32) -> Option i64 {
+  value
+    .map<i64>({ item => (item as i64) * 2_i64 })
+    .and_then<i64>({ item => if item > 10_i64 { item } else { nil } })
+}
+
+fn result_chain(value: Result i32) -> Result i64 {
+  value
+    .map<i64>({ item => (item as i64) * 3_i64 })
+    .and_then<i64>({ item => if item > 10_i64 { item } else { ProbeError { code: 2_i32 } } })
+}
+
+fn main() -> void {
+  value: Option i32 = 7_i32
+  empty: Option i32 = nil
+  print(value.is_some())
+  print(empty.is_none())
+  print(value.unwrap())
+  print(empty.unwrap_or(9_i32))
+  print(option_chain(value).unwrap_or(0_i64))
+  print(option_chain(empty).or_else({ => 12_i64 }).unwrap())
+  print(empty.ok_or(ProbeError { code: 1_i32 }).is_err())
+  print(empty.ok_or_else({ => ProbeError { code: 1_i32 } }).is_err())
+
+  good: Result i32 = 7_i32
+  bad: Result i32 = ProbeError { code: 3_i32 }
+  print(good.is_ok())
+  print(bad.unwrap_or(9_i32))
+  print(bad.unwrap_or_else({ => 11_i32 }))
+  print(result_chain(good).unwrap())
+  print(result_chain(bad).is_err())
+  print(good.or_else({ => 8_i32 }).unwrap())
+  print(bad.map_err({ err => ProbeError { code: 4_i32 } }).is_err())
+  print(bad.ok().is_none())
+  print(bad.err().is_some())
+
+  do { empty.unwrap() } rescue {
+    case _: OptionUnwrapError => print("option unwrap error")
+  }
+  do { bad.unwrap() } rescue {
+    case _: ResultUnwrapError => print("result unwrap error")
+  }
+}

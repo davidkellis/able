@@ -137,7 +137,7 @@
     *   [13.3. Package Declaration in Source Files](#133-package-declaration-in-source-files)
     *   [13.4. Importing Packages (`import`)](#134-importing-packages-import)
     *   [13.5. Visibility and Exports (`private`)](#135-visibility-and-exports-private)
-14. [Standard Library Interfaces (Conceptual / TBD)](#14-standard-library-interfaces-conceptual--tbd)
+14. [Standard Library Protocols](#14-standard-library-protocols)
 15. [Program Entry Point](#15-program-entry-point)
 16. [Host Interop (Target-Language Inline Code)](#16-host-interop-target-language-inline-code)
 17. [Tooling: Testing Framework](#17-tooling-testing-framework)
@@ -1060,7 +1060,7 @@ Destructures instances of the built-in `Array` type.
     [existing_head, element_1] = [1, 2] ## Assigns 1 to existing_head; element_1 must already exist
     ```
 *   **Semantics**: Matches elements by position. Fails if the array has fewer elements than required by the non-rest patterns. Rest patterns must be identifiers or `_`; other forms raise `"unsupported rest pattern type"`.
-*   **Mutability:** Array elements themselves are mutable (via index assignment `arr[idx] = val`). Requires `Array` type to support `IndexMut` interface (TBD).
+*   **Mutability:** Array elements themselves are mutable (via index assignment `arr[idx] = val`). This uses the `IndexMut` protocol defined in §14.
 
 #### 5.2.6. Nested Patterns
 #### 5.2.7. Typed Patterns (Type Guards)
@@ -1233,7 +1233,7 @@ Literals are the source code representation of fixed values.
 
 -   **Syntax:**
     1.  **Standard:** Sequence of characters enclosed in double quotes `"`. Supports the same escape sequences as character literals.
-    2.  **Interpolated:** Sequence of characters enclosed in backticks `` ` ``. Can embed expressions using `${Expression}`. Escapes like `` \` `` and `\$` are used for literal backticks or dollar signs before braces. See Section [6.6](#66-string-interpolation).
+    2.  **Interpolated:** Sequence of characters enclosed in backticks `` ` ``. Can embed expressions using `${Expression}`. Supports the same standard escape sequences as double-quoted strings; it additionally recognizes \` for a literal backtick and \$ for a literal dollar sign before braces. See Section [6.6](#66-string-interpolation).
 -   **Type:** `String`. Strings are immutable.
 -   **Examples:** `"Hello, world!\n"`, `""`, `` `User: ${user.name}, Age: ${user.age}` ``, `` `Literal: \` or \${` ``.
 
@@ -1403,7 +1403,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
         -   Checked by default. On overflow in `+`, `-`, `*`, raises a runtime exception `OverflowError { message: "integer overflow" }`.
         -   Division and remainder by zero already raise `DivisionByZeroError`.
         -   Library provides explicit alternatives (names TBD): `wrapping_add/sub/mul`, `saturating_add/sub/mul`, `checked_add/sub/mul -> ?T` for performance-critical or specific semantics.
-*   **Comparison (`>`, `<`, `>=`, `<=`, `==`, `!=`):** Compare values, result `bool`. Equality/ordering behavior relies on standard library interfaces (`PartialEq`, `Eq`, `PartialOrd`, `Ord`). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
+*   **Comparison (`>`, `<`, `>=`, `<=`, `==`, `!=`):** Compare values, result `bool`. Equality/ordering behavior relies on standard library interfaces (`PartialEq`, `Eq`, `PartialOrd`, `Ord`). See §14.
 *   **Logical (`&&`, `||`, `!`):**
     *   Truthiness-based semantics (see §6.11). All operands are accepted; values are interpreted for truthiness.
     *   `a && b` (AND):
@@ -1426,7 +1426,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
     *   Negating the minimum value of a fixed-width integer raises `OverflowError { message: "integer overflow" }`.
 *   **Member Access (`.`):** Access fields/methods, UFCS, static methods. See Section [9.4](#94-method-call-syntax-resolution).
 *   **Function Call (`()`):** Invokes functions/methods. See Section [7.4](#74-function-invocation).
-*   **Indexing (`[]`):** Access elements within indexable collections (e.g., `Array`). Relies on standard library interfaces (`Index`, `IndexMut`). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
+*   **Indexing (`[]`):** Access elements within indexable collections (e.g., `Array`). Relies on standard library interfaces (`Index`, `IndexMut`). See §14.
 *   **Range (`..`, `...`):** Create `Range` objects (inclusive `..`, exclusive `...`). See Section [8.2.3](#823-range-expressions).
 *   **Declaration (`:=`):** Declares/initializes new variables. Evaluates to RHS. See Section [5.1](#51-operators---).
 *   **Assignment (`=`):** Reassigns existing variables or mutates locations. Evaluates to RHS. See Section [5.1](#51-operators---).
@@ -1457,7 +1457,7 @@ a = 5 |>> print    ## parses as (a = 5) first, then pipes the resulting value to
 
 #### 6.3.3. Overloading (Via Interfaces)
 
-Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for unary `-`), `Not` (for bitwise `.~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). These interfaces need definition (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). Note that logical `!` is not overloaded.
+Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for unary `-`), `Not` (for bitwise `.~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). Their language contracts are defined in §14. Note that logical `!` is not overloaded.
 
 > **Operator participation rule:** User code cannot define new operators or overload existing ones directly. The only way for a custom type (e.g., a struct) to participate in an operator is to implement the corresponding standard interface (`Add`, `Eq`, `Index`, etc.). If the interface is not implemented (or not in scope), the operator is unavailable for that type. This keeps the grammar fixed and makes operator behavior explicitly tied to the shared interface contracts.
 
@@ -1577,7 +1577,7 @@ Assignment/Declaration results: Both `=` and `:=` evaluate to the RHS value on s
 
 *   Evaluates embedded `Expression`s (converting via `Display` interface).
 *   Concatenates parts into a final `String`.
-*   Escape `` \` `` and `\$`.
+*   Text segments decode the standard string escapes (`\n`, `\r`, `\t`, `\b`, `\f`, `\\`, quotes, slash, and Unicode escapes) before concatenation. They additionally decode `` \` `` for a literal backtick and `\$` for a literal dollar sign before braces.
 *   Multiline strings are supported in both forms:
     -   Backticks: newlines are literal.
     -   Double quotes: newlines are literal characters within the string; standard escapes apply.
@@ -1718,14 +1718,25 @@ impl Iterable T for Array T { ... }   ## Provided by stdlib
 for x in arr { ... }
 ```
 
-Slicing (views; TBD if borrowed slices are first-class):
+Slicing:
 ```able
-arr.slice(start: u64, end: u64) -> Array T   ## TBD copy vs view semantics
+arr.slice(start: u64, end: u64) -> !Array T
 ```
+
+`end` is exclusive. A call is valid exactly when
+`0 <= start <= end <= arr.size()`. Invalid bounds return `IndexError` through
+the `!` result. A successful call allocates a fresh Array whose length and
+capacity are both `end - start`, then shallow-copies the selected element
+values in order. Replacing elements, changing length, reserving capacity, or
+growing either Array does not affect the other; referenced mutable elements
+retain their ordinary value semantics. `Array.slice` never returns a borrowed
+host slice or Array view.
 
 #### Semantics
 
 -   Bounds: `arr[i]` and `arr[i] = v` surface `IndexError` via the `Index`/`IndexMut` result (`!`) on out-of-bounds. `get`/`pop` return `?T`.
+-   Slicing: `slice(start, end)` uses the end-exclusive bounds and independent
+    shallow-copy result specified above.
 -   Growth: Amortized doubling
 -   Equality/Hashing: Derive from elementwise comparisons if `T: Eq/Hash` (via interfaces in Section 14).
 -   See §6.12.2 for the required standard library helper methods (size/push/pop/etc.).
@@ -2125,11 +2136,12 @@ type MutexHandle = i64
 - `__able_ratio_from_float(value: f64) -> Ratio`
 - `__able_f32_bits(value: f32) -> u32`
 - `__able_f64_bits(value: f64) -> u64`
+- `__able_f64_sqrt(value: f64) -> f64`
 - `__able_u64_mul(lhs: u64, rhs: u64) -> u64`
 
 **Required runtime protocols:**
 - **Error methods:** `message() -> String`, `cause() -> ?Error`; the `value` field is accessible for payloads.
-- **Iterator methods:** `next() -> T | IteratorEnd`, `close()`.
+- **Iterator methods:** `next() -> T | IteratorEnd`, `close()`. `close()` is idempotent; after it returns, `next()` returns `IteratorEnd` without resuming iteration. The default `Iterator.close()` is a no-op for non-resource iterators. Iterator wrappers and the default `Iterable.each`, `filter`, `map`, `filter_map`, and `collect` helpers close their input on completion, cancellation, and error exit.
 - **Future methods:** `status()`, `value()`, `cancel()`.
 
 All user-facing array and string helpers in §§6.12.1–6.12.2 live in the Able stdlib. Some runtimes currently ship temporary native shims for these helpers; they are **not** part of the kernel contract and will be removed once the stdlib owns the behaviour.
@@ -2192,6 +2204,7 @@ Implementation note: these helpers live in the Able stdlib built atop the kernel
 | `pop()` | `fn pop(self: Self) -> ?T` | Removes and returns the last element, or `nil` if empty. |
 | `get(index)` | `fn get(self: Self, index: u64) -> ?T` | Returns the element at `index` or `nil` if out of bounds. |
 | `set(index, value)` | `fn set(self: Self, index: u64, value: T) -> !nil` | Writes to `index`; returns `IndexError` (implements `Error`) when out of bounds. |
+| `slice(start, end)` | `fn slice(self: Self, start: u64, end: u64) -> !Array T` | Returns an independently-backed shallow copy of `[start, end)`. Bounds require `start <= end <= size()`; invalid bounds return `IndexError`; result capacity exactly equals its length. |
 | `clear()` | `fn clear(self: Self) -> void` | Removes all elements (capacity may be retained). |
 
 Implementations must raise `IndexError` when out-of-range `set`/`push`/`pop` operations cannot be satisfied. Arrays must continue to implement `Iterable T` so `for` loops work uniformly.
@@ -2224,6 +2237,27 @@ Implementation note: these helpers live in the Able stdlib and are backed by ker
 -   Stdlib functions `div_floor`, `mod_floor`, and `div_mod_floor` are provided for integer types and forward to the matching integer methods.
 -   Semantics follow floor division: `q = floor(a / b)` and `r = a - b*q`. For `b > 0`, this matches Euclidean `//`/`%`; for `b < 0`, the remainder is negative or zero.
 -   Each integer type also exposes methods `div_floor`, `mod_floor`, and `div_mod_floor` with the same semantics and error behavior (division by zero raises `DivisionByZeroError`).
+
+#### 6.12.4. Filesystem Line Iteration
+
+`able.fs.lines(path: Path | String) -> FileLines` opens `path` for lazy UTF-8
+text-line iteration. `FileLines` implements `Iterator String` and owns both
+the opened `IoHandle` and its `BufferedReader`.
+
+- `next()` returns one line at a time, removes a trailing LF or CRLF, and
+  preserves a final unterminated line. It returns `IteratorEnd` after EOF.
+- Reaching EOF closes the owned handle. `close()` is idempotent; after an
+  explicit close or a read failure, later `next()` calls return `IteratorEnd`
+  without another read attempt.
+- Opening a missing path, reading a closed/failed handle, and closing a handle
+  use the ordinary `IOError` kinds from `able.io` (for example `NotFound` or
+  `Closed`). A read failure marks the iterator closed before the error escapes.
+- `read_lines_prefix(path, count) -> Array String` opens `path`, materializes
+  at most `count` lines using the same normalization, and closes the file as
+  soon as that prefix is complete. A non-positive count still validates the
+  path and returns an empty Array. It does not read the remainder of the file.
+- `read_lines(path)` remains the eager convenience API and is not defined in
+  terms of an implicit retained `FileLines` resource.
 
 ## 7. Functions
 
@@ -2484,7 +2518,7 @@ dist2 = norm(point) ## UFCS-style invocation of the same method
 
 #### 7.4.4. Callable Value Invocation (`Apply` Interface)
 
-If `value` implements the `Apply` interface, `value(args...)` desugars to `value.apply(args...)`. (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). All ordinary function values and closures produced by placeholder lambdas implement `Apply` implicitly with their natural arity; user-defined types may implement `Apply` to become callable.
+If `value` implements the `Apply` interface, `value(args...)` desugars to `value.apply(args...)` (see §14). All ordinary function values and closures produced by placeholder lambdas implement `Apply` implicitly with their natural arity; user-defined types may implement `Apply` to become callable.
 ```able
 ## Conceptual Example
 # impl Apply for Integer { fn apply(self: Integer, a: Integer) -> Integer { self * a } }
@@ -2839,7 +2873,7 @@ for Pattern in IterableExpression {
 
 ##### Semantics
 
--   The `IterableExpression` produces an iterator (details governed by the `Iterable` interface implementation, see Section [14](#14-standard-library-interfaces-conceptual--tbd)).
+-   The `IterableExpression` produces an iterator (details governed by the `Iterable` interface implementation; see §14).
 -   The body executes once per element yielded by the iterator, matching the element against `Pattern`.
 -   Evaluates to `void` when the iterator is exhausted. If a `break` supplies a value, the loop expression evaluates to that value (or `nil` if the break omits a value).
 -   Loop terminates when the iterator is exhausted or via a non-local jump (`break`).
@@ -2919,7 +2953,7 @@ StartExpr ... EndExpr  ## Exclusive range [StartExpr, EndExpr)
 
 ##### Semantics
 
--   Syntactic sugar for creating values (e.g., via `Range.inclusive`/`Range.exclusive`) that implement the `Iterable` interface (and likely a `Range` interface). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
+-   Syntactic sugar for creating values (e.g., via `Range.inclusive`/`Range.exclusive`) that implement the `Iterable` interface and the `Range` protocol. See §14.
 
 ### 8.3. Non-Local Jumps (`breakpoint` / `break`)
 
@@ -4017,7 +4051,13 @@ Able exposes a small set of helper functions for coordinating asynchronous work.
 
 -   **`future_yield()`** - May only be called from inside a `spawn` task. Signals the executor that the current task is willing to yield so other queued work can run. Cooperative executors MUST requeue the yielding task behind any currently runnable work (providing a round-robin effect when multiple tasks yield). On Go’s goroutine executor the call is a no-op advisory hint: Go’s scheduler decides when the goroutine runs next. Programs MUST NOT rely on fairness guarantees beyond “other tasks have an opportunity to make progress”.
 -   **`future_cancelled()`** - May be called from inside a `spawn` task to observe whether cancellation has been requested. Returns `true` when the task’s handle has been cancelled; `false` otherwise. Calling it outside asynchronous context raises a runtime error. Implementations SHOULD integrate this check with their cancellation primitives (e.g., Go `context.Context`).
--   **`future_flush(limit?: i32)`** - Drains work from the executor’s queue up to an optional step limit (defaulting to 1024). Provided primarily for deterministic testing and fixture harnesses. Production runtimes with preemptive schedulers (e.g., Go) may treat it as a no-op because work progresses independently; cooperative schedulers MUST honour the limit to avoid starvation.
+-   **`future_flush()`** - Invokes the current executor's drain operation.
+    It takes no arguments. It is provided primarily for deterministic testing
+    and fixture harnesses. A serial executor drains runnable queued work; a
+    pre-emptive executor waits for current work to settle, but may return when
+    all remaining tasks are blocked on external work. Programs MUST NOT rely on
+    a particular scheduling order or use this helper for functional
+    synchronization.
 -   **`future_pending_tasks()`** - Returns an `i32` count of runnable tasks currently queued on the executor. Cooperative runtimes MUST surface their queue length so fixtures/tests can assert that drains complete. Pre-emptive runtimes MAY return `0` (or a best-effort approximation of outstanding work) when their host scheduler does not expose per-queue metrics. The helper is diagnostic-only; programs MUST NOT rely on its value for functional correctness.
 
 The helpers rely on the executor contract:
@@ -4027,7 +4067,7 @@ The helpers rely on the executor contract:
 interface Executor {
   fn schedule(task: () -> void) -> void
   fn ensure_tick() -> void
-  fn flush(limit: i32 = 1024) -> void
+  fn flush() -> void
   fn pending_tasks() -> i32 ## optional / best-effort for diagnostic helpers
 }
 ```
@@ -4617,9 +4657,15 @@ Each search root is normalised to an absolute directory, verified to exist, and 
 
 `dynimport` uses the same ordered search list. At runtime it scans each root for the requested package path, falling back to later roots when a module is absent. For `able.*`, `dynimport` follows the same canonical stdlib-root rule as static imports and MUST NOT select a distinct stdlib root merely because it appears later or earlier in the generic search list. This makes it possible to host production packages under the workspace root while letting tests or REPL sessions inject overrides via `ABLE_MODULE_PATHS=/tmp/able-overrides` without changing the selected stdlib accidentally.
 
-## 14. Standard Library Interfaces (Conceptual / TBD)
+## 14. Standard Library Protocols
 
-Many language features rely on interfaces expected to be in the standard library. These require full definition.
+This section defines the language-visible protocols used by core syntax and
+runtime behavior. The canonical implementation is the external `able-stdlib`
+package: `able.core.interfaces` supplies the operator, callable, indexing, and
+error protocols, while `able.core.iteration` supplies iteration and range.
+The kernel supplies the primitive implementations named below. A conforming
+stdlib must expose these signatures and semantics; it may add APIs without
+changing the protocol contracts here.
 
 Editorial note on built-ins vs. stdlib:
 
@@ -4676,6 +4722,7 @@ struct IteratorEnd;
 
 interface Iterator T for Self {
   fn next(self: Self) -> T | IteratorEnd;
+  fn close(self: Self) -> void {}
   fn collect<C>(self: Self) -> C where C: Default + Extend T { ... }
 }
 
@@ -4716,6 +4763,11 @@ interface Enumerable A for C _ : Iterable A {
 -   Implementers may override `each` or `iterator` (or both) for efficiency. At least one must be supplied; the companion default derives the other.
 -   `collect` relies on `Default` + `Extend` to build an accumulator and is provided as a default method on `Iterator`.
 -   Collections implement `Enumerable` for eager, type-preserving transforms; call `collection.lazy()` (or `collection.iterator()`) to opt into lazy adapters.
+-   `close()` is the public iterator lifecycle operation. Its default is an
+    idempotent no-op. Resource-owning implementations override it; after a
+    successful close, `next()` returns `IteratorEnd` without resuming work.
+    `for`, `Iterable.each`, `filter`, `map`, `filter_map`, and `collect` close
+    their input on normal completion, early exit, and error exit.
 
 Example—exposing a custom ring buffer as iterable:
 
@@ -4877,6 +4929,7 @@ fn make_default<T: Default>() -> T { T.default() }
 
 Built-in implementations:
 - Primitives (`bool`, all integer widths, `char`, `String`) ship with implicit implementations of `Display`, `Clone`, `Default`, `Eq`/`Ord`, and `Hash` provided by the kernel library (`able.kernel`). These are always in scope and cannot be redefined by user code.
+- `nil` ships with an implicit `Clone` implementation only; cloning `nil` returns `nil`. It does not implement `Display`, `Default`, equality/ordering, or `Hash`.
 - Floats (`f32`, `f64`) ship with implicit `Display`, `Clone`, `Default`, `PartialEq`, and `PartialOrd` implementations only. They do **not** implement `Eq`, `Ord`, or `Hash`. Use wrapper types (e.g., `NotNaN`, `FloatKey`) when hash-based containers or total ordering are required.
 - Opaque handle primitives (`IoHandle`, `ProcHandle`) ship with implicit implementations of `Display`, `Clone`, `Eq`, and `Hash` using identity semantics. They do **not** implement `Ord` or `Default`.
 - Primitive `Hash` implementations must feed raw bytes into the hasher using a
@@ -4905,6 +4958,9 @@ interface Iterator T for SelfType {
   ## This method typically mutates the iterator's internal state.
   fn next(self: Self) -> T | IteratorEnd;
 
+  ## Releases owned resources. The default is an idempotent no-op.
+  fn close(self: Self) -> void {}
+
   ## Lazy adapter example (returns a new iterator).
   fn map<U>(self: Self, f: T -> U) -> Iterator U { ... }
 
@@ -4920,12 +4976,16 @@ interface Iterable T for SelfType {
   ## or 'iterator' to make a type Iterable; the other is provided by default.
   fn each(self: Self, visit: T -> void) -> void {
     it = self.iterator()
-    loop {
-      nxt = it.next()
-      match nxt {
-        case v: T => visit(v),
-        case IteratorEnd => break
+    do {
+      loop {
+        nxt = it.next()
+        match nxt {
+          case v: T => visit(v),
+          case IteratorEnd => break
+        }
       }
+    } ensure {
+      it.close()
     }
   }
 
@@ -5012,7 +5072,17 @@ interface Awaitable Output for SelfType {
 -   `struct Replacement = Literal(String) | Function(fn (match: Match) -> String)`
 -   `struct RegexIter` implements `(Iterator Match)` and yields successive matches against a haystack.
 -   `struct RegexSet` stores multiple compiled patterns and exposes aggregate matching APIs.
+-   `struct RegexSetMatch { pattern_index: u64, span: Span }` identifies one pattern accepted at an iterator-selected span.
+-   `struct RegexSetIter` implements `(Iterator RegexSetMatch)`.
 -   `struct RegexScanner` represents a stateful, streaming matcher that supports chunked input (e.g., sockets/files) without re-scanning from the beginning.
+-   `struct RegexScannerClosed { message: String }` is raised if input is fed after scanner finalization.
+-   `struct RegexBuilder` is an immutable programmatic expression builder.
+    Its combinators create supported literals, wildcard, character-class,
+    anchor, concatenation, alternation, repetition, and capture expressions.
+-   `struct RegexProgram { nfa: NFA, captures: Array RegexProgramCapture }` is
+    a caller-owned compiled-program snapshot for deterministic tooling. Each
+    `RegexProgramCapture` records its zero-based capture index and optional
+    name; mutating the snapshot never changes the compiled `Regex`.
 
 All structs are shareable across threads/procs; compiled programs are immutable and may be cached.
 
@@ -5024,29 +5094,102 @@ All structs are shareable across threads/procs; compiled programs are immutable 
 | `Regex.is_match` | `fn is_match(self: Regex, haystack: String) -> bool` | Returns true if at least one match exists. |
 | `Regex.match` | `fn match(self: Regex, haystack: String) -> ?Match` | Returns the first match (if any). |
 | `Regex.find_all` | `fn find_all(self: Regex, haystack: String) -> RegexIter` | Returns an iterator over non-overlapping matches. The iterator captures a reference to the haystack to keep spans valid. |
-| `Regex.replace` | `fn replace(self: Regex, haystack: String, replacement: Replacement) -> Result String RegexError` | Applies either a literal replacement (`$1`/`\k<name>` substitutions follow the RE2 rules) or a callback that receives the current `Match`. |
-| `Regex.split` | `fn split(self: Regex, haystack: String, limit: ?u64 = nil) -> Array String` | Splits on matches, mirroring `String.split` semantics with an optional match limit. |
+| `Regex.replace` | `fn replace(self: Regex, haystack: String, replacement: Replacement) -> Result String RegexError` | Applies either a literal replacement (`$1`/`\k<name>` substitutions follow the RE2 rules) or a synchronous callback. The callback receives one fully populated `Match` per non-overlapping match, in search order. |
+| `Regex.split` | `fn split(self: Regex, haystack: String, limit: ?u64 = nil) -> Array String` | Splits on non-overlapping matches, preserving empty edge segments. `limit` is the maximum number of delimiter matches to consume; `nil` is unlimited. |
 | `Regex.scan` | `fn scan(self: Regex, haystack: String) -> RegexScanner` | Produces a stateful scanner when chunked processing is required. |
+| `Regex.from_builder` | `fn from_builder(builder: RegexBuilder, options: RegexOptions) -> Result Regex RegexError` | Compiles the already-validated builder expression with the same options and NFA semantics as textual compilation. |
+| `Regex.to_program` | `fn to_program(self: Regex) -> RegexProgram` | Returns a deep snapshot for tooling; it cannot mutate the regex's execution program. |
+| `RegexBuilder` | `empty`, `literal`, `any_scalar`, `char_class`, `start_anchor`, `end_anchor`, `concat`, `alternate`, `repeat`, `zero_or_more`, `one_or_more`, `optional`, `capture_group`, `named_capture` | General supported-expression combinators. Invalid repeat bounds, malformed capture names, and duplicate names return `RegexError`. |
+| `RegexBuilder.build` | `fn build(self: RegexBuilder) -> Result Regex RegexError` | Compiles a builder with default options. |
+| `RegexBuilder.build_with_options` | `fn build_with_options(self: RegexBuilder, options: RegexOptions) -> Result Regex RegexError` | Compiles a builder under the same option validation as `Regex.compile`. |
+| `RegexProgram.nfa_snapshot` | `fn nfa_snapshot(self: RegexProgram) -> NFA` | Returns a fresh NFA snapshot. |
+| `RegexProgram.dfa_snapshot` | `fn dfa_snapshot(self: RegexProgram) -> Result DFA Error` | Determinizes a fresh snapshot only when all transitions are literal or epsilon; unsupported NFA symbols return an error rather than changing regex semantics. |
+| `RegexProgram.captured_names` | `fn captured_names(self: RegexProgram) -> Array RegexProgramCapture` | Returns a fresh deterministic capture metadata snapshot. |
 | `regex_is_match` | `fn regex_is_match(pattern: String, haystack: String, options: RegexOptions = RegexOptions.default()) -> Result bool RegexError` | Convenience helper used throughout the stdlib/testing packages. |
 
-`Regex.to_program()` (implementation-defined) may expose the compiled automaton for tooling and debugging. Engines MAY additionally surface `Regex.captured_names()` and other introspection helpers provided they remain deterministic.
+Builder composition is semantic rather than textual: it produces the same
+tagged Thompson-NFA operations as the corresponding supported textual regex.
+Capture indices follow expression-opening order; combining builders reindexes
+the right-hand expression so no capture aliases another. `Regex.to_program()`
+returns a deep snapshot, and `RegexProgram.nfa_snapshot()` /
+`captured_names()` do the same. `RegexProgram.dfa_snapshot()` is intentionally
+limited to NFA programs
+whose transition vocabulary the shared DFA converter supports; wildcard,
+class, fold, anchor, and capture transitions report an error rather than being
+silently approximated. Engines MAY additionally expose deterministic tooling
+helpers, but they must not introduce host-regex execution or change matching.
+Because a builder has no source text to preserve, a regex made through
+`Regex.from_builder` records the deterministic marker `"<builder>"` in its
+public `pattern` field; that marker is descriptive only and is never parsed to
+execute the expression.
 
 #### 14.2.3. Execution Semantics
 
 -   Matching walks the haystack in code-point units by default. All pattern constructs—ranges, classes, `.`—interpret text as Unicode scalar values. When `grapheme_mode` is enabled, the engine segments the haystack using `String.graphemes()` before evaluating atoms and quantifiers so user-perceived characters stay intact.
+-   `.` excludes U+000A by default. With `dot_matches_newline=true`, `.`
+    matches every Unicode scalar value, including U+000A; character classes
+    and literals are unaffected.
+-   With `case_insensitive=true`, literals and character-class members use
+    Unicode simple-case-fold equivalence: their single-code-point fold cycles
+    are treated as equal. This does not perform multi-code-point expansion, so
+    a one-code-point pattern such as `ß` does not match the two-code-point text
+    `SS`. Character-class ranges match when any member of the input scalar's
+    fold cycle lies in the range.
+-   With the default `multiline=false`, `^` and `$` are zero-width assertions
+    for the absolute start and absolute end of the haystack, respectively.
+    `$` does not receive a before-final-newline exception. With
+    `multiline=true`, `^` additionally matches immediately after U+000A and
+    `$` additionally matches immediately before U+000A. No other code point
+    is a line boundary in this mode.
+-   With `anchored=true`, every compiled pattern behaves as though its complete
+    expression were wrapped in those absolute `^` and `$` assertions. A match
+    therefore succeeds only when it consumes the entire haystack.
 -   Every API guarantees linear time with respect to `pattern.len_chars() + haystack.len_chars()`. Backreferences and other constructs that require unbounded backtracking are rejected with `RegexError.UnsupportedFeature`.
 -   Matches borrow from the haystack. `Match.matched` and each group’s `value` are `String` instances created by slicing the original bytes; their `span` offsets always refer to the source haystack and remain valid even if the haystack is larger than the matched segment.
--   Capture groups are numbered in declaration order; named groups populate both `groups` (by ordinal) and `named_groups` (by identifier). Groups that do not participate in the match return `value=nil`, `span=nil`.
--   Replacement callbacks run synchronously and may `raise`; the error propagates to the caller and aborts the replace operation at the current match.
+-   Ordinary `(...)` capture groups are numbered from zero in opening-parenthesis
+    source order. `Match.groups[0]` is therefore the first declared capture;
+    the whole match is available separately as `Match.matched` and
+    `Match.span`. `(?:...)` is non-capturing and consumes no group index.
+    A repeated group reports its final successful iteration. Nested groups
+    retain their independent spans, and alternation reports the tags from the
+    selected branch.
+-   Named groups use `(?P<name>...)`, where `name` is an ASCII identifier
+    (`[A-Za-z_][A-Za-z0-9_]*`). Names are unique within a pattern; an empty,
+    invalid, or duplicate name is an `InvalidPattern` error. A named group
+    also occupies its ordinary source-order ordinal and populates
+    `named_groups[name]`; no separate matching path exists for it. Groups that
+    do not participate in the match return `value=nil`, `span=nil`.
+-   Literal replacement uses `$0` for the complete match, `$N` for the
+    **one-based** ordinal capture `N`, and `\k<name>` for a named capture.
+    `$$` emits a literal dollar and `\\` emits a literal backslash. A
+    nonparticipating capture expands to the empty string. Invalid, dangling,
+    or unknown references are `RegexCompileFailure` errors even when the
+    haystack has no match. Replacements are non-overlapping; a zero-length
+    replacement advances by one Unicode scalar before continuing, so every
+    input scalar remains in the output exactly once unless matched separately.
+-   Replacement callbacks run synchronously exactly once for each
+    non-overlapping match and are not invoked when there is no match. They
+    receive the same fully populated `Match` data as `match`/`find_all`; they
+    use the literal form's zero-length Unicode-scalar progression. A callback
+    may `raise`; the error propagates to the caller and aborts the operation at
+    the current match.
+-   `Regex.split` returns the segments between non-overlapping delimiter
+    matches and preserves empty leading, trailing, and intermediate segments.
+    `limit=nil` consumes every delimiter match; a numeric `limit` consumes at
+    most that many matches, so `limit=0` returns the original haystack as its
+    sole segment. A zero-length delimiter advances the search by one Unicode
+    scalar while retaining that scalar in the following segment, preventing
+    loops and UTF-8 splitting.
 
 #### 14.2.4. Regex Sets & Streaming
 
--   `RegexSet.compile(patterns: Array String, options: RegexOptions = RegexOptions.default()) -> Result RegexSet RegexError` compiles every pattern into a single automaton. Matching APIs include:
+-   `RegexSet.compile(patterns: Array String) -> RegexSet | Error` and `RegexSet.compile_with_options(patterns: Array String, options: RegexOptions) -> RegexSet | Error` compile every pattern into one combined NFA. Matching APIs include:
     -   `fn is_match(self: RegexSet, haystack: String) -> bool`
-    -   `fn matches(self: RegexSet, haystack: String) -> Array u64` (indices of patterns that matched)
-    -   `fn iter(self: RegexSet, haystack: String) -> (Iterator RegexSetMatch)` where `RegexSetMatch { pattern_index: u64, span: Span }`
--   `RegexScanner` exposes `fn feed(self: RegexScanner, chunk: String) -> void` and `fn next(self: RegexScanner) -> Match | IteratorEnd`. Scanners must honour Able’s cooperative scheduling: long-running scans call `future_yield()` between chunks when running under the interpreter.
--   Streaming scanners and regex sets share the same deterministic guarantees as single-pattern regexes. Partial matches that span chunk boundaries buffer the necessary bytes internally until a decision can be made.
+    -   `fn matches(self: RegexSet, haystack: String) -> Array u64` (each matching source-pattern index exactly once, in ascending source order)
+    -   `fn iter(self: RegexSet, haystack: String) -> RegexSetIter`, where `RegexSetIter` implements `(Iterator RegexSetMatch)`.
+-   `RegexScanner` exposes `fn feed(self: RegexScanner, chunk: String) -> void`, `fn flush(self: RegexScanner) -> void`, and `fn next(self: RegexScanner) -> Match | IteratorEnd`. `scan(haystack)` starts an open stream containing `haystack`; callers invoke `flush()` when no more chunks will arrive. Before then, `IteratorEnd` means no match is currently decidable, not necessarily permanent exhaustion. `flush()` is idempotent; feeding a flushed scanner raises an error.
+-   Regex-set matching and iteration scan through the combined NFA rather than once per pattern. Its tagged accept states retain source-pattern identity, so equal or overlapping patterns still yield deterministic results. `iter` selects the leftmost match start, then its longest end; every pattern that accepts that selected span is yielded once in ascending source-pattern order. It resumes after that span, so shorter same-start and overlapping-later candidates are skipped. A zero-width selected span advances one Unicode scalar before continuing. Every supplied pattern receives the same `RegexOptions`; an invalid pattern or unsupported option fails compilation for the whole set.
+-   Streaming scanners retain active NFA threads, capture tags, and accumulated input for later `Match` construction; they do not re-scan earlier chunks. After each feed or finalization they may release every byte/code point before the earliest active thread, pending candidate, or capture reference while preserving absolute public spans and the previous scalar needed for line anchors. A candidate that genuinely remains open retains its necessary prefix. Scanners emit a leftmost-longest candidate only once no active thread can extend that candidate, or when `flush()` supplies EOF. This preserves non-overlap, Unicode byte spans, captures, absolute anchors, and multiline boundaries across chunks. Callers running large streams may cooperatively yield between `feed` calls.
 
 #### 14.2.5. Integration Points
 
@@ -5262,7 +5405,6 @@ builds remain slim but tests can still share package scope.
 *   **Type System Details:** Full inference rules, Variance, Coercion (if any), HKT limitations/capabilities.
 *   **Interface Dictionary Semantics:** Finalize dictionary capture at upcast (including generic methods, defaults, and `Self` return behavior) and specify ambiguity handling.
 *   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.
-*   **Re-exports and Named Impl Aliasing:** Precise import/alias collision rules and diagnostics.
 *   **Ranges:** Concrete type vs existential for `..` and `...` results.
 *   **Tooling:** Compiler, Package manager commands.
 

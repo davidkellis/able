@@ -1,0 +1,386 @@
+#!/usr/bin/env python3
+"""Build the checked-in, report-only external threshold-control classification.
+
+This tool consumes retained five-pair variance reports.  It never launches an
+application benchmark and it does not impose a performance requirement.  Its
+purpose is to make the evidence and guard-band classification reproducible in
+the ordinary test lane.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import statistics
+import sys
+from pathlib import Path
+from typing import Any, NamedTuple
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PERF_DIR = REPO_ROOT / "v12" / "docs" / "perf-baselines"
+DEFAULT_JSON = PERF_DIR / "external-threshold-controls-current.json"
+DEFAULT_MD = PERF_DIR / "external-threshold-controls-current.md"
+TARGET_RATIO = 1.0 / 0.95
+GUARD_BAND = 0.21
+INSIDE_RATIO = TARGET_RATIO * (1.0 - GUARD_BAND)
+OUTSIDE_RATIO = TARGET_RATIO * (1.0 + GUARD_BAND)
+MINIMUM_PAIRS = 5
+
+
+class Control(NamedTuple):
+    benchmark: str
+    mode: str
+    references: tuple[str, ...]
+    family: str
+    report: Path
+
+
+# These are deliberately unlike controls: they are evidence for a broad
+# policy, not an optimization target or a benchmark-specific code path.
+DEFAULT_CONTROLS = (
+    Control(
+        "quicksort",
+        "compiled",
+        ("go",),
+        "array/index algorithmic static code",
+        PERF_DIR / "2026-07-13-compiled-threshold-protocol.json",
+    ),
+    Control(
+        "json",
+        "compiled",
+        ("go",),
+        "text, file, and JSON codec work",
+        PERF_DIR / "2026-07-13-compiled-json-threshold-protocol.json",
+    ),
+    Control(
+        "binarytrees",
+        "compiled",
+        ("go",),
+        "recursive nominal allocation and traversal",
+        PERF_DIR / "2026-07-13-compiled-binarytrees-threshold-protocol.json",
+    ),
+    Control(
+        "base64",
+        "compiled",
+        ("go",),
+        "byte/string codec boundary",
+        PERF_DIR / "2026-07-13-compiled-threshold-protocol.json",
+    ),
+    Control(
+        "nbody",
+        "compiled",
+        ("go",),
+        "primitive numeric/package work",
+        PERF_DIR / "2026-07-13-compiled-threshold-protocol.json",
+    ),
+    Control(
+        "k_nucleotide",
+        "compiled",
+        ("go",),
+        "text/map boxing and conversion",
+        PERF_DIR / "2026-07-13-compiled-threshold-protocol.json",
+    ),
+    Control(
+        "json",
+        "bytecode",
+        ("python", "ruby"),
+        "text, file, and JSON codec work",
+        PERF_DIR / "2026-07-13-bytecode-json-pidigits-threshold-protocol.json",
+    ),
+    Control(
+        "pidigits",
+        "bytecode",
+        ("python", "ruby"),
+        "native BigInt arithmetic and formatted output",
+        PERF_DIR / "2026-07-13-bytecode-json-pidigits-threshold-protocol.json",
+    ),
+)
+
+
+def display_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"input report not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid JSON in {path}: {error}") from None
+    if not isinstance(value, dict) or not isinstance(value.get("rows"), list):
+        raise ValueError(f"{display_path(path)}: report must contain a rows array")
+    if value.get("kind") != "external-application-variance-report":
+        raise ValueError(f"{display_path(path)}: report must be an application variance report")
+    return value
+
+
+def finite_ratio(value: Any, context: str) -> float:
+    if not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(f"{context}: ratio must be a finite number")
+    return float(value)
+
+
+def find_row(report: dict[str, Any], control: Control) -> dict[str, Any]:
+    matches = [
+        row
+        for row in report["rows"]
+        if isinstance(row, dict)
+        and row.get("benchmark") == control.benchmark
+        and row.get("mode") == control.mode
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"{display_path(control.report)}: expected one "
+            f"{control.benchmark}/{control.mode} row, found {len(matches)}"
+        )
+    return matches[0]
+
+
+def ratio_statistics(ratios: list[float]) -> dict[str, float]:
+    mean = statistics.fmean(ratios)
+    minimum = min(ratios)
+    maximum = max(ratios)
+    return {
+        "mean": mean,
+        "median": statistics.median(ratios),
+        "minimum": minimum,
+        "maximum": maximum,
+        "range": maximum - minimum,
+        "half_spread_pct": ((maximum - minimum) / (2 * mean) * 100) if mean else 0.0,
+        "coefficient_of_variation_pct": (
+            statistics.stdev(ratios) / mean * 100 if len(ratios) > 1 and mean else 0.0
+        ),
+    }
+
+
+def extract_control(control: Control, report: dict[str, Any]) -> dict[str, Any]:
+    row = find_row(report, control)
+    samples = row.get("samples")
+    if not isinstance(samples, list) or len(samples) < MINIMUM_PAIRS:
+        raise ValueError(
+            f"{display_path(control.report)} {control.benchmark}: needs at least "
+            f"{MINIMUM_PAIRS} paired samples"
+        )
+
+    ratios_by_reference = {reference: [] for reference in control.references}
+    for index, sample in enumerate(samples):
+        context = f"{display_path(control.report)} {control.benchmark} sample {index}"
+        if not isinstance(sample, dict) or sample.get("status") != "verified":
+            raise ValueError(f"{context}: every retained control sample must be verified")
+        sample_ratios = sample.get("ratios")
+        if not isinstance(sample_ratios, dict):
+            raise ValueError(f"{context}: ratios must be an object")
+        for reference in control.references:
+            ratios_by_reference[reference].append(
+                finite_ratio(sample_ratios.get(reference), f"{context} {reference}")
+            )
+
+    if all(
+        value <= INSIDE_RATIO
+        for ratios in ratios_by_reference.values()
+        for value in ratios
+    ):
+        classification = "inside"
+    elif any(all(value >= OUTSIDE_RATIO for value in ratios) for ratios in ratios_by_reference.values()):
+        classification = "outside"
+    else:
+        classification = "boundary"
+
+    return {
+        "benchmark": control.benchmark,
+        "mode": control.mode,
+        "references": list(control.references),
+        "family": control.family,
+        "source_report": display_path(control.report),
+        "verified_pairs": len(samples),
+        "ratio_samples": ratios_by_reference,
+        "ratio_stats": {
+            reference: ratio_statistics(ratios)
+            for reference, ratios in ratios_by_reference.items()
+        },
+        "classification": classification,
+    }
+
+
+def build_report() -> dict[str, Any]:
+    reports: dict[Path, dict[str, Any]] = {}
+    rows: list[dict[str, Any]] = []
+    for control in DEFAULT_CONTROLS:
+        if control.report not in reports:
+            reports[control.report] = load_json(control.report)
+        report = reports[control.report]
+        rows.append(extract_control(control, report))
+    classifications = {
+        name: sum(row["classification"] == name for row in rows)
+        for name in ("inside", "boundary", "outside")
+    }
+    return {
+        "kind": "external-threshold-control-classification",
+        "measurement_source": (
+            "Verifier-backed retained five-pair application variance reports. "
+            "This artifact verifies evidence provenance only; it is not a live timing gate."
+        ),
+        "policy": {
+            "target_ratio": TARGET_RATIO,
+            "minimum_verified_pairs": MINIMUM_PAIRS,
+            "guard_band_pct": GUARD_BAND * 100,
+            "inside_max_ratio": INSIDE_RATIO,
+            "outside_min_ratio": OUTSIDE_RATIO,
+            "classification_rule": (
+                "inside when every verified pair is at or below inside_max_ratio; "
+                "outside when every verified pair is at or above outside_min_ratio; "
+                "otherwise boundary"
+            ),
+        },
+        "classification_counts": classifications,
+        "rows": rows,
+    }
+
+
+def render_json(report: dict[str, Any]) -> str:
+    lines = ["{"]
+    scalar_keys = ["kind", "measurement_source", "policy", "classification_counts"]
+    for key in scalar_keys:
+        lines.append(f'  "{key}": {json.dumps(report[key], separators=(",", ":"))},')
+    lines.append('  "rows": [')
+    for index, row in enumerate(report["rows"]):
+        suffix = "," if index + 1 < len(report["rows"]) else ""
+        lines.append("    " + json.dumps(row, separators=(",", ":")) + suffix)
+    lines.extend(["  ]", "}"])
+    return "\n".join(lines) + "\n"
+
+
+def render_markdown(report: dict[str, Any]) -> str:
+    policy = report["policy"]
+    counts = report["classification_counts"]
+    lines = [
+        "# External Threshold Controls",
+        "",
+        "This is a reproducible **report-only** classification of retained five-pair application evidence. It never runs a benchmark and is not a commit performance threshold.",
+        "",
+        f"- Raw target: Able/reference ratio at or below `{policy['target_ratio']:.4f}x` (95% of the applicable Go, Python, or Ruby reference speed).",
+        f"- Guard band: `{policy['guard_band_pct']:.0f}%`; `inside` requires every pair against every required reference at or below `{policy['inside_max_ratio']:.4f}x`. `outside` requires every pair against at least one required reference at or above `{policy['outside_min_ratio']:.4f}x`.",
+        f"- Controls: `{counts['inside']}` inside, `{counts['boundary']}` boundary, `{counts['outside']}` outside.",
+        "- A control is evidence for broad policy only; it never authorizes a benchmark-specific runtime or compiler optimization.",
+        "",
+        "| Control | Mode | References | Family | Verified pairs | Ratio ranges | Medians | CVs | Classification |",
+        "| --- | --- | --- | --- | ---: | --- | --- | --- | --- |",
+    ]
+    for row in report["rows"]:
+        stats = row["ratio_stats"]
+        ranges = "; ".join(
+            f"{reference}: {value['minimum']:.2f}x–{value['maximum']:.2f}x"
+            for reference, value in stats.items()
+        )
+        medians = "; ".join(
+            f"{reference}: {value['median']:.2f}x" for reference, value in stats.items()
+        )
+        cvs = "; ".join(
+            f"{reference}: {value['coefficient_of_variation_pct']:.2f}%"
+            for reference, value in stats.items()
+        )
+        lines.append(
+            "| `{}` | `{}` | {} | {} | {} | {} | {} | {} | `{}` |".format(
+                row["benchmark"],
+                row["mode"],
+                ", ".join(row["references"]),
+                row["family"],
+                row["verified_pairs"],
+                ranges,
+                medians,
+                cvs,
+                row["classification"],
+            )
+        )
+    lines.extend(["", "## Retained aggregate reports", ""])
+    seen: set[str] = set()
+    for row in report["rows"]:
+        source = row["source_report"]
+        if source not in seen:
+            seen.add(source)
+            lines.append(f"- `{source}`")
+    lines.extend(
+        [
+            "",
+            "Regenerate this report after replacing retained evidence:",
+            "",
+            "```sh",
+            "just bench-threshold-controls",
+            "```",
+            "",
+            "Validate report provenance without running performance workloads:",
+            "",
+            "```sh",
+            "just bench-threshold-controls-check",
+            "```",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Build or validate the report-only external threshold-control classification."
+    )
+    parser.add_argument("--output-json", metavar="PATH", help="write JSON report to PATH")
+    parser.add_argument("--output-md", metavar="PATH", help="write Markdown report to PATH")
+    parser.add_argument(
+        "--write-current", action="store_true", help="write checked-in current JSON and Markdown"
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="validate the checked-in current JSON and Markdown"
+    )
+    args = parser.parse_args()
+    if args.write_current and args.check:
+        parser.error("--write-current and --check cannot be combined")
+    if args.check and (args.output_json or args.output_md):
+        parser.error("--check validates the canonical current artifacts only")
+    if not args.write_current and not args.check and not (args.output_json or args.output_md):
+        parser.error("choose --write-current, --check, or at least one output path")
+
+    try:
+        report = build_report()
+    except ValueError as error:
+        print(f"bench_external_threshold_controls: {error}", file=sys.stderr)
+        return 2
+    expected_json = render_json(report)
+    expected_md = render_markdown(report)
+
+    if args.check:
+        actual_json = DEFAULT_JSON.read_text(encoding="utf-8") if DEFAULT_JSON.exists() else ""
+        actual_md = DEFAULT_MD.read_text(encoding="utf-8") if DEFAULT_MD.exists() else ""
+        if actual_json != expected_json or actual_md != expected_md:
+            print(
+                "bench_external_threshold_controls: current artifacts are stale; "
+                "run `just bench-threshold-controls`",
+                file=sys.stderr,
+            )
+            return 1
+        print("external threshold-control check ok")
+        return 0
+
+    if args.write_current:
+        write(DEFAULT_JSON, expected_json)
+        write(DEFAULT_MD, expected_md)
+        print(f"wrote {display_path(DEFAULT_JSON)}")
+        print(f"wrote {display_path(DEFAULT_MD)}")
+    if args.output_json:
+        write(Path(args.output_json), expected_json)
+    if args.output_md:
+        write(Path(args.output_md), expected_md)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,430 @@
+{
+  "target_path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-tree-folds",
+  "trace": {
+    "enabled": true,
+    "total_hits": 65899,
+    "entries": [
+      {
+        "hits": 12448,
+        "op": "call_member",
+        "name": "is_leaf",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 53,
+        "column": 12
+      },
+      {
+        "hits": 8192,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 262,
+        "column": 16
+      },
+      {
+        "hits": 8188,
+        "op": "call_member",
+        "name": "push",
+        "lookup": "resolved_method",
+        "dispatch": "array_push_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 245,
+        "column": 5
+      },
+      {
+        "hits": 8188,
+        "op": "call_member",
+        "name": "push",
+        "lookup": "resolved_method",
+        "dispatch": "array_push_handle_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 263,
+        "column": 5
+      },
+      {
+        "hits": 8188,
+        "op": "call_member",
+        "name": "signature",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 68,
+        "column": 9
+      },
+      {
+        "hits": 8184,
+        "op": "call_member",
+        "name": "combine",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 280,
+        "column": 13
+      },
+      {
+        "hits": 4094,
+        "op": "call_member",
+        "name": "record",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 145,
+        "column": 14
+      },
+      {
+        "hits": 4094,
+        "op": "call_member",
+        "name": "record",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 175,
+        "column": 14
+      },
+      {
+        "hits": 3816,
+        "op": "call_member",
+        "name": "signature",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 172,
+        "column": 11
+      },
+      {
+        "hits": 444,
+        "op": "call_member",
+        "name": "signature",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 136,
+        "column": 19
+      },
+      {
+        "hits": 8,
+        "op": "call_name",
+        "name": "__able_array_with_capacity",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 514,
+        "column": 15
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "combine",
+        "lookup": "resolved_method",
+        "dispatch": "generic",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 280,
+        "column": 13
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 259,
+        "column": 43
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 274,
+        "column": 12
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "report",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 285,
+        "column": 3
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "with_capacity",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 224,
+        "column": 27
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "with_capacity",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 259,
+        "column": 23
+      },
+      {
+        "hits": 4,
+        "op": "call_name",
+        "name": "build_tree",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 258,
+        "column": 12
+      },
+      {
+        "hits": 4,
+        "op": "call_name",
+        "name": "node_count",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 223,
+        "column": 12
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "args",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 297,
+        "column": 25
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 289,
+        "column": 6
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 318,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 319,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 320,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 321,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "__able_os_args",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able-stdlib/src/os.able",
+        "line": 84,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "fold_tree",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 312,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "fold_tree",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 313,
+        "column": 21
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "fold_tree",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 314,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "fold_tree",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 315,
+        "column": 21
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "future_flush",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 316,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_pruner",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 307,
+        "column": 18
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_pruner",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 308,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_pruner",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 309,
+        "column": 18
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_pruner",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 310,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_weight",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 303,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_weight",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 304,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_weight",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 305,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_weight",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 306,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "node_count",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 342,
+        "column": 16
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "print",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 344,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "tree_levels",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "line": 297,
+        "column": 13
+      }
+    ]
+  }
+}

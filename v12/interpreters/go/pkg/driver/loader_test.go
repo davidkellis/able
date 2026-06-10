@@ -194,6 +194,54 @@ fn main() -> void { message() }
 	}
 }
 
+func TestLoaderDiscoversLocallyScopedDynImportDependencies(t *testing.T) {
+	root := t.TempDir()
+	depRoot := filepath.Join(root, "dep")
+	appRoot := filepath.Join(root, "app")
+
+	if err := os.MkdirAll(depRoot, 0o755); err != nil {
+		t.Fatalf("mkdir dep root: %v", err)
+	}
+	if err := os.MkdirAll(appRoot, 0o755); err != nil {
+		t.Fatalf("mkdir app root: %v", err)
+	}
+
+	writeFile(t, filepath.Join(depRoot, "package.yml"), "name: extras\n")
+	writeFile(t, filepath.Join(depRoot, "tools.able"), `
+package tools
+
+fn message() -> string { "local dynimport" }
+`)
+
+	entryPath := filepath.Join(appRoot, "main.able")
+	writeFile(t, entryPath, `
+package main
+
+fn main() -> string {
+  dynimport extras.tools.{message}
+  message()
+}
+`)
+
+	loader, err := NewLoader([]SearchPath{{Path: depRoot}})
+	if err != nil {
+		t.Fatalf("NewLoader: %v", err)
+	}
+	defer loader.Close()
+
+	program, err := loader.Load(entryPath)
+	if err != nil {
+		t.Fatalf("loader.Load returned error: %v", err)
+	}
+
+	for _, mod := range program.Modules {
+		if mod != nil && mod.Package == "extras.tools" {
+			return
+		}
+	}
+	t.Fatalf("expected locally scoped dynimport target extras.tools to be loaded; modules: %#v", program.Modules)
+}
+
 func TestLoaderAutoIncludesKernelPackages(t *testing.T) {
 	root := t.TempDir()
 

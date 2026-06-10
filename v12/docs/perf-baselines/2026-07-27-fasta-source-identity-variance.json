@@ -1,0 +1,227 @@
+{
+  "kind": "external-application-variance-report",
+  "measurement_source": "Verifier-backed external scorecards. Embedded successful per-run samples are used when available; legacy reports contribute one aggregate sample per input. This report describes variability only; it is not a timing threshold gate.",
+  "sources": [
+    {
+      "path": "v12/docs/perf-baselines/2026-07-27-fasta-source-identity-refresh-a.json",
+      "generated_at": "2026-07-27T17:03:58.802879Z",
+      "suite": "custom",
+      "cpu_affinity": "4",
+      "modes": [
+        "compiled",
+        "bytecode"
+      ],
+      "languages": [
+        "go",
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-27-fasta-source-identity-refresh-b.json",
+      "generated_at": "2026-07-27T17:06:52.131607Z",
+      "suite": "custom",
+      "cpu_affinity": "4",
+      "modes": [
+        "compiled",
+        "bytecode"
+      ],
+      "languages": [
+        "go",
+        "python",
+        "ruby"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "fasta_generation",
+      "mode": "bytecode",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 1.898,
+          "ratios": {
+            "python": 9.345150172328902,
+            "ruby": 6.231122783978989
+          },
+          "reference_samples": {
+            "python": [
+              0.203173832,
+              0.207227284,
+              0.217126025,
+              0.195124419,
+              0.193009244
+            ],
+            "ruby": [
+              0.295382567,
+              0.29406737,
+              0.312554117,
+              0.318396161,
+              0.302708257
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 1.958,
+          "ratios": {
+            "python": 9.640571147218118,
+            "ruby": 6.4281024294156275
+          },
+          "reference_samples": {
+            "python": [
+              0.203173832,
+              0.207227284,
+              0.217126025,
+              0.195124419,
+              0.193009244
+            ],
+            "ruby": [
+              0.295382567,
+              0.29406737,
+              0.312554117,
+              0.318396161,
+              0.302708257
+            ]
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 10,
+        "mean": 1.9280000000000002,
+        "median": 1.86,
+        "minimum": 1.73,
+        "maximum": 2.33,
+        "range": 0.6000000000000001,
+        "half_spread_pct": 15.560165975103734,
+        "sample_stdev": 0.1839565166010707,
+        "coefficient_of_variation_pct": 9.541313101715284
+      },
+      "reference_seconds": {
+        "python": {
+          "samples": 10,
+          "mean": 0.2031321608,
+          "median": 0.203173832,
+          "minimum": 0.193009244,
+          "maximum": 0.217126025,
+          "range": 0.024116781000000004,
+          "half_spread_pct": 5.93622912910992,
+          "sample_stdev": 0.009179655997371083,
+          "coefficient_of_variation_pct": 4.5190559492000855
+        },
+        "ruby": {
+          "samples": 10,
+          "mean": 0.30462169440000003,
+          "median": 0.302708257,
+          "minimum": 0.29406737,
+          "maximum": 0.318396161,
+          "range": 0.024328791000000016,
+          "half_spread_pct": 3.9932794425425557,
+          "sample_stdev": 0.010034116688767292,
+          "coefficient_of_variation_pct": 3.2939599750211657
+        }
+      },
+      "ratios": {
+        "python": {
+          "samples": 2,
+          "mean": 9.492860659773509,
+          "median": 9.492860659773509,
+          "minimum": 9.345150172328902,
+          "maximum": 9.640571147218118,
+          "range": 0.2954209748892165,
+          "half_spread_pct": 1.5560165975103704,
+          "sample_stdev": 0.20889417464890575,
+          "coefficient_of_variation_pct": 2.2005397754768032
+        },
+        "ruby": {
+          "samples": 2,
+          "mean": 6.329612606697308,
+          "median": 6.329612606697308,
+          "minimum": 6.231122783978989,
+          "maximum": 6.4281024294156275,
+          "range": 0.19697964543663815,
+          "half_spread_pct": 1.5560165975103728,
+          "sample_stdev": 0.13928564304396862,
+          "coefficient_of_variation_pct": 2.2005397754768072
+        }
+      }
+    },
+    {
+      "benchmark": "fasta_generation",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 0.058,
+          "ratios": {
+            "go": 3.4939759036144578
+          },
+          "reference_samples": {
+            "go": [
+              0.016679748,
+              0.01654258,
+              0.016795769,
+              0.016554038,
+              0.016592377
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.042,
+          "ratios": {
+            "go": 2.5301204819277108
+          },
+          "reference_samples": {
+            "go": [
+              0.016679748,
+              0.01654258,
+              0.016795769,
+              0.016554038,
+              0.016592377
+            ]
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 10,
+        "mean": 0.05,
+        "median": 0.04,
+        "minimum": 0.04,
+        "maximum": 0.12,
+        "range": 0.07999999999999999,
+        "half_spread_pct": 79.99999999999999,
+        "sample_stdev": 0.024944382578492942,
+        "coefficient_of_variation_pct": 49.88876515698588
+      },
+      "reference_seconds": {
+        "go": {
+          "samples": 10,
+          "mean": 0.0166329024,
+          "median": 0.016592377,
+          "minimum": 0.01654258,
+          "maximum": 0.016795769,
+          "range": 0.0002531889999999974,
+          "half_spread_pct": 0.7611088970256851,
+          "sample_stdev": 9.971077865417622e-05,
+          "coefficient_of_variation_pct": 0.599479130318087
+        }
+      },
+      "ratios": {
+        "go": {
+          "samples": 2,
+          "mean": 3.0120481927710845,
+          "median": 3.0120481927710845,
+          "minimum": 2.5301204819277108,
+          "maximum": 3.4939759036144578,
+          "range": 0.963855421686747,
+          "half_spread_pct": 16.0,
+          "sample_stdev": 0.6815487047581181,
+          "coefficient_of_variation_pct": 22.627416997969522
+        }
+      }
+    }
+  ],
+  "required_successful_runs": 5
+}

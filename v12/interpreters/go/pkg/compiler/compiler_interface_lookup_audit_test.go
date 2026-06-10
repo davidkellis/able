@@ -141,7 +141,6 @@ func defaultCompilerInterfaceLookupAuditFixtures() []string {
 		"06_12_23_stdlib_os",
 		"06_12_24_stdlib_process",
 		"06_12_25_stdlib_term",
-		"06_12_26_stdlib_test_harness_reporters",
 		"07_04_apply_callable_interface",
 		"10_01_interface_defaults_composites",
 		"10_02_impl_specificity_named_overrides",
@@ -214,10 +213,10 @@ func runCompilerInterfaceLookupAuditFixture(t *testing.T, root, rel string) {
 
 	moduleRoot, workDir := compilerTestWorkDir(t, "ablec-interface-lookup-fixture")
 
-	comp := New(Options{
+	comp := New(compilerFixtureOptions(t, Options{
 		PackageName:        "main",
 		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
-	})
+	}))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

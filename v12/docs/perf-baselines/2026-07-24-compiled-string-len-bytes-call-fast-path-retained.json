@@ -1,0 +1,124 @@
+{
+  "date": "2026-07-24",
+  "decision": "retain",
+  "candidate": "inline the guarded native Go byte-length path at statically resolved canonical primitive String.len_bytes call sites and retain the package-aware method as the exceptional fallback",
+  "settings": {
+    "cpu_affinity": "13",
+    "quiet_host_preflight_passed": true,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "executor": "goroutine",
+    "pairs": 5,
+    "order_balanced": true,
+    "frozen_binaries": true,
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Validated Job Pipeline",
+      "baseline_seconds": [0.32, 0.32, 0.32, 0.32, 0.33],
+      "baseline_mean_seconds": 0.322,
+      "candidate_seconds": [0.12, 0.12, 0.11, 0.11, 0.12],
+      "candidate_mean_seconds": 0.116,
+      "change_percent": -63.98,
+      "baseline_mean_gc": 6.2,
+      "candidate_mean_gc": 4.0,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.002181391, 0.002297184, 0.002071322, 0.002370786, 0.002087038],
+      "go_mean_seconds": 0.002201544,
+      "candidate_over_go": 52.690294,
+      "profile": {
+        "baseline_total_seconds": 1.58,
+        "baseline_string_len_bytes_entry_seconds": 1.07,
+        "baseline_string_len_bytes_entry_percent": 67.72,
+        "candidate_total_seconds": 0.59,
+        "candidate_string_len_bytes_entry_seconds": 0.0,
+        "candidate_current_gid_seconds": 0.54,
+        "candidate_current_gid_percent": 91.53
+      },
+      "sha256": {
+        "baseline": "1f49ce4ab8d64041684601790f52663fd2cafa9571db4e6a562ce53519545e47",
+        "candidate": "0f3c596dbcda2f517ce677945d773be0e16f0c1ed606b224fadfdc70a6bc7442",
+        "go": "e5b9725db1379d2bc2ab6918a86c4730c45ef49680a5fd6cb3f5092e5193a9d6"
+      }
+    },
+    {
+      "name": "Concurrent Document Pipeline",
+      "baseline_seconds": [0.11, 0.12, 0.13, 0.12, 0.11],
+      "baseline_mean_seconds": 0.118,
+      "candidate_seconds": [0.08, 0.08, 0.09, 0.09, 0.08],
+      "candidate_mean_seconds": 0.084,
+      "change_percent": -28.81,
+      "baseline_mean_gc": 3.0,
+      "candidate_mean_gc": 2.6,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.002150435, 0.002243019, 0.002159591, 0.002066072, 0.002227681],
+      "go_mean_seconds": 0.002169360,
+      "candidate_over_go": 38.721097,
+      "profile": {
+        "baseline_total_seconds": 0.56,
+        "baseline_string_len_bytes_entry_seconds": 0.15,
+        "baseline_string_len_bytes_entry_percent": 26.79,
+        "candidate_total_seconds": 0.41,
+        "candidate_string_len_bytes_entry_seconds": 0.0,
+        "candidate_current_gid_seconds": 0.37,
+        "candidate_current_gid_percent": 90.24,
+        "candidate_call_value_seconds": 0.26,
+        "candidate_call_value_percent": 63.41
+      },
+      "sha256": {
+        "baseline": "84d48681c6a247c9e73fef69227cb82508562041498bd4e7e7f367b9f4bde6be",
+        "candidate": "23c5ac49b7655156ffb692be90be6f46a89937c09f86bc9b77dd71d3b7b66364",
+        "go": "a46a7558e9fbc14a7204a1e37c35f418aae900134d62433c029414772954aa34"
+      }
+    },
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_seconds": [0.98, 0.98, 0.99, 0.98, 0.96],
+      "baseline_mean_seconds": 0.978,
+      "candidate_seconds": [0.46, 0.44, 0.46, 0.46, 0.44],
+      "candidate_mean_seconds": 0.452,
+      "change_percent": -53.78,
+      "baseline_mean_gc": 25.0,
+      "candidate_mean_gc": 19.6,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.002793330, 0.003202969, 0.003180621, 0.003150294, 0.002982165],
+      "go_mean_seconds": 0.003061876,
+      "candidate_over_go": 147.621915,
+      "profile": {
+        "baseline_total_seconds": 5.05,
+        "baseline_string_len_bytes_entry_seconds": 2.69,
+        "baseline_string_len_bytes_entry_percent": 53.27,
+        "candidate_total_seconds": 2.27,
+        "candidate_string_len_bytes_entry_seconds": 0.0,
+        "candidate_current_gid_seconds": 1.79,
+        "candidate_current_gid_percent": 78.85,
+        "candidate_call_value_seconds": 0.86,
+        "candidate_call_value_percent": 37.89
+      },
+      "sha256": {
+        "baseline": "d5c0c7640a835786f60fa478e903481b2d5b1245cb1ad0de7a38dfbcaef162cc",
+        "candidate": "9aef17771985fa0fb01732fb00f97e67090de6a060e4f977b65b3b4a7bde1343",
+        "go": "3195e2c5bcf93904e9bde33d2641a0683c516e3faa12799191014b8f92ba277e"
+      }
+    }
+  ],
+  "geometric_mean_change_percent": -50.88,
+  "temporary_evidence_root": "/tmp/able-aot-static-entry-20260724.NcLrdz",
+  "changed_surfaces": [
+    "compiler"
+  ],
+  "unchanged_surfaces": [
+    "canonical_stdlib",
+    "runtime",
+    "tree_walker",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-07-10T21:06:09.908331Z",
+  "kind": "report_only_current_target_miss_process_ledger",
+  "guardrails": {"GOMEMLIMIT": "1GiB", "GOGC": "50", "runs": 3},
+  "external_results_json_modified": false,
+  "reference_ratios_available": false,
+  "rows": [
+    {"workload": "word_frequency", "mode": "compiled", "ok_runs": 3, "avg_real_seconds": 0.23, "avg_gc": 8.0},
+    {"workload": "word_frequency", "mode": "bytecode", "ok_runs": 3, "avg_real_seconds": 1.4667, "avg_gc": 11.0},
+    {"workload": "document_audit", "mode": "compiled", "ok_runs": 3, "avg_real_seconds": 0.0967, "avg_gc": 6.0},
+    {"workload": "document_audit", "mode": "bytecode", "ok_runs": 3, "avg_real_seconds": 0.27, "avg_gc": 8.67},
+    {"workload": "lexical_rollup", "mode": "compiled", "ok_runs": 3, "avg_real_seconds": 0.1033, "avg_gc": 6.67},
+    {"workload": "lexical_rollup", "mode": "bytecode", "ok_runs": 3, "avg_real_seconds": 0.3933, "avg_gc": 10.0},
+    {"workload": "channel_rollup", "mode": "compiled", "executor": "goroutine", "ok_runs": 3, "avg_real_seconds": 2.1333, "avg_gc": 8.33},
+    {"workload": "channel_rollup", "mode": "bytecode", "executor": "goroutine", "ok_runs": 3, "avg_real_seconds": 0.4567, "avg_gc": 9.33}
+  ],
+  "decision": "No optimization candidate selected; collect cold-process profiles only when a concrete shared leaf can be tested across independent workloads."
+}

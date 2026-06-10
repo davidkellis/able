@@ -135,6 +135,14 @@ ensure_go_dir() {
   fi
 }
 
+build_cli() {
+  CLI_BINARY="$GO_CACHE/able-$EXEC_MODE"
+  if ! env GOCACHE="$GO_CACHE" go build -C "$GO_DIR" -o "$CLI_BINARY" ./cmd/able; then
+    echo "Unable to build Able v12 tree-walker CLI." >&2
+    exit 1
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
@@ -163,9 +171,10 @@ ensure_go_dir
 mkdir -p "$GO_CACHE"
 build_go_args "${cmd_args[@]}"
 GO_ARGS=(--exec-mode="$EXEC_MODE" "${GO_ARGS[@]}")
+build_cli
 
-echo "[Able v12 Treewalker] go run ./cmd/able ${GO_ARGS[*]}"
-if env GOCACHE="$GO_CACHE" go run -C "$GO_DIR" ./cmd/able "${GO_ARGS[@]}"; then
+echo "[Able v12 Treewalker] $CLI_BINARY ${GO_ARGS[*]}"
+if "$CLI_BINARY" "${GO_ARGS[@]}"; then
   exit 0
 else
   code=$?

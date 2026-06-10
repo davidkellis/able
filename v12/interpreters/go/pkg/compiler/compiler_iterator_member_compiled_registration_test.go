@@ -17,11 +17,20 @@ func TestCompilerRegistersBuiltinIteratorMemberMethods(t *testing.T) {
 		}, "\n"),
 	})
 
-	if !strings.Contains(compiledSrc, "func __able_builtin_iterator_next(") {
-		t.Fatalf("expected builtin Iterator.next compiled helper to be emitted")
-	}
-	if !strings.Contains(compiledSrc, "__able_register_compiled_method(\"Iterator\", \"next\", true, 0, 0, __able_builtin_iterator_next)") {
-		t.Fatalf("expected Iterator.next builtin method registration")
+	for _, method := range []struct {
+		name   string
+		helper string
+	}{
+		{name: "next", helper: "__able_builtin_iterator_next"},
+		{name: "close", helper: "__able_builtin_iterator_close"},
+	} {
+		if !strings.Contains(compiledSrc, "func "+method.helper+"(") {
+			t.Fatalf("expected builtin Iterator.%s compiled helper to be emitted", method.name)
+		}
+		registration := "__able_register_compiled_method(\"Iterator\", \"" + method.name + "\", true, 0, 0, " + method.helper + ")"
+		if !strings.Contains(compiledSrc, registration) {
+			t.Fatalf("expected Iterator.%s builtin method registration", method.name)
+		}
 	}
 	if strings.Contains(compiledSrc, "if iter, ok := base.(*runtime.IteratorValue); ok && iter != nil && name == \"next\" {") {
 		t.Fatalf("expected legacy Iterator.next member_get_method shim branch to be removed")

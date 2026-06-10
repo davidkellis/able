@@ -1,0 +1,111 @@
+{
+  "kind": "external-application-variance-report",
+  "measurement_source": "Verifier-backed external scorecards. Embedded successful per-run samples are used when available; legacy reports contribute one aggregate sample per input. This report describes variability only; it is not a timing threshold gate.",
+  "sources": [
+    {
+      "path": "v12/docs/perf-baselines/2026-07-15-k-nucleotide-bytecode-selection-eligibility.json",
+      "generated_at": "2026-07-16T02:17:48.504702Z",
+      "suite": "custom",
+      "cpu_affinity": null,
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "bytecode",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 39.168,
+          "ratios": {
+            "python": 33.519897304236196,
+            "ruby": 32.51265875321656
+          },
+          "reference_samples": {
+            "python": [
+              1.183294977,
+              1.159789639,
+              1.153897074,
+              1.16803506,
+              1.177404273
+            ],
+            "ruby": [
+              1.152591676,
+              1.248016348,
+              1.217958446,
+              1.187375284,
+              1.217448523
+            ]
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 5,
+        "mean": 39.168,
+        "median": 39.24,
+        "minimum": 38.48,
+        "maximum": 40.05,
+        "range": 1.5700000000000003,
+        "half_spread_pct": 2.0041870915032685,
+        "sample_stdev": 0.6601287753158461,
+        "coefficient_of_variation_pct": 1.6853777964558982
+      },
+      "reference_seconds": {
+        "python": {
+          "samples": 5,
+          "mean": 1.1684842046,
+          "median": 1.16803506,
+          "minimum": 1.153897074,
+          "maximum": 1.183294977,
+          "range": 0.029397903000000003,
+          "half_spread_pct": 1.257950380684162,
+          "sample_stdev": 0.012119284016920622,
+          "coefficient_of_variation_pct": 1.0371799609451582
+        },
+        "ruby": {
+          "samples": 5,
+          "mean": 1.2046780554,
+          "median": 1.217448523,
+          "minimum": 1.152591676,
+          "maximum": 1.248016348,
+          "range": 0.09542467200000004,
+          "half_spread_pct": 3.9605881244477112,
+          "sample_stdev": 0.03615950096384019,
+          "coefficient_of_variation_pct": 3.001590408470903
+        }
+      },
+      "ratios": {
+        "python": {
+          "samples": 1,
+          "mean": 33.519897304236196,
+          "median": 33.519897304236196,
+          "minimum": 33.519897304236196,
+          "maximum": 33.519897304236196,
+          "range": 0.0,
+          "half_spread_pct": 0.0,
+          "sample_stdev": 0.0,
+          "coefficient_of_variation_pct": 0.0
+        },
+        "ruby": {
+          "samples": 1,
+          "mean": 32.51265875321656,
+          "median": 32.51265875321656,
+          "minimum": 32.51265875321656,
+          "maximum": 32.51265875321656,
+          "range": 0.0,
+          "half_spread_pct": 0.0,
+          "sample_stdev": 0.0,
+          "coefficient_of_variation_pct": 0.0
+        }
+      }
+    }
+  ],
+  "required_successful_runs": 5
+}

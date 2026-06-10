@@ -1,0 +1,309 @@
+{
+  "conclusion": "The tree-wide runtime hash invalidated every closure, but the semanticabi package is outside that scope and its new runtime APIs have zero ordinary production call sites. The only live shape effect is one nil retained-root slice header per legacy iterator wrapper. Two independent five-process cohorts in six direct iterator/control applications produced 120 verified runs. Six rows are workstation-volatile, so these data admit neither a speedup nor a causal regression; they do admit rebasing the reviewed scope without changing any prior closure disposition.",
+  "decision": "rebaseline-reviewed-shared-runtime-scope",
+  "inputs": {
+    "bytecode_forward": {
+      "path": "v12/docs/perf-baselines/2026-07-22-runtime-contract-reconciliation-bytecode-iterator.json",
+      "sha256": "ca3a5d8b351768de46ce4065c0648bbc9ae07d096911d4540888e3924f000bec"
+    },
+    "bytecode_reverse": {
+      "path": "v12/docs/perf-baselines/2026-07-22-runtime-contract-reconciliation-bytecode-iterator-reverse.json",
+      "sha256": "393d0b233c381a2e2a90f17103cbf491ee82d19cc3e9e32e5de45fe83e82beb7"
+    },
+    "compiled": {
+      "path": "v12/docs/perf-baselines/2026-07-22-runtime-contract-reconciliation-preserved-compiled-iterator.json",
+      "sha256": "3e834e3f9bf7a74ef6b893bcb1c26a5305afc73cdfe0aec226b49f2906f74e2f"
+    },
+    "pre_reconciliation_invalidation": {
+      "path": "v12/docs/perf-baselines/2026-07-22-runtime-contract-pre-reconciliation-invalidation.json",
+      "sha256": "b74c632cab8dd1a7b19a9856a23dc6a5042456480fe4af30e3c48754415f4073"
+    },
+    "runtime_iterator": {
+      "path": "v12/interpreters/go/pkg/runtime/iterator_value.go",
+      "sha256": "1f1e2d3ff70b81d9c37e8746d4ecf63192184737418a555ef9f84d2a077ffb81"
+    },
+    "runtime_values": {
+      "path": "v12/interpreters/go/pkg/runtime/values.go",
+      "sha256": "871f0a4735ce0660c902e356c2a47c5fd0886c0e42f3641338677110e8301280"
+    }
+  },
+  "kind": "able-runtime-contract-performance-evidence-reconciliation",
+  "measurement_policy": {
+    "arithmetic_mean_used": true,
+    "bytecode_order_guard": "forward-then-reverse",
+    "cohorts_per_benchmark_mode": 2,
+    "processes_per_benchmark_mode": 10,
+    "processes_per_cohort": 5,
+    "selected_benchmarks": [
+      "array_slice_window",
+      "binary_event_log",
+      "dependency_plan",
+      "document_audit",
+      "lexical_rollup",
+      "option_result_config"
+    ],
+    "selection_reason": "union of compiled and bytecode iterator/control governing rows, the direct consumers of the only live runtime storage-shape change",
+    "volatile_above_cohort_spread_percent": 15.0
+  },
+  "measurements": [
+    {
+      "all_outputs_verified": true,
+      "benchmark": "array_slice_window",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.1,
+        0.10200000000000001
+      ],
+      "cohort_spread_percent": 2.0000000000000018,
+      "mode": "compiled",
+      "pooled_mean_seconds": 0.101,
+      "ratio_to_reference": 16.03174603174603,
+      "reference": "go",
+      "reference_mean_seconds": 0.0063,
+      "sample_count": 10,
+      "volatile": false
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "binary_event_log",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.602,
+        0.592
+      ],
+      "cohort_spread_percent": 1.6891891891891886,
+      "mode": "compiled",
+      "pooled_mean_seconds": 0.597,
+      "ratio_to_reference": 55.27777777777777,
+      "reference": "go",
+      "reference_mean_seconds": 0.0108,
+      "sample_count": 10,
+      "volatile": false
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "dependency_plan",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.1,
+        0.156
+      ],
+      "cohort_spread_percent": 55.999999999999986,
+      "mode": "compiled",
+      "pooled_mean_seconds": 0.128,
+      "ratio_to_reference": 26.666666666666668,
+      "reference": "go",
+      "reference_mean_seconds": 0.0048,
+      "sample_count": 10,
+      "volatile": true
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "document_audit",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.15,
+        0.098
+      ],
+      "cohort_spread_percent": 53.06122448979591,
+      "mode": "compiled",
+      "pooled_mean_seconds": 0.124,
+      "ratio_to_reference": 22.962962962962962,
+      "reference": "go",
+      "reference_mean_seconds": 0.0054,
+      "sample_count": 10,
+      "volatile": true
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "lexical_rollup",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.126,
+        0.12
+      ],
+      "cohort_spread_percent": 5.000000000000004,
+      "mode": "compiled",
+      "pooled_mean_seconds": 0.123,
+      "ratio_to_reference": 23.653846153846153,
+      "reference": "go",
+      "reference_mean_seconds": 0.0052,
+      "sample_count": 10,
+      "volatile": false
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "option_result_config",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.192,
+        0.22799999999999998
+      ],
+      "cohort_spread_percent": 18.74999999999998,
+      "mode": "compiled",
+      "pooled_mean_seconds": 0.21000000000000002,
+      "ratio_to_reference": 42.85714285714286,
+      "reference": "go",
+      "reference_mean_seconds": 0.0049,
+      "sample_count": 10,
+      "volatile": true
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "array_slice_window",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.976,
+        1.758
+      ],
+      "cohort_spread_percent": 80.12295081967213,
+      "mode": "bytecode",
+      "pooled_mean_seconds": 1.367,
+      "ratios_to_references": {
+        "python": 21.292834890965736,
+        "ruby": 8.533083645443195
+      },
+      "references": {
+        "python": 0.0642,
+        "ruby": 0.1602
+      },
+      "sample_count": 10,
+      "volatile": true
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "binary_event_log",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        8.312,
+        9.014
+      ],
+      "cohort_spread_percent": 8.4456207892204,
+      "mode": "bytecode",
+      "pooled_mean_seconds": 8.663,
+      "ratios_to_references": {
+        "python": 23.845306908890723,
+        "ruby": 17.490409852614576
+      },
+      "references": {
+        "python": 0.3633,
+        "ruby": 0.4953
+      },
+      "sample_count": 10,
+      "volatile": false
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "dependency_plan",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.69,
+        0.576
+      ],
+      "cohort_spread_percent": 19.791666666666675,
+      "mode": "bytecode",
+      "pooled_mean_seconds": 0.633,
+      "ratios_to_references": {
+        "python": 17.583333333333336,
+        "ruby": 5.419520547945205
+      },
+      "references": {
+        "python": 0.036,
+        "ruby": 0.1168
+      },
+      "sample_count": 10,
+      "volatile": true
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "document_audit",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.556,
+        0.348
+      ],
+      "cohort_spread_percent": 59.77011494252875,
+      "mode": "bytecode",
+      "pooled_mean_seconds": 0.45199999999999996,
+      "ratios_to_references": {
+        "python": 32.285714285714285,
+        "ruby": 9.699570815450642
+      },
+      "references": {
+        "python": 0.014,
+        "ruby": 0.0466
+      },
+      "sample_count": 10,
+      "volatile": true
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "lexical_rollup",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        0.748,
+        0.706
+      ],
+      "cohort_spread_percent": 5.9490084985835745,
+      "mode": "bytecode",
+      "pooled_mean_seconds": 0.727,
+      "ratios_to_references": {
+        "python": 32.02643171806167,
+        "ruby": 12.07641196013289
+      },
+      "references": {
+        "python": 0.0227,
+        "ruby": 0.0602
+      },
+      "sample_count": 10,
+      "volatile": false
+    },
+    {
+      "all_outputs_verified": true,
+      "benchmark": "option_result_config",
+      "cohort_count": 2,
+      "cohort_means_seconds": [
+        1.356,
+        1.484
+      ],
+      "cohort_spread_percent": 9.43952802359882,
+      "mode": "bytecode",
+      "pooled_mean_seconds": 1.42,
+      "ratios_to_references": {
+        "python": 37.56613756613756,
+        "ruby": 12.412587412587412
+      },
+      "references": {
+        "python": 0.0378,
+        "ruby": 0.1144
+      },
+      "sample_count": 10,
+      "volatile": false
+    }
+  ],
+  "next_lane": "shared-value-heap-production-pilot",
+  "schema_version": 1,
+  "scope_review": {
+    "cold_api_change": "Hasher reconstruction/state and iterator host-driver reconstruction/snapshot are called only by the excluded semanticabi conformance package and tests.",
+    "invalidated_closure_count": 21,
+    "live_shape_change": "IteratorValue adds one retained-root slice header. Legacy constructors leave it nil, so they add no backing allocation and preserve driver behavior; only wrapper size changes.",
+    "new_runtime_api_ordinary_production_call_count": 0,
+    "new_runtime_api_ordinary_production_calls": [],
+    "reviewed_closure_count": 21,
+    "semanticabi_in_runtime_production_scope": false,
+    "sole_invalidation_reason": "scope-content-drift:runtime-production"
+  },
+  "summary": {
+    "benchmark_mode_rows": 12,
+    "bytecode_verified_processes": 60,
+    "causal_regression_inferred": false,
+    "closure_rebaseline_admitted": true,
+    "compiled_verified_processes": 60,
+    "failed_processes": 0,
+    "performance_candidate_admitted": false,
+    "stable_rows": 6,
+    "timed_out_processes": 0,
+    "total_verified_processes": 120,
+    "volatile_rows": 6
+  }
+}

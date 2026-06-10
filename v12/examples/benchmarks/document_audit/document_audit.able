@@ -1,0 +1,33 @@
+package document_audit
+
+import able.collections.array
+import able.collections.enumerable
+import able.fs
+import able.kernel.{Array}
+import able.os
+
+fn selected(line: String) -> bool {
+  line.contains("fn ") || line.contains("struct ") || line.contains("interface ") || line.contains("impl ")
+}
+
+fn score(line: String) -> i64 {
+  size := line.len_bytes() as i64
+  if line.contains("fn ") { return (size * 3_i64) + 7_i64 }
+  if line.contains("struct ") { return (size * 5_i64) + 11_i64 }
+  if line.contains("interface ") { return (size * 7_i64) + 13_i64 }
+  (size * 2_i64) + 3_i64
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "corpus.md" }
+  lines := fs.read_lines(path)
+  records := lines
+  scores := records
+    .lazy()
+    .filter({ line => selected(line) })
+    .map<i64>({ line => score(line) })
+    .collect<Array i64>()
+  total := scores.reduce<i64>(0_i64, { acc, value => acc + value })
+  print(`${lines.len()}:${scores.len()}:${total}`)
+}

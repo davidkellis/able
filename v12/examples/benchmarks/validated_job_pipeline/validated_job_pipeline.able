@@ -1,0 +1,138 @@
+package validated_job_pipeline
+
+import able.core.interfaces.{Error}
+import able.core.options.*
+import able.fs
+import able.kernel.{Array, Channel}
+import able.os
+
+RECORD_LIMIT: i32 := 32
+DEFAULT_ROUNDS: i32 := 64
+WORKER_COUNT: i32 := 4
+
+struct ValidationError { code: i32 }
+
+impl Error for ValidationError {
+  fn message(self: Self) -> String { "invalid pipeline job" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct JobResult {
+  accepted: bool,
+  value: i64
+}
+
+struct JobTask {
+  id: i64,
+  label: String
+}
+
+methods JobResult {
+  fn checksum(self: Self) -> i64 {
+    if self.accepted { self.value * 7_i64 + 3_i64 } else { self.value * 11_i64 + 5_i64 }
+  }
+}
+
+fn validation_error(code: i32) -> Error {
+  err: Error = ValidationError { code }
+  err
+}
+
+fn validate(task: JobTask) -> Result i64 {
+  if task.label.contains("drop") {
+    validation_error(23)
+  } elsif (task.id % 17_i64) == 0_i64 {
+    validation_error(17)
+  } elsif (task.id % 19_i64) == 0_i64 {
+    validation_error(19)
+  } else {
+    task.id + (task.label.len_bytes() as i64) * 13_i64
+  }
+}
+
+fn transform(task: JobTask) -> JobResult {
+  resolved := validate(task).map<i64>({ value => {
+    state := value * 48_271_i64 + 31_i64
+    step := 0_i64
+    loop {
+      if step >= 8_i64 { break }
+      state = (state * 131_i64 + task.id + (task.label.len_bytes() as i64) + step) % 1_000_003_i64
+      step = step + 1_i64
+    }
+    state
+  } })
+  accepted := resolved.is_ok()
+  value := resolved.unwrap_or_else({ => 97_i64 + (task.id % 101_i64) + (task.label.len_bytes() as i64) })
+  JobResult { accepted, value }
+}
+
+fn produce(lines: Array String, rounds: i32, jobs: Channel JobTask) -> i64 {
+  id := 0_i64
+  round := 0
+  loop {
+    if round >= rounds { break }
+    index := 0
+    loop {
+      if index >= lines.len() { break }
+      jobs.send(JobTask { id, label: lines.get(index)! })
+      id = id + 1_i64
+      index = index + 1
+    }
+    round = round + 1
+  }
+  jobs.close()
+  id
+}
+
+fn work(jobs: Channel JobTask, results: Channel JobResult) -> i64 {
+  processed := 0_i64
+  loop {
+    jobs.receive() match {
+      case nil => {
+        results.send(JobResult { accepted: false, value: -1_i64 })
+        break
+      },
+      case task: JobTask => {
+        results.send(transform(task))
+        processed = processed + 1_i64
+      }
+    }
+  }
+  processed
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "jobs.txt" }
+  lines := fs.read_lines_prefix(path, RECORD_LIMIT)
+  task_count := lines.len() * DEFAULT_ROUNDS
+  jobs: Channel JobTask = Channel.new(task_count)
+  results: Channel JobResult = Channel.new(task_count + WORKER_COUNT)
+  producer := spawn { produce(lines, DEFAULT_ROUNDS, jobs) }
+  first := spawn { work(jobs, results) }
+  second := spawn { work(jobs, results) }
+  third := spawn { work(jobs, results) }
+  fourth := spawn { work(jobs, results) }
+  future_flush()
+
+  finished := 0
+  accepted := 0_i64
+  recovered := 0_i64
+  total := 0_i64
+  checksum := 0_i64
+  loop {
+    if finished >= WORKER_COUNT { break }
+    result := results.receive()!
+    if result.value < 0_i64 {
+      finished = finished + 1
+    } else {
+      if result.accepted { accepted = accepted + 1_i64 } else { recovered = recovered + 1_i64 }
+      total = total + result.value
+      checksum = (checksum + result.checksum()) % 1_000_003_i64
+    }
+  }
+
+  produced := producer.value()! as i64
+  worker_total := (first.value()! as i64) + (second.value()! as i64) + (third.value()! as i64) + (fourth.value()! as i64)
+  print(`${task_count}:${produced}:${worker_total}:${accepted}:${recovered}:${total}:${checksum}`)
+}

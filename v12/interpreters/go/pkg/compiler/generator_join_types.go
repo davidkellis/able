@@ -219,6 +219,9 @@ func (g *generator) joinResultTypeWithSawNil(ctx *compileContext, types []string
 		}
 		concreteTypes = append(concreteTypes, goType)
 	}
+	if len(concreteTypes) == 0 && sawNil {
+		return "runtime.NilValue", true
+	}
 	if len(concreteTypes) == 0 {
 		return "", false
 	}
@@ -262,6 +265,8 @@ func (g *generator) joinBranchIsNilExpr(expr string, exprType string) bool {
 	case exprType == "any" && expr == "any(nil)":
 		return true
 	case exprType == "runtime.Value" && expr == "runtime.NilValue{}":
+		return true
+	case exprType == "runtime.NilValue" && expr == "runtime.NilValue{}":
 		return true
 	}
 	if typedNil, ok := g.typedNilExpr(exprType); ok && expr == typedNil {

@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-22T03:21:34Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 50,
+  "cpu_affinity": "0-3",
+  "cpu_affinity_pool": "0-3",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-document-pipeline/go-1.26/app.go",
+      "source_sha256": "bfdfcfe86bf39725d48357a348aded4a167aa0853a3a229998a6aebba18b6976",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0037,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.003587873,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.003626573,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.003584497,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.003862718,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.003652823,
+          "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    }
+  ]
+}

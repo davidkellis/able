@@ -181,11 +181,11 @@ func evaluateDivision(i *Interpreter, left runtime.Value, right runtime.Value) (
 		val := normalizeFloat(targetFloatKind, leftFloat/rightFloat)
 		return runtime.FloatValue{Val: val, TypeSuffix: targetFloatKind}, nil
 	}
-	leftInt, ok := left.(runtime.IntegerValue)
+	leftInt, ok := bytecodeDirectIntegerValue(left)
 	if !ok {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
-	rightInt, ok := right.(runtime.IntegerValue)
+	rightInt, ok := bytecodeDirectIntegerValue(right)
 	if !ok {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
@@ -212,11 +212,11 @@ func evaluateDivision(i *Interpreter, left runtime.Value, right runtime.Value) (
 }
 
 func evaluateDivMod(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	lv, ok := left.(runtime.IntegerValue)
+	lv, ok := bytecodeDirectIntegerValue(left)
 	if !ok {
 		return nil, fmt.Errorf("Arithmetic requires integer operands")
 	}
-	rv, ok := right.(runtime.IntegerValue)
+	rv, ok := bytecodeDirectIntegerValue(right)
 	if !ok {
 		return nil, fmt.Errorf("Arithmetic requires integer operands")
 	}
@@ -289,23 +289,25 @@ func maybeBoxedIntegerValue(value runtime.IntegerValue) (runtime.Value, bool) {
 }
 
 func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	lv, ok := left.(runtime.IntegerValue)
+	lv, ok := bytecodeDirectIntegerValue(left)
 	if !ok {
 		return nil, fmt.Errorf("Bitwise requires integer operands")
 	}
-	rv, ok := right.(runtime.IntegerValue)
+	rv, ok := bytecodeDirectIntegerValue(right)
 	if !ok {
 		return nil, fmt.Errorf("Bitwise requires integer operands")
 	}
-	lVal := runtime.CloneBigInt(lv.BigInt())
-	rVal := runtime.CloneBigInt(rv.BigInt())
-	var result *big.Int
-	switch op {
-	case "<<", ">>":
+	if op == "<<" || op == ">>" {
 		info, err := getIntegerInfo(lv.TypeSuffix)
 		if err != nil {
 			return nil, err
 		}
+		if smallResult, handled, err := evaluateSmallIntegerShiftFast(op, lv, rv, info); handled {
+			return smallResult, err
+		}
+
+		lVal := runtime.CloneBigInt(lv.BigInt())
+		rVal := runtime.CloneBigInt(rv.BigInt())
 		if !rVal.IsInt64() {
 			return nil, newShiftOutOfRangeError(0)
 		}
@@ -319,11 +321,10 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 		if err != nil {
 			return nil, err
 		}
-		result = shifted
-		if err := ensureFitsInteger(info, result); err != nil {
+		if err := ensureFitsInteger(info, shifted); err != nil {
 			return nil, err
 		}
-		return runtime.NewBigIntValue(result, lv.TypeSuffix), nil
+		return runtime.NewBigIntValue(shifted, lv.TypeSuffix), nil
 	}
 	targetType, err := promoteIntegerTypes(lv.TypeSuffix, rv.TypeSuffix)
 	if err != nil {
@@ -333,6 +334,12 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 	if err != nil {
 		return nil, err
 	}
+	if smallResult, handled, err := evaluateSmallIntegerBitwiseFast(op, lv, rv, targetType, info); handled {
+		return smallResult, err
+	}
+	lVal := runtime.CloneBigInt(lv.BigInt())
+	rVal := runtime.CloneBigInt(rv.BigInt())
+	var result *big.Int
 	switch op {
 	case "&":
 		leftPattern := bitPattern(lVal, info)
@@ -356,6 +363,96 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 		return nil, err
 	}
 	return runtime.NewBigIntValue(result, targetType), nil
+}
+
+func evaluateSmallIntegerBitwiseFast(op string, left runtime.IntegerValue, right runtime.IntegerValue, targetType runtime.IntegerType, info integerInfo) (runtime.Value, bool, error) {
+	if op != "&" && op != "|" && op != "^" {
+		return nil, false, nil
+	}
+	leftVal, leftOK := left.ToInt64()
+	rightVal, rightOK := right.ToInt64()
+	if !leftOK || !rightOK || info.bits <= 0 || info.bits > 64 {
+		return nil, false, nil
+	}
+	leftPattern, ok := integerBitPatternUint64(leftVal, info)
+	if !ok {
+		return nil, false, nil
+	}
+	rightPattern, ok := integerBitPatternUint64(rightVal, info)
+	if !ok {
+		return nil, false, nil
+	}
+	var resultPattern uint64
+	switch op {
+	case "&":
+		resultPattern = leftPattern & rightPattern
+	case "|":
+		resultPattern = leftPattern | rightPattern
+	case "^":
+		resultPattern = leftPattern ^ rightPattern
+	default:
+		return nil, false, nil
+	}
+	result, ok := integerFromBitPatternUint64(resultPattern, info)
+	if !ok {
+		return nil, false, nil
+	}
+	return boxedOrSmallIntegerValue(targetType, result), true, nil
+}
+
+func evaluateSmallIntegerShiftFast(op string, left runtime.IntegerValue, right runtime.IntegerValue, info integerInfo) (runtime.Value, bool, error) {
+	leftVal, leftOK := left.ToInt64()
+	rightVal, rightOK := right.ToInt64()
+	if !leftOK || !rightOK || info.bits <= 0 || info.bits > 64 {
+		return nil, false, nil
+	}
+	if rightVal < 0 || rightVal >= int64(info.bits) {
+		return nil, true, newShiftOutOfRangeError(rightVal)
+	}
+	count := uint(rightVal)
+	if op != "<<" && op != ">>" {
+		return nil, false, nil
+	}
+
+	leftPattern, ok := integerBitPatternUint64(leftVal, info)
+	if !ok {
+		return nil, false, nil
+	}
+	mask := integerMaskUint64(info.bits)
+
+	switch op {
+	case ">>":
+		if info.signed {
+			return boxedOrSmallIntegerValue(left.TypeSuffix, leftVal>>count), true, nil
+		}
+		result, ok := integerFromBitPatternUint64(leftPattern>>count, info)
+		if !ok {
+			return nil, false, nil
+		}
+		return boxedOrSmallIntegerValue(left.TypeSuffix, result), true, nil
+	case "<<":
+		if info.signed {
+			truncated := (leftPattern << count) & mask
+			result, ok := integerFromBitPatternUint64(truncated, info)
+			if !ok {
+				return nil, false, nil
+			}
+			if result>>count != leftVal {
+				return nil, true, newOverflowError("integer overflow")
+			}
+			return boxedOrSmallIntegerValue(left.TypeSuffix, result), true, nil
+		}
+		if count > 0 && leftPattern > (mask>>count) {
+			return nil, true, newOverflowError("integer overflow")
+		}
+		result, ok := integerFromBitPatternUint64((leftPattern<<count)&mask, info)
+		if !ok {
+			return nil, false, nil
+		}
+		return boxedOrSmallIntegerValue(left.TypeSuffix, result), true, nil
+	default:
+		return nil, false, nil
+	}
 }
 
 func bigFromLiteral(val interface{}) *big.Int {
@@ -416,8 +513,8 @@ func evaluateArithmetic(i *Interpreter, op string, left runtime.Value, right run
 		}
 	}
 
-	leftInt, leftIsInt := left.(runtime.IntegerValue)
-	rightInt, rightIsInt := right.(runtime.IntegerValue)
+	leftInt, leftIsInt := bytecodeDirectIntegerValue(left)
+	rightInt, rightIsInt := bytecodeDirectIntegerValue(right)
 	if leftIsInt && rightIsInt {
 		targetType, err := promoteIntegerTypes(leftInt.TypeSuffix, rightInt.TypeSuffix)
 		if err != nil {

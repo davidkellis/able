@@ -1,0 +1,78 @@
+File: compiled
+Build ID: cb717d2f55cc444bd5175c161efd35d3af6bd32a
+Type: alloc_objects
+Time: 2026-07-27 22:14:27 CDT
+Showing nodes accounting for 244764, 100% of 244764 total
+      flat  flat%   sum%        cum   cum%
+     52792 21.57% 21.57%      52792 21.57%  main.(*__able_channel_awaitable).toStruct
+     32768 13.39% 34.96%      32768 13.39%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     32768 13.39% 48.34%      70998 29.01%  main.__able_method_call
+     24576 10.04% 58.38%      24576 10.04%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+     21846  8.93% 67.31%      30038 12.27%  main.__able_make_await_registration_value
+     21845  8.92% 76.23%      21845  8.92%  main.__able_call_named
+     10923  4.46% 80.70%      17477  7.14%  main.(*__able_goroutine_executor).RunFuture
+     10923  4.46% 85.16%     107589 43.96%  main.__able_compiled_fn_main
+     10923  4.46% 89.62%      10923  4.46%  main.__able_fn__int64_to_int64_to_runtime_value
+      8192  3.35% 92.97%       8192  3.35%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+      6554  2.68% 95.65%       6554  2.68%  context.withCancel (inline)
+      5461  2.23% 97.88%       5461  2.23%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+      4681  1.91% 99.79%       4681  1.91%  main.(*__able_await_state).ensureWaitCh
+       512  0.21%   100%        512  0.21%  runtime.mallocgc
+         0     0%   100%       5461  2.23%  able/interpreter-go/pkg/ast.Gen (inline)
+         0     0%   100%       8192  3.35%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0%   100%      32768 13.39%  able/interpreter-go/pkg/ast.Ty (inline)
+         0     0%   100%      16384  6.69%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%       8192  3.35%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%       8192  3.35%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%       8192  3.35%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%       6554  2.68%  context.WithCancel
+         0     0%   100%      30038 12.27%  main.(*__able_channel_awaitable).register
+         0     0%   100%      30038 12.27%  main.(*__able_channel_awaitable).toStruct.func2
+         0     0%   100%     128471 52.49%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%       8192  3.35%  main.RegisterIn
+         0     0%   100%     107589 43.96%  main.RunRegisteredMain
+         0     0%   100%     107589 43.96%  main.RunRegisteredMain.func1
+         0     0%   100%      51103 20.88%  main.__able_await
+         0     0%   100%      51103 20.88%  main.__able_await_value
+         0     0%   100%      38230 15.62%  main.__able_await_with_state
+         0     0%   100%      38230 15.62%  main.__able_call_value_fast
+         0     0%   100%       8192  3.35%  main.__able_cancel_await_registration
+         0     0%   100%      52792 21.57%  main.__able_channel_await_try_recv_impl
+         0     0%   100%       8192  3.35%  main.__able_clear_await_registrations
+         0     0%   100%       5461  2.23%  main.__able_compiled_entry_method_Await__default_spec
+         0     0%   100%      85561 34.96%  main.__able_compiled_fn_main.func1
+         0     0%   100%      34718 14.18%  main.__able_compiled_fn_main.func3
+         0     0%   100%       5461  2.23%  main.__able_compiled_method_Await__default_spec
+         0     0%   100%      63715 26.03%  main.__able_compiled_method_Channel_await_receive_spec
+         0     0%   100%       8192  3.35%  main.__able_current_payload
+         0     0%   100%       5461  2.23%  main.__able_iface_Awaitable_i64_from_value
+         0     0%   100%       5461  2.23%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0%   100%       8192  3.35%  main.__able_iface_Future_i64_from_value
+         0     0%   100%      40960 16.73%  main.__able_iface_Future_i64_runtime_adapter.value
+         0     0%   100%       8192  3.35%  main.__able_iface_Future_i64_try_from_value
+         0     0%   100%       4681  1.91%  main.__able_initialize_await_state
+         0     0%   100%      30038 12.27%  main.__able_invoke_awaitable_method
+         0     0%   100%      30038 12.27%  main.__able_register_await_state
+         0     0%   100%     107589 43.96%  main.__able_register_compiled_call.func1
+         0     0%   100%       8192  3.35%  main.__able_register_compiled_interface_dispatch
+         0     0%   100%     128471 52.49%  main.__able_run_compiled_task
+         0     0%   100%      17477  7.14%  main.__able_spawn
+         0     0%   100%      17477  7.14%  main.__able_spawn_future
+         0     0%   100%       8192  3.35%  main.__able_union_int64_or_runtime_ErrorValue_from_value
+         0     0%   100%       8192  3.35%  main.__able_union_int64_or_runtime_ErrorValue_try_from_value
+         0     0%   100%     107589 43.96%  main.__able_wrap_fn_main
+         0     0%   100%     115781 47.30%  main.main
+         0     0%   100%     115781 47.30%  main.runMain
+         0     0%   100%        512  0.21%  runtime.allocm
+         0     0%   100%     115781 47.30%  runtime.main
+         0     0%   100%        256   0.1%  runtime.mcall
+         0     0%   100%        256   0.1%  runtime.mstart
+         0     0%   100%        256   0.1%  runtime.mstart0
+         0     0%   100%        256   0.1%  runtime.mstart1
+         0     0%   100%        512  0.21%  runtime.newm
+         0     0%   100%        512  0.21%  runtime.newobject
+         0     0%   100%        256   0.1%  runtime.park_m
+         0     0%   100%        512  0.21%  runtime.resetspinning
+         0     0%   100%        512  0.21%  runtime.schedule
+         0     0%   100%        512  0.21%  runtime.startm
+         0     0%   100%        512  0.21%  runtime.wakep

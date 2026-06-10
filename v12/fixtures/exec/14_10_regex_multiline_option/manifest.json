@@ -1,0 +1,13 @@
+{
+  "description": "multiline regex anchors use U+000A line boundaries while anchored mode stays whole-input",
+  "expect": {
+    "stdout": [
+      "default nil",
+      "line cat 4-7",
+      "unicode é 0-2",
+      "empty_line  2-2",
+      "anchored nil",
+      "shared_line_nfa true false"
+    ]
+  }
+}

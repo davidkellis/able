@@ -1,19 +1,35 @@
+//go:build !(js && wasm)
+
 package interpreter
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"runtime"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
 
-func hashExternState(target ast.HostTarget, state *externTargetState, salt string) string {
+const externCacheDirEnv = "ABLE_EXTERN_CACHE_DIR"
+
+func externHostCacheScope() string {
+	return strings.Join([]string{
+		"go=" + runtime.Version(),
+		"goos=" + runtime.GOOS,
+		"goarch=" + runtime.GOARCH,
+		"goexperiment=" + os.Getenv("GOEXPERIMENT"),
+		"goflags=" + os.Getenv("GOFLAGS"),
+	}, "\n")
+}
+
+func hashExternState(target ast.HostTarget, state *externTargetState, scope string) string {
 	hasher := sha256.New()
-	if salt != "" {
-		hasher.Write([]byte("salt:"))
-		hasher.Write([]byte(salt))
+	if scope != "" {
+		hasher.Write([]byte("scope:"))
+		hasher.Write([]byte(scope))
 		hasher.Write([]byte("\n"))
 	}
 	hasher.Write([]byte("target:"))
@@ -39,16 +55,16 @@ func hashExternState(target ast.HostTarget, state *externTargetState, salt strin
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func cachedExternStateHash(target ast.HostTarget, state *externTargetState, salt string) string {
+func cachedExternStateHash(target ast.HostTarget, state *externTargetState, scope string) string {
 	if state == nil {
 		return ""
 	}
-	if state.hashValid && state.hashSalt == salt {
+	if state.hashValid && state.hashScope == scope {
 		return state.cachedHash
 	}
-	hash := hashExternState(target, state, salt)
+	hash := hashExternState(target, state, scope)
 	state.cachedHash = hash
-	state.hashSalt = salt
+	state.hashScope = scope
 	state.hashValid = true
 	return hash
 }
@@ -125,6 +141,10 @@ func sanitizePackageName(name string) string {
 
 func externSymbolName(name string) string {
 	return "AbleExtern_" + sanitizeSymbolName(name)
+}
+
+func externImageSymbolName(packageKey, name string) string {
+	return "AbleImageExtern_" + sanitizeSymbolName(packageKey) + "_" + sanitizeSymbolName(name)
 }
 
 func sanitizeSymbolName(name string) string {

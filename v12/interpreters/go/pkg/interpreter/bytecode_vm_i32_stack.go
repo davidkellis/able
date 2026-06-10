@@ -39,14 +39,57 @@ func (vm *bytecodeVM) execConstI32(instr *bytecodeInstruction) error {
 	return nil
 }
 
+func (vm *bytecodeVM) execUnboxI32(instr *bytecodeInstruction) error {
+	if vm == nil || vm.interp == nil {
+		return fmt.Errorf("bytecode i32 unbox missing interpreter")
+	}
+	value, err := vm.pop()
+	if err != nil {
+		return err
+	}
+	raw, fallback, ok, err := vm.unboxAssignableI32Value(value)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		vm.i32UnboxFallbackValue = fallback
+		vm.i32UnboxFallbackSet = true
+		vm.ip++
+		return nil
+	}
+	vm.i32UnboxFallbackValue = nil
+	vm.i32UnboxFallbackSet = false
+	vm.pushI32(raw)
+	vm.ip++
+	return nil
+}
+
 func (vm *bytecodeVM) execBoxI32() error {
 	value, err := vm.popBoxedI32()
 	if err != nil {
 		return err
 	}
-	vm.stack = append(vm.stack, value)
+	vm.appendStackValue(value)
 	vm.ip++
 	return nil
+}
+
+func (vm *bytecodeVM) unboxAssignableI32Value(value runtime.Value) (int32, runtime.Value, bool, error) {
+	storeVal, fallback, shouldStore, err := vm.typedSlotAssignmentValues(bytecodeInstruction{
+		storeTyped: true,
+		typeExpr:   cachedSimpleTypeExpression("i32"),
+	}, value)
+	if err != nil {
+		return 0, nil, false, err
+	}
+	if !shouldStore {
+		return 0, fallback, false, nil
+	}
+	raw, ok := bytecodeRawI32Value(storeVal)
+	if !ok {
+		return 0, nil, false, fmt.Errorf("bytecode i32 unbox expected i32 value")
+	}
+	return raw, nil, true, nil
 }
 
 func bytecodeRawI32Value(value runtime.Value) (int32, bool) {
@@ -54,6 +97,11 @@ func bytecodeRawI32Value(value runtime.Value) (int32, bool) {
 	switch v := value.(type) {
 	case bytecodeRawI32SlotValue:
 		return int32(v), true
+	case *bytecodeRawI32StackCell:
+		if v != nil {
+			return v.Val, true
+		}
+		return 0, false
 	case runtime.IntegerValue:
 		intVal = v
 	case *runtime.IntegerValue:
@@ -86,6 +134,11 @@ func (vm *bytecodeVM) execLoadSlotI32(instr *bytecodeInstruction) error {
 		vm.ip++
 		return nil
 	}
+	if value, ok := vm.activeValueSlotI32Raw(instr.target); ok {
+		vm.pushI32(value)
+		vm.ip++
+		return nil
+	}
 	value, ok := bytecodeRawI32Value(vm.slots[instr.target])
 	if !ok {
 		return fmt.Errorf("bytecode i32 slot load expected i32 value")
@@ -102,14 +155,31 @@ func (vm *bytecodeVM) execStoreSlotI32(instr *bytecodeInstruction) error {
 	if instr.target < 0 || instr.target >= len(vm.slots) {
 		return fmt.Errorf("bytecode slot out of range")
 	}
+	if vm.i32UnboxFallbackSet {
+		fallback := vm.i32UnboxFallbackValue
+		vm.i32UnboxFallbackValue = nil
+		vm.i32UnboxFallbackSet = false
+		if !instr.discardResult {
+			if fallback == nil {
+				fallback = runtime.NilValue{}
+			}
+			vm.appendStackValue(fallback)
+		}
+		vm.ip++
+		return nil
+	}
 	raw, err := vm.popI32()
 	if err != nil {
 		return err
 	}
 	if instr.discardResult {
 		if vm.setI32RegisterRaw(instr.target, raw) {
+			vm.clearActiveValueSlotI32(instr.target)
+			vm.clearActiveValueSlotFloat(instr.target)
 			vm.slots[instr.target] = nil
 		} else {
+			vm.clearActiveValueSlotI32(instr.target)
+			vm.clearActiveValueSlotFloat(instr.target)
 			vm.slots[instr.target] = bytecodeRawI32SlotCachedValue(raw)
 		}
 		if instr.target == 0 {
@@ -119,12 +189,14 @@ func (vm *bytecodeVM) execStoreSlotI32(instr *bytecodeInstruction) error {
 		return nil
 	}
 	value := bytecodeBoxedIntegerI32Value(int64(raw))
+	vm.clearActiveValueSlotI32(instr.target)
+	vm.clearActiveValueSlotFloat(instr.target)
 	vm.slots[instr.target] = value
 	vm.setI32RegisterRaw(instr.target, raw)
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Raw(raw)
 	}
-	vm.stack = append(vm.stack, value)
+	vm.appendStackValue(value)
 	vm.ip++
 	return nil
 }
@@ -141,6 +213,9 @@ func (vm *bytecodeVM) execCompoundAssignSlotI32(instr *bytecodeInstruction) erro
 		return err
 	}
 	left, ok := vm.i32RegisterRaw(instr.target)
+	if !ok {
+		left, ok = vm.activeValueSlotI32Raw(instr.target)
+	}
 	if !ok {
 		left, ok = bytecodeRawI32Value(vm.slots[instr.target])
 	}
@@ -174,8 +249,12 @@ func (vm *bytecodeVM) execCompoundAssignSlotI32(instr *bytecodeInstruction) erro
 	raw := int32(result)
 	if instr.discardResult {
 		if vm.setI32RegisterRaw(instr.target, raw) {
+			vm.clearActiveValueSlotI32(instr.target)
+			vm.clearActiveValueSlotFloat(instr.target)
 			vm.slots[instr.target] = nil
 		} else {
+			vm.clearActiveValueSlotI32(instr.target)
+			vm.clearActiveValueSlotFloat(instr.target)
 			vm.slots[instr.target] = bytecodeRawI32SlotCachedValue(raw)
 		}
 		if instr.target == 0 {
@@ -185,12 +264,14 @@ func (vm *bytecodeVM) execCompoundAssignSlotI32(instr *bytecodeInstruction) erro
 		return nil
 	}
 	value := bytecodeBoxedIntegerI32Value(int64(raw))
+	vm.clearActiveValueSlotI32(instr.target)
+	vm.clearActiveValueSlotFloat(instr.target)
 	vm.slots[instr.target] = value
 	vm.setI32RegisterRaw(instr.target, raw)
 	if instr.target == 0 {
 		vm.setSelfFastSlot0I32Raw(raw)
 	}
-	vm.stack = append(vm.stack, value)
+	vm.appendStackValue(value)
 	vm.ip++
 	return nil
 }

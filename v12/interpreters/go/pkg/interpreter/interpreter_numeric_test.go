@@ -229,6 +229,40 @@ func TestRatioArithmetic(t *testing.T) {
 	}
 }
 
+func TestRatioArithmeticAcceptsRawIntegerFields(t *testing.T) {
+	interp := NewBytecode()
+	def, err := interp.ensureRatioStruct()
+	if err != nil {
+		t.Fatalf("ensure Ratio struct: %v", err)
+	}
+	half := &runtime.StructInstanceValue{
+		Definition: def,
+		Fields: map[string]runtime.Value{
+			"num": runtime.NewSmallInt(1, runtime.IntegerI64),
+			"den": runtime.NewSmallInt(2, runtime.IntegerI64),
+		},
+	}
+	quarter := &runtime.StructInstanceValue{
+		Definition: def,
+		Fields: map[string]runtime.Value{
+			"num": bytecodeRawI64ResultValue(1),
+			"den": bytecodeRawI64ResultValue(4),
+		},
+	}
+
+	got, err := applyBinaryOperator(interp, "+", half, quarter)
+	if err != nil {
+		t.Fatalf("raw-field Ratio add failed: %v", err)
+	}
+	parts, ok := ratioPartsFromStruct(got)
+	if !ok {
+		t.Fatalf("raw-field Ratio add result = %#v, want Ratio", got)
+	}
+	if parts.num.Cmp(big.NewInt(3)) != 0 || parts.den.Cmp(big.NewInt(4)) != 0 {
+		t.Fatalf("raw-field Ratio add = %s/%s, want 3/4", parts.num, parts.den)
+	}
+}
+
 func TestRatioMixesWithIntegers(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
@@ -296,6 +330,15 @@ func TestHashHelperBuiltins(t *testing.T) {
 	}
 	if f64Val.BigInt().Cmp(big.NewInt(0x3ff8000000000000)) != 0 {
 		t.Fatalf("unexpected f64 bits %v", f64Val.Val)
+	}
+
+	f64Root, err := interp.evaluateExpression(ast.Call("__able_f64_sqrt", ast.FltTyped(6.25, &f64Type)), env)
+	if err != nil {
+		t.Fatalf("f64 sqrt failed: %v", err)
+	}
+	rootVal, ok := f64Root.(runtime.FloatValue)
+	if !ok || rootVal.TypeSuffix != runtime.FloatF64 || math.Abs(rootVal.Val-2.5) > 1e-15 {
+		t.Fatalf("expected f64 2.5 from __able_f64_sqrt, got %#v", f64Root)
 	}
 
 	max := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(1))
@@ -545,6 +588,129 @@ func TestBitshiftRangeChecks(t *testing.T) {
 	intVal, ok := result.(runtime.IntegerValue)
 	if !ok || intVal.BigInt().Cmp(bigInt(8)) != 0 {
 		t.Fatalf("expected 8 after shift, got %#v", result)
+	}
+}
+
+func TestBitwiseTypedIntegerSmallFastPathSemantics(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+
+	u8 := ast.IntegerTypeU8
+	unsignedVal, err := interp.evaluateExpression(
+		ast.Bin(".|", ast.IntTyped(0x40, &u8), ast.IntTyped(0x02, &u8)),
+		env,
+	)
+	if err != nil {
+		t.Fatalf("unsigned bitwise or failed: %v", err)
+	}
+	unsignedInt, ok := unsignedVal.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected unsigned integer result, got %#v", unsignedVal)
+	}
+	if unsignedInt.TypeSuffix != runtime.IntegerU8 || unsignedInt.BigInt().Cmp(big.NewInt(0x42)) != 0 {
+		t.Fatalf("unsigned bitwise or = %#v, want u8 0x42", unsignedVal)
+	}
+
+	i8 := ast.IntegerTypeI8
+	signedVal, err := interp.evaluateExpression(
+		ast.Bin(".^", ast.IntTyped(-1, &i8), ast.IntTyped(1, &i8)),
+		env,
+	)
+	if err != nil {
+		t.Fatalf("signed bitwise xor failed: %v", err)
+	}
+	signedInt, ok := signedVal.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected signed integer result, got %#v", signedVal)
+	}
+	if signedInt.TypeSuffix != runtime.IntegerI8 || signedInt.BigInt().Cmp(big.NewInt(-2)) != 0 {
+		t.Fatalf("signed bitwise xor = %#v, want i8 -2", signedVal)
+	}
+}
+
+func TestBitshiftTypedIntegerSmallFastPathSemantics(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+
+	u32 := ast.IntegerTypeU32
+	unsignedShift, err := interp.evaluateExpression(
+		ast.Bin(">>", ast.IntTyped(8, &u32), ast.IntTyped(1, &u32)),
+		env,
+	)
+	if err != nil {
+		t.Fatalf("unsigned shift failed: %v", err)
+	}
+	unsignedInt, ok := unsignedShift.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected unsigned integer result, got %#v", unsignedShift)
+	}
+	if unsignedInt.TypeSuffix != runtime.IntegerU32 || unsignedInt.BigInt().Cmp(big.NewInt(4)) != 0 {
+		t.Fatalf("unsigned shift = %#v, want u32 4", unsignedShift)
+	}
+
+	i8 := ast.IntegerTypeI8
+	signedRightShift, err := interp.evaluateExpression(
+		ast.Bin(">>", ast.IntTyped(-4, &i8), ast.IntTyped(1, &i8)),
+		env,
+	)
+	if err != nil {
+		t.Fatalf("signed right shift failed: %v", err)
+	}
+	signedRightInt, ok := signedRightShift.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected signed integer result, got %#v", signedRightShift)
+	}
+	if signedRightInt.TypeSuffix != runtime.IntegerI8 || signedRightInt.BigInt().Cmp(big.NewInt(-2)) != 0 {
+		t.Fatalf("signed right shift = %#v, want i8 -2", signedRightShift)
+	}
+
+	signedLeftShift, err := interp.evaluateExpression(
+		ast.Bin("<<", ast.IntTyped(-1, &i8), ast.IntTyped(1, &i8)),
+		env,
+	)
+	if err != nil {
+		t.Fatalf("signed left shift failed: %v", err)
+	}
+	signedLeftInt, ok := signedLeftShift.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected signed integer result, got %#v", signedLeftShift)
+	}
+	if signedLeftInt.TypeSuffix != runtime.IntegerI8 || signedLeftInt.BigInt().Cmp(big.NewInt(-2)) != 0 {
+		t.Fatalf("signed left shift = %#v, want i8 -2", signedLeftShift)
+	}
+
+	u8 := ast.IntegerTypeU8
+	_, err = interp.evaluateExpression(
+		ast.Bin("<<", ast.IntTyped(128, &u8), ast.IntTyped(1, &u8)),
+		env,
+	)
+	if err == nil {
+		t.Fatalf("expected overflowing unsigned shift to fail")
+	}
+	if err.Error() != "integer overflow" {
+		t.Fatalf("unexpected overflow error: %v", err)
+	}
+}
+
+func TestBitwiseTypedIntegerPromotionSemantics(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+
+	i16 := ast.IntegerTypeI16
+	u16 := ast.IntegerTypeU16
+	val, err := interp.evaluateExpression(
+		ast.Bin(".&", ast.IntTyped(-1, &i16), ast.IntTyped(255, &u16)),
+		env,
+	)
+	if err != nil {
+		t.Fatalf("mixed bitwise and failed: %v", err)
+	}
+	intVal, ok := val.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %#v", val)
+	}
+	if intVal.TypeSuffix != runtime.IntegerI32 || intVal.BigInt().Cmp(big.NewInt(255)) != 0 {
+		t.Fatalf("mixed bitwise and = %#v, want i32 255", val)
 	}
 }
 

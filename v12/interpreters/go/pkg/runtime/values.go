@@ -195,6 +195,17 @@ func NewBigIntValue(val *big.Int, suffix IntegerType) IntegerValue {
 	return IntegerValue{Val: val, TypeSuffix: suffix}
 }
 
+// ResetSmall rewrites this IntegerValue in place to hold a native int64 small integer.
+func (v *IntegerValue) ResetSmall(val int64, suffix IntegerType) {
+	if v == nil {
+		return
+	}
+	v.Val = nil
+	v.small = val
+	v.isSmall = true
+	v.TypeSuffix = suffix
+}
+
 // IsSmall reports whether this value is stored as a native int64.
 func (v IntegerValue) IsSmall() bool { return v.isSmall }
 
@@ -314,6 +325,7 @@ type ArrayValue struct {
 	State          *ArrayState
 	TrackedHandle  int64
 	TrackedAliases bool
+	Lease          ArrayStoreLease
 }
 
 func (v *ArrayValue) Kind() Kind { return KindArray }
@@ -325,7 +337,9 @@ type HashMapEntry struct {
 }
 
 type HashMapValue struct {
-	Entries []HashMapEntry
+	Entries          []HashMapEntry
+	hashIndex        map[uint64][]int
+	hashIndexEntries int
 }
 
 func (v *HashMapValue) Kind() Kind { return KindHashMap }
@@ -344,58 +358,16 @@ type HasherValue struct {
 
 func (v *HasherValue) Kind() Kind { return KindHasher }
 
-// IteratorValue represents a lazily evaluated iterator produced by generator literals.
-type IteratorValue struct {
-	mu     sync.Mutex
-	next   func() (Value, bool, error)
-	closer func()
-	closed bool
-}
+// NewHasherValueFromState reconstructs language-visible Hasher state for the
+// shared semantic value contract. It does not expose implementation storage.
+func NewHasherValueFromState(state uint64) *HasherValue { return &HasherValue{state: state} }
 
-// NewIteratorValue constructs an iterator with the provided driver function.
-func NewIteratorValue(step func() (Value, bool, error), finalize func()) *IteratorValue {
-	if step == nil {
-		step = func() (Value, bool, error) { return IteratorEnd, true, nil }
-	}
-	return &IteratorValue{next: step, closer: finalize}
-}
-
-func (v *IteratorValue) Kind() Kind { return KindIterator }
-
-// Next advances the iterator. The bool result reports whether iteration has completed.
-func (v *IteratorValue) Next() (Value, bool, error) {
+// SemanticState returns the complete language-visible Hasher state.
+func (v *HasherValue) SemanticState() uint64 {
 	if v == nil {
-		return IteratorEnd, true, nil
+		return 0
 	}
-	v.mu.Lock()
-	if v.closed {
-		v.mu.Unlock()
-		return IteratorEnd, true, nil
-	}
-	step := v.next
-	v.mu.Unlock()
-	if step == nil {
-		return IteratorEnd, true, nil
-	}
-	return step()
-}
-
-// Close releases any resources held by the iterator.
-func (v *IteratorValue) Close() {
-	if v == nil {
-		return
-	}
-	v.mu.Lock()
-	if v.closed {
-		v.mu.Unlock()
-		return
-	}
-	v.closed = true
-	closer := v.closer
-	v.mu.Unlock()
-	if closer != nil {
-		closer()
-	}
+	return v.state
 }
 
 // IteratorEndValue is a sentinel returned once an iterator is exhausted.
@@ -452,13 +424,25 @@ func (v *FunctionValue) GenericNameSet(decl *ast.FunctionDefinition) map[string]
 			names[name] = struct{}{}
 		}
 		def := decl
+		var lambda *ast.LambdaExpression
 		if def == nil {
-			if parsed, ok := v.Declaration.(*ast.FunctionDefinition); ok {
+			switch parsed := v.Declaration.(type) {
+			case *ast.FunctionDefinition:
 				def = parsed
+			case *ast.LambdaExpression:
+				lambda = parsed
 			}
 		}
 		if def != nil {
 			for _, gp := range def.GenericParams {
+				if gp == nil || gp.Name == nil {
+					continue
+				}
+				add(gp.Name.Name)
+			}
+		}
+		if lambda != nil {
+			for _, gp := range lambda.GenericParams {
 				if gp == nil || gp.Name == nil {
 					continue
 				}
@@ -500,10 +484,15 @@ type NativeCallContext struct {
 
 type NativeFunc func(*NativeCallContext, []Value) (Value, error)
 
+type NativeRawFunc func(*NativeCallContext, []RawValue) (RawValue, error)
+
 type NativeFunctionValue struct {
 	Name  string
 	Arity int
 	Impl  NativeFunc
+	// RawImpl marks native implementations that can consume raw primitive
+	// payloads directly. Callers still materialize values for ordinary Impl.
+	RawImpl NativeRawFunc
 	// BorrowArgs marks native implementations that do not retain the args
 	// slice after returning, allowing callers to pass borrowed backing storage.
 	BorrowArgs bool
@@ -588,10 +577,13 @@ func FlattenFunctionOverloads(v Value) []*FunctionValue {
 //-----------------------------------------------------------------------------
 
 type StructDefinitionValue struct {
-	Node *ast.StructDefinition
+	Node              *ast.StructDefinition
+	NamedFieldIndices map[string]int
 }
 
 func (v StructDefinitionValue) Kind() Kind { return KindStructDefinition }
+
+const structInstanceInlinePositionalCapacity = 3
 
 type StructInstanceValue struct {
 	Definition    *StructDefinitionValue
@@ -600,7 +592,8 @@ type StructInstanceValue struct {
 	TypeArguments []ast.TypeExpression
 	// Native carries implementation-private host metadata. Language-visible
 	// semantics must continue to come from Definition, Fields, and Positional.
-	Native any
+	Native           any
+	inlinePositional [structInstanceInlinePositionalCapacity]Value
 }
 
 func (v *StructInstanceValue) Kind() Kind { return KindStructInstance }
@@ -612,17 +605,21 @@ type UnionDefinitionValue struct {
 func (v UnionDefinitionValue) Kind() Kind { return KindUnionDefinition }
 
 type InterfaceDefinitionValue struct {
-	Node *ast.InterfaceDefinition
-	Env  *Environment
+	Node          *ast.InterfaceDefinition
+	Env           *Environment
+	QualifiedName string
 }
 
 func (v InterfaceDefinitionValue) Kind() Kind { return KindInterfaceDefinition }
 
 type InterfaceValue struct {
-	Interface     *InterfaceDefinitionValue
-	Underlying    Value
-	Methods       map[string]Value
-	InterfaceArgs []ast.TypeExpression
+	Interface       *InterfaceDefinitionValue
+	Underlying      Value
+	Methods         map[string]Value
+	SharedMethods   map[string]Value
+	BoundMethodName string
+	BoundMethod     Value
+	InterfaceArgs   []ast.TypeExpression
 }
 
 func (v InterfaceValue) Kind() Kind { return KindInterfaceValue }
@@ -632,6 +629,7 @@ type ImplementationNamespaceValue struct {
 	InterfaceName *ast.Identifier
 	TargetType    ast.TypeExpression
 	Methods       map[string]Value
+	IsPrivate     bool
 }
 
 func (v ImplementationNamespaceValue) Kind() Kind { return KindImplementationNamespace }
@@ -641,18 +639,20 @@ func (v ImplementationNamespaceValue) Kind() Kind { return KindImplementationNam
 //-----------------------------------------------------------------------------
 
 type PackageValue struct {
-	Name      string
-	NamePath  []string
-	IsPrivate bool
-	Public    map[string]Value
+	Name        string
+	NamePath    []string
+	IdentityKey string
+	IsPrivate   bool
+	Public      map[string]Value
 }
 
 func (v PackageValue) Kind() Kind { return KindPackage }
 
 type DynPackageValue struct {
-	Name      string
-	NamePath  []string
-	IsPrivate bool
+	Name        string
+	NamePath    []string
+	IdentityKey string
+	IsPrivate   bool
 }
 
 func (v DynPackageValue) Kind() Kind { return KindDynPackage }

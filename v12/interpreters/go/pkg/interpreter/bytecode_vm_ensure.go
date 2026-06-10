@@ -37,7 +37,7 @@ func (vm *bytecodeVM) execEnsureEnd(_ bytecodeInstruction) error {
 	if result == nil {
 		result = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, result)
+	vm.appendStackValue(result)
 	vm.ip++
 	return nil
 }

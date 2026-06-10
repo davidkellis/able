@@ -1,0 +1,48 @@
+File: compiled
+Build ID: 1a0f404db5136c82fcba614055d5e1964664ceba
+Type: alloc_objects
+Time: 2026-07-27 23:59:31 CDT
+Showing nodes accounting for 203691, 94.36% of 215867 total
+Dropped 150 nodes (cum <= 1079)
+Showing top 40 nodes out of 117
+      flat  flat%   sum%        cum   cum%
+     21566  9.99%  9.99%      21566  9.99%  runtime/pprof.allFrames
+     20480  9.49% 19.48%      20480  9.49%  main.(*__able_channel_awaitable).toStruct
+     14848  6.88% 26.36%      14848  6.88%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+     14848  6.88% 33.23%      14848  6.88%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+     10240  4.74% 37.98%      10240  4.74%  main.__able_native_call_context
+      9728  4.51% 42.48%      34681 16.07%  main.__able_call_value_fast_ctx
+      8707  4.03% 46.52%       8707  4.03%  able/interpreter-go/pkg/compiler/bridge.currentGID
+      8704  4.03% 50.55%      43385 20.10%  main.__able_method_call_ctx
+      5632  2.61% 53.16%       5632  2.61%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+      5632  2.61% 55.77%       5632  2.61%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+      5490  2.54% 58.31%       5533  2.56%  runtime/pprof.(*profileBuilder).emitLocation
+      5120  2.37% 60.68%       5126  2.37%  main.__able_make_await_registration_value_ctx
+      5120  2.37% 63.06%       6159  2.85%  main.__able_make_await_waker_ctx
+      4609  2.14% 65.19%       4609  2.14%  main.__able_context_from_environment (inline)
+      4098  1.90% 67.09%       4099  1.90%  able/interpreter-go/pkg/compiler/bridge.ToInt
+      4096  1.90% 68.99%       6144  2.85%  main.__able_call_value_fast
+      4096  1.90% 70.88%       4096  1.90%  main.__able_fn__int64_to_int64_to_runtime_value
+      4096  1.90% 72.78%       4096  1.90%  main.__able_make_default_awaitable
+      3584  1.66% 74.44%      11264  5.22%  main.__able_collect_await_arms_ctx
+      3076  1.42% 75.87%      54462 25.23%  main.__able_compiled_fn_main_ctx
+      3072  1.42% 77.29%       3072  1.42%  able/interpreter-go/pkg/runtime.(*Environment).mutex
+      3072  1.42% 78.71%       3072  1.42%  able/interpreter-go/pkg/runtime.newEnvironmentBase (inline)
+      3072  1.42% 80.14%      12751  5.91%  main.(*__able_goroutine_executor).RunFuture
+      2560  1.19% 81.32%      17922  8.30%  main.__able_iface_Awaitable_i64_try_from_value
+      2560  1.19% 82.51%       2560  1.19%  main.__able_iface_Awaitable_i64_wrap_runtime (inline)
+      2501  1.16% 83.67%      29684 13.75%  runtime/pprof.writeHeapProto
+      2048  0.95% 84.61%       2048  0.95%  main.(*__able_async_payload).setAwaitState
+      2048  0.95% 85.56%       2048  0.95%  main.__able_array_iface_Awaitable_i64_to
+      2048  0.95% 86.51%      22528 10.44%  main.__able_channel_await_try_recv_impl
+      2048  0.95% 87.46%       9728  4.51%  main.__able_method_call
+      1537  0.71% 88.17%       8203  3.80%  main.__able_call_named
+      1537  0.71% 88.88%       1537  0.71%  sync.NewCond (inline)
+      1536  0.71% 89.60%       3072  1.42%  able/interpreter-go/pkg/runtime.NewFutureWithContext (inline)
+      1536  0.71% 90.31%       3072  1.42%  context.WithCancel
+      1536  0.71% 91.02%       1536  0.71%  context.withCancel (inline)
+      1536  0.71% 91.73%      10752  4.98%  main.__able_iface_Future_i64_try_from_value
+      1536  0.71% 92.44%       1536  0.71%  main.__able_iface_Future_i64_wrap_runtime (inline)
+      1536  0.71% 93.15%      15825  7.33%  main.__able_spawn_context
+      1536  0.71% 93.87%       1536  0.71%  main.__able_try_member_get_method
+      1066  0.49% 94.36%       5668  2.63%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded

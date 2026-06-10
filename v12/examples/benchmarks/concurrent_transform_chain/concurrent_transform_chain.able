@@ -1,0 +1,236 @@
+package concurrent_transform_chain
+
+import able.fs
+import able.io
+import able.kernel.{Array, Channel}
+import able.os
+
+VALUE_LIMIT: i32 := 32
+DEFAULT_ROUNDS: i32 := 64
+PROFILE_ROUNDS: i32 := 4
+WINDOW_WIDTH: i32 := 18
+PASS_COUNT: i32 := 4
+WORKER_COUNT: i32 := 4
+TRANSFORM_COUNT: i32 := 3
+MODULUS: i64 := 1_000_003_i64
+
+struct TransformTask {
+  sequence: i64,
+  start: i32,
+  gain: i64,
+  mode: i32
+}
+
+struct TransformScore {
+  sequence: i64,
+  bucket: i32,
+  value: i64,
+  energy: i64
+}
+
+methods TransformScore {
+  fn checksum(self: Self) -> i64 {
+    (self.value * 7_i64
+      + (self.bucket as i64) * 23_i64
+      + self.sequence * 11_i64
+      + self.energy * 3_i64) % MODULUS
+  }
+}
+
+fn parse_i64(text: String) -> i64 {
+  bytes := io.string_to_bytes(text)
+  negative := false
+  index := 0
+  if bytes.len() > 0 && bytes.read_slot(0) == 45_u8 {
+    negative = true
+    index = 1
+  }
+  value := 0_i64
+  loop {
+    if index >= bytes.len() { break }
+    value = value * 10_i64 + ((bytes.read_slot(index) - 48_u8) as i64)
+    index = index + 1
+  }
+  if negative { -value } else { value }
+}
+
+fn load_values(path: String) -> Array i64 {
+  lines := fs.read_lines_prefix(path, VALUE_LIMIT)
+  values: Array i64 := Array.with_capacity(lines.len())
+  index := 0
+  loop {
+    if index >= lines.len() { break }
+    values.push(parse_i64(lines.read_slot(index)))
+    index = index + 1
+  }
+  values
+}
+
+fn make_transforms(salt: i64) -> Array ((i64, i64, i64, i64, i64) -> i64) {
+  transforms: Array ((i64, i64, i64, i64, i64) -> i64) := Array.with_capacity(TRANSFORM_COUNT)
+  factor := 3_i64 + (salt % 5_i64)
+  bias := 29_i64 + (salt % 11_i64)
+  twist := 7_i64 + (salt % 7_i64)
+  transforms.push({ value, neighbor, index, pass, gain =>
+    (value * factor + neighbor + (index + 1_i64) * gain + pass) % MODULUS
+  })
+  transforms.push({ value, neighbor, index, pass, gain =>
+    delta := if value >= neighbor { value - neighbor } else { neighbor - value }
+    (delta * (index + 3_i64) + bias + gain * (pass + 1_i64)) % MODULUS
+  })
+  transforms.push({ value, neighbor, index, pass, gain =>
+    (value * twist + neighbor * (pass + 2_i64) + index * index + gain) % MODULUS
+  })
+  transforms
+}
+
+fn transform_window(
+  values: Array i64,
+  task: TransformTask,
+  transforms: Array ((i64, i64, i64, i64, i64) -> i64)
+) -> TransformScore {
+  state := 193_i64 + (task.sequence % 1_009_i64)
+  energy := 0_i64
+  negatives := 0
+  pass := 0
+  loop {
+    if pass >= PASS_COUNT { break }
+    index := 0
+    loop {
+      if index >= WINDOW_WIDTH { break }
+      slot := (task.start + index * 3 + pass * 5) % values.len()
+      next_slot := (slot + 1 + task.mode) % values.len()
+      current := values.read_slot(slot)
+      neighbor := values.read_slot(next_slot)
+      if current < 0_i64 { negatives = negatives + 1 }
+      current = if current < 0_i64 { -current } else { current }
+      neighbor = if neighbor < 0_i64 { -neighbor } else { neighbor }
+      transformed := current
+      stage := 0
+      loop {
+        if stage >= TRANSFORM_COUNT { break }
+        transform := transforms.read_slot((stage + task.mode) % TRANSFORM_COUNT)
+        transformed = transform(
+          transformed,
+          neighbor,
+          index as i64,
+          pass as i64,
+          task.gain
+        )
+        stage = stage + 1
+      }
+      energy = (energy + transformed) % MODULUS
+      if current < neighbor {
+        state = (state * 67_i64 + transformed + (next_slot as i64)) % MODULUS
+      } elsif current == neighbor {
+        state = (state * 83_i64 + transformed + task.sequence) % MODULUS
+      } else {
+        state = (state * 101_i64 + transformed + (slot as i64)) % MODULUS
+      }
+      index = index + 1
+    }
+    pass = pass + 1
+  }
+  TransformScore {
+    sequence: task.sequence,
+    bucket: (negatives + task.mode + ((state % 4_i64) as i32)) % 4,
+    value: (state + energy) % MODULUS,
+    energy
+  }
+}
+
+fn work(values: Array i64, jobs: Channel TransformTask, results: Channel TransformScore) -> i64 {
+  processed := 0_i64
+  transforms := make_transforms(17_i64)
+  loop {
+    jobs.receive() match {
+      case nil => {
+        results.send(TransformScore {
+          sequence: -1_i64,
+          bucket: -1,
+          value: processed,
+          energy: 0_i64
+        })
+        break
+      },
+      case task: TransformTask => {
+        results.send(transform_window(values, task, transforms))
+        processed = processed + 1_i64
+      }
+    }
+  }
+  processed
+}
+
+fn benchmark_rounds(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" {
+    PROFILE_ROUNDS
+  } else {
+    DEFAULT_ROUNDS
+  }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "samples.txt" }
+  values := load_values(path)
+  rounds := benchmark_rounds(args)
+  task_count := values.len() * rounds
+  jobs: Channel TransformTask = Channel.new(task_count)
+  results: Channel TransformScore = Channel.new(task_count + WORKER_COUNT)
+  first := spawn { work(values, jobs, results) }
+  second := spawn { work(values, jobs, results) }
+  third := spawn { work(values, jobs, results) }
+  fourth := spawn { work(values, jobs, results) }
+
+  sequence := 0_i64
+  round := 0
+  loop {
+    if round >= rounds { break }
+    window := 0
+    loop {
+      if window >= values.len() { break }
+      jobs.send(TransformTask {
+        sequence,
+        start: (window * 7 + round * 3) % values.len(),
+        gain: ((round % 13) as i64) + 3_i64,
+        mode: (window + round) % TRANSFORM_COUNT
+      })
+      sequence = sequence + 1_i64
+      window = window + 1
+    }
+    round = round + 1
+  }
+  jobs.close()
+  future_flush()
+
+  counts: Array i64 := Array.with_capacity(4)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  finished := 0
+  worker_total := 0_i64
+  total := 0_i64
+  energy_total := 0_i64
+  checksum := 0_i64
+  loop {
+    if finished >= WORKER_COUNT { break }
+    score := results.receive()!
+    if score.sequence < 0_i64 {
+      worker_total = worker_total + score.value
+      finished = finished + 1
+    } else {
+      counts.write_slot(score.bucket, counts.read_slot(score.bucket) + 1_i64)
+      total = total + score.value
+      energy_total = energy_total + score.energy
+      checksum = (checksum + score.checksum()) % MODULUS
+    }
+  }
+
+  future_total := (first.value()! as i64)
+    + (second.value()! as i64)
+    + (third.value()! as i64)
+    + (fourth.value()! as i64)
+  print(`${task_count}:${worker_total}:${future_total}:${counts.read_slot(0)},${counts.read_slot(1)},${counts.read_slot(2)},${counts.read_slot(3)}:${total}:${energy_total}:${checksum}`)
+}

@@ -1,0 +1,214 @@
+{
+  "generated_at": "2026-07-15T06:17:02Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "suite": "custom",
+  "runs": 1,
+  "timeout_seconds": 45,
+  "cpu_affinity": "14",
+  "runtimes": {
+    "python": {
+      "executable": "/home/david/.local/share/mise/installs/python/latest/bin/python3",
+      "variant": "python-3.14",
+      "version": "Python 3.14.5"
+    },
+    "ruby": {
+      "executable": "/home/david/.local/share/mise/installs/ruby/latest/bin/ruby",
+      "variant": "ruby-4.0",
+      "version": "ruby 4.0.5 (2026-05-20 revision 64336ffd0e) +PRISM [x86_64-linux]"
+    }
+  },
+  "rows": [
+    {
+      "benchmark": "channel_rollup",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/channel-rollup/python-3.14/run.py",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0396,
+      "validation": "verified",
+      "stdout_sha256": [
+        "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+      ]
+    },
+    {
+      "benchmark": "channel_rollup",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/channel-rollup/ruby-4.0/run.rb",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0511,
+      "validation": "verified",
+      "stdout_sha256": [
+        "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+      ]
+    },
+    {
+      "benchmark": "future_pipeline",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/future-pipeline/python-3.14/run.py",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0569,
+      "validation": "verified",
+      "stdout_sha256": [
+        "3db937fdd21b5719ab57c25679a1944e8f30128695c8edbfae4940aba7aa6d98"
+      ]
+    },
+    {
+      "benchmark": "future_pipeline",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/future-pipeline/ruby-4.0/run.rb",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0631,
+      "validation": "verified",
+      "stdout_sha256": [
+        "3db937fdd21b5719ab57c25679a1944e8f30128695c8edbfae4940aba7aa6d98"
+      ]
+    },
+    {
+      "benchmark": "future_await_race",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/future-await-race/python-3.14/run.py",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0279,
+      "validation": "verified",
+      "stdout_sha256": [
+        "33297798eeb96d6d471a6afe97ec8a8bf09eda0ce30e13917aed1db40fb930e4"
+      ]
+    },
+    {
+      "benchmark": "future_await_race",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/future-await-race/ruby-4.0/run.rb",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0467,
+      "validation": "verified",
+      "stdout_sha256": [
+        "33297798eeb96d6d471a6afe97ec8a8bf09eda0ce30e13917aed1db40fb930e4"
+      ]
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/await-channel-mux/python-3.14/run.py",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.1094,
+      "validation": "verified",
+      "stdout_sha256": [
+        "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693"
+      ]
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/await-channel-mux/ruby-4.0/run.rb",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0904,
+      "validation": "verified",
+      "stdout_sha256": [
+        "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693"
+      ]
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/mutex-ledger/python-3.14/run.py",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0312,
+      "validation": "verified",
+      "stdout_sha256": [
+        "58f2e2fda882a7c1e5032a2f34c4d9d05f40ced51199c0be0672ecc4d4cf14e4"
+      ]
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/mutex-ledger/ruby-4.0/run.rb",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0492,
+      "validation": "verified",
+      "stdout_sha256": [
+        "58f2e2fda882a7c1e5032a2f34c4d9d05f40ced51199c0be0672ecc4d4cf14e4"
+      ]
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/mutex-await-journal/python-3.14/run.py",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0193,
+      "validation": "verified",
+      "stdout_sha256": [
+        "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e"
+      ]
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/mutex-await-journal/ruby-4.0/run.rb",
+      "requested_runs": 1,
+      "attempted_runs": 1,
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0402,
+      "validation": "verified",
+      "stdout_sha256": [
+        "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e"
+      ]
+    }
+  ]
+}

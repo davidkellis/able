@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-07-10T21:06:09Z",
+  "kind": "report_only_multi_source_ledger",
+  "source_ledger": [
+    {
+      "workload": "generality_catalog",
+      "input": "per-suite catalog inputs",
+      "able_source": "2026-07-10-external-scorecard-recheck.json",
+      "reference_source": "../benchmarks/results.json",
+      "measurement": "one pinned-host Able run per mode; 25-second cap"
+    },
+    {
+      "workload": "word_frequency",
+      "input": "corpus.md (131072 bytes)",
+      "source": "../benchmarks-word-frequency-publish-20260710/results.json",
+      "measurement": "six Docker-verified rows"
+    },
+    {
+      "workload": "document_audit",
+      "input": "word-frequency/corpus.md (131072 bytes)",
+      "source": "../benchmarks-document-audit-publish-20260710/results.json",
+      "measurement": "six Docker-verified rows"
+    },
+    {
+      "workload": "lexical_rollup",
+      "input": "first 16384 records of wordlist.txt (1743363-byte checked-in source)",
+      "source": "../benchmarks-lexical-rollup-publish-20260710/results.json",
+      "measurement": "six Docker-verified rows"
+    },
+    {
+      "workload": "i_before_e",
+      "input": "wordlist.txt (1743363 bytes)",
+      "able_source": "2026-07-10-external-scorecard-recheck.json",
+      "reference_source": "../benchmarks/results.json",
+      "measurement": "one pinned-host Able run per mode; 25-second cap"
+    },
+    {
+      "workload": "channel_rollup",
+      "input": "first 16384 records of wordlist.txt (1743363-byte checked-in source)",
+      "source": "2026-07-10-channel-rollup-docker-publication.json",
+      "measurement": "refreshed six direct Docker image runs after rebuilding able-v12-base; every Able mode uses ABLE_EXECUTOR=goroutine; one verified output per implementation; report-only"
+    }
+  ],
+  "selection": {
+    "eligible": false,
+    "reason": "The pipeline/text rows repeat only previously rejected candidates. The refreshed Channel-Rollup Docker row runs the retained primitive-handle repair, but its bounded concurrency profile pair still has no material concrete descendant shared with BinaryTrees and its sequential guard. The accompanying multi-run Able-only refresh has no clean external reference rows, so it cannot create a ratio-based candidate. The tree-walker goroutine-executor correctness repair is verified separately."
+  }
+}

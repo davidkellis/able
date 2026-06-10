@@ -239,12 +239,27 @@ func bytecodeBoxedIntegerValue(kind runtime.IntegerType, value int64) (runtime.V
 			return nil, false
 		}
 	}
+	if kind == runtime.IntegerI64 {
+		// Large i64 hot loops such as Monte Carlo generate very high-cardinality
+		// values with little reuse. Bypass the dynamic boxed-int map there and
+		// return the direct small-int carrier instead of paying lock/map churn.
+		if bytecodeDynamicIntBoxReuseEnabled {
+			bytecodeRecordDynamicIntBoxCacheEvent(kind, bytecodeDynamicIntBoxCacheI64Bypass)
+		}
+		return runtime.NewSmallInt(value, kind), true
+	}
+	if bytecodeDynamicIntBoxReuseEnabled {
+		bytecodeRecordDynamicIntBoxCacheEvent(kind, bytecodeDynamicIntBoxCacheLookup)
+	}
 
 	bytecodeIntBoxDynamicMu.RLock()
 	cache := bytecodeDynamicIntBoxCache(kind)
 	if cache != nil {
 		if boxed, ok := cache[value]; ok {
 			bytecodeIntBoxDynamicMu.RUnlock()
+			if bytecodeDynamicIntBoxReuseEnabled {
+				bytecodeRecordDynamicIntBoxCacheEvent(kind, bytecodeDynamicIntBoxCacheHit)
+			}
 			return boxed, true
 		}
 	}
@@ -260,11 +275,22 @@ func bytecodeBoxedIntegerValue(kind runtime.IntegerType, value int64) (runtime.V
 	}
 	if existing, ok := cache[value]; ok {
 		bytecodeIntBoxDynamicMu.Unlock()
+		if bytecodeDynamicIntBoxReuseEnabled {
+			bytecodeRecordDynamicIntBoxCacheEvent(kind, bytecodeDynamicIntBoxCacheHit)
+		}
 		return existing, true
 	}
 	if len(cache) < bytecodeIntBoxDynamicCacheLimit {
 		cache[value] = boxed
+		bytecodeIntBoxDynamicMu.Unlock()
+		if bytecodeDynamicIntBoxReuseEnabled {
+			bytecodeRecordDynamicIntBoxCacheEvent(kind, bytecodeDynamicIntBoxCacheInsert)
+		}
+		return boxed, true
 	}
 	bytecodeIntBoxDynamicMu.Unlock()
+	if bytecodeDynamicIntBoxReuseEnabled {
+		bytecodeRecordDynamicIntBoxCacheEvent(kind, bytecodeDynamicIntBoxCacheCapacityMiss)
+	}
 	return boxed, true
 }

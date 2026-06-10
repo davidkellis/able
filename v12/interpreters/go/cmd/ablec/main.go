@@ -31,14 +31,19 @@ func run(args []string) int {
 	emitMain := fs.Bool("main", false, "emit a runnable main.go wrapper (package must be main)")
 	buildBin := fs.Bool("build", false, "build a native binary after emitting Go code (forces -pkg=main)")
 	binPath := fs.String("bin", "", "output path for built binary (defaults to <output dir>/compiled)")
-	experimentalMonoArrays := fs.Bool("experimental-mono-arrays", monoArraysEnabled, "enable staged monomorphized array lowering (experimental, default on)")
-	noExperimentalMonoArrays := fs.Bool("no-experimental-mono-arrays", false, "disable staged monomorphized array lowering")
+	requireNoFallbacks := fs.Bool("no-fallbacks", false, "fail compilation when any interpreter fallback is required")
+	experimentalMonoArrays := fs.Bool("experimental-mono-arrays", monoArraysEnabled, "legacy compatibility flag; native static Array lowering is always enabled")
+	noExperimentalMonoArrays := fs.Bool("no-experimental-mono-arrays", false, "legacy compatibility flag; native static Array lowering remains enabled")
+	experimentalExecutionContext := fs.Bool("experimental-execution-context", false, "enable generated-call execution-context propagation prototype")
+	dynamicBoundaryTelemetry := fs.Bool("dynamic-boundary-telemetry", false, "emit debug-only dynamic-boundary counters in generated code")
+	callPathTelemetry := fs.Bool("call-path-telemetry", false, "emit debug-only generated call-path counters in generated code")
+	typedBoundaryTelemetry := fs.Bool("typed-boundary-telemetry", false, "emit debug-only typed/runtime boundary counters in generated code")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *noExperimentalMonoArrays {
-		*experimentalMonoArrays = false
+		*experimentalMonoArrays = true
 	}
 
 	entry := fs.Arg(0)
@@ -95,11 +100,17 @@ func run(args []string) int {
 	}
 
 	comp := compiler.New(compiler.Options{
-		PackageName:               *pkgName,
-		EmitMain:                  *emitMain,
-		EntryPath:                 absEntry,
-		ExperimentalMonoArrays:    *experimentalMonoArrays,
-		ExperimentalMonoArraysSet: true,
+		PackageName:                  *pkgName,
+		EmitMain:                     *emitMain,
+		EntryPath:                    absEntry,
+		RequireNoFallbacks:           *requireNoFallbacks,
+		RequireStaticNoFallbacks:     *requireNoFallbacks,
+		ExperimentalMonoArrays:       *experimentalMonoArrays,
+		ExperimentalMonoArraysSet:    true,
+		ExperimentalExecutionContext: *experimentalExecutionContext,
+		EmitDynamicBoundaryTelemetry: *dynamicBoundaryTelemetry,
+		EmitCallPathTelemetry:        *callPathTelemetry,
+		EmitTypedBoundaryTelemetry:   *typedBoundaryTelemetry,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {
@@ -141,9 +152,7 @@ func resolveAblecExperimentalMonoArraysFromEnv() (bool, error) {
 	}
 	normalized := strings.TrimSpace(strings.ToLower(raw))
 	switch normalized {
-	case "", "0", "false", "no", "off":
-		return false, nil
-	case "1", "true", "yes", "on":
+	case "", "0", "false", "no", "off", "1", "true", "yes", "on":
 		return true, nil
 	default:
 		return false, fmt.Errorf("invalid ABLE_EXPERIMENTAL_MONO_ARRAYS value %q (expected one of: 1,true,yes,on,0,false,no,off)", raw)

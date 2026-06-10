@@ -1,0 +1,361 @@
+#!/usr/bin/env python3
+"""Join the current scorecard and per-engine architecture target budgets."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-cross-engine-architecture-budget.json"
+CHECKED_JSON = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-current-cross-engine-architecture-target-budget-reconciliation.json"
+)
+CHECKED_MARKDOWN = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-current-cross-engine-architecture-target-budget-reconciliation.md"
+)
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def resolve_source(record: Any, label: str) -> Path:
+    if not isinstance(record, dict):
+        raise ValueError(f"{label} source must be an object")
+    raw_path = record.get("path")
+    expected = record.get("sha256")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"{label} source needs a path")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ValueError(f"{label} source needs a SHA-256 fingerprint")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except FileNotFoundError:
+        raise ValueError(f"{label} source not found: {path}") from None
+    if actual != expected:
+        raise ValueError(
+            f"{label} source fingerprint drifted: expected {expected}, got {actual}"
+        )
+    return path
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def require_number(value: Any, label: str) -> float:
+    if not isinstance(value, (int, float)) or value < 0:
+        raise ValueError(f"{label} must be a non-negative number")
+    return float(value)
+
+
+def frontier_mode_summary(frontier: dict[str, Any]) -> list[dict[str, Any]]:
+    if frontier.get("kind") != "able-performance-frontier":
+        raise ValueError("frontier has an invalid kind")
+    rows = frontier.get("rows")
+    groups = frontier.get("groups")
+    if not isinstance(rows, list) or not isinstance(groups, list):
+        raise ValueError("frontier needs rows and groups")
+    result = []
+    for mode in ("compiled", "bytecode"):
+        selected = [row for row in rows if row.get("mode") == mode]
+        excess = sum(
+            require_number(row.get("excess_seconds"), f"{mode} row excess")
+            for row in selected
+        )
+        result.append(
+            {
+                "mode": mode,
+                "row_count": len(selected),
+                "target_meets": sum(row.get("target_status") == "meets" for row in selected),
+                "target_misses": sum(row.get("target_status") == "miss" for row in selected),
+                "total_excess_seconds": excess,
+            }
+        )
+    summary = frontier.get("summary", {})
+    if sum(row["row_count"] for row in result) != summary.get("selected_rows"):
+        raise ValueError("frontier selected-row summary does not reconcile")
+    total = sum(row["total_excess_seconds"] for row in result)
+    expected = require_number(summary.get("total_excess_seconds"), "frontier excess")
+    if abs(total - expected) > 1e-9:
+        raise ValueError("frontier excess summary does not reconcile")
+    return result
+
+
+def group_budgets(frontier: dict[str, Any]) -> list[dict[str, Any]]:
+    result = []
+    for group in frontier["groups"]:
+        group_id = group.get("id")
+        if not isinstance(group_id, str) or not group_id.startswith(("compiled-", "bytecode-")):
+            raise ValueError("frontier group needs an engine-prefixed id")
+        result.append(
+            {
+                "id": group_id,
+                "mode": group_id.split("-", 1)[0],
+                "row_count": group.get("row_count"),
+                "miss_count": group.get("miss_count"),
+                "total_excess_seconds": require_number(
+                    group.get("total_excess_seconds"), f"{group_id} excess"
+                ),
+                "maximum_ratio": require_number(
+                    group.get("maximum_ratio"), f"{group_id} ratio"
+                ),
+                "disposition": group.get("disposition"),
+            }
+        )
+    return sorted(result, key=lambda row: (-row["total_excess_seconds"], row["id"]))
+
+
+def build_report(
+    evidence_path: Path,
+    frontier_path: Path | None,
+    bytecode_path: Path | None,
+    compiled_path: Path | None,
+) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "cross-engine evidence")
+    if evidence.get("kind") != "able-cross-engine-architecture-budget-evidence":
+        raise ValueError("cross-engine evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("cross-engine evidence needs schema_version 1")
+    sources = evidence.get("sources")
+    if not isinstance(sources, dict):
+        raise ValueError("cross-engine evidence needs sources")
+    frontier_path = frontier_path or resolve_source(sources.get("frontier"), "frontier")
+    bytecode_path = bytecode_path or resolve_source(
+        sources.get("bytecode_budget"), "bytecode budget"
+    )
+    compiled_path = compiled_path or resolve_source(
+        sources.get("compiled_budget"), "compiled budget"
+    )
+    frontier = load_json(frontier_path, "frontier")
+    bytecode = load_json(bytecode_path, "bytecode budget")
+    compiled = load_json(compiled_path, "compiled budget")
+    if bytecode.get("kind") != "able-bytecode-architecture-budget":
+        raise ValueError("bytecode budget has an invalid kind")
+    if compiled.get("kind") != "able-compiled-architecture-budget":
+        raise ValueError("compiled budget has an invalid kind")
+    modes = frontier_mode_summary(frontier)
+    total_excess = sum(row["total_excess_seconds"] for row in modes)
+    bytecode_mode = next(row for row in modes if row["mode"] == "bytecode")
+    bytecode_summary = bytecode["summary"]
+    compiled_summary = compiled["summary"]
+    compiled_candidates = compiled_summary.get("eligible_mechanisms")
+    if not isinstance(compiled_candidates, list):
+        raise ValueError("compiled budget needs eligible_mechanisms")
+    candidate_eligible = bool(compiled_candidates) or bytecode_summary.get("decision") != (
+        "no-go-register-representation-only"
+    )
+    decision = (
+        "candidate-eligible"
+        if candidate_eligible
+        else "no-go-current-cross-engine-local-mechanism"
+    )
+    return {
+        "kind": "able-cross-engine-architecture-budget",
+        "schema_version": 1,
+        "sources": {
+            "evidence": source_record(evidence_path),
+            "frontier": source_record(frontier_path),
+            "bytecode_budget": source_record(bytecode_path),
+            "compiled_budget": source_record(compiled_path),
+        },
+        "summary": {
+            "decision": decision,
+            "candidate_eligible": candidate_eligible,
+            "selected_rows": sum(row["row_count"] for row in modes),
+            "target_meets": sum(row["target_meets"] for row in modes),
+            "target_misses": sum(row["target_misses"] for row in modes),
+            "total_excess_seconds": total_excess,
+            "bytecode_excess_share_percent": round(
+                100.0 * bytecode_mode["total_excess_seconds"] / total_excess, 6
+            ),
+            "minimum_unlike_families": evidence.get("minimum_unlike_families"),
+        },
+        "modes": modes,
+        "architecture_bounds": {
+            "bytecode": {
+                "decision": bytecode_summary.get("decision"),
+                "application_count": bytecode_summary.get("application_count"),
+                "unlike_family_count": bytecode_summary.get("unlike_family_count"),
+                "optimistic_model": "make all stack-transport operations free at uniform average operation cost",
+                "maximum_optimistic_speedup": bytecode_summary.get(
+                    "maximum_uniform_cost_transport_speedup"
+                ),
+                "minimum_remaining_target_speedup": bytecode_summary.get(
+                    "minimum_remaining_speedup_after_transport"
+                ),
+            },
+            "compiled": {
+                "decision": compiled_summary.get("decision"),
+                "application_count": compiled_summary.get("application_count"),
+                "unlike_family_count": compiled_summary.get("unlike_family_count"),
+                "optimistic_model": "make each application's largest exact attributed owner free",
+                "eligible_mechanisms": compiled_candidates,
+                "minimum_required_speedup": compiled_summary.get(
+                    "minimum_required_speedup"
+                ),
+                "minimum_remaining_target_speedup": compiled_summary.get(
+                    "minimum_remaining_speedup_after_perfect_local_owner_removal"
+                ),
+            },
+        },
+        "group_budgets": group_budgets(frontier),
+        "next_architecture_lane": evidence.get("next_architecture_lane"),
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    bounds = report["architecture_bounds"]
+    modes = {row["mode"]: row for row in report["modes"]}
+    lines = [
+        "# Current cross-engine architecture target-budget reconciliation",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        "No local compiler or VM candidate is admitted by the current evidence. The",
+        "scorecard has no actionable implementation group, the compiler has no exact",
+        "mechanism material in three unlike families, and free bytecode transport is",
+        "far too small to close even the smallest modeled VM target gap.",
+        "",
+        "## Current target budget",
+        "",
+        "| Mode | Rows | Meets | Misses | Excess seconds | Share |",
+        "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for mode in ("compiled", "bytecode"):
+        row = modes[mode]
+        share = 100.0 * row["total_excess_seconds"] / summary["total_excess_seconds"]
+        lines.append(
+            f"| {mode} | {row['row_count']} | {row['target_meets']} | "
+            f"{row['target_misses']} | {row['total_excess_seconds']:.6f} | {share:.2f}% |"
+        )
+    lines += [
+        "",
+        f"The full {summary['selected_rows']}-row frontier has {summary['target_misses']} misses and "
+        f"{summary['total_excess_seconds']:.6f} seconds above its aggregate target. "
+        f"Bytecode owns {summary['bytecode_excess_share_percent']:.2f}% of that gap.",
+        "",
+        "## Optimistic architecture bounds",
+        "",
+        "| Engine | Unlike applications | Favorable assumption | Best remaining requirement | Decision |",
+        "| --- | ---: | --- | ---: | --- |",
+        f"| bytecode | {bounds['bytecode']['unlike_family_count']} | all transport free "
+        f"(at most {bounds['bytecode']['maximum_optimistic_speedup']:.2f}x) | "
+        f"{bounds['bytecode']['minimum_remaining_target_speedup']:.2f}x | "
+        f"`{bounds['bytecode']['decision']}` |",
+        f"| compiled | {bounds['compiled']['unlike_family_count']} | largest exact local "
+        f"owner free | {bounds['compiled']['minimum_remaining_target_speedup']:.2f}x | "
+        f"`{bounds['compiled']['decision']}` |",
+        "",
+        "These are upper-bound planning models, not timing claims. They omit replacement,",
+        "materialization, translation, code-size, and secondary costs. Failing under these",
+        "assumptions closes another small helper, cache, carrier, frame, or register-only",
+        "experiment as the next tranche.",
+        "",
+        "## Largest remaining group budgets",
+        "",
+        "| Group | Misses | Excess seconds | Disposition |",
+        "| --- | ---: | ---: | --- |",
+    ]
+    for group in report["group_budgets"][:8]:
+        lines.append(
+            f"| `{group['id']}` | {group['miss_count']} | "
+            f"{group['total_excess_seconds']:.6f} | `{group['disposition']}` |"
+        )
+    lane = report["next_architecture_lane"]
+    lines += [
+        "",
+        "## Next recommendation",
+        "",
+        f"Run **{lane['id']}**.",
+        "",
+        lane["scope"],
+        "",
+        "Why: bytecode contributes most of the measured target deficit, while current",
+        "local-owner, register, semantic-region, native-reach, and carrier/consumer",
+        "gates admit no implementation candidate. Another isolated helper would repeat",
+        "closed work rather than select an architecture capable of changing the target.",
+        "",
+        f"Admission gate: {lane['admission']}",
+        "",
+        f"Required guards: {lane['guards']}",
+        "",
+        "This reconciliation starts with checked target-budget arithmetic and existing",
+        "closure evidence. It adds runtime code only if the three-family and target-budget",
+        "gates pass. It does not begin WASM work or add named-container/benchmark rules.",
+        "",
+        "## Reproduction",
+        "",
+        "```sh",
+        "python3 v12/bench_bytecode_architecture_budget_test.py",
+        "python3 v12/bench_compiled_architecture_budget_test.py",
+        "python3 v12/bench_cross_engine_architecture_budget_test.py",
+        "v12/bench_cross_engine_architecture_budget --check",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--frontier", type=Path)
+    parser.add_argument("--bytecode-budget", type=Path)
+    parser.add_argument("--compiled-budget", type=Path)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        report = build_report(
+            args.evidence, args.frontier, args.bytecode_budget, args.compiled_budget
+        )
+    except ValueError as error:
+        parser.error(str(error))
+    rendered_json = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    rendered_markdown = markdown(report)
+    if args.json_out:
+        args.json_out.write_text(rendered_json, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.write_text(rendered_markdown, encoding="utf-8")
+    if args.check:
+        if report["summary"]["candidate_eligible"]:
+            raise SystemExit("cross-engine architecture candidate requires review")
+        if not any((args.frontier, args.bytecode_budget, args.compiled_budget)):
+            if CHECKED_JSON.read_text(encoding="utf-8") != rendered_json:
+                raise SystemExit("checked cross-engine JSON artifact is stale")
+            if CHECKED_MARKDOWN.read_text(encoding="utf-8") != rendered_markdown:
+                raise SystemExit("checked cross-engine Markdown artifact is stale")
+    if not args.json_out and not args.markdown_out and not args.check:
+        print(rendered_json, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

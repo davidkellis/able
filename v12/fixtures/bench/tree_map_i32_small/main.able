@@ -1,0 +1,53 @@
+package bench_tree_map_i32_small
+
+import able.collections.tree_map.{TreeMap, TreeEntry}
+
+fn build(size: i32) -> TreeMap i32 i32 {
+  values: TreeMap i32 i32 = TreeMap.new()
+  i := 0
+  loop {
+    if i >= size { break }
+    key := ((i * 37) + 11) % (size * 3)
+    values.set(key, (i * 5) - 9)
+    i = i + 1
+  }
+  values
+}
+
+fn score(values: TreeMap i32 i32, size: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= size * 2 { break }
+    key := ((i * 19) + 7) % (size * 3)
+    values.get(key) match {
+      case nil => values.set(key, i - 3),
+      case value: i32 => {
+        total = total + (value as i64)
+        if i % 7 == 0 {
+          values.set(key, value + 1)
+        }
+      }
+    }
+    if i % 11 == 0 {
+      values.remove((i * 13) % (size * 3))
+    }
+    i = i + 1
+  }
+  values.each(fn(entry: TreeEntry i32 i32) -> void {
+    total = total + (entry.key as i64) + (entry.value as i64)
+  })
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  values := build(120)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 3 { break }
+    total = total + score(values, 120)
+    rounds = rounds + 1
+  }
+  print(total)
+}

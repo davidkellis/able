@@ -49,7 +49,20 @@ func TestBytecodeVM_EvalExpressionReusesLoweredMatchPrograms(t *testing.T) {
 	if afterSecond.ExprCacheMisses != afterFirst.ExprCacheMisses {
 		t.Fatalf("expected second evaluation to reuse cached lowered programs, got misses=%d want=%d", afterSecond.ExprCacheMisses, afterFirst.ExprCacheMisses)
 	}
-	if afterSecond.ExprCacheHits < 3 {
-		t.Fatalf("expected cached match/guard/body programs on second evaluation, got hits=%d", afterSecond.ExprCacheHits)
+	if afterSecond.ExprCacheHits != afterFirst.ExprCacheHits+1 {
+		t.Fatalf("expected second evaluation to re-enter only the outer match lowerer cache, got hits=%d want=%d", afterSecond.ExprCacheHits, afterFirst.ExprCacheHits+1)
+	}
+	programs := interp.matchExpressionBytecodePrograms(matchExpr)
+	if len(programs) != len(matchExpr.Clauses) {
+		t.Fatalf("len(programs) = %d, want %d", len(programs), len(matchExpr.Clauses))
+	}
+	if !programs[0].guardSet || programs[0].bodySet {
+		t.Fatalf("expected first clause to cache only its executed guard, got %#v", programs[0])
+	}
+	if !programs[1].guardSet || !programs[1].bodySet {
+		t.Fatalf("expected selected second clause to cache guard and body, got %#v", programs[1])
+	}
+	if programs[2].guardSet || programs[2].bodySet {
+		t.Fatalf("expected unreachable wildcard clause to remain unlowered, got %#v", programs[2])
 	}
 }

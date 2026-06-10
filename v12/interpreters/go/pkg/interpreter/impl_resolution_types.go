@@ -384,10 +384,12 @@ func matchTypeExpressionTemplate(template, actual ast.TypeExpression, genericNam
 			}
 			otherArgs := other.Arguments
 			if len(otherArgs) == 0 && len(t.Arguments) > 0 {
-				otherArgs = make([]ast.TypeExpression, len(t.Arguments))
-				for idx := range otherArgs {
-					otherArgs[idx] = ast.NewWildcardTypeExpression()
+				for idx := range t.Arguments {
+					if !matchTypeExpressionTemplate(t.Arguments[idx], cachedWildcardTypeExpression, genericNames, bindings) {
+						return false
+					}
 				}
+				return true
 			}
 			if len(t.Arguments) != len(otherArgs) {
 				return false
@@ -403,7 +405,7 @@ func matchTypeExpressionTemplate(template, actual ast.TypeExpression, genericNam
 				return false
 			}
 			for idx := range t.Arguments {
-				if !matchTypeExpressionTemplate(t.Arguments[idx], ast.NewWildcardTypeExpression(), genericNames, bindings) {
+				if !matchTypeExpressionTemplate(t.Arguments[idx], cachedWildcardTypeExpression, genericNames, bindings) {
 					return false
 				}
 			}
@@ -412,11 +414,13 @@ func matchTypeExpressionTemplate(template, actual ast.TypeExpression, genericNam
 			return false
 		}
 	case *ast.NullableTypeExpression:
-		other, ok := actual.(*ast.NullableTypeExpression)
-		if !ok {
-			return false
+		if typeExpressionIsNilOrWildcard(actual) {
+			return true
 		}
-		return matchTypeExpressionTemplate(t.InnerType, other.InnerType, genericNames, bindings)
+		if other, ok := actual.(*ast.NullableTypeExpression); ok {
+			return matchTypeExpressionTemplate(t.InnerType, other.InnerType, genericNames, bindings)
+		}
+		return matchTypeExpressionTemplate(t.InnerType, actual, genericNames, bindings)
 	case *ast.ResultTypeExpression:
 		other, ok := actual.(*ast.ResultTypeExpression)
 		if !ok {
@@ -440,143 +444,258 @@ func matchTypeExpressionTemplate(template, actual ast.TypeExpression, genericNam
 }
 
 func mapTypeArguments(generics []*ast.GenericParameter, provided []ast.TypeExpression, context string) (map[string]ast.TypeExpression, error) {
-	result := make(map[string]ast.TypeExpression)
-	if len(generics) == 0 {
+	return mapTypeArgumentsByNames(buildGenericParamNamesByIndex(generics), len(generics), provided, context)
+}
+
+type indexedTypeArgumentLookup struct {
+	namesByIndex  []string
+	expectedCount int
+	provided      []ast.TypeExpression
+}
+
+func (l indexedTypeArgumentLookup) Lookup(name string) (ast.TypeExpression, bool) {
+	limit := l.expectedCount
+	if len(l.namesByIndex) < limit {
+		limit = len(l.namesByIndex)
+	}
+	if len(l.provided) < limit {
+		limit = len(l.provided)
+	}
+	for idx := 0; idx < limit; idx++ {
+		if l.namesByIndex[idx] != name {
+			continue
+		}
+		value := l.provided[idx]
+		if value == nil {
+			return nil, false
+		}
+		return value, true
+	}
+	return nil, false
+}
+
+func validateTypeArgumentsByNames(namesByIndex []string, expectedCount int, provided []ast.TypeExpression, context string) error {
+	if expectedCount == 0 {
+		return nil
+	}
+	if len(provided) != expectedCount {
+		return fmt.Errorf("Type arguments count mismatch %s: expected %d, got %d", context, expectedCount, len(provided))
+	}
+	for idx := 0; idx < expectedCount; idx++ {
+		name := namesByIndex[idx]
+		if name == "" {
+			continue
+		}
+		if provided[idx] == nil {
+			return fmt.Errorf("Missing type argument for '%s' required by %s", name, context)
+		}
+	}
+	return nil
+}
+
+func indexedTypeArgumentsByNames(namesByIndex []string, expectedCount int, provided []ast.TypeExpression, context string) (indexedTypeArgumentLookup, error) {
+	if err := validateTypeArgumentsByNames(namesByIndex, expectedCount, provided, context); err != nil {
+		return indexedTypeArgumentLookup{}, err
+	}
+	return indexedTypeArgumentLookup{
+		namesByIndex:  namesByIndex,
+		expectedCount: expectedCount,
+		provided:      provided,
+	}, nil
+}
+
+func mapTypeArgumentsByNames(namesByIndex []string, expectedCount int, provided []ast.TypeExpression, context string) (map[string]ast.TypeExpression, error) {
+	if err := validateTypeArgumentsByNames(namesByIndex, expectedCount, provided, context); err != nil {
+		return nil, err
+	}
+	result := make(map[string]ast.TypeExpression, expectedCount)
+	if expectedCount == 0 {
 		return result, nil
 	}
-	if len(provided) != len(generics) {
-		return nil, fmt.Errorf("Type arguments count mismatch %s: expected %d, got %d", context, len(generics), len(provided))
-	}
-	for idx, gp := range generics {
-		if gp == nil || gp.Name == nil {
+	for idx := 0; idx < expectedCount; idx++ {
+		name := namesByIndex[idx]
+		if name == "" {
 			continue
 		}
 		ta := provided[idx]
-		if ta == nil {
-			return nil, fmt.Errorf("Missing type argument for '%s' required by %s", gp.Name.Name, context)
-		}
-		result[gp.Name.Name] = ta
+		result[name] = ta
 	}
 	return result, nil
 }
 
 func (i *Interpreter) enforceConstraintSpecs(constraints []constraintSpec, typeArgMap map[string]ast.TypeExpression) error {
-	var substituteTypeParams func(ast.TypeExpression) ast.TypeExpression
-	substituteTypeParams = func(expr ast.TypeExpression) ast.TypeExpression {
-		switch t := expr.(type) {
-		case *ast.SimpleTypeExpression:
-			if t.Name != nil {
-				if replacement, ok := typeArgMap[t.Name.Name]; ok {
-					return replacement
-				}
-			}
-			return t
-		case *ast.GenericTypeExpression:
-			base := substituteTypeParams(t.Base)
-			args := make([]ast.TypeExpression, len(t.Arguments))
-			for idx, arg := range t.Arguments {
-				args[idx] = substituteTypeParams(arg)
-			}
-			return ast.NewGenericTypeExpression(base, args)
-		case *ast.FunctionTypeExpression:
-			params := make([]ast.TypeExpression, len(t.ParamTypes))
-			for idx, param := range t.ParamTypes {
-				params[idx] = substituteTypeParams(param)
-			}
-			return ast.NewFunctionTypeExpression(params, substituteTypeParams(t.ReturnType))
-		case *ast.NullableTypeExpression:
-			return ast.NewNullableTypeExpression(substituteTypeParams(t.InnerType))
-		case *ast.ResultTypeExpression:
-			return ast.NewResultTypeExpression(substituteTypeParams(t.InnerType))
-		case *ast.UnionTypeExpression:
-			members := make([]ast.TypeExpression, len(t.Members))
-			for idx, member := range t.Members {
-				members[idx] = substituteTypeParams(member)
-			}
-			return ast.NewUnionTypeExpression(members)
-		default:
-			return expr
-		}
-	}
-	isKnownTypeName := func(name string) bool {
-		if name == "" || name == "_" || name == "Self" {
-			return false
-		}
-		if isPrimitiveTypeName(name) {
-			return true
-		}
-		if _, ok := i.interfaces[name]; ok {
-			return true
-		}
-		if _, ok := i.unionDefinitions[name]; ok {
-			return true
-		}
-		if _, ok := i.typeAliases[name]; ok {
-			return true
-		}
-		if _, ok := i.lookupStructDefinition(name); ok {
-			return true
-		}
-		return false
-	}
-	var hasUnknownNames func(ast.TypeExpression) bool
-	hasUnknownNames = func(expr ast.TypeExpression) bool {
-		switch t := expr.(type) {
-		case *ast.SimpleTypeExpression:
-			if t.Name == nil {
-				return true
-			}
-			return !isKnownTypeName(t.Name.Name)
-		case *ast.GenericTypeExpression:
-			if hasUnknownNames(t.Base) {
-				return true
-			}
-			for _, arg := range t.Arguments {
-				if hasUnknownNames(arg) {
-					return true
-				}
-			}
-			return false
-		case *ast.FunctionTypeExpression:
-			if hasUnknownNames(t.ReturnType) {
-				return true
-			}
-			for _, param := range t.ParamTypes {
-				if hasUnknownNames(param) {
-					return true
-				}
-			}
-			return false
-		case *ast.NullableTypeExpression:
-			return hasUnknownNames(t.InnerType)
-		case *ast.ResultTypeExpression:
-			return hasUnknownNames(t.InnerType)
-		case *ast.UnionTypeExpression:
-			for _, member := range t.Members {
-				if hasUnknownNames(member) {
-					return true
-				}
-			}
-			return false
-		default:
-			return true
-		}
-	}
 	for _, spec := range constraints {
-		subject := substituteTypeParams(spec.subject)
-		if hasUnknownNames(subject) {
-			continue
-		}
-		tInfo, ok := parseTypeExpression(subject)
-		if !ok {
-			continue
-		}
-		context := typeExpressionToString(subject)
-		if err := i.ensureTypeSatisfiesInterface(tInfo, spec.ifaceType, context, make(map[string]struct{})); err != nil {
+		subject := substituteTypeParamsWithMap(spec.subject, typeArgMap)
+		if err := i.enforceConstraintSpecSubject(spec, subject); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (i *Interpreter) enforceConstraintSpecsWithTypeArgs(constraints []constraintSpec, namesByIndex []string, expectedCount int, provided []ast.TypeExpression, context string) error {
+	lookup, err := indexedTypeArgumentsByNames(namesByIndex, expectedCount, provided, context)
+	if err != nil {
+		return err
+	}
+	for _, spec := range constraints {
+		subject := substituteTypeParamsWithIndexedArgs(spec.subject, lookup)
+		if err := i.enforceConstraintSpecSubject(spec, subject); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func substituteTypeParamsWithMap(expr ast.TypeExpression, typeArgMap map[string]ast.TypeExpression) ast.TypeExpression {
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name != nil {
+			if replacement, ok := typeArgMap[t.Name.Name]; ok {
+				return replacement
+			}
+		}
+		return t
+	case *ast.GenericTypeExpression:
+		base := substituteTypeParamsWithMap(t.Base, typeArgMap)
+		args := make([]ast.TypeExpression, len(t.Arguments))
+		for idx, arg := range t.Arguments {
+			args[idx] = substituteTypeParamsWithMap(arg, typeArgMap)
+		}
+		return ast.NewGenericTypeExpression(base, args)
+	case *ast.FunctionTypeExpression:
+		params := make([]ast.TypeExpression, len(t.ParamTypes))
+		for idx, param := range t.ParamTypes {
+			params[idx] = substituteTypeParamsWithMap(param, typeArgMap)
+		}
+		return ast.NewFunctionTypeExpression(params, substituteTypeParamsWithMap(t.ReturnType, typeArgMap))
+	case *ast.NullableTypeExpression:
+		return ast.NewNullableTypeExpression(substituteTypeParamsWithMap(t.InnerType, typeArgMap))
+	case *ast.ResultTypeExpression:
+		return ast.NewResultTypeExpression(substituteTypeParamsWithMap(t.InnerType, typeArgMap))
+	case *ast.UnionTypeExpression:
+		members := make([]ast.TypeExpression, len(t.Members))
+		for idx, member := range t.Members {
+			members[idx] = substituteTypeParamsWithMap(member, typeArgMap)
+		}
+		return ast.NewUnionTypeExpression(members)
+	default:
+		return expr
+	}
+}
+
+func substituteTypeParamsWithIndexedArgs(expr ast.TypeExpression, lookup indexedTypeArgumentLookup) ast.TypeExpression {
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name != nil {
+			if replacement, ok := lookup.Lookup(t.Name.Name); ok {
+				return replacement
+			}
+		}
+		return t
+	case *ast.GenericTypeExpression:
+		base := substituteTypeParamsWithIndexedArgs(t.Base, lookup)
+		args := make([]ast.TypeExpression, len(t.Arguments))
+		for idx, arg := range t.Arguments {
+			args[idx] = substituteTypeParamsWithIndexedArgs(arg, lookup)
+		}
+		return ast.NewGenericTypeExpression(base, args)
+	case *ast.FunctionTypeExpression:
+		params := make([]ast.TypeExpression, len(t.ParamTypes))
+		for idx, param := range t.ParamTypes {
+			params[idx] = substituteTypeParamsWithIndexedArgs(param, lookup)
+		}
+		return ast.NewFunctionTypeExpression(params, substituteTypeParamsWithIndexedArgs(t.ReturnType, lookup))
+	case *ast.NullableTypeExpression:
+		return ast.NewNullableTypeExpression(substituteTypeParamsWithIndexedArgs(t.InnerType, lookup))
+	case *ast.ResultTypeExpression:
+		return ast.NewResultTypeExpression(substituteTypeParamsWithIndexedArgs(t.InnerType, lookup))
+	case *ast.UnionTypeExpression:
+		members := make([]ast.TypeExpression, len(t.Members))
+		for idx, member := range t.Members {
+			members[idx] = substituteTypeParamsWithIndexedArgs(member, lookup)
+		}
+		return ast.NewUnionTypeExpression(members)
+	default:
+		return expr
+	}
+}
+
+func (i *Interpreter) typeNameKnownForConstraint(name string) bool {
+	if name == "" || name == "_" || name == "Self" {
+		return false
+	}
+	if isPrimitiveTypeName(name) {
+		return true
+	}
+	if _, ok := i.interfaces[name]; ok {
+		return true
+	}
+	if _, ok := i.unionDefinitions[name]; ok {
+		return true
+	}
+	if _, ok := i.typeAliases[name]; ok {
+		return true
+	}
+	if _, ok := i.lookupStructDefinition(name); ok {
+		return true
+	}
+	return false
+}
+
+func (i *Interpreter) constraintSubjectHasUnknownNames(expr ast.TypeExpression) bool {
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return true
+		}
+		return !i.typeNameKnownForConstraint(t.Name.Name)
+	case *ast.GenericTypeExpression:
+		if i.constraintSubjectHasUnknownNames(t.Base) {
+			return true
+		}
+		for _, arg := range t.Arguments {
+			if i.constraintSubjectHasUnknownNames(arg) {
+				return true
+			}
+		}
+		return false
+	case *ast.FunctionTypeExpression:
+		if i.constraintSubjectHasUnknownNames(t.ReturnType) {
+			return true
+		}
+		for _, param := range t.ParamTypes {
+			if i.constraintSubjectHasUnknownNames(param) {
+				return true
+			}
+		}
+		return false
+	case *ast.NullableTypeExpression:
+		return i.constraintSubjectHasUnknownNames(t.InnerType)
+	case *ast.ResultTypeExpression:
+		return i.constraintSubjectHasUnknownNames(t.InnerType)
+	case *ast.UnionTypeExpression:
+		for _, member := range t.Members {
+			if i.constraintSubjectHasUnknownNames(member) {
+				return true
+			}
+		}
+		return false
+	default:
+		return true
+	}
+}
+
+func (i *Interpreter) enforceConstraintSpecSubject(spec constraintSpec, subject ast.TypeExpression) error {
+	if i.constraintSubjectHasUnknownNames(subject) {
+		return nil
+	}
+	tInfo, ok := parseTypeExpression(subject)
+	if !ok {
+		return nil
+	}
+	context := typeInfoToString(tInfo)
+	return i.ensureTypeSatisfiesInterface(tInfo, spec.ifaceType, context, nil)
 }
 
 func (i *Interpreter) ensureTypeSatisfiesInterface(tInfo typeInfo, ifaceExpr ast.TypeExpression, context string, visited map[string]struct{}) error {
@@ -584,10 +703,12 @@ func (i *Interpreter) ensureTypeSatisfiesInterface(tInfo typeInfo, ifaceExpr ast
 	if !ok {
 		return nil
 	}
-	if _, seen := visited[ifaceInfo.name]; seen {
-		return nil
+	if visited != nil {
+		if _, seen := visited[ifaceInfo.name]; seen {
+			return nil
+		}
+		visited[ifaceInfo.name] = struct{}{}
 	}
-	visited[ifaceInfo.name] = struct{}{}
 	ifaceDef, ok := i.interfaces[ifaceInfo.name]
 	if !ok {
 		// In compiled no-bootstrap mode, trust the compiled dispatch table
@@ -597,6 +718,10 @@ func (i *Interpreter) ensureTypeSatisfiesInterface(tInfo typeInfo, ifaceExpr ast
 		return fmt.Errorf("Unknown interface '%s' in constraint on '%s'", ifaceInfo.name, context)
 	}
 	if ifaceDef.Node != nil {
+		if visited == nil && len(ifaceDef.Node.BaseInterfaces) > 0 {
+			visited = make(map[string]struct{}, 4)
+			visited[ifaceInfo.name] = struct{}{}
+		}
 		for _, base := range ifaceDef.Node.BaseInterfaces {
 			if err := i.ensureTypeSatisfiesInterface(tInfo, base, context, visited); err != nil {
 				return err
@@ -698,6 +823,13 @@ func appendTypeExpressionString(b *strings.Builder, expr ast.TypeExpression) {
 		}
 		appendTypeExpressionString(b, t.InnerType)
 		b.WriteByte('?')
+	case *ast.ResultTypeExpression:
+		if t == nil {
+			b.WriteString("<?>")
+			return
+		}
+		b.WriteByte('!')
+		appendTypeExpressionString(b, t.InnerType)
 	case *ast.FunctionTypeExpression:
 		if t == nil {
 			b.WriteString("<?>")
@@ -732,8 +864,10 @@ func (i *Interpreter) typeInfoFromStructInstance(inst *runtime.StructInstanceVal
 	if inst == nil || inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
 		return typeInfo{}, false
 	}
-	if inst.Definition.Node.ID.Name == "Array" {
-		if arr, err := i.arrayValueFromStructFields(inst.Fields); err == nil && arr != nil {
+	node := inst.Definition.Node
+	name := node.ID.Name
+	if name == "Array" {
+		if arr, err := i.arrayValueFromStructInstance(inst); err == nil && arr != nil {
 			if typeExpr := i.typeExpressionFromValue(arr); typeExpr != nil {
 				if info, ok := parseTypeExpression(typeExpr); ok {
 					return info, true
@@ -741,40 +875,53 @@ func (i *Interpreter) typeInfoFromStructInstance(inst *runtime.StructInstanceVal
 			}
 		}
 	}
-	info := typeInfo{name: inst.Definition.Node.ID.Name}
-	generics := inst.Definition.Node.GenericParams
-	if len(generics) > 0 {
-		typeArgs := inst.TypeArguments
-		needsInference := len(typeArgs) != len(generics)
-		if !needsInference {
-			genericNames := genericNameSet(generics)
-			for _, arg := range typeArgs {
-				if arg == nil {
-					needsInference = true
-					break
-				}
-				if _, ok := arg.(*ast.WildcardTypeExpression); ok {
-					needsInference = true
-					break
-				}
-				if simple, ok := arg.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
-					if _, ok := genericNames[simple.Name.Name]; ok {
-						needsInference = true
-						break
-					}
-				}
-			}
-		}
-		if needsInference {
-			typeArgs = i.inferStructTypeArguments(inst.Definition.Node, inst.Fields, inst.Positional)
-		}
-		if len(typeArgs) > 0 {
-			info.typeArgs = append([]ast.TypeExpression(nil), typeArgs...)
-		}
+	info := typeInfo{name: name}
+	if len(inst.TypeArguments) == 0 && len(node.GenericParams) == 0 {
+		return info, true
+	}
+	if structTypeArgsConcreteForDefinition(node, inst.TypeArguments) {
+		info.typeArgs = inst.TypeArguments
+		return info, true
+	}
+	if typeArgs := i.resolvedStructInstanceTypeArgumentsWithSeen(inst, nil); len(typeArgs) > 0 {
+		info.typeArgs = typeArgs
 	} else if len(inst.TypeArguments) > 0 {
-		info.typeArgs = append([]ast.TypeExpression(nil), inst.TypeArguments...)
+		info.typeArgs = inst.TypeArguments
 	}
 	return info, true
+}
+
+func (i *Interpreter) resolvedStructInstanceTypeArgumentsWithSeen(inst *runtime.StructInstanceValue, seen map[*runtime.StructInstanceValue]struct{}) []ast.TypeExpression {
+	return i.resolvedStructInstanceTypeArgumentsWithSeenMemo(inst, seen, true)
+}
+
+func (i *Interpreter) resolvedStructInstanceTypeArgumentsWithSeenMemo(inst *runtime.StructInstanceValue, seen map[*runtime.StructInstanceValue]struct{}, memoize bool) []ast.TypeExpression {
+	if inst == nil || inst.Definition == nil || inst.Definition.Node == nil {
+		return nil
+	}
+	typeArgs := inst.TypeArguments
+	if structTypeArgsConcreteForDefinition(inst.Definition.Node, typeArgs) {
+		return typeArgs
+	}
+	plan := i.structGenericInferencePlan(inst.Definition.Node)
+	if plan == nil || plan.expectedCount == 0 {
+		return inst.TypeArguments
+	}
+	if !structTypeArgsNeedInference(plan, typeArgs) {
+		return typeArgs
+	}
+	inferSeen := seen
+	if inferSeen == nil {
+		inferSeen = map[*runtime.StructInstanceValue]struct{}{inst: {}}
+	} else if _, ok := inferSeen[inst]; !ok {
+		inferSeen[inst] = struct{}{}
+		defer delete(inferSeen, inst)
+	}
+	typeArgs = i.inferStructTypeArgumentsWithSeen(inst.Definition.Node, inst.Fields, inst.Positional, inferSeen)
+	if len(typeArgs) > 0 && memoize {
+		inst.TypeArguments = typeArgs
+	}
+	return typeArgs
 }
 
 func typeInfoToString(info typeInfo) string {
@@ -801,9 +948,10 @@ func typeExpressionFromInfo(info typeInfo) ast.TypeExpression {
 	if info.name == "" {
 		return nil
 	}
-	base := ast.Ty(info.name)
+	base := cachedSimpleTypeExpression(info.name)
 	if len(info.typeArgs) == 0 {
 		return base
 	}
-	return ast.Gen(base, info.typeArgs...)
+	args := append([]ast.TypeExpression(nil), info.typeArgs...)
+	return ast.NewGenericTypeExpression(base, args)
 }

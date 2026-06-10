@@ -1,0 +1,8 @@
+{
+  "kind": "canonical-stdlib-source-state",
+  "root": "../able-stdlib",
+  "source_file_count": 69,
+  "source_tree_sha256": "44a1adeafa85b2aec82fa18b4adb1d2903f8103aa9c58953c4b89767f20c3052",
+  "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+  "git_dirty": true
+}

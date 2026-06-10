@@ -33,6 +33,26 @@ type interfaceDispatchGroup struct {
 	Entries          []*implMethodInfo
 }
 
+type interfaceDispatchRegistrationCapacity map[string]map[string]int
+
+func (g *generator) interfaceDispatchRegistrationCapacities() interfaceDispatchRegistrationCapacity {
+	capacities := make(interfaceDispatchRegistrationCapacity)
+	for _, group := range g.interfaceDispatchGroups() {
+		if group == nil || group.InterfaceName == "" || group.MethodName == "" {
+			continue
+		}
+		methods := capacities[group.InterfaceName]
+		if methods == nil {
+			methods = make(map[string]int)
+			capacities[group.InterfaceName] = methods
+		}
+		// Each group emits one registration call. Union expansion can produce
+		// additional variants at runtime; this remains a safe lower-bound hint.
+		methods[group.MethodName]++
+	}
+	return capacities
+}
+
 func (g *generator) implMethodDispatchable(impl *implMethodInfo) bool {
 	if impl == nil || impl.Info == nil || !impl.Info.Compileable {
 		return false

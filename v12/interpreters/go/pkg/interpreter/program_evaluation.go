@@ -30,9 +30,11 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 	if program.Entry == nil || program.Entry.AST == nil {
 		return nil, nil, ProgramCheckResult{}, fmt.Errorf("interpreter: program missing entry module")
 	}
-	i.SetNodeOrigins(mergeNodeOrigins(program.Modules))
+	i.SetNodeOrigins(cachedProgramNodeOrigins(program))
 
 	var check ProgramCheckResult
+	var restoreBytecodeInferenceFacts func()
+	var restoreBytecodeMethodSelections func()
 	if !opts.SkipTypecheck {
 		var err error
 		check, err = TypecheckProgram(program)
@@ -42,7 +44,19 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 		if len(check.Diagnostics) > 0 && !opts.AllowDiagnostics {
 			return nil, nil, check, nil
 		}
+		facts := bytecodeInferenceFactsForCheckedProgram(program, check)
+		i.installRuntimeInferenceFacts(facts)
+		restoreBytecodeInferenceFacts = i.pushBytecodeInferenceFacts(facts)
+		restoreBytecodeMethodSelections = i.pushBytecodeMethodSelections(bytecodeMethodSelectionsForCheckedProgram(program, check))
+	} else if err := cachedPrepareProgramForEvaluation(program); err != nil {
+		return nil, nil, ProgramCheckResult{}, err
+	} else {
+		i.installRuntimeInferenceFacts(nil)
+		restoreBytecodeInferenceFacts = i.pushBytecodeInferenceFacts(nil)
+		restoreBytecodeMethodSelections = i.pushBytecodeMethodSelections(nil)
 	}
+	defer restoreBytecodeInferenceFacts()
+	defer restoreBytecodeMethodSelections()
 
 	prevEnabled := i.typecheckerEnabled
 	prevStrict := i.typecheckerStrict
@@ -51,6 +65,9 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 		i.DisableTypechecker()
 		defer i.EnableTypechecker(TypecheckConfig{Checker: prevChecker, FailFast: prevStrict})
 	}
+	if _, err := i.prepareExternHostImageForProgram(program); err != nil {
+		return nil, nil, check, err
+	}
 
 	var entryEnv *runtime.Environment
 	var entryValue runtime.Value = runtime.NilValue{}
@@ -58,7 +75,7 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 		if mod == nil || mod.AST == nil {
 			continue
 		}
-		val, env, err := i.EvaluateModule(mod.AST)
+		val, env, err := i.evaluateLoadedProgramModule(mod)
 		if err != nil {
 			source := "<unknown>"
 			if len(mod.Files) > 0 {

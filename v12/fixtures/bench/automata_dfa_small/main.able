@@ -1,0 +1,73 @@
+package bench_automata_dfa_small
+
+import able.core.interfaces.{Error}
+import able.kernel.{Array}
+import able.text.automata.{DFA}
+import able.text.automata_dsl.{AutomataDSL, AutomataExpr}
+import able.text.string.{String, StringBuilder}
+
+fn letters() -> Array char {
+  ['a','b','c','d','e','f','g','h','i','j','k','l']
+}
+
+fn digits() -> Array char {
+  ['0','1','2','3','4','5','6','7','8','9']
+}
+
+fn build_inputs(count: i32) -> Array String {
+  values: Array String = Array.with_capacity(count)
+  alpha := letters()
+  nums := digits()
+  i := 0
+  loop {
+    if i >= count { break }
+    builder := StringBuilder.with_capacity(16)
+    if i % 4 == 0 {
+      builder.push_char('1')
+      builder.push_char('x')
+    } else {
+      builder.push_char(alpha[i % alpha.len()]!)
+      builder.push_char(alpha[(i // 3) % alpha.len()]!)
+      builder.push_char(nums[i % nums.len()]!)
+      builder.push_char(nums[(i // 7) % nums.len()]!)
+    }
+    builder.finish() match {
+      case text: String => values.push(text),
+      case err: Error => { raise err }
+    }
+    i = i + 1
+  }
+  values
+}
+
+fn identifier_dfa() -> DFA {
+  head := AutomataDSL.range('a', 'z')
+  tail := AutomataDSL.range('a', 'z').or(AutomataDSL.range('0', '9')).star()
+  head.append(tail).to_dfa()
+}
+
+fn score(dfa: DFA, inputs: Array String) -> i64 {
+  total: i64 = 0_i64
+  idx := 0
+  loop {
+    if idx >= inputs.len() { break }
+    if dfa.matches(inputs[idx]!) {
+      total = total + (idx as i64)
+    }
+    idx = idx + 1
+  }
+  total
+}
+
+fn main() -> void {
+  dfa := identifier_dfa()
+  inputs := build_inputs(8_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 5 { break }
+    total = total + score(dfa, inputs)
+    rounds = rounds + 1
+  }
+  print(total)
+}

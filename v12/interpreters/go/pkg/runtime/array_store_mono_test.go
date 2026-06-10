@@ -195,6 +195,156 @@ func TestArrayStoreMonoI64RoundTripAndDynamicFallback(t *testing.T) {
 	}
 }
 
+func TestArrayStoreStateDeoptMonoI32SeedsCachedI32Values(t *testing.T) {
+	handle := ArrayStoreMonoNewI32()
+	if err := ArrayStoreMonoWriteI32(handle, 0, 7); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteI32(0): %v", err)
+	}
+	if err := ArrayStoreMonoWriteI32(handle, 2, 9); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteI32(2): %v", err)
+	}
+
+	state, err := ArrayStoreState(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreState: %v", err)
+	}
+	if len(state.Values) != 3 {
+		t.Fatalf("deopt state length = %d, want 3", len(state.Values))
+	}
+	if len(state.CachedI32Values) != 3 || len(state.CachedI32ValuesValid) != 3 {
+		t.Fatalf("seeded cache lengths = (%d, %d), want (3, 3)", len(state.CachedI32Values), len(state.CachedI32ValuesValid))
+	}
+	if !state.CachedI32ValuesKnown || state.CachedI32ValuesCount != 3 {
+		t.Fatalf("seeded cache known/count = (%v, %d), want (true, 3)", state.CachedI32ValuesKnown, state.CachedI32ValuesCount)
+	}
+	if state.CachedI32Values[0] != 7 || state.CachedI32Values[1] != 0 || state.CachedI32Values[2] != 9 {
+		t.Fatalf("seeded cache values = %v, want [7 0 9]", state.CachedI32Values)
+	}
+	for idx, valid := range state.CachedI32ValuesValid {
+		if !valid {
+			t.Fatalf("seeded cache valid[%d] = false, want true", idx)
+		}
+	}
+}
+
+func TestArrayStoreMonoU32RoundTripAndDynamicFallback(t *testing.T) {
+	handle := ArrayStoreMonoNewU32()
+	if err := ArrayStoreMonoWriteU32(handle, 0, 42); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteU32: %v", err)
+	}
+	if err := ArrayStoreMonoWriteU32(handle, 2, 99); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteU32 sparse extend: %v", err)
+	}
+	size, err := ArrayStoreSize(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreSize: %v", err)
+	}
+	if size != 3 {
+		t.Fatalf("expected size 3, got %d", size)
+	}
+
+	value, err := ArrayStoreRead(handle, 0)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead: %v", err)
+	}
+	intVal, ok := value.(IntegerValue)
+	if n, nOk := intVal.ToInt64(); !ok || !nOk || n != 42 || intVal.TypeSuffix != IntegerU32 {
+		t.Fatalf("expected u32 42 from generic read, got %#v", value)
+	}
+
+	if err := ArrayStoreWrite(handle, 0, IntegerValue{Val: big.NewInt(100), TypeSuffix: IntegerU32}); err != nil {
+		t.Fatalf("ArrayStoreWrite on mono u32 handle: %v", err)
+	}
+	typedValue, err := ArrayStoreMonoReadU32(handle, 0)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoReadU32: %v", err)
+	}
+	if typedValue != 100 {
+		t.Fatalf("expected typed u32 100 after generic write, got %d", typedValue)
+	}
+
+	state, err := ArrayStoreState(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreState deopt: %v", err)
+	}
+	if len(state.Values) != 3 {
+		t.Fatalf("expected deopt state length 3, got %d", len(state.Values))
+	}
+
+	if err := ArrayStoreMonoWriteU32(handle, 1, 77); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteU32 after deopt: %v", err)
+	}
+	value, err = ArrayStoreRead(handle, 1)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead after deopt write: %v", err)
+	}
+	intVal, ok = value.(IntegerValue)
+	if n, nOk := intVal.ToInt64(); !ok || !nOk || n != 77 || intVal.TypeSuffix != IntegerU32 {
+		t.Fatalf("expected u32 77 after deopt write, got %#v", value)
+	}
+}
+
+func TestArrayStoreMonoU64RoundTripAndDynamicFallback(t *testing.T) {
+	handle := ArrayStoreMonoNewU64()
+	const largeValue = uint64(1)<<63 + 5
+	if err := ArrayStoreMonoWriteU64(handle, 0, largeValue); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteU64: %v", err)
+	}
+	if err := ArrayStoreMonoWriteU64(handle, 2, 99); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteU64 sparse extend: %v", err)
+	}
+	size, err := ArrayStoreSize(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreSize: %v", err)
+	}
+	if size != 3 {
+		t.Fatalf("expected size 3, got %d", size)
+	}
+
+	value, err := ArrayStoreRead(handle, 0)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead: %v", err)
+	}
+	intVal, ok := value.(IntegerValue)
+	if !ok || intVal.TypeSuffix != IntegerU64 || intVal.BigInt().Uint64() != largeValue {
+		t.Fatalf("expected u64 %d from generic read, got %#v", largeValue, value)
+	}
+
+	if err := ArrayStoreWrite(handle, 0, NewBigIntValue(new(big.Int).SetUint64(largeValue-1), IntegerU64)); err != nil {
+		t.Fatalf("ArrayStoreWrite on mono u64 handle: %v", err)
+	}
+	typedValue, err := ArrayStoreMonoReadU64(handle, 0)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoReadU64: %v", err)
+	}
+	if typedValue != largeValue-1 {
+		t.Fatalf("expected typed u64 %d after generic write, got %d", largeValue-1, typedValue)
+	}
+
+	state, err := ArrayStoreState(handle)
+	if err != nil {
+		t.Fatalf("ArrayStoreState deopt: %v", err)
+	}
+	if len(state.Values) != 3 {
+		t.Fatalf("expected deopt state length 3, got %d", len(state.Values))
+	}
+
+	if err := ArrayStoreMonoWriteU64(handle, 1, 77); err != nil {
+		t.Fatalf("ArrayStoreMonoWriteU64 after deopt: %v", err)
+	}
+	value, err = ArrayStoreRead(handle, 1)
+	if err != nil {
+		t.Fatalf("ArrayStoreRead after deopt write: %v", err)
+	}
+	intVal, ok = value.(IntegerValue)
+	if !ok || intVal.TypeSuffix != IntegerU64 {
+		t.Fatalf("expected u64 after deopt write, got %#v", value)
+	}
+	if n, nOk := intVal.ToInt64(); !nOk || n != 77 {
+		t.Fatalf("expected u64 77 after deopt write, got %#v", value)
+	}
+}
+
 func TestArrayStoreMonoF64PromoteUsesReservedCapacity(t *testing.T) {
 	handle := ArrayStoreNewReservedCapacity(4)
 	ok, err := ArrayStoreAppendF64Promote(handle, 1.5)

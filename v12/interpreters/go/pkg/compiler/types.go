@@ -93,8 +93,9 @@ func (m *TypeMapper) mapResultType(t *ast.ResultTypeExpression) (string, bool) {
 	return "any", true
 }
 
-// mapArrayType maps Array<T>. Currently returns the existing Array struct
-// pointer. TODO: monomorphize to []ElemGoType once slice intrinsics are ready.
+// mapArrayType maps Array<T> to a compiler-owned specialized slice carrier
+// when its element type is statically representable. The generic native Array
+// carrier remains only for the residual non-specialized/static boundary path.
 func (m *TypeMapper) mapArrayType(t *ast.GenericTypeExpression) (string, bool) {
 	if m != nil && m.gen != nil {
 		if spec, ok := m.gen.monoArraySpecForArrayTypeExpr(m.packageName, t); ok && spec != nil {
@@ -188,6 +189,8 @@ func (m *TypeMapper) mapSimple(name string) (string, bool) {
 		return "int32", true
 	case "i64":
 		return "int64", true
+	case "i128":
+		return "runtime.Int128", true
 	case "u8":
 		return "uint8", true
 	case "u16":
@@ -196,6 +199,8 @@ func (m *TypeMapper) mapSimple(name string) (string, bool) {
 		return "uint32", true
 	case "u64":
 		return "uint64", true
+	case "u128":
+		return "runtime.Uint128", true
 	case "isize":
 		return "int", true
 	case "usize":

@@ -1,0 +1,35 @@
+File: compiled
+Build ID: bf029b0d414b0c080640c544b861a4677ad20f8b
+Type: alloc_objects
+Time: 2026-07-28 09:43:27 CDT
+Showing nodes accounting for 1347217, 99.49% of 1354083 total
+Dropped 95 nodes (cum <= 6770)
+      flat  flat%   sum%        cum   cum%
+    839345 61.99% 61.99%     839345 61.99%  main.__able_compiled_fn_utf8_decode_ctx
+    471391 34.81% 96.80%     471391 34.81%  main.__able_union__IteratorEnd_or_rune_wrap_rune (inline)
+     24904  1.84% 98.64%      24904  1.84%  runtime/pprof.allFrames
+      8192   0.6% 99.24%       8192   0.6%  main.__able_string_from_builtin_native (inline)
+      3358  0.25% 99.49%      35049  2.59%  runtime/pprof.writeHeapProto
+        16 0.0012% 99.49%    1310816 96.80%  main.__able_compiled_fn_scalar_checksum_ctx
+         6 0.00044% 99.49%      31619  2.34%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         2 0.00015% 99.49%    1319026 97.41%  main.__able_compiled_fn_main_ctx
+         1 7.4e-05% 99.49%      35055  2.59%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 7.4e-05% 99.49%    1319028 97.41%  main.RunRegisteredMain
+         1 7.4e-05% 99.49%      35050  2.59%  runtime/pprof.writeHeapInternal
+         0     0% 99.49%      35055  2.59%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.49%      35055  2.59%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.49%    1319027 97.41%  main.RunRegisteredMain.func1
+         0     0% 99.49%       8197  0.61%  main.__able_compiled_fn_build_text_ctx
+         0     0% 99.49%    1319027 97.41%  main.__able_compiled_fn_main
+         0     0% 99.49%       8192   0.6%  main.__able_compiled_fn_validated_bytes_ctx
+         0     0% 99.49%    1310736 96.80%  main.__able_compiled_impl_Iterator_next_0_c_spec_ctx
+         0     0% 99.49%       8192   0.6%  main.__able_compiled_method_StringBuilder_push_string_ctx
+         0     0% 99.49%    1310736 96.80%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.__able_ctx_next
+         0     0% 99.49%    1319027 97.41%  main.__able_register_compiled_call.func1
+         0     0% 99.49%    1319027 97.41%  main.__able_wrap_fn_main
+         0     0% 99.49%    1354083   100%  main.main
+         0     0% 99.49%    1354083   100%  main.runMain
+         0     0% 99.49%      35055  2.59%  main.startMainProfilePhase (inline)
+         0     0% 99.49%    1354083   100%  runtime.main
+         0     0% 99.49%      35050  2.59%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.49%      35050  2.59%  runtime/pprof.writeAlloc

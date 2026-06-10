@@ -188,6 +188,12 @@ func (g *generator) importedSelectorSourceTypeAlias(pkgName string, localName st
 	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(localName) == "" {
 		return "", ""
 	}
+	key := newImportResolutionCacheKey(pkgName, localName)
+	if cached, ok := g.importedSelectorTypeAliasCache[key]; ok {
+		return cached.SourcePackage, cached.SourceName
+	}
+	sourcePkg := ""
+	sourceName := ""
 	for _, binding := range g.staticImports[pkgName] {
 		if binding.Kind != staticImportBindingSelector {
 			continue
@@ -199,9 +205,21 @@ func (g *generator) importedSelectorSourceTypeAlias(pkgName string, localName st
 		if source == "" {
 			continue
 		}
-		return strings.TrimSpace(binding.SourcePackage), source
+		sourcePkg = strings.TrimSpace(binding.SourcePackage)
+		sourceName = source
+		break
 	}
-	return "", ""
+	if sourcePkg == "" {
+		if reexportPkg, reexportName, ok := g.sourceReexportSourceForName(pkgName, localName); ok {
+			sourcePkg = reexportPkg
+			sourceName = reexportName
+		}
+	}
+	g.importedSelectorTypeAliasCache[key] = importedSelectorTypeAliasCacheEntry{
+		SourcePackage: sourcePkg,
+		SourceName:    sourceName,
+	}
+	return sourcePkg, sourceName
 }
 
 func (g *generator) methodTargetName(expr ast.TypeExpression) (string, bool) {

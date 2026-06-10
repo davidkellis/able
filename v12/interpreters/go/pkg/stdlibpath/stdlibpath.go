@@ -5,16 +5,54 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
-// ResolveInstalledSrc prefers explicit stdlib overrides and installed cache
-// entries over repository-relative discovery.
+// ResolveInstalledSrc prefers an explicit override, then the stdlib source
+// recorded by `able setup`, then an installed cache entry.
 func ResolveInstalledSrc() string {
 	if candidate := normalizeSrcDir(os.Getenv("ABLE_STDLIB_ROOT")); candidate != "" {
 		return candidate
 	}
-	if candidate := resolveCachedSrc(resolveAbleHome()); candidate != "" {
+	home := resolveAbleHome()
+	if candidate := resolveSetupLockedSrc(home); candidate != "" {
 		return candidate
+	}
+	if candidate := resolveCachedSrc(home); candidate != "" {
+		return candidate
+	}
+	return ""
+}
+
+type setupLock struct {
+	Packages []setupLockedPackage `yaml:"packages"`
+}
+
+type setupLockedPackage struct {
+	Name   string `yaml:"name"`
+	Source string `yaml:"source"`
+}
+
+func resolveSetupLockedSrc(home string) string {
+	if home == "" {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(home, "setup.lock"))
+	if err != nil {
+		return ""
+	}
+	var lock setupLock
+	if err := yaml.Unmarshal(data, &lock); err != nil {
+		return ""
+	}
+	for _, pkg := range lock.Packages {
+		if strings.TrimSpace(pkg.Name) != "able" {
+			continue
+		}
+		if candidate := normalizeSrcDir(strings.TrimPrefix(strings.TrimSpace(pkg.Source), "path:")); candidate != "" {
+			return candidate
+		}
 	}
 	return ""
 }

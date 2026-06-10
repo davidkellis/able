@@ -1,0 +1,94 @@
+{
+  "kind": "able-bytecode-integer-load-carrier-consumer-census",
+  "schema_version": 1,
+  "date": "2026-07-22",
+  "decision": "retain-diagnostics-reject-direct-bool-candidate",
+  "execution_contract": {
+    "runs_per_census_row": 1,
+    "runs_per_ab_side": 6,
+    "gomaxprocs": 1,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "timeout_seconds": 55,
+    "main_only": true,
+    "verified": true
+  },
+  "rows": [
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "programs": 7,
+      "dynamic_instructions": 60446436,
+      "proven_integer_loads": 5000006,
+      "carrier_counts": {"small-integer-value": 2000006, "raw-i32-slot-value": 1262143, "raw-integer-slot-cell": 999999, "small-integer-pointer": 737856, "big-integer": 2}
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency-text",
+      "programs": 42,
+      "dynamic_instructions": 21367576,
+      "proven_integer_loads": 1086208,
+      "carrier_counts": {"raw-i32-slot-value": 633856, "small-integer-value": 452352}
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "programs": 19,
+      "dynamic_instructions": 17591889,
+      "proven_integer_loads": 944384,
+      "carrier_counts": {"raw-i32-slot-value": 576412, "small-integer-value": 367897, "raw-i64-slot-cell": 75}
+    },
+    {
+      "benchmark": "array_slice_window",
+      "family": "array-slice",
+      "programs": 7,
+      "dynamic_instructions": 8751239,
+      "proven_integer_loads": 1020268,
+      "carrier_counts": {"raw-i32-slot-value": 624260, "small-integer-value": 396008}
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "bio-text-array",
+      "programs": 14,
+      "dynamic_instructions": 60602670,
+      "proven_integer_loads": 6033694,
+      "carrier_counts": {"small-integer-value": 4000081, "small-integer-pointer": 1771211, "raw-i32-slot-value": 262402}
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric-control",
+      "programs": 3,
+      "dynamic_instructions": 78000165,
+      "proven_integer_loads": 0,
+      "carrier_counts": {}
+    }
+  ],
+  "cross_application_shapes": [
+    {"carrier": "raw-i32-slot-value", "consumer_opcode": "JumpIfBinaryCompareFalse", "applications": 4, "dynamic_instructions": 863959, "counts": {"array_slice_window": 312259, "concurrent_event_routing": 156544, "reverse_complement": 262145, "word_frequency": 133011}},
+    {"carrier": "raw-i32-slot-value", "consumer_opcode": "Cast", "applications": 4, "dynamic_instructions": 568379, "counts": {"array_slice_window": 288000, "fixed_width_128": 262144, "reverse_complement": 256, "word_frequency": 17979}},
+    {"carrier": "small-integer-value", "consumer_opcode": "Cast", "applications": 3, "dynamic_instructions": 2288079, "counts": {"array_slice_window": 288002, "reverse_complement": 2000032, "word_frequency": 45}},
+    {"carrier": "small-integer-value", "consumer_opcode": "CallMemberArraySlot", "applications": 3, "dynamic_instructions": 2241366, "counts": {"concurrent_event_routing": 136192, "reverse_complement": 2000049, "word_frequency": 105125}}
+  ],
+  "candidate": {
+    "name": "direct-bool integer comparison result",
+    "retained": false,
+    "description": "Return runtime.BoolValue directly to JumpIfBinaryCompareFalse instead of wrapping it as runtime.Value and immediately asserting it back.",
+    "rows": [
+      {"benchmark": "fixed_width_128", "baseline_seconds": 8.265, "candidate_seconds": 7.841667, "change_percent": -5.121996},
+      {"benchmark": "concurrent_event_routing", "baseline_seconds": 3.04, "candidate_seconds": 3.01, "change_percent": -0.986842},
+      {"benchmark": "word_frequency", "baseline_seconds": 1.415, "candidate_seconds": 1.418333, "change_percent": 0.235548},
+      {"benchmark": "array_slice_window", "baseline_seconds": 0.673333, "candidate_seconds": 0.731667, "change_percent": 8.663466},
+      {"benchmark": "reverse_complement", "baseline_seconds": 3.331667, "candidate_seconds": 3.386667, "change_percent": 1.650822},
+      {"benchmark": "distance_field", "baseline_seconds": 5.9, "candidate_seconds": 5.575, "change_percent": -5.508475}
+    ],
+    "disposition": "Rejected because two materially reached applications regressed while the largest apparent improvement was matched by the zero-reach float control."
+  },
+  "sources": {
+    "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "program_reach_sha256": "f947b4a86e9d05a17935876d6c08c448ccc07e2ad5625a76f9c0360b354f55b2",
+    "scalar_proof_sha256": "97923402725f43f0272328754e1e6f6f6e8eb7545addfdb68f7450de75e87d5f",
+    "integer_load_shape_sha256": "a65a7d9185ee6795fd0b692dcbbb0b804606c057be8bc3925775431b3791e339",
+    "vm_dispatch_sha256": "39f3f867595abbe0e345ab50a29aa050d3312c6e3e909aaa985ec6ec54fcbaff"
+  },
+  "next_measurement": "Attribute operand role and extraction work inside the shared small-integer-value to CallMemberArraySlot shape before considering a kernel-boundary transport change."
+}

@@ -1,10 +1,12 @@
-# Parser & AST Coverage Checklist (Able v12)
+# Parser & AST Coverage (Able v12)
 
 ## Purpose
-- Track every surface feature defined in [`spec/full_spec_v12.md`](../spec/full_spec_v12.md) and confirm that:
+- Record every active surface feature defined in
+  [`spec/full_spec_v12.md`](../../spec/full_spec_v12.md) and confirm that:
   - the parser produces the correct concrete syntax tree and canonical AST, and
   - the shared AST fixture suite exercises the feature (both interpreters consume these fixtures).
-- Serve as the canonical backlog for parser/AST gaps until every item is verified by dedicated tests/fixtures.
+- Serve as the active maintenance matrix. The present v12 surface is complete;
+  future rows are added only with newly specified syntax.
 
 ## Status Legend
 - `TODO` – No targeted coverage yet (parser + fixtures missing).
@@ -15,7 +17,7 @@
 
 > **Note:** “Parser Tests” refers to focused assertions in `interpreter-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via the Go fixture exporter (`v12/export_fixtures.sh`).
 
-> **Note:** Fixtures that include a `source.able` file should be re-exported through the Go fixture exporter; parser harness round-trips can consume those exported modules directly as coverage expands.
+> **Note:** Fixtures that include a `source.able` file should be re-exported through the Go fixture exporter; parser harness round-trips consume those exported modules directly. The Go parser package runs the full fixture corpus by default outside `-short` mode.
 
 ---
 
@@ -116,6 +118,7 @@
 | Wildcard import (`*`) | §13.4 | `imports/static_wildcard` | `TestParseWildcardImport`, `TestParseModuleImports` | Done | Dedicated parser test now verifies wildcard imports without extra statements. |
 | Alias import (`import pkg::alias`) | §13.4 | `imports/static_alias_public` | `TestParseImportAlias` | Done | Parser coverage confirms module-level aliasing matches fixture expectations. |
 | Dynamic import (`dynimport`) | §13.4 | `imports/dynimport_wildcard`, `imports/dynimport_selector_alias` | `TestParseDynImportSelectors`, `TestParseModuleImports` | Done | Parser tests cover aliasing, selector lists, and wildcard dynimports. |
+| Source re-exports (`export Name;`, `export * from package;`) | §13.4 | `imports/source_reexport_syntax` | `TestParseSourceReexports` | Done | Grammar corpus, canonical AST fixture, loader/checker, both interpreters, and compiler preserve package-surface and value-identity semantics. |
 | Prelude statement (`prelude {}`) | §16.1.1 | `interop/prelude_extern` | `TestParsePreludeAndExtern` | Done | Parser test verifies prelude bodies for host targets. |
 
 ## Concurrency & Async
@@ -143,8 +146,16 @@
 
 ---
 
-## Next Steps (Execution Order)
-1. **AST Fixtures First** – Expand `fixtures/ast` (via `v12/export_fixtures.sh`) until every feature in the table has a representative module that can be consumed by the Go runtimes.
-2. **Interpreter Verification Second** – Extend the Go tree-walker + bytecode test suites so each fixture is evaluated and its behavior/assertions are checked, guaranteeing runtime support for every AST form.
-3. **Parser Coverage Third** – Once fixtures/interpreter checks exist, add focused parser unit tests that parse the surface syntax into the canonical AST and confirm round-trips for each feature.
-4. Keep this checklist current—mark rows `Done` only when all three stages above are satisfied and validated (`./run_all_tests.sh`, interpreter suites, `go test ./...`).
+## Maintenance Rule
+
+The active table is complete. When a new v12 syntax feature is specified:
+
+1. add a grammar corpus assertion and canonical AST fixture (exported through
+   `v12/export_fixtures.sh` when appropriate);
+2. add focused Go mapper coverage and run the default parser corpus;
+3. add tree-walker/bytecode semantic coverage and strict compiler coverage
+   when the feature is compileable; and
+4. update this matrix only after those checks pass.
+
+Do not create parser work from the historical roadmap or node inventory, and
+do not treat a benchmark need as authority for a new AST shape.

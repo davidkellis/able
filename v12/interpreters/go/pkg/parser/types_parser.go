@@ -69,7 +69,7 @@ func parseReturnType(node *sitter.Node, source []byte) ast.TypeExpression {
 
 func isParenthesizedTypeNode(node *sitter.Node) bool {
 	for node != nil {
-		switch node.Kind() {
+		switch nodeKind(node) {
 		case "parenthesized_type":
 			return true
 		case "type_prefix", "interface_type_prefix", "type_atom", "interface_type_atom":
@@ -88,7 +88,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 	if node == nil {
 		return nil
 	}
-	switch node.Kind() {
+	switch nodeKind(node) {
 	case "return_type", "type_expression", "interface_type_expression", "type_prefix", "interface_type_prefix", "type_atom", "interface_type_atom":
 		if node.NamedChildCount() == 0 {
 			break
@@ -98,7 +98,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			if expr == nil {
 				return nil
 			}
-			if node.Kind() == "type_prefix" || node.Kind() == "interface_type_prefix" {
+			if nodeKind(node) == "type_prefix" || nodeKind(node) == "interface_type_prefix" {
 				text := strings.TrimSpace(sliceContent(node, source))
 				for len(text) > 0 && (text[0] == '?' || text[0] == '!') {
 					switch text[0] {
@@ -121,11 +121,11 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 				if child == nil || !child.IsNamed() {
 					continue
 				}
-				if child.Kind() == "type_arguments" {
+				if nodeKind(child) == "type_arguments" {
 					args = append(args, typeArgumentExpressions(child, source)...)
 					continue
 				}
-				if child.Kind() == "type_generic_application" {
+				if nodeKind(child) == "type_generic_application" {
 					for j := uint(0); j < child.NamedChildCount(); j++ {
 						argNode := child.NamedChild(j)
 						if argNode == nil || !argNode.IsNamed() {
@@ -280,7 +280,7 @@ func parseFunctionParameterTypes(node *sitter.Node, source []byte) ([]ast.TypeEx
 		if current == nil {
 			return nil, false
 		}
-		if current.Kind() == "parenthesized_type" {
+		if nodeKind(current) == "parenthesized_type" {
 			if current.NamedChildCount() == 0 {
 				return []ast.TypeExpression{}, true
 			}
@@ -298,7 +298,7 @@ func parseFunctionParameterTypes(node *sitter.Node, source []byte) ([]ast.TypeEx
 			}
 			return params, true
 		}
-		if current.Kind() != "type_suffix" && current.Kind() != "type_prefix" && current.Kind() != "type_atom" {
+		if nodeKind(current) != "type_suffix" && nodeKind(current) != "type_prefix" && nodeKind(current) != "type_atom" {
 			break
 		}
 		if child := firstNamedChild(current); child != nil && child != current {
@@ -319,7 +319,7 @@ func parseTypeParameters(node *sitter.Node, source []byte) ([]*ast.GenericParame
 	if node == nil {
 		return nil, nil
 	}
-	switch node.Kind() {
+	switch nodeKind(node) {
 	case "declaration_type_parameters":
 		if node.NamedChildCount() == 0 {
 			return nil, nil
@@ -329,7 +329,7 @@ func parseTypeParameters(node *sitter.Node, source []byte) ([]*ast.GenericParame
 		var params []*ast.GenericParameter
 		for i := uint(0); i < node.NamedChildCount(); i++ {
 			child := node.NamedChild(i)
-			if child == nil || child.Kind() != "type_parameter" {
+			if child == nil || nodeKind(child) != "type_parameter" {
 				continue
 			}
 			param, err := parseTypeParameter(child, source)
@@ -343,7 +343,7 @@ func parseTypeParameters(node *sitter.Node, source []byte) ([]*ast.GenericParame
 		var params []*ast.GenericParameter
 		for i := uint(0); i < node.NamedChildCount(); i++ {
 			child := node.NamedChild(i)
-			if child == nil || child.Kind() != "generic_parameter" {
+			if child == nil || nodeKind(child) != "generic_parameter" {
 				continue
 			}
 			param, err := parseGenericParameter(child, source)
@@ -354,19 +354,19 @@ func parseTypeParameters(node *sitter.Node, source []byte) ([]*ast.GenericParame
 		}
 		return params, nil
 	default:
-		return nil, fmt.Errorf("parser: unsupported type parameter node %q", node.Kind())
+		return nil, fmt.Errorf("parser: unsupported type parameter node %q", nodeKind(node))
 	}
 }
 
 func parseTypeParameter(node *sitter.Node, source []byte) (*ast.GenericParameter, error) {
-	if node == nil || node.Kind() != "type_parameter" {
+	if node == nil || nodeKind(node) != "type_parameter" {
 		return nil, fmt.Errorf("parser: expected type_parameter node")
 	}
 	return buildGenericParameter(node, source)
 }
 
 func parseGenericParameter(node *sitter.Node, source []byte) (*ast.GenericParameter, error) {
-	if node == nil || node.Kind() != "generic_parameter" {
+	if node == nil || nodeKind(node) != "generic_parameter" {
 		return nil, fmt.Errorf("parser: expected generic_parameter node")
 	}
 	return buildGenericParameter(node, source)
@@ -380,7 +380,7 @@ func buildGenericParameter(node *sitter.Node, source []byte) (*ast.GenericParame
 	if node.NamedChildCount() > 0 {
 		nameNode = node.NamedChild(0)
 	}
-	if nameNode == nil || nameNode.Kind() != "identifier" {
+	if nameNode == nil || nodeKind(nameNode) != "identifier" {
 		return nil, fmt.Errorf("parser: generic parameter missing identifier")
 	}
 	name, err := parseIdentifier(nameNode, source)
@@ -415,7 +415,7 @@ func parseTypeBoundList(node *sitter.Node, source []byte) ([]ast.TypeExpression,
 		if child == nil {
 			continue
 		}
-		if child.Kind() == "type_bound_list" {
+		if nodeKind(child) == "type_bound_list" {
 			nested, err := parseTypeBoundList(child, source)
 			if err != nil {
 				return nil, err
@@ -437,13 +437,13 @@ func parseWhereClause(node *sitter.Node, source []byte) ([]*ast.WhereClauseConst
 	if node == nil {
 		return nil, nil
 	}
-	if node.Kind() != "where_clause" {
-		return nil, fmt.Errorf("parser: expected where clause, found %q", node.Kind())
+	if nodeKind(node) != "where_clause" {
+		return nil, fmt.Errorf("parser: expected where clause, found %q", nodeKind(node))
 	}
 	var constraints []*ast.WhereClauseConstraint
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if child == nil || child.Kind() != "where_constraint" {
+		if child == nil || nodeKind(child) != "where_constraint" {
 			continue
 		}
 		constraint, err := parseWhereConstraint(child, source)
@@ -456,13 +456,13 @@ func parseWhereClause(node *sitter.Node, source []byte) ([]*ast.WhereClauseConst
 }
 
 func parseWhereConstraint(node *sitter.Node, source []byte) (*ast.WhereClauseConstraint, error) {
-	if node == nil || node.Kind() != "where_constraint" {
+	if node == nil || nodeKind(node) != "where_constraint" {
 		return nil, fmt.Errorf("parser: expected where_constraint node")
 	}
 	if node.NamedChildCount() == 0 {
 		return nil, fmt.Errorf("parser: empty where constraint")
 	}
-	subjectNode := node.ChildByFieldName("subject")
+	subjectNode := childByFieldName(node, "subject")
 	if subjectNode == nil {
 		subjectNode = node.NamedChild(0)
 	}

@@ -29,7 +29,6 @@ func (g *generator) renderCompiledPackageInitFile() ([]byte, error) {
 	fmt.Fprintf(&buf, "package %s\n\n", g.opts.PackageName)
 	importSet := map[string]struct{}{
 		"able/interpreter-go/pkg/compiler/bridge": {},
-		"able/interpreter-go/pkg/interpreter":     {},
 		"able/interpreter-go/pkg/runtime":         {},
 	}
 	if g.hasCompiledPackageInitBodies() {
@@ -52,7 +51,7 @@ func (g *generator) renderCompiledPackageInitFile() ([]byte, error) {
 		fmt.Fprintf(&buf, "\t%q\n", imp)
 	}
 	fmt.Fprintf(&buf, ")\n\n")
-	fmt.Fprintf(&buf, "func __able_run_compiled_package_inits(rt *bridge.Runtime, interp *interpreter.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n")
+	fmt.Fprintf(&buf, "func __able_run_compiled_package_inits(rt *bridge.Runtime, interp bridge.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n")
 	fmt.Fprintf(&buf, "\t_ = interp\n")
 	fmt.Fprintf(&buf, "\t_ = entryEnv\n")
 	fmt.Fprintf(&buf, "\t_ = __able_bootstrapped_metadata\n")

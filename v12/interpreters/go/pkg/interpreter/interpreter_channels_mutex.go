@@ -465,7 +465,6 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 						registered = false
 					}
 					clearWaiting()
-					state.cond.Signal()
 					return runtime.NilValue{}, nil
 				}
 				if !registered {
@@ -539,9 +538,6 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			i.notifyMutexAwaiters(state)
 			if state.waiters > 0 {
 				state.cond.Signal()
-				for state.waiters > 0 && !state.locked {
-					state.cond.Wait()
-				}
 			}
 			state.mu.Unlock()
 			return runtime.NilValue{}, nil

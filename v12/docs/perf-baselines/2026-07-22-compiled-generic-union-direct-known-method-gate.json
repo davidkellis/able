@@ -1,0 +1,161 @@
+{
+  "kind": "able-compiled-generic-union-direct-known-method-gate",
+  "schema_version": 1,
+  "date": "2026-07-22",
+  "mode": "compiled",
+  "decision": "retained",
+  "candidate": {
+    "scope": "all statically resolved native methods on generic named unions",
+    "old_path": "box NativeBoundMethodValue into runtime.Value, then dispatch through __able_call_value_fast",
+    "new_path": "invoke the known native method entry directly through __able_call_known_native_method_fast",
+    "type_specific_branches": [],
+    "stdlib_changes": false,
+    "wasm_changes": false
+  },
+  "protocol": {
+    "preserved_current_and_candidate_binaries": true,
+    "direction_reversed_cohorts": true,
+    "all_samples_retained": true,
+    "pair_timing_processes": 200,
+    "allocation_processes": 24,
+    "build_smoke_processes": 28,
+    "verified_processes": 252,
+    "failures": 0,
+    "timeouts": 0,
+    "timeout_seconds": 55,
+    "gomemlimit": "1GiB",
+    "gogc": 50
+  },
+  "owner_timings": [
+    {
+      "benchmark": "binary_event_log",
+      "current_seconds": [0.78, 0.68, 0.68, 0.66, 0.73, 0.67, 0.71, 0.67, 0.64, 0.63],
+      "candidate_seconds": [0.65, 0.59, 0.60, 0.62, 0.60, 0.64, 0.67, 0.65, 0.64, 0.65],
+      "current_mean_seconds": 0.685,
+      "candidate_mean_seconds": 0.631,
+      "candidate_delta_percent": -7.883
+    },
+    {
+      "benchmark": "option_result_config",
+      "current_seconds": [0.23, 0.20, 0.21, 0.20, 0.20, 0.21, 0.22, 0.22, 0.21, 0.27],
+      "candidate_seconds": [0.17, 0.17, 0.17, 0.17, 0.17, 0.19, 0.19, 0.17, 0.18, 0.18],
+      "current_mean_seconds": 0.217,
+      "candidate_mean_seconds": 0.176,
+      "candidate_delta_percent": -18.894
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "current_seconds": [0.18, 0.18, 0.20, 0.20, 0.20, 0.19, 0.18, 0.21, 0.20, 0.22],
+      "candidate_seconds": [0.19, 0.20, 0.19, 0.18, 0.19, 0.18, 0.18, 0.18, 0.18, 0.18],
+      "current_mean_seconds": 0.196,
+      "candidate_mean_seconds": 0.185,
+      "candidate_delta_percent": -5.612
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "current_seconds": [0.27, 0.20, 0.21, 0.20, 0.21, 0.18, 0.19, 0.20, 0.19, 0.26],
+      "candidate_seconds": [0.19, 0.21, 0.21, 0.20, 0.19, 0.20, 0.20, 0.19, 0.18, 0.18],
+      "current_mean_seconds": 0.211,
+      "candidate_mean_seconds": 0.195,
+      "candidate_delta_percent": -7.583
+    }
+  ],
+  "guard_timings": [
+    {
+      "benchmark": "binarytrees",
+      "current_seconds": [9.90, 9.70, 10.00, 10.10, 10.16, 9.83],
+      "candidate_seconds": [9.76, 9.56, 9.40, 9.78, 9.86, 9.96],
+      "current_mean_seconds": 9.948333,
+      "candidate_mean_seconds": 9.720000,
+      "candidate_delta_percent": -2.295
+    },
+    {
+      "benchmark": "nbody",
+      "current_seconds": [0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.22, 0.19, 0.17, 0.17, 0.17, 0.17, 0.17, 0.16, 0.16, 0.17],
+      "candidate_seconds": [0.15, 0.15, 0.15, 0.16, 0.15, 0.15, 0.18, 0.17, 0.17, 0.26, 0.16, 0.17, 0.17, 0.17, 0.17, 0.17],
+      "current_mean_seconds": 0.165625,
+      "candidate_mean_seconds": 0.168750,
+      "candidate_delta_percent": 1.887,
+      "noise_interval_crosses_zero": true
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "current_seconds": [2.70, 2.79, 2.83, 3.07, 2.96, 2.96, 3.15, 3.05, 2.87, 2.85, 2.92, 2.98, 2.87, 2.83, 2.94, 3.00],
+      "candidate_seconds": [2.84, 2.90, 3.01, 2.84, 3.02, 3.00, 3.08, 3.08, 2.94, 3.00, 3.08, 2.84, 3.04, 2.91, 2.99, 3.09],
+      "current_mean_seconds": 2.923125,
+      "candidate_mean_seconds": 2.978750,
+      "candidate_delta_percent": 1.903,
+      "noise_interval_crosses_zero": true
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "current_seconds": [1.07, 1.09, 1.06, 1.16, 1.21, 1.22, 1.27, 1.25, 1.23, 1.30, 1.35, 1.33, 1.15, 1.14, 1.15, 1.16],
+      "candidate_seconds": [1.03, 1.07, 1.19, 1.18, 1.19, 1.14, 1.28, 1.18, 1.29, 1.33, 1.39, 1.27, 1.38, 1.29, 1.26, 1.22],
+      "current_mean_seconds": 1.196250,
+      "candidate_mean_seconds": 1.230625,
+      "candidate_delta_percent": 2.874,
+      "noise_interval_crosses_zero": true
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "current_seconds": [0.73, 0.81, 0.70, 0.94, 1.06, 0.90],
+      "candidate_seconds": [0.73, 0.73, 0.73, 0.73, 0.77, 0.78],
+      "current_mean_seconds": 0.856667,
+      "candidate_mean_seconds": 0.745000,
+      "candidate_delta_percent": -13.035
+    }
+  ],
+  "allocation_deltas": [
+    {
+      "benchmark": "binary_event_log",
+      "current_allocations_mean": 4850462.8,
+      "candidate_allocations": [4465436, 4465437, 4465437, 4465437, 4465437],
+      "candidate_allocations_mean": 4465436.8,
+      "allocation_delta_percent": -7.938,
+      "current_bytes_mean": 290399603.2,
+      "candidate_bytes": [273425616, 273425664, 273425664, 273425648, 273425632],
+      "candidate_bytes_mean": 273425644.8,
+      "byte_delta_percent": -5.845
+    },
+    {
+      "benchmark": "option_result_config",
+      "current_allocations_mean": 1630658.4,
+      "candidate_allocations": [1360322, 1360322, 1360322, 1360321, 1360323],
+      "candidate_allocations_mean": 1360322.0,
+      "allocation_delta_percent": -16.578,
+      "current_bytes_mean": 57447832.0,
+      "candidate_bytes": [46044504, 46044520, 46044520, 46044440, 46044664],
+      "candidate_bytes_mean": 46044529.6,
+      "byte_delta_percent": -19.850
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "current_allocations_mean": 1034216.4,
+      "candidate_allocations": [997350, 997349, 997351, 997350, 997353],
+      "candidate_allocations_mean": 997350.6,
+      "allocation_delta_percent": -3.565,
+      "current_bytes_mean": 47288388.8,
+      "candidate_bytes": [45704440, 45704392, 45704544, 45704536, 45704720],
+      "candidate_bytes_mean": 45704526.4,
+      "byte_delta_percent": -3.349
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "current_allocations_mean": 970530.0,
+      "candidate_allocations": [961314, 961315, 961315, 961315, 961315],
+      "candidate_allocations_mean": 961314.8,
+      "allocation_delta_percent": -0.950,
+      "current_bytes_mean": 49166376.0,
+      "candidate_bytes": [48745328, 48745408, 48745392, 48753520, 48753568],
+      "candidate_bytes_mean": 48748643.2,
+      "byte_delta_percent": -0.850
+    }
+  ],
+  "structural_proof": {
+    "old_box_expression_present": false,
+    "direct_helper_present": true,
+    "dynamic_fallback_present": true,
+    "exact_allocation_profiles": 4,
+    "old_box_allocation_present_in_candidate_profiles": false
+  }
+}

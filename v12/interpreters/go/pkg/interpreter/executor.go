@@ -49,12 +49,22 @@ type asyncContextPayload struct {
 	bytecodeEnv     *runtime.Environment
 	// awaitBlocked is set when an await expression is pending and should
 	// prevent the serial executor from automatically rescheduling the task.
-	awaitBlocked bool
+	awaitBlocked atomic.Bool
 	// awaitStates memoizes await expression state for the current async task.
 	awaitStates map[*ast.AwaitExpression]*awaitEvalState
 	// resume requeues the current task in the serial executor; populated only
 	// when running under the serial scheduler.
 	resume func()
+}
+
+func (p *asyncContextPayload) setAwaitBlocked(blocked bool) {
+	if p != nil {
+		p.awaitBlocked.Store(blocked)
+	}
+}
+
+func (p *asyncContextPayload) isAwaitBlocked() bool {
+	return p != nil && p.awaitBlocked.Load()
 }
 
 type asyncContextKey struct{}
@@ -160,11 +170,29 @@ func (e *GoroutineExecutor) Flush() {
 			return
 		}
 		blocked := e.blocked.Load()
-		if blocked >= pending && pending > 0 {
+		if blocked >= pending && pending > 0 && !e.hasCancellingBlockedTask() {
 			return
 		}
 		goRuntime.Gosched()
 	}
+}
+
+func (e *GoroutineExecutor) hasCancellingBlockedTask() bool {
+	if e == nil {
+		return false
+	}
+	found := false
+	e.handles.Range(func(handleAny, stateAny any) bool {
+		handle, handleOK := handleAny.(*runtime.FutureValue)
+		state, stateOK := stateAny.(*goroutineHandleState)
+		if handleOK && stateOK && handle != nil && state != nil &&
+			state.blocked.Load() && handle.Status() == runtime.FuturePending && handle.CancelRequested() {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 func (e *GoroutineExecutor) PendingTasks() int {
@@ -251,11 +279,16 @@ type SerialExecutor struct {
 	queue     []serialTask
 	blocked   map[*runtime.FutureValue]serialTask
 	closed    bool
+	started   bool
 	active    bool
 	current   *runtime.FutureValue
 	paused    bool
 	syncDepth int
 	forceAuto int
+	// workerInFlight closes the interval between the background worker
+	// dequeuing a task and runSerialTask publishing it as active. Flush must
+	// wait across that interval or it can return before the task resumes.
+	workerInFlight int
 }
 
 func (e *SerialExecutor) beginSynchronousSection() {
@@ -300,7 +333,6 @@ func NewSerialExecutor(panicHandler panicValueFunc) *SerialExecutor {
 		blocked:      make(map[*runtime.FutureValue]serialTask),
 	}
 	exec.cond = sync.NewCond(&exec.mu)
-	go exec.loop()
 	return exec
 }
 
@@ -321,6 +353,10 @@ func (e *SerialExecutor) enqueue(task serialTask) {
 	if e.closed {
 		e.mu.Unlock()
 		return
+	}
+	if !e.started {
+		e.started = true
+		go e.loop()
 	}
 	if task.handle != nil && !task.handle.Started() {
 		inserted := false
@@ -349,7 +385,7 @@ func (e *SerialExecutor) loop() {
 		if !ok {
 			return
 		}
-		if errors.Is(e.runSerialTask(task), errSerialYield) {
+		if errors.Is(e.runSerialTask(task, true), errSerialYield) {
 			continue
 		}
 	}
@@ -366,7 +402,7 @@ func (e *SerialExecutor) Flush() {
 	e.mu.Lock()
 	e.forceAuto++
 	e.cond.Broadcast()
-	for (len(e.queue) > 0 || (e.active && !e.paused)) && !e.closed {
+	for (len(e.queue) > 0 || e.workerInFlight > 0 || (e.active && !e.paused)) && !e.closed {
 		e.cond.Wait()
 	}
 	e.forceAuto--
@@ -395,7 +431,7 @@ func (e *SerialExecutor) Drive(handle *runtime.FutureValue) {
 			// Nothing queued for this handle; assume it is already running or resolved.
 			return
 		}
-		if !errors.Is(e.runSerialTask(task), errSerialYield) {
+		if !errors.Is(e.runSerialTask(task, false), errSerialYield) {
 			return
 		}
 	}
@@ -428,7 +464,7 @@ func (e *SerialExecutor) YieldCurrent() bool {
 	}
 	e.queue = append(e.queue[:idx], e.queue[idx+1:]...)
 	e.mu.Unlock()
-	_ = e.runSerialTask(task)
+	_ = e.runSerialTask(task, false)
 	return true
 }
 
@@ -531,7 +567,17 @@ func (e *SerialExecutor) nextTask() (serialTask, bool) {
 	}
 	task := e.queue[0]
 	e.queue = e.queue[1:]
+	e.workerInFlight++
 	return task, true
+}
+
+func (e *SerialExecutor) finishWorkerTask() {
+	e.mu.Lock()
+	if e.workerInFlight > 0 {
+		e.workerInFlight--
+	}
+	e.cond.Broadcast()
+	e.mu.Unlock()
 }
 
 func (e *SerialExecutor) stealTask(handle *runtime.FutureValue) (serialTask, bool) {
@@ -546,11 +592,17 @@ func (e *SerialExecutor) stealTask(handle *runtime.FutureValue) (serialTask, boo
 	return serialTask{}, false
 }
 
-func (e *SerialExecutor) runSerialTask(task serialTask) error {
+func (e *SerialExecutor) runSerialTask(task serialTask, workerTask bool) error {
 	if task.handle == nil {
+		if workerTask {
+			e.finishWorkerTask()
+		}
 		return nil
 	}
 	if task.handle.Status() != runtime.FuturePending {
+		if workerTask {
+			e.finishWorkerTask()
+		}
 		e.mu.Lock()
 		e.cond.Broadcast()
 		e.mu.Unlock()
@@ -572,7 +624,7 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	}
 	payload.kind = task.kind
 	payload.handle = task.handle
-	payload.awaitBlocked = false
+	payload.setAwaitBlocked(false)
 	payload.resume = func() {
 		e.mu.Lock()
 		if e.blocked != nil {
@@ -584,12 +636,12 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	ctx = contextWithPayload(ctx, payload)
 	task.handle.MarkStarted()
 
-	prevCurrent, prevActive, prevPaused := e.swapCurrent(task.handle)
+	prevCurrent, prevActive, prevPaused := e.swapCurrent(task.handle, workerTask)
 	result, err := e.safeInvoke(ctx, task.task)
 	e.restoreCurrent(prevCurrent, prevActive, prevPaused)
 
 	if errors.Is(err, errSerialYield) {
-		if payload != nil && payload.awaitBlocked {
+		if payload.isAwaitBlocked() {
 			// Awaiting an external wake; the waker will reschedule via resume().
 			e.mu.Lock()
 			if e.blocked != nil {
@@ -605,7 +657,7 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	return err
 }
 
-func (e *SerialExecutor) swapCurrent(handle *runtime.FutureValue) (*runtime.FutureValue, bool, bool) {
+func (e *SerialExecutor) swapCurrent(handle *runtime.FutureValue, workerTask bool) (*runtime.FutureValue, bool, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	prev := e.current
@@ -614,6 +666,10 @@ func (e *SerialExecutor) swapCurrent(handle *runtime.FutureValue) (*runtime.Futu
 	e.current = handle
 	e.active = true
 	e.paused = false
+	if workerTask && e.workerInFlight > 0 {
+		e.workerInFlight--
+		e.cond.Broadcast()
+	}
 	return prev, prevActive, prevPaused
 }
 

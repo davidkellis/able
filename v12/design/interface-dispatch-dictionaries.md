@@ -1,49 +1,88 @@
-# Interface Dispatch via Dictionaries (v12)
+# Interpreter and Dynamic-Boundary Interface Dictionaries (v12)
 
-This document captures the dictionary-based model for interpreter and explicit
-dynamic-boundary interface values.
+## Status
 
-Scope note:
-- this is not the canonical compiled static interface-lowering model;
-- active compiled lowering is defined by `compiler-go-lowering-spec.md` and
-  `compiler-native-lowering.md`;
-- dictionary dispatch remains relevant for interpreter execution and for values
-  that already originate from explicit dynamic runtime payloads.
+This is the active execution record for interface values used by the Go
+tree-walker, bytecode VM, and explicit runtime-value boundaries. The semantic
+contract is spec §10.3.4: an upcast captures the implementation selected by
+the impls visible at that cast site, including inherited interface members and
+default methods.
 
-## Goals
-- Allow method calls on interface values, including default interface methods and generic interface methods.
-- Preserve expressiveness (no object-safety restriction for interface method calls).
-- Keep behavior consistent across interpreters and future compilers.
+It is deliberately not the ABI for a statically resolved compiled call. Those
+calls use the direct Go interface carriers and adapters described by
+`compiler-go-lowering-spec.md` and
+`compiler-native-lowering-guardrails.md`.
 
-## Decisions
-- Interface values use dictionary dispatch, not vtables.
-- An interface value carries: the concrete value, the interface name, interface type arguments, and a method dictionary.
-- Dictionary entries are bound to the receiver and can point to impl methods or interface default methods.
-- Dictionaries include methods from base interfaces (interface aliases).
-- Generic interface methods are resolved at call time; inferred type arguments are stored on the call node when omitted.
-- Interface upcasts are allowed only when the target interface is in scope and implemented by the concrete type.
+## Interpreter value model
 
-## Runtime behavior
-- Wrapping a concrete value into an interface builds a dictionary by:
-  - scanning base interfaces for method signatures and default methods
-  - scanning impls for concrete overrides
-  - preferring impl methods over defaults, and defaults over missing
-- Dictionary entries can reference native functions (bound at access time).
-- The dictionary is currently built per interface value; caching per (concrete type, interface) is a valid future optimization.
+`runtime.InterfaceValue` holds the interface definition, the underlying
+value, fully bound interface arguments, and its dispatch state:
 
-## Typechecker behavior
-- Method lookup on interface values considers interface methods, including defaults, and base interfaces.
-- Generic interface methods use call-site inference; missing type arguments are written back into the AST for runtime dispatch.
-- Inferred type arguments are applied to the return type and constraint solving.
+- `SharedMethods` is a reusable raw-method dictionary;
+- `Methods` is an optional per-value overlay, so a value never mutates a
+  shared dictionary; and
+- `BoundMethodName`/`BoundMethod` memoize the most recently bound receiver
+  method for that particular interface value.
 
-## Implementation summary (2026-01-18)
-- TS runtime: interface values carry dictionaries; interface member access binds native methods; for-loops accept interface-wrapped iterators; iterator native methods exposed via interface dictionaries.
-- Go runtime: interface coercion builds dictionaries with interface args; interface member access uses dictionaries.
-- TS/Go typecheckers: include default interface methods as callable candidates; allow generic interface methods; infer and record missing type arguments; include base interfaces in method lookup; collect transitive impls/method sets from imports.
-- Stdlib: `Iterable.map`/`filter_map` made explicitly generic; `collect` uses `C.default()`; `Extend` returns `Self`.
-- Spec: `spec/full_spec_v12.md` updated to describe dictionary-based dynamic dispatch.
+The dictionary contains the applicable implementation methods and interface
+defaults, including methods from composite/base interfaces. Normal member
+access looks in the value overlay and shared dictionary, binds the selected
+method to the underlying receiver when needed, then stores only that bound
+result in the per-value memo. This preserves the cast-site interface view
+while avoiding a dictionary clone or repeated receiver binding for ordinary
+repeated calls.
 
-## Follow-ups
-- Add tests that exercise default methods and generic methods on interface-typed values across package boundaries.
-- Consider caching dictionaries per (concrete type, interface) to reduce allocation overhead.
-- Ensure compiler backends mirror dictionary dispatch for dynamic calls.
+Generic interface arguments are part of both coercion and lookup. The
+typechecker records inferred call arguments in the AST; the interpreter then
+uses the fully bound interface/call information for method resolution and
+return/constraint handling. An interface name with unbound parameters is not a
+runtime interface value (spec §4.1 and §10).
+
+## Construction and invalidation
+
+For normal interpreter coercion, `coerceToInterfaceValue` verifies that the
+concrete value implements the requested interface, then builds the method
+dictionary from the selected impl, defaults, and base interfaces. The bytecode
+VM uses the same interpreter operation and runtime value; it does not have a
+separate dictionary representation.
+
+Method dictionaries are already cached. The cache key contains the concrete
+type descriptor, interface name, and interface arguments. Cache entries retain
+a private map; later interface values receive it as `SharedMethods`, while
+their local overlay and bound-method memo remain independent. Method/impl/type
+registration invalidates the cache, so new resolution cannot reuse an old
+visible-impl selection. Specialized host values such as iterators and futures
+may supply the same dictionary contract through their runtime-native method
+providers.
+
+Compiled no-bootstrap execution may construct an interpreter-facing interface
+value at an explicit boundary. Its resolver supplies compiled native callables
+where an interpreter dictionary is required; that boundary accommodation does
+not make the surrounding static compiled path dictionary-based.
+
+## Compiled static interface paths
+
+When the compiler can prove a fully bound object-safe interface shape, it
+emits a generated `__able_iface_*` Go interface carrier, a concrete adapter,
+and direct Go method calls. Static parameters, returns, typed locals, fields,
+and direct calls stay on that carrier. Conversion helpers such as
+`*_to_runtime_value` and `*_from_value` exist only at explicit runtime/dynamic
+edges, callbacks, or other required ABI boundaries.
+
+Do not replace those direct carriers with `runtime.InterfaceValue`, a generic
+dictionary, a `runtime.Value`, or a named-container-specific lowering rule.
+Conversely, do not treat a dynamic runtime value as proof that it can stay on a
+static carrier without a checked conversion.
+
+## Verification and performance rule
+
+The focused interpreter cache tests cover shared-dictionary reuse,
+per-value isolation, invalidation, bound-method memoization, and allocation
+behavior. The focused compiler interface and dynamic-helper tests cover direct
+static carriers and explicit dynamic helpers.
+
+The historical proposal to add a dictionary cache is complete; there is no
+selected interface-dispatch performance change. A future change must preserve
+the cast-site semantics and show the same material leaf in at least three
+unlike verified applications under the project performance gate. It must not
+be justified by one interface, one stdlib container, or one benchmark shape.

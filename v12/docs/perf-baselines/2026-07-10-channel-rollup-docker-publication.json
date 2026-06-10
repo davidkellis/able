@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-07-10T21:03:01Z",
+  "kind": "isolated_docker_result_artifact",
+  "workload": "channel-rollup",
+  "input": {
+    "path": "i-before-e/wordlist.txt",
+    "bytes": 1743363,
+    "sha256": "3f16130220645692ed49c7134e24a18504c2ca55b3c012f7290e3e77c63b1a89",
+    "records": 16384
+  },
+  "expected_output": "16384:4828:502100",
+  "runner": {
+    "method": "one direct docker run per locally built image",
+    "timing": "benchmarks/time.sh high-resolution process wall time",
+    "shared_results_json_modified": false,
+    "notes": "These are one-run Docker rows on one host. able-v12-base and all six benchmark images were rebuilt after the completed dynamic and primitive ArrayStore synchronization repair. Every Able mode uses ABLE_EXECUTOR=goroutine. Tree-walker values are semantic verification rather than performance-selection evidence. Ratios are meaningful only within this workload and are selection evidence, not a replacement for the shared benchmark publication."
+  },
+  "results": [
+    {
+      "implementation": "able-v12-compiled",
+      "language_family": "able",
+      "mode": "compiled",
+      "executor": "goroutine",
+      "real_time_secs": 1.655721179,
+      "output_verified": true
+    },
+    {
+      "implementation": "able-v12-bytecode",
+      "language_family": "able",
+      "mode": "bytecode",
+      "executor": "goroutine",
+      "real_time_secs": 4.462437608,
+      "output_verified": true
+    },
+    {
+      "implementation": "able-v12-treewalker",
+      "language_family": "able",
+      "mode": "treewalker",
+      "executor": "goroutine",
+      "real_time_secs": 27.374979696,
+      "output_verified": true
+    },
+    {
+      "implementation": "go-1.26",
+      "language_family": "go",
+      "real_time_secs": 0.006852194,
+      "output_verified": true
+    },
+    {
+      "implementation": "python-3.14",
+      "language_family": "python",
+      "real_time_secs": 0.105122927,
+      "output_verified": true
+    },
+    {
+      "implementation": "ruby-4.0",
+      "language_family": "ruby",
+      "real_time_secs": 0.073451352,
+      "output_verified": true
+    }
+  ]
+}

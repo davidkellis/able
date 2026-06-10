@@ -1,0 +1,32 @@
+File: interpreter.test
+Build ID: 934a59cb3993fbe2bef5db44118764564899c466
+Type: cpu
+Time: 2026-07-27 15:07:07 CDT
+Processes: 3 warmed one-main bytecode-runtime profiles
+Total samples: 13.65s
+
+      flat  flat%   sum%        cum   cum%
+     0.97s  7.11%  7.11%      0.97s  7.11%  aeshashbody
+     0.96s  7.03% 14.14%     13.51s 98.97%  bytecodeVM.runResumable
+     0.48s  3.52% 17.66%      0.48s  3.52%  internal/runtime/maps.ctrlGroup.matchH2
+     0.35s  2.56% 20.22%      1.12s  8.21%  runtime.mapaccess2_faststr
+     0.33s  2.42% 22.64%      4.23s 30.99%  Interpreter.matchesErrorValue
+     0.33s  2.42% 25.05%      1.31s  9.60%  bytecodeVM.lookupCachedStaticMemberCall
+     0.33s  2.42% 27.47%      0.33s  2.42%  sync/atomic.(*Int32).Add
+     0.30s  2.20% 29.67%      1.19s  8.72%  Interpreter.makeInterfaceImplCacheKey
+     0.27s  1.98% 31.65%      2.70s 19.78%  Interpreter.typeImplementsInterface
+     0.24s  1.76% 33.41%      0.38s  2.78%  Interpreter.typeInfoFromStructInstance
+     0.24s  1.76% 35.16%      0.72s  5.27%  bytecodeNamedStructMemberPlanForInstruction
+     0.15s  1.10% 36.26%      0.58s  4.25%  Interpreter.getTypeInfoForValue
+     0.15s  1.10% 37.36%      0.40s  2.93%  runtime.mapaccess2_fast64
+     0.14s  1.03% 38.39%      0.16s  1.17%  bytecodeVM.appendStackValue
+     0.14s  1.03% 39.41%      3.63s 26.59%  bytecodeVM.execCallOpcode
+     0.14s  1.03% 40.44%      0.18s  1.32%  bytecodeVM.execPop
+     0.13s  0.95% 42.42%      0.61s  4.47%  bytecodeVM.execStaticMemberCallable
+     0.13s  0.95% 43.37%      0.20s  1.47%  bytecodeVM.popCallFrameFields
+
+Per measured main was identical across the three processes:
+128,289,384 B/op and 3,904,826 allocs/op. Mean execution-only time was
+4.564684196s. The descendants repeat the already reviewed bytecode
+member/call, propagation/type, frame/stack, and Go-map cache families; they do
+not expose a new storage-specific VM leaf.

@@ -1,0 +1,38 @@
+File: interpreter.test
+Build ID: 61226e58d79e68f17ad9d1d4c9b65a83b0cca6f7
+Type: inuse_space
+Time: 2026-07-11 23:45:07 CDT
+Showing nodes accounting for 106.75MB, 98.61% of 108.25MB total
+Dropped 7 nodes (cum <= 0.54MB)
+Showing top 30 nodes out of 84
+      flat  flat%   sum%        cum   cum%
+   41.05MB 37.93% 37.93%    41.05MB 37.93%  able/interpreter-go/pkg/runtime.ArrayEnsureCapacity
+   27.67MB 25.56% 63.49%    27.67MB 25.56%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+   22.89MB 21.15% 84.64%    22.89MB 21.15%  able/interpreter-go/pkg/interpreter.bytecodeBoxedIntegerValue
+    2.60MB  2.40% 87.04%     2.60MB  2.40%  able/interpreter-go/pkg/ast.annotateOrigins
+    1.99MB  1.83% 88.87%     1.99MB  1.83%  plugin/unnamed-16f9f1ae6a7743e92015f02bd771b60e0189c073.fs_read_lines_fast
+    1.54MB  1.42% 90.29%     1.54MB  1.42%  able/interpreter-go/pkg/runtime.arrayStoreUpdateLeaseLocked
+    1.53MB  1.41% 91.70%     1.53MB  1.41%  able/interpreter-go/pkg/runtime.recordArrayHandleKind
+    1.50MB  1.39% 93.09%     1.50MB  1.39%  able/interpreter-go/pkg/interpreter.init.func1
+    1.04MB  0.96% 94.05%     1.04MB  0.96%  able/interpreter-go/pkg/interpreter.mergeNodeOrigins (inline)
+    1.02MB  0.94% 94.99%     1.02MB  0.94%  able/interpreter-go/pkg/runtime.cacheArrayHandleRevision
+    1.02MB  0.94% 95.93%     1.61MB  1.49%  able/interpreter-go/pkg/interpreter.(*Interpreter).lowerModuleToBytecode
+       1MB  0.92% 96.85%        1MB  0.92%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+    0.80MB  0.74% 97.59%     0.80MB  0.74%  able/interpreter-go/pkg/interpreter.externCloneValueSlice (inline)
+    0.60MB  0.55% 98.14%     0.60MB  0.55%  able/interpreter-go/pkg/interpreter.(*bytecodeLoweringContext).emit (inline)
+    0.51MB  0.47% 98.61%     4.59MB  4.24%  able/interpreter-go/pkg/runtime.ArrayStoreEnsure
+         0     0% 98.61%     2.60MB  2.40%  able/interpreter-go/pkg/ast.AnnotateOrigins
+         0     0% 98.61%        1MB  0.92%  able/interpreter-go/pkg/ast.ID
+         0     0% 98.61%     2.60MB  2.40%  able/interpreter-go/pkg/ast.annotateValue
+         0     0% 98.61%     3.60MB  3.32%  able/interpreter-go/pkg/driver.(*Loader).Load
+         0     0% 98.61%     3.60MB  3.32%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions
+         0     0% 98.61%     3.60MB  3.32%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions.func1
+         0     0% 98.61%        1MB  0.92%  able/interpreter-go/pkg/driver.(*Loader).parseFile
+         0     0% 98.61%     2.60MB  2.40%  able/interpreter-go/pkg/driver.combinePackage
+         0     0% 98.61%    71.82MB 66.35%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0% 98.61%     2.65MB  2.45%  able/interpreter-go/pkg/interpreter.(*Interpreter).EvaluateProgram
+         0     0% 98.61%    71.82MB 66.35%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0% 98.61%    71.82MB 66.35%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0% 98.61%    71.82MB 66.35%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0% 98.61%    71.82MB 66.35%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0% 98.61%     4.59MB  4.24%  able/interpreter-go/pkg/interpreter.(*Interpreter).ensureArrayState

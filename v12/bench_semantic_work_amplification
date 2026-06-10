@@ -1,0 +1,449 @@
+#!/usr/bin/env python3
+"""Build the checked bytecode semantic-work amplification audit."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+BENCHMARK_ROOT = REPO_ROOT.parent / "benchmarks"
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-semantic-work-amplification.json"
+DEFAULT_ARCHITECTURE = SCRIPT_DIR / "bench-bytecode-architecture-budget.json"
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def source_record(path: Path) -> dict[str, str]:
+    try:
+        content = path.read_bytes()
+    except FileNotFoundError:
+        raise ValueError(f"source not found: {path}") from None
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(content).hexdigest(),
+    }
+
+
+def positive_integer(value: Any, label: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"{label} must be a positive integer")
+    return value
+
+
+def nonnegative_integer(value: Any, label: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(f"{label} must be a non-negative integer")
+    return value
+
+
+def architecture_contract(
+    architecture: dict[str, Any],
+) -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
+    if architecture.get("kind") != "able-bytecode-architecture-budget-evidence":
+        raise ValueError("architecture evidence has an invalid kind")
+    categories = architecture.get("opcode_categories")
+    if not isinstance(categories, list) or not categories:
+        raise ValueError("architecture evidence needs opcode categories")
+    opcode_roles: dict[str, str] = {}
+    category_roles: dict[str, str] = {}
+    for category in categories:
+        if not isinstance(category, dict):
+            raise ValueError("architecture category entries must be objects")
+        category_id = category.get("id")
+        role = category.get("role")
+        opcodes = category.get("opcodes")
+        if not isinstance(category_id, str) or not isinstance(role, str):
+            raise ValueError("architecture category needs id and role")
+        if category_id in category_roles:
+            raise ValueError(f"architecture category repeated: {category_id}")
+        category_roles[category_id] = role
+        if not isinstance(opcodes, list):
+            raise ValueError(f"architecture category {category_id} needs opcodes")
+        for opcode in opcodes:
+            if not isinstance(opcode, str) or opcode in opcode_roles:
+                raise ValueError(f"invalid or repeated opcode: {opcode}")
+            opcode_roles[opcode] = role
+    raw_apps = architecture.get("applications")
+    if not isinstance(raw_apps, list):
+        raise ValueError("architecture evidence needs applications")
+    apps: dict[str, dict[str, Any]] = {}
+    for app in raw_apps:
+        if not isinstance(app, dict) or not isinstance(app.get("benchmark"), str):
+            raise ValueError("invalid architecture application")
+        apps[app["benchmark"]] = app
+    return opcode_roles, apps
+
+
+def validate_derived_units(benchmark: str, app: dict[str, Any]) -> None:
+    expected = app["logical_units"]
+    if benchmark == "word_frequency":
+        path = (REPO_ROOT / app["logical_input"]).resolve()
+        actual = sum(
+            1
+            for line in path.read_text(encoding="utf-8").splitlines()
+            for word in line.split(" ")
+            if word
+        )
+    elif benchmark == "reverse_complement":
+        path = (REPO_ROOT / app["logical_input"]).resolve()
+        actual = sum(
+            len(line.rstrip(b"\r\n"))
+            for line in path.read_bytes().splitlines(keepends=True)
+            if not line.startswith(b">")
+        )
+    elif benchmark == "concurrent_event_routing":
+        path = BENCHMARK_ROOT / app["reference_directory"] / "events.txt"
+        actual = min(32, len(path.read_text(encoding="utf-8").splitlines())) * 128
+    else:
+        return
+    if actual != expected:
+        raise ValueError(
+            f"{benchmark} logical units drifted: evidence {expected}, derived {actual}"
+        )
+
+
+def build_report(evidence_path: Path, architecture_path: Path) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "semantic-work evidence")
+    if evidence.get("kind") != "able-bytecode-semantic-work-amplification-evidence":
+        raise ValueError("semantic-work evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("semantic-work evidence needs schema_version 1")
+    architecture = load_json(architecture_path, "architecture evidence")
+    opcode_roles, architecture_apps = architecture_contract(architecture)
+    category_ids = {
+        category["id"] for category in architecture["opcode_categories"]
+    }
+
+    admission = evidence.get("admission_rule")
+    if not isinstance(admission, dict):
+        raise ValueError("semantic-work evidence needs an admission rule")
+    minimum_families = positive_integer(
+        admission.get("minimum_unlike_families"), "minimum unlike families"
+    )
+    if admission.get("requires_exact_shared_mechanism") is not True:
+        raise ValueError("admission must require one exact shared mechanism")
+    if admission.get("requires_material_amplification_in_every_application") is not True:
+        raise ValueError("admission must require material amplification in every app")
+
+    raw_apps = evidence.get("applications")
+    if not isinstance(raw_apps, list) or not raw_apps:
+        raise ValueError("semantic-work evidence needs applications")
+    seen_apps: set[str] = set()
+    seen_families: set[str] = set()
+    applications: list[dict[str, Any]] = []
+    app_families: dict[str, str] = {}
+    source_records: dict[str, Any] = {}
+    totals = {"operations": 0, "transport": 0, "allocations": 0, "bytes": 0}
+    for raw in raw_apps:
+        if not isinstance(raw, dict):
+            raise ValueError("application entries must be objects")
+        benchmark = raw.get("benchmark")
+        family = raw.get("family")
+        if not isinstance(benchmark, str) or not benchmark:
+            raise ValueError("application entry needs a benchmark")
+        if benchmark in seen_apps:
+            raise ValueError(f"semantic-work evidence repeats {benchmark}")
+        if benchmark not in architecture_apps:
+            raise ValueError(f"architecture evidence is missing {benchmark}")
+        if not isinstance(family, str) or not family:
+            raise ValueError(f"{benchmark} needs a family")
+        if family in seen_families:
+            raise ValueError(f"applications must be unlike; repeated family {family}")
+        if architecture_apps[benchmark].get("family") != family:
+            raise ValueError(f"{benchmark} family differs from architecture evidence")
+        seen_apps.add(benchmark)
+        seen_families.add(family)
+        app_families[benchmark] = family
+
+        units = positive_integer(raw.get("logical_units"), f"{benchmark} logical units")
+        operations = positive_integer(raw.get("total_operations"), f"{benchmark} operations")
+        if operations != architecture_apps[benchmark].get("total_operations"):
+            raise ValueError(f"{benchmark} total operations differ from architecture evidence")
+        allocations = positive_integer(raw.get("allocations"), f"{benchmark} allocations")
+        allocated_bytes = positive_integer(
+            raw.get("allocated_bytes"), f"{benchmark} allocated bytes"
+        )
+        counts = raw.get("category_counts")
+        if not isinstance(counts, dict) or set(counts) != category_ids:
+            raise ValueError(f"{benchmark} category counts must cover architecture categories")
+        for category, count in counts.items():
+            nonnegative_integer(count, f"{benchmark} category {category}")
+        if sum(counts.values()) != operations:
+            raise ValueError(f"{benchmark} category counts do not sum to total operations")
+        transport = counts.get("transport")
+        architecture_transport = sum(
+            architecture_apps[benchmark]["transport_counts"].values()
+        )
+        if transport != architecture_transport:
+            raise ValueError(f"{benchmark} transport differs from architecture evidence")
+        semantic = operations - transport
+        top = raw.get("top_semantic_operations")
+        if not isinstance(top, dict) or not top:
+            raise ValueError(f"{benchmark} needs top semantic operations")
+        for opcode, count in top.items():
+            if opcode_roles.get(opcode) != "required-semantic-work":
+                raise ValueError(f"{benchmark} top opcode {opcode} is not semantic")
+            nonnegative_integer(count, f"{benchmark} opcode {opcode}")
+
+        able_path = REPO_ROOT / raw["able_source"]
+        reference_dir = BENCHMARK_ROOT / raw["reference_directory"]
+        allocation_path = REPO_ROOT / raw["allocation_evidence"]
+        source_records[benchmark] = {
+            "able": source_record(able_path),
+            "python": source_record(reference_dir / "python-3.14/run.py"),
+            "ruby": source_record(reference_dir / "ruby-4.0/run.rb"),
+            "allocation_evidence": source_record(allocation_path),
+        }
+        if "logical_input" in raw:
+            source_records[benchmark]["logical_input"] = source_record(
+                (REPO_ROOT / raw["logical_input"]).resolve()
+            )
+        validate_derived_units(benchmark, raw)
+        semantic_counts = {
+            category: count
+            for category, count in counts.items()
+            if category != "transport"
+        }
+        dominant_category, dominant_count = max(
+            semantic_counts.items(), key=lambda item: item[1]
+        )
+        applications.append(
+            {
+                **raw,
+                "semantic_operations": semantic,
+                "operations_per_logical_unit": round(operations / units, 6),
+                "semantic_operations_per_logical_unit": round(semantic / units, 6),
+                "call_operations_per_logical_unit": round(
+                    counts["calls-callables-dynamic-dispatch"] / units, 6
+                ),
+                "allocations_per_logical_unit": round(allocations / units, 6),
+                "allocated_bytes_per_logical_unit": round(allocated_bytes / units, 6),
+                "dominant_semantic_category": dominant_category,
+                "dominant_semantic_operations": dominant_count,
+            }
+        )
+        totals["operations"] += operations
+        totals["transport"] += transport
+        totals["allocations"] += allocations
+        totals["bytes"] += allocated_bytes
+
+    raw_mechanisms = evidence.get("mechanisms")
+    if not isinstance(raw_mechanisms, list) or not raw_mechanisms:
+        raise ValueError("semantic-work evidence needs reviewed mechanisms")
+    mechanism_ids: set[str] = set()
+    mechanisms: list[dict[str, Any]] = []
+    for raw in raw_mechanisms:
+        if not isinstance(raw, dict):
+            raise ValueError("mechanism entries must be objects")
+        mechanism_id = raw.get("id")
+        kind = raw.get("kind")
+        apps = raw.get("applications")
+        material = raw.get("material_amplification_applications")
+        disposition = raw.get("disposition")
+        if not isinstance(mechanism_id, str) or not mechanism_id:
+            raise ValueError("mechanism needs an id")
+        if mechanism_id in mechanism_ids:
+            raise ValueError(f"mechanism repeated: {mechanism_id}")
+        mechanism_ids.add(mechanism_id)
+        if not isinstance(kind, str) or not isinstance(disposition, str):
+            raise ValueError(f"mechanism {mechanism_id} needs kind and disposition")
+        if not isinstance(apps, list) or not apps or len(apps) != len(set(apps)):
+            raise ValueError(f"mechanism {mechanism_id} needs unique applications")
+        if any(app not in seen_apps for app in apps):
+            raise ValueError(f"mechanism {mechanism_id} names an unknown application")
+        if not isinstance(material, list) or any(app not in apps for app in material):
+            raise ValueError(f"mechanism {mechanism_id} has invalid material applications")
+        exact = kind.startswith("exact-")
+        family_count = len({app_families[app] for app in apps})
+        material_family_count = len({app_families[app] for app in material})
+        eligible = (
+            exact
+            and family_count >= minimum_families
+            and set(material) == set(apps)
+            and material_family_count >= minimum_families
+        )
+        if eligible and not disposition.startswith("admitted"):
+            raise ValueError(
+                f"mechanism {mechanism_id} clears admission but is not marked admitted"
+            )
+        mechanisms.append(
+            {
+                **raw,
+                "application_count": len(apps),
+                "unlike_family_count": family_count,
+                "material_unlike_family_count": material_family_count,
+                "eligible": eligible,
+            }
+        )
+
+    admitted = [item for item in mechanisms if item["eligible"]]
+    decision = "no-go-current-six-semantic-candidate" if not admitted else "candidate-admitted"
+    return {
+        "kind": "able-bytecode-semantic-work-amplification",
+        "schema_version": 1,
+        "sources": {
+            "evidence": source_record(evidence_path),
+            "architecture": source_record(architecture_path),
+            "applications": source_records,
+        },
+        "protocol": evidence["opcode_count_protocol"],
+        "admission_rule": admission,
+        "summary": {
+            "decision": decision,
+            "application_count": len(applications),
+            "unlike_family_count": len(seen_families),
+            "total_dynamic_operations": totals["operations"],
+            "total_transport_operations": totals["transport"],
+            "total_semantic_operations": totals["operations"] - totals["transport"],
+            "total_allocations": totals["allocations"],
+            "total_allocated_bytes": totals["bytes"],
+            "reviewed_mechanism_count": len(mechanisms),
+            "eligible_mechanism_count": len(admitted),
+        },
+        "applications": applications,
+        "mechanisms": mechanisms,
+        "evidence": evidence["evidence"],
+        "recommendation": (
+            "Do not build a semantic optimization from these six rows. Next test the only concrete two-family survivor, the direct Array semantic boundary, against Matrix Multiply as a third unlike application and numeric/text guards. Admit work only if one exact Array storage or member operation is material in all three and its end-to-end savings are large enough; otherwise close that boundary and return to the compiled residual frontier."
+        ),
+    }
+
+
+def render_markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Bytecode semantic-work amplification audit",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        report["recommendation"],
+        "",
+        "The audit distinguishes a repeated broad parent from one exact operation. "
+        "Admission requires the same concrete mechanism to be materially amplified "
+        "in at least three unlike application families.",
+        "",
+        "## Logical-work normalization",
+        "",
+        "| Application | Logical unit | Units | Semantic ops / unit | Call ops / unit | Allocations / unit | Bytes / unit | Dominant semantic category |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for app in report["applications"]:
+        lines.append(
+            f"| `{app['benchmark']}` | {app['logical_unit']} | "
+            f"{app['logical_units']:,} | "
+            f"{app['semantic_operations_per_logical_unit']:,.3f} | "
+            f"{app['call_operations_per_logical_unit']:,.3f} | "
+            f"{app['allocations_per_logical_unit']:,.3f} | "
+            f"{app['allocated_bytes_per_logical_unit']:,.1f} | "
+            f"`{app['dominant_semantic_category']}` |"
+        )
+    lines.extend(
+        [
+            "",
+            f"The six processes execute {summary['total_semantic_operations']:,} semantic "
+            f"operations after {summary['total_transport_operations']:,} transport operations. "
+            f"Their measured mains allocate {summary['total_allocated_bytes']:,} bytes in "
+            f"{summary['total_allocations']:,} allocations. These totals are comparison "
+            "parents only; neither semantic operations nor allocations have uniform cost.",
+            "",
+            "## Reference-boundary reconciliation",
+            "",
+        ]
+    )
+    for app in report["applications"]:
+        lines.append(f"- **`{app['benchmark']}`:** {app['reference_boundary']}")
+    lines.extend(
+        [
+            "",
+            "The native-boundary mismatch is real in four programs, but it is not one "
+            "operation: concurrency primitives, splitting/hashing, slice copying, and byte "
+            "translation/reversal have different contracts. Fixed Width and Distance Field "
+            "also remain far from target without a comparable bulk shortcut, so native "
+            "library use cannot explain the corpus-wide gap by itself.",
+            "",
+            "## Mechanism admission",
+            "",
+            "| Mechanism | Kind | Unlike families | Material families | Eligible | Disposition |",
+            "| --- | --- | ---: | ---: | --- | --- |",
+        ]
+    )
+    for mechanism in report["mechanisms"]:
+        lines.append(
+            f"| `{mechanism['id']}` | {mechanism['kind']} | "
+            f"{mechanism['unlike_family_count']} | "
+            f"{mechanism['material_unlike_family_count']} | "
+            f"{'yes' if mechanism['eligible'] else 'no'} | "
+            f"`{mechanism['disposition']}` |"
+        )
+    lines.extend(["", "Reasons:", ""])
+    for mechanism in report["mechanisms"]:
+        lines.append(f"- **`{mechanism['id']}`:** {mechanism['reason']}")
+    lines.extend(
+        [
+            "",
+            "## Reproduction",
+            "",
+            "Opcode counts came from fresh, bounded stats processes and are deterministic "
+            "diagnostics, not wall-time measurements. Allocation counts come from two "
+            "independent measured-main processes in the cited refresh reports. Performance "
+            "decisions continue to use repeated-process arithmetic means.",
+            "",
+            "```sh",
+            "v12/bench_semantic_work_amplification \\",
+            "  --json-out v12/docs/perf-baselines/2026-07-21-bytecode-semantic-work-amplification.json \\",
+            "  --markdown-out v12/docs/perf-baselines/2026-07-21-bytecode-semantic-work-amplification.md",
+            "python3 v12/bench_semantic_work_amplification_test.py",
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--architecture", type=Path, default=DEFAULT_ARCHITECTURE)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        report = build_report(args.evidence, args.architecture)
+    except (OSError, ValueError) as error:
+        raise SystemExit(f"error: {error}") from None
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(encoded, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_out.write_text(render_markdown(report), encoding="utf-8")
+    if not args.json_out and not args.markdown_out:
+        print(encoded, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

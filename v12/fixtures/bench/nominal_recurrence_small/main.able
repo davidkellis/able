@@ -1,0 +1,25 @@
+package bench_nominal_recurrence_small
+
+struct RecurrenceState {
+  first: i64,
+  second: i64
+}
+
+fn advance(state: RecurrenceState, delta: i64) -> RecurrenceState {
+  RecurrenceState {
+    first: (state.first * 17 + state.second + delta) % 1_000_000_007,
+    second: (state.second * 31 + delta * 7 + 11) % 1_000_000_009
+  }
+}
+
+fn main() -> void {
+  state := RecurrenceState { first: 3, second: 5 }
+  i := 0
+  loop {
+    if i >= 500_000 { break }
+    state = advance(state, (i % 97) as i64)
+    i = i + 1
+  }
+  print(state.first)
+  print(state.second)
+}

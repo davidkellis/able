@@ -1,0 +1,47 @@
+package bench_hash_set_i32_small
+
+import able.collections.hash_set.{HashSet}
+
+fn build(size: i32) -> HashSet i32 {
+  values: HashSet i32 = HashSet.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.add(((i * 17) + 5) % (size * 3))
+    i = i + 1
+  }
+  values
+}
+
+fn score(values: HashSet i32, size: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= size * 2 { break }
+    key := ((i * 29) + 7) % (size * 3)
+    if values.contains(key) {
+      total = total + (key as i64)
+    }
+    if i % 5 == 0 {
+      values.add(size + i)
+    }
+    if i % 7 == 0 {
+      values.remove((i * 3) % (size * 2))
+    }
+    i = i + 1
+  }
+  values.each({ value => total = total + (value as i64) })
+  total + (values.size() as i64)
+}
+
+fn main() -> void {
+  values := build(8_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 3 { break }
+    total = total + score(values, 8_000)
+    rounds = rounds + 1
+  }
+  print(total)
+}

@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-23T20:05:16Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 60,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "concurrent_tree_folds",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-tree-folds/go-1.26/app.go",
+      "source_sha256": "d3529a8d32b897661b0246b2d3a4c200efea2a4b9938e958e6cf3761d1b07cbe",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0037,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.003849639,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.003603754,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.003553181,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.003620339,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.003780496,
+          "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    }
+  ]
+}

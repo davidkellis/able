@@ -9,7 +9,7 @@ import (
 )
 
 func canonicalTypeName(env *runtime.Environment, name string) string {
-	if env == nil {
+	if env == nil || isReservedScalarPrimitiveTypeName(name) {
 		return name
 	}
 	val, ok := env.Lookup(name)
@@ -30,11 +30,26 @@ func canonicalTypeName(env *runtime.Environment, name string) string {
 			return v.Node.ID.Name
 		}
 	case *runtime.InterfaceDefinitionValue:
+		if v.QualifiedName != "" {
+			return v.QualifiedName
+		}
 		if v.Node != nil && v.Node.ID != nil && v.Node.ID.Name != "" {
 			return v.Node.ID.Name
 		}
 	}
 	return name
+}
+
+func isReservedScalarPrimitiveTypeName(name string) bool {
+	switch name {
+	case "bool", "char", "nil", "void",
+		"i8", "i16", "i32", "i64", "i128", "isize",
+		"u8", "u16", "u32", "u64", "u128", "usize",
+		"f32", "f64":
+		return true
+	default:
+		return false
+	}
 }
 
 func canonicalizeExpandedTypeExpression(expr ast.TypeExpression, env *runtime.Environment) ast.TypeExpression {
@@ -138,58 +153,25 @@ func canonicalizeTypeExpression(expr ast.TypeExpression, env *runtime.Environmen
 	return canonicalizeExpandedTypeExpression(expanded, env)
 }
 
+func (i *Interpreter) canonicalizeTypeExpressionCached(expr ast.TypeExpression, env *runtime.Environment, hasAlias bool) ast.TypeExpression {
+	if expr == nil {
+		return nil
+	}
+	if !hasAlias || i == nil || len(i.typeAliases) == 0 {
+		if env == nil {
+			return expr
+		}
+		return canonicalizeExpandedTypeExpression(expr, env)
+	}
+	expanded := i.expandTypeAliasesCached(expr)
+	if env == nil {
+		return expanded
+	}
+	return canonicalizeExpandedTypeExpression(expanded, env)
+}
+
 func (i *Interpreter) lowerFunctionDefinitionBytecode(def *ast.FunctionDefinition) (*bytecodeProgram, error) {
-	if def == nil || def.Body == nil {
-		return nil, nil
-	}
-	layout := analyzeFrameLayout(i, def)
-	if layout == nil {
-		return i.lowerBlockExpressionToBytecode(def.Body, true)
-	}
-	// Slot-enabled lowering: set up context with param slots.
-	ctx := &bytecodeLoweringContext{
-		instructions:           make([]bytecodeInstruction, 0, len(def.Body.Body)*2),
-		allowPlaceholderLambda: true,
-		frameLayout:            layout,
-		slotKinds:              append([]bytecodeCellKind(nil), layout.paramKinds...),
-		nextSlot:               layout.paramSlots,
-		selfCallSlot:           -1,
-	}
-	if canUseSelfCallSlot(def) {
-		layout.selfCallSlot = ctx.nextSlot
-		ctx.selfCallSlot = ctx.nextSlot
-		ctx.nextSlot++
-		ctx.setSlotKind(layout.selfCallSlot, bytecodeCellKindValue)
-		if def.ID != nil {
-			ctx.selfCallName = def.ID.Name
-		}
-	}
-	paramScope := make(map[string]int, layout.paramSlots)
-	for idx, param := range def.Params {
-		if ident, ok := param.Name.(*ast.Identifier); ok {
-			paramScope[ident.Name] = idx
-		}
-	}
-	ctx.slotScopes = []map[string]int{paramScope}
-	if err := emitBlock(ctx, i, def.Body); err != nil {
-		return nil, err
-	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
-	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, layout)
-	layout.slotCount = ctx.nextSlot
-	layout.slotKinds = make([]bytecodeCellKind, layout.slotCount)
-	copy(layout.slotKinds, ctx.slotKinds)
-	layout.hasTypedSlots = false
-	for _, kind := range layout.slotKinds {
-		if kind != bytecodeCellKindValue {
-			layout.hasTypedSlots = true
-			break
-		}
-	}
-	layout.i32RegisterFrame = layout.i32RegisterFrame && layout.hasTypedSlots
-	program := &bytecodeProgram{instructions: ctx.instructions, frameLayout: layout, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffineRowLoops: ctx.f64AffineRowLoops, f64TransposeRowLoops: ctx.f64TransposeRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}
-	program.i32RecurrenceKernel = bytecodeDetectI32RecurrenceKernel(program)
-	return program, nil
+	return i.lowerFunctionDefinitionBytecodeWithEnv(def, nil)
 }
 
 func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {
@@ -201,7 +183,7 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 	}
 	fnVal := &runtime.FunctionValue{Declaration: def, Closure: env}
 	if def.Body != nil {
-		program, err := i.lowerFunctionDefinitionBytecode(def)
+		program, err := i.lowerFunctionDefinitionBytecodeWithEnv(def, env)
 		if err != nil {
 			if i.execMode == execModeBytecode {
 				return nil, err
@@ -266,7 +248,7 @@ func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *r
 	if def.ID == nil {
 		return nil, fmt.Errorf("Struct definition requires identifier")
 	}
-	structVal := &runtime.StructDefinitionValue{Node: def}
+	structVal := newStructDefinitionValue(def)
 	i.defineInEnv(env, def.ID.Name, structVal)
 	env.DefineStruct(def.ID.Name, structVal)
 	i.registerSymbol(def.ID.Name, structVal)
@@ -299,9 +281,43 @@ func (i *Interpreter) RegisterInterfaceDefinition(name string, def *runtime.Inte
 	if i == nil || name == "" || def == nil {
 		return
 	}
+	identity := interfaceDefinitionIdentity(def)
+	if identity == "" {
+		identity = name
+	}
+	if _, exists := i.interfaces[identity]; !exists {
+		i.interfaces[identity] = def
+	}
 	if _, exists := i.interfaces[name]; !exists {
 		i.interfaces[name] = def
 	}
+}
+
+func interfaceDefinitionIdentity(def *runtime.InterfaceDefinitionValue) string {
+	if def == nil {
+		return ""
+	}
+	if def.QualifiedName != "" {
+		return def.QualifiedName
+	}
+	if def.Node != nil && def.Node.ID != nil {
+		return def.Node.ID.Name
+	}
+	return ""
+}
+
+func (i *Interpreter) canonicalInterfaceName(name string) string {
+	if i == nil || name == "" {
+		return name
+	}
+	def, ok := i.interfaces[name]
+	if !ok {
+		return name
+	}
+	if identity := interfaceDefinitionIdentity(def); identity != "" {
+		return identity
+	}
+	return name
 }
 
 // RegisterPackageSymbol registers a symbol in the interpreter's package
@@ -316,15 +332,24 @@ func (i *Interpreter) RegisterPackageSymbol(pkgName string, name string, val run
 		i.packageRegistry[pkgName] = bucket
 	}
 	bucket[name] = val
+	i.updateKnownTypeNameCacheForPackageSymbol(name, val)
 }
 
 func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, env *runtime.Environment) (runtime.Value, error) {
 	if def.ID == nil {
 		return nil, fmt.Errorf("Interface definition requires identifier")
 	}
-	ifaceVal := &runtime.InterfaceDefinitionValue{Node: def, Env: env}
+	identity := i.qualifiedName(def.ID.Name)
+	if identity == "" {
+		identity = def.ID.Name
+	}
+	ifaceVal := &runtime.InterfaceDefinitionValue{Node: def, Env: env, QualifiedName: identity}
 	i.defineInEnv(env, def.ID.Name, ifaceVal)
-	i.interfaces[def.ID.Name] = ifaceVal
+	i.RegisterInterfaceDefinition(def.ID.Name, ifaceVal)
+	// A dynamic redefinition replaces the package-qualified definition, as the
+	// previous short-name registry did, while the compatibility short alias
+	// remains bound to the first visible nominal definition.
+	i.interfaces[identity] = ifaceVal
 	i.registerSymbol(def.ID.Name, ifaceVal)
 	return runtime.NilValue{}, nil
 }
@@ -356,13 +381,28 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		WhereClause:   canonicalDef.WhereClause,
 	}
 	methods := make(map[string]runtime.Value)
+	implCtx := &implMethodContext{
+		implName:      "",
+		interfaceName: canonicalDef.InterfaceName.Name,
+		target:        canonicalDef.TargetType,
+		methods:       methods,
+	}
+	if canonicalDef.ImplName != nil {
+		implCtx.implName = canonicalDef.ImplName.Name
+	}
+	implTarget := expandTypeAliases(canonicalDef.TargetType, i.typeAliases, nil)
+	if implTarget == nil {
+		implTarget = canonicalDef.TargetType
+	}
 	hasExplicit := false
 	for _, fn := range canonicalDef.Definitions {
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Implementation method requires identifier")
 		}
-		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, MethodPriority: -1, MethodSet: methodSet}
-		if program, err := i.lowerFunctionDefinitionBytecode(fn); err != nil {
+		fnEnv := runtime.NewEnvironment(env)
+		fnEnv.SetRuntimeData(implCtx)
+		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: fnEnv, MethodPriority: -1, MethodSet: methodSet}
+		if program, err := i.lowerFunctionDefinitionBytecodeWithMethodSetEnv(fn, fnEnv, methodSet); err != nil {
 			if i.execMode == execModeBytecode {
 				return nil, err
 			}
@@ -385,8 +425,13 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				continue
 			}
 			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1, MethodSet: methodSet}
-			if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
+			defaultEnv := runtime.NewEnvironment(ifaceDef.Env)
+			defaultEnv.SetRuntimeData(implCtx)
+			selfBindings := make(map[string]ast.TypeExpression)
+			i.bindInterfaceSelfPatternBindings(selfBindings, ifaceName, implTarget)
+			i.defineTypeBindingValues(defaultEnv, selfBindings)
+			defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: defaultEnv, MethodPriority: -1, MethodSet: methodSet}
+			if program, err := i.lowerFunctionDefinitionBytecodeWithMethodSetEnv(defaultDef, defaultEnv, methodSet); err != nil {
 				if i.execMode == execModeBytecode {
 					return nil, err
 				}
@@ -396,6 +441,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			mergeFunctionLike(methods, name, defaultVal)
 		}
 	}
+	attachImplMethodContext(methods, implCtx)
 	constraintSpecs := collectConstraintSpecs(canonicalDef.GenericParams, canonicalDef.WhereClause)
 	baseConstraintSig := constraintSignature(constraintSpecs, func(expr ast.TypeExpression) string {
 		return typeExpressionToString(expandTypeAliases(expr, i.typeAliases, nil))
@@ -442,19 +488,13 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		}
 	}
 	if canonicalDef.ImplName != nil {
-		implCtx := &implMethodContext{
-			implName:      canonicalDef.ImplName.Name,
-			interfaceName: canonicalDef.InterfaceName.Name,
-			target:        canonicalDef.TargetType,
-			methods:       methods,
-		}
-		attachImplMethodContext(methods, implCtx)
 		name := canonicalDef.ImplName.Name
 		implVal := runtime.ImplementationNamespaceValue{
 			Name:          canonicalDef.ImplName,
 			InterfaceName: canonicalDef.InterfaceName,
 			TargetType:    canonicalDef.TargetType,
 			Methods:       methods,
+			IsPrivate:     canonicalDef.IsPrivate,
 		}
 		i.defineInEnv(env, name, implVal)
 		i.registerSymbol(name, implVal)
@@ -530,7 +570,7 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 			exportedName = fmt.Sprintf("%s.%s", typeName, fn.ID.Name)
 		}
 		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, TypeQualified: !expectsSelf, MethodSet: methodSet}
-		if program, err := i.lowerFunctionDefinitionBytecode(fn); err != nil {
+		if program, err := i.lowerFunctionDefinitionBytecodeWithMethodSetEnv(fn, env, methodSet); err != nil {
 			if i.execMode == execModeBytecode {
 				return nil, err
 			}
@@ -737,9 +777,19 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 			}
 			return i.arrayValueFromStructFields(fieldMap)
 		}
+		if isSingletonStructDef(structDef) {
+			return structDefVal, nil
+		}
 		return &runtime.StructInstanceValue{Definition: structDefVal, Positional: values, TypeArguments: typeArgs}, nil
 	}
 	updateCount := len(lit.FunctionalUpdateSources)
+	if updateCount == 0 {
+		if simpleValue, ok, err := i.evaluateSimpleNamedStructLiteralIfPossible(lit, env, structDefVal, explicitTypeArgs); ok {
+			return simpleValue, err
+		} else if err != nil {
+			return nil, err
+		}
+	}
 	if structDef.Kind == ast.StructKindPositional && updateCount == 0 {
 		return nil, fmt.Errorf("Named struct literal not allowed for positional struct '%s'", structName)
 	}
@@ -759,27 +809,43 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		}
 		instance, ok := base.(*runtime.StructInstanceValue)
 		if !ok {
+			switch defVal := base.(type) {
+			case *runtime.StructDefinitionValue:
+				if isSingletonStructDef(structDef) && defVal != nil && defVal.Node != nil && defVal.Node.ID != nil && defVal.Node.ID.Name == structName {
+					continue
+				}
+			case runtime.StructDefinitionValue:
+				if isSingletonStructDef(structDef) && defVal.Node != nil && defVal.Node.ID != nil && defVal.Node.ID.Name == structName {
+					continue
+				}
+			}
 			return nil, fmt.Errorf("Functional update source must be a struct instance")
 		}
 		if instance.Definition == nil || instance.Definition.Node == nil || instance.Definition.Node.ID == nil || instance.Definition.Node.ID.Name != structName {
 			return nil, fmt.Errorf("Functional update source must be same struct type")
 		}
-		if instance.Fields == nil {
+		if !structUsesNamedFieldStorage(instance) {
 			return nil, fmt.Errorf("Functional update only supported for named structs")
 		}
 		if idx == 0 {
 			baseStruct = instance
 		} else if baseStruct != nil {
-			if len(baseStruct.TypeArguments) != len(instance.TypeArguments) {
+			baseTypeArgs := i.resolvedStructInstanceTypeArguments(baseStruct)
+			instanceTypeArgs := i.resolvedStructInstanceTypeArguments(instance)
+			if len(baseTypeArgs) != len(instanceTypeArgs) {
 				return nil, fmt.Errorf("Functional update sources must share type arguments")
 			}
-			for argIdx := range baseStruct.TypeArguments {
-				if !typeExpressionsEqual(baseStruct.TypeArguments[argIdx], instance.TypeArguments[argIdx]) {
+			for argIdx := range baseTypeArgs {
+				if !typeExpressionsEqual(baseTypeArgs[argIdx], instanceTypeArgs[argIdx]) {
 					return nil, fmt.Errorf("Functional update sources must share type arguments")
 				}
 			}
 		}
-		for k, v := range instance.Fields {
+		sourceFields, ok := structCopyNamedFields(instance)
+		if !ok {
+			return nil, fmt.Errorf("Functional update only supported for named structs")
+		}
+		for k, v := range sourceFields {
 			fields[k] = v
 		}
 	}
@@ -826,13 +892,16 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	if err != nil {
 		return nil, err
 	}
-	if baseStruct != nil && len(baseStruct.TypeArguments) > 0 && len(typeArgs) > 0 {
-		if len(baseStruct.TypeArguments) != len(typeArgs) {
-			return nil, fmt.Errorf("Functional update must use same type arguments as source")
-		}
-		for idx := range baseStruct.TypeArguments {
-			if !typeExpressionsEqual(baseStruct.TypeArguments[idx], typeArgs[idx]) {
+	if baseStruct != nil {
+		baseTypeArgs := i.resolvedStructInstanceTypeArguments(baseStruct)
+		if len(baseTypeArgs) > 0 && len(typeArgs) > 0 {
+			if len(baseTypeArgs) != len(typeArgs) {
 				return nil, fmt.Errorf("Functional update must use same type arguments as source")
+			}
+			for idx := range baseTypeArgs {
+				if !typeExpressionsEqual(baseTypeArgs[idx], typeArgs[idx]) {
+					return nil, fmt.Errorf("Functional update must use same type arguments as source")
+				}
 			}
 		}
 	}
@@ -841,6 +910,9 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	}
 	if structName == "Array" {
 		return i.arrayValueFromStructFields(fields)
+	}
+	if isSingletonStructDef(structDef) {
+		return structDefVal, nil
 	}
 	return &runtime.StructInstanceValue{Definition: structDefVal, Fields: fields, TypeArguments: typeArgs}, nil
 }
@@ -867,13 +939,17 @@ func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, expl
 		if len(explicit) != genericCount {
 			return nil, fmt.Errorf("Type '%s' expects %d type arguments, got %d", structName, genericCount, len(explicit))
 		}
-		return append([]ast.TypeExpression(nil), explicit...), nil
+		return i.cachedTypeExpressionTuple(explicit), nil
 	}
 	if base != nil {
-		if len(base.TypeArguments) != genericCount {
-			return nil, fmt.Errorf("Type '%s' expects %d type arguments, got %d", structName, genericCount, len(base.TypeArguments))
+		baseTypeArgs := i.resolvedStructInstanceTypeArguments(base)
+		if len(baseTypeArgs) != genericCount {
+			return nil, fmt.Errorf("Type '%s' expects %d type arguments, got %d", structName, genericCount, len(baseTypeArgs))
 		}
-		return append([]ast.TypeExpression(nil), base.TypeArguments...), nil
+		return i.cachedTypeExpressionTuple(baseTypeArgs), nil
+	}
+	if !structHasGenericConstraints(def) {
+		return nil, nil
 	}
 	inferred := i.inferStructTypeArguments(def, named, positional)
 	return inferred, nil
@@ -881,53 +957,6 @@ func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, expl
 
 func (i *Interpreter) inferStructTypeArguments(def *ast.StructDefinition, named map[string]runtime.Value, positional []runtime.Value) []ast.TypeExpression {
 	return i.inferStructTypeArgumentsWithSeen(def, named, positional, nil)
-}
-
-func (i *Interpreter) inferStructTypeArgumentsWithSeen(def *ast.StructDefinition, named map[string]runtime.Value, positional []runtime.Value, seen map[*runtime.StructInstanceValue]struct{}) []ast.TypeExpression {
-	if def == nil || len(def.GenericParams) == 0 {
-		return nil
-	}
-	bindings := make(map[string]ast.TypeExpression)
-	genericNames := genericNameSet(def.GenericParams)
-	switch def.Kind {
-	case ast.StructKindPositional, ast.StructKindSingleton:
-		for idx, field := range def.Fields {
-			if field == nil || field.FieldType == nil || idx >= len(positional) {
-				continue
-			}
-			actual := i.typeExpressionFromValueWithSeen(positional[idx], seen)
-			if actual == nil {
-				continue
-			}
-			matchTypeExpressionTemplate(field.FieldType, actual, genericNames, bindings)
-		}
-	default:
-		for _, field := range def.Fields {
-			if field == nil || field.FieldType == nil || field.Name == nil {
-				continue
-			}
-			val, ok := named[field.Name.Name]
-			if !ok {
-				continue
-			}
-			actual := i.typeExpressionFromValueWithSeen(val, seen)
-			if actual == nil {
-				continue
-			}
-			matchTypeExpressionTemplate(field.FieldType, actual, genericNames, bindings)
-		}
-	}
-	typeArgs := make([]ast.TypeExpression, len(def.GenericParams))
-	for idx, gp := range def.GenericParams {
-		if gp != nil && gp.Name != nil {
-			if bound, ok := bindings[gp.Name.Name]; ok {
-				typeArgs[idx] = bound
-				continue
-			}
-		}
-		typeArgs[idx] = ast.NewWildcardTypeExpression()
-	}
-	return typeArgs
 }
 
 func (i *Interpreter) enforceStructConstraints(def *ast.StructDefinition, typeArgs []ast.TypeExpression, structName string) error {

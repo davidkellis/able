@@ -13,17 +13,87 @@ type typeInfoCacheKey struct {
 	argCount uint8
 	arg0     ast.TypeExpression
 	arg1     ast.TypeExpression
+	arg2     ast.TypeExpression
 }
 
-func interfaceImplArgSignature(ifaceArgs []ast.TypeExpression) string {
-	if len(ifaceArgs) == 0 {
-		return "<none>"
+type typeExpressionSliceKey struct {
+	count     uint8
+	arg0      ast.TypeExpression
+	arg1      ast.TypeExpression
+	arg2      ast.TypeExpression
+	signature string
+}
+
+type typeExpressionCacheKey struct {
+	name string
+	args typeExpressionSliceKey
+}
+
+func (i *Interpreter) makeInterfaceImplCacheKey(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) interfaceImplCacheKey {
+	return interfaceImplCacheKey{
+		typeName:      i.cachedTypeInfoName(info),
+		interfaceName: interfaceName,
+		ifaceArgs:     makeTypeExpressionSliceKey(ifaceArgs),
 	}
-	parts := make([]string, 0, len(ifaceArgs))
-	for _, arg := range ifaceArgs {
-		parts = append(parts, typeExpressionToString(arg))
+}
+
+func (i *Interpreter) makeInterfaceMethodDictionaryCacheKey(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) interfaceMethodDictionaryCacheKey {
+	return interfaceMethodDictionaryCacheKey{
+		typeName:      i.cachedTypeInfoName(info),
+		interfaceName: interfaceName,
+		ifaceArgs:     makeTypeExpressionSliceKey(ifaceArgs),
 	}
-	return strings.Join(parts, "|")
+}
+
+func makeTypeExpressionSliceKey(args []ast.TypeExpression) typeExpressionSliceKey {
+	key := typeExpressionSliceKey{count: uint8(len(args))}
+	switch len(args) {
+	case 0:
+		return key
+	case 1:
+		key.arg0 = args[0]
+	case 2:
+		key.arg0 = args[0]
+		key.arg1 = args[1]
+	case 3:
+		key.arg0 = args[0]
+		key.arg1 = args[1]
+		key.arg2 = args[2]
+	default:
+		key.signature = typeExpressionSliceSignature(args)
+	}
+	return key
+}
+
+func typeExpressionSliceSignature(args []ast.TypeExpression) string {
+	if len(args) == 0 {
+		return ""
+	}
+	if len(args) == 1 {
+		return typeExpressionToString(args[0])
+	}
+	if len(args) == 2 {
+		return typeExpressionToString(args[0]) + "|" + typeExpressionToString(args[1])
+	}
+	var b strings.Builder
+	for idx, arg := range args {
+		if idx > 0 {
+			b.WriteByte('|')
+		}
+		appendTypeExpressionString(&b, arg)
+	}
+	return b.String()
+}
+
+func cloneRuntimeValueMap(src map[string]runtime.Value) map[string]runtime.Value {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(map[string]runtime.Value, len(src))
+	for name, value := range src {
+		dst[name] = value
+	}
+	return dst
 }
 
 func (i *Interpreter) lookupInterfaceImplCache(key interfaceImplCacheKey) (interfaceImplCacheEntry, bool) {
@@ -60,11 +130,86 @@ func (i *Interpreter) storeInterfaceImplCache(key interfaceImplCacheKey, okImpl 
 	i.interfaceImplCache[key] = entry
 }
 
+func (i *Interpreter) lookupSelectedInterfaceImplCache(key interfaceImplCacheKey) (*selectedInterfaceImplCacheEntry, bool) {
+	if i == nil {
+		return nil, false
+	}
+	if i.envSingleThread {
+		entry, ok := i.selectedInterfaceImplCache[key]
+		return entry, ok
+	}
+	i.methodCacheMu.RLock()
+	defer i.methodCacheMu.RUnlock()
+	entry, ok := i.selectedInterfaceImplCache[key]
+	return entry, ok
+}
+
+func (i *Interpreter) storeSelectedInterfaceImplCache(key interfaceImplCacheKey, candidate *implCandidate, err error) {
+	if i == nil {
+		return
+	}
+	entry := &selectedInterfaceImplCacheEntry{
+		found:     candidate != nil,
+		candidate: implCandidate{},
+		err:       err,
+	}
+	if candidate != nil {
+		entry.candidate = *candidate
+	}
+	if i.envSingleThread {
+		if i.selectedInterfaceImplCache == nil {
+			i.selectedInterfaceImplCache = make(map[interfaceImplCacheKey]*selectedInterfaceImplCacheEntry)
+		}
+		i.selectedInterfaceImplCache[key] = entry
+		return
+	}
+	i.methodCacheMu.Lock()
+	defer i.methodCacheMu.Unlock()
+	if i.selectedInterfaceImplCache == nil {
+		i.selectedInterfaceImplCache = make(map[interfaceImplCacheKey]*selectedInterfaceImplCacheEntry)
+	}
+	i.selectedInterfaceImplCache[key] = entry
+}
+
+func (i *Interpreter) lookupInterfaceMethodDictionaryCache(key interfaceMethodDictionaryCacheKey) (interfaceMethodDictionaryCacheEntry, bool) {
+	if i == nil {
+		return interfaceMethodDictionaryCacheEntry{}, false
+	}
+	if i.envSingleThread {
+		entry, ok := i.interfaceMethodDictionaryCache[key]
+		return entry, ok
+	}
+	i.methodCacheMu.RLock()
+	defer i.methodCacheMu.RUnlock()
+	entry, ok := i.interfaceMethodDictionaryCache[key]
+	return entry, ok
+}
+
+func (i *Interpreter) storeInterfaceMethodDictionaryCache(key interfaceMethodDictionaryCacheKey, methods map[string]runtime.Value, err error) {
+	if i == nil {
+		return
+	}
+	entry := interfaceMethodDictionaryCacheEntry{methods: cloneRuntimeValueMap(methods), err: err}
+	if i.envSingleThread {
+		if i.interfaceMethodDictionaryCache == nil {
+			i.interfaceMethodDictionaryCache = make(map[interfaceMethodDictionaryCacheKey]interfaceMethodDictionaryCacheEntry)
+		}
+		i.interfaceMethodDictionaryCache[key] = entry
+		return
+	}
+	i.methodCacheMu.Lock()
+	defer i.methodCacheMu.Unlock()
+	if i.interfaceMethodDictionaryCache == nil {
+		i.interfaceMethodDictionaryCache = make(map[interfaceMethodDictionaryCacheKey]interfaceMethodDictionaryCacheEntry)
+	}
+	i.interfaceMethodDictionaryCache[key] = entry
+}
+
 func (i *Interpreter) cachedTypeInfoName(info typeInfo) string {
 	if len(info.typeArgs) == 0 {
 		return info.name
 	}
-	if len(info.typeArgs) > 2 {
+	if len(info.typeArgs) > 3 {
 		return typeInfoToString(info)
 	}
 	key := typeInfoCacheKey{
@@ -76,6 +221,9 @@ func (i *Interpreter) cachedTypeInfoName(info typeInfo) string {
 	}
 	if len(info.typeArgs) > 1 {
 		key.arg1 = info.typeArgs[1]
+	}
+	if len(info.typeArgs) > 2 {
+		key.arg2 = info.typeArgs[2]
 	}
 	i.typeInfoCacheMu.RLock()
 	if cached, ok := i.typeInfoNameCache[key]; ok {
@@ -97,10 +245,87 @@ func (i *Interpreter) cachedTypeInfoName(info typeInfo) string {
 	return typeName
 }
 
+func (i *Interpreter) cachedTypeExpressionFromInfo(info typeInfo) ast.TypeExpression {
+	if info.name == "" {
+		return nil
+	}
+	if len(info.typeArgs) == 0 {
+		return cachedSimpleTypeExpression(info.name)
+	}
+	if info.name == "Array" && len(info.typeArgs) == 1 {
+		return cachedArrayTypeExpression(info.typeArgs[0])
+	}
+	if len(info.typeArgs) == 1 {
+		if _, ok := info.typeArgs[0].(*ast.WildcardTypeExpression); ok {
+			switch info.name {
+			case "Iterator":
+				return cachedIteratorTypeExpression
+			case "Future":
+				return cachedFutureTypeExpression
+			}
+		}
+	}
+	if i == nil {
+		return typeExpressionFromInfo(info)
+	}
+	key := typeExpressionCacheKey{
+		name: info.name,
+		args: makeTypeExpressionSliceKey(info.typeArgs),
+	}
+	i.typeInfoCacheMu.RLock()
+	if cached, ok := i.typeInfoExpressionCache[key]; ok {
+		i.typeInfoCacheMu.RUnlock()
+		return cached
+	}
+	i.typeInfoCacheMu.RUnlock()
+	base := cachedSimpleTypeExpression(info.name)
+	args := append([]ast.TypeExpression(nil), info.typeArgs...)
+	created := ast.NewGenericTypeExpression(base, args)
+	i.typeInfoCacheMu.Lock()
+	if i.typeInfoExpressionCache == nil {
+		i.typeInfoExpressionCache = make(map[typeExpressionCacheKey]ast.TypeExpression)
+	}
+	if existing, ok := i.typeInfoExpressionCache[key]; ok {
+		i.typeInfoCacheMu.Unlock()
+		return existing
+	}
+	i.typeInfoExpressionCache[key] = created
+	i.typeInfoCacheMu.Unlock()
+	return created
+}
+
 func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) (*implCandidate, error) {
+	interfaceName = i.canonicalInterfaceName(interfaceName)
+	cacheKey := i.makeInterfaceImplCacheKey(info, interfaceName, ifaceArgs)
+	if cached, ok := i.lookupSelectedInterfaceImplCache(cacheKey); ok {
+		if cached.err != nil {
+			return nil, cached.err
+		}
+		if !cached.found {
+			return nil, nil
+		}
+		return &cached.candidate, nil
+	}
+	best, err := i.lookupImplEntryUncached(info, interfaceName, ifaceArgs)
+	i.storeSelectedInterfaceImplCache(cacheKey, best, err)
+	return best, err
+}
+
+func (i *Interpreter) lookupImplEntryUncached(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) (*implCandidate, error) {
 	matches, err := i.collectImplCandidates(info, interfaceName, "", ifaceArgs)
 	if len(matches) == 0 {
 		return nil, err
+	}
+	if interfaceName != "" {
+		direct := make([]implCandidate, 0, len(matches))
+		for _, cand := range matches {
+			if cand.entry != nil && cand.entry.interfaceName == interfaceName {
+				direct = append(direct, cand)
+			}
+		}
+		if len(direct) > 0 {
+			matches = direct
+		}
 	}
 	best, ambiguous := i.selectBestCandidate(matches)
 	if ambiguous != nil {
@@ -138,6 +363,7 @@ func (i *Interpreter) findMethodCached(info typeInfo, methodName string, interfa
 }
 
 func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
+	interfaceFilter = i.canonicalInterfaceName(interfaceFilter)
 	var matches []implCandidate
 	var err error
 	if interfaceFilter == "" {
@@ -175,6 +401,7 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 			matches = direct
 		}
 	}
+	matches = dedupeImplCandidates(matches)
 	methodMatches := make([]methodMatch, 0, len(matches))
 	for _, cand := range matches {
 		method := cand.entry.methods[methodName]
@@ -184,14 +411,12 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 					if sig == nil || sig.Name == nil || sig.Name.Name != methodName || sig.DefaultImpl == nil {
 						continue
 					}
-					defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-					defaultVal := &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
-					if program, err := i.lowerFunctionDefinitionBytecode(defaultDef); err != nil {
-						if i.execMode == execModeBytecode {
-							return nil, err
-						}
-					} else {
-						setFunctionBytecodeProgram(defaultVal, program)
+					defaultVal, ok, err := i.interfaceDefaultMethodValue(ifaceDef, methodName)
+					if err != nil {
+						return nil, err
+					}
+					if !ok {
+						break
 					}
 					method = defaultVal
 					if cand.entry.methods == nil {
@@ -210,6 +435,7 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 	if len(methodMatches) == 0 {
 		return nil, err
 	}
+	methodMatches = dedupeMethodMatches(methodMatches)
 	if len(methodMatches) > 1 {
 		explicit := make([]methodMatch, 0, len(methodMatches))
 		for _, match := range methodMatches {
@@ -264,6 +490,7 @@ func implDefinesMethod(entry *implEntry, methodName string) bool {
 }
 
 func (i *Interpreter) interfaceSearchNames(interfaceName string, visited map[string]struct{}) []string {
+	interfaceName = i.canonicalInterfaceName(interfaceName)
 	if interfaceName == "" {
 		return nil
 	}
@@ -286,28 +513,51 @@ func (i *Interpreter) interfaceSearchNames(interfaceName string, visited map[str
 	return names
 }
 
-func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, visited map[string]struct{}) (bool, error) {
+func (i *Interpreter) interfaceExtendsInterface(candidate string, target string, visited map[string]struct{}) bool {
+	candidate = i.canonicalInterfaceName(candidate)
+	target = i.canonicalInterfaceName(target)
+	if candidate == "" || target == "" {
+		return false
+	}
+	if candidate == target {
+		return true
+	}
+	if _, seen := visited[candidate]; seen {
+		return false
+	}
+	visited[candidate] = struct{}{}
+	ifaceDef, ok := i.interfaces[candidate]
+	if !ok || ifaceDef == nil || ifaceDef.Node == nil {
+		return false
+	}
+	for _, base := range ifaceDef.Node.BaseInterfaces {
+		info, ok := parseTypeExpression(base)
+		if !ok || info.name == "" {
+			continue
+		}
+		if i.interfaceExtendsInterface(info.name, target, visited) {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, visited map[interfaceImplCacheKey]struct{}) (bool, error) {
+	interfaceName = i.canonicalInterfaceName(interfaceName)
 	if info.name == "" || interfaceName == "" {
 		return false, nil
 	}
 	if interfaceName == "Error" && info.name == "Error" {
 		return true, nil
 	}
-	typeName := i.cachedTypeInfoName(info)
-	argSig := interfaceImplArgSignature(ifaceArgs)
-	cacheKey := interfaceImplCacheKey{
-		typeName:      typeName,
-		interfaceName: interfaceName,
-		argSignature:  argSig,
-	}
+	cacheKey := i.makeInterfaceImplCacheKey(info, interfaceName, ifaceArgs)
 	if cached, ok := i.lookupInterfaceImplCache(cacheKey); ok {
 		return cached.ok, cached.err
 	}
-	key := interfaceName + "::" + typeName + "::" + argSig
-	if _, seen := visited[key]; seen {
+	if _, seen := visited[cacheKey]; seen {
 		return true, nil
 	}
-	visited[key] = struct{}{}
+	visited[cacheKey] = struct{}{}
 	ifaceDef, ok := i.interfaces[interfaceName]
 	if ok && ifaceDef != nil && ifaceDef.Node != nil && len(ifaceDef.Node.BaseInterfaces) > 0 {
 		for _, base := range ifaceDef.Node.BaseInterfaces {
@@ -323,6 +573,7 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 			}
 		}
 		if len(ifaceDef.Node.Signatures) == 0 {
+			i.storeSelectedInterfaceImplCache(cacheKey, nil, nil)
 			i.storeInterfaceImplCache(cacheKey, true, nil)
 			return true, nil
 		}
@@ -331,6 +582,7 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 	if err != nil {
 		// In compiled no-bootstrap mode, trust the compiled dispatch table.
 		if i.compiledImplChecker != nil && i.compiledImplChecker(info.name, interfaceName) {
+			i.storeSelectedInterfaceImplCache(cacheKey, nil, nil)
 			i.storeInterfaceImplCache(cacheKey, true, nil)
 			return true, nil
 		}
@@ -347,11 +599,12 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 }
 
 func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceName string, ifaceArgs []ast.TypeExpression) bool {
+	interfaceName = i.canonicalInterfaceName(interfaceName)
 	if val == nil {
 		return false
 	}
-	if val.Interface != nil && val.Interface.Node != nil && val.Interface.Node.ID != nil {
-		if val.Interface.Node.ID.Name == interfaceName && interfaceArgsEqual(i, val.InterfaceArgs, ifaceArgs) {
+	if val.Interface != nil {
+		if interfaceDefinitionIdentity(val.Interface) == interfaceName && interfaceArgsEqual(i, val.InterfaceArgs, ifaceArgs) {
 			return true
 		}
 	}
@@ -359,7 +612,7 @@ func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceNam
 	if !ok {
 		return false
 	}
-	okImpl, err := i.typeImplementsInterface(info, interfaceName, ifaceArgs, make(map[string]struct{}))
+	okImpl, err := i.typeImplementsInterface(info, interfaceName, ifaceArgs, make(map[interfaceImplCacheKey]struct{}))
 	return err == nil && okImpl
 }
 

@@ -1,0 +1,208 @@
+{
+  "kind": "able-shared-runtime-semantic-abi-evidence",
+  "schema_version": 1,
+  "sources": {
+    "backend_adr": {
+      "path": "v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
+      "sha256": "af7eb2539bb16be719af1ead3eb276b8f912e788a15de84371b30436c3d57f2e"
+    },
+    "native_tier_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
+      "sha256": "7e58450b286d7b45a25383708bfbcfda7f86865e8943a102c11a3acbfdb24167"
+    },
+    "bytecode_architecture_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
+      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+    },
+    "compiled_architecture_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
+      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+    },
+    "spec": {
+      "path": "spec/full_spec_v12.md",
+      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+    },
+    "runtime_values": {
+      "path": "v12/interpreters/go/pkg/runtime/values.go",
+      "sha256": "871f0a4735ce0660c902e356c2a47c5fd0886c0e42f3641338677110e8301280"
+    },
+    "environment": {
+      "path": "v12/interpreters/go/pkg/runtime/environment.go",
+      "sha256": "2419913e1a26bf7c3efa4fa1b3e23795290d70f2c910a0f0feb78cf2c8bdcaad"
+    },
+    "vm_types": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go",
+      "sha256": "f6dbf296c8f28673546b03250f12eab1471227309e90e6c08e0db5c10147855f"
+    },
+    "vm_opcodes": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_vm.go",
+      "sha256": "0edfeba2a1adcaf742e824be43fc764fd42791818a27f08136ffe16dc6347a29"
+    },
+    "vm_dispatch": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go",
+      "sha256": "1710cb15a38a50bf5097c89ecf441e27f49240c9389b8a824b9b5986033a7f23"
+    },
+    "compiled_runtime": {
+      "path": "v12/interpreters/go/pkg/compiler/generator_render_runtime.go",
+      "sha256": "f2592ad97d5ad8cf9726da81bf728d981df30e70adc8f74efc374814916c3bac"
+    }
+  },
+  "proposal": {
+    "id": "shared-arena-semantic-runtime",
+    "status": "conditionally-feasible",
+    "semantic_authority": "The v12 spec and canonical AST define language behavior. One shared semantic runtime owns value representation, heap objects, identity, mutation, dynamic dispatch primitives, type relations, and structured runtime errors. Generated bindings expose the same manifest to the Go reference interpreter, compiled applications, and a future fast engine.",
+    "fast_engine_boundary": "A future engine and the shared semantic runtime execute in one native address space and call through an internal ABI, not Go/cgo per semantic opcode. Go is entered only for declared host effects. No backend is selected by this feasibility decision.",
+    "go_reference_boundary": "The Go tree-walker and ordinary Go bytecode VM remain behavioral references and use generated bindings over the same value cells and semantic runtime. Their performance is not used to justify the ABI; parity fixtures remain authoritative during migration.",
+    "serialized_abi_is_internal": true,
+    "current_fused_opcodes_are_not_frozen": true
+  },
+  "value_cell": {
+    "size_bytes": 16,
+    "layout": [
+      "tag:u32",
+      "aux:u32",
+      "payload:u64"
+    ],
+    "rules": [
+      "The cell contains no Go pointer or native heap pointer.",
+      "Primitive payload bits are stored directly; integer/float suffixes and flags use aux.",
+      "Heap references use a generation-checked object identifier, never an address.",
+      "Host references use a generation-checked host registry identifier and explicit retain/release.",
+      "Zero is an invalid heap/host identifier and is safe as an uninitialized sentinel."
+    ]
+  },
+  "runtime_kind_groups": {
+    "immediate_or_immediate_with_heap_overflow": [
+      "KindBool",
+      "KindChar",
+      "KindNil",
+      "KindVoid",
+      "KindInteger",
+      "KindFloat",
+      "KindIteratorEnd"
+    ],
+    "shared_heap_or_immutable_metadata": [
+      "KindString",
+      "KindArray",
+      "KindHashMap",
+      "KindHasher",
+      "KindFunction",
+      "KindFunctionOverload",
+      "KindStructDefinition",
+      "KindTypeRef",
+      "KindStructInstance",
+      "KindInterfaceDefinition",
+      "KindInterfaceValue",
+      "KindUnionDefinition",
+      "KindPackage",
+      "KindDynPackage",
+      "KindDynRef",
+      "KindError",
+      "KindBoundMethod",
+      "KindImplementationNamespace",
+      "KindIterator",
+      "KindPartialFunction"
+    ],
+    "host_effect_registry": [
+      "KindNativeFunction",
+      "KindHostHandle",
+      "KindNativeBoundMethod",
+      "KindFuture"
+    ]
+  },
+  "program_image": {
+    "encoding": "versioned canonical little-endian sectioned binary",
+    "sections": [
+      "header-and-semantic-abi-identity",
+      "string-and-symbol-table",
+      "type-and-nominal-definition-table",
+      "source-file-span-and-callsite-table",
+      "constant-and-immutable-object-table",
+      "package-function-and-signature-table",
+      "canonical-semantic-instructions-and-control-flow",
+      "host-effect-import-and-capability-table"
+    ],
+    "instruction_shape": "opcode:u16, flags:u16, source_id:u32, operands as validated u32 table/register/block indices",
+    "validation": [
+      "all section bounds, indices, opcodes, control-flow targets, types, arities, and capabilities validate before execution",
+      "no AST node, Go interface, string header, slice, map, function, or pointer occurs in the image",
+      "unsupported functions fall back before function entry; current source-shape fused opcodes remain backend-private",
+      "a function is engine-eligible only when every node is lowered without AST evaluation fallback"
+    ]
+  },
+  "ownership": {
+    "heap_and_gc": "The shared semantic runtime owns the object table/arena and tracing or equivalent collection. Object IDs are stable across movement; engine activations and Go bindings register explicit roots.",
+    "environments_and_closures": "Lexical environments, captures, overload sets, bound methods, type arguments, and mutable cells are shared-heap objects referenced by value cells.",
+    "definitions_and_types": "Immutable definition/type metadata lives in the validated program image or shared immutable tables and is addressed by stable IDs.",
+    "futures_and_scheduling": "Phase one keeps goroutines, executor scheduling, and Future state in the Go host registry. Spawn, await, cancellation, yield, channels, and mutexes are declared host effects and are excluded from the initial performance scope.",
+    "externs_and_host_handles": "Native functions, externs, files, clocks, processes, and arbitrary host objects use capability-scoped registry IDs. The shared heap never contains a Go pointer.",
+    "root_lifetime": "Go registries and engine activations explicitly retain/release shared cells. Host registry entries retain any shared cells reachable from host state; stale generation IDs fail deterministically."
+  },
+  "effect_resume": {
+    "internal_control": [
+      "return",
+      "raise-rescue-ensure-rethrow",
+      "propagation",
+      "break-continue-and-cleanup",
+      "iterator-close"
+    ],
+    "host_effects": [
+      "native-or-extern-call",
+      "spawn-or-scheduler-operation",
+      "await-or-yield-suspension",
+      "channel-or-mutex-operation",
+      "host-handle-or-operating-system-operation"
+    ],
+    "record": "effect_kind:u32, flags:u32, program_id:u64, function_id:u32, instruction_id:u32, source_id:u32, continuation_id:u32, argument-cell range, result destination, and structured error destination",
+    "resume_rule": "The engine commits all prior effects once, returns before the host effect, and resumes the same continuation exactly once with a value or structured error. Ordinary-VM fallback is chosen before function entry; v1 never translates a live foreign frame into a Go frame.",
+    "diagnostics": "Every instruction and effect references immutable source/callsite IDs so the existing diagnostic shape can be reproduced without retaining AST nodes."
+  },
+  "migration": [
+    {
+      "stage": 0,
+      "name": "codec-and-layout-spike",
+      "production_execution_change": false,
+      "exit_gate": "Deterministic encode/decode, corruption rejection, exhaustive 31-kind mapping, source identity round trips, and three unlike function images pass without changing runtime execution."
+    },
+    {
+      "stage": 1,
+      "name": "shadow-image-lowering",
+      "production_execution_change": false,
+      "exit_gate": "Coverage reports prove complete non-AST lowering for selected whole functions and identify every host effect; ordinary execution remains unchanged."
+    },
+    {
+      "stage": 2,
+      "name": "shared-value-and-heap-conformance",
+      "production_execution_change": true,
+      "exit_gate": "Tree-walker and ordinary bytecode parity cover identity, mutation, cycles, errors, cleanup, host roots, and GC before any fast engine runs. No old/new identity-bearing heap conversion remains."
+    },
+    {
+      "stage": 3,
+      "name": "function-entry-engine-prototype",
+      "production_execution_change": false,
+      "exit_gate": "Three unlike whole functions execute from the same image/heap, fall back before entry, preserve all guards, and remove at least 25% target excess in repeated averaged processes."
+    }
+  ],
+  "feasibility_gates": {
+    "single_semantic_runtime": true,
+    "pointer_free_cross_engine_values": true,
+    "no_per_opcode_go_transition_in_fast_engine": true,
+    "identity_without_graph_conversion": true,
+    "ordinary_vm_fallback_without_live_frame_conversion": true,
+    "source_exact_effect_resume": true,
+    "three_unlike_target_model": true,
+    "runtime_or_backend_implementation_admitted": false,
+    "codec_layout_spike_admitted": true
+  },
+  "next_lane": {
+    "id": "semantic-abi-codec-layout-spike",
+    "scope": "Implement only a standalone pure-Go internal ABI package: the 16-byte pointer-free value cell, versioned program-image data structures, deterministic encoder/decoder, validator, source/callsite identity, and generated kind/op manifests. Shadow-encode three unlike existing whole functions without executing the images.",
+    "governing_applications": [
+      "fixed_width_128",
+      "distance_field",
+      "array_slice_window"
+    ],
+    "admission": "Retain the spike only if all current runtime kinds map exactly once, malformed images fail deterministically, repeated encodes are byte-identical, all three functions lower without AST pointers/evaluation fallback, tests remain under one minute, and ordinary interpreter/compiler output is unchanged.",
+    "exclusions": "No foreign heap, cgo runtime, JIT/backend dependency, executable memory, production dispatch, runtime.Value migration, benchmark branch, named-container/non-primitive-nominal rule, or WASM."
+  }
+}

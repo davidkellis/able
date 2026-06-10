@@ -1,0 +1,7 @@
+{
+  "description": "nested spawn retains future values while calling native channel helpers",
+  "expect": {
+    "stdout": ["42"],
+    "exit": 0
+  }
+}

@@ -1,0 +1,220 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "scope": "post_interpreter_package_cut_fixed_cost",
+  "compiler_sha256": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e",
+  "strict_dependency_package_count": 96,
+  "strict_dependency_interpreter_count": 0,
+  "process_counts": {
+    "smoke": 12,
+    "whole_process_accepted": 1200,
+    "whole_process_warmup": 120,
+    "phase_allocation": 120,
+    "phase_timing_accepted": 600,
+    "phase_timing_warmup": 60,
+    "inittrace": 36,
+    "bootstrap_allocation_profile": 6
+  },
+  "applications": [
+    {
+      "id": "dependency_plan",
+      "whole_process": {
+        "able_mean_ms": 4.174,
+        "able_p50_ms": 4.157,
+        "able_p95_ms": 4.410,
+        "go_mean_ms": 1.432,
+        "go_p50_ms": 1.426,
+        "go_p95_ms": 1.574,
+        "ratio": 2.915,
+        "excess_ms": 2.742
+      },
+      "phases_ms": {
+        "outside_run_main": 1.508,
+        "bootstrap": 0.519,
+        "register_in": 0.512,
+        "method_packages": 0.052,
+        "interface_dispatch": 0.153,
+        "packages": 0.243,
+        "package_inits": 0.008,
+        "application_main": 0.645
+      },
+      "allocation": {
+        "bootstrap_bytes": 358726,
+        "bootstrap_allocs": 4884.60,
+        "application_main_bytes": 198712,
+        "application_main_allocs": 14406,
+        "application_main_gc": 0
+      }
+    },
+    {
+      "id": "concurrent_scene_tiles",
+      "whole_process": {
+        "able_mean_ms": 4.477,
+        "able_p50_ms": 4.365,
+        "able_p95_ms": 5.337,
+        "go_mean_ms": 1.111,
+        "go_p50_ms": 1.074,
+        "go_p95_ms": 1.487,
+        "ratio": 4.030,
+        "excess_ms": 3.366
+      },
+      "phases_ms": {
+        "outside_run_main": 1.907,
+        "bootstrap": 0.851,
+        "register_in": 0.841,
+        "method_packages": 0.107,
+        "interface_dispatch": 0.138,
+        "packages": 0.401,
+        "package_inits": 0.011,
+        "application_main": 2.145
+      },
+      "allocation": {
+        "bootstrap_bytes": 457130,
+        "bootstrap_allocs": 6225.95,
+        "application_main_bytes": 1192276,
+        "application_main_allocs": 37056,
+        "application_main_gc": 0
+      }
+    },
+    {
+      "id": "document_audit",
+      "whole_process": {
+        "able_mean_ms": 3.743,
+        "able_p50_ms": 3.320,
+        "able_p95_ms": 5.391,
+        "go_mean_ms": 1.418,
+        "go_p50_ms": 1.284,
+        "go_p95_ms": 2.012,
+        "ratio": 2.640,
+        "excess_ms": 2.325
+      },
+      "phases_ms": {
+        "outside_run_main": 1.869,
+        "bootstrap": 0.930,
+        "register_in": 0.920,
+        "method_packages": 0.113,
+        "interface_dispatch": 0.145,
+        "packages": 0.510,
+        "package_inits": 0.011,
+        "application_main": 1.091
+      },
+      "allocation": {
+        "bootstrap_bytes": 585675,
+        "bootstrap_allocs": 7653.80,
+        "application_main_bytes": 373474,
+        "application_main_allocs": 1952,
+        "application_main_gc": 0
+      }
+    },
+    {
+      "id": "array_slice_window",
+      "whole_process": {
+        "able_mean_ms": 5.392,
+        "able_p50_ms": 5.212,
+        "able_p95_ms": 6.375,
+        "go_mean_ms": 1.349,
+        "go_p50_ms": 1.321,
+        "go_p95_ms": 1.586,
+        "ratio": 3.997,
+        "excess_ms": 4.043
+      },
+      "phases_ms": {
+        "outside_run_main": 1.990,
+        "bootstrap": 0.566,
+        "register_in": 0.558,
+        "method_packages": 0.049,
+        "interface_dispatch": 0.224,
+        "packages": 0.214,
+        "package_inits": 0.010,
+        "application_main": 4.921
+      },
+      "allocation": {
+        "bootstrap_bytes": 258668,
+        "bootstrap_allocs": 3566.25,
+        "application_main_bytes": 1441352,
+        "application_main_allocs": 24012,
+        "application_main_gc": 0
+      }
+    },
+    {
+      "id": "option_result_config",
+      "whole_process": {
+        "able_mean_ms": 15.915,
+        "able_p50_ms": 15.580,
+        "able_p95_ms": 18.682,
+        "go_mean_ms": 1.025,
+        "go_p50_ms": 1.008,
+        "go_p95_ms": 1.243,
+        "ratio": 15.527,
+        "excess_ms": 14.890
+      },
+      "phases_ms": {
+        "outside_run_main": 2.374,
+        "bootstrap": 0.404,
+        "register_in": 0.393,
+        "method_packages": 0.057,
+        "interface_dispatch": 0.070,
+        "packages": 0.195,
+        "package_inits": 0.011,
+        "application_main": 13.466
+      },
+      "allocation": {
+        "bootstrap_bytes": 215716,
+        "bootstrap_allocs": 2958.25,
+        "application_main_bytes": 9937764,
+        "application_main_allocs": 182900,
+        "application_main_gc": 3
+      }
+    },
+    {
+      "id": "sensor_calibration",
+      "whole_process": {
+        "able_mean_ms": 9.959,
+        "able_p50_ms": 8.770,
+        "able_p95_ms": 15.179,
+        "go_mean_ms": 2.319,
+        "go_p50_ms": 2.089,
+        "go_p95_ms": 3.765,
+        "ratio": 4.294,
+        "excess_ms": 7.640
+      },
+      "phases_ms": {
+        "outside_run_main": 2.287,
+        "bootstrap": 0.938,
+        "register_in": 0.928,
+        "method_packages": 0.163,
+        "interface_dispatch": 0.129,
+        "packages": 0.482,
+        "package_inits": 0.010,
+        "application_main": 6.940
+      },
+      "allocation": {
+        "bootstrap_bytes": 557231,
+        "bootstrap_allocs": 7170.65,
+        "application_main_bytes": 3610043,
+        "application_main_allocs": 57534,
+        "application_main_gc": 1
+      }
+    }
+  ],
+  "admission": {
+    "candidate": null,
+    "reason": "No exact open initialization or registration owner is material in at least three unlike applications.",
+    "ab_go_cohort_required": false
+  },
+  "verification": {
+    "command": "go test ./cmd/ablec",
+    "result": "pass",
+    "package_time_seconds": 5.873
+  },
+  "next": {
+    "tranche": "main_phase_allocation_owner_intersection",
+    "applications": [
+      "concurrent_scene_tiles",
+      "array_slice_window",
+      "option_result_config",
+      "sensor_calibration"
+    ],
+    "gate": "Advance one exact general owner only when material in at least three unlike applications."
+  }
+}

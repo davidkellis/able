@@ -45,6 +45,9 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			if cmpExpr, cmpType, ok := g.compileStaticNullableEqualityComparison(expr, left, leftType, right, rightType, expected); ok {
 				return operandLines, cmpExpr, cmpType, true
 			}
+			if unionLines, unionExpr, unionType, ok := g.compileStaticNativeUnionEqualityComparison(ctx, expr.Operator, left, leftType, right, rightType, expected); ok {
+				return append(operandLines, unionLines...), unionExpr, unionType, true
+			}
 		}
 		if leftType != rightType {
 			ctx.setReason("comparison operand type mismatch")
@@ -76,6 +79,10 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		if expected != "" && expected != "bool" {
 			ctx.setReason("comparison expression type mismatch")
 			return nil, "", "", false
+		}
+		if g.isWideIntegerType(leftType) {
+			comparison := fmt.Sprintf("(%s).Compare(%s)", left, right)
+			return operandLines, fmt.Sprintf("(%s %s 0)", comparison, expr.Operator), "bool", true
 		}
 		return operandLines, fmt.Sprintf("(%s %s %s)", left, expr.Operator, right), "bool", true
 	case "^":
@@ -127,6 +134,10 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 		case ".^":
 			op = "^"
 		}
+		if g.isWideIntegerType(leftType) {
+			method := map[string]string{"&": "And", "|": "Or", "^": "Xor"}[op]
+			return operandLines, fmt.Sprintf("(%s).%s(%s)", left, method, right), leftType, true
+		}
 		return operandLines, fmt.Sprintf("(%s %s %s)", left, op, right), leftType, true
 	case ".<<", ".>>", "<<", ">>":
 		if leftType != rightType {
@@ -172,6 +183,10 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName, expr.Left, expr.Right)
 			return append(operandLines, opLines...), opExpr, resultType, true
 		}
+		if g.isFloatType(resultType) {
+			opLines, opExpr := g.compileFloatBinaryExpression(ctx, left, right, expr.Operator)
+			return append(operandLines, opLines...), opExpr, resultType, true
+		}
 		return operandLines, fmt.Sprintf("(%s %s %s)", left, expr.Operator, right), resultType, true
 	case "-", "*":
 		if leftType != rightType {
@@ -195,7 +210,8 @@ func (g *generator) compileBinaryExpression(ctx *compileContext, expr *ast.Binar
 			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, left, right, resultType, expr.Operator, nodeName, expr.Left, expr.Right)
 			return append(operandLines, opLines...), opExpr, resultType, true
 		}
-		return operandLines, fmt.Sprintf("(%s %s %s)", left, expr.Operator, right), resultType, true
+		opLines, opExpr := g.compileFloatBinaryExpression(ctx, left, right, expr.Operator)
+		return append(operandLines, opLines...), opExpr, resultType, true
 	case "/":
 		if leftType != rightType {
 			ctx.setReason("binary operand type mismatch")
@@ -273,15 +289,30 @@ func (g *generator) compileLogicalBinaryExpression(ctx *compileContext, expr *as
 	if !ok {
 		return nil, "", "", false
 	}
-	logicalLines := append([]string{}, leftLines...)
-	logicalLines = append(logicalLines, rightLines...)
 	if leftType == "bool" && rightType == "bool" {
 		if expected != "" && expected != "bool" {
 			ctx.setReason("logical expression type mismatch")
 			return nil, "", "", false
 		}
-		return logicalLines, fmt.Sprintf("(%s %s %s)", leftExpr, expr.Operator, rightExpr), "bool", true
+		resultTemp := ctx.newTemp()
+		lines := append([]string{}, leftLines...)
+		lines = append(lines, fmt.Sprintf("var %s bool", resultTemp))
+		if expr.Operator == "&&" {
+			lines = append(lines, fmt.Sprintf("if %s {", leftExpr))
+			lines = append(lines, indentLines(rightLines, 1)...)
+			lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, rightExpr))
+			lines = append(lines, "} else {")
+			lines = append(lines, fmt.Sprintf("\t%s = false", resultTemp), "}")
+		} else {
+			lines = append(lines, fmt.Sprintf("if %s {", leftExpr))
+			lines = append(lines, fmt.Sprintf("\t%s = true", resultTemp))
+			lines = append(lines, "} else {")
+			lines = append(lines, indentLines(rightLines, 1)...)
+			lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, rightExpr), "}")
+		}
+		return lines, resultTemp, "bool", true
 	}
+	leftValueLines := make([]string, 0)
 	leftVal := leftExpr
 	if leftType != "runtime.Value" {
 		convLines, converted, ok := g.lowerRuntimeValue(ctx, leftExpr, leftType)
@@ -289,9 +320,10 @@ func (g *generator) compileLogicalBinaryExpression(ctx *compileContext, expr *as
 			ctx.setReason("logical operand unsupported")
 			return nil, "", "", false
 		}
-		logicalLines = append(logicalLines, convLines...)
+		leftValueLines = append(leftValueLines, convLines...)
 		leftVal = converted
 	}
+	rightValueLines := make([]string, 0)
 	rightVal := rightExpr
 	if rightType != "runtime.Value" {
 		convLines, converted, ok := g.lowerRuntimeValue(ctx, rightExpr, rightType)
@@ -299,19 +331,31 @@ func (g *generator) compileLogicalBinaryExpression(ctx *compileContext, expr *as
 			ctx.setReason("logical operand unsupported")
 			return nil, "", "", false
 		}
-		logicalLines = append(logicalLines, convLines...)
+		rightValueLines = append(rightValueLines, convLines...)
 		rightVal = converted
 	}
 	leftTemp := ctx.newTemp()
 	resultTemp := ctx.newTemp()
-	lines := append(logicalLines,
+	lines := append([]string{}, leftLines...)
+	lines = append(lines, leftValueLines...)
+	lines = append(lines,
 		fmt.Sprintf("%s := %s", leftTemp, leftVal),
 		fmt.Sprintf("var %s runtime.Value", resultTemp),
 	)
 	if expr.Operator == "&&" {
-		lines = append(lines, fmt.Sprintf("if __able_truthy(%s) { %s = %s } else { %s = %s }", leftTemp, resultTemp, rightVal, resultTemp, leftTemp))
+		lines = append(lines, fmt.Sprintf("if __able_truthy(%s) {", leftTemp))
+		lines = append(lines, indentLines(rightLines, 1)...)
+		lines = append(lines, indentLines(rightValueLines, 1)...)
+		lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, rightVal))
+		lines = append(lines, "} else {")
+		lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, leftTemp), "}")
 	} else {
-		lines = append(lines, fmt.Sprintf("if __able_truthy(%s) { %s = %s } else { %s = %s }", leftTemp, resultTemp, leftTemp, resultTemp, rightVal))
+		lines = append(lines, fmt.Sprintf("if __able_truthy(%s) {", leftTemp))
+		lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, leftTemp))
+		lines = append(lines, "} else {")
+		lines = append(lines, indentLines(rightLines, 1)...)
+		lines = append(lines, indentLines(rightValueLines, 1)...)
+		lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, rightVal), "}")
 	}
 	if expected != "" && expected != "runtime.Value" {
 		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, resultTemp, expected)
@@ -608,6 +652,20 @@ func (g *generator) compileDivisionExpression(ctx *compileContext, left string, 
 		fmt.Sprintf("%s := %s", leftTemp, left),
 		fmt.Sprintf("%s := %s", rightTemp, right),
 	}
+	if g.isWideIntegerType(operandType) {
+		transferLines, ok := g.lowerControlTransfer(ctx, "control")
+		if !ok {
+			return nil, ""
+		}
+		lines = append(lines, fmt.Sprintf("if %s.IsZero() {", rightTemp))
+		lines = append(lines, indentLines([]string{
+			fmt.Sprintf("if control := __able_raise_division_by_zero(%s); control != nil {", nodeName),
+		}, 1)...)
+		lines = append(lines, indentLines(transferLines, 2)...)
+		lines = append(lines, "\t}", "}")
+		lines = append(lines, fmt.Sprintf("%s := (%s).Float64() / (%s).Float64()", resultTemp, leftTemp, rightTemp))
+		return lines, resultTemp
+	}
 	if g.isIntegerType(operandType) {
 		transferLines, ok := g.lowerControlTransfer(ctx, fmt.Sprintf("control"))
 		if !ok {
@@ -629,7 +687,21 @@ func (g *generator) compileDivisionExpression(ctx *compileContext, left string, 
 	return lines, resultTemp
 }
 
+func (g *generator) compileFloatBinaryExpression(ctx *compileContext, left string, right string, op string) ([]string, string) {
+	leftTemp := ctx.newTemp()
+	rightTemp := ctx.newTemp()
+	resultTemp := ctx.newTemp()
+	return []string{
+		fmt.Sprintf("%s := %s", leftTemp, left),
+		fmt.Sprintf("%s := %s", rightTemp, right),
+		fmt.Sprintf("%s := (%s %s %s)", resultTemp, leftTemp, op, rightTemp),
+	}, resultTemp
+}
+
 func (g *generator) compileDivModExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string) ([]string, string) {
+	if g.isWideIntegerType(operandType) {
+		return g.compileWideDivModExpression(ctx, left, right, operandType, op, nodeName)
+	}
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
 	bitsExpr := g.bitSizeExpr(operandType)
@@ -725,6 +797,26 @@ func (g *generator) compileShiftExpression(ctx *compileContext, left string, rig
 		fmt.Sprintf("%s := %s", leftTemp, left),
 		fmt.Sprintf("%s := %s", rightTemp, right),
 	}
+	if g.isWideIntegerType(operandType) {
+		method := "ShiftLeft"
+		if op == ">>" {
+			method = "ShiftRight"
+		}
+		resultTemp := ctx.newTemp()
+		okTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines = append(lines,
+			fmt.Sprintf("%s, %s := (%s).%s(%s)", resultTemp, okTemp, leftTemp, method, rightTemp),
+			fmt.Sprintf("var %s *__ableControl", controlTemp),
+			fmt.Sprintf("if !%s { %s = __able_raise_shift_out_of_range(0, %s) }", okTemp, controlTemp, nodeName),
+		)
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+		if !ok {
+			return nil, ""
+		}
+		lines = append(lines, controlLines...)
+		return lines, resultTemp
+	}
 	if g.isUnsignedIntegerType(operandType) {
 		helper := "__able_shift_left_unsigned"
 		if op == ">>" {
@@ -756,6 +848,9 @@ func (g *generator) compileShiftExpression(ctx *compileContext, left string, rig
 }
 
 func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, left string, right string, operandType string, op string, nodeName string, leftExpr ast.Expression, rightExpr ast.Expression) ([]string, string) {
+	if g.isWideIntegerType(operandType) {
+		return g.compileCheckedWideIntegerBinaryExpression(ctx, left, right, op, nodeName)
+	}
 	if inlineLines, inlineExpr, ok := g.inlineCheckedIntegerBinaryExpression(ctx, left, right, operandType, op, nodeName, leftExpr, rightExpr); ok {
 		return inlineLines, inlineExpr
 	}
@@ -803,6 +898,9 @@ func (g *generator) compileCheckedIntegerBinaryExpression(ctx *compileContext, l
 }
 
 func (g *generator) compilePowExpression(ctx *compileContext, left string, right string, operandType string, nodeName string) ([]string, string) {
+	if g.isWideIntegerType(operandType) {
+		return g.compileWidePowExpression(ctx, left, right, operandType, nodeName)
+	}
 	leftTemp := ctx.newTemp()
 	rightTemp := ctx.newTemp()
 	bitsExpr := g.bitSizeExpr(operandType)
@@ -830,124 +928,4 @@ func (g *generator) compilePowExpression(ctx *compileContext, left string, right
 	}
 	lines = append(lines, controlLines...)
 	return lines, fmt.Sprintf("%s(%s)", operandType, resultTemp)
-}
-
-func (g *generator) compileFloatPowExpression(ctx *compileContext, left string, right string, operandType string) ([]string, string) {
-	leftTemp := ctx.newTemp()
-	rightTemp := ctx.newTemp()
-	lines := []string{
-		fmt.Sprintf("%s := %s", leftTemp, left),
-		fmt.Sprintf("%s := %s", rightTemp, right),
-	}
-	if operandType == "float32" {
-		return lines, fmt.Sprintf("__able_pow_float32(%s, %s)", leftTemp, rightTemp)
-	}
-	return lines, fmt.Sprintf("__able_pow_float64(%s, %s)", leftTemp, rightTemp)
-}
-
-func (g *generator) compileBinaryOperation(ctx *compileContext, op string, leftExpr string, leftType string, rightExpr string, rightType string, expected string, nodeName string) ([]string, string, string, bool) {
-	if leftType == "runtime.Value" || rightType == "runtime.Value" {
-		rtLines, rtExpr, rtType, ok := g.compileRuntimeBinaryOperation(ctx, op, leftExpr, leftType, rightExpr, rightType, expected)
-		if !ok {
-			return nil, "", "", false
-		}
-		return rtLines, rtExpr, rtType, true
-	}
-	if leftType != rightType {
-		ctx.setReason("binary operand type mismatch")
-		return nil, "", "", false
-	}
-	switch op {
-	case "+":
-		if !g.isStringType(leftType) && !g.isNumericType(leftType) {
-			ctx.setReason("unsupported + operand type")
-			return nil, "", "", false
-		}
-		if !g.canCoerceStaticExpr(expected, leftType) {
-			ctx.setReason("binary expression type mismatch")
-			return nil, "", "", false
-		}
-		if g.isIntegerType(leftType) {
-			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, "+", nodeName, nil, nil)
-			return opLines, opExpr, leftType, true
-		}
-		return nil, fmt.Sprintf("(%s + %s)", leftExpr, rightExpr), leftType, true
-	case "-", "*":
-		if !g.isNumericType(leftType) {
-			ctx.setReason("unsupported numeric operator type")
-			return nil, "", "", false
-		}
-		if !g.canCoerceStaticExpr(expected, leftType) {
-			ctx.setReason("binary expression type mismatch")
-			return nil, "", "", false
-		}
-		if g.isIntegerType(leftType) {
-			opLines, opExpr := g.compileCheckedIntegerBinaryExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName, nil, nil)
-			return opLines, opExpr, leftType, true
-		}
-		return nil, fmt.Sprintf("(%s %s %s)", leftExpr, op, rightExpr), leftType, true
-	case "/":
-		if !g.isNumericType(leftType) {
-			ctx.setReason("unsupported numeric operator type")
-			return nil, "", "", false
-		}
-		resultType := leftType
-		if g.isIntegerType(resultType) {
-			resultType = "float64"
-		}
-		if !g.canCoerceStaticExpr(expected, resultType) {
-			ctx.setReason("binary expression type mismatch")
-			return nil, "", "", false
-		}
-		opLines, opExpr := g.compileDivisionExpression(ctx, leftExpr, rightExpr, leftType, resultType, nodeName)
-		return opLines, opExpr, resultType, true
-	case "//", "%":
-		if !g.isIntegerType(leftType) {
-			ctx.setReason("unsupported integer operator type")
-			return nil, "", "", false
-		}
-		if !g.canCoerceStaticExpr(expected, leftType) {
-			ctx.setReason("binary expression type mismatch")
-			return nil, "", "", false
-		}
-		opLines, opExpr := g.compileDivModExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName)
-		return opLines, opExpr, leftType, true
-	case ".&", ".|", ".^", "&", "|", "^":
-		if !g.isIntegerType(leftType) {
-			ctx.setReason("unsupported bitwise operator type")
-			return nil, "", "", false
-		}
-		if !g.canCoerceStaticExpr(expected, leftType) {
-			ctx.setReason("binary expression type mismatch")
-			return nil, "", "", false
-		}
-		switch op {
-		case ".&":
-			op = "&"
-		case ".|":
-			op = "|"
-		case ".^":
-			op = "^"
-		}
-		return nil, fmt.Sprintf("(%s %s %s)", leftExpr, op, rightExpr), leftType, true
-	case ".<<", ".>>", "<<", ">>":
-		if !g.isIntegerType(leftType) {
-			ctx.setReason("unsupported shift operator type")
-			return nil, "", "", false
-		}
-		if !g.canCoerceStaticExpr(expected, leftType) {
-			ctx.setReason("binary expression type mismatch")
-			return nil, "", "", false
-		}
-		if op == ".<<" {
-			op = "<<"
-		} else if op == ".>>" {
-			op = ">>"
-		}
-		opLines, opExpr := g.compileShiftExpression(ctx, leftExpr, rightExpr, leftType, op, nodeName)
-		return opLines, opExpr, leftType, true
-	default:
-		ctx.setReason("unsupported operator")
-		return nil, "", "", false
-	}
 }

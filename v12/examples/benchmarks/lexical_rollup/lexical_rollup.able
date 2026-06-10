@@ -1,0 +1,31 @@
+package lexical_rollup
+
+import able.collections.array
+import able.collections.enumerable
+import able.fs
+import able.kernel.{Array}
+import able.os
+
+fn selected(word: String) -> bool {
+  size := word.len_bytes()
+  size >= 6 && size <= 10 && word.contains("e") && (word.contains("r") || word.contains("t"))
+}
+
+fn score(word: String) -> i64 {
+  size := word.len_bytes() as i64
+  bonus := if word.contains("a") { 13_i64 } elsif word.contains("i") { 7_i64 } else { 3_i64 }
+  (size * 11_i64) + bonus
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "wordlist.txt" }
+  words := fs.read_lines_prefix(path, 16384)
+  scores := words
+    .lazy()
+    .filter({ word => selected(word) })
+    .map<i64>({ word => score(word) })
+    .collect<Array i64>()
+  total := scores.reduce<i64>(0_i64, { acc, value => acc + value })
+  print(`${words.len()}:${scores.len()}:${total}`)
+}

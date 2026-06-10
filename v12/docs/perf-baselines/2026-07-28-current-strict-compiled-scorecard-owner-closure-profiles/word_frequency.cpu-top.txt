@@ -1,0 +1,73 @@
+File: compiled
+Build ID: 1aafddd2d2f3d94f98f15ce6e9e2da2b69ad3b12
+Type: cpu
+Time: 2026-07-28 09:45:22 CDT
+Duration: 1ms, Total samples = 110ms (10956.79%)
+Showing nodes accounting for 110ms, 100% of 110ms total
+      flat  flat%   sum%        cum   cum%
+      30ms 27.27% 27.27%       40ms 36.36%  runtime.tryDeferToSpanScan
+      10ms  9.09% 36.36%       20ms 18.18%  able/interpreter-go/pkg/runtime.HashMapStoreState
+      10ms  9.09% 45.45%       10ms  9.09%  internal/runtime/maps.(*groupReference).key (inline)
+      10ms  9.09% 54.55%       10ms  9.09%  internal/runtime/maps.ctrlGroup.matchFull (inline)
+      10ms  9.09% 63.64%       10ms  9.09%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+      10ms  9.09% 72.73%      110ms   100%  main.__able_compiled_fn_main_ctx
+      10ms  9.09% 81.82%       20ms 18.18%  main.__able_hash_map_find_entry
+      10ms  9.09% 90.91%       10ms  9.09%  runtime.heapArenaOf (inline)
+      10ms  9.09%   100%       10ms  9.09%  runtime.newobject
+         0     0%   100%       40ms 36.36%  able/interpreter-go/pkg/runtime.(*HashMapValue).AppendEntry (inline)
+         0     0%   100%       10ms  9.09%  able/interpreter-go/pkg/runtime.(*HashMapValue).HashCandidates (inline)
+         0     0%   100%       10ms  9.09%  internal/runtime/maps.(*table).grow
+         0     0%   100%       20ms 18.18%  internal/runtime/maps.(*table).rehash
+         0     0%   100%       10ms  9.09%  internal/runtime/maps.(*table).reset
+         0     0%   100%       10ms  9.09%  internal/runtime/maps.(*table).split
+         0     0%   100%       10ms  9.09%  internal/runtime/maps.(*table).uncheckedPutSlot
+         0     0%   100%       10ms  9.09%  internal/runtime/maps.newGroups (inline)
+         0     0%   100%       10ms  9.09%  internal/runtime/maps.newTable
+         0     0%   100%       10ms  9.09%  internal/runtime/maps.newarray
+         0     0%   100%      110ms   100%  main.RunRegisteredMain
+         0     0%   100%      110ms   100%  main.RunRegisteredMain.func1
+         0     0%   100%       10ms  9.09%  main.__able_compiled_entry_fn_read_lines_ctx
+         0     0%   100%       10ms  9.09%  main.__able_compiled_fn_fs_read_lines_fast_ctx
+         0     0%   100%       40ms 36.36%  main.__able_compiled_fn_lookup_ctx
+         0     0%   100%      110ms   100%  main.__able_compiled_fn_main
+         0     0%   100%       10ms  9.09%  main.__able_compiled_fn_read_lines_ctx
+         0     0%   100%       40ms 36.36%  main.__able_compiled_impl_Map_get_0_spec_ctx
+         0     0%   100%       40ms 36.36%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0%   100%       50ms 45.45%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0%   100%       50ms 45.45%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0%   100%       30ms 27.27%  main.__able_hash_map_get_ctx (inline)
+         0     0%   100%       30ms 27.27%  main.__able_hash_map_get_impl
+         0     0%   100%       50ms 45.45%  main.__able_hash_map_set_ctx (inline)
+         0     0%   100%       50ms 45.45%  main.__able_hash_map_set_impl
+         0     0%   100%       10ms  9.09%  main.__able_host_fn_fs_read_lines_fast
+         0     0%   100%       40ms 36.36%  main.__able_iface_Map_String_i32_adapter_ptr_HashMap_String_i32.__able_ctx_get
+         0     0%   100%       10ms  9.09%  main.__able_nullable_i32_from_value
+         0     0%   100%      110ms   100%  main.__able_register_compiled_call.func1
+         0     0%   100%      110ms   100%  main.__able_wrap_fn_main
+         0     0%   100%      110ms   100%  main.main
+         0     0%   100%      110ms   100%  main.runMain
+         0     0%   100%       10ms  9.09%  os.ReadFile
+         0     0%   100%       10ms  9.09%  os.readFileContents
+         0     0%   100%       20ms 18.18%  runtime.(*wbBuf).get1 (inline)
+         0     0%   100%       20ms 18.18%  runtime.bulkBarrierPreWriteSrcOnly
+         0     0%   100%       20ms 18.18%  runtime.deductAssistCredit
+         0     0%   100%       20ms 18.18%  runtime.gcAssistAlloc
+         0     0%   100%       20ms 18.18%  runtime.gcAssistAlloc.func2
+         0     0%   100%       20ms 18.18%  runtime.gcAssistAlloc1
+         0     0%   100%       20ms 18.18%  runtime.gcDrainN
+         0     0%   100%       20ms 18.18%  runtime.growslice
+         0     0%   100%      110ms   100%  runtime.main
+         0     0%   100%       10ms  9.09%  runtime.makeslice
+         0     0%   100%       20ms 18.18%  runtime.mallocgc
+         0     0%   100%       10ms  9.09%  runtime.mapaccess1_fast64
+         0     0%   100%       10ms  9.09%  runtime.mapaccess2_fast64
+         0     0%   100%       20ms 18.18%  runtime.mapassign_fast64
+         0     0%   100%       10ms  9.09%  runtime.markroot
+         0     0%   100%       10ms  9.09%  runtime.markrootBlock
+         0     0%   100%       10ms  9.09%  runtime.newarray
+         0     0%   100%       10ms  9.09%  runtime.scanSpan
+         0     0%   100%       10ms  9.09%  runtime.scanblock
+         0     0%   100%       40ms 36.36%  runtime.systemstack
+         0     0%   100%       20ms 18.18%  runtime.wbBufFlush
+         0     0%   100%       20ms 18.18%  runtime.wbBufFlush.func1
+         0     0%   100%       20ms 18.18%  runtime.wbBufFlush1

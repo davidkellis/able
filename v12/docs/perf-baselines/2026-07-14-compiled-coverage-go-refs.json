@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-07-14T07:19:48Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 3,
+  "timeout_seconds": 45,
+  "cpu_affinity": "15",
+  "gomaxprocs": 1,
+  "rows": [
+    {
+      "benchmark": "word_frequency",
+      "source": "/home/david/sync/projects/benchmarks/word-frequency/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0054,
+      "validation": "verified",
+      "stdout_sha256": [
+        "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+      ]
+    },
+    {
+      "benchmark": "document_audit",
+      "source": "/home/david/sync/projects/benchmarks/document-audit/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.004,
+      "validation": "verified",
+      "stdout_sha256": [
+        "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab"
+      ]
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "source": "/home/david/sync/projects/benchmarks/lexical-rollup/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0044,
+      "validation": "verified",
+      "stdout_sha256": [
+        "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+      ]
+    }
+  ]
+}

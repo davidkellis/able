@@ -190,9 +190,6 @@ func (i *Interpreter) arrayMemberWithOverrides(arr *runtime.ArrayValue, member a
 	if arr == nil {
 		return nil, fmt.Errorf("array receiver is nil")
 	}
-	if _, err := i.ensureArrayState(arr, 0); err != nil {
-		return nil, err
-	}
 	ident, ok := member.(*ast.Identifier)
 	if !ok {
 		return nil, fmt.Errorf("array member access expects identifier")
@@ -242,20 +239,7 @@ func (i *Interpreter) toArrayValue(val runtime.Value) (*runtime.ArrayValue, erro
 		if v.Definition.Node.ID.Name != "Array" {
 			return nil, fmt.Errorf("Indexing is only supported on arrays")
 		}
-		var handle int64
-		if v.Fields != nil {
-			if raw, ok := v.Fields["storage_handle"]; ok {
-				if intVal, ok := raw.(runtime.IntegerValue); ok {
-					if h, ok := intVal.ToInt64(); ok {
-						handle = h
-					}
-				}
-			}
-		}
-		if handle != 0 {
-			return i.arrayValueFromHandle(handle, 0, 0)
-		}
-		return i.newArrayValue(nil, 0), nil
+		return i.arrayValueFromStructInstance(v)
 	default:
 		return nil, fmt.Errorf("Indexing is only supported on arrays")
 	}
@@ -329,15 +313,14 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 				return nil, fmt.Errorf("Array index out of bounds")
 			}
 			state.Values[idx] = value
-			i.syncArrayValues(inst.Handle, state)
+			i.syncTrackedArrayWrite(inst, state, idx, value)
 			return value, nil
 		case *ast.Identifier:
-			state, err := i.ensureArrayState(inst, 0)
-			if err != nil {
-				return nil, err
-			}
 			switch member.Name {
 			case "storage_handle":
+				if _, err := i.ensureArrayStateForMetadata(inst, 0); err != nil {
+					return nil, err
+				}
 				intVal, ok := value.(runtime.IntegerValue)
 				if !ok {
 					return nil, fmt.Errorf("array storage_handle must be an integer")
@@ -349,23 +332,39 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 				if handle <= 0 {
 					return nil, fmt.Errorf("array storage_handle must be positive")
 				}
+				prevHandle := inst.Handle
+				if prevHandle == 0 {
+					prevHandle = inst.TrackedHandle
+				}
 				newState, err := runtime.ArrayStoreEnsureHandle(handle, 0, 0)
 				if err != nil {
 					return nil, err
 				}
 				i.trackArrayValue(handle, inst)
 				inst.Elements = newState.Values
-				i.syncArrayValues(handle, newState)
+				if handle == prevHandle {
+					i.syncTrackedArrayState(inst, newState)
+				} else {
+					i.syncArrayValues(handle, newState)
+				}
 				return value, nil
 			case "length":
+				state, err := i.ensureArrayStateForMetadata(inst, 0)
+				if err != nil {
+					return nil, err
+				}
 				newLen, err := arrayIndexFromValue(value)
 				if err != nil {
 					return nil, fmt.Errorf("array length must be a non-negative integer")
 				}
 				setArrayLength(state, newLen)
-				i.syncArrayValues(inst.Handle, state)
+				i.syncArrayHandleLength(inst.Handle, state)
 				return value, nil
 			case "capacity":
+				state, err := i.ensureArrayStateForMetadata(inst, 0)
+				if err != nil {
+					return nil, err
+				}
 				newCap, err := arrayIndexFromValue(value)
 				if err != nil {
 					return nil, fmt.Errorf("array capacity must be a non-negative integer")
@@ -377,7 +376,7 @@ func (i *Interpreter) MemberAssign(obj runtime.Value, member runtime.Value, valu
 				} else if newCap > state.Capacity {
 					state.Capacity = newCap
 				}
-				i.syncArrayValues(inst.Handle, state)
+				i.syncArrayHandleMetadata(inst.Handle, state)
 				return value, nil
 			default:
 				return nil, fmt.Errorf("Array has no member '%s'", member.Name)
@@ -500,11 +499,11 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 	}
 	switch ident := member.(type) {
 	case *ast.Identifier:
-		if inst.Fields == nil {
+		if !structUsesNamedFieldStorage(inst) {
 			return nil, fmt.Errorf("Expected named struct instance")
 		}
 		if preferMethods {
-			if val, ok := inst.Fields[ident.Name]; ok {
+			if val, ok := structNamedFieldValue(inst, ident.Name); ok {
 				if isCallableRuntimeValue(val) {
 					return val, nil
 				}
@@ -515,11 +514,11 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 			} else if bound != nil {
 				return bound, nil
 			}
-			if val, ok := inst.Fields[ident.Name]; ok {
+			if val, ok := structNamedFieldValue(inst, ident.Name); ok {
 				return val, nil
 			}
 		} else {
-			if val, ok := inst.Fields[ident.Name]; ok {
+			if val, ok := structNamedFieldValue(inst, ident.Name); ok {
 				return val, nil
 			}
 			if bound, err := i.resolveMethodFromPool(env, ident.Name, inst, ""); err != nil {
@@ -602,14 +601,15 @@ func (i *Interpreter) iteratorMember(iter *runtime.IteratorValue, member ast.Exp
 	case "next":
 		fn := iteratorNextNativeMethod()
 		return &runtime.NativeBoundMethodValue{Receiver: iter, Method: fn}, nil
+	case "close":
+		fn := iteratorCloseNativeMethod()
+		return &runtime.NativeBoundMethodValue{Receiver: iter, Method: fn}, nil
 	default:
-		if ifaceVal, err := i.coerceToInterfaceValue("Iterator", iter, nil); err == nil {
-			if iface, ok := ifaceVal.(*runtime.InterfaceValue); ok {
-				return i.interfaceMember(iface, member)
-			}
-			if iface, ok := ifaceVal.(runtime.InterfaceValue); ok {
-				return i.interfaceMember(&iface, member)
-			}
+		ifaceDef := i.interfaces["Iterator"]
+		if method, ok, err := i.iteratorInterfaceMethodValue(ifaceDef, ident.Name); err != nil {
+			return nil, err
+		} else if ok {
+			return bindResolvedMethodValue(iter, method, ident.Name)
 		}
 		return nil, fmt.Errorf("iterator has no member '%s'", ident.Name)
 	}
@@ -617,8 +617,9 @@ func (i *Interpreter) iteratorMember(iter *runtime.IteratorValue, member ast.Exp
 
 func iteratorNextNativeMethod() runtime.NativeFunctionValue {
 	return runtime.NativeFunctionValue{
-		Name:  "iterator.next",
-		Arity: 0,
+		Name:       "iterator.next",
+		Arity:      0,
+		BorrowArgs: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("next expects only a receiver")
@@ -639,114 +640,81 @@ func iteratorNextNativeMethod() runtime.NativeFunctionValue {
 			}
 			return value, nil
 		},
+		RawImpl: func(_ *runtime.NativeCallContext, args []runtime.RawValue) (runtime.RawValue, error) {
+			if len(args) != 1 {
+				return runtime.RawValue{}, fmt.Errorf("next expects only a receiver")
+			}
+			receiverValue := args[0].Materialize()
+			receiver, ok := receiverValue.(*runtime.IteratorValue)
+			if !ok {
+				return runtime.RawValue{}, fmt.Errorf("next receiver must be an iterator")
+			}
+			value, done, err := receiver.NextRaw()
+			if err != nil {
+				return runtime.RawValue{}, err
+			}
+			if done {
+				return runtime.NewRawValue(runtime.IteratorEnd), nil
+			}
+			if value.Kind() == runtime.RawValueMaterialized && value.Value() == nil {
+				return runtime.NewRawValue(runtime.NilValue{}), nil
+			}
+			return value, nil
+		},
+	}
+}
+
+func iteratorCloseNativeMethod() runtime.NativeFunctionValue {
+	return runtime.NativeFunctionValue{
+		Name:       "iterator.close",
+		Arity:      0,
+		BorrowArgs: true,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("close expects only a receiver")
+			}
+			receiver, ok := args[0].(*runtime.IteratorValue)
+			if !ok {
+				return nil, fmt.Errorf("close receiver must be an iterator")
+			}
+			receiver.Close()
+			return runtime.NilValue{}, nil
+		},
+		RawImpl: func(_ *runtime.NativeCallContext, args []runtime.RawValue) (runtime.RawValue, error) {
+			if len(args) != 1 {
+				return runtime.RawValue{}, fmt.Errorf("close expects only a receiver")
+			}
+			receiverValue := args[0].Materialize()
+			receiver, ok := receiverValue.(*runtime.IteratorValue)
+			if !ok {
+				return runtime.RawValue{}, fmt.Errorf("close receiver must be an iterator")
+			}
+			receiver.Close()
+			return runtime.NewRawValue(runtime.NilValue{}), nil
+		},
 	}
 }
 
 func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue, member ast.Expression) (runtime.Value, error) {
-	ident, ok := member.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("Static access expects identifier member")
+	memberName, err := memberIdentifierName(member, "Static access expects identifier member")
+	if err != nil {
+		return nil, err
 	}
-	if def == nil || def.Node == nil || def.Node.ID == nil {
-		return nil, fmt.Errorf("struct definition missing identifier")
-	}
-	typeName := def.Node.ID.Name
-	bucket := i.inherentMethods[typeName]
-	var method runtime.Value
-	var found bool
-	if bucket != nil {
-		method, found = bucket[ident.Name]
-	}
-	if !found {
-		candidate, err := i.findMethodCached(typeInfo{name: typeName}, ident.Name, "")
-		if err != nil {
-			return nil, err
-		}
-		method = candidate
-	}
-	if method == nil {
-		return nil, fmt.Errorf("No static method '%s' for %s", ident.Name, typeName)
-	}
-	if fn := firstFunction(method); fn != nil {
-		if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-			return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, typeName)
-		}
-	}
-	return method, nil
+	return i.structDefinitionMemberName(def, memberName)
 }
 
 func (i *Interpreter) interfaceDefinitionMember(def *runtime.InterfaceDefinitionValue, member ast.Expression) (runtime.Value, error) {
-	ident, ok := member.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("Interface access expects identifier member")
+	memberName, err := memberIdentifierName(member, "Interface access expects identifier member")
+	if err != nil {
+		return nil, err
 	}
-	if def == nil || def.Node == nil || def.Node.ID == nil {
-		return nil, fmt.Errorf("interface definition missing identifier")
-	}
-	ifaceName := def.Node.ID.Name
-	var sig *ast.FunctionSignature
-	for _, candidate := range def.Node.Signatures {
-		if candidate == nil || candidate.Name == nil || candidate.Name.Name != ident.Name {
-			continue
-		}
-		sig = candidate
-		break
-	}
-	if sig == nil {
-		return nil, fmt.Errorf("No method '%s' for interface %s", ident.Name, ifaceName)
-	}
-	arity := len(sig.Params)
-	fn := runtime.NativeFunctionValue{
-		Name:  fmt.Sprintf("%s.%s", ifaceName, ident.Name),
-		Arity: arity,
-		Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-			if len(args) < 1 {
-				return nil, fmt.Errorf("%s.%s requires a receiver", ifaceName, ident.Name)
-			}
-			receiver := unwrapInterfaceValue(args[0])
-			method, err := i.resolveInterfaceMethod(receiver, ifaceName, ident.Name)
-			if err != nil {
-				return nil, err
-			}
-			if method == nil {
-				return nil, fmt.Errorf("No method '%s' for interface %s", ident.Name, ifaceName)
-			}
-			callArgs := append([]runtime.Value{receiver}, args[1:]...)
-			return i.callCallableValue(method, callArgs, ctx.Env, nil)
-		},
-	}
-	return fn, nil
+	return i.interfaceDefinitionMemberName(def, memberName)
 }
 
 func (i *Interpreter) typeRefMember(ref runtime.TypeRefValue, member ast.Expression) (runtime.Value, error) {
-	ident, ok := member.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("Static access expects identifier member")
+	memberName, err := memberIdentifierName(member, "Static access expects identifier member")
+	if err != nil {
+		return nil, err
 	}
-	typeName := ref.TypeName
-	if typeName == "" {
-		return nil, fmt.Errorf("type reference missing name")
-	}
-	bucket := i.inherentMethods[typeName]
-	var method runtime.Value
-	var found bool
-	if bucket != nil {
-		method, found = bucket[ident.Name]
-	}
-	if !found {
-		candidate, err := i.findMethod(typeInfo{name: typeName, typeArgs: ref.TypeArgs}, ident.Name, "", nil)
-		if err != nil {
-			return nil, err
-		}
-		method = candidate
-	}
-	if method == nil {
-		return nil, fmt.Errorf("No static method '%s' for %s", ident.Name, typeName)
-	}
-	if fn := firstFunction(method); fn != nil {
-		if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-			return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, typeName)
-		}
-	}
-	return method, nil
+	return i.typeRefMemberName(ref, memberName)
 }

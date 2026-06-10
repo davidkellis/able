@@ -1,0 +1,192 @@
+{
+  "generated_at": "2026-07-23T00:18:21.468657Z",
+  "suite": "custom",
+  "benchmarks": [
+    "sensor_calibration"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-sensor-calibration-go-reference.json",
+  "cpu_affinity": "0-3",
+  "cpu_affinity_pool": "0-3",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "sensor_calibration",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "sensor_calibration",
+        "mode": "compiled",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.256,
+        "avg_user_seconds": 0.208,
+        "avg_sys_seconds": 0.032,
+        "avg_gc": 6.8,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 0.3,
+            "user_seconds": 0.2,
+            "sys_seconds": 0.04,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 0.25,
+            "user_seconds": 0.21,
+            "sys_seconds": 0.03,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 0.25,
+            "user_seconds": 0.21,
+            "sys_seconds": 0.04,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 0.24,
+            "user_seconds": 0.21,
+            "sys_seconds": 0.03,
+            "gc_count": 6.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 0.24,
+            "user_seconds": 0.21,
+            "sys_seconds": 0.02,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/sensor-calibration/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/sensor_calibration/sensor_calibration.able",
+          "sha256": "28a29926e6511185eda8621d69f09109a3f16bcff69de6f41e0d4cdc4c0d480d"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "serial"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [
+          {
+            "argument": "readings.txt",
+            "path": "/home/david/sync/projects/benchmarks/sensor-calibration/readings.txt",
+            "sha256": "4308cf3733e1ec250744813bc2bfa9686b867ed1ea87b944cbd4a45b6a95651a"
+          }
+        ],
+        "program_args": [
+          "readings.txt"
+        ],
+        "provenance": "measured",
+        "sha256": "0dc288da992f3174fb68c03ffd3e0837fa168186947317a3fcd5d04aa64ad301",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/sensor-calibration/verify.rb",
+          "sha256": "b1f77a04897780b5599795b4f1e827fb9ab433d2df3aed662b913d0bf98fc0bd"
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0051,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 50.19607843137255,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/sensor-calibration/go-1.26/app.go",
+            "sha256": "89c3de53add27fe7b865a16fe379bb264c4681ae4d2e5d8802c5b83489f5e0d6",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.005696551,
+              "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.004514813,
+              "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.005306765,
+              "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.005150093,
+              "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.004684653,
+              "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+            }
+          ],
+          "execution_contract": {
+            "mode": "compiled",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "serial"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,10 +1,14 @@
-# Able Testing Matchers (Draft)
+# Able Testing Matchers
 
-This document describes the **user-facing** test framework matchers intended for
-Able program authors. It is not related to language implementation fixtures,
-parity harnesses, or spec conformance testing, which use separate tooling.
+This document describes the implemented **user-facing** `able.spec` matchers
+for Able program authors. It is not related to language implementation
+fixtures, parity harnesses, or spec conformance testing, which use separate
+tooling.
 
-Able's stdlib ships a growing set of expectation helpers layered on top of `able.spec.expect`. This note captures the current matcher catalog and shows how to compose it in test files.
+The canonical source is `../able-stdlib/src/spec.able` and
+`src/spec/assertions.able`. `able test` discovers `.test.able` and
+`.spec.able` modules; see spec §17 and
+`v12/design/testing-cli-protocol.md` for command behavior.
 
 ## Usage Basics
 
@@ -99,13 +103,19 @@ expect(numbers).to(contain_all([1, 2, 3]))
 
 | Matcher | Description |
 |---------|-------------|
-| `be_within(delta, target)` | Accepts `target - delta <= actual <= target + delta`. |
+| `be_within(delta, target)` | f64 tolerance: accepts `target - delta <= actual <= target + delta`. |
 | `be_greater_than(threshold)` / `be_less_than(threshold)` | i64 ordering helpers. |
 | `be_between(lower, upper)` | Inclusive bounds check for i64 values. |
 
 ## Regex
 
-`match_regex(pattern)` delegates to `able.text.regex.regex_is_match`. Literal-only matching is available today; unsupported metacharacters still return a `RegexError` and the matcher falls back to string equality for compatibility.
+`match_regex(pattern)` delegates to `able.text.regex.regex_is_match`, so normal
+supported RE2-style metacharacters, classes, groups, anchors, and quantifiers
+use the shared regex engine. Invalid patterns or intentionally unsupported
+constructs return a regex error from that helper; the current matcher then
+uses literal equality as its compatibility fallback. It does not add a separate
+host-regex engine or reinterpret the pattern. See spec §14.2 for the regex
+grammar and failure contract.
 
 ## Errors
 
@@ -122,6 +132,9 @@ Use inside function expectations: `expect(fn() { dangerous() }).to(raise_error()
 - `ProgressReporter` shows dot/progress output; call `finish()` after run.
 - CLI front-ends should pick the appropriate reporter based on `--format`.
 
-## TODO / Future Work
+## Extending the catalog
 
-- Extend matcher set with structural diffs, numeric closeness for integers/floats of other widths, and custom matcher authoring docs.
+Custom matcher construction is supported through `matcher(...)` and
+`matcher_with_details(...)`, as shown above. Any new built-in matcher belongs
+in the canonical external `able.spec` source with user-test coverage; it is
+not selected merely to serve a fixture or benchmark.

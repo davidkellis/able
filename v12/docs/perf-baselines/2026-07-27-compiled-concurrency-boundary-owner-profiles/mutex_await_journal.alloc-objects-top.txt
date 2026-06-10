@@ -1,0 +1,60 @@
+File: compiled
+Build ID: 4fc52de29a6878f5af6352cc974f042d9bda41cd
+Type: alloc_objects
+Time: 2026-07-27 22:14:32 CDT
+Showing nodes accounting for 96344, 100% of 96344 total
+      flat  flat%   sum%        cum   cum%
+     17748 18.42% 18.42%      17748 18.42%  main.__able_make_await_waker
+     16384 17.01% 35.43%      16384 17.01%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+     16384 17.01% 52.43%      16384 17.01%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     15019 15.59% 68.02%      15019 15.59%  main.__able_make_await_registration_value
+     10923 11.34% 79.36%      10923 11.34%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     10012 10.39% 89.75%      10012 10.39%  main.(*__able_mutex_awaitable).toStruct
+      5193  5.39% 95.14%       5193  5.39%  runtime.mallocgc
+      4681  4.86%   100%       4681  4.86%  main.(*__able_await_state).ensureWaitCh
+         0     0%   100%      16384 17.01%  able/interpreter-go/pkg/ast.Ty (inline)
+         0     0%   100%       8192  8.50%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%       8192  8.50%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      91151 94.61%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%      19115 19.84%  main.(*__able_mutex_awaitable).commit
+         0     0%   100%      15019 15.59%  main.(*__able_mutex_awaitable).register
+         0     0%   100%      15019 15.59%  main.(*__able_mutex_awaitable).toStruct.func2
+         0     0%   100%      19115 19.84%  main.(*__able_mutex_awaitable).toStruct.func3
+         0     0%   100%      64755 67.21%  main.__able_await
+         0     0%   100%      64755 67.21%  main.__able_await_value
+         0     0%   100%      42326 43.93%  main.__able_await_with_state
+         0     0%   100%       8192  8.50%  main.__able_call_native_function
+         0     0%   100%       8192  8.50%  main.__able_call_native_function_value
+         0     0%   100%       8192  8.50%  main.__able_call_value
+         0     0%   100%      42326 43.93%  main.__able_call_value_fast
+         0     0%   100%      18204 18.89%  main.__able_compiled_fn_main.func1
+         0     0%   100%      33808 35.09%  main.__able_compiled_fn_main.func2
+         0     0%   100%      20935 21.73%  main.__able_compiled_fn_main.func3
+         0     0%   100%      18204 18.89%  main.__able_compiled_fn_main.func4
+         0     0%   100%      91151 94.61%  main.__able_compiled_fn_run_lane
+         0     0%   100%      26396 27.40%  main.__able_compiled_method_Mutex_await_lock_spec
+         0     0%   100%      19115 19.84%  main.__able_complete_await
+         0     0%   100%       8192  8.50%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0%   100%      16384 17.01%  main.__able_iface_Awaitable_i64_from_value
+         0     0%   100%      16384 17.01%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0%   100%      22429 23.28%  main.__able_initialize_await_state
+         0     0%   100%      42326 43.93%  main.__able_invoke_awaitable_method
+         0     0%   100%      42326 43.93%  main.__able_method_call
+         0     0%   100%      10012 10.39%  main.__able_mutex_await_lock_impl
+         0     0%   100%      23211 24.09%  main.__able_register_await_state
+         0     0%   100%      91151 94.61%  main.__able_run_compiled_task
+         0     0%   100%       4681  4.86%  runtime.acquireSudog
+         0     0%   100%        512  0.53%  runtime.allocm
+         0     0%   100%       4681  4.86%  runtime.ensureSigM.func1
+         0     0%   100%        256  0.27%  runtime.mcall
+         0     0%   100%        256  0.27%  runtime.mstart
+         0     0%   100%        256  0.27%  runtime.mstart0
+         0     0%   100%        256  0.27%  runtime.mstart1
+         0     0%   100%        512  0.53%  runtime.newm
+         0     0%   100%       5193  5.39%  runtime.newobject
+         0     0%   100%        256  0.27%  runtime.park_m
+         0     0%   100%        512  0.53%  runtime.resetspinning
+         0     0%   100%        512  0.53%  runtime.schedule
+         0     0%   100%       4681  4.86%  runtime.selectgo
+         0     0%   100%        512  0.53%  runtime.startm
+         0     0%   100%        512  0.53%  runtime.wakep

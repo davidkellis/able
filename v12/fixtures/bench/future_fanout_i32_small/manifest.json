@@ -1,0 +1,6 @@
+{
+  "description": "spawn fanout and future value collection benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

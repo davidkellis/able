@@ -1,0 +1,17 @@
+package exec_12_09_nested_spawn_native_context
+
+## Semantics: nested spawn work may call native channel helpers, and each Future
+## preserves its result through the outer task and the root flush.
+
+fn main() -> void {
+  channel := __able_channel_new(1)
+  outer := spawn {
+    inner := spawn {
+      __able_channel_send(channel, 42)
+    }
+    inner.value()
+    __able_channel_receive(channel)
+  }
+  future_flush()
+  print(outer.value())
+}

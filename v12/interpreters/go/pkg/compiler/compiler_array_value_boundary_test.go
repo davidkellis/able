@@ -132,13 +132,118 @@ func TestCompilerArrayFromHelperUsesSharedStructInstanceBoundaryHelper(t *testin
 		t.Fatalf("could not find __able_array_struct_instance_state")
 	}
 	for _, fragment := range []string{
-		"lengthVal, ok := inst.Fields[\"length\"]",
-		"capacityVal, ok := inst.Fields[\"capacity\"]",
-		"handleVal, ok := inst.Fields[\"storage_handle\"]",
+		"__able_struct_named_field_value(inst, \"length\")",
+		"__able_struct_named_field_value(inst, \"capacity\")",
+		"__able_struct_named_field_value(inst, \"storage_handle\")",
 		"runtime.ArrayStoreState(sourceHandle)",
 	} {
 		if !strings.Contains(sharedHelper, fragment) {
 			t.Fatalf("expected shared Array struct-instance helper to contain %q:\n%s", fragment, sharedHelper)
 		}
+	}
+}
+
+func TestCompilerNamedStructBoundaryHelperSupportsPositionalStorage(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Record { value: i32 }",
+		"",
+		"fn main() -> i32 { Record { value: 1 }.value }",
+		"",
+	}, "\n"))
+
+	helper, ok := findCompiledFunction(result, "__able_struct_named_field_value")
+	if !ok {
+		t.Fatal("could not find named-struct boundary helper")
+	}
+	for _, fragment := range []string{
+		"inst.Fields[name]",
+		"inst.Positional == nil",
+		"ast.StructKindNamed",
+		"inst.Definition.NamedFieldIndices[name]",
+		"return inst.Positional[idx], true",
+	} {
+		if !strings.Contains(helper, fragment) {
+			t.Fatalf("expected named-struct boundary helper to contain %q:\n%s", fragment, helper)
+		}
+	}
+}
+
+func TestCompilerRuntimeIndexHelpersUseSharedNamedFieldAccessor(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 { 1 }",
+		"",
+	}, "\n"))
+
+	for _, helperName := range []string{"__able_index", "__able_index_set"} {
+		helper, ok := findCompiledFunction(result, helperName)
+		if !ok {
+			t.Fatalf("could not find %s", helperName)
+		}
+		for _, fieldName := range []string{"storage_handle", "handle"} {
+			sharedLookup := `__able_struct_named_field_value(inst, "` + fieldName + `")`
+			if !strings.Contains(helper, sharedLookup) {
+				t.Fatalf("expected %s to use shared lookup %q:\n%s", helperName, sharedLookup, helper)
+			}
+			directLookup := `inst.Fields["` + fieldName + `"]`
+			if strings.Contains(helper, directLookup) {
+				t.Fatalf("expected %s to avoid representation-specific lookup %q:\n%s", helperName, directLookup, helper)
+			}
+		}
+	}
+}
+
+func TestCompilerRatioRuntimeHelperUsesSharedNamedFieldAccessor(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn main() -> i32 { 1 }",
+		"",
+	}, "\n"))
+
+	helper, ok := findCompiledFunction(result, "__able_ratio_parts_from_struct")
+	if !ok {
+		t.Fatal("could not find Ratio runtime conversion helper")
+	}
+	for _, fieldName := range []string{"num", "den"} {
+		sharedLookup := `__able_struct_named_field_value(inst, "` + fieldName + `")`
+		if !strings.Contains(helper, sharedLookup) {
+			t.Fatalf("expected Ratio conversion to use shared lookup %q:\n%s", sharedLookup, helper)
+		}
+		directLookup := `inst.Fields["` + fieldName + `"]`
+		if strings.Contains(helper, directLookup) {
+			t.Fatalf("expected Ratio conversion to avoid representation-specific lookup %q:\n%s", directLookup, helper)
+		}
+	}
+}
+
+func TestCompilerNamedStructToRuntimeUsesSharedPositionalStorage(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"struct Record { value: i32, label: String }",
+		"",
+		"fn main() -> i32 { Record { value: 1, label: \"one\" }.value }",
+		"",
+	}, "\n"))
+
+	converter, ok := findCompiledFunction(result, "__able_struct_Record_to_seen")
+	if !ok {
+		t.Fatal("could not find Record runtime converter")
+	}
+	for _, fragment := range []string{
+		"runtime.NewStructInstancePositionalSized(def, 2, nil)",
+		"fields[0] = bridge.ToInt(",
+		"fields[1] = bridge.ToString(",
+	} {
+		if !strings.Contains(converter, fragment) {
+			t.Fatalf("expected named-struct runtime converter to contain %q:\n%s", fragment, converter)
+		}
+	}
+	if strings.Contains(converter, "Fields: make(map[string]runtime.Value") {
+		t.Fatalf("expected named-struct runtime converter to avoid map-backed field storage:\n%s", converter)
 	}
 }

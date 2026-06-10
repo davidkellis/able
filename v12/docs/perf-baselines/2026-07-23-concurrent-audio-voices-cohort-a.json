@@ -1,0 +1,397 @@
+{
+  "generated_at": "2026-07-23T22:32:10.017930Z",
+  "suite": "concurrent-audio-voices",
+  "benchmarks": [
+    "concurrent_audio_voices"
+  ],
+  "modes": [
+    "compiled",
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go",
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-interpreter-a.json",
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-go-a.json",
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "concurrent_audio_voices",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "concurrent_audio_voices",
+        "mode": "compiled",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.926,
+        "avg_user_seconds": 1.658,
+        "avg_sys_seconds": 0.226,
+        "avg_gc": 4.0,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 0.99,
+            "user_seconds": 1.51,
+            "sys_seconds": 0.19,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 0.9,
+            "user_seconds": 1.46,
+            "sys_seconds": 0.16,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 0.85,
+            "user_seconds": 1.49,
+            "sys_seconds": 0.22,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 0.94,
+            "user_seconds": 1.91,
+            "sys_seconds": 0.28,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 0.95,
+            "user_seconds": 1.92,
+            "sys_seconds": 0.28,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/concurrent-audio-voices/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+          "sha256": "b6a5d1e0d2901bd3341b02d1f3445601ef05670cb2442c9f706305f4ec8b7cad"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 4,
+          "cpu_affinity": "0,1,2,3",
+          "executor_policy": "goroutine"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [],
+        "provenance": "measured",
+        "sha256": "7952c89273eace71b8e04318acd3cea58c17dd4c4e9094bf420874b84104ad26",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/concurrent-audio-voices/verify.rb",
+          "sha256": "b03c00f7c71ef951a9f384f694a71a409fae28cf11323faa1e20eb3e8e33809f"
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0049,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 188.9795918367347,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-audio-voices/go-1.26/app.go",
+            "sha256": "e96bcffed4da40c14d70eff8a672acecaa03c232feb3f4a1735788a4613abd5c",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.005641956,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.004172008,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.005117376,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.004753052,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.004945528,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            }
+          ],
+          "execution_contract": {
+            "mode": "compiled",
+            "logical_cpu_budget": 4,
+            "cpu_affinity": "0,1,2,3",
+            "executor_policy": "goroutine"
+          }
+        }
+      }
+    },
+    {
+      "benchmark": "concurrent_audio_voices",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "concurrent_audio_voices",
+        "mode": "bytecode",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.29,
+        "avg_user_seconds": 1.226,
+        "avg_sys_seconds": 0.05,
+        "avg_gc": 9.0,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 1.27,
+            "user_seconds": 1.21,
+            "sys_seconds": 0.05,
+            "gc_count": 9.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 1.36,
+            "user_seconds": 1.29,
+            "sys_seconds": 0.05,
+            "gc_count": 9.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 1.32,
+            "user_seconds": 1.26,
+            "sys_seconds": 0.05,
+            "gc_count": 9.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 1.23,
+            "user_seconds": 1.16,
+            "sys_seconds": 0.06,
+            "gc_count": 9.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 1.27,
+            "user_seconds": 1.21,
+            "sys_seconds": 0.04,
+            "gc_count": 9.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/concurrent-audio-voices/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+          "sha256": "b6a5d1e0d2901bd3341b02d1f3445601ef05670cb2442c9f706305f4ec8b7cad"
+        },
+        "execution_contract": {
+          "mode": "bytecode",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "goroutine"
+        }
+      },
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "goroutine"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [],
+        "provenance": "measured",
+        "sha256": "7952c89273eace71b8e04318acd3cea58c17dd4c4e9094bf420874b84104ad26",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/concurrent-audio-voices/verify.rb",
+          "sha256": "b03c00f7c71ef951a9f384f694a71a409fae28cf11323faa1e20eb3e8e33809f"
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 0.1335,
+          "reference_implementation": "python-3.14",
+          "ratio": 9.662921348314606,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-audio-voices/python-3.14/run.py",
+            "sha256": "155733b9ae06ffdcf26e93ff29df13fbf347aa5b4d69214081514d6a1604d57f",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.131460023,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.135323488,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.138607585,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.13119171,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.130870611,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "goroutine"
+          }
+        },
+        "ruby": {
+          "reference_real_seconds": 0.124,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 10.403225806451614,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-audio-voices/ruby-4.0/run.rb",
+            "sha256": "7b46e07d280de350c422e2ee61130ba5840f801132e9e441c6e4ccce30f2101a",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.132006127,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.114783328,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.111809564,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.117356473,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.144010836,
+              "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "goroutine"
+          }
+        }
+      }
+    }
+  ]
+}

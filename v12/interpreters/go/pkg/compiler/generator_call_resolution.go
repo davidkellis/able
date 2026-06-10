@@ -169,6 +169,10 @@ func splitQualifiedCallable(name string) (pkg string, callable string, ok bool) 
 }
 
 func (g *generator) callableExists(pkgName string, name string) bool {
+	return g.callableExistsSeen(pkgName, name, make(map[string]struct{}))
+}
+
+func (g *generator) callableExistsSeen(pkgName string, name string, seenPackages map[string]struct{}) bool {
 	if g == nil {
 		return false
 	}
@@ -177,6 +181,12 @@ func (g *generator) callableExists(pkgName string, name string) bool {
 	if pkgName == "" || name == "" {
 		return false
 	}
+	seenKey := pkgName + "::" + name
+	if _, seen := seenPackages[seenKey]; seen {
+		return false
+	}
+	seenPackages[seenKey] = struct{}{}
+	defer delete(seenPackages, seenKey)
 	if pkgFuncs := g.functions[pkgName]; pkgFuncs != nil {
 		if info := pkgFuncs[name]; info != nil {
 			return true
@@ -190,7 +200,64 @@ func (g *generator) callableExists(pkgName string, name string) bool {
 	if g.externCallableExists(pkgName, name) {
 		return true
 	}
+	for _, binding := range g.sourceReexportBindingsForName(pkgName, name) {
+		if g.callableExistsSeen(binding.SourcePackage, binding.SourceName, seenPackages) {
+			return true
+		}
+	}
 	return false
+}
+
+func (g *generator) resolveStaticCallableInPackage(pkgName string, name string) (*functionInfo, *overloadInfo, bool) {
+	return g.resolveStaticCallableInPackageSeen(pkgName, name, make(map[string]struct{}))
+}
+
+func (g *generator) resolveStaticCallableInPackageSeen(pkgName string, name string, seen map[string]struct{}) (*functionInfo, *overloadInfo, bool) {
+	if g == nil {
+		return nil, nil, false
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	name = strings.TrimSpace(name)
+	if pkgName == "" || name == "" {
+		return nil, nil, false
+	}
+	key := pkgName + "::" + name
+	if _, exists := seen[key]; exists {
+		return nil, nil, false
+	}
+	seen[key] = struct{}{}
+	defer delete(seen, key)
+	if info := g.functions[pkgName][name]; info != nil {
+		return info, nil, true
+	}
+	if overload := g.overloads[pkgName][name]; overload != nil {
+		return nil, overload, true
+	}
+	var resolvedInfo *functionInfo
+	var resolvedOverload *overloadInfo
+	for _, binding := range g.sourceReexportBindingsForName(pkgName, name) {
+		info, overload, ok := g.resolveStaticCallableInPackageSeen(binding.SourcePackage, binding.SourceName, seen)
+		if !ok {
+			continue
+		}
+		if info != nil {
+			if resolvedOverload != nil || (resolvedInfo != nil && resolvedInfo != info) {
+				return nil, nil, false
+			}
+			resolvedInfo = info
+			continue
+		}
+		if overload != nil {
+			if resolvedInfo != nil || (resolvedOverload != nil && resolvedOverload != overload) {
+				return nil, nil, false
+			}
+			resolvedOverload = overload
+		}
+	}
+	if resolvedInfo != nil || resolvedOverload != nil {
+		return resolvedInfo, resolvedOverload, true
+	}
+	return nil, nil, false
 }
 
 func (g *generator) callableAccessibleFromPackage(currentPkg string, targetPkg string, name string) bool {
@@ -221,11 +288,8 @@ func (g *generator) resolveStaticCallable(ctx *compileContext, name string) (*fu
 		return nil, overload, true
 	}
 	if _, targetPkg, targetName, ok := g.resolveQualifiedStaticCallable(ctx, trimmed); ok {
-		if info := g.functions[targetPkg][targetName]; info != nil {
-			return info, nil, true
-		}
-		if overload := g.overloads[targetPkg][targetName]; overload != nil {
-			return nil, overload, true
+		if info, overload, found := g.resolveStaticCallableInPackage(targetPkg, targetName); found {
+			return info, overload, true
 		}
 	}
 
@@ -275,14 +339,8 @@ func (g *generator) resolveStaticCallable(ctx *compileContext, name string) (*fu
 		if targetPkg == "" || targetName == "" {
 			continue
 		}
-		if info := g.functions[targetPkg][targetName]; info != nil {
-			if !recordResolution(info, nil) {
-				return nil, nil, false
-			}
-			continue
-		}
-		if overload := g.overloads[targetPkg][targetName]; overload != nil {
-			if !recordResolution(nil, overload) {
+		if info, overload, found := g.resolveStaticCallableInPackage(targetPkg, targetName); found {
+			if !recordResolution(info, overload) {
 				return nil, nil, false
 			}
 		}
@@ -339,7 +397,7 @@ func (g *generator) staticCallableNameSet(pkgName string) map[string]struct{} {
 			}
 			set[localName] = struct{}{}
 		case staticImportBindingWildcard:
-			for _, exported := range g.sortedPublicCallableNames(sourcePkg) {
+			for _, exported := range g.sortedExportedCallableNames(sourcePkg) {
 				trimmed := strings.TrimSpace(exported)
 				if trimmed == "" {
 					continue

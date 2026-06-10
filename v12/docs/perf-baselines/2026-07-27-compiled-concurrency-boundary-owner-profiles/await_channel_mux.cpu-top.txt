@@ -1,0 +1,222 @@
+File: compiled
+Build ID: cb717d2f55cc444bd5175c161efd35d3af6bd32a
+Type: cpu
+Time: 2026-07-27 22:14:24 CDT
+Duration: 1.59s, Total samples = 1.72s (108.11%)
+Showing nodes accounting for 1.72s, 100% of 1.72s total
+      flat  flat%   sum%        cum   cum%
+     0.19s 11.05% 11.05%      0.46s 26.74%  runtime.pcvalue
+     0.15s  8.72% 19.77%      0.29s 16.86%  runtime.recordForPanic
+     0.14s  8.14% 27.91%      0.14s  8.14%  runtime.lock2
+     0.14s  8.14% 36.05%      0.15s  8.72%  runtime.step
+     0.13s  7.56% 43.60%      0.13s  7.56%  runtime.unlock2
+     0.11s  6.40% 50.00%      0.26s 15.12%  runtime.printlock
+     0.07s  4.07% 54.07%      0.36s 20.93%  runtime.gwrite
+     0.05s  2.91% 56.98%      0.05s  2.91%  runtime.(*moduledata).textAddr
+     0.05s  2.91% 59.88%      0.05s  2.91%  runtime.memmove
+     0.04s  2.33% 62.21%      0.14s  8.14%  runtime.(*unwinder).resolveInternal
+     0.04s  2.33% 64.53%      0.09s  5.23%  runtime.funcInfo.entry (inline)
+     0.04s  2.33% 66.86%      0.41s 23.84%  runtime.printArgs
+     0.03s  1.74% 68.60%      0.03s  1.74%  indexbytebody
+     0.03s  1.74% 70.35%      0.03s  1.74%  runtime.futex
+     0.03s  1.74% 72.09%      0.06s  3.49%  runtime.printint
+     0.03s  1.74% 73.84%      0.25s 14.53%  runtime.printstring
+     0.03s  1.74% 75.58%      1.34s 77.91%  runtime.traceback2
+     0.02s  1.16% 76.74%      0.04s  2.33%  runtime.(*moduledata).funcName
+     0.02s  1.16% 77.91%      0.02s  1.16%  runtime.releasem (inline)
+     0.01s  0.58% 78.49%      0.01s  0.58%  able/interpreter-go/pkg/runtime.(*Environment).Parent
+     0.01s  0.58% 79.07%      0.01s  0.58%  internal/runtime/maps.(*Map).Delete
+     0.01s  0.58% 79.65%      0.01s  0.58%  internal/strconv.formatBase10
+     0.01s  0.58% 80.23%      0.01s  0.58%  internal/sync.(*Mutex).Lock (inline)
+     0.01s  0.58% 80.81%      0.01s  0.58%  internal/sync.(*Mutex).Unlock (inline)
+     0.01s  0.58% 81.40%      0.01s  0.58%  main.(*__able_channel_awaitable).isReady
+     0.01s  0.58% 81.98%      0.24s 13.95%  main.__able_call_value
+     0.01s  0.58% 82.56%      0.01s  0.58%  main.__able_compiled_fn_lane_score
+     0.01s  0.58% 83.14%      1.11s 64.53%  main.__able_method_call
+     0.01s  0.58% 83.72%      0.01s  0.58%  main.__able_try_member_get_method
+     0.01s  0.58% 84.30%      0.01s  0.58%  runtime.(*randomOrder).start (inline)
+     0.01s  0.58% 84.88%      0.01s  0.58%  runtime.(*spanSet).reset
+     0.01s  0.58% 85.47%      0.01s  0.58%  runtime.(*unwinder).cgoCallers
+     0.01s  0.58% 86.05%      0.16s  9.30%  runtime.(*unwinder).next
+     0.01s  0.58% 86.63%      0.01s  0.58%  runtime.(*unwinder).symPC
+     0.01s  0.58% 87.21%      0.01s  0.58%  runtime.acquirem (inline)
+     0.01s  0.58% 87.79%      0.01s  0.58%  runtime.findfunc
+     0.01s  0.58% 88.37%      0.03s  1.74%  runtime.findnull
+     0.01s  0.58% 88.95%      0.01s  0.58%  runtime.funcInfo.valid (inline)
+     0.01s  0.58% 89.53%      0.01s  0.58%  runtime.funcdata (inline)
+     0.01s  0.58% 90.12%      0.28s 16.28%  runtime.funcline1
+     0.01s  0.58% 90.70%      0.02s  1.16%  runtime.futexwakeup
+     0.01s  0.58% 91.28%      0.01s  0.58%  runtime.getMCache (inline)
+     0.01s  0.58% 91.86%      0.01s  0.58%  runtime.goroutineheader
+     0.01s  0.58% 92.44%      0.04s  2.33%  runtime.gostringnocopy (inline)
+     0.01s  0.58% 93.02%      0.15s  8.72%  runtime.lock (inline)
+     0.01s  0.58% 93.60%      0.08s  4.65%  runtime.newInlineUnwinder
+     0.01s  0.58% 94.19%      0.01s  0.58%  runtime.nextFreeFast (inline)
+     0.01s  0.58% 94.77%      0.05s  2.91%  runtime.pcdatavalue
+     0.01s  0.58% 95.35%      0.13s  7.56%  runtime.printunlock (partial-inline)
+     0.01s  0.58% 95.93%      0.01s  0.58%  runtime.readvarint (inline)
+     0.01s  0.58% 96.51%      0.01s  0.58%  runtime.runqput
+     0.01s  0.58% 97.09%      0.02s  1.16%  runtime.scanObject
+     0.01s  0.58% 97.67%      0.04s  2.33%  runtime.showfuncinfo
+     0.01s  0.58% 98.26%      0.01s  0.58%  runtime.tgkill
+     0.01s  0.58% 98.84%      1.46s 84.88%  runtime.traceback1
+     0.01s  0.58% 99.42%      0.01s  0.58%  runtime.tryDeferToSpanScan
+     0.01s  0.58%   100%      0.01s  0.58%  strings.TrimSpace
+         0     0%   100%      1.02s 59.30%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%      0.16s  9.30%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%      0.14s  8.14%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%      0.15s  8.72%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%      0.01s  0.58%  able/interpreter-go/pkg/compiler/bridge.Cast
+         0     0%   100%      0.14s  8.14%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%      0.17s  9.88%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      1.47s 85.47%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%      0.01s  0.58%  able/interpreter-go/pkg/compiler/bridge.matchSimpleTypeWithoutInterpreter
+         0     0%   100%      0.01s  0.58%  able/interpreter-go/pkg/compiler/bridge.matchTypeWithoutInterpreter
+         0     0%   100%      0.01s  0.58%  able/interpreter-go/pkg/runtime.(*FutureValue).Resolve
+         0     0%   100%      0.01s  0.58%  able/interpreter-go/pkg/runtime.ChannelStoreIsClosed
+         0     0%   100%      0.01s  0.58%  able/interpreter-go/pkg/runtime.ChannelStoreState
+         0     0%   100%      0.01s  0.58%  internal/runtime/maps.NewEmptyMap (inline)
+         0     0%   100%      0.01s  0.58%  internal/strconv.RuntimeFormatBase10 (inline)
+         0     0%   100%      0.01s  0.58%  main.(*__able_async_payload).clearAwaitState (inline)
+         0     0%   100%      0.01s  0.58%  main.(*__able_await_state).ensureWaitCh
+         0     0%   100%      0.02s  1.16%  main.(*__able_channel_await_registration).trigger
+         0     0%   100%      0.11s  6.40%  main.(*__able_channel_awaitable).commit
+         0     0%   100%      0.11s  6.40%  main.(*__able_channel_awaitable).register
+         0     0%   100%      0.01s  0.58%  main.(*__able_channel_awaitable).toStruct
+         0     0%   100%      0.01s  0.58%  main.(*__able_channel_awaitable).toStruct.func1
+         0     0%   100%      0.11s  6.40%  main.(*__able_channel_awaitable).toStruct.func2
+         0     0%   100%      0.11s  6.40%  main.(*__able_channel_awaitable).toStruct.func3
+         0     0%   100%      0.01s  0.58%  main.(*__able_goroutine_executor).MarkBlocked
+         0     0%   100%      1.50s 87.21%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%      0.01s  0.58%  main.(*__able_goroutine_executor).RunFuture.func1.1
+         0     0%   100%      0.02s  1.16%  main.(*__able_goroutine_executor).notifyFlushProgress
+         0     0%   100%      0.15s  8.72%  main.RunRegisteredMain
+         0     0%   100%      0.15s  8.72%  main.RunRegisteredMain.func1
+         0     0%   100%      0.01s  0.58%  main.__able_apply_task_outcome
+         0     0%   100%      1.18s 68.60%  main.__able_await
+         0     0%   100%      0.17s  9.88%  main.__able_await_arm_is_default
+         0     0%   100%      1.18s 68.60%  main.__able_await_value
+         0     0%   100%      0.88s 51.16%  main.__able_await_with_state
+         0     0%   100%      0.03s  1.74%  main.__able_builtin_named_future_yield
+         0     0%   100%      0.09s  5.23%  main.__able_call_named
+         0     0%   100%      0.16s  9.30%  main.__able_call_native_function
+         0     0%   100%      0.16s  9.30%  main.__able_call_native_function_value
+         0     0%   100%      1.09s 63.37%  main.__able_call_value_fast
+         0     0%   100%      0.09s  5.23%  main.__able_cancel_await_registration
+         0     0%   100%      0.01s  0.58%  main.__able_cast
+         0     0%   100%      0.02s  1.16%  main.__able_channel_await_try_recv_impl
+         0     0%   100%      0.03s  1.74%  main.__able_channel_send_impl
+         0     0%   100%      0.01s  0.58%  main.__able_cleanup_await_state
+         0     0%   100%      0.09s  5.23%  main.__able_clear_await_registrations
+         0     0%   100%      0.18s 10.47%  main.__able_collect_await_arms
+         0     0%   100%      0.07s  4.07%  main.__able_compiled_entry_method_Await__default_spec
+         0     0%   100%      0.15s  8.72%  main.__able_compiled_fn_main
+         0     0%   100%      0.77s 44.77%  main.__able_compiled_fn_main.func1
+         0     0%   100%      0.01s  0.58%  main.__able_compiled_fn_main.func1.1
+         0     0%   100%      0.01s  0.58%  main.__able_compiled_fn_main.func1.2
+         0     0%   100%      0.08s  4.65%  main.__able_compiled_fn_main.func2
+         0     0%   100%      0.50s 29.07%  main.__able_compiled_fn_main.func3
+         0     0%   100%      0.03s  1.74%  main.__able_compiled_method_Await__default_spec
+         0     0%   100%      0.02s  1.16%  main.__able_compiled_method_Channel_await_receive_spec
+         0     0%   100%      0.03s  1.74%  main.__able_compiled_method_Channel_send_spec
+         0     0%   100%      0.31s 18.02%  main.__able_complete_await
+         0     0%   100%      0.10s  5.81%  main.__able_current_payload
+         0     0%   100%      0.09s  5.23%  main.__able_fn__int64_to_int64_to_runtime_value.func1
+         0     0%   100%      0.07s  4.07%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0%   100%      0.03s  1.74%  main.__able_future_yield
+         0     0%   100%      0.07s  4.07%  main.__able_iface_Future_i64_runtime_adapter.value
+         0     0%   100%      0.23s 13.37%  main.__able_initialize_await_state
+         0     0%   100%      0.01s  0.58%  main.__able_int64_from_value
+         0     0%   100%      0.02s  1.16%  main.__able_invoke_await_waker
+         0     0%   100%      0.93s 54.07%  main.__able_invoke_awaitable_method
+         0     0%   100%      0.01s  0.58%  main.__able_lookup_compiled_call
+         0     0%   100%      0.11s  6.40%  main.__able_make_await_registration_value
+         0     0%   100%      0.05s  2.91%  main.__able_make_await_waker
+         0     0%   100%      0.13s  7.56%  main.__able_make_default_awaitable.func3
+         0     0%   100%      0.02s  1.16%  main.__able_notify_channel_awaiters
+         0     0%   100%      0.24s 13.95%  main.__able_register_await_state
+         0     0%   100%      0.18s 10.47%  main.__able_register_compiled_call.func1
+         0     0%   100%      1.48s 86.05%  main.__able_run_compiled_task
+         0     0%   100%      0.22s 12.79%  main.__able_select_ready_await_arm
+         0     0%   100%      0.07s  4.07%  main.__able_spawn
+         0     0%   100%      0.07s  4.07%  main.__able_spawn_future
+         0     0%   100%      0.15s  8.72%  main.__able_wrap_fn_main
+         0     0%   100%      0.15s  8.72%  main.main
+         0     0%   100%      0.15s  8.72%  main.runMain
+         0     0%   100%      0.22s 12.79%  runtime.(*inlineUnwinder).fileLine (inline)
+         0     0%   100%      0.07s  4.07%  runtime.(*inlineUnwinder).resolveInternal (inline)
+         0     0%   100%      0.01s  0.58%  runtime.(*inlineUnwinder).srcFunc (inline)
+         0     0%   100%      0.01s  0.58%  runtime.(*stkframe).getStackMap
+         0     0%   100%      1.47s 85.47%  runtime.Stack
+         0     0%   100%      1.47s 85.47%  runtime.Stack.func1
+         0     0%   100%      0.01s  0.58%  runtime.adjustframe
+         0     0%   100%      0.01s  0.58%  runtime.bgsweep
+         0     0%   100%      0.01s  0.58%  runtime.convT64
+         0     0%   100%      0.02s  1.16%  runtime.copystack
+         0     0%   100%      0.03s  1.74%  runtime.findRunnable
+         0     0%   100%      0.01s  0.58%  runtime.finishsweep_m
+         0     0%   100%      0.01s  0.58%  runtime.forEachP (inline)
+         0     0%   100%      0.01s  0.58%  runtime.forEachPInternal
+         0     0%   100%      0.01s  0.58%  runtime.freeSomeWbufs
+         0     0%   100%      0.01s  0.58%  runtime.funcInfo.srcFunc (inline)
+         0     0%   100%      0.02s  1.16%  runtime.funcfile
+         0     0%   100%      0.06s  3.49%  runtime.funcline (inline)
+         0     0%   100%      0.01s  0.58%  runtime.funcname (inline)
+         0     0%   100%      0.10s  5.81%  runtime.funcspdelta (inline)
+         0     0%   100%      0.02s  1.16%  runtime.futexsleep
+         0     0%   100%      0.03s  1.74%  runtime.gcBgMarkWorker
+         0     0%   100%      0.02s  1.16%  runtime.gcBgMarkWorker.func2
+         0     0%   100%      0.02s  1.16%  runtime.gcDrain
+         0     0%   100%      0.01s  0.58%  runtime.gcDrainMarkWorkerDedicated (inline)
+         0     0%   100%      0.01s  0.58%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0%   100%      0.01s  0.58%  runtime.gcMarkDone
+         0     0%   100%      0.01s  0.58%  runtime.gcMarkDone.forEachP.func5
+         0     0%   100%      0.01s  0.58%  runtime.gcStart
+         0     0%   100%      0.01s  0.58%  runtime.gcStart.func3
+         0     0%   100%      0.03s  1.74%  runtime.goready (inline)
+         0     0%   100%      0.14s  8.14%  runtime.lockWithRank (inline)
+         0     0%   100%      0.02s  1.16%  runtime.mPark (inline)
+         0     0%   100%      0.15s  8.72%  runtime.main
+         0     0%   100%      0.01s  0.58%  runtime.makemap_small
+         0     0%   100%      0.03s  1.74%  runtime.mallocgc
+         0     0%   100%      0.02s  1.16%  runtime.mallocgcSmallScanNoHeader
+         0     0%   100%      0.01s  0.58%  runtime.mallocgcTiny
+         0     0%   100%      0.01s  0.58%  runtime.mapdelete_fast64
+         0     0%   100%      0.03s  1.74%  runtime.mcall
+         0     0%   100%      0.02s  1.16%  runtime.newobject
+         0     0%   100%      0.02s  1.16%  runtime.newstack
+         0     0%   100%      0.02s  1.16%  runtime.notesleep
+         0     0%   100%      0.02s  1.16%  runtime.notewakeup
+         0     0%   100%      0.03s  1.74%  runtime.park_m
+         0     0%   100%      0.07s  4.07%  runtime.pcdatavalue1
+         0     0%   100%      0.01s  0.58%  runtime.preemptM (inline)
+         0     0%   100%      0.01s  0.58%  runtime.preemptall
+         0     0%   100%      0.01s  0.58%  runtime.preemptone
+         0     0%   100%      0.22s 12.79%  runtime.printArgs.func2 (inline)
+         0     0%   100%      0.07s  4.07%  runtime.printArgs.func3 (inline)
+         0     0%   100%      0.05s  2.91%  runtime.printFuncName
+         0     0%   100%      0.11s  6.40%  runtime.printcreatedby
+         0     0%   100%      0.11s  6.40%  runtime.printcreatedby1
+         0     0%   100%      0.12s  6.98%  runtime.printhex
+         0     0%   100%      0.12s  6.98%  runtime.printhexopts
+         0     0%   100%      0.03s  1.74%  runtime.printnl
+         0     0%   100%      0.03s  1.74%  runtime.ready
+         0     0%   100%      0.03s  1.74%  runtime.readyWithTime
+         0     0%   100%      0.03s  1.74%  runtime.readyWithTime.goready.func1
+         0     0%   100%      0.03s  1.74%  runtime.schedule
+         0     0%   100%      0.04s  2.33%  runtime.showframe
+         0     0%   100%      0.01s  0.58%  runtime.signalM
+         0     0%   100%      0.03s  1.74%  runtime.srcFunc.name (inline)
+         0     0%   100%      0.02s  1.16%  runtime.startm
+         0     0%   100%      0.01s  0.58%  runtime.stealWork
+         0     0%   100%      0.02s  1.16%  runtime.stopm
+         0     0%   100%      1.54s 89.53%  runtime.systemstack
+         0     0%   100%      1.46s 84.88%  runtime.traceback (inline)
+         0     0%   100%      1.34s 77.91%  runtime.traceback1.func1
+         0     0%   100%      0.13s  7.56%  runtime.unlock (inline)
+         0     0%   100%      0.13s  7.56%  runtime.unlockWithRank (inline)
+         0     0%   100%      0.02s  1.16%  runtime.wakep
+         0     0%   100%      0.03s  1.74%  sync.(*Cond).Broadcast
+         0     0%   100%      0.01s  0.58%  sync.(*Mutex).Lock (inline)
+         0     0%   100%      0.01s  0.58%  sync.(*Mutex).Unlock
+         0     0%   100%      0.03s  1.74%  sync.runtime_notifyListNotifyAll

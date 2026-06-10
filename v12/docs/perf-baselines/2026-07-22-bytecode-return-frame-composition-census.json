@@ -1,0 +1,78 @@
+{
+  "date": "2026-07-22",
+  "decision": "no_return_frame_candidate_admitted",
+  "retained_change": false,
+  "census_binary_sha256": "a18ecbdd4f7ed4240cd803d50d2df4059f79241f8bef32d21e4734079d610721",
+  "guardrails": {
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "gomaxprocs": 1,
+    "timeout_seconds": 59,
+    "warmup_calls": 1,
+    "measured_calls": 1,
+    "normal_typechecking": true,
+    "source_root_only": true,
+    "all_opcode_stats_enabled": false,
+    "return_census_enabled": true
+  },
+  "admission_rule": "one immutable semantic return-frame shape dominates at least three owners without materially selecting controls",
+  "runs": [
+    {
+      "role": "owner",
+      "workload": "binary_event_log",
+      "ns_per_op": 7133198446,
+      "bytes_per_op": 465565496,
+      "allocs_per_op": 8361435,
+      "return_frames": {"total":946230,"full":946230,"self_fast":0,"self_fast_minimal":0,"slotless":0,"raw_input":429217,"raw_output":314529,"fast_no_coercion":548891,"slotless_coercion":0,"generic_coercion":397339,"program_switch":946230,"slot_frame_release":946230,"already_balanced":0}
+    },
+    {
+      "role": "owner",
+      "workload": "option_result_config",
+      "ns_per_op": 791509286,
+      "bytes_per_op": 67914992,
+      "allocs_per_op": 1167817,
+      "return_frames": {"total":293784,"full":293784,"self_fast":0,"self_fast_minimal":0,"slotless":24600,"raw_input":122136,"raw_output":91296,"fast_no_coercion":31008,"slotless_coercion":24600,"generic_coercion":238176,"program_switch":293784,"slot_frame_release":269208,"already_balanced":0}
+    },
+    {
+      "role": "owner",
+      "workload": "manifest_normalization",
+      "ns_per_op": 1189342526,
+      "bytes_per_op": 63998264,
+      "allocs_per_op": 916218,
+      "return_frames": {"total":596485,"full":596485,"self_fast":0,"self_fast_minimal":0,"slotless":7168,"raw_input":0,"raw_output":0,"fast_no_coercion":8578,"slotless_coercion":7168,"generic_coercion":580739,"program_switch":596485,"slot_frame_release":592389,"already_balanced":0}
+    },
+    {
+      "role": "owner",
+      "workload": "policy_record_dispatch",
+      "ns_per_op": 6902429806,
+      "bytes_per_op": 132690480,
+      "allocs_per_op": 1402534,
+      "return_frames": {"total":2534369,"full":2534303,"self_fast":66,"self_fast_minimal":0,"slotless":5120,"raw_input":25703,"raw_output":0,"fast_no_coercion":2164660,"slotless_coercion":5120,"generic_coercion":364589,"program_switch":2534303,"slot_frame_release":2532321,"already_balanced":0}
+    },
+    {
+      "role": "control",
+      "workload": "string_split_join",
+      "ns_per_op": 1103358441,
+      "bytes_per_op": 50592592,
+      "allocs_per_op": 577767,
+      "return_frames": {"total":616587,"full":616587,"self_fast":0,"self_fast_minimal":0,"slotless":0,"raw_input":6,"raw_output":0,"fast_no_coercion":6025,"slotless_coercion":0,"generic_coercion":610562,"program_switch":616587,"slot_frame_release":616587,"already_balanced":0}
+    },
+    {
+      "role": "control",
+      "workload": "iterator_collect",
+      "ns_per_op": 434247350,
+      "bytes_per_op": 8701856,
+      "allocs_per_op": 193006,
+      "return_frames": {"total":164046,"full":164046,"self_fast":0,"self_fast_minimal":0,"slotless":12,"raw_input":62008,"raw_output":62004,"fast_no_coercion":8,"slotless_coercion":12,"generic_coercion":164026,"program_switch":164046,"slot_frame_release":164046,"already_balanced":0}
+    },
+    {
+      "role": "control",
+      "workload": "numeric_array_map",
+      "ns_per_op": 74749894,
+      "bytes_per_op": 875320,
+      "allocs_per_op": 281,
+      "return_frames": {"total":36020,"full":36020,"self_fast":0,"self_fast_minimal":0,"slotless":0,"raw_input":36006,"raw_output":0,"fast_no_coercion":36006,"slotless_coercion":0,"generic_coercion":14,"program_switch":36020,"slot_frame_release":36020,"already_balanced":0}
+    }
+  ],
+  "next": "bounded cross-workload exact-flat-leaf matrix across five unlike bytecode feature families"
+}

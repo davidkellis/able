@@ -1,0 +1,36 @@
+{
+  "date": "2026-07-10",
+  "scope": "generic ArrayStore synchronization completion",
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "sequential_guardrails": {
+    "GOMEMLIMIT": "1GiB",
+    "GOGC": "50",
+    "GOMAXPROCS": "1",
+    "runs": 3
+  },
+  "bytecode_runtime": [
+    {
+      "target": "array_map_i32_small",
+      "before": {"ns_per_op": 59893425, "bytes_per_op": 910808, "allocs_per_op": 433},
+      "after": {"ns_per_op": 62383009, "bytes_per_op": 910808, "allocs_per_op": 433},
+      "percent_change": 4.16
+    },
+    {
+      "target": "linked_list_iterator_collect_i64_small",
+      "before": {"ns_per_op": 243456255, "bytes_per_op": 3445000, "allocs_per_op": 29336},
+      "after": {"ns_per_op": 239850325, "bytes_per_op": 3445000, "allocs_per_op": 29336},
+      "percent_change": -1.48
+    }
+  ],
+  "compiled_process": [
+    {"target": "array_map_i32_small", "before_real_seconds": 0.09, "after_real_seconds": 0.09},
+    {"target": "linked_list_iterator_collect_i64_small", "before_real_seconds": 0.1233, "after_real_seconds": 0.1267}
+  ],
+  "channel_rollup_bytecode": {
+    "executor": "goroutine",
+    "before_context_one_run_seconds": 0.41,
+    "after_three_run_average_seconds": 0.4133,
+    "output": "16384:4828:502100"
+  },
+  "decision": "keep generic synchronization repair; no runtime, compiler, or stdlib performance candidate selected"
+}

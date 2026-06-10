@@ -1,0 +1,5 @@
+benchmark	census_calls	profile_launches	total_cpu_seconds	helper_flat_percent	helper_cumulative_percent	verified_launches
+word_frequency	105125	20	2.93	0.68	0.68	20
+regex_suffix_audit	70676	20	17.01	0.00	0.00	20
+channel_rollup	42430	20	9.25	0.11	0.11	20
+future_pipeline	32786	20	4.49	0.22	0.22	20

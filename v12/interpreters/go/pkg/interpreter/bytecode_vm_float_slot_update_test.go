@@ -31,15 +31,47 @@ func TestBytecodeVM_LoweringEmitsFloatAddMulSlotUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
-	if !bytecodeProgramContainsOpcode(program, bytecodeOpStoreSlotFloatAddMul) {
-		t.Fatalf("expected lowering to emit fused float add-mul slot update")
+	if !bytecodeProgramContainsOpcode(program, bytecodeOpStoreSlotFloatAddMulSlot) {
+		t.Fatalf("expected lowering to emit slot-sourced fused float add-mul update")
 	}
 	for _, instr := range program.instructions {
-		if instr.op == bytecodeOpStoreSlotFloatAddMul {
-			if instr.target < 0 || instr.name != "s" {
+		if instr.op == bytecodeOpStoreSlotFloatAddMulSlot {
+			if instr.target < 0 || instr.name != "s" || instr.argCount < 0 || instr.loopBreak < 0 {
 				t.Fatalf("unexpected fused update instruction: %#v", instr)
 			}
 		}
+	}
+}
+
+func TestBytecodeVM_StoreSlotFloatAddMulSlotFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	vm.slots = []runtime.Value{
+		runtime.NilValue{},
+		runtime.FloatValue{Val: 1.25, TypeSuffix: runtime.FloatF64},
+		runtime.FloatValue{Val: 0.5, TypeSuffix: runtime.FloatF64},
+	}
+	vm.stack = []runtime.Value{
+		bytecodeRawFloatSlotValue(4, runtime.FloatF64),
+	}
+	instr := &bytecodeInstruction{
+		op:            bytecodeOpStoreSlotFloatAddMulSlot,
+		target:        0,
+		argCount:      1,
+		loopBreak:     2,
+		operator:      "+",
+		discardResult: true,
+	}
+
+	if err := vm.execStoreSlotFloatAddMulSlot(instr); err != nil {
+		t.Fatalf("slot-sourced fused float add-mul store failed: %v", err)
+	}
+	assertFloatValue(t, vm.slots[0], runtime.FloatF64, 3.25)
+	if _, ok := vm.slots[0].(bytecodeRawF64SlotValue); !ok {
+		t.Fatalf("slot-sourced fused update slot = %#v, want raw f64 slot value", vm.slots[0])
+	}
+	if len(vm.stack) != 0 {
+		t.Fatalf("discarded slot-sourced fused update stack = %#v, want empty", vm.stack)
 	}
 }
 
@@ -126,7 +158,7 @@ func TestBytecodeVM_LoweringEmitsF64DotLoopPlan(t *testing.T) {
 	}
 }
 
-func TestBytecodeVM_LoweringF64DotLoopPlansResultAppend(t *testing.T) {
+func TestBytecodeVM_LoweringSkipsBenchmarkShapedF64DotLoopResultAppend(t *testing.T) {
 	arrayF64 := ast.Gen(ast.Ty("Array"), ast.Ty("f64"))
 	def := ast.Fn(
 		"dot_row",
@@ -164,15 +196,9 @@ func TestBytecodeVM_LoweringF64DotLoopPlansResultAppend(t *testing.T) {
 	if len(program.f64DotLoops) != 1 {
 		t.Fatalf("expected one f64 dot-loop plan, got %#v", program.f64DotLoops)
 	}
-	for ip, plan := range program.f64DotLoops {
-		if !plan.resultAppend {
-			t.Fatalf("expected f64 dot-loop result append plan: %#v", plan)
-		}
-		if plan.resultReceiverSlot < 0 || plan.resultPushIP <= ip || plan.resultTarget <= plan.resultPushIP {
-			t.Fatalf("unexpected result append plan: ip=%d plan=%#v", ip, plan)
-		}
-		if got := program.instructions[plan.resultPushIP]; got.op != bytecodeOpCallMemberArraySlot || got.name != "push" || got.argCount != 1 {
-			t.Fatalf("result append push ip points at %#v", got)
+	for _, plan := range program.f64DotLoops {
+		if plan.resultAppend || plan.resultReceiverSlot >= 0 || plan.resultPushIP != 0 || plan.resultTarget != 0 {
+			t.Fatalf("benchmark-shaped f64 dot-loop result append plan should stay disabled, got %#v", plan)
 		}
 	}
 }
@@ -203,10 +229,7 @@ func TestBytecodeVM_FloatAddMulSlotUpdateParity(t *testing.T) {
 	if !valuesEqual(got, want) {
 		t.Fatalf("bytecode float add-mul slot update mismatch: got=%#v want=%#v", got, want)
 	}
-	floatVal, ok := got.(runtime.FloatValue)
-	if !ok || floatVal.TypeSuffix != runtime.FloatF64 || floatVal.Val != 7.5 {
-		t.Fatalf("unexpected float result: %#v", got)
-	}
+	assertFloatValue(t, got, runtime.FloatF64, 7.5)
 }
 
 func TestBytecodeVM_FloatAddMulArrayGetSlotUpdateFastPath(t *testing.T) {
@@ -609,12 +632,9 @@ func TestBytecodeVM_FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies(t *tes
 	if handled, err := execFloatAddMulArrayGetUpdateForTest(t, vm, program, instr); err != nil || handled {
 		t.Fatalf("first raw fused update handled=%v err=%v", handled, err)
 	}
-	cell, ok := vm.slots[0].(*runtime.FloatValue)
-	if !ok || cell == nil {
-		t.Fatalf("slot after raw fused update = %#v, want owned float cell", vm.slots[0])
-	}
-	if cell.Val != 7.5 || cell.TypeSuffix != runtime.FloatF64 {
-		t.Fatalf("raw fused update cell = %#v, want f64 7.5", cell)
+	assertFloatValue(t, vm.slots[0], runtime.FloatF64, 7.5)
+	if _, ok := vm.slots[0].(bytecodeRawF64SlotValue); !ok {
+		t.Fatalf("slot after raw fused update = %#v, want raw f64 slot value", vm.slots[0])
 	}
 	if len(vm.stack) != 0 {
 		t.Fatalf("discarded raw fused update stack = %#v, want empty", vm.stack)
@@ -625,20 +645,16 @@ func TestBytecodeVM_FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies(t *tes
 	if handled, err := execFloatAddMulArrayGetUpdateForTest(t, vm, program, instr); err != nil || handled {
 		t.Fatalf("second raw fused update handled=%v err=%v", handled, err)
 	}
-	if vm.slots[0] != cell {
-		t.Fatalf("raw fused update should reuse owned cell")
-	}
-	if cell.Val != 13.5 {
-		t.Fatalf("raw fused update reused cell value = %v, want 13.5", cell.Val)
-	}
+	assertFloatValue(t, vm.slots[0], runtime.FloatF64, 13.5)
 
 	vm.stack = nil
 	if err := vm.execLoadSlotOpcode(&bytecodeInstruction{op: bytecodeOpLoadSlot, target: 0}); err != nil {
 		t.Fatalf("load raw accumulator slot: %v", err)
 	}
-	snapshot, ok := vm.stack[0].(runtime.FloatValue)
-	if !ok || snapshot.Val != 13.5 || snapshot.TypeSuffix != runtime.FloatF64 {
-		t.Fatalf("loaded raw accumulator = %#v, want f64 value copy 13.5", vm.stack[0])
+	snapshot := vm.stack[0]
+	assertFloatValue(t, snapshot, runtime.FloatF64, 13.5)
+	if _, ok := snapshot.(bytecodeRawF64SlotValue); !ok {
+		t.Fatalf("loaded raw accumulator = %#v, want raw f64 stack value", snapshot)
 	}
 
 	vm.ip = 0
@@ -646,12 +662,8 @@ func TestBytecodeVM_FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies(t *tes
 	if handled, err := execFloatAddMulArrayGetUpdateForTest(t, vm, program, instr); err != nil || handled {
 		t.Fatalf("third raw fused update handled=%v err=%v", handled, err)
 	}
-	if cell.Val != 19.5 {
-		t.Fatalf("third raw fused update cell value = %v, want 19.5", cell.Val)
-	}
-	if snapshot.Val != 13.5 {
-		t.Fatalf("loaded accumulator snapshot changed to %v, want 13.5", snapshot.Val)
-	}
+	assertFloatValue(t, vm.slots[0], runtime.FloatF64, 19.5)
+	assertFloatValue(t, snapshot, runtime.FloatF64, 13.5)
 }
 
 func TestBytecodeVM_StoreSlotFloatReusesOwnedCellAcrossReinitialization(t *testing.T) {
@@ -692,7 +704,7 @@ func TestBytecodeVM_StoreSlotFloatReusesOwnedCellAcrossReinitialization(t *testi
 	if err := vm.execLoadSlotOpcode(&bytecodeInstruction{op: bytecodeOpLoadSlot, target: 0}); err != nil {
 		t.Fatalf("load owned f64 slot: %v", err)
 	}
-	if snapshot, ok := vm.stack[0].(runtime.FloatValue); !ok || snapshot.Val != 2.5 || snapshot.TypeSuffix != runtime.FloatF64 {
+	if loaded, ok := vm.stack[0].(runtime.FloatValue); !ok || loaded.Val != 2.5 || loaded.TypeSuffix != runtime.FloatF64 {
 		t.Fatalf("loaded owned f64 slot = %#v, want value snapshot 2.5", vm.stack[0])
 	}
 }
@@ -904,10 +916,7 @@ func TestBytecodeVM_FloatAddMulSlotUpdatePreservesRHSOrder(t *testing.T) {
 	if !valuesEqual(got, want) {
 		t.Fatalf("bytecode add-mul evaluation order mismatch: got=%#v want=%#v", got, want)
 	}
-	floatVal, ok := got.(runtime.FloatValue)
-	if !ok || floatVal.TypeSuffix != runtime.FloatF64 || floatVal.Val != 21 {
-		t.Fatalf("unexpected order-sensitive result: %#v", got)
-	}
+	assertFloatValue(t, got, runtime.FloatF64, 21)
 }
 
 func floatAddMulArrayGetProgramForTest() (*bytecodeProgram, *bytecodeInstruction) {

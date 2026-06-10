@@ -1,0 +1,38 @@
+package bench_lazy_seq_take_i32_small
+
+import able.collections.array
+import able.collections.lazy_seq.{LazySeq, lazy_seq_from_array}
+import able.kernel.{Array}
+
+fn build(size: i32) -> Array i32 {
+  values: Array i32 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.push(((i * 31) + 17) % 30_011)
+    i = i + 1
+  }
+  values
+}
+
+fn score(values: Array i32) -> i64 {
+  seq := lazy_seq_from_array(values)
+  taken := seq.take(32)
+  total: i64 = 0_i64
+  for value in taken {
+    total = total + (value as i64)
+  }
+  total
+}
+
+fn main() -> void {
+  values := build(128)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 2 { break }
+    total = total + score(values)
+    rounds = rounds + 1
+  }
+  print(total)
+}

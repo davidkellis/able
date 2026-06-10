@@ -1,0 +1,470 @@
+package concurrent_packet_codecs
+
+import able.kernel.{Array}
+import able.os
+
+DEFAULT_FIELDS: i32 := 4096
+PROFILE_FIELDS: i32 := 1024
+LANE_COUNT: i64 := 4_i64
+VALUE_MODULUS: i64 := 65_536_i64
+CHECKSUM_MODULUS: i64 := 1_000_003_i64
+
+fn positive_mod(value: i64, modulus: i64) -> i64 {
+  remainder := value % modulus
+  if remainder < 0_i64 { remainder + modulus } else { remainder }
+}
+
+fn min_i64(left: i64, right: i64) -> i64 {
+  if left < right { left } else { right }
+}
+
+fn max_i64(left: i64, right: i64) -> i64 {
+  if left > right { left } else { right }
+}
+
+struct CursorState {
+  offset: i32,
+  previous: i64,
+  run_remaining: i32,
+  run_value: i64
+}
+
+methods CursorState {
+  fn signature(self: Self, lane: i64) -> i64 {
+    positive_mod(
+      (self.offset as i64) * 31_i64
+        + self.previous * 37_i64
+        + (self.run_remaining as i64) * 41_i64
+        + self.run_value * 43_i64
+        + lane * 47_i64,
+      CHECKSUM_MODULUS
+    )
+  }
+
+  fn delta_advance(self: Self, value: i64) -> CursorState {
+    CursorState {
+      offset: self.offset + 2,
+      previous: value,
+      run_remaining: 0,
+      run_value: value
+    }
+  }
+
+  fn run_advance(
+    self: Self,
+    next_offset: i32,
+    remaining: i32,
+    value: i64
+  ) -> CursorState {
+    CursorState {
+      offset: next_offset,
+      previous: value,
+      run_remaining: remaining,
+      run_value: value
+    }
+  }
+}
+
+struct DecodeStep {
+  cursor: CursorState,
+  value: i64,
+  validation: i64,
+  format_tag: i64
+}
+
+struct PacketStats {
+  fields: i64,
+  accepted: i64,
+  transitions: i64,
+  last_value: i64,
+  minimum: i64,
+  maximum: i64,
+  sum: i64,
+  checksum: i64,
+  cursor_checksum: i64
+}
+
+struct PacketReport {
+  lane: i64,
+  fields: i64,
+  accepted: i64,
+  transitions: i64,
+  minimum: i64,
+  maximum: i64,
+  sum: i64,
+  checksum: i64,
+  cursor_checksum: i64,
+  final_offset: i32,
+  final_previous: i64,
+  final_run_remaining: i32
+}
+
+methods PacketStats {
+  fn record(
+    self: Self,
+    step: DecodeStep,
+    field_index: i64,
+    lane: i64
+  ) -> PacketStats {
+    changed := if self.fields > 0_i64 && step.value != self.last_value {
+      1_i64
+    } else {
+      0_i64
+    }
+    accepted := if step.validation % 7_i64 != 0_i64 { 1_i64 } else { 0_i64 }
+    next_sum := positive_mod(
+      self.sum + step.value * 3_i64 + step.validation * 5_i64,
+      CHECKSUM_MODULUS
+    )
+    next_checksum := positive_mod(
+      self.checksum * 131_i64
+        + next_sum * 17_i64
+        + step.value * 19_i64
+        + step.validation * 23_i64
+        + field_index * 29_i64
+        + step.format_tag * 31_i64,
+      CHECKSUM_MODULUS
+    )
+    next_cursor_checksum := positive_mod(
+      self.cursor_checksum * 137_i64
+        + step.cursor.signature(lane) * 37_i64
+        + step.value * 41_i64,
+      CHECKSUM_MODULUS
+    )
+    PacketStats {
+      fields: self.fields + 1_i64,
+      accepted: self.accepted + accepted,
+      transitions: self.transitions + changed,
+      last_value: step.value,
+      minimum: min_i64(self.minimum, step.value),
+      maximum: max_i64(self.maximum, step.value),
+      sum: next_sum,
+      checksum: next_checksum,
+      cursor_checksum: next_cursor_checksum
+    }
+  }
+
+  fn report(self: Self, lane: i64, cursor: CursorState) -> PacketReport {
+    PacketReport {
+      lane,
+      fields: self.fields,
+      accepted: self.accepted,
+      transitions: self.transitions,
+      minimum: self.minimum,
+      maximum: self.maximum,
+      sum: self.sum,
+      checksum: self.checksum,
+      cursor_checksum: self.cursor_checksum,
+      final_offset: cursor.offset,
+      final_previous: cursor.previous,
+      final_run_remaining: cursor.run_remaining
+    }
+  }
+}
+
+interface PacketCodec {
+  fn decode(
+    self: Self,
+    bytes: Array u8,
+    cursor: CursorState,
+    field_index: i64,
+    lane: i64,
+    validate: (i64, i64, i64) -> i64
+  ) -> DecodeStep
+}
+
+struct DeltaCodec {
+  tag: i64
+}
+
+struct RunCodec {
+  tag: i64
+}
+
+impl PacketCodec for DeltaCodec {
+  fn decode(
+    self: Self,
+    bytes: Array u8,
+    cursor: CursorState,
+    field_index: i64,
+    lane: i64,
+    validate: (i64, i64, i64) -> i64
+  ) -> DecodeStep {
+    high := bytes.get(cursor.offset)! as i64
+    low := bytes.get(cursor.offset + 1)! as i64
+    encoded := high * 256_i64 + low
+    value := positive_mod(
+      cursor.previous + encoded - 32_768_i64,
+      VALUE_MODULUS
+    )
+    next_cursor := cursor.delta_advance(value)
+    DecodeStep {
+      cursor: next_cursor,
+      value,
+      validation: positive_mod(
+        validate(value, field_index, lane) + self.tag,
+        CHECKSUM_MODULUS
+      ),
+      format_tag: self.tag
+    }
+  }
+}
+
+impl PacketCodec for RunCodec {
+  fn decode(
+    self: Self,
+    bytes: Array u8,
+    cursor: CursorState,
+    field_index: i64,
+    lane: i64,
+    validate: (i64, i64, i64) -> i64
+  ) -> DecodeStep {
+    if cursor.run_remaining > 0 {
+      value := cursor.run_value
+      next_cursor := cursor.run_advance(
+        cursor.offset,
+        cursor.run_remaining - 1,
+        value
+      )
+      DecodeStep {
+        cursor: next_cursor,
+        value,
+        validation: positive_mod(
+          validate(value, field_index, lane) + self.tag,
+          CHECKSUM_MODULUS
+        ),
+        format_tag: self.tag
+      }
+    } else {
+      count := bytes.get(cursor.offset)! as i32
+      high := bytes.get(cursor.offset + 1)! as i64
+      low := bytes.get(cursor.offset + 2)! as i64
+      value := high * 256_i64 + low
+      next_cursor := cursor.run_advance(
+        cursor.offset + 3,
+        count - 1,
+        value
+      )
+      DecodeStep {
+        cursor: next_cursor,
+        value,
+        validation: positive_mod(
+          validate(value, field_index, lane) + self.tag,
+          CHECKSUM_MODULUS
+        ),
+        format_tag: self.tag
+      }
+    }
+  }
+}
+
+fn make_validator(scale: i64, salt: i64) -> (i64, i64, i64) -> i64 {
+  { value, field_index, lane =>
+    positive_mod(
+      value * scale
+        + field_index * 11_i64
+        + lane * 17_i64
+        + salt,
+      CHECKSUM_MODULUS
+    )
+  }
+}
+
+fn push_word(bytes: Array u8, value: i64) -> void {
+  bytes.push((value // 256_i64) as u8)!
+  bytes.push((value % 256_i64) as u8)!
+}
+
+fn initial_delta_value(lane: i64) -> i64 {
+  positive_mod(lane * 4093_i64 + 257_i64, VALUE_MODULUS)
+}
+
+fn build_delta_stream(lane: i64, field_count: i32) -> Array u8 {
+  bytes := Array.with_capacity(field_count * 2 + 8)
+  previous := initial_delta_value(lane)
+  field_index := 0
+  loop {
+    if field_index >= field_count { break }
+    index_i64 := field_index as i64
+    delta := positive_mod(
+      index_i64 * 17_i64
+        + lane * 29_i64
+        + (index_i64 % 7_i64) * 11_i64,
+      511_i64
+    ) - 255_i64
+    value := positive_mod(previous + delta, VALUE_MODULUS)
+    push_word(bytes, delta + 32_768_i64)
+    previous = value
+    field_index = field_index + 1
+  }
+  bytes
+}
+
+fn build_run_stream(lane: i64, field_count: i32) -> Array u8 {
+  bytes := Array.with_capacity(field_count + 8)
+  produced := 0
+  run_index := 0
+  loop {
+    if produced >= field_count { break }
+    run_i64 := run_index as i64
+    remaining := field_count - produced
+    count := 1 + (
+      positive_mod(run_i64 * 3_i64 + lane * 5_i64, 7_i64) as i32
+    )
+    actual_count := if count > remaining { remaining } else { count }
+    value := positive_mod(
+      run_i64 * 977_i64
+        + lane * 4099_i64
+        + (run_i64 % 5_i64) * 313_i64
+        + 701_i64,
+      VALUE_MODULUS
+    )
+    bytes.push(actual_count as u8)!
+    push_word(bytes, value)
+    produced = produced + actual_count
+    run_index = run_index + 1
+  }
+  bytes
+}
+
+fn decode_stream(
+  lane: i64,
+  field_count: i32,
+  bytes: Array u8,
+  codec: PacketCodec,
+  validate: (i64, i64, i64) -> i64,
+  initial_previous: i64
+) -> PacketReport {
+  cursor := CursorState {
+    offset: 0,
+    previous: initial_previous,
+    run_remaining: 0,
+    run_value: initial_previous
+  }
+  stats := PacketStats {
+    fields: 0_i64,
+    accepted: 0_i64,
+    transitions: 0_i64,
+    last_value: 0_i64,
+    minimum: VALUE_MODULUS,
+    maximum: 0_i64,
+    sum: lane * 53_i64 + 11_i64,
+    checksum: lane * 71_i64 + 13_i64,
+    cursor_checksum: lane * 89_i64 + 17_i64
+  }
+  field_index := 0
+  loop {
+    if field_index >= field_count { break }
+    index_i64 := field_index as i64
+    step := codec.decode(bytes, cursor, index_i64, lane, validate)
+    cursor = step.cursor
+    stats = stats.record(step, index_i64, lane)
+    field_index = field_index + 1
+  }
+  stats.report(lane, cursor)
+}
+
+fn packet_fields(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_FIELDS
+  } else {
+    DEFAULT_FIELDS
+  }
+}
+
+fn main() -> void {
+  field_count := packet_fields(os.args())
+  first_bytes := build_delta_stream(0_i64, field_count)
+  second_bytes := build_run_stream(1_i64, field_count)
+  third_bytes := build_delta_stream(2_i64, field_count)
+  fourth_bytes := build_run_stream(3_i64, field_count)
+
+  first_codec: PacketCodec = DeltaCodec { tag: 3_i64 }
+  second_codec: PacketCodec = RunCodec { tag: 5_i64 }
+  third_codec: PacketCodec = DeltaCodec { tag: 7_i64 }
+  fourth_codec: PacketCodec = RunCodec { tag: 11_i64 }
+  first_validator := make_validator(13_i64, 101_i64)
+  second_validator := make_validator(17_i64, 211_i64)
+  third_validator := make_validator(19_i64, 307_i64)
+  fourth_validator := make_validator(23_i64, 401_i64)
+
+  first := spawn {
+    decode_stream(
+      0_i64,
+      field_count,
+      first_bytes,
+      first_codec,
+      first_validator,
+      initial_delta_value(0_i64)
+    )
+  }
+  second := spawn {
+    decode_stream(
+      1_i64,
+      field_count,
+      second_bytes,
+      second_codec,
+      second_validator,
+      0_i64
+    )
+  }
+  third := spawn {
+    decode_stream(
+      2_i64,
+      field_count,
+      third_bytes,
+      third_codec,
+      third_validator,
+      initial_delta_value(2_i64)
+    )
+  }
+  fourth := spawn {
+    decode_stream(
+      3_i64,
+      field_count,
+      fourth_bytes,
+      fourth_codec,
+      fourth_validator,
+      0_i64
+    )
+  }
+  future_flush()
+
+  first_report := first.value()!
+  second_report := second.value()!
+  third_report := third.value()!
+  fourth_report := fourth.value()!
+  expected := (field_count as i64) * LANE_COUNT
+  fields := first_report.fields
+    + second_report.fields
+    + third_report.fields
+    + fourth_report.fields
+  accepted := first_report.accepted
+    + second_report.accepted
+    + third_report.accepted
+    + fourth_report.accepted
+  transitions := first_report.transitions
+    + second_report.transitions
+    + third_report.transitions
+    + fourth_report.transitions
+  sum := positive_mod(
+    first_report.sum
+      + second_report.sum
+      + third_report.sum
+      + fourth_report.sum,
+    CHECKSUM_MODULUS
+  )
+  checksum := positive_mod(
+    first_report.checksum * 3_i64
+      + second_report.checksum * 5_i64
+      + third_report.checksum * 7_i64
+      + fourth_report.checksum * 11_i64
+      + first_report.cursor_checksum * 13_i64
+      + second_report.cursor_checksum * 17_i64
+      + third_report.cursor_checksum * 19_i64
+      + fourth_report.cursor_checksum * 23_i64,
+    CHECKSUM_MODULUS
+  )
+
+  print(`${expected}:${fields}:${accepted}:${transitions}:${first_report.minimum},${second_report.minimum},${third_report.minimum},${fourth_report.minimum}:${first_report.maximum},${second_report.maximum},${third_report.maximum},${fourth_report.maximum}:${first_report.sum},${second_report.sum},${third_report.sum},${fourth_report.sum}:${first_report.checksum},${second_report.checksum},${third_report.checksum},${fourth_report.checksum}:${first_report.cursor_checksum},${second_report.cursor_checksum},${third_report.cursor_checksum},${fourth_report.cursor_checksum}:${first_report.final_offset},${second_report.final_offset},${third_report.final_offset},${fourth_report.final_offset}:${first_report.final_previous},${second_report.final_previous},${third_report.final_previous},${fourth_report.final_previous}:${first_report.final_run_remaining},${second_report.final_run_remaining},${third_report.final_run_remaining},${fourth_report.final_run_remaining}:${sum}:${checksum}`)
+}

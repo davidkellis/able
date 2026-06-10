@@ -1,0 +1,188 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "candidate_gate": "exact String.split package entry to SwapEnvIfNeeded to bridge.currentGID to runtime.Stack must be material in three unlike applications",
+  "gate_result": "failed_exact_shared_owner_requirement",
+  "settings": {
+    "cpu_affinity": "9",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "executor": "goroutine",
+    "able_runs": 20,
+    "go_runs": 20,
+    "alternating_order": true,
+    "warmups_per_binary": 2,
+    "cpu_profiles_per_application": 5,
+    "allocation_profiles_per_application": 3,
+    "timeout_seconds": 60,
+    "public_verifier_required": true,
+    "strict_no_fallbacks": true
+  },
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "able_nanoseconds": [
+        173502500, 169995392, 171521825, 170782272, 172761881,
+        176090441, 198477357, 170941842, 176345296, 173055923,
+        170664032, 176596654, 177906282, 179931638, 190962486,
+        175981665, 199269903, 178218342, 185137533, 181440249
+      ],
+      "go_nanoseconds": [
+        2679728, 2584614, 2580861, 3086576, 2651602,
+        2685065, 2605435, 2681547, 2717032, 2574405,
+        2794511, 2906122, 2677331, 2982583, 2649257,
+        2483174, 5091620, 3080561, 3136532, 2656237
+      ],
+      "able_mean_nanoseconds": 178479176,
+      "go_mean_nanoseconds": 2865240,
+      "able_over_go": 62.2912,
+      "go_performance_percent": 1.6054,
+      "profile": {
+        "total_samples_seconds": 0.80,
+        "string_split_entry_seconds": 0.67,
+        "string_split_entry_percent": 83.75,
+        "swap_env_seconds": 0.14,
+        "restore_env_seconds": 0.11,
+        "current_gid_seconds": 0.24,
+        "runtime_stack_seconds": 0.23,
+        "current_gid_allocation_objects": 8207,
+        "string_split_entry_cumulative_allocation_objects": 705003
+      },
+      "allocation": {
+        "samples_bytes_allocations_gc": [
+          [44658336, 955875, 21],
+          [44657536, 955866, 22],
+          [44657856, 955870, 21]
+        ],
+        "mean_bytes": 44657909.3333,
+        "mean_allocations": 955870.3333,
+        "mean_gc": 21.3333,
+        "string_from_builtin_objects": 164736,
+        "array_u8_to_objects": 40320,
+        "string_to_builtin_objects": 27952
+      },
+      "sha256": {
+        "able": "fe695c7be32ca81aa0f7c1b336266c90ff8c5a8ab51f0c8eea14888606bf38be",
+        "go": "e08c89e8f55ee0e09834e4c4498248dd61cfb5683c542b044151271d37ad16d7"
+      }
+    },
+    {
+      "name": "Word Frequency",
+      "able_nanoseconds": [
+        78361905, 72724030, 75704834, 78347578, 77067468,
+        77518491, 81661299, 78817128, 79219537, 87693455,
+        89093263, 81856439, 83596482, 80133794, 80164586,
+        82148203, 82142031, 91053502, 78943399, 78264482
+      ],
+      "go_nanoseconds": [
+        3372880, 3310377, 6226705, 3473994, 3569041,
+        3768360, 3456701, 3439564, 5055483, 3856455,
+        3882908, 3842413, 3656266, 3907459, 3641946,
+        3962164, 3768835, 3880068, 3867366, 3890439
+      ],
+      "able_mean_nanoseconds": 80725595,
+      "go_mean_nanoseconds": 3891471,
+      "able_over_go": 20.7442,
+      "go_performance_percent": 4.8206,
+      "profile": {
+        "total_samples_seconds": 0.37,
+        "string_split_entry_seconds": 0.34,
+        "string_split_entry_percent": 91.89,
+        "swap_env_seconds": 0,
+        "restore_env_seconds": 0,
+        "current_gid_seconds": 0,
+        "runtime_stack_seconds": 0,
+        "current_gid_allocation_objects": 0,
+        "string_split_entry_cumulative_allocation_objects": 546260
+      },
+      "allocation": {
+        "samples_bytes_allocations_gc": [
+          [29458992, 690056, 32],
+          [29504816, 690060, 31],
+          [29458968, 690054, 31]
+        ],
+        "mean_bytes": 29474258.6667,
+        "mean_allocations": 690056.6667,
+        "mean_gc": 31.3333,
+        "string_from_builtin_objects": 134549,
+        "array_u8_to_objects": 43927,
+        "string_to_builtin_objects": 25338
+      },
+      "sha256": {
+        "able": "2fe0a1e606ef2be55fd36c2485344c47786da209101fd267a8aab8e8113d6552",
+        "go": "fbb28fc2bf898ba2b7a273b36d85a0ae31554279e40d07d53391001f50173ee6"
+      }
+    },
+    {
+      "name": "Sensor Calibration",
+      "able_nanoseconds": [
+        178315820, 181481538, 180658171, 190194787, 183457053,
+        176667664, 177729578, 172555630, 178596794, 196052658,
+        199481099, 193103723, 208830426, 184247962, 192149831,
+        182368310, 178057845, 191762162, 182827706, 188611311
+      ],
+      "go_nanoseconds": [
+        3220203, 3401921, 2944472, 3149683, 3012837,
+        3102829, 2996340, 2955911, 2960988, 3063891,
+        3459242, 3447225, 3364193, 3434224, 2831149,
+        2957498, 12328888, 3388870, 2915330, 3851591
+      ],
+      "able_mean_nanoseconds": 185857503,
+      "go_mean_nanoseconds": 3639364,
+      "able_over_go": 51.0687,
+      "go_performance_percent": 1.9581,
+      "profile": {
+        "total_samples_seconds": 0.80,
+        "string_split_entry_seconds": 0.58,
+        "string_split_entry_percent": 72.50,
+        "swap_env_seconds": 0,
+        "restore_env_seconds": 0,
+        "current_gid_seconds": 0,
+        "runtime_stack_seconds": 0,
+        "current_gid_allocation_objects": 0,
+        "string_split_entry_cumulative_allocation_objects": 1016010
+      },
+      "allocation": {
+        "samples_bytes_allocations_gc": [
+          [63167248, 1521368, 64],
+          [63167296, 1521368, 64],
+          [63221952, 1521373, 64]
+        ],
+        "mean_bytes": 63185498.6667,
+        "mean_allocations": 1521369.6667,
+        "mean_gc": 64,
+        "string_from_builtin_objects": 293376,
+        "array_u8_to_objects": 98048,
+        "string_to_builtin_objects": 57084
+      },
+      "sha256": {
+        "able": "118829ccbea25bf7b27445fa6b2aff7390fba4092c1bb697876624b7dab982f3",
+        "go": "fc72ab581b56636b508e9e89e028acc353fd9dd412f4e82fe6af69257499be68"
+      }
+    }
+  ],
+  "verification": {
+    "timing_public_verifier_processes": 120,
+    "profile_public_verifier_processes": 24,
+    "strict_dependency_graphs_without_interpreter": 3,
+    "production_candidate_built": false,
+    "production_code_changed": false
+  },
+  "temporary_evidence_root": "/tmp/able-string-split-entry-20260725.R4eYI8",
+  "changed_surfaces": [
+    "documentation"
+  ],
+  "unchanged_surfaces": [
+    "compiler",
+    "generated_runtime",
+    "canonical_stdlib",
+    "runtime_package",
+    "interpreter",
+    "tree_walker",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [{ "type": "Identifier", "name": "source_reexport_wildcard" }]
+  },
+  "imports": [],
+  "exports": [{
+    "type": "ExportStatement",
+    "packagePath": [{ "type": "Identifier", "name": "source_reexport_source" }],
+    "isWildcard": true
+  }],
+  "body": []
+}

@@ -83,6 +83,7 @@ func (g *generator) diagNodeName(node ast.Node, goType string, prefix string) st
 	info := diagNodeInfo{
 		Name:   name,
 		GoType: goType,
+		Node:   node,
 		Span:   node.Span(),
 	}
 	if call, ok := node.(*ast.FunctionCall); ok && call != nil {

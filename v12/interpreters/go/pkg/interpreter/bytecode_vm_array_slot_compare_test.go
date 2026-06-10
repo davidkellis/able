@@ -220,6 +220,91 @@ func TestBytecodeVM_ArrayIndexSlotCompareI32RawCastFastPath(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_JumpIfArrayIndexSlotCompareSlotFalseUsesI32RegisterOperands(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(200000, runtime.IntegerI32),
+	}, 0)
+	program := &bytecodeProgram{
+		frameLayout: &bytecodeFrameLayout{
+			slotCount:        3,
+			slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32, bytecodeCellKindI32},
+			hasTypedSlots:    true,
+			i32RegisterFrame: true,
+		},
+	}
+	instr := &bytecodeInstruction{
+		op:           bytecodeOpJumpIfArrayIndexSlotCompareSlotFalse,
+		argCount:     0,
+		loopBreak:    1,
+		loopContinue: 2,
+		target:       9,
+		operator:     ">=",
+		name:         "i32",
+		typeExpr:     ast.Ty("i32"),
+	}
+	vm.slots = []runtime.Value{arr, nil, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, 0) || !vm.setI32RegisterRaw(2, 199999) {
+		t.Fatalf("expected register frame to accept array-index compare operands")
+	}
+
+	if err := vm.execJumpIfArrayIndexSlotCompareSlotFalse(instr); err != nil {
+		t.Fatalf("array-index register compare jump failed: %v", err)
+	}
+	if vm.ip != 1 {
+		t.Fatalf("truthy array-index register compare should advance ip to 1, got %d", vm.ip)
+	}
+
+	vm.ip = 0
+	if !vm.setI32RegisterRaw(2, 200001) {
+		t.Fatalf("expected register frame to accept updated rhs")
+	}
+	if err := vm.execJumpIfArrayIndexSlotCompareSlotFalse(instr); err != nil {
+		t.Fatalf("array-index register compare false jump failed: %v", err)
+	}
+	if vm.ip != 9 {
+		t.Fatalf("false array-index register compare should jump to 9, got %d", vm.ip)
+	}
+}
+
+func TestBytecodeVM_JumpIfArrayIndexSlotCompareSlotFalseMaterializesRegisterOperandsForFallback(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(5, runtime.IntegerI32),
+	}, 0)
+	program := &bytecodeProgram{
+		frameLayout: &bytecodeFrameLayout{
+			slotCount:        3,
+			slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32, bytecodeCellKindI32},
+			hasTypedSlots:    true,
+			i32RegisterFrame: true,
+		},
+	}
+	instr := &bytecodeInstruction{
+		op:           bytecodeOpJumpIfArrayIndexSlotCompareSlotFalse,
+		argCount:     0,
+		loopBreak:    1,
+		loopContinue: 2,
+		target:       9,
+		operator:     ">=",
+		name:         "i32",
+		typeExpr:     ast.Ty("i32"),
+	}
+	vm.slots = []runtime.Value{arr, nil, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, -1) || !vm.setI32RegisterRaw(2, 4) {
+		t.Fatalf("expected register frame to accept fallback operands")
+	}
+
+	err := vm.execJumpIfArrayIndexSlotCompareSlotFalse(instr)
+	if err == nil {
+		t.Fatalf("negative register-backed index compare should preserve cast/index error")
+	}
+}
+
 func TestBytecodeVM_JumpIfArrayReadSlotCompareSlotFalseFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
@@ -322,6 +407,54 @@ func TestBytecodeVM_JumpIfArrayReadSlotCompareSlotFalseTrackedI32FastPath(t *tes
 	}
 	if vm.ip != 9 {
 		t.Fatalf("false tracked i32 compare should jump to 9, got %d", vm.ip)
+	}
+}
+
+func TestBytecodeVM_JumpIfArrayReadSlotCompareSlotFalseTrackedI32FastPathUsesRegisterOperands(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(200000, runtime.IntegerI32),
+	}, 0)
+	program := &bytecodeProgram{
+		frameLayout: &bytecodeFrameLayout{
+			slotCount:        3,
+			slotKinds:        []bytecodeCellKind{bytecodeCellKindValue, bytecodeCellKindI32, bytecodeCellKindI32},
+			hasTypedSlots:    true,
+			i32RegisterFrame: true,
+		},
+	}
+	vm.storeCachedCanonicalArraySlotCall(program, 0, bytecodeInstruction{name: "read_slot", argCount: 1}, arr, bytecodeMemberMethodFastPathArrayReadSlot)
+	instr := &bytecodeInstruction{
+		op:           bytecodeOpJumpIfArrayReadSlotCompareSlotFalse,
+		argCount:     0,
+		loopBreak:    1,
+		loopContinue: 2,
+		target:       9,
+		operator:     ">=",
+	}
+	vm.slots = []runtime.Value{arr, nil, nil}
+	vm.activateI32RegisterFrame(program)
+	if !vm.setI32RegisterRaw(1, 0) || !vm.setI32RegisterRaw(2, 199999) {
+		t.Fatalf("expected register frame to accept tracked compare operands")
+	}
+
+	if err := vm.execJumpIfArrayReadSlotCompareSlotFalse(instr, program); err != nil {
+		t.Fatalf("tracked i32 register compare jump failed: %v", err)
+	}
+	if vm.ip != 1 {
+		t.Fatalf("truthy tracked i32 register compare should advance ip to 1, got %d", vm.ip)
+	}
+
+	vm.ip = 0
+	if !vm.setI32RegisterRaw(2, 200001) {
+		t.Fatalf("expected register frame to accept updated rhs")
+	}
+	if err := vm.execJumpIfArrayReadSlotCompareSlotFalse(instr, program); err != nil {
+		t.Fatalf("tracked i32 register compare false jump failed: %v", err)
+	}
+	if vm.ip != 9 {
+		t.Fatalf("false tracked i32 register compare should jump to 9, got %d", vm.ip)
 	}
 }
 

@@ -56,6 +56,18 @@ func TestCompilerExperimentalMonoArraysRemainingNumericFamilyUsesSpecializedWrap
 			t.Fatalf("expected remaining numeric mono-array lowering to contain %q", fragment)
 		}
 	}
+	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
+	assertBodyAvoidsFragments(t, "__able_compiled_fn_main", mainBody, []string{
+		"runtime.Value",
+		"runtime.ArrayStore",
+		"runtime.ArrayValue",
+		"Storage_handle",
+		"bridge.As",
+		"bridge.To",
+		"__able_any_to_value(",
+		"__able_call_named(",
+		"__able_call_value(",
+	})
 }
 
 func TestCompilerExperimentalMonoArraysRemainingNumericFamilyExecutes(t *testing.T) {

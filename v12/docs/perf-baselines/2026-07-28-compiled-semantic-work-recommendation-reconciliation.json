@@ -1,0 +1,158 @@
+{
+  "kind": "able-compiled-semantic-work-recommendation-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain-no-production-change",
+  "reason": "recommended-tranche-already-completed-and-not-invalidated",
+  "repository_commit": "cbba634af6c5766e5b8aa162e8e66643654f620e",
+  "compiler_sha256": "55c7e9cb6f911406510b67a9f09ccece55cc4cb9a111cf8ceebb234adfc13871",
+  "flags": [
+    "--no-fallbacks",
+    "--experimental-execution-context"
+  ],
+  "applications": [
+    "tapelang_alphabet",
+    "sudoku_masks",
+    "nbody",
+    "matrixmultiply",
+    "pidigits"
+  ],
+  "fresh_artifacts": {
+    "strict_builds": 5,
+    "verified_smoke_processes": 5,
+    "interpreter_free_graphs": 5,
+    "performance_selection_from_smoke": false
+  },
+  "current_five_run_scorecard": [
+    {
+      "application": "tapelang_alphabet",
+      "able_seconds": 3.966,
+      "go_seconds": 3.0651,
+      "ratio": 1.2939218948810804,
+      "role": "normalized-miss"
+    },
+    {
+      "application": "sudoku_masks",
+      "able_seconds": 1.562,
+      "go_seconds": 0.674,
+      "ratio": 2.317507418397626,
+      "role": "normalized-miss"
+    },
+    {
+      "application": "nbody",
+      "able_seconds": 0.082,
+      "go_seconds": 0.035,
+      "ratio": 2.3428571428571425,
+      "role": "unlike-miss"
+    },
+    {
+      "application": "matrixmultiply",
+      "able_seconds": 1.034,
+      "go_seconds": 0.987,
+      "ratio": 1.0476190476190477,
+      "role": "target-control"
+    },
+    {
+      "application": "pidigits",
+      "able_seconds": 1.22,
+      "go_seconds": 1.1864,
+      "ratio": 1.0283209710047203,
+      "role": "target-control"
+    }
+  ],
+  "source_identity": {
+    "tapelang_able_sha256": "426a40e33840f3a0e9e62d5f9b9519a6840edd2733b8031df6a280e4b782fdb8",
+    "tapelang_go_sha256": "e53f36775b30177debe262c6693c40ff0c3db9a552fcf2dd8cb6c5a37174f775",
+    "sudoku_able_sha256": "fd918bf940bf22973fb205b1f1fa1be9de07a8774ad79138c9bc8a95acb43d6b",
+    "sudoku_go_sha256": "0731d83377fde41add93bd6f503a7b42b9f612b8c1a07a2d3ec440e301b7ee99",
+    "matches_normalized_audit": true
+  },
+  "relational_proof": [
+    {
+      "application": "tapelang_alphabet",
+      "reachable_checks": 13,
+      "proven_safe": 0,
+      "call_site_specializable": 0
+    },
+    {
+      "application": "sudoku_masks",
+      "reachable_checks": 32,
+      "proven_safe": 4,
+      "call_site_specializable": 1
+    },
+    {
+      "application": "nbody",
+      "reachable_checks": 52,
+      "proven_safe": 32,
+      "call_site_specializable": 0
+    },
+    {
+      "application": "matrixmultiply",
+      "reachable_checks": 8,
+      "proven_safe": 0,
+      "call_site_specializable": 0
+    },
+    {
+      "application": "pidigits",
+      "reachable_checks": 2,
+      "proven_safe": 0,
+      "call_site_specializable": 0
+    }
+  ],
+  "assembly_reconciliation": {
+    "tapelang_and_sudoku_prior_call_counts_unchanged": true,
+    "tapelang_and_sudoku_prior_jump_counts_unchanged": true,
+    "instruction_delta_range": [
+      0,
+      7
+    ],
+    "delta_classification": "straight-line-execution-context-abi-bookkeeping",
+    "material_shared_owner": null
+  },
+  "candidate": null,
+  "ab_gate_entered": false,
+  "production_changes": {
+    "compiler": 0,
+    "generated_runtime": 0,
+    "runtime": 0,
+    "interpreter": 0,
+    "bytecode_vm": 0,
+    "canonical_stdlib": 0,
+    "benchmark": 0,
+    "reference": 0,
+    "language": 0,
+    "dependency": 0,
+    "wasm": 0
+  },
+  "cleanup": {
+    "workspace": "/var/tmp/able-semantic-reconciliation-20260728-VFOSjB",
+    "size": "469 MiB",
+    "deleted": true,
+    "pointer_deleted": true
+  },
+  "evidence": {
+    "source_artifact_summary": {
+      "path": "v12/docs/perf-baselines/2026-07-28-compiled-semantic-work-recommendation-reconciliation-source-artifact-summary.tsv",
+      "sha256": "8273ef8d24bb8b04f07038278b53621deb8a2aff1cf1fac8c76a5925d876368f"
+    },
+    "control_summary": {
+      "path": "v12/docs/perf-baselines/2026-07-28-compiled-semantic-work-recommendation-reconciliation-control-summary.tsv",
+      "sha256": "cc55812f7aec1604fed51146ba2233e81cd8a5adbf542f1d64fdc7f2739fd452"
+    },
+    "hot_control_summary": {
+      "path": "v12/docs/perf-baselines/2026-07-28-compiled-semantic-work-recommendation-reconciliation-hot-control-summary.tsv",
+      "sha256": "4470c8d3bf2c77ee6bbd790f4e1916285c0c02d520cf34dcf1dcada863aa1a57"
+    },
+    "assembly_summary": {
+      "path": "v12/docs/perf-baselines/2026-07-28-compiled-semantic-work-recommendation-reconciliation-assembly-summary.tsv",
+      "sha256": "f3f95243e0b00269770f71f765830f6c9f0d842a67485abbbf82d499adf0a5cc"
+    },
+    "unretained_smoke_json_sha256": "e927035a91a3724a9cdfcf726e3e1541e098d7f3b5cf2c7d273b8ab0d9938950"
+  },
+  "next": {
+    "tranche": "correctness-and-release-readiness",
+    "why": "No exact open performance owner is material in three unlike applications, and the proposed semantic-work route remains closed.",
+    "entails": "Run current v12 correctness, stdlib, fixture, dependency, and release gates; refresh affected performance evidence only after a real invalidation.",
+    "importance": "Preserve native carriers and interpreter-free compiled execution without introducing narrow or noisy optimizations."
+  }
+}

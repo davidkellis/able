@@ -1,0 +1,78 @@
+package exec_14_15_regex_function_replace
+
+import able.text.regex.{Match, Regex, ReplacementFunction}
+import able.core.interfaces.{Error}
+import able.core.options.{Result}
+
+struct ReplaceCallbackError {}
+
+impl Error for ReplaceCallbackError {
+  fn message(self: Self) -> String { "replacement callback failed" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn show_result(label: String, value: Result String) -> void {
+  value match {
+    case text: String => print(`${label} ${text}`),
+    case _ => print(`${label} error`)
+  }
+}
+
+fn main() -> void {
+  calls := ""
+  Regex.compile("(?P<word>ab)") match {
+    case regex: Regex => {
+      replacement := ReplacementFunction {
+        callback: fn(found: Match) -> String {
+          calls = `${calls}${found.matched}@${found.span.start};`
+          word := found.groups.read_slot(0)
+          `<${word.value!}>`
+        }
+      }
+      show_result("captures", regex.replace("zab ab", replacement))
+    },
+    case _ => print("captures compile error")
+  }
+  print(`calls ${calls}`)
+
+  Regex.compile("a*") match {
+    case regex: Regex => {
+      replacement := ReplacementFunction {
+        callback: fn(found: Match) -> String { `<${found.matched}>` }
+      }
+      show_result("zero", regex.replace("é", replacement))
+    },
+    case _ => print("zero compile error")
+  }
+
+  no_match_calls := 0
+  Regex.compile("x") match {
+    case regex: Regex => {
+      replacement := ReplacementFunction {
+        callback: fn(found: Match) -> String {
+          no_match_calls = no_match_calls + 1
+          "replacement"
+        }
+      }
+      show_result("no-match", regex.replace("é", replacement))
+    },
+    case _ => print("no-match compile error")
+  }
+  print(`no-match-calls ${no_match_calls}`)
+
+  Regex.compile("a") match {
+    case regex: Regex => {
+      replacement := ReplacementFunction {
+        callback: fn(found: Match) -> String { raise ReplaceCallbackError {}; "unreachable" }
+      }
+      status := do {
+        regex.replace("a", replacement)
+        "not-raised"
+      } rescue {
+        case _: Error => "raised"
+      }
+      print(`callback-error ${status}`)
+    },
+    case _ => print("callback-error compile error")
+  }
+}

@@ -6,16 +6,16 @@ func (vm *bytecodeVM) tryExecF64AffineRowLoop(program *bytecodeProgram, plan byt
 	if vm == nil || program == nil || !plan.validForSlots(len(vm.slots)) || plan.successTarget <= vm.ip {
 		return false, nil
 	}
-	index, ok := bytecodeF64DotLoopI32Value(vm.slots[plan.indexSlot])
+	index, ok := vm.slotI32Value(plan.indexSlot)
 	if !ok {
 		return false, nil
 	}
-	bound, ok := bytecodeF64DotLoopI32Value(vm.slots[plan.boundSlot])
+	bound, ok := vm.slotI32Value(plan.boundSlot)
 	if !ok {
 		return false, nil
 	}
 	if index >= bound {
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.appendStackValue(runtime.NilValue{})
 		vm.ip = plan.successTarget
 		return true, nil
 	}
@@ -31,11 +31,11 @@ func (vm *bytecodeVM) tryExecF64AffineRowLoop(program *bytecodeProgram, plan byt
 	if !vm.canUseCanonicalArrayPushAt(program, plan.resultPushIP, instr, dest) {
 		return false, nil
 	}
-	scale, ok := bytecodeDirectF64Value(vm.slots[plan.scaleSlot])
+	scale, ok := vm.slotDirectF64Value(plan.scaleSlot)
 	if !ok {
 		return false, nil
 	}
-	left, ok := bytecodeF64DotLoopI32Value(vm.slots[plan.leftSlot])
+	left, ok := vm.slotI32Value(plan.leftSlot)
 	if !ok {
 		return false, nil
 	}
@@ -48,7 +48,7 @@ func (vm *bytecodeVM) tryExecF64AffineRowLoop(program *bytecodeProgram, plan byt
 		return false, nil
 	}
 	vm.storeI32Slot(plan.indexSlot, int64(end))
-	vm.stack = append(vm.stack, runtime.NilValue{})
+	vm.appendStackValue(runtime.NilValue{})
 	vm.ip = plan.successTarget
 	return true, nil
 }

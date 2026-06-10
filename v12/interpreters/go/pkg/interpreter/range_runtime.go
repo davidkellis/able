@@ -24,41 +24,10 @@ func (i *Interpreter) registerRangeImplementation(entry implEntry, interfaceArgs
 }
 
 func (i *Interpreter) typeExpressionForValue(val runtime.Value) ast.TypeExpression {
-	if val == nil {
+	if i == nil || val == nil {
 		return nil
 	}
-	switch v := val.(type) {
-	case runtime.IntegerValue:
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier(string(v.TypeSuffix)))
-	case runtime.FloatValue:
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier(string(v.TypeSuffix)))
-	case runtime.StringValue:
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier("String"))
-	case runtime.BoolValue:
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier("bool"))
-	case runtime.CharValue:
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier("char"))
-	case runtime.NilValue:
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier("nil"))
-	case *runtime.StructInstanceValue:
-		if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil {
-			return nil
-		}
-		base := ast.NewSimpleTypeExpression(ast.NewIdentifier(v.Definition.Node.ID.Name))
-		if len(v.TypeArguments) == 0 {
-			return base
-		}
-		args := make([]ast.TypeExpression, len(v.TypeArguments))
-		copy(args, v.TypeArguments)
-		return ast.NewGenericTypeExpression(base, args)
-	case runtime.InterfaceValue:
-		if v.Interface == nil || v.Interface.Node == nil || v.Interface.Node.ID == nil {
-			return nil
-		}
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier(v.Interface.Node.ID.Name))
-	default:
-		return nil
-	}
+	return i.typeExpressionFromValue(val)
 }
 
 func (i *Interpreter) describeRuntimeType(val runtime.Value) string {

@@ -24,7 +24,7 @@ Able is an experimental programming language. This workspace hosts the actively 
 
 ## Getting Started
 - **Go interpreters**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./v12/run_all_tests.sh` (fixtures/typechecker default to strict).
-- **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs.
+- **CLI wrappers**: use `./v12/abletw` for tree-walker runs and `./v12/ablebc` for bytecode runs. They build a cached local CLI under `interpreters/go/.gocache` and preserve the directory from which you invoke them, so relative program inputs resolve normally.
 - **Stdlib bootstrap**: run `./v12/able setup` once to install/cache canonical stdlib + kernel roots under `$ABLE_HOME/pkg/src`.
 - **Stdlib gate**: `./run_stdlib_tests.sh` now self-bootstraps stdlib + kernel into an isolated `ABLE_HOME` when no sibling `able-stdlib` checkout or cached stdlib is present.
 - **Fixture export**: `./v12/export_fixtures.sh` still exports the whole AST fixture tree by default, but it now also accepts targeted fixture directories or `source.able` paths for faster focused updates/checks, for example:

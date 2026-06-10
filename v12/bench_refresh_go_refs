@@ -1,0 +1,393 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Rebuild and measure the sibling Go reference programs in the same process
+# lane used for Able's external compiler comparisons. Builds and verification
+# are deliberately outside each timed program process.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+bench_repo="$REPO_ROOT/../benchmarks"
+benchmarks_csv="fib,binarytrees,quicksort,i_before_e,base64,json,monte_carlo_pi,pidigits,mandelbrot,reverse_complement"
+runs=5
+timeout_seconds=45
+cpu_affinity="${ABLE_BENCH_CPU_AFFINITY:-}"
+gomaxprocs=""
+output_json=""
+output_md=""
+workdir=""
+keep_tmp=false
+require_quiet_cpu=false
+
+usage() {
+  cat <<'EOF'
+Usage: v12/bench_refresh_go_refs [options]
+
+Rebuilds sibling Go reference programs, then times their executables with the
+same process lane used for compiled Able comparisons. Each successful stdout is
+checked with the benchmark suite's verify.rb script.
+
+Options:
+      --benchmark-repo DIR  External benchmarks repository (default: ../benchmarks)
+  -b, --benchmarks CSV      Benchmark names (default: current compiled Go rows)
+  -r, --runs N              Timed processes per benchmark (default: 5)
+  -t, --timeout SEC         Timeout per process (default: 45)
+      --cpu-affinity CPUSET CPU pool from which each benchmark's catalog CPU
+                            budget is resolved (default: current allowed CPUs)
+      --require-quiet-cpu  Require the first resolved serial CPU to pass the
+                           host preflight before creating reference artifacts
+      --gomaxprocs N        Require this GOMAXPROCS for every selected row;
+                            it must match each catalog CPU budget
+      --output-json PATH    Write a report with individual verifier-backed run samples
+      --output-md PATH      Write Markdown report
+      --workdir DIR         Keep build/run artifacts in DIR
+      --keep                Keep the generated temporary workdir
+  -h, --help                Show this help
+EOF
+}
+
+die() {
+  echo "bench_refresh_go_refs: $*" >&2
+  exit 1
+}
+
+is_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --benchmark-repo)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"
+      bench_repo="$1"
+      ;;
+    -b|--benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      ;;
+    -r|--runs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --runs"
+      runs="$1"
+      ;;
+    -t|--timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    --cpu-affinity)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --cpu-affinity"
+      cpu_affinity="$1"
+      ;;
+    --cpu-affinity=*)
+      cpu_affinity="${1#*=}"
+      ;;
+    --require-quiet-cpu)
+      require_quiet_cpu=true
+      ;;
+    --gomaxprocs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --gomaxprocs"
+      gomaxprocs="$1"
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-json"
+      output_json="$1"
+      ;;
+    --output-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-md"
+      output_md="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --keep)
+      keep_tmp=true
+      ;;
+    -* )
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
+is_int "$timeout_seconds" && ((timeout_seconds > 0)) || die "--timeout must be a positive integer"
+if [[ -n "$gomaxprocs" ]]; then
+  is_int "$gomaxprocs" && ((gomaxprocs > 0)) || die "--gomaxprocs must be a positive integer"
+fi
+
+bench_repo="$(realpath "$bench_repo")"
+[[ -d "$bench_repo" ]] || die "benchmark repository not found: $bench_repo"
+command -v go >/dev/null 2>&1 || die "go is required"
+command -v ruby >/dev/null 2>&1 || die "ruby is required for suite verification"
+
+command -v taskset >/dev/null 2>&1 || die "taskset is required for benchmark CPU contracts"
+cpu_pool="$(bench_external_effective_cpu_pool "$cpu_affinity")" || die "cannot resolve benchmark CPU pool"
+taskset -c "$cpu_pool" true >/dev/null 2>&1 || die "invalid CPU pool: $cpu_pool"
+if [[ "$require_quiet_cpu" == true ]]; then
+  quiet_cpu="$(bench_external_resolve_cpu_affinity "$cpu_pool" 1)" || die "cannot resolve quiet-check CPU"
+  "$SCRIPT_DIR/bench_host_cpu_check" --cpu "$quiet_cpu"
+fi
+
+mkdir -p "$SCRIPT_DIR/tmp"
+if [[ -z "$workdir" ]]; then
+  workdir="$(mktemp -d "$SCRIPT_DIR/tmp/go-reference-refresh.XXXXXX")"
+else
+  workdir="$(realpath -m "$workdir")"
+  mkdir -p "$workdir"
+fi
+if [[ "$keep_tmp" == false ]]; then
+  trap 'rm -rf "$workdir"' EXIT
+fi
+
+if [[ -n "$output_json" ]]; then
+  output_json="$(realpath -m "$output_json")"
+  mkdir -p "$(dirname "$output_json")"
+fi
+if [[ -n "$output_md" ]]; then
+  output_md="$(realpath -m "$output_md")"
+  mkdir -p "$(dirname "$output_md")"
+fi
+
+go_version="$(go version)"
+rows_file="$workdir/rows.tsv"
+samples_file="$workdir/samples.tsv"
+: > "$rows_file"
+: > "$samples_file"
+
+IFS=',' read -r -a benchmarks <<< "$benchmarks_csv"
+
+go_source_for_suite() {
+  local suite_dir="$1"
+  if [[ -f "$suite_dir/go-1.26/app.go" ]]; then
+    printf '%s\n' "$suite_dir/go-1.26/app.go"
+    return 0
+  fi
+  if [[ -f "$suite_dir/app.go" ]]; then
+    printf '%s\n' "$suite_dir/app.go"
+    return 0
+  fi
+  return 1
+}
+
+program_args_for_benchmark() {
+  local benchmark="$1"
+  local argument
+  while IFS= read -r argument; do
+    [[ -n "$argument" ]] || continue
+    printf '%s\0' "$argument"
+  done < <(bench_external_program_args "$benchmark")
+  if [[ "$benchmark" == "binarytrees" ]]; then
+    printf '%s\0' "21"
+  fi
+}
+
+record_row() {
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "$rows_file"
+}
+
+record_sample() {
+  printf '%s\t%s\t%s\t%s\t%s\n' "$@" >> "$samples_file"
+}
+
+printf '%-20s %-10s %-10s %-10s %-12s\n' "benchmark" "ok/runs" "timeout" "failure" "real_avg(s)"
+
+for benchmark in "${benchmarks[@]}"; do
+  [[ -n "$benchmark" ]] || continue
+  suite_dir="$(bench_external_suite_dir "$bench_repo" "$benchmark")"
+  [[ -d "$suite_dir" ]] || die "benchmark suite not found for $benchmark: $suite_dir"
+  run_dir="$(bench_external_run_dir "$bench_repo" "$benchmark")"
+  [[ -d "$run_dir" ]] || die "benchmark run directory not found for $benchmark: $run_dir"
+  source_path="$(go_source_for_suite "$suite_dir")" || die "no Go 1.26 source for $benchmark"
+  source_sha256="$(sha256sum "$source_path" | awk '{print $1}')"
+  verify_script="$suite_dir/verify.rb"
+  [[ -f "$verify_script" ]] || die "missing verifier for $benchmark: $verify_script"
+  logical_cpu_budget="$(bench_external_logical_cpu_budget "$benchmark" compiled)" || die "missing compiled CPU budget for $benchmark"
+  resolved_affinity="$(bench_external_resolve_cpu_affinity "$cpu_pool" "$logical_cpu_budget")" || \
+    die "CPU pool $cpu_pool cannot satisfy $benchmark compiled budget $logical_cpu_budget"
+  executor_policy="$(bench_external_executor_policy "$benchmark")"
+  benchmark_gomaxprocs="$logical_cpu_budget"
+  if [[ -n "$gomaxprocs" ]]; then
+    [[ "$gomaxprocs" == "$logical_cpu_budget" ]] || \
+      die "--gomaxprocs $gomaxprocs conflicts with $benchmark compiled CPU budget $logical_cpu_budget"
+    benchmark_gomaxprocs="$gomaxprocs"
+  fi
+  launch_prefix=(taskset -c "$resolved_affinity")
+
+  if [[ -f "$suite_dir/setup.rb" ]]; then
+    ruby "$suite_dir/setup.rb" >/dev/null
+  fi
+
+  benchmark_dir="$workdir/$benchmark"
+  mkdir -p "$benchmark_dir"
+  binary_path="$benchmark_dir/reference-go"
+  go build -o "$binary_path" "$source_path"
+
+  program_args=()
+  while IFS= read -r -d '' argument; do
+    program_args+=("$argument")
+  done < <(program_args_for_benchmark "$benchmark")
+
+  ok=0
+  timed_out=0
+  failed=0
+  verification_failed=0
+  total_ns=0
+  stdout_hashes=()
+  for ((run_index = 1; run_index <= runs; run_index++)); do
+    stdout_path="$benchmark_dir/run-${run_index}.stdout"
+    stderr_path="$benchmark_dir/run-${run_index}.stderr"
+    start_ns="$(date +%s%N)"
+    set +e
+    (
+      cd "$run_dir"
+      env GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS="$benchmark_gomaxprocs" "${launch_prefix[@]}" \
+        timeout --signal=INT --kill-after=5 "$timeout_seconds" "$binary_path" "${program_args[@]}"
+    ) >"$stdout_path" 2>"$stderr_path"
+    run_status=$?
+    set -e
+    end_ns="$(date +%s%N)"
+    duration_ns=$((end_ns - start_ns))
+
+    if [[ "$run_status" -eq 124 || "$run_status" -eq 137 || "$run_status" -eq 143 ]]; then
+      timed_out=$((timed_out + 1))
+      record_sample "$benchmark" "$run_index" "timeout" "n/a" "n/a"
+      continue
+    fi
+    if [[ "$run_status" -ne 0 ]]; then
+      failed=$((failed + 1))
+      record_sample "$benchmark" "$run_index" "error" "n/a" "n/a"
+      continue
+    fi
+    if ! ruby "$verify_script" < "$stdout_path"; then
+      verification_failed=$((verification_failed + 1))
+      failed=$((failed + 1))
+      record_sample "$benchmark" "$run_index" "verification_failed" "$duration_ns" "$(sha256sum "$stdout_path" | awk '{print $1}')"
+      continue
+    fi
+
+    total_ns=$((total_ns + duration_ns))
+    ok=$((ok + 1))
+    stdout_hash="$(sha256sum "$stdout_path" | awk '{print $1}')"
+    stdout_hashes+=("$stdout_hash")
+    record_sample "$benchmark" "$run_index" "ok" "$duration_ns" "$stdout_hash"
+  done
+
+  unique_hashes="$(printf '%s\n' "${stdout_hashes[@]}" | sed '/^$/d' | sort -u | paste -sd, -)"
+  validation="verified"
+  if ((verification_failed > 0)); then
+    validation="failed"
+  elif ((ok > 1)) && [[ "$unique_hashes" == *,* ]]; then
+    # Some public benchmarks intentionally print a statistically valid but
+    # randomized answer. Their suite verifier, rather than byte-for-byte
+    # stdout identity, is the correctness contract.
+    validation="verified-nondeterministic"
+  elif ((ok == 0)); then
+    validation="unavailable"
+  fi
+
+  average_seconds="n/a"
+  if ((ok > 0)); then
+    average_seconds="$(awk -v total="$total_ns" -v count="$ok" 'BEGIN { printf "%.4f", total / count / 1000000000 }')"
+  fi
+  printf '%-20s %d/%-7d %-10d %-10d %-12s\n' "$benchmark" "$ok" "$runs" "$timed_out" "$failed" "$average_seconds"
+  record_row "$benchmark" "$source_path" "$source_sha256" "$runs" "$ok" "$timed_out" "$failed" "$average_seconds" "$validation" "$unique_hashes" \
+    "$logical_cpu_budget" "$resolved_affinity" "$executor_policy"
+done
+
+if [[ -n "$output_json" || -n "$output_md" ]]; then
+  ruby - "$rows_file" "$samples_file" "$output_json" "$output_md" "$bench_repo" "$go_version" "$runs" "$timeout_seconds" "$cpu_pool" "$gomaxprocs" <<'RUBY'
+require "json"
+require "time"
+
+rows_path, samples_path, json_path, md_path, bench_repo, go_version, runs, timeout, cpu_pool, gomaxprocs = ARGV
+samples_by_benchmark = Hash.new { |hash, key| hash[key] = [] }
+File.readlines(samples_path, chomp: true).reject(&:empty?).each do |line|
+  benchmark, run, status, duration_ns, stdout_hash = line.split("\t", 5)
+  samples_by_benchmark[benchmark] << {
+    "run" => run.to_i,
+    "status" => status,
+    "real_seconds" => duration_ns == "n/a" ? nil : duration_ns.to_f / 1_000_000_000,
+    "stdout_sha256" => stdout_hash == "n/a" ? nil : stdout_hash,
+  }
+end
+rows = File.readlines(rows_path, chomp: true).reject(&:empty?).map do |line|
+  benchmark, source, source_sha256, requested_runs, ok, timed_out, failed, average, validation, hashes,
+    logical_cpu_budget, resolved_affinity, executor_policy = line.split("\t", 13)
+  {
+    "benchmark" => benchmark,
+    "source" => source,
+    "source_sha256" => source_sha256,
+    "requested_runs" => requested_runs.to_i,
+    "ok_runs" => ok.to_i,
+    "timeouts" => timed_out.to_i,
+    "failures" => failed.to_i,
+    "avg_real_seconds" => average == "n/a" ? nil : average.to_f,
+    "samples" => samples_by_benchmark[benchmark],
+    "validation" => validation,
+    "stdout_sha256" => hashes.empty? ? [] : hashes.split(","),
+    "execution_contract" => {
+      "mode" => "compiled",
+      "logical_cpu_budget" => logical_cpu_budget.to_i,
+      "cpu_affinity" => resolved_affinity,
+      "executor_policy" => executor_policy,
+    },
+  }
+end
+report = {
+  "generated_at" => Time.now.utc.iso8601,
+  "benchmark_repo" => bench_repo,
+  "go_version" => go_version,
+  "runs" => runs.to_i,
+  "timeout_seconds" => timeout.to_i,
+  "cpu_affinity" => cpu_pool,
+  "cpu_affinity_pool" => cpu_pool,
+  "gomaxprocs" => gomaxprocs.empty? ? nil : gomaxprocs.to_i,
+  "rows" => rows,
+}
+File.write(json_path, JSON.pretty_generate(report) + "\n") unless json_path.empty?
+unless md_path.empty?
+  lines = [
+    "# Pinned Go Reference Refresh",
+    "",
+    "- Generated: `#{report.fetch("generated_at")}`",
+    "- Go: `#{go_version}`",
+    "- Runs: `#{runs}`",
+    "- Timeout: `#{timeout}s`",
+    "- CPU pool: `#{cpu_pool}`",
+    "- GOMAXPROCS: `#{gomaxprocs.empty? ? "catalog CPU budget per row" : gomaxprocs}`",
+    "",
+    "| Benchmark | Go status | Validation | Go real (s) | Source SHA-256 | Stdout SHA-256 |",
+    "| --- | --- | --- | ---: | --- | --- |",
+  ]
+  rows.each do |row|
+    status = "#{row.fetch("ok_runs")}/#{row.fetch("requested_runs")}" \
+      " (timeouts #{row.fetch("timeouts")}, failures #{row.fetch("failures")})"
+    average = row.fetch("avg_real_seconds")&.then { |value| format("%.4f", value) } || "n/a"
+    contract = row.fetch("execution_contract")
+    lines << "| `#{row.fetch("benchmark")}` | #{status} | #{row.fetch("validation")} | #{average} | #{row.fetch("source_sha256")} | #{row.fetch("stdout_sha256").join(",")} |"
+  end
+  File.write(md_path, lines.join("\n") + "\n")
+end
+RUBY
+fi
+
+[[ -z "$output_json" ]] || echo ">>> Wrote Go reference JSON: $output_json"
+[[ -z "$output_md" ]] || echo ">>> Wrote Go reference Markdown: $output_md"

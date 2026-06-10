@@ -1,0 +1,307 @@
+# Cross-mode performance frontier
+
+Generated from `2026-07-23T13:13:58.403356Z` scorecard evidence. This ledger joins all 97 reviewed rows; it excludes unselected status-only rows.
+
+## Outcome
+
+- Selected rows: 52 compiled + 45 bytecode = 97.
+- Product target: 8 meet, 89 miss.
+- Established cross-cohort guards: 5 (3 compiled + 2 bytecode); 3 snapshot meets are not established.
+- Aggregate time above the per-row 95%-of-reference budget: 164.127 seconds.
+- Unclosed groups: 0.
+
+## Actionable groups
+
+| Rank | Group | Action | Rows | Misses | Excess s | Max ratio | Freshness |
+| ---: | --- | --- | ---: | ---: | ---: | ---: | --- |
+| - | None | - | - | - | - | - | - |
+
+## Complete selected-row ledger
+
+`Excess s` is Able wall time beyond the fastest applicable reference multiplied by the allowed ratio (1 / 0.95). `Established` is a separate cross-cohort candidate-admission guard and never rewrites snapshot status.
+
+| Benchmark | Mode | Snapshot | Established | Stability | Able s | Worst ratio | Excess s | Freshness | Disposition | Group |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: | --- | --- | --- |
+| array_slice_window | bytecode | miss | not-applicable | - | 0.744 | 12.197 | 0.680 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `bytecode-iterator-control` |
+| await_channel_mux | bytecode | meets | not-established | variance-sensitive-miss | 0.200 | 0.932 | 0.000 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| base64 | bytecode | miss | not-applicable | - | 2.840 | 1.113 | 0.155 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
+| binary_event_log | bytecode | miss | not-applicable | - | 7.026 | 39.494 | 6.839 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| channel_rollup | bytecode | miss | not-applicable | - | 0.538 | 11.423 | 0.488 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_document_pipeline | bytecode | miss | not-applicable | - | 0.290 | 12.664 | 0.266 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_event_routing | bytecode | miss | not-applicable | - | 3.256 | 96.905 | 3.221 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_signal_dispatch | bytecode | miss | not-applicable | - | 1.614 | 26.373 | 1.550 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_stencil_reduction | bytecode | miss | not-applicable | - | 1.862 | 19.335 | 1.761 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_text_index | bytecode | miss | not-applicable | - | 0.768 | 7.893 | 0.666 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| config_validation_extraction | bytecode | miss | not-applicable | - | 1.380 | 63.303 | 1.357 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| dependency_plan | bytecode | miss | not-applicable | - | 0.556 | 28.808 | 0.536 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `bytecode-iterator-control` |
+| dependency_wave_validation | bytecode | miss | not-applicable | - | 0.562 | 15.921 | 0.525 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| distance_field | bytecode | miss | not-applicable | - | 5.914 | 15.254 | 5.506 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| document_audit | bytecode | miss | not-applicable | - | 0.296 | 19.866 | 0.280 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `bytecode-iterator-control` |
+| fasta_generation | bytecode | miss | not-applicable | - | 1.900 | 9.126 | 1.681 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
+| fixed_width_128 | bytecode | miss | not-applicable | - | 8.522 | 24.321 | 8.153 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
+| future_await_race | bytecode | miss | not-applicable | - | 0.152 | 4.578 | 0.117 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| future_pipeline | bytecode | miss | not-applicable | - | 0.458 | 7.316 | 0.392 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| i_before_e | bytecode | miss | not-applicable | - | 0.534 | 6.350 | 0.445 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| inventory_reconciliation | bytecode | miss | not-applicable | - | 2.624 | 34.987 | 2.545 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| json | bytecode | meets | established | established-meet | 0.894 | 0.464 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `bytecode-target-guards` |
+| k_nucleotide | bytecode | miss | not-applicable | - | 46.530 | 31.785 | 44.989 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| lexical_rollup | bytecode | miss | not-applicable | - | 0.448 | 16.654 | 0.420 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `bytecode-iterator-control` |
+| log_routing_redaction | bytecode | miss | not-applicable | - | 3.128 | 142.831 | 3.105 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| mandelbrot | bytecode | miss | not-applicable | - | 6.814 | 4.580 | 5.248 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| manifest_normalization | bytecode | miss | not-applicable | - | 1.582 | 63.534 | 1.556 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| monte_carlo_pi | bytecode | miss | not-applicable | - | 2.644 | 1.549 | 0.848 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| mutex_await_journal | bytecode | miss | not-applicable | - | 0.196 | 6.490 | 0.164 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| mutex_ledger | bytecode | miss | not-applicable | - | 0.376 | 10.899 | 0.340 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| mutex_work_queue | bytecode | miss | not-applicable | - | 0.340 | 11.724 | 0.309 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| option_result_config | bytecode | miss | not-applicable | - | 0.834 | 43.665 | 0.814 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `bytecode-iterator-control` |
+| pidigits | bytecode | meets | established | established-meet | 2.454 | 0.562 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `bytecode-target-guards` |
+| policy_record_dispatch | bytecode | miss | not-applicable | - | 7.452 | 234.340 | 7.419 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| rational_series | bytecode | miss | not-applicable | - | 4.326 | 22.828 | 4.127 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
+| regex_set_audit | bytecode | miss | not-applicable | - | 4.518 | 175.116 | 4.491 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| regex_stream_audit | bytecode | miss | not-applicable | - | 3.596 | 123.151 | 3.565 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| regex_suffix_audit | bytecode | miss | not-applicable | - | 3.552 | 111.348 | 3.518 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| reverse_complement | bytecode | miss | not-applicable | - | 3.758 | 99.156 | 3.718 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
+| rms_norm | bytecode | miss | not-applicable | - | 4.754 | 6.143 | 3.939 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| sensor_calibration | bytecode | miss | not-applicable | - | 3.794 | 114.622 | 3.759 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| unicode_scalar_pipeline | bytecode | miss | not-applicable | - | 3.650 | 10.964 | 3.300 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| validated_job_pipeline | bytecode | miss | not-applicable | - | 0.380 | 14.449 | 0.352 | current-exact-concurrent-signal-dispatch-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| wide_integer_records | bytecode | miss | not-applicable | - | 5.586 | 71.432 | 5.504 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
+| word_frequency | bytecode | miss | not-applicable | - | 1.414 | 60.427 | 1.389 | current-exact-sensor-calibration-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| array_slice_window | compiled | miss | not-applicable | - | 0.098 | 20.851 | 0.093 | current-exact-post-abi-owner-refresh | closed-no-shared-leaf | `compiled-iterator-control` |
+| await_channel_mux | compiled | miss | not-applicable | - | 0.360 | 65.455 | 0.354 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| base64 | compiled | meets | not-established | volatile-crossing | 2.448 | 0.922 | 0.000 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
+| binary_event_log | compiled | miss | not-applicable | - | 0.536 | 59.556 | 0.527 | current-exact-post-abi-owner-refresh | closed-no-shared-leaf | `compiled-iterator-control` |
+| binarytrees | compiled | meets | established | established-meet | 11.444 | 0.959 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
+| channel_rollup | compiled | miss | not-applicable | - | 0.598 | 94.921 | 0.591 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_document_pipeline | compiled | miss | not-applicable | - | 0.284 | 55.686 | 0.279 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_event_routing | compiled | miss | not-applicable | - | 2.914 | 520.357 | 2.908 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_signal_dispatch | compiled | miss | not-applicable | - | 0.270 | 51.923 | 0.265 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_stencil_reduction | compiled | miss | not-applicable | - | 0.214 | 41.961 | 0.209 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_text_index | compiled | miss | not-applicable | - | 0.996 | 155.625 | 0.989 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| config_validation_extraction | compiled | miss | not-applicable | - | 0.130 | 27.660 | 0.125 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| dependency_plan | compiled | miss | not-applicable | - | 0.094 | 18.431 | 0.089 | current-exact-post-abi-owner-refresh | closed-no-shared-leaf | `compiled-iterator-control` |
+| dependency_wave_validation | compiled | miss | not-applicable | - | 1.444 | 335.814 | 1.439 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| distance_field | compiled | miss | not-applicable | - | 0.090 | 6.767 | 0.076 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| document_audit | compiled | miss | not-applicable | - | 0.102 | 19.245 | 0.096 | current-exact-post-abi-owner-refresh | closed-no-shared-leaf | `compiled-iterator-control` |
+| fasta_generation | compiled | miss | not-applicable | - | 0.110 | 6.433 | 0.092 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
+| fib | compiled | miss | not-applicable | - | 4.934 | 1.447 | 1.344 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
+| fixed_width_128 | compiled | miss | not-applicable | - | 0.206 | 35.517 | 0.200 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
+| future_await_race | compiled | miss | not-applicable | - | 0.106 | 21.633 | 0.101 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| future_pipeline | compiled | miss | not-applicable | - | 0.396 | 69.474 | 0.390 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| i_before_e | compiled | miss | not-applicable | - | 0.122 | 1.915 | 0.055 | current-exact-sensor-calibration-refresh | closed-no-shared-leaf | `compiled-text-map` |
+| inventory_reconciliation | compiled | miss | not-applicable | - | 0.212 | 22.083 | 0.202 | current-exact-sensor-calibration-refresh | closed-no-shared-leaf | `compiled-text-map` |
+| json | compiled | meets | established | established-meet | 0.742 | 0.453 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
+| k_nucleotide | compiled | miss | not-applicable | - | 2.898 | 35.822 | 2.813 | current-exact-sensor-calibration-refresh | closed-no-shared-leaf | `compiled-text-map` |
+| lexical_rollup | compiled | miss | not-applicable | - | 0.120 | 22.222 | 0.114 | current-exact-post-abi-owner-refresh | closed-no-shared-leaf | `compiled-iterator-control` |
+| log_routing_redaction | compiled | miss | not-applicable | - | 0.144 | 24.828 | 0.138 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| mandelbrot | compiled | miss | not-applicable | - | 0.128 | 2.429 | 0.073 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| manifest_normalization | compiled | miss | not-applicable | - | 0.226 | 48.085 | 0.221 | current-exact-sensor-calibration-refresh | closed-no-shared-leaf | `compiled-text-map` |
+| matrixmultiply | compiled | miss | not-applicable | - | 1.214 | 1.132 | 0.085 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `compiled-current-control` |
+| monte_carlo_pi | compiled | meets | not-established | volatile-crossing | 0.192 | 0.679 | 0.000 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| mutex_await_journal | compiled | miss | not-applicable | - | 0.812 | 180.444 | 0.807 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| mutex_ledger | compiled | miss | not-applicable | - | 0.820 | 160.784 | 0.815 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| mutex_work_queue | compiled | miss | not-applicable | - | 2.330 | 448.077 | 2.325 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| nbody | compiled | miss | not-applicable | - | 0.172 | 4.550 | 0.132 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| option_result_config | compiled | miss | not-applicable | - | 0.176 | 33.846 | 0.171 | current-exact-post-abi-owner-refresh | closed-no-shared-leaf | `compiled-iterator-control` |
+| pidigits | compiled | miss | not-applicable | - | 1.320 | 1.066 | 0.016 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
+| policy_record_dispatch | compiled | miss | not-applicable | - | 0.226 | 25.977 | 0.217 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| quicksort | compiled | meets | established | established-meet | 1.912 | 0.713 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
+| rational_series | compiled | miss | not-applicable | - | 0.128 | 8.828 | 0.113 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
+| regex_set_audit | compiled | miss | not-applicable | - | 0.144 | 20.571 | 0.137 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| regex_stream_audit | compiled | miss | not-applicable | - | 0.160 | 25.806 | 0.153 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| regex_suffix_audit | compiled | miss | not-applicable | - | 0.168 | 26.250 | 0.161 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| reverse_complement | compiled | miss | not-applicable | - | 0.114 | 6.667 | 0.096 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
+| rms_norm | compiled | miss | not-applicable | - | 0.088 | 7.395 | 0.075 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| sensor_calibration | compiled | miss | not-applicable | - | 0.256 | 50.196 | 0.251 | current-exact-sensor-calibration-refresh | closed-no-shared-leaf | `compiled-text-map` |
+| sudoku_masks | compiled | miss | not-applicable | - | 1.906 | 3.296 | 1.297 | current-exact-post-truthiness-cast-shared-semantics | closed-insufficient-breadth | `compiled-sudoku-quotient` |
+| tapelang_alphabet | compiled | miss | not-applicable | - | 4.046 | 1.890 | 1.793 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `compiled-current-control` |
+| unicode_scalar_pipeline | compiled | miss | not-applicable | - | 0.306 | 27.568 | 0.294 | current-exact-sensor-calibration-refresh | closed-no-shared-leaf | `compiled-text-map` |
+| validated_job_pipeline | compiled | miss | not-applicable | - | 1.046 | 275.263 | 1.042 | current-exact-concurrent-signal-dispatch-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| wide_integer_records | compiled | miss | not-applicable | - | 0.184 | 6.891 | 0.156 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
+| word_frequency | compiled | miss | not-applicable | - | 0.180 | 30.508 | 0.174 | current-exact-sensor-calibration-refresh | closed-no-shared-leaf | `compiled-text-map` |
+
+## Cross-cohort stability evidence
+
+### `await_channel_mux/bytecode`
+
+- Classification: `variance-sensitive-miss`; established guard: `not-established`; pooled limiting ratio: 1.218x ruby; cohort ratios: 1.726, 0.932.
+- Samples: 10 Able and 10 limiting-reference; Able source: `31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: The new snapshot meets, but the immediately preceding cohort and the pooled limiting Ruby ratio miss, so Await Channel Mux is not a durable guard.
+- Evidence: [2026-07-20-current-product-scorecard-async-bytecode-02-selected.json](../../docs/perf-baselines/2026-07-20-current-product-scorecard-async-bytecode-02-selected.json), [2026-07-22-current-bytecode-scorecard.json](../../docs/perf-baselines/2026-07-22-current-bytecode-scorecard.json), [2026-07-22-current-bytecode-interpreter-scorecard-reconciliation.md](../../docs/perf-baselines/2026-07-22-current-bytecode-interpreter-scorecard-reconciliation.md).
+
+### `json/bytecode`
+
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.533x ruby; cohort ratios: 0.474, 0.593.
+- Samples: 10 Able and 10 limiting-reference; Able source: `84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-source cohorts meet against both interpreters, including the faster Ruby reference.
+- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+
+### `pidigits/bytecode`
+
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.591x python; cohort ratios: 0.563, 0.620.
+- Samples: 10 Able and 10 limiting-reference; Able source: `236a74ef456b4a5ca3e33a743a0b3b8e8767db9cfa07dd619df870bff876d5cb`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-source cohorts meet against both interpreters, including the faster Python reference.
+- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+
+### `base64/compiled`
+
+- Classification: `volatile-crossing`; established guard: `not-established`; pooled limiting ratio: 0.989x go; cohort ratios: 1.061, 0.922.
+- Samples: 10 Able and 10 limiting-reference; Able source: `b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: The pooled current-source ratio meets, but the immediately preceding five-process cohort misses narrowly, so the new snapshot crossing is not a durable guard.
+- Evidence: [2026-07-21-validated-job-file-entry-preserved-compiled.json](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-preserved-compiled.json), [2026-07-22-current-compiled-scorecard.json](../../docs/perf-baselines/2026-07-22-current-compiled-scorecard.json), [2026-07-22-current-compiled-go-scorecard-reconciliation.md](../../docs/perf-baselines/2026-07-22-current-compiled-go-scorecard-reconciliation.md).
+
+### `binarytrees/compiled`
+
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.955x go; cohort ratios: 0.934, 0.975.
+- Samples: 10 Able and 10 limiting-reference; Able source: `d973598c0ca4e88fcbe96dc852fa64a935cd651b3b85be10121222e9694293d8`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-source cohorts meet the compiled target.
+- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+
+### `json/compiled`
+
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.561x go; cohort ratios: 0.588, 0.533.
+- Samples: 10 Able and 10 limiting-reference; Able source: `84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-source cohorts meet the compiled target.
+- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+
+### `monte_carlo_pi/compiled`
+
+- Classification: `volatile-crossing`; established guard: `not-established`; pooled limiting ratio: 1.005x go; cohort ratios: 0.927, 1.158, 0.950.
+- Samples: 15 Able and 15 limiting-reference; Able source: `9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: The pooled ratio meets, but one of three independent cohorts misses materially, so this snapshot crossing is not a durable guard.
+- Evidence: [2026-07-20-threshold-stability-variance.json](../../docs/perf-baselines/2026-07-20-threshold-stability-variance.json), [2026-07-20-threshold-stability-reconciliation.md](../../docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md).
+
+### `quicksort/compiled`
+
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.740x go; cohort ratios: 0.757, 0.722.
+- Samples: 10 Able and 10 limiting-reference; Able source: `f54986a03bce5d3fa5bb8d1dd342299c1b6a434a682572d353c46d5f66c1af92`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-source cohorts meet the compiled target.
+- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+
+## Ownership and disposition evidence
+
+### `compiled-target-guards`
+
+- Disposition: `target-guard`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-target-guard-current-cohort`.
+- Owner: Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.
+- Rationale: Binary Trees, JSON, and QuickSort are established target guards. Fib currently misses after a noisy prior meet but remains a source-exact control for every admitted compiled candidate.
+- Evidence: [2026-07-20-source-equivalence-scorecard.md](../../docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md), [2026-07-20-compiled-control-current-invalidation-gate.md](../../docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md), [2026-07-20-current-two-cohort-scorecard-reconciliation.md](../../docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md), [2026-07-20-threshold-stability-reconciliation.md](../../docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md), [2026-07-21-post-i64-threshold-stability.md](../../docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md), [2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md](../../docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md), [2026-07-21-truthiness-cast-target-guard-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md), [2026-07-21-truthiness-cast-target-guards-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-compiled.json), [2026-07-21-truthiness-cast-target-guards-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-go-reference.json), [2026-07-21-truthiness-cast-target-guards-fib-c2-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-compiled.json), [2026-07-21-truthiness-cast-target-guards-fib-c2-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-go-reference.json).
+
+### `compiled-current-control`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-control-current-cohorts-and-reach`.
+- Owner: Matrix primitive nested arithmetic and TapeLang flat dispatch remain separate generated bodies.
+- Rationale: Fresh current binaries expose no compiler/runtime child shared across these control-flow programs.
+- Evidence: [2026-07-20-compiled-control-current-invalidation-gate.md](../../docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md), [2026-07-21-truthiness-cast-control-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md), [2026-07-21-truthiness-cast-control-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-reach.json), [2026-07-21-truthiness-cast-control-closures-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-compiled.json), [2026-07-21-truthiness-cast-control-closures-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-go-reference.json), [2026-07-21-truthiness-cast-control-closures-matrix-c2-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-compiled.json), [2026-07-21-truthiness-cast-control-closures-matrix-c2-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-go-reference.json), [2026-07-21-truthiness-cast-control-closures-tape-c2-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-compiled.json), [2026-07-21-truthiness-cast-control-closures-tape-c2-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-go-reference.json).
+
+### `compiled-sudoku-quotient`
+
+- Disposition: `closed-insufficient-breadth`; exact unlike-application breadth: 1; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-sudoku-current-cohorts-generated-scan-and-two-profile-merge`.
+- Owner: find_best_empty search plus square_index; signed Euclidean division is 12.53% cumulative in two current merged profiles and material only in Sudoku.
+- Rationale: All nine generated application bodies avoid corrected truthiness/cast helpers. The exact quotient helper receives zero samples in three unlike controls, and even perfect removal leaves Sudoku 2.70x short of target.
+- Evidence: [2026-07-21-truthiness-cast-sudoku-quotient-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-closure-refresh.md), [2026-07-21-truthiness-cast-sudoku-quotient-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-closure-reach.json), [2026-07-21-truthiness-cast-sudoku-quotient-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-compiled.json), [2026-07-21-truthiness-cast-sudoku-quotient-c2-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-c2-compiled.json), [2026-07-21-truthiness-cast-sudoku-quotient-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-go-reference.json), [2026-07-21-truthiness-cast-sudoku-quotient-c2-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-c2-go-reference.json), [2026-07-20-compiled-quotient-only-ownership-census.md](../../docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md).
+
+### `compiled-float-numeric`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 3; profile freshness: `current-exact-post-truthiness-cast-numeric-next`; artifact identity: `frozen-current-repeated-timing-and-exact-reach-cohorts`.
+- Owner: Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.
+- Rationale: Fresh repeated timing and exact generated-runtime telemetry preserve the prior ownership result. All five rows have zero truthiness/cast bridge reach, so the closed raw-float lane/carrier evidence remains causal.
+- Evidence: [2026-07-21-truthiness-cast-numeric-next-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md), [2026-07-21-truthiness-cast-numeric-next-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-reach.json), [2026-07-20-cross-mode-numeric-wide-profile-gate.md](../../docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md), [2026-07-20-threshold-stability-reconciliation.md](../../docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md).
+
+### `compiled-wide-numeric`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 3; profile freshness: `current-exact`; artifact identity: `preserved-binary-matched`.
+- Owner: Fresh post-semantic timing preserves the package-environment publication owner through SwapEnv/sync/atomic.StorePointer; exact compiled telemetry shows zero changed truthiness or cast-bridge reach in all three programs.
+- Rationale: The semantic correction does not reach these mains, while general execution-context and package-linkage alternatives already regressed unrelated N-Body and K-Nucleotide wall time. Nominal specialization remains prohibited.
+- Evidence: [2026-07-21-truthiness-cast-wide-text-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-refresh.md), [2026-07-21-truthiness-cast-wide-text-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-reach.json), [2026-07-20-wide-integer-records-profile-gate.md](../../docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md), [2026-07-20-cross-mode-numeric-wide-profile-gate.md](../../docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md), [2026-07-20-compiled-quotient-only-ownership-census.md](../../docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md).
+
+### `compiled-byte-output`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-refresh`; artifact identity: `frozen-current-verifier-backed-timing-and-exact-reach`.
+- Owner: Fresh post-semantic timing preserves the split among Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work; exact telemetry shows zero changed truthiness or cast-bridge reach in all four programs.
+- Rationale: The semantic correction does not reach these compiled mains. The retained write_all and generic u8 changes remain causal, and no compiler-controlled descendant is shared by three unlike applications.
+- Evidence: [2026-07-21-truthiness-cast-byte-regex-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md), [2026-07-21-truthiness-cast-byte-regex-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-reach.json), [2026-07-20-compiled-byte-output-current-profile-gate.md](../../docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md), [2026-07-18-fasta-write-all-gate.md](../../docs/perf-baselines/2026-07-18-fasta-write-all-gate.md), [2026-07-18-cross-mode-array-capacity-growth-gate.md](../../docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md).
+
+### `compiled-text-map`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 0; profile freshness: `current-exact-sensor-calibration-refresh`; artifact identity: `frozen-current-verifier-backed-timing-plus-manifest-and-sensor-main-profiles`.
+- Owner: Post-index text/map work still splits among integer conversion/equality, UTF-8/String, boxing, and allocation/GC descendants. Sensor Calibration repeats String.split, builtin string materialization, validated bytes, and Array storage, but its three profiles expose no new exact compiler leaf shared across three unlike applications.
+- Rationale: The indexed byte-conversion candidate was measured and reverted across K-Nucleotide, Policy, and Manifest. Sensor Calibration's 570 ms merged profile resolves into those closed generic string/array identities plus application parsing and GC, so no retained compiler-controlled leaf passes the broad guard.
+- Evidence: [2026-07-22-sensor-calibration-application-gate.md](../../docs/perf-baselines/2026-07-22-sensor-calibration-application-gate.md), [2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md), [2026-07-21-truthiness-cast-text-byte-next-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-reach.json), [2026-07-20-post-hash-index-profile-reconciliation.md](../../docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md), [2026-07-20-generic-hash-map-index-gate.md](../../docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md), [2026-07-21-manifest-normalization-application-gate.md](../../docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md), [2026-07-21-manifest-normalization-compiled-main-profile.txt](../../docs/perf-baselines/2026-07-21-manifest-normalization-compiled-main-profile.txt).
+
+### `compiled-regex`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 6; profile freshness: `current-exact-post-truthiness-cast-refresh`; artifact identity: `frozen-current-verifier-backed-timing-and-exact-reach`.
+- Owner: Fresh post-semantic timing preserves canonical NFA closure, move, and thread management across the related workload families. Exact telemetry finds generated truthiness only in Policy Record Dispatch, 2,048 times, with zero casts everywhere else.
+- Rationale: The changed semantic path is single-application and cannot invalidate the prior six-row NFA ownership. Closure scratch, capture templates, and primitive thread carriers are retained while arenas, state indexes, character specialization, and carrier/call alternatives already failed broad gates.
+- Evidence: [2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md), [2026-07-21-truthiness-cast-regex-concurrency-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-reach.json), [2026-07-20-regex-three-api-current-profile-gate.md](../../docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md), [2026-07-20-log-routing-redaction-profile-gate.md](../../docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md), [2026-07-20-config-validation-extraction-profile-gate.md](../../docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md).
+
+### `compiled-concurrency`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 14; profile freshness: `current-exact-concurrent-signal-dispatch-refresh`; artifact identity: `frozen-current-generated-binaries-plus-validated-job-stencil-and-signal-main-profiles`.
+- Owner: Goroutine identity through bridge.currentGID/runtime.Stack remains the exact repeated compiled wall; newly reached truthiness/cast bridges are CPU-immaterial.
+- Rationale: Concurrent Signal Dispatch is 51.923x Go in its promoted cohort. Three clean main-only profiles put bridge.currentGID at 93.75% cumulative, including ordinary user-defined interface dispatch beneath the same wall. The existing fixed-context candidate still fails broad concurrent and serial guards and is not retried.
+- Evidence: [2026-07-23-concurrent-signal-dispatch-application-gate.md](../../docs/perf-baselines/2026-07-23-concurrent-signal-dispatch-application-gate.md), [2026-07-22-concurrent-stencil-reduction-application-gate.md](../../docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-application-gate.md), [2026-07-21-truthiness-cast-architecture-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md), [2026-07-21-truthiness-cast-architecture-closure-compiled-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-compiled-reach.json), [2026-07-21-compiled-concurrency-fourteen-application-refresh.md](../../docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md), [2026-07-20-mutex-work-queue-profile-gate.md](../../docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md), [2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md](../../docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md), [2026-07-18-post-string-full-scorecard-reconciliation.md](../../docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md), [2026-07-20-feature-interaction-application-gate.md](../../docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md), [2026-07-20-dependency-wave-application-gate.md](../../docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md), [2026-07-20-concurrent-event-routing-application-gate.md](../../docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md), [2026-07-21-concurrent-document-pipeline-application-gate.md](../../docs/perf-baselines/2026-07-21-concurrent-document-pipeline-application-gate.md), [2026-07-21-concurrent-document-pipeline-promotion-compiled.md](../../docs/perf-baselines/2026-07-21-concurrent-document-pipeline-promotion-compiled.md), [2026-07-21-concurrent-document-pipeline-compiled-main-profile.txt](../../docs/perf-baselines/2026-07-21-concurrent-document-pipeline-compiled-main-profile.txt), [2026-07-21-validated-job-file-entry-application-gate.md](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-application-gate.md), [2026-07-21-validated-job-file-entry-comparison-d.json](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-comparison-d.json), [2026-07-21-validated-job-file-entry-compiled-main-profile.txt](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-compiled-main-profile.txt).
+
+### `compiled-iterator-control`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-abi-owner-refresh`; artifact identity: `retained-current-binaries-with-repeated-wall-cpu-counter-and-allocation-owner-evidence`.
+- Owner: The shared escaping NativeBoundMethodValue box has been removed. Fresh post-ABI CPU, exact-counter, and allocation-owner evidence across eight unlike programs splits the residual wall among union method bodies, text/map boxing, direct numeric arithmetic, and closed goroutine identity.
+- Rationale: The retained direct-known-method and split-receiver ABI changes eliminated the admitted shared box. The post-ABI owner refresh found no open concrete generated/runtime successor in three unlike applications, so this group remains closed rather than advancing a benchmark-specific candidate.
+- Evidence: [2026-07-22-compiled-post-abi-current-profile-refresh.md](../../docs/perf-baselines/2026-07-22-compiled-post-abi-current-profile-refresh.md), [2026-07-22-compiled-post-abi-current-profile-refresh.json](../../docs/perf-baselines/2026-07-22-compiled-post-abi-current-profile-refresh.json), [2026-07-22-compiled-split-receiver-method-abi-gate.md](../../docs/perf-baselines/2026-07-22-compiled-split-receiver-method-abi-gate.md), [2026-07-22-compiled-generic-union-direct-known-method-gate.md](../../docs/perf-baselines/2026-07-22-compiled-generic-union-direct-known-method-gate.md), [2026-07-22-compiled-generic-union-direct-known-method-gate.json](../../docs/perf-baselines/2026-07-22-compiled-generic-union-direct-known-method-gate.json), [2026-07-22-compiled-nominal-result-allocation-shape-census.md](../../docs/perf-baselines/2026-07-22-compiled-nominal-result-allocation-shape-census.md), [2026-07-22-compiled-nominal-result-allocation-shape-census.json](../../docs/perf-baselines/2026-07-22-compiled-nominal-result-allocation-shape-census.json), [2026-07-22-binary-event-log-application-gate.md](../../docs/perf-baselines/2026-07-22-binary-event-log-application-gate.md), [2026-07-21-truthiness-cast-near-path-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-refresh.md), [2026-07-21-truthiness-cast-near-path-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-reach.json), [2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md](../../docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md), [2026-07-20-current-iterator-control-profile-refresh.md](../../docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md), [2026-07-18-cross-mode-array-capacity-growth-gate.md](../../docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md).
+
+### `bytecode-target-guards`
+
+- Disposition: `target-guard`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-target-guard-current-cohort`.
+- Owner: JSON host decoding and PiDigits BigInt/native output are protected target-meeting rows.
+- Rationale: Every admitted VM candidate must preserve these current target meets.
+- Evidence: [2026-07-20-source-equivalence-scorecard.md](../../docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md), [2026-07-21-truthiness-cast-target-guard-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md), [2026-07-21-truthiness-cast-target-guards-bytecode.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-bytecode.json), [2026-07-21-truthiness-cast-target-guards-interpreter-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-interpreter-reference.json).
+
+### `bytecode-float-numeric`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 3; profile freshness: `current-exact-post-truthiness-cast-near-path`; artifact identity: `frozen-current-repeated-timing-and-exact-reach-cohorts`.
+- Owner: Validated float-slot reads and retained raw float arithmetic recur across three unlike scalar programs; Matrix dot-loop/Array, Monte Carlo integer recurrence/cast, and Reverse byte/Array work separate the concrete consumers.
+- Rationale: Fresh repeated timing and two exact main-only censuses per selected row preserve the six-application ownership result. Every row has zero changed Error-truthiness fallback and zero explicit-cast reach, so the closed float carrier and dispatcher evidence remains causal.
+- Evidence: [2026-07-21-truthiness-cast-near-path-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-refresh.md), [2026-07-21-truthiness-cast-near-path-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-reach.json), [2026-07-21-bytecode-float-numeric-six-application-refresh.md](../../docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md), [2026-07-20-cross-mode-numeric-wide-profile-gate.md](../../docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md).
+
+### `bytecode-wide-numeric`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 4; profile freshness: `current-exact-post-truthiness-cast-numeric-next`; artifact identity: `frozen-current-repeated-timing-reach-and-main-profile-cohorts`.
+- Owner: Raw integer extraction recurs across the three wide programs and Reverse Complement, but its consumers split among checked wide operations, casts, comparisons, parsing, bitwise work, member calls, and byte loops.
+- Rationale: Two exact censuses per row find zero changed Error fallback; Rational and Wide reach successful explicit casts, but four current profiles put zero flat CPU in the catchable wrapper. Their raw conversion and target-canonicalization descendants remain two-row owners whose general bypass already reversed sign across broad wall cohorts.
+- Evidence: [2026-07-21-truthiness-cast-numeric-next-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md), [2026-07-21-truthiness-cast-numeric-next-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-reach.json), [2026-07-21-bytecode-wide-numeric-five-application-refresh.md](../../docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md), [2026-07-20-wide-integer-records-profile-gate.md](../../docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md), [2026-07-20-cross-mode-numeric-wide-profile-gate.md](../../docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md).
+
+### `bytecode-byte-output`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 3; profile freshness: `current-exact-post-truthiness-cast-refresh`; artifact identity: `frozen-current-verifier-backed-timing-and-exact-reach`.
+- Owner: Fresh post-semantic timing preserves the residual split among Base64 host kernels, Reverse Array/extern work, and FASTA call/arithmetic work. Two exact censuses per row find only four primitive truthiness checks in Reverse and zero changed paths everywhere.
+- Rationale: The retained generic monomorphic u8 path remains causal, while the semantic correction has zero material reach and exposes no second shared descendant across all three applications.
+- Evidence: [2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md), [2026-07-21-truthiness-cast-text-byte-next-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-reach.json), [2026-07-20-bytecode-byte-output-current-profile-gate.md](../../docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md), [2026-07-18-fasta-write-all-gate.md](../../docs/perf-baselines/2026-07-18-fasta-write-all-gate.md), [2026-07-18-cross-mode-array-capacity-growth-gate.md](../../docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md), [2026-07-20-threshold-stability-reconciliation.md](../../docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md).
+
+### `bytecode-text-map`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 7; profile freshness: `current-exact-sensor-calibration-main-profile`; artifact identity: `frozen-current-verifier-backed-timing-plus-binary-event-and-sensor-runtime-profiles`.
+- Owner: Binary Event Log and Sensor Calibration repeat raw-integer extraction, call/member dispatch, type matching, Go map access, and allocation/GC ancestry already present in text/map workloads; their concrete binary/text parsing and Result consumers remain distinct.
+- Rationale: Sensor Calibration's three verified profiles put bytecodeRawIntegerValueInfo at 2.06% flat and repeat checked stack append and snapshot costs. Those exact generic families are already material in at least six unlike applications and have repeatedly failed broad guards; type-match and map descendants remain cumulative parents or workload-specific children, so no bytecode candidate is admitted.
+- Evidence: [2026-07-22-sensor-calibration-application-gate.md](../../docs/perf-baselines/2026-07-22-sensor-calibration-application-gate.md), [2026-07-22-binary-event-log-application-gate.md](../../docs/perf-baselines/2026-07-22-binary-event-log-application-gate.md), [2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md](../../docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md), [2026-07-21-truthiness-cast-wide-text-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-refresh.md), [2026-07-21-truthiness-cast-wide-text-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-reach.json), [2026-07-21-bytecode-text-map-five-application-refresh.md](../../docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md), [2026-07-20-post-hash-index-profile-reconciliation.md](../../docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md), [2026-07-20-generic-hash-map-index-gate.md](../../docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md), [2026-07-21-manifest-normalization-application-gate.md](../../docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md), [2026-07-21-manifest-normalization-bytecode-runtime-profile.json](../../docs/perf-baselines/2026-07-21-manifest-normalization-bytecode-runtime-profile.json).
+
+### `bytecode-regex`
+
+- Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 6; profile freshness: `current-exact-post-truthiness-cast-refresh`; artifact identity: `frozen-current-verifier-backed-timing-and-exact-reach`.
+- Owner: Fresh post-semantic timing and two exact censuses per row find 208,060-1,565,212 primitive truthiness checks but zero changed Error fallbacks or casts. Prior profiles still place the shared work in canonical NFA Array-slot cache/read and small named-struct field checks.
+- Rationale: The semantic correction has zero changed-path reach. The current direct Array cache is allocation-free and its remaining version checks preserve invalidation, while general field-map and NFA carrier/index/arena alternatives already failed broad wall-time gates.
+- Evidence: [2026-07-21-truthiness-cast-byte-regex-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md), [2026-07-21-truthiness-cast-byte-regex-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-reach.json), [2026-07-21-bytecode-regex-seven-application-refresh.md](../../docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md), [2026-07-21-bytecode-secondary-architecture-selection.md](../../docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md), [2026-07-20-regex-three-api-current-profile-gate.md](../../docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md).
+
+### `bytecode-concurrency`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 14; profile freshness: `current-exact-concurrent-signal-dispatch-refresh`; artifact identity: `frozen-current-verifier-backed-timing-plus-validated-job-stencil-and-signal-profiles`.
+- Owner: Fresh post-semantic timing and two exact censuses per row find zero changed Error fallbacks or casts. Prior profiles still place recurring samples in RWMutex-backed environment/cache operations whose Able callers split across unrelated lookup, revision, runtime-data, parent, definition, alias, and method-cache stores.
+- Rationale: Concurrent Signal Dispatch is 26.373x Python and 17.505x Ruby in its promoted cohort. Three current runtime profiles put bytecodeRawIntegerValueInfo at 3.57% flat while Array read, binary, call, member, and type-match parents split into existing semantic children. No new concrete child is material and shared by three unlike families.
+- Evidence: [2026-07-23-concurrent-signal-dispatch-application-gate.md](../../docs/perf-baselines/2026-07-23-concurrent-signal-dispatch-application-gate.md), [2026-07-22-concurrent-stencil-reduction-application-gate.md](../../docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-application-gate.md), [2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md), [2026-07-21-truthiness-cast-regex-concurrency-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-reach.json), [2026-07-21-bytecode-concurrency-fourteen-application-refresh.md](../../docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md), [2026-07-20-mutex-work-queue-profile-gate.md](../../docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md), [2026-07-20-bytecode-concurrency-current-profile-gate.md](../../docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md), [2026-07-21-concurrent-document-pipeline-application-gate.md](../../docs/perf-baselines/2026-07-21-concurrent-document-pipeline-application-gate.md), [2026-07-21-concurrent-document-pipeline-promotion-bytecode.md](../../docs/perf-baselines/2026-07-21-concurrent-document-pipeline-promotion-bytecode.md), [2026-07-21-validated-job-file-entry-application-gate.md](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-application-gate.md), [2026-07-21-validated-job-file-entry-comparison-d.json](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-comparison-d.json), [2026-07-21-validated-job-file-entry-bytecode-profile.txt](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-bytecode-profile.txt).
+
+### `bytecode-iterator-control`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 5; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-control-current-cohorts-and-reach`.
+- Owner: Current Array copying, graph/Queue, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, active-lookup, return/frame, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.
+- Rationale: Two high-sample CPU and two exact one-main allocation processes per selected row, plus Mandelbrot and Word Frequency controls, expose no new concrete VM operation shared by three unlike iterator/control families.
+- Evidence: [2026-07-21-bytecode-iterator-control-seven-application-refresh.md](../../docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md), [2026-07-20-current-iterator-control-profile-refresh.md](../../docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md), [2026-07-19-bytecode-text-map-graph-profile-gate.md](../../docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md), [2026-07-19-bytecode-inline-return-profile-reconciliation.md](../../docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md), [2026-07-18-cross-mode-array-capacity-growth-gate.md](../../docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md), [2026-07-21-truthiness-cast-control-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md), [2026-07-21-truthiness-cast-control-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-reach.json), [2026-07-21-truthiness-cast-control-closures-bytecode.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-bytecode.json), [2026-07-21-truthiness-cast-control-closures-interpreter-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-interpreter-reference.json).

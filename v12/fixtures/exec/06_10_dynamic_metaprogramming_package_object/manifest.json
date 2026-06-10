@@ -1,5 +1,5 @@
 {
-  "description": "dynamic package objects, definitions, and late-bound dynimport",
+  "description": "dynamic package objects, definitions, and top-level/local late-bound dynimport",
   "expect": {
     "stdout": [
       "first 42",

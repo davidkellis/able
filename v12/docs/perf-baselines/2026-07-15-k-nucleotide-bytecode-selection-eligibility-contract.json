@@ -1,0 +1,21 @@
+{
+  "benchmark": "k_nucleotide",
+  "contract": {
+    "input_files": [
+      {
+        "argument": "knucleotide-input.fasta",
+        "path": "/home/david/sync/projects/benchmarks/k-nucleotide/knucleotide-input.fasta",
+        "sha256": "5d36fae47c10baed9a3aec44a559ae55daf0a159fb8b0b61bf5cae5c67a1ee30"
+      }
+    ],
+    "program_args": [
+      "knucleotide-input.fasta"
+    ],
+    "provenance": "measured",
+    "sha256": "1acf167c954333b6c8990a815597a71c956eece9efacbfc3b681aa75c0b5f438",
+    "verifier": {
+      "path": "/home/david/sync/projects/benchmarks/k-nucleotide/verify.rb",
+      "sha256": "5992ceafc2e064cc7f7e486adc8a0edf7066567383dd8b7c049088ec2c81d086"
+    }
+  }
+}

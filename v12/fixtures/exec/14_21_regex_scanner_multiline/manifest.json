@@ -1,0 +1,9 @@
+{
+  "description": "regex scanners retain multiline end-anchor context when a following chunk supplies the newline",
+  "expect": {
+    "stdout": [
+      "line-pending none",
+      "line-final cat 2-5"
+    ]
+  }
+}

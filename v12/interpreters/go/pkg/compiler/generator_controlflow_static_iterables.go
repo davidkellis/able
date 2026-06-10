@@ -6,6 +6,31 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+func (g *generator) staticIterableLoopValueMember(nextType string) (*nativeUnionMember, bool) {
+	if g == nil || nextType == "" {
+		return nil, false
+	}
+	union := g.nativeUnionInfoForGoType(nextType)
+	if union == nil {
+		return nil, false
+	}
+	iterEndGoType, ok := g.lowerCarrierTypeInPackage(union.PackageName, ast.Ty("IteratorEnd"))
+	if !ok || iterEndGoType == "" {
+		return nil, false
+	}
+	valueMembers := make([]*nativeUnionMember, 0, len(union.Members))
+	for _, member := range union.Members {
+		if member == nil || member.GoType == "" || member.GoType == iterEndGoType {
+			continue
+		}
+		valueMembers = append(valueMembers, member)
+	}
+	if len(valueMembers) != 1 || valueMembers[0] == nil || valueMembers[0].UnwrapHelper == "" {
+		return nil, false
+	}
+	return valueMembers[0], true
+}
+
 func (g *generator) compileStaticReceiverMethodCall(
 	ctx *compileContext,
 	receiver ast.Expression,
@@ -67,21 +92,21 @@ func (g *generator) compileStaticReceiverMethodCall(
 	return nil, "", "", false
 }
 
-func (g *generator) staticReceiverBestEffortCloseDefer(receiverExpr string, receiverType string) (string, bool) {
+func (g *generator) staticReceiverBestEffortCloseCall(ctx *compileContext, receiverExpr string, receiverType string) (string, bool) {
 	if g == nil || receiverExpr == "" || receiverType == "" {
 		return "", false
 	}
 	if method, ok := g.nativeInterfaceMethodForGoType(receiverType, "close"); ok && method != nil {
-		return fmt.Sprintf("defer func() { _, _ = %s.%s() }()", receiverExpr, method.GoName), true
+		return fmt.Sprintf("_, _ = %s.%s()", receiverExpr, method.GoName), true
 	}
 	if method := g.methodForReceiver(receiverType, "close"); method != nil && method.Info != nil && method.Info.Compileable {
-		return fmt.Sprintf("defer func() { _, _ = %s(%s) }()", g.compiledEntryName(method.Info), receiverExpr), true
+		return fmt.Sprintf("_, _ = %s(%s)", g.compiledContextCallTargetName(ctx, "", method.Info), g.compiledCallArgs(ctx, []string{receiverExpr})), true
 	}
 	if method := g.compileableInterfaceMethodForConcreteReceiver(receiverType, "close"); method != nil && method.Info != nil && method.Info.Compileable {
-		return fmt.Sprintf("defer func() { _, _ = %s(%s) }()", g.compiledEntryName(method.Info), receiverExpr), true
+		return fmt.Sprintf("_, _ = %s(%s)", g.compiledContextCallTargetName(ctx, "", method.Info), g.compiledCallArgs(ctx, []string{receiverExpr})), true
 	}
 	if candidate, ok := g.concreteNativeInterfaceMethodForReceiver(receiverType, "close", 0); ok && candidate != nil && candidate.impl != nil && candidate.impl.Info != nil {
-		return fmt.Sprintf("defer func() { _, _ = %s(%s) }()", g.compiledEntryName(candidate.impl.Info), receiverExpr), true
+		return fmt.Sprintf("_, _ = %s(%s)", g.compiledContextCallTargetName(ctx, "", candidate.impl.Info), g.compiledCallArgs(ctx, []string{receiverExpr})), true
 	}
 	return "", false
 }
@@ -133,15 +158,23 @@ func (g *generator) compileStaticIterableForLoopInternal(
 	if !ok {
 		return nil, "", false
 	}
+	patternSubjectExpr := nextExpr
+	patternSubjectType := nextType
+	var patternSubjectLines []string
+	if valueMember, ok := g.staticIterableLoopValueMember(nextType); ok {
+		patternSubjectType = valueMember.GoType
+		patternSubjectExpr = ctx.newTemp()
+		patternSubjectLines = append(patternSubjectLines, fmt.Sprintf("%s, _ := %s(%s)", patternSubjectExpr, valueMember.UnwrapHelper, nextExpr))
+	}
 
 	newNames := map[string]struct{}{}
 	collectPatternBindingNames(loop.Pattern, newNames)
 	mode := patternBindingMode{declare: true, newNames: newNames}
-	condLines, cond, ok := g.compileMatchPatternCondition(bodyCtx, loop.Pattern, nextExpr, nextType)
+	condLines, cond, ok := g.compileMatchPatternCondition(bodyCtx, loop.Pattern, patternSubjectExpr, patternSubjectType)
 	if !ok {
 		return nil, "", false
 	}
-	bindLines, ok := g.compileAssignmentPatternBindings(bodyCtx, loop.Pattern, nextExpr, nextType, mode)
+	bindLines, ok := g.compileAssignmentPatternBindings(bodyCtx, loop.Pattern, patternSubjectExpr, patternSubjectType, mode)
 	if !ok {
 		return nil, "", false
 	}
@@ -165,13 +198,16 @@ func (g *generator) compileStaticIterableForLoopInternal(
 	if endCond != "false" {
 		innerLines = append(innerLines, fmt.Sprintf("if %s { break }", endCond))
 	}
+	innerLines = append(innerLines, patternSubjectLines...)
 	innerLines = append(innerLines, bindLines...)
 	innerLines = append(innerLines, bodyLines...)
 
 	lines := append([]string{}, iterLines...)
 	lines = append(lines, iteratorLines...)
 	lines = append(lines, fmt.Sprintf("var %s %s = %s", iteratorTemp, iteratorType, iteratorExpr))
-	if closeLine, ok := g.staticReceiverBestEffortCloseDefer(iteratorTemp, iteratorType); ok {
+	closeCall, closeOnExit := g.staticReceiverBestEffortCloseCall(ctx, iteratorTemp, iteratorType)
+	if closeOnExit {
+		closeLine := fmt.Sprintf("defer func() { %s }()", closeCall)
 		lines = append(lines, closeLine)
 	}
 	if withResult {
@@ -184,5 +220,8 @@ func (g *generator) compileStaticIterableForLoopInternal(
 	lines = append(lines, forPrefix)
 	lines = append(lines, indentLines(innerLines, 1)...)
 	lines = append(lines, "}")
+	if closeOnExit {
+		lines = append(lines, closeCall)
+	}
 	return lines, resultTemp, true
 }

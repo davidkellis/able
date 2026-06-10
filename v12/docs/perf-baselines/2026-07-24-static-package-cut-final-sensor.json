@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-07-24T23:38:39.694091Z",
+  "target": "/home/david/sync/projects/benchmarks/sensor-calibration/run.able",
+  "run_from": "/home/david/sync/projects/benchmarks/sensor-calibration",
+  "runs": 3,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 60,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": null,
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.14,
+      "avg_user_seconds": 0.1767,
+      "avg_sys_seconds": 0.02,
+      "avg_gc": 25.33,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.13,
+          "user_seconds": 0.17,
+          "sys_seconds": 0.02,
+          "gc_count": 26.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.14,
+          "user_seconds": 0.18,
+          "sys_seconds": 0.02,
+          "gc_count": 25.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.15,
+          "user_seconds": 0.18,
+          "sys_seconds": 0.02,
+          "gc_count": 25.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/sensor-calibration/verify.rb",
+        "verified_runs": 3,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-07-24T21:28:38.587712Z",
+  "suite": "core",
+  "benchmarks": [
+    "fib",
+    "binarytrees",
+    "matrixmultiply",
+    "quicksort",
+    "sudoku_masks",
+    "i_before_e"
+  ],
+  "timeout_seconds": 60,
+  "telemetry_build": true,
+  "telemetry_mode": "dynamic-boundary",
+  "rows": [
+    {
+      "benchmark": "fib",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 1,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "binarytrees",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 12,
+        "host_abi_call": 11,
+        "residual_polymorphic_call": 11,
+        "runtime_service_call": 9
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 1,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "quicksort",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 20,
+        "host_abi_call": 20,
+        "residual_polymorphic_call": 20,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 100,
+        "host_abi_call": 100,
+        "residual_polymorphic_call": 100,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "i_before_e",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1629,
+        "host_abi_call": 1628,
+        "residual_polymorphic_call": 1629,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "explicit_dynamic_call": 1763,
+    "residual_polymorphic_call": 1762,
+    "host_abi_call": 1761,
+    "runtime_service_call": 9
+  }
+}

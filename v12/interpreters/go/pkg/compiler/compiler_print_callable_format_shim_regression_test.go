@@ -27,7 +27,7 @@ func TestCompilerFormatsCallableValuesAsFunction(t *testing.T) {
 		t.Fatalf("expected callable helper to normalize native bound method values")
 	}
 
-	formatStart := strings.Index(mainSrc, "func formatRuntimeValue(interp *interpreter.Interpreter, val runtime.Value) string {")
+	formatStart := strings.Index(mainSrc, "func formatRuntimeValue(interp bridge.Interpreter, val runtime.Value) string {")
 	if formatStart < 0 {
 		t.Fatalf("expected formatRuntimeValue helper to be emitted")
 	}

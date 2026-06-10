@@ -1,0 +1,7 @@
+{
+  "description": "user-defined two-field nominal loop recurrence benchmark",
+  "expect": {
+    "stdout": ["200349387", "830330818"],
+    "exit": 0
+  }
+}

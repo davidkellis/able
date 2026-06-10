@@ -1,0 +1,390 @@
+{
+  "target_path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-audio-voices",
+  "trace": {
+    "enabled": true,
+    "total_hits": 507928,
+    "entries": [
+      {
+        "hits": 32768,
+        "op": "call_member",
+        "name": "advance",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 269,
+        "column": 13
+      },
+      {
+        "hits": 32768,
+        "op": "call_member",
+        "name": "record",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 268,
+        "column": 13
+      },
+      {
+        "hits": 32768,
+        "op": "call_member",
+        "name": "signature",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 107,
+        "column": 11
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 39,
+        "column": 9
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 94,
+        "column": 18
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "max_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 134,
+        "column": 13
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "max_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 241,
+        "column": 5
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "min_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 235,
+        "column": 13
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "min_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 241,
+        "column": 21
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "positive_mod",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 47,
+        "column": 9
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "positive_mod",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 49,
+        "column": 14
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "positive_mod",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 103,
+        "column": 20
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "positive_mod",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 110,
+        "column": 22
+      },
+      {
+        "hits": 32768,
+        "op": "call_name",
+        "name": "positive_mod",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 118,
+        "column": 28
+      },
+      {
+        "hits": 32764,
+        "op": "call_member",
+        "name": "emit",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 267,
+        "column": 15
+      },
+      {
+        "hits": 16384,
+        "op": "call_name",
+        "name": "abs_i64",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 207,
+        "column": 17
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "emit",
+        "lookup": "resolved_method",
+        "dispatch": "generic",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 267,
+        "column": 15
+      },
+      {
+        "hits": 4,
+        "op": "call_member",
+        "name": "report",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 272,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "args",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 284,
+        "column": 33
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 276,
+        "column": 6
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 350,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 351,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 352,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "value",
+        "lookup": "member_access",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 353,
+        "column": 20
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "__able_os_args",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able-stdlib/src/os.able",
+        "line": 84,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "audio_samples",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 284,
+        "column": 19
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "future_flush",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 348,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_envelope",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 307,
+        "column": 21
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_envelope",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 308,
+        "column": 22
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_envelope",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 309,
+        "column": 21
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "make_envelope",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 310,
+        "column": 22
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "positive_mod",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 367,
+        "column": 13
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "positive_mod",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 374,
+        "column": 15
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "print",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 386,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "synthesize_voice",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 313,
+        "column": 5
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "synthesize_voice",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 322,
+        "column": 5
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "synthesize_voice",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 331,
+        "column": 5
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "synthesize_voice",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "line": 340,
+        "column": 5
+      }
+    ]
+  }
+}

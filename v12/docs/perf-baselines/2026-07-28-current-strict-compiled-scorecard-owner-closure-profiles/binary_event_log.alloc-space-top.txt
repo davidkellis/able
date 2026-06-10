@@ -1,0 +1,50 @@
+File: compiled
+Build ID: 486c97beb49084dd1a04192783747a196accdc33
+Type: alloc_space
+Time: 2026-07-28 09:43:07 CDT
+Showing nodes accounting for 68654.13kB, 99.17% of 69225.98kB total
+Dropped 114 nodes (cum <= 346.13kB)
+      flat  flat%   sum%        cum   cum%
+24960.05kB 36.06% 36.06% 24960.23kB 36.06%  able/interpreter-go/pkg/compiler/bridge.ToInt
+   23168kB 33.47% 69.52%    23168kB 33.47%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+ 4398.52kB  6.35% 75.88%  4398.52kB  6.35%  runtime/pprof.allFrames
+ 4120.33kB  5.95% 81.83%  5656.47kB  8.17%  main.__able_compiled_fn_event_error_ctx
+    2496kB  3.61% 85.43%  8536.47kB 12.33%  main.__able_compiled_fn_parse_event_ctx
+    2496kB  3.61% 89.04%  2496.05kB  3.61%  main.__able_struct_EventRecord_from
+    2340kB  3.38% 92.42%     2523kB  3.64%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+ 1814.93kB  2.62% 95.04%  3041.53kB  4.39%  runtime/pprof.(*profileBuilder).emitLocation
+     648kB  0.94% 95.98%  1171.88kB  1.69%  compress/flate.NewWriter (inline)
+  416.16kB   0.6% 96.58%   416.16kB   0.6%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+  415.67kB   0.6% 97.18%   415.67kB   0.6%  main.__able_nullable_i64_from_value
+     408kB  0.59% 97.77%  8240.14kB 11.90%  runtime/pprof.writeHeapInternal
+     384kB  0.55% 98.32%      384kB  0.55%  main.__able_union__EventRecord_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+     320kB  0.46% 98.79%   523.88kB  0.76%  compress/flate.(*compressor).init
+  267.81kB  0.39% 99.17%  7832.14kB 11.31%  runtime/pprof.writeHeapProto
+    0.50kB 0.00072% 99.17%  7442.02kB 10.75%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.12kB 0.00018% 99.17% 60985.45kB 88.10%  main.__able_compiled_fn_main_ctx
+    0.02kB 3.4e-05% 99.17%  8240.48kB 11.90%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 3.4e-05% 99.17% 60985.50kB 88.10%  main.RunRegisteredMain
+         0     0% 99.17%  8240.48kB 11.90%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.17%  8240.48kB 11.90%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.17%  1178.62kB  1.70%  compress/gzip.(*Writer).Write
+         0     0% 99.17% 60985.48kB 88.10%  main.RunRegisteredMain.func1
+         0     0% 99.17% 60985.48kB 88.10%  main.__able_compiled_fn_main
+         0     0% 99.17% 25792.09kB 37.26%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.17% 51583.67kB 74.51%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.17%   417.62kB   0.6%  main.__able_compiled_fn_map_count_ctx
+         0     0% 99.17%   417.62kB   0.6%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0% 99.17% 51999.83kB 75.12%  main.__able_compiled_method_Result__map_spec_ctx
+         0     0% 99.17% 60985.48kB 88.10%  main.__able_register_compiled_call.func1
+         0     0% 99.17%  1536.14kB  2.22%  main.__able_struct_EventDecodeError_to (inline)
+         0     0% 99.17%  1536.14kB  2.22%  main.__able_struct_EventDecodeError_to_seen
+         0     0% 99.17%    23296kB 33.65%  main.__able_struct_EventRecord_apply
+         0     0% 99.17%    46592kB 67.30%  main.__able_struct_EventRecord_to (inline)
+         0     0% 99.17%    46592kB 67.30%  main.__able_struct_EventRecord_to_seen
+         0     0% 99.17% 60985.48kB 88.10%  main.__able_wrap_fn_main
+         0     0% 99.17% 69225.98kB   100%  main.main
+         0     0% 99.17% 69225.98kB   100%  main.runMain
+         0     0% 99.17%  8240.48kB 11.90%  main.startMainProfilePhase (inline)
+         0     0% 99.17% 69225.98kB   100%  runtime.main
+         0     0% 99.17%  8240.14kB 11.90%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.17%  1178.62kB  1.70%  runtime/pprof.(*profileBuilder).flush
+         0     0% 99.17%  8240.14kB 11.90%  runtime/pprof.writeAlloc

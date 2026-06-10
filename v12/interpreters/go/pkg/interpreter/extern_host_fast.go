@@ -36,13 +36,19 @@ func externStringArg(value runtime.Value) (string, bool) {
 	}
 }
 
-func externStringSliceResult(values []string) runtime.Value {
+func externStringSliceResult(i *Interpreter, values []string) runtime.Value {
 	if len(values) == 0 {
+		if i != nil {
+			return i.newArrayValue([]runtime.Value{}, 0)
+		}
 		return &runtime.ArrayValue{Elements: []runtime.Value{}}
 	}
 	elements := make([]runtime.Value, len(values))
 	for idx, value := range values {
 		elements[idx] = runtime.StringValue{Val: value}
+	}
+	if i != nil {
+		return i.newArrayValue(elements, len(elements))
 	}
 	return &runtime.ArrayValue{Elements: elements}
 }
@@ -76,14 +82,21 @@ func externStringSliceTemplate(values []string) []runtime.Value {
 	return elements
 }
 
-func (c *externStringSliceCache) result(values []string) runtime.Value {
+func (c *externStringSliceCache) result(i *Interpreter, values []string) runtime.Value {
 	if len(values) == 0 {
+		if i != nil {
+			return i.newArrayValue([]runtime.Value{}, 0)
+		}
 		return &runtime.ArrayValue{Elements: []runtime.Value{}}
 	}
 	if entry := c.entry.Load(); entry != nil &&
 		len(entry.snapshot) == len(values) &&
 		slices.Equal(entry.snapshot, values) {
-		return &runtime.ArrayValue{Elements: externCloneValueSlice(entry.boxed)}
+		elements := externCloneValueSlice(entry.boxed)
+		if i != nil {
+			return i.newArrayValue(elements, len(elements))
+		}
+		return &runtime.ArrayValue{Elements: elements}
 	}
 	snapshot := append([]string(nil), values...)
 	boxed := externStringSliceTemplate(snapshot)
@@ -91,7 +104,11 @@ func (c *externStringSliceCache) result(values []string) runtime.Value {
 		snapshot: snapshot,
 		boxed:    boxed,
 	})
-	return &runtime.ArrayValue{Elements: externCloneValueSlice(boxed)}
+	elements := externCloneValueSlice(boxed)
+	if i != nil {
+		return i.newArrayValue(elements, len(elements))
+	}
+	return &runtime.ArrayValue{Elements: elements}
 }
 
 func externSimpleTypeName(expr ast.TypeExpression) string {
@@ -105,6 +122,15 @@ func externSimpleTypeName(expr ast.TypeExpression) string {
 func buildExternFastInvoker(def *ast.ExternFunctionBody, raw any) externHostInvoker {
 	if def == nil || def.Signature == nil {
 		return nil
+	}
+	if invoker := buildExternPrimitiveIntegerFastInvoker(def, raw); invoker != nil {
+		return invoker
+	}
+	if invoker := buildExternPrimitiveByteArrayFastInvoker(def, raw); invoker != nil {
+		return invoker
+	}
+	if invoker := buildExternStringArrayFastInvoker(def, raw); invoker != nil {
+		return invoker
 	}
 	paramCount := len(def.Signature.Params)
 	returnType := externSimpleTypeName(def.Signature.ReturnType)
@@ -166,7 +192,7 @@ func buildExternFastInvoker(def *ast.ExternFunctionBody, raw any) externHostInvo
 			if !ok || externSimpleTypeName(base.Base) != "Array" || len(base.Arguments) != 1 || externSimpleTypeName(base.Arguments[0]) != "String" {
 				return nil
 			}
-			return func(_ *Interpreter, args []runtime.Value) (runtime.Value, error) {
+			return func(i *Interpreter, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 1 {
 					return nil, fmt.Errorf("extern fast invoker expects 1 arg, got %d", len(args))
 				}
@@ -174,7 +200,7 @@ func buildExternFastInvoker(def *ast.ExternFunctionBody, raw any) externHostInvo
 				if !ok {
 					return nil, fmt.Errorf("extern fast invoker expected String argument")
 				}
-				return stringSliceCache.result(fn(value)), nil
+				return stringSliceCache.result(i, fn(value)), nil
 			}
 		case func(string) []byte:
 			base, ok := def.Signature.ReturnType.(*ast.GenericTypeExpression)
@@ -190,9 +216,9 @@ func buildExternFastInvoker(def *ast.ExternFunctionBody, raw any) externHostInvo
 					return nil, fmt.Errorf("extern fast invoker expected String argument")
 				}
 				if i != nil {
-					return i.newU8ArrayValueFromBytes(fn(value)), nil
+					return i.newOwnedU8ArrayValueFromBytes(fn(value)), nil
 				}
-				return runtime.ArrayStoreMonoValueFromU8Bytes(fn(value)), nil
+				return runtime.ArrayStoreMonoValueFromOwnedU8Bytes(fn(value)), nil
 			}
 		case func(string) interface{}:
 			return func(i *Interpreter, args []runtime.Value) (runtime.Value, error) {
@@ -204,17 +230,22 @@ func buildExternFastInvoker(def *ast.ExternFunctionBody, raw any) externHostInvo
 					return nil, fmt.Errorf("extern fast invoker expected String argument")
 				}
 				result := fn(value)
+				if externUnionHasStringMember(def.Signature.ReturnType) {
+					if str, ok := externReflectStringResult(reflect.ValueOf(result)); ok {
+						return str, nil
+					}
+				}
 				if externUnionHasArrayStringMember(def.Signature.ReturnType) {
 					if lines, ok := result.([]string); ok {
-						return stringSliceCache.result(lines), nil
+						return stringSliceCache.result(i, lines), nil
 					}
 				}
 				if externUnionHasArrayU8Member(def.Signature.ReturnType) {
 					if bytes, ok := externReflectU8SliceBytes(reflect.ValueOf(result)); ok {
 						if i != nil {
-							return i.newU8ArrayValueFromBytes(bytes), nil
+							return i.newOwnedU8ArrayValueFromBytes(bytes), nil
 						}
-						return runtime.ArrayStoreMonoValueFromU8Bytes(bytes), nil
+						return runtime.ArrayStoreMonoValueFromOwnedU8Bytes(bytes), nil
 					}
 				}
 				if i == nil {

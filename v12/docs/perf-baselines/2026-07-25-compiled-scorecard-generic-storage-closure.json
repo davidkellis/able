@@ -1,0 +1,122 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "candidate": "native specialized generic-nominal methods backed by runtime.Value storage",
+  "reason": "the shared owner is real, but a local correction would be a forbidden named-HashMap rule; the lawful semantic parent is an architectural shared typed-storage design for generic nominal values",
+  "scorecard": {
+    "applications": 61,
+    "go_requested_runs": 305,
+    "go_verified_runs": 305,
+    "able_main_verified_runs": 270,
+    "able_repair_verified_runs": 20,
+    "complete_comparisons": 53,
+    "target_ratio": 1.052632,
+    "target_meets": 7,
+    "target_misses": 46,
+    "incomplete": [
+      "mutex_ledger",
+      "regex_suffix_audit",
+      "regex_set_audit",
+      "regex_stream_audit",
+      "log_routing_redaction",
+      "config_validation_extraction",
+      "concurrent_state_machines",
+      "policy_record_dispatch"
+    ],
+    "cpu_affinity_pool": "5,10,15,11",
+    "runs_per_complete_row": 5,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "meets_target": [
+      {"benchmark": "binarytrees", "ratio": 1.0101313039484907},
+      {"benchmark": "quicksort", "ratio": 0.6682234596730735},
+      {"benchmark": "i_before_e", "ratio": 0.8664259927797834},
+      {"benchmark": "base64", "ratio": 0.8402543958099513},
+      {"benchmark": "json", "ratio": 0.43697478991596644},
+      {"benchmark": "monte_carlo_pi", "ratio": 0.7730426164519326},
+      {"benchmark": "pidigits", "ratio": 1.0431624989683914}
+    ],
+    "artifacts": {
+      "go_reference": "2026-07-25-current-compiled-go-reference.json",
+      "main": "2026-07-25-current-compiled-scorecard.json",
+      "repair": "2026-07-25-current-compiled-scorecard-repair.json",
+      "go_reference_sha256": "2f7a78afb2339e7ebc566c4bfdb70b6937ef5ea54a2ce12bef2efc7552684444",
+      "main_sha256": "14dc68583059ed7d5c97bb712833ec62ba2037cff2192d3ea215d0c694cf96e9",
+      "repair_sha256": "32d817f7242a598ef8ce0a66520df75018ee704cad8c4d9fbf69494091381333"
+    }
+  },
+  "profile_admission": {
+    "initial_cohort": [
+      "k_nucleotide",
+      "binary_event_log",
+      "inventory_reconciliation"
+    ],
+    "disqualified": {
+      "benchmark": "binary_event_log",
+      "reason": "the dominant CPU owner is EventRecord conversion/writeback rather than generic runtime-backed map storage"
+    },
+    "replacement": "word_frequency",
+    "exact_allocation_runs": 12,
+    "cpu_profile_runs": 60,
+    "applications": [
+      {
+        "benchmark": "k_nucleotide",
+        "specialization": "HashMap_u64_i32",
+        "scorecard_able_seconds": 1.646,
+        "scorecard_go_seconds": 0.0556,
+        "scorecard_ratio": 29.60431654676259,
+        "main_allocated_bytes_mean": 614264498.6666666,
+        "main_allocations_mean": 16232599,
+        "main_gc_mean": 335,
+        "cpu_profile_runs": 10,
+        "dependency_count": 96,
+        "interpreter_dependency": false
+      },
+      {
+        "benchmark": "inventory_reconciliation",
+        "specialization": "HashMap_i64_i64",
+        "scorecard_able_seconds": 0.152,
+        "scorecard_go_seconds": 0.0138,
+        "scorecard_ratio": 11.014492753623188,
+        "main_allocated_bytes_mean": 17037077.333333332,
+        "main_allocations_mean": 553059,
+        "main_gc_mean": 15.333333333333334,
+        "cpu_profile_runs": 10,
+        "dependency_count": 96,
+        "interpreter_dependency": false
+      },
+      {
+        "benchmark": "word_frequency",
+        "specialization": "HashMap_String_i32",
+        "scorecard_able_seconds": 0.052,
+        "scorecard_go_seconds": 0.0051,
+        "scorecard_ratio": 10.196078431372548,
+        "main_allocated_bytes_mean": 3347368,
+        "main_allocations_mean": 60186,
+        "main_gc_mean": 3.6666666666666665,
+        "cpu_profile_runs": 30,
+        "dependency_count": 96,
+        "interpreter_dependency": false
+      }
+    ],
+    "shared_generated_shape": "native key/value -> bridge runtime.Value conversion -> __able_hash_map_get_impl or __able_hash_map_set_impl",
+    "admissible_local_rule": false,
+    "required_general_design": "shared typed storage and boundary materialization for generic nominal values"
+  },
+  "verification": {
+    "compiler_sha256": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e",
+    "all_profile_outputs_verified": true,
+    "all_profile_dependency_graphs_omit_interpreter": true,
+    "compiler_or_runtime_code_changed": false,
+    "stdlib_changed": false,
+    "wasm_changed": false,
+    "ram_backed_tmp_raw_trees_removed": true,
+    "remaining_able_tmp_files": "3.8MiB",
+    "future_large_workspace_root": "/var/tmp"
+  },
+  "next": {
+    "candidate": "profile Tapelang Alphabet, Matrix Multiply, and Fib for one shared primitive arithmetic or control-flow lowering owner",
+    "why": "they have material current excess with zero or low GC and are not dominated by forbidden named-container storage or mandatory scheduler services",
+    "constraint": "advance only a general owner proven material in all three, then require semantic guards and twenty order-balanced baseline/candidate/Go cohorts"
+  }
+}

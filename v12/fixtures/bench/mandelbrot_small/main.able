@@ -1,0 +1,66 @@
+package bench_mandelbrot_small
+
+import able.io.{stdout, string_to_bytes, write_all}
+import able.kernel.{Array}
+
+SIZE: i32 := 240_i32
+ROW_BYTES: i32 := SIZE // 8_i32
+MAX_ITER: i32 := 50_i32
+
+fn pixel_byte(x_byte: i32, y: i32) -> u8 {
+  ci := ((2.0 * (y as f64)) / (SIZE as f64)) - 1.0
+  byte := 0_u8
+  bit := 0
+  loop {
+    if bit >= 8 { break }
+    x := x_byte + bit
+    cr := ((2.0 * (x as f64)) / (SIZE as f64)) - 1.5
+    zr := 0.0
+    zi := 0.0
+    iter := 0
+    escaped := false
+    loop {
+      if iter >= MAX_ITER { break }
+      zr2 := zr * zr
+      zi2 := zi * zi
+      if zr2 + zi2 > 4.0 {
+        escaped = true
+        break
+      }
+      zi = 2.0 * zr * zi + ci
+      zr = zr2 - zi2 + cr
+      iter = iter + 1
+    }
+    if !escaped {
+      byte = byte .| ((1_i32 .<< (7 - bit)) as u8)
+    }
+    bit = bit + 1
+  }
+  byte
+}
+
+fn render() -> Array u8 {
+  header := string_to_bytes(`P4
+${SIZE} ${SIZE}
+`)
+  out: Array u8 := Array.with_capacity(header.len() + (SIZE * ROW_BYTES))
+  out.push_all(header)
+
+  y := 0
+  loop {
+    if y >= SIZE { break }
+    x_byte := 0
+    loop {
+      if x_byte >= SIZE { break }
+      out.push(pixel_byte(x_byte, y))
+      x_byte = x_byte + 8
+    }
+    y = y + 1
+  }
+
+  out
+}
+
+fn main() -> void {
+  write_all(stdout(), render())
+}

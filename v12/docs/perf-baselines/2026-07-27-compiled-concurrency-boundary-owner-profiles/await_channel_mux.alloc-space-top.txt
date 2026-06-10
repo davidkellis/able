@@ -1,0 +1,78 @@
+File: compiled
+Build ID: cb717d2f55cc444bd5175c161efd35d3af6bd32a
+Type: alloc_space
+Time: 2026-07-27 22:14:27 CDT
+Showing nodes accounting for 12802.88kB, 100% of 12802.88kB total
+      flat  flat%   sum%        cum   cum%
+ 2560.35kB 20.00% 20.00%  2560.35kB 20.00%  main.(*__able_channel_awaitable).toStruct
+ 2048.12kB 16.00% 36.00%  2048.12kB 16.00%  able/interpreter-go/pkg/compiler/bridge.currentGID
+ 1536.09kB 12.00% 47.99%  1536.09kB 12.00%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+    1026kB  8.01% 56.01%     1026kB  8.01%  runtime.mallocgc
+ 1024.05kB  8.00% 64.01%  1536.08kB 12.00%  main.__able_make_await_registration_value
+  512.05kB  4.00% 68.01%   512.05kB  4.00%  main.(*__able_await_state).ensureWaitCh
+  512.05kB  4.00% 72.01%   512.05kB  4.00%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+  512.04kB  4.00% 76.00%   512.04kB  4.00%  context.withCancel (inline)
+  512.03kB  4.00% 80.00%   512.03kB  4.00%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+  512.02kB  4.00% 84.00%  1024.06kB  8.00%  main.(*__able_goroutine_executor).RunFuture
+  512.02kB  4.00% 88.00%  4096.20kB 31.99%  main.__able_compiled_fn_main
+  512.02kB  4.00% 92.00%   512.02kB  4.00%  main.__able_fn__int64_to_int64_to_runtime_value
+  512.01kB  4.00% 96.00%   512.01kB  4.00%  main.__able_call_named
+  512.01kB  4.00%   100%  2560.12kB 20.00%  main.__able_method_call
+         0     0%   100%   512.05kB  4.00%  able/interpreter-go/pkg/ast.Gen (inline)
+         0     0%   100%   512.03kB  4.00%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0%   100%  2048.12kB 16.00%  able/interpreter-go/pkg/ast.Ty (inline)
+         0     0%   100%  1024.06kB  8.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%   512.03kB  4.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%   512.03kB  4.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%   512.03kB  4.00%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%   512.04kB  4.00%  context.WithCancel
+         0     0%   100%  1536.08kB 12.00%  main.(*__able_channel_awaitable).register
+         0     0%   100%  1536.08kB 12.00%  main.(*__able_channel_awaitable).toStruct.func2
+         0     0%   100%  7168.65kB 55.99%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%   512.03kB  4.00%  main.RegisterIn
+         0     0%   100%  4096.20kB 31.99%  main.RunRegisteredMain
+         0     0%   100%  4096.20kB 31.99%  main.RunRegisteredMain.func1
+         0     0%   100%  3072.20kB 24.00%  main.__able_await
+         0     0%   100%  3072.20kB 24.00%  main.__able_await_value
+         0     0%   100%  2048.11kB 16.00%  main.__able_await_with_state
+         0     0%   100%  2048.11kB 16.00%  main.__able_call_value_fast
+         0     0%   100%   512.03kB  4.00%  main.__able_cancel_await_registration
+         0     0%   100%  2560.35kB 20.00%  main.__able_channel_await_try_recv_impl
+         0     0%   100%   512.03kB  4.00%  main.__able_clear_await_registrations
+         0     0%   100%   512.05kB  4.00%  main.__able_compiled_entry_method_Await__default_spec
+         0     0%   100%  4096.42kB 32.00%  main.__able_compiled_fn_main.func1
+         0     0%   100%  2560.20kB 20.00%  main.__able_compiled_fn_main.func3
+         0     0%   100%   512.05kB  4.00%  main.__able_compiled_method_Await__default_spec
+         0     0%   100%  3072.38kB 24.00%  main.__able_compiled_method_Channel_await_receive_spec
+         0     0%   100%   512.03kB  4.00%  main.__able_current_payload
+         0     0%   100%   512.05kB  4.00%  main.__able_iface_Awaitable_i64_from_value
+         0     0%   100%   512.05kB  4.00%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0%   100%   512.03kB  4.00%  main.__able_iface_Future_i64_from_value
+         0     0%   100%  1024.04kB  8.00%  main.__able_iface_Future_i64_runtime_adapter.value
+         0     0%   100%   512.03kB  4.00%  main.__able_iface_Future_i64_try_from_value
+         0     0%   100%   512.05kB  4.00%  main.__able_initialize_await_state
+         0     0%   100%  1536.08kB 12.00%  main.__able_invoke_awaitable_method
+         0     0%   100%  1536.08kB 12.00%  main.__able_register_await_state
+         0     0%   100%  4096.20kB 31.99%  main.__able_register_compiled_call.func1
+         0     0%   100%   512.03kB  4.00%  main.__able_register_compiled_interface_dispatch
+         0     0%   100%  7168.65kB 55.99%  main.__able_run_compiled_task
+         0     0%   100%  1024.06kB  8.00%  main.__able_spawn
+         0     0%   100%  1024.06kB  8.00%  main.__able_spawn_future
+         0     0%   100%   512.03kB  4.00%  main.__able_union_int64_or_runtime_ErrorValue_from_value
+         0     0%   100%   512.03kB  4.00%  main.__able_union_int64_or_runtime_ErrorValue_try_from_value
+         0     0%   100%  4096.20kB 31.99%  main.__able_wrap_fn_main
+         0     0%   100%  4608.23kB 35.99%  main.main
+         0     0%   100%  4608.23kB 35.99%  main.runMain
+         0     0%   100%     1026kB  8.01%  runtime.allocm
+         0     0%   100%  4608.23kB 35.99%  runtime.main
+         0     0%   100%      513kB  4.01%  runtime.mcall
+         0     0%   100%      513kB  4.01%  runtime.mstart
+         0     0%   100%      513kB  4.01%  runtime.mstart0
+         0     0%   100%      513kB  4.01%  runtime.mstart1
+         0     0%   100%     1026kB  8.01%  runtime.newm
+         0     0%   100%     1026kB  8.01%  runtime.newobject
+         0     0%   100%      513kB  4.01%  runtime.park_m
+         0     0%   100%     1026kB  8.01%  runtime.resetspinning
+         0     0%   100%     1026kB  8.01%  runtime.schedule
+         0     0%   100%     1026kB  8.01%  runtime.startm
+         0     0%   100%     1026kB  8.01%  runtime.wakep

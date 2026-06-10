@@ -1,0 +1,61 @@
+package await_channel_mux
+
+import able.concurrency.{Await}
+import able.kernel.{Channel}
+
+fn lane_score(value: i64, lane: i64) -> i64 {
+  score := value + (lane * 97_i64) + 11_i64
+  step := 0_i64
+  loop {
+    if step >= 48_i64 { break }
+    score = ((score * 48271_i64) + (step * 29_i64) + lane) % 1_000_003_i64
+    step = step + 1_i64
+  }
+  score
+}
+
+fn main() -> void {
+  rounds := 512_i64
+  left: Channel i64 = Channel.new(1)
+  right: Channel i64 = Channel.new(1)
+  total := 0_i64
+  idle_hits := 0_i64
+  round := 0_i64
+
+  loop {
+    if round >= rounds { break }
+    current := round
+    send_left := (current % 2_i64) == 0_i64
+    receiver := spawn {
+      await [
+        left.await_receive({ value => lane_score(value as i64, 0_i64) }),
+        right.await_receive({ value => lane_score(value as i64, 1_i64) })
+      ]
+    }
+    future_flush()
+    sender := spawn {
+      future_yield()
+      if send_left {
+        left.send(current + 17_i64)
+      } else {
+        right.send(current + 31_i64)
+      }
+      0_i64
+    }
+    total = total + (receiver.value()! as i64)
+    sender.value()
+
+    idle := spawn {
+      await [
+        left.await_receive({ value => lane_score(value as i64, 0_i64) }),
+        right.await_receive({ value => lane_score(value as i64, 1_i64) }),
+        Await.default({ => -1_i64 })
+      ]
+    }
+    idle_hits = idle_hits + (idle.value()! as i64)
+    round = round + 1_i64
+  }
+
+  future_flush()
+  print(`${rounds}:${total}:${idle_hits}`)
+}

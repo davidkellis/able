@@ -1,0 +1,10 @@
+{
+  "description": "package-qualified interface identity avoids kernel short-name collisions",
+  "setup": ["iface_defs.able", "factory.able"],
+  "expect": {
+    "stdout": [
+      "Ada"
+    ],
+    "exit": 0
+  }
+}

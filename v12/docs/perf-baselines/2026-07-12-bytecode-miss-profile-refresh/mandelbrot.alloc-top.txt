@@ -1,0 +1,28 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: alloc_space
+Time: 2026-07-11 23:28:26 CDT
+Showing nodes accounting for 619.77MB, 98.39% of 629.94MB total
+Dropped 39 nodes (cum <= 3.15MB)
+Showing top 20 nodes out of 34
+      flat  flat%   sum%        cum   cum%
+  581.01MB 92.23% 92.23%   581.01MB 92.23%  able/interpreter-go/pkg/interpreter.bytecodeNormalizedRawFloatSlotValue (inline)
+   25.45MB  4.04% 96.27%    25.45MB  4.04%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+    5.02MB   0.8% 97.07%     5.02MB   0.8%  able/interpreter-go/pkg/interpreter.init.func1 (inline)
+    4.28MB  0.68% 97.75%     4.28MB  0.68%  able/interpreter-go/pkg/runtime.ArrayEnsureCapacity
+    4.02MB  0.64% 98.39%     9.03MB  1.43%  able/interpreter-go/pkg/interpreter.init
+         0     0% 98.39%   588.83MB 93.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0% 98.39%   588.83MB 93.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0% 98.39%   588.83MB 93.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0% 98.39%   588.83MB 93.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0% 98.39%   588.83MB 93.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0% 98.39%   588.83MB 93.47%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0% 98.39%     4.28MB  0.68%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendTrackedArrayValueFast
+         0     0% 98.39%     4.28MB  0.68%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execArrayPushMemberFast
+         0     0% 98.39%   348.01MB 55.24%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+         0     0% 98.39%   110.50MB 17.54%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinaryFloatMulSlotConst
+         0     0% 98.39%     4.28MB  0.68%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMemberArraySlot
+         0     0% 98.39%     7.28MB  1.16%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0% 98.39%   230.50MB 36.59%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execJumpIfFloatMulAddMulCompareConstFalse
+         0     0% 98.39%   230.50MB 36.59%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execJumpOpcode
+         0     0% 98.39%   237.50MB 37.70%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).replaceTop2RawFloatUnchecked (inline)

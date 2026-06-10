@@ -12,6 +12,9 @@ import (
 func (i *Interpreter) stringifyValue(val runtime.Value, env *runtime.Environment) (string, error) {
 	_ = env
 	if inst, ok := val.(*runtime.StructInstanceValue); ok {
+		if str, err := i.coerceStringValue(inst); err == nil {
+			return str, nil
+		}
 		if str, ok := i.stringifyArrayStruct(inst); ok {
 			return str, nil
 		}
@@ -117,7 +120,11 @@ func (i *Interpreter) stringifyArrayStruct(inst *runtime.StructInstanceValue) (s
 	if !ok {
 		return "", false
 	}
-	state, err := runtime.ArrayStoreState(handleInt.BigInt().Int64())
+	handle := handleInt.BigInt().Int64()
+	if err := runtime.ArrayStoreTrackStructInstanceLease(inst, handle); err != nil {
+		return "", false
+	}
+	state, err := runtime.ArrayStoreState(handle)
 	if err != nil {
 		return "", false
 	}
@@ -190,6 +197,7 @@ func simpleTypeName(expr ast.TypeExpression) (string, bool) {
 }
 
 func valueToString(val runtime.Value) string {
+	val = bytecodeMaterializeRawValue(val)
 	switch v := val.(type) {
 	case runtime.StringValue:
 		return v.Val
@@ -307,6 +315,21 @@ func structInstanceToString(inst *runtime.StructInstanceValue) string {
 		name = "<struct>"
 	}
 	if inst.Positional != nil {
+		if structUsesNamedFieldStorage(inst) {
+			def := inst.Definition
+			if def != nil && def.Node != nil && len(def.Node.Fields) == len(inst.Positional) {
+				parts := make([]string, 0, len(inst.Positional))
+				for idx, el := range inst.Positional {
+					field := def.Node.Fields[idx]
+					if field != nil && field.Name != nil {
+						parts = append(parts, fmt.Sprintf("%s: %s", field.Name.Name, valueToString(el)))
+					} else {
+						parts = append(parts, valueToString(el))
+					}
+				}
+				return fmt.Sprintf("%s { %s }", name, strings.Join(parts, ", "))
+			}
+		}
 		parts := make([]string, 0, len(inst.Positional))
 		for _, el := range inst.Positional {
 			parts = append(parts, valueToString(el))

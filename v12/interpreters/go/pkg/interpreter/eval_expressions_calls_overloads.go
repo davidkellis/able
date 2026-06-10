@@ -33,12 +33,11 @@ func (i *Interpreter) reportOverloadMismatch(fn *runtime.FunctionValue, evalArgs
 	if len(paramsForCheck) != len(argsForCheck) {
 		return nil
 	}
-	generics := functionGenericNameSet(fn, decl)
 	for idx, param := range paramsForCheck {
 		if param == nil || param.ParamType == nil {
 			continue
 		}
-		if paramUsesGeneric(param.ParamType, generics) {
+		if i.functionParamUsesGenerics(fn, idx, param.ParamType) {
 			continue
 		}
 		if i.matchesParamTypeForOverload(fn, param.ParamType, argsForCheck[idx]) {
@@ -104,7 +103,6 @@ func (i *Interpreter) matchesSingleRuntimeOverload(fn *runtime.FunctionValue, ev
 		if len(argsForCheck) != len(paramsForCheck) {
 			return false
 		}
-		generics := functionGenericNameSet(fn, decl)
 		for idx, param := range paramsForCheck {
 			if param == nil {
 				return false
@@ -112,7 +110,7 @@ func (i *Interpreter) matchesSingleRuntimeOverload(fn *runtime.FunctionValue, ev
 			if param.ParamType == nil {
 				continue
 			}
-			if paramUsesGeneric(param.ParamType, generics) {
+			if i.functionParamUsesGenerics(fn, idx, param.ParamType) {
 				continue
 			}
 			if !i.matchesParamTypeForOverload(fn, param.ParamType, argsForCheck[idx]) {
@@ -148,6 +146,12 @@ type overloadArgSignature struct {
 }
 
 func overloadArgTypeName(arg runtime.Value) string {
+	if kind, _, ok := bytecodeRawIntegerValueInfo(arg); ok {
+		return string(kind)
+	}
+	if _, kind, ok := bytecodeDirectRawFloatValue(arg); ok {
+		return string(kind)
+	}
 	switch v := arg.(type) {
 	case runtime.IntegerValue:
 		return string(v.TypeSuffix)
@@ -315,11 +319,11 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 			if len(argsForCheck) != len(paramsForCheck) {
 				continue
 			}
-			generics := functionGenericNameSet(fn, decl)
 			score := 0.0
 			if optionalLast && len(evalArgs) == expectedArgs-1 {
 				score -= 0.5
 			}
+			generics := functionGenericNameSet(fn, decl)
 			compatible := true
 			for idx, param := range paramsForCheck {
 				if param == nil {
@@ -327,7 +331,7 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 					break
 				}
 				if param.ParamType != nil {
-					if paramUsesGeneric(param.ParamType, generics) {
+					if i.functionParamUsesGenerics(fn, idx, param.ParamType) {
 						continue
 					}
 					if !i.matchesParamTypeForOverload(fn, param.ParamType, argsForCheck[idx]) {

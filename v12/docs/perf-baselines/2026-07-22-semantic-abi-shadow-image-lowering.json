@@ -1,0 +1,174 @@
+{
+  "kind": "able-semantic-abi-shadow-image-lowering",
+  "schema_version": 1,
+  "decision": "retain-execution-complete-shadow-lowering",
+  "manifest_identity_sha256": "79e60c725176e314b2d0840fc99b667531f6f5866c5285de695e96b7144b9c7e",
+  "cell_bytes": 16,
+  "runtime_kinds": 31,
+  "canonical_ops": 38,
+  "applications": [
+    {
+      "name": "fixed_width_128",
+      "function": "ordered_select_checksum",
+      "source": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+      "source_sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e",
+      "program_id": 201,
+      "ast_nodes": 70,
+      "ast_fallbacks": 0,
+      "instructions": 44,
+      "registers": 32,
+      "blocks": 9,
+      "call_targets": [
+        {
+          "kind": "imported",
+          "package": "able.numbers.uint128",
+          "owner_type": "UInt128",
+          "name": "zero",
+          "arity": 0,
+          "return_type": "dynamic"
+        },
+        {
+          "kind": "imported",
+          "package": "able.numbers.uint128",
+          "owner_type": "UInt128",
+          "name": "new",
+          "arity": 2,
+          "return_type": "dynamic"
+        },
+        {
+          "kind": "local",
+          "package": "fixed_width_128",
+          "name": "words_less",
+          "arity": 2,
+          "return_type": "bool"
+        }
+      ],
+      "host_effects": [],
+      "opcode_counts": {
+        "BinaryValue": 7,
+        "Branch": 2,
+        "CastValue": 3,
+        "Invoke": 3,
+        "Jump": 6,
+        "LoadConst": 11,
+        "MoveValue": 11,
+        "ReturnValue": 1
+      },
+      "backedges": 2,
+      "image_bytes": 2877,
+      "image_sha256": "e81a5093905104c779cb024b17941466b9b9a8d1fa8cc1dfc7e0c0811bff412b",
+      "deterministic": true,
+      "round_trip_identical": true
+    },
+    {
+      "name": "distance_field",
+      "function": "main",
+      "source": "v12/examples/benchmarks/distance_field/distance_field.able",
+      "source_sha256": "80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88",
+      "program_id": 202,
+      "ast_nodes": 89,
+      "ast_fallbacks": 0,
+      "instructions": 67,
+      "registers": 47,
+      "blocks": 14,
+      "call_targets": [],
+      "host_effects": [
+        "able.math.hypot",
+        "able.host.print"
+      ],
+      "opcode_counts": {
+        "BinaryValue": 14,
+        "Branch": 3,
+        "HostEffectResume": 2,
+        "Jump": 8,
+        "LoadConst": 19,
+        "MoveValue": 18,
+        "ReturnValue": 1,
+        "UnaryValue": 2
+      },
+      "backedges": 2,
+      "image_bytes": 4036,
+      "image_sha256": "c4ccf96af614e14ce90869ab987ef983bb9cd4586b17d3c517e7fa2e1d3e271f",
+      "deterministic": true,
+      "round_trip_identical": true
+    },
+    {
+      "name": "array_slice_window",
+      "function": "rolling_checksum",
+      "source": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "source_sha256": "64c65a525023e5fc7000f13b9d36875716b7d8b936060fede904381b58156b4e",
+      "program_id": 203,
+      "ast_nodes": 147,
+      "ast_fallbacks": 0,
+      "instructions": 81,
+      "registers": 62,
+      "blocks": 16,
+      "call_targets": [
+        {
+          "kind": "member",
+          "owner_type": "Array\u003ci32\u003e",
+          "name": "len",
+          "arity": 1,
+          "return_type": "dynamic"
+        },
+        {
+          "kind": "member",
+          "owner_type": "Array\u003ci32\u003e",
+          "name": "slice",
+          "arity": 3,
+          "return_type": "dynamic"
+        },
+        {
+          "kind": "member",
+          "owner_type": "Array\u003ci32\u003e",
+          "name": "read_slot",
+          "arity": 2,
+          "return_type": "dynamic"
+        }
+      ],
+      "host_effects": [],
+      "opcode_counts": {
+        "BinaryValue": 17,
+        "Branch": 4,
+        "CastValue": 5,
+        "Invoke": 4,
+        "Jump": 9,
+        "LoadConst": 16,
+        "LoadGlobal": 3,
+        "MatchFail": 1,
+        "MoveValue": 18,
+        "RaiseValue": 1,
+        "ReturnValue": 1,
+        "TypeTest": 2
+      },
+      "backedges": 4,
+      "image_bytes": 4813,
+      "image_sha256": "c93c369d8e5013ae3630041b8fe41e4dfc095ab9a671d5c6db22432106a8111c",
+      "deterministic": true,
+      "round_trip_identical": true
+    }
+  ],
+  "gates": {
+    "pointer_free_cell": true,
+    "typed_register_table": true,
+    "reachable_terminated_cfg": true,
+    "definite_assignment": true,
+    "resolved_call_targets": true,
+    "explicit_match_raise": true,
+    "exact_host_continuations": true,
+    "three_unlike_whole_functions": true,
+    "no_ast_fallbacks": true,
+    "production_execution_change": false
+  },
+  "next_lane": "shared-value-heap-conformance-contract",
+  "exclusions": [
+    "foreign heap",
+    "cgo runtime",
+    "JIT or backend",
+    "executable memory",
+    "production dispatch",
+    "benchmark branch",
+    "named-container or non-primitive nominal special case",
+    "WASM"
+  ]
+}

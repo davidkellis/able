@@ -1,0 +1,6 @@
+{
+  "description": "automata DSL to DFA benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

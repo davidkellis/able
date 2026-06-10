@@ -8,7 +8,7 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func TestBytecodeVM_LoweringEmitsTryArrayPushF64AffineProduct(t *testing.T) {
+func TestBytecodeVM_LoweringSkipsMatrixOnlyTryArrayPushF64AffineProduct(t *testing.T) {
 	arrayF64 := ast.Gen(ast.Ty("Array"), ast.Ty("f64"))
 	expr := ast.Bin("*",
 		ast.ID("t"),
@@ -40,26 +40,18 @@ func TestBytecodeVM_LoweringEmitsTryArrayPushF64AffineProduct(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
-	if !bytecodeProgramContainsOpcode(program, bytecodeOpTryArrayPushF64AffineProduct) {
-		t.Fatalf("expected lowering to emit f64 affine Array.push try opcode")
+	if bytecodeProgramContainsOpcode(program, bytecodeOpTryArrayPushF64AffineProduct) {
+		t.Fatalf("matrix-only f64 affine Array.push try opcode should not be emitted")
+	}
+	if len(program.f64AffinePushes) != 0 {
+		t.Fatalf("matrix-only f64 affine push plans should stay empty, got %#v", program.f64AffinePushes)
 	}
 	if !bytecodeProgramContainsOpcode(program, bytecodeOpCallMemberArraySlot) {
-		t.Fatalf("expected lowering to retain Array.push fallback call")
-	}
-	if len(program.f64AffinePushes) != 1 {
-		t.Fatalf("expected one f64 affine push plan, got %#v", program.f64AffinePushes)
-	}
-	for ip, plan := range program.f64AffinePushes {
-		if ip < 0 || ip >= len(program.instructions) || program.instructions[ip].op != bytecodeOpTryArrayPushF64AffineProduct {
-			t.Fatalf("f64 affine push plan attached to wrong ip %d", ip)
-		}
-		if !plan.validForSlots(4) || program.instructions[ip].target <= ip {
-			t.Fatalf("unexpected f64 affine push plan or target: plan=%#v instr=%#v", plan, program.instructions[ip])
-		}
+		t.Fatalf("expected lowering to retain generic Array.push lowering")
 	}
 }
 
-func TestBytecodeVM_LoweringEmitsTryArrayPushF64NestedGet(t *testing.T) {
+func TestBytecodeVM_LoweringSkipsMatrixOnlyTryArrayPushF64NestedGet(t *testing.T) {
 	arrayF64 := ast.Gen(ast.Ty("Array"), ast.Ty("f64"))
 	arrayArrayF64 := ast.Gen(ast.Ty("Array"), arrayF64)
 	arg := ast.Prop(ast.CallExpr(
@@ -92,22 +84,14 @@ func TestBytecodeVM_LoweringEmitsTryArrayPushF64NestedGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
-	if !bytecodeProgramContainsOpcode(program, bytecodeOpTryArrayPushF64NestedGet) {
-		t.Fatalf("expected lowering to emit f64 nested Array.get push try opcode")
+	if bytecodeProgramContainsOpcode(program, bytecodeOpTryArrayPushF64NestedGet) {
+		t.Fatalf("matrix-only f64 nested Array.get push try opcode should not be emitted")
+	}
+	if len(program.f64NestedGetPushes) != 0 {
+		t.Fatalf("matrix-only f64 nested get push plans should stay empty, got %#v", program.f64NestedGetPushes)
 	}
 	if !bytecodeProgramContainsOpcode(program, bytecodeOpCallMemberArraySlot) {
-		t.Fatalf("expected lowering to retain Array.push fallback call")
-	}
-	if len(program.f64NestedGetPushes) != 1 {
-		t.Fatalf("expected one f64 nested get push plan, got %#v", program.f64NestedGetPushes)
-	}
-	for ip, plan := range program.f64NestedGetPushes {
-		if ip < 0 || ip >= len(program.instructions) || program.instructions[ip].op != bytecodeOpTryArrayPushF64NestedGet {
-			t.Fatalf("f64 nested get push plan attached to wrong ip %d", ip)
-		}
-		if !plan.validForSlots(4) || plan.receiverSlot != 0 || plan.outerSlot != 1 || plan.rowIndexSlot != 3 || plan.colIndexSlot != 2 || program.instructions[ip].target <= ip {
-			t.Fatalf("unexpected f64 nested get push plan or target: plan=%#v instr=%#v", plan, program.instructions[ip])
-		}
+		t.Fatalf("expected lowering to retain generic Array.push lowering")
 	}
 }
 

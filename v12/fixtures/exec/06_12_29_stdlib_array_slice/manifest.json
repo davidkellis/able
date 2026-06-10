@@ -1,0 +1,13 @@
+{
+  "description": "Array.slice end-exclusive bounds, copy storage, and exact capacity",
+  "expect": {
+    "stdout": [
+      "range 2 2 20 30",
+      "independent 20 99 5 2 2",
+      "empty 0 0",
+      "reversed error",
+      "end error"
+    ],
+    "exit": 0
+  }
+}

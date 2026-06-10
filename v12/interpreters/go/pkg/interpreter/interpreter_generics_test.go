@@ -148,6 +148,52 @@ func TestGenericTypeIntrospectionBindsTypeNames(t *testing.T) {
 	}
 }
 
+func TestBindTypeArgumentsIfAny_BindsTypeTextAndRef(t *testing.T) {
+	interp := New()
+	decl := ast.Fn(
+		"showT",
+		[]*ast.FunctionParameter{ast.Param("value", nil)},
+		[]ast.Statement{ast.Ret(ast.ID("T_type"))},
+		ast.Ty("String"),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+		false,
+	)
+	call := ast.CallT(
+		ast.ID("showT"),
+		[]ast.TypeExpression{ast.Gen(ast.Ty("Array"), ast.Ty("i32"))},
+		ast.Arr(ast.Int(1)),
+	)
+	env := runtime.NewEnvironmentWithValueCapacity(interp.GlobalEnvironment(), 4)
+
+	interp.bindTypeArgumentsIfAny(decl, call, env)
+
+	value, ok := env.Lookup("T_type")
+	if !ok {
+		t.Fatalf("expected T_type binding")
+	}
+	typeText, ok := value.(runtime.StringValue)
+	if !ok || typeText.Val != "Array<i32>" {
+		t.Fatalf("expected T_type=Array<i32>, got %T (%#v)", value, value)
+	}
+
+	value, ok = env.Lookup("T")
+	if !ok {
+		t.Fatalf("expected T type-ref binding")
+	}
+	typeRef, ok := value.(runtime.TypeRefValue)
+	if !ok {
+		t.Fatalf("expected T to be a type-ref value, got %T (%#v)", value, value)
+	}
+	if typeRef.TypeName != "Array" {
+		t.Fatalf("expected T base type Array, got %#v", typeRef)
+	}
+	if len(typeRef.TypeArgs) != 1 || typeExpressionToString(typeRef.TypeArgs[0]) != "i32" {
+		t.Fatalf("expected T args [i32], got %#v", typeRef.TypeArgs)
+	}
+}
+
 func TestGenericTypeArgumentCountMismatch(t *testing.T) {
 	interp := New()
 	mustEvalModule(t, interp, ast.Mod([]ast.Statement{
@@ -393,7 +439,7 @@ func TestUfcsOnStructInstance(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected struct instance for p, got %T", val)
 	}
-	field, ok := inst.Fields["x"]
+	field, ok := structNamedFieldValue(inst, "x")
 	if !ok {
 		t.Fatalf("field x missing on struct instance")
 	}

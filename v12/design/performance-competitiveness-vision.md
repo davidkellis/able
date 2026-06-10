@@ -1,343 +1,301 @@
-# Performance Competitiveness Vision
-
-Date: 2026-05-27
-
-## Purpose
-
-This document is the handoff map for making Able fast enough to be credible in
-the sibling `../benchmarks` suite.
-
-The target is deliberately higher than "faster than the old interpreter":
-
-- compiled Able should be competitive with equivalent hand-written Go when the
-  program is statically representable;
-- bytecode Able should be competitive with mainstream bytecode/interpreter
-  runtimes on the same logic;
-- both runtimes must implement the v12 spec, share the same AST contract, and
-  preserve tree-walker parity for observable behavior.
-
-This is not permission to add benchmark-specific shortcuts. The route to speed
-is a better compiler, a better VM representation, and reusable stdlib/runtime
-surfaces.
-
-## Non-Negotiable Constraints
-
-- `spec/full_spec_v12.md` is the semantic authority.
-- The Go tree-walker remains the behavioral reference.
-- The bytecode VM must stay in strict semantic parity with the tree-walker.
-- The compiler must keep static paths native and explicit dynamic boundaries
-  narrow.
-- Only primitive Able types may receive primitive-specific compiler lowering.
-- Non-primitive nominal types, including stdlib containers, must lower through
-  shared nominal/carrier/dispatch machinery.
-- Array and String may have native compiler/VM treatment because they are core
-  language/kernel boundary types, not because a benchmark happens to use them.
-- Every optimization needs a guardrail test and a benchmark/profiling reason.
-
-## End State
-
-### Compiled Able
-
-Compiled Able should look like direct Go for static code:
-
-- primitive values lower to Go scalars;
-- arrays lower to compiler-owned native slice carriers;
-- structs lower to native structs or pointers;
-- unions/results/options/interfaces lower to generated native carriers;
-- loops, branches, patterns, calls, and dispatch lower to direct Go control
-  and direct calls when the target is statically resolved;
-- `runtime.Value`, `any`, interpreter dispatch, runtime array stores, and
-  dynamic call helpers appear only at explicit dynamic language or host ABI
-  boundaries.
-
-The compiler is "fast enough" only when source audits and external benchmarks
-both agree. If generated Go for a hot static path still manipulates
-`runtime.Value`, it is not done even if a small benchmark looks good.
-
-### Bytecode Able
-
-The bytecode interpreter should evolve into VM v2, not fork into a second
-interpreter:
-
-- keep the existing lowering pipeline, diagnostic AST nodes, call-frame stack,
-  resume machinery, and fallback runtime helpers;
-- add typed internal storage for primitives so hot local operations do not
-  continually box into `runtime.Value`;
-- add typed operand-stack/register lanes where boxed stack traffic dominates;
-- quicken stable call/member/index sites after the first successful proof;
-- add VM-native Array/String bytecodes for canonical kernel APIs;
-- box back to the existing `runtime.Value` path at every dynamic/spec boundary
-  that cannot prove the optimized representation is valid.
-
-The bytecode VM is "fast enough" when its remaining overhead is mostly the
-algorithm and unavoidable dynamic semantics, not repeated lookup, boxing,
-allocation, and helper dispatch for statically obvious primitive/container
-operations.
-
-### Stdlib
-
-The canonical external `../able-stdlib` must grow normal reusable APIs needed
-to express the benchmark suite:
-
-- encoding, digest, JSON, deterministic RNG, byte-buffer/string-builder,
-  bigint, IO, and text-processing features;
-- APIs should be useful library surfaces, not benchmark-only shims;
-- host-backed implementation is acceptable where the language/runtime boundary
-  makes that the right abstraction, but compiler lowering must not special-case
-  a named stdlib container or algorithm.
-
-## Current State
-
-The current external scoreboard already shows that the compiled path can be
-competitive when static lowering is clean:
-
-- `fib`: compiled near Go; bytecode completes through a guarded recurrence
-  kernel; tree-walker times out.
-- `binarytrees`: compiled near or ahead of Go; bytecode and tree-walker time
-  out.
-- `matrixmultiply`: compiled near Go; bytecode is currently ahead of the Go
-  reference after guarded mono-f64 row/storage kernels; tree-walker times out.
-- `quicksort`: compiled now completes in Go range; bytecode still times out at
-  full external scale, though the 1MB prefix and reduced in-tree hotloop have
-  improved materially.
-- `sudoku`: compiled ahead of Go; bytecode is slower than Go but no longer in
-  the timeout class.
-- `i_before_e`: compiled close to Go; bytecode remains substantially slower
-  than Go but usable.
-- `base64` and `json`: implemented through reusable stdlib APIs; JSON is
-  currently ahead of the Go/Python/Ruby references in both compiled and
-  bytecode modes.
-- `monte_carlo_pi`: implemented through deterministic Park-Miller sampling;
-  compiled is in the broad Go range and faster than Ruby/Python, while
-  bytecode is still dominated by boxed numeric arithmetic and GC.
-
-The important conclusion is that the compiled direction is broadly correct.
-The highest-risk remaining work is:
-
-- missing benchmark families and stdlib surfaces;
-- keeping compiled static paths native as new library features arrive;
-- bytecode VM v2 representation work, especially for quicksort and
-  binarytrees-style timeout families.
-
-## Measurement Rules
-
-Use external benchmarks as the final guardrail.
-
-Recommended loop for a tranche:
-
-1. Refresh the current external or reduced baseline.
-2. Capture CPU and allocation profiles for the exact baseline.
-3. Choose one bounded mechanism from the profile.
-4. Add focused semantic coverage before benchmarking.
-5. Run the focused tests.
-6. Run a repeated benchmark band.
-7. Keep only if wall time and allocation evidence are defensible.
-8. If kept, update `PLAN.md`, `LOG.md`, and performance docs.
-9. If rejected, revert the experiment and document the negative result.
-
-Reduced and prefix benchmarks are useful when the full external benchmark still
-times out, but they are not the finish line.
-
-## Workstreams
-
-### 1. Scoreboard And Coverage
-
-Goal: know what remains, keep it measured, and avoid optimizing blind.
-
-Required work:
-
-- keep `v12/docs/perf-baselines/external-scoreboard-current.*` current;
-- add Able implementations for missing benchmark families as stdlib support
-  lands; after the pidigits coverage tranche, the remaining candidate is
-  `tapelang-alphabet` if its language/runtime needs are intentionally selected;
-- keep canonical sources in `v12/examples/benchmarks`;
-- treat `../benchmarks/*/able-v12-*` as harness packaging only;
-- add per-benchmark generated-source audits once a compiled family is closed.
-
-Success condition:
-
-- every external benchmark has an Able implementation or an explicit tracked
-  language/stdlib blocker;
-- compiled, bytecode, and tree-walker rows are refreshed often enough that the
-  plan is driven by current evidence.
-
-### 2. Stdlib Benchmark Surface
-
-Goal: make Able capable of expressing the remaining benchmark suite with normal
-library APIs.
-
-Landed APIs:
-
-- `able.encoding.base64` encode/decode over strings and byte arrays;
-- `able.crypto.md5` MD5 hex helpers;
-- `able.json` with small-DOM parsing, typed numeric/object/array access, and a
-  fast numeric field projection helper for the external JSON benchmark;
-- host-backed `able.fs.read_text` so benchmark-scale file reads do not convert
-  a host byte array back through Able string validation one element at a time;
-- `able.random.Random` with deterministic Park-Miller `next_i32`,
-  `next_i64`, and `next_f64` helpers;
-- `able.numbers.bigint_native.BigIntRef`, a reusable host-backed mutable BigInt
-  reference API over Go `math/big`, which unlocks the pidigits benchmark.
-
-Near-term APIs:
-
-- byte-buffer / string-builder APIs for large output construction without
-  repeated string copies or UTF-8 validation;
-- tighter `able.fs`, `able.io`, and `able.text.string` hot APIs for file
-  reads, line iteration, splitting, parsing, searching, and replacement.
-
-Success condition:
-
-- missing benchmark families can be implemented naturally in Able;
-- compiled generated code for those APIs does not route hot static paths
-  through interpreter containers or dynamic dispatch.
-
-### 3. Compiler Go-Competitive Path
-
-Goal: keep compiled Able in Go range as the benchmark suite broadens.
-
-Current priority:
-
-- maintain the existing compiler-native architecture rather than adding more
-  benchmark-local lowering;
-- add generated-source audits for every closed benchmark family;
-- when a new stdlib API lands, prove its compiled hot path uses native carriers;
-- fix shared carrier/dispatch/control lowering when new benchmarks expose
-  dynamic scaffolding in static code.
-
-Likely near-term compiler work:
-
-- native byte-buffer/string-builder carriers and operations;
-- native JSON DOM or streaming-token carriers where statically typed;
-- source audits and cleanup for the native BigInt boundary now used by
-  `pidigits`;
-- source audits that reject `runtime.Value`, `runtime.ArrayValue`,
-  `ArrayStore*`, `any`, interpreter dispatch, and panic/recover flow in closed
-  static benchmark paths;
-- no-fallback launch checks for new benchmark binaries.
-
-Do not do:
-
-- do not add a compiler branch for `HashMap`, `LinkedList`, `TreeMap`, `Heap`,
-  `JsonObject`, or any other named non-primitive type just because a benchmark
-  uses it;
-- do not hide interpreter calls behind helper names on hot static paths;
-- do not accept a benchmark win if the generated Go shape is moving away from
-  native carriers.
-
-Success condition:
-
-- every implemented static benchmark compiles to straightforward Go-shaped
-  code and stays within the agreed comparison band against hand-written Go.
-
-### 4. Bytecode VM v2
-
-Goal: replace dynamic boxed traffic in hot bytecode paths with typed VM
-representation and guarded quickening.
-
-The next bytecode work should be architectural, not another series of tiny
-helper shaves.
-
-Primary VM-v2 pieces:
-
-- typed layout metadata for slot-eligible bytecode programs;
-- `i32` typed slots and operand/register cells;
-- explicit materialization at dynamic/spec boundaries;
-- typed inline call args and returns;
-- bool branch lanes;
-- `u8` and byte-array lanes for parsers and text scans;
-- `f64` lanes for numeric loops where matrix work has already proven value;
-- call/member/index quickening with version/shape guards;
-- native Array/String bytecodes for canonical kernel APIs;
-- resume/unwind coverage for typed frames before enabling typed lanes in
-  yielding/async functions.
-
-The first production target should be quicksort because full bytecode
-quicksort still times out.
-
-Quicksort-specific near-term path:
-
-1. Start from a fresh 1MB prefix and full external profile.
-2. Treat the kept tracked-array swap fast path as exhausted unless a fresh
-   profile proves otherwise; the current reduced profile has moved on to
-   compare, call setup, and slot arithmetic.
-3. Design the first real raw `i32` typed frame/register slice, not another
-   active-frame sidecar retrofit.
-4. Carry `i`, `j`, parser `value`, and simple loop counters through raw typed
-   slots without writing a non-pointer sentinel into `runtime.Value` on every
-   update.
-5. Box only at calls, returns, member/index dispatch, array writes, diagnostics,
-   and other explicit dynamic/spec boundaries.
-6. Keep v12 checked integer overflow and non-negative/range index behavior.
-7. Re-run quicksort prefix bands and the full external timeout guard.
-
-Parser byte-array lane:
-
-- treat canonical `Array u8` and byte iteration as a VM-native boundary;
-- avoid repeated `read_slot` method dispatch and byte boxing when shape guards
-  prove canonical byte arrays;
-- keep fallback for sparse/non-canonical arrays and all error cases.
-
-Binarytrees near-term path:
-
-- profile bytecode object construction, field access, recursion, and GC;
-- add guarded direct struct/field bytecodes only through shared nominal layout
-  metadata, not per-benchmark tree-node special cases;
-- consider allocation pooling only if identity, mutation, and lifetime
-  semantics are fully preserved;
-- avoid a native binary-tree kernel.
-
-Success condition:
-
-- timeout bytecode families move into completed rows;
-- bytecode hot profiles stop showing repeated boxing, generic lookup, and
-  dynamic helper dispatch for statically obvious primitive/kernel operations.
-
-## Rejected Paths Not To Repeat
-
-These have already been tried or explicitly ruled out:
-
-- whole-loop native quicksort scan/partition kernels;
-- nominal `Array.swap` or benchmark-specific container special cases;
-- swap call-site/body micro-quickening for quicksort;
-- further tracked-array swap rewrites without fresh profile evidence;
-- raw sentinel cache range tuning without a fresh profile reason;
-- mutable pointer-shaped integer cells stored as `runtime.Value`;
-- active-frame sidecar retrofits layered on the current dynamic slot model;
-- untyped local propagation without v12 typechecker proof and a real typed
-  representation;
-- one-off read-slot proof-cache helper rewrites;
-- disabled trace flag shaving;
-- compiler fast paths for named non-primitive stdlib containers;
-- accepting generated Go that merely wraps interpreter carriers more quickly.
-
-## Recommended Assignment Order
-
-If another model is taking over, assign work in this order:
-
-1. Refresh the external scoreboard and confirm which families are missing,
-   timed out, or regressed.
-2. Return to bytecode quicksort with the real typed `i32` frame/register slice.
-3. Use the Monte Carlo bytecode profile as the numeric-arithmetic companion
-   case: optimize primitive numeric slots/arithmetic generally, not by adding
-   a benchmark-specific RNG opcode.
-4. Use pidigits as the host-extern/native-boundary companion case: optimize
-   extern call overhead generally, not by adding pidigits-specific opcodes.
-5. After quicksort completes externally, move to bytecode binarytrees.
-
-## Definition Of Done
-
-The performance program is complete when:
-
-- all relevant `../benchmarks` families have Able implementations or explicit
-  documented spec gaps;
-- compiled Able is in the same practical performance class as Go on static
-  benchmark logic;
-- bytecode Able completes the benchmark suite and is competitive with
-  mainstream bytecode/interpreter runtimes;
-- generated-source audits prevent static compiled regressions back into
-  interpreter carriers;
-- VM guardrails prevent optimized bytecode paths from diverging from v12
-  semantics;
-- `PLAN.md`, `LOG.md`, and performance baselines explain the current state
-  without requiring archaeology through old tranches.
+# Performance Competitiveness: Active Selection Policy
+
+## Goals
+
+Able performance work serves two measurable outcomes while preserving the v12
+language contract:
+
+- **Compiled Able:** each rankable, statically representable application should
+  reach at least 95% of the equivalent Go application's throughput.
+- **Bytecode Able:** each rankable application should reach at least 95% of
+  both the equivalent Python and Ruby application's throughput where both
+  references exist. A missing reference or timeout is unranked, never a pass.
+
+The Go tree-walker remains the behavioral reference. The compiler, bytecode
+VM, external canonical `able-stdlib`, fixtures, and benchmark implementations
+must preserve the same observable Able semantics. Faster benchmark code that
+changes those semantics is not progress.
+
+## Current scorecard and selection status
+
+The reviewed selected frontier contains 49 compiled applications and 42
+bytecode applications. Seven additional bytecode rows retain bounded status
+probes. The 2026-07-22 current scorecards record exactly five verifier-backed
+Able and applicable reference samples for every selected row; excluded rows
+retain bounded status rather than manufactured ratios. Records:
+`docs/perf-baselines/2026-07-22-current-compiled-scorecard.json`,
+`docs/perf-baselines/2026-07-22-current-bytecode-scorecard.json`, and
+`docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json`.
+
+| Mode | Rankable rows meeting target | Current conclusion |
+| --- | ---: | --- |
+| compiled vs Go | 5 / 49 current; 3 established | Far from the 95% target; Base64 and Monte Carlo Pi are volatile snapshot crossings, while Matrix Multiply now clearly misses |
+| bytecode vs Python and Ruby | 3 / 42 current; 2 established | Far from the 95% target; Await Channel Mux is a volatile snapshot crossing, while Base64 now clearly misses |
+
+The current compiled meets are Binary Trees, QuickSort, Base64, JSON, and
+Monte Carlo Pi. The current bytecode meets are Await Channel Mux, JSON, and
+PiDigits.
+Independent reconciliation establishes Binary Trees, QuickSort, and JSON as
+compiled guards and JSON/PiDigits as bytecode guards. Compiled Base64, Monte
+Carlo Pi, and bytecode Await Channel Mux are variance-sensitive snapshot
+crossings. Record:
+`docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md`.
+The schema-2 frontier now enforces this distinction through
+`bench-performance-stability.json`: every selected snapshot meet must carry a
+reviewed cross-cohort classification, pooled/cohort ratios, sample counts,
+current Able/reference fingerprints, stdlib identity, and hashed evidence.
+Record:
+`docs/perf-baselines/2026-07-20-performance-stability-manifest.md`.
+The follow-up source-exact refresh confirms all five established guards—Binary
+Trees, QuickSort, compiled JSON, bytecode JSON, and bytecode PiDigits—in two
+independent cohorts against the promoted stdlib tree. Record:
+`docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md`.
+The complete evidence-backed frontier reports 83 misses, 156.334 seconds
+above the aggregate per-row budget, and zero unclosed implementation groups.
+The refresh therefore does not authorize another cache, frame, map, raw-cell,
+typed-lane, scheduler, regex, or named-container experiment. Reopen a group
+only when changed semantics or new exact profiles invalidate its recorded
+closure.
+
+The subsequent cross-family architecture audit reaches the same conclusion at
+the next level up. Compiled hot paths largely execute direct generated Go, so
+shared generated-runtime helpers are not the common residual wall. Bytecode
+dispatch, scalar encoding, call/return, and nominal-allocation costs recur, but
+their general mechanisms have already failed broad wall-time, reach,
+deployability, or lifetime gates. Go map, allocation, and GC parents divide
+into different semantic owners. The machine-readable eight-boundary census
+admits zero new candidates and changes no frontier disposition. Record:
+`docs/perf-baselines/2026-07-20-cross-family-architecture-ownership-audit.md`.
+
+The checked compiled target-budget follow-up makes that architecture result
+quantitative. Five unlike high-excess applications require 7.54x-640.06x
+speedups to reach 95% of Go. An intentionally favorable model makes each
+application's largest attributed exact owner completely free, yet still leaves
+4.28x-55.94x required. String and unsigned bridge conversion are material in
+only two families; escaping nominal results, regex storage, and goroutine
+identity are single-family owners. Allocation/GC and direct generated bodies
+remain aggregate parents over different semantics. No current compiler
+architecture mechanism is eligible. Record:
+`docs/perf-baselines/2026-07-21-compiled-architecture-target-budget.md`.
+
+The 2026-07-22 cross-engine refresh supersedes those timing ranges while
+preserving the decision. The compiled frontier contributes 23.368 seconds of
+target excess and bytecode contributes 132.966 seconds, or 85.05% of the
+total. Across five unlike compiled applications, current required gains range
+from 6.42x to 492.57x; making each largest attributed exact owner free still
+leaves at least 3.60x. Across six unlike bytecode applications, making every
+stack-transport operation free at equal average cost yields at most 1.80x and
+still leaves at least 7.79x. No local compiler or VM mechanism is admitted.
+The proposed semantic-region follow-up is now reconciled against completed
+executable work. A coverage-wide typed safe-region census already found five
+unlike material families; its one generic out-of-line executor regressed all
+three governing applications. Whole-function register execution and
+cross-suite Go PGO also failed their broad gates, and the current six-family
+semantic audit admits no exact operation family. A uniform-instruction-cost
+sizing model makes every previously admitted typed region free and closes only
+Monte Carlo Pi; the other three current rows retain modeled 2.25x-21.58x gaps.
+Because the census measured instruction rather than wall-time share, this is
+not claimed as an upper bound; the repeated executable regressions close a
+second Go dispatcher or executor.
+Records:
+`docs/perf-baselines/2026-07-22-current-cross-engine-architecture-target-budget-reconciliation.md`
+and
+`docs/perf-baselines/2026-07-22-bytecode-semantic-region-tier-feasibility.md`.
+
+The non-WASM native hot-code design and budget is now complete. Its safe first
+tier is pointer-free leaf code: Go owns every boxed or identity-bearing root,
+and allocation, calls, dynamic/nominal operations, errors, unwinding, externs,
+and suspension side-exit to the exact ordinary-VM instruction. Backedges poll
+for cooperative scheduling; unsupported platforms and evicted code use the
+ordinary VM; the process-local cache is content-addressed, W^X, and bounded.
+
+Current compiled Able provides the only complete semantics-preserving native
+planning proxy. Substituting its time for all 42 selected bytecode applications
+removes 88.68% of target excess, but only 11 rows meet and 31 still miss. The
+known typed regions clear a 25% equal-cost target-excess-reduction gate only in
+Monte Carlo Pi; RMS Norm and Fixed Width 128 lack sufficient reach, and Future
+Await Race misses even at whole-application compiled-proxy speed. No backend or
+prototype is admitted. The next lane is an opt-in deterministic per-function
+reach census. It must attribute entries, dynamic instructions, primitive work,
+effect exits, backedges, boxed boundaries, and captures to source functions in
+unlike applications before a backend ADR. Record:
+`docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.md`.
+
+This is an architecture boundary, not permission for named nominal, container,
+benchmark, or application special cases.
+
+The first feature-interaction tranche adds Concurrent Text Index and Validated
+Job Pipeline. A reproducible 55-pair matrix across 11 discriminating families
+shows that they reduce empty interactions from 29 to 15 and improve 32 pairs.
+Five-run verifier-backed baselines remain far outside both product targets.
+Their exact compiled profiles reproduce the rejected goroutine-identity
+boundary; exact bytecode-main profiles reproduce completed member-cache,
+return/type-match, allocation, and GC owners. No performance code is admitted.
+Record:
+`docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md`.
+
+The subsequent Policy Record Dispatch tranche strengthens 45 interaction
+pairs and reduces depth-one coverage from nine pairs to one without admitting
+performance code. The final reconciliation recognizes Dependency Wave
+Validation's already-hot typed Channel and payload-union patterns, raising the
+minimum depth across all 55 portable pairs from one to two and eliminating the
+last depth-one pair. It adds no application or implementation code. Records:
+`docs/perf-baselines/2026-07-21-feature-interaction-coverage-depth-gate.md` and
+`docs/perf-baselines/2026-07-21-concurrency-lexical-depth-reconciliation.md`.
+
+Until new evidence invalidates an implementation closure, audit portable
+three-family interactions, weighted by semantic importance and current target
+excess. Inspect existing applications first; add one bounded source-equivalent
+application only for a material missing combination, and profile code only if
+the audit exposes a new concrete generic leaf in at least three unlike
+applications.
+
+That audit now records all 165 triples as nonempty. Recognizing Concurrent Text
+Index's repeated nullable/pattern/control paths reduces depth-one triples from
+eight to two; both residual callable/concurrency triples have substantial
+Concurrent Event Routing coverage and do not justify a duplicate application.
+Coverage expansion is therefore paused. Next build a cross-mode residual cost
+model across unlike high-excess applications, using generated-code shape,
+semantic-operation/opcode counts, allocations, and reference work to select an
+architectural compiler or VM mechanism only when it explains material excess
+in at least three programs. Record:
+`docs/perf-baselines/2026-07-21-weighted-feature-interaction-triple-audit.md`.
+
+The subsequent application-depth passes add Concurrent Document Pipeline and
+Manifest Normalization. The latter raises files/text × captured callables ×
+Option/Result to three unlike applications and makes compiled
+`String.to_builtin` CPU-material in a third program. That trigger admitted one
+generic indexed-error-formatting experiment, but its repeated wall gate was
+mixed: roughly 1.5% faster K-Nucleotide, 2.9% slower Policy Record Dispatch,
+and 1% slower Manifest Normalization. The candidate was reverted. Bytecode
+reproduces only completed call, return, raw-integer, slot/member, map, and GC
+families. The 89-row frontier remains zero actionable. Records:
+`docs/perf-baselines/2026-07-21-concurrent-document-pipeline-application-gate.md`
+and `docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md`.
+
+The Validated Job Pipeline file-entry pass then raises minimum portable
+three-family depth from two to three by making real file text and program-entry
+arguments drive 2,048 concurrent validation tasks. Its compiled profile again
+places 94.16% cumulative CPU below `bridge.currentGID` / `runtime.Stack`; its
+bytecode profile has no new material shared VM child. The tempting follow-up—a
+spawn-selected context ABI—was already completed and rejected after a 10.0%
+Mutex Ledger regression, so the stale recommendation was reconciled without
+another timing run. Records:
+`docs/perf-baselines/2026-07-21-validated-job-file-entry-application-gate.md`
+and
+`docs/perf-baselines/2026-07-22-compiled-execution-context-recommendation-reconciliation.md`.
+
+The scorecard's bytecode column is deliberately full-process: normal CLI load,
+lowering, typechecking, bootstrap, and one `main()` invocation all remain in
+the row. It is not interchangeable with the warmed `bytecode-runtime` lane,
+which validates once and measures repeated `main()` execution. Trusted
+`able run --skip-typecheck` is available only after a separate successful
+check and is not enabled for the scorecard. The CPU-8-pinned, three-process
+Sudoku/Word-Frequency/Future-Pipeline comparison found the same Sudoku caps,
+1.33 s versus 1.32 s for Word Frequency, and 0.41 s in both Future Pipeline
+lanes. Typechecking and loading therefore are not the material common wall;
+the execution-only lane stays separate and must not silently replace the
+full-process target. Record:
+`docs/perf-baselines/2026-07-15-bytecode-execution-lane-reconciliation.md`.
+
+## Evidence invalidation triggers
+
+A closed performance mechanism is reconsidered only when at least one checked
+trigger applies:
+
+1. the v12 spec changes the relevant semantic boundary;
+2. canonical `able-stdlib` adds or changes a reusable specified operation at
+   that boundary;
+3. compiler, runtime, bridge, or VM implementation changes invalidate the
+   source/artifact identities used by the causal evidence;
+4. a new source-equivalent portable application makes the same concrete leaf
+   CPU-material in a third unlike family; or
+5. current verifier-backed scorecard evidence contradicts the closure's
+   predicted reach or guard behavior.
+
+Timing volatility, aggregate GC/allocation recurrence, ancestry labels, or an
+old “next recommendation” are not invalidation. When no trigger applies, do
+not rerun unchanged cohorts or construct a local candidate. The next selection
+tool should make these identities and source scopes mechanical so the roadmap
+cannot silently reopen current evidence.
+
+That selector is now checked in. It covers 18 frontier groups plus the
+cross-family ownership, bytecode-register architecture, and compiled target-
+budget closures. All 21 are current and none is selected. Production scope
+drift is mode-aware, evidence and benchmark identities are closure-local, and
+test-only changes are excluded. `just bench-evidence-ledger-check` runs its
+contract tests and exact artifact check; `just bench-scoreboard-check` includes
+the non-mutating ledger check. Record:
+`docs/perf-baselines/2026-07-21-performance-evidence-invalidation-ledger.md`.
+
+## Non-negotiable implementation rules
+
+- `spec/full_spec_v12.md` is semantic authority; the shared AST and Go
+  tree-walker are the parity baseline.
+- Static compiled paths use direct Go carriers, control, and dispatch. Dynamic
+  `runtime.Value` paths are explicit language/host boundaries only.
+- Only primitive types may have primitive-specific compiler lowering. Every
+  non-primitive nominal type, including stdlib and user containers, uses shared
+  nominal/carrier/dispatch lowering.
+- Array and String may have VM/compiler treatment only as language/kernel
+  boundaries, never because one benchmark uses them.
+- `able-stdlib` changes require a reusable specified API or behavior gap; they
+  may not be benchmark shims. The external repository is canonical.
+- Do not start WASM work until these compiled and bytecode targets are met.
+
+## Candidate admission gate
+
+An implementation candidate is admissible only when all of the following are
+true:
+
+1. A material semantic/compiler change or new spec-defined portable
+   application makes an investigation necessary.
+2. A bounded profile identifies the same concrete, non-nominal material leaf
+   in at least three unlike verifier-backed applications.
+3. The proposed change belongs to shared runtime, VM, compiler, or stdlib
+   machinery—not a benchmark, source shape, named container, algorithm, task
+   count, or host-input special case.
+4. Focused semantic, generated-source/boundary, and fallback/invalidation tests
+   prove the changed contract.
+5. The complete bounded coverage/performance gate shows no material regression
+   outside the original workloads.
+
+If the leaf is only a dispatcher/envelope parent, or its material children
+diverge by application, retain no code. Refresh evidence or complete the next
+language/stdlib requirement instead.
+
+## Measurement and verification
+
+Use verifier-backed application launches with fresh matched references, one
+process per sample, `GOMEMLIMIT=1GiB`, `GOGC=50`, the configured timeout, and
+the catalog's mode-aware execution contract. `--cpu-affinity` supplies an
+ordered pool; each row records its logical CPU budget, resolved taskset,
+executor policy, and matching `GOMAXPROCS` for Go/Able processes. Preserve
+source verifiers and foreign references; do not tune an Able program or
+reference merely to improve a ratio.
+
+`just bench-scorecard-refresh` creates bounded grouped evidence for all 49
+portable `coverage` applications and promotes only after the aggregate passes
+the exact five-run selected-evidence check. `just bench-scoreboard-check`
+validates the checked-in scoreboard without executing workloads. Excluded
+bytecode rows remain visible as bounded status probes; full-scorecard reruns
+follow material changes, not idle time.
+
+Every kept change needs the proportionate fast test group. The full matrix is
+confidence evidence, not the default sub-minute test. Performance evidence is
+valid only when the same source, verifier, references, and guard settings are
+recorded with the result.
+
+## Definition of done
+
+The performance program is complete when the full rankable scorecard reaches
+the two 95% targets, timeouts are either resolved or documented as language
+limitations, and source/boundary audits show that static compiled paths and
+optimized VM paths retain their intended representations. New benchmark
+families need an Able implementation or an explicit spec/stdlib blocker.
+
+Until then, the next work is chosen exclusively by the candidate admission
+gate. Historical benchmark readings, kept optimizations, rejected experiments,
+and former “next slices” are retained in
+[the historical performance record](./performance-competitiveness-historical.md)
+and dated `PLAN.md`/`v12/LOG.md` entries; they are not current assignments.

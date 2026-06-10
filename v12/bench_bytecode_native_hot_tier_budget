@@ -1,0 +1,772 @@
+#!/usr/bin/env python3
+"""Reconcile a native bytecode hot tier with current product target budgets."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-bytecode-native-hot-tier-design.json"
+CHECKED_JSON = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json"
+)
+CHECKED_MARKDOWN = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.md"
+)
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def resolve_source(record: Any, label: str) -> Path:
+    if not isinstance(record, dict):
+        raise ValueError(f"{label} source must be an object")
+    raw_path = record.get("path")
+    expected = record.get("sha256")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"{label} source needs a path")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ValueError(f"{label} source needs a SHA-256 fingerprint")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except FileNotFoundError:
+        raise ValueError(f"{label} source not found: {path}") from None
+    if actual != expected:
+        raise ValueError(
+            f"{label} source fingerprint drifted: expected {expected}, got {actual}"
+        )
+    return path
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def number(value: Any, label: str) -> float:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"{label} must be a number")
+    return float(value)
+
+
+def positive_number(value: Any, label: str) -> float:
+    result = number(value, label)
+    if result <= 0:
+        raise ValueError(f"{label} must be positive")
+    return result
+
+
+def positive_integer(value: Any, label: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"{label} must be a positive integer")
+    return value
+
+
+def frontier_by_mode(
+    frontier: dict[str, Any],
+) -> dict[tuple[str, str], dict[str, Any]]:
+    if frontier.get("kind") != "able-performance-frontier":
+        raise ValueError("frontier has an invalid kind")
+    rows = frontier.get("rows")
+    if not isinstance(rows, list):
+        raise ValueError("frontier needs rows")
+    result: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("frontier row must be an object")
+        benchmark = row.get("benchmark")
+        mode = row.get("mode")
+        if not isinstance(benchmark, str) or mode not in {"bytecode", "compiled"}:
+            raise ValueError("frontier row has invalid benchmark or mode")
+        key = (benchmark, mode)
+        if key in result:
+            raise ValueError(f"frontier repeats {benchmark}/{mode}")
+        result[key] = row
+    return result
+
+
+def proxy_rows(
+    rows: dict[tuple[str, str], dict[str, Any]], reduction_percent: float
+) -> list[dict[str, Any]]:
+    benchmarks = sorted(name for name, mode in rows if mode == "bytecode")
+    result = []
+    for benchmark in benchmarks:
+        bytecode = rows[(benchmark, "bytecode")]
+        compiled = rows.get((benchmark, "compiled"))
+        if compiled is None:
+            raise ValueError(f"compiled native proxy missing for {benchmark}")
+        current = positive_number(
+            bytecode.get("able_real_seconds"), f"{benchmark} bytecode seconds"
+        )
+        native_proxy = positive_number(
+            compiled.get("able_real_seconds"), f"{benchmark} compiled seconds"
+        )
+        target = positive_number(
+            bytecode.get("target_budget_seconds"), f"{benchmark} target budget"
+        )
+        current_excess = max(0.0, current - target)
+        proxy_excess = max(0.0, native_proxy - target)
+        target_fraction = None
+        reduction_fraction = None
+        if native_proxy < current and current_excess > 0:
+            target_fraction = (current - target) / (current - native_proxy)
+            reduction_fraction = (
+                reduction_percent / 100.0 * current_excess / (current - native_proxy)
+            )
+        result.append(
+            {
+                "benchmark": benchmark,
+                "bytecode_seconds": current,
+                "compiled_native_proxy_seconds": native_proxy,
+                "target_budget_seconds": target,
+                "bytecode_to_proxy_speedup": round(current / native_proxy, 6),
+                "compiled_proxy_target_ratio": round(native_proxy / target, 6),
+                "compiled_proxy_reaches_target": native_proxy <= target,
+                "current_target_excess_seconds": round(current_excess, 9),
+                "compiled_proxy_target_excess_seconds": round(proxy_excess, 9),
+                "required_compiled_equivalent_fraction_to_target": (
+                    round(target_fraction, 6) if target_fraction is not None else None
+                ),
+                "required_compiled_equivalent_fraction_for_material_reduction": (
+                    round(reduction_fraction, 6)
+                    if reduction_fraction is not None
+                    else None
+                ),
+            }
+        )
+    return result
+
+
+def region_rows(
+    region_report: dict[str, Any],
+    proxy_by_name: dict[str, dict[str, Any]],
+    entries: dict[str, Any],
+    reduction_percent: float,
+) -> list[dict[str, Any]]:
+    if region_report.get("kind") != "able-bytecode-semantic-region-feasibility":
+        raise ValueError("region feasibility report has an invalid kind")
+    raw_rows = region_report.get("typed_region_bounds")
+    if not isinstance(raw_rows, list):
+        raise ValueError("region feasibility report needs typed_region_bounds")
+    result = []
+    for raw in raw_rows:
+        if not isinstance(raw, dict) or not raw.get("current_rankable"):
+            continue
+        benchmark = raw.get("benchmark")
+        if not isinstance(benchmark, str) or benchmark not in proxy_by_name:
+            raise ValueError("rankable region row lacks a native proxy")
+        proxy = proxy_by_name[benchmark]
+        share = positive_number(
+            raw.get("instruction_share_percent"), f"{benchmark} instruction share"
+        )
+        if share >= 100:
+            raise ValueError(f"{benchmark} instruction share must be below 100")
+        entry_count = entries.get(benchmark)
+        if not isinstance(entry_count, int) or isinstance(entry_count, bool) or entry_count <= 0:
+            raise ValueError(f"{benchmark} needs a positive region entry count")
+        fraction = share / 100.0
+        current = proxy["bytecode_seconds"]
+        native = proxy["compiled_native_proxy_seconds"]
+        target = proxy["target_budget_seconds"]
+        modeled = current * (1.0 - fraction) + native * fraction
+        current_excess = max(0.0, current - target)
+        modeled_excess = max(0.0, modeled - target)
+        removed = 0.0
+        if current_excess > 0:
+            removed = (current_excess - modeled_excess) / current_excess * 100.0
+        transition_headroom = max(0.0, target - modeled)
+        result.append(
+            {
+                "benchmark": benchmark,
+                "family": raw.get("family"),
+                "instruction_share_percent": share,
+                "region_entries": entry_count,
+                "compiled_equivalent_region_model_seconds": round(modeled, 9),
+                "compiled_equivalent_region_model_target_ratio": round(
+                    modeled / target, 6
+                ),
+                "modeled_target_excess_reduction_percent": round(removed, 6),
+                "material_reduction_in_model": removed >= reduction_percent,
+                "model_reaches_target": modeled <= target,
+                "transition_headroom_ns_per_entry_if_target_met": round(
+                    transition_headroom * 1e9 / entry_count, 6
+                ),
+                "required_compiled_equivalent_fraction_to_target": proxy[
+                    "required_compiled_equivalent_fraction_to_target"
+                ],
+            }
+        )
+    return result
+
+
+def hot_function_rows(
+    evidence: dict[str, Any], proxy_by_name: dict[str, dict[str, Any]], reduction_percent: float
+) -> list[dict[str, Any]]:
+    raw_rows = evidence.get("hot_function_reach_evidence")
+    if not isinstance(raw_rows, list):
+        raise ValueError("hot_function_reach_evidence must be a list")
+    result = []
+    for raw in raw_rows:
+        if not isinstance(raw, dict):
+            raise ValueError("hot-function reach row must be an object")
+        benchmark = raw.get("benchmark")
+        family = raw.get("family")
+        candidate = raw.get("candidate_class")
+        if not all(isinstance(value, str) and value for value in (benchmark, family, candidate)):
+            raise ValueError("hot-function reach row needs benchmark, family, and class")
+        if benchmark not in proxy_by_name:
+            raise ValueError(f"hot-function reach lacks native proxy for {benchmark}")
+        if raw.get("verified") is not True:
+            raise ValueError(f"hot-function reach is not verifier-backed for {benchmark}")
+        total = positive_integer(raw.get("dynamic_instructions"), f"{benchmark} instructions")
+        primitive = positive_integer(
+            raw.get("primitive_eligible_instructions"), f"{benchmark} primitive instructions"
+        )
+        hottest = raw.get("hottest_program")
+        if not isinstance(hottest, dict):
+            raise ValueError(f"{benchmark} needs a hottest program")
+        hottest_dynamic = positive_integer(
+            hottest.get("dynamic_instructions"), f"{benchmark} hottest instructions"
+        )
+        hottest_primitive = positive_integer(
+            hottest.get("primitive_eligible_instructions"),
+            f"{benchmark} hottest primitive instructions",
+        )
+        hottest_effects = positive_integer(
+            hottest.get("effect_boundary_instructions"),
+            f"{benchmark} hottest effect instructions",
+        )
+        if primitive > total or hottest_dynamic > total:
+            raise ValueError(f"{benchmark} reach counts exceed total instructions")
+        if hottest_primitive + hottest_effects != hottest_dynamic:
+            raise ValueError(f"{benchmark} hottest instruction partition is inconsistent")
+        if raw.get("dropped_programs") != 0:
+            raise ValueError(f"{benchmark} census dropped programs")
+        proxy = proxy_by_name[benchmark]
+        current = proxy["bytecode_seconds"]
+        native = proxy["compiled_native_proxy_seconds"]
+        target = proxy["target_budget_seconds"]
+
+        def model(fraction: float) -> tuple[float, float]:
+            modeled = current * (1.0 - fraction) + native * fraction
+            current_excess = max(0.0, current - target)
+            modeled_excess = max(0.0, modeled - target)
+            removed = 0.0
+            if current_excess > 0:
+                removed = (current_excess - modeled_excess) / current_excess * 100.0
+            return modeled, removed
+
+        hottest_share = hottest_dynamic / total
+        primitive_share = primitive / total
+        hottest_modeled, hottest_removed = model(hottest_share)
+        primitive_modeled, primitive_removed = model(primitive_share)
+        contract_eligible = raw.get("contract_eligible") is True
+        reason = raw.get("contract_disposition")
+        if not isinstance(reason, str) or not reason:
+            raise ValueError(f"{benchmark} needs a contract disposition")
+        result.append(
+            {
+                **raw,
+                "hottest_program_instruction_share_percent": round(hottest_share * 100.0, 6),
+                "primitive_eligible_instruction_share_percent": round(primitive_share * 100.0, 6),
+                "hottest_program_compiled_equivalent_model_seconds": round(hottest_modeled, 9),
+                "hottest_program_modeled_target_excess_reduction_percent": round(hottest_removed, 6),
+                "primitive_pool_compiled_equivalent_model_seconds": round(primitive_modeled, 9),
+                "primitive_pool_modeled_target_excess_reduction_percent": round(primitive_removed, 6),
+                "hottest_program_material_reduction_in_model": hottest_removed >= reduction_percent,
+                "primitive_pool_material_reduction_in_model": primitive_removed >= reduction_percent,
+                "contract_eligible": contract_eligible,
+            }
+        )
+    return result
+
+
+def eligible_hot_function_classes(
+    rows: list[dict[str, Any]], minimum_families: int, reduction_percent: float
+) -> list[str]:
+    by_class: dict[str, tuple[set[str], set[str]]] = {}
+    for row in rows:
+        if row.get("contract_eligible") is not True:
+            continue
+        candidate = row.get("candidate_class")
+        benchmark = row.get("benchmark")
+        family = row.get("family")
+        reduction = number(
+            row.get("hottest_program_modeled_target_excess_reduction_percent"),
+            "hot-function target-excess reduction",
+        )
+        if not all(isinstance(value, str) and value for value in (candidate, benchmark, family)):
+            raise ValueError("hot-function reach row needs class, benchmark, and family")
+        if reduction < reduction_percent:
+            continue
+        families, applications = by_class.setdefault(candidate, (set(), set()))
+        families.add(family)
+        applications.add(benchmark)
+    return sorted(
+        candidate
+        for candidate, (families, applications) in by_class.items()
+        if len(families) >= minimum_families and len(applications) >= minimum_families
+    )
+
+
+def scalar_proof_rows(evidence: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_rows = evidence.get("scalar_proof_gap_census")
+    if not isinstance(raw_rows, list) or len(raw_rows) < 3:
+        raise ValueError("scalar-proof gap census needs at least three rows")
+    result = []
+    seen: set[str] = set()
+    for raw in raw_rows:
+        if not isinstance(raw, dict):
+            raise ValueError("scalar-proof census row must be an object")
+        benchmark = raw.get("benchmark")
+        family = raw.get("family")
+        if not isinstance(benchmark, str) or not benchmark or benchmark in seen:
+            raise ValueError("scalar-proof census benchmark must be unique")
+        if not isinstance(family, str) or not family:
+            raise ValueError(f"{benchmark} scalar-proof row needs a family")
+        if raw.get("verified") is not True or raw.get("dropped_programs") != 0:
+            raise ValueError(f"{benchmark} scalar-proof census is not complete and verified")
+        seen.add(benchmark)
+        total = positive_integer(
+            raw.get("dynamic_instructions"), f"{benchmark} scalar-proof instructions"
+        )
+        proof_rows = raw.get("proof_rows")
+        if not isinstance(proof_rows, list) or not proof_rows:
+            raise ValueError(f"{benchmark} scalar-proof census needs proof rows")
+        normalized = []
+        for proof in proof_rows:
+            if not isinstance(proof, dict):
+                raise ValueError(f"{benchmark} proof row must be an object")
+            opcode = proof.get("opcode")
+            kind = proof.get("proof")
+            count = positive_integer(
+                proof.get("dynamic_instructions"), f"{benchmark} proof instructions"
+            )
+            if not isinstance(opcode, str) or not opcode or not isinstance(kind, str) or not kind:
+                raise ValueError(f"{benchmark} proof row needs opcode and proof")
+            if count > total:
+                raise ValueError(f"{benchmark} proof count exceeds total instructions")
+            normalized.append(
+                {
+                    **proof,
+                    "instruction_share_percent": round(count / total * 100.0, 6),
+                }
+            )
+        result.append({**raw, "proof_rows": normalized})
+    return result
+
+
+def scalar_slot_hint_rejection(evidence: dict[str, Any]) -> dict[str, Any]:
+    raw = evidence.get("scalar_slot_hint_rejection")
+    if not isinstance(raw, dict) or raw.get("retained") is not False:
+        raise ValueError("scalar-slot hint rejection must record a rejected candidate")
+    runs = positive_integer(raw.get("runs_per_row"), "scalar-slot hint run count")
+    rows = raw.get("rows")
+    if runs < 3 or not isinstance(rows, list) or len(rows) < 3:
+        raise ValueError("scalar-slot hint rejection needs three repeated guard rows")
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("scalar-slot hint result must be an object")
+        benchmark = row.get("benchmark")
+        baseline = positive_number(row.get("baseline_seconds"), "hint baseline")
+        candidate = positive_number(row.get("candidate_seconds"), "hint candidate")
+        change = number(row.get("change_percent"), "hint change")
+        if not isinstance(benchmark, str) or not benchmark:
+            raise ValueError("scalar-slot hint result needs a benchmark")
+        computed = (candidate / baseline - 1.0) * 100.0
+        if abs(computed - change) > 0.00001:
+            raise ValueError(f"{benchmark} scalar-slot hint change is inconsistent")
+        if change <= 0:
+            raise ValueError(f"{benchmark} does not support candidate rejection")
+    return raw
+
+
+def build_report(evidence_path: Path) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "native-tier design evidence")
+    if evidence.get("kind") != "able-bytecode-native-hot-tier-design-evidence":
+        raise ValueError("native-tier evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("native-tier evidence needs schema_version 1")
+    minimum_families = evidence.get("minimum_unlike_families")
+    if not isinstance(minimum_families, int) or minimum_families < 3:
+        raise ValueError("minimum unlike families must be at least three")
+    reduction_percent = positive_number(
+        evidence.get("minimum_target_excess_reduction_percent"),
+        "minimum target-excess reduction",
+    )
+    sources = evidence.get("sources")
+    if not isinstance(sources, dict):
+        raise ValueError("native-tier evidence needs sources")
+    paths = {name: resolve_source(record, name) for name, record in sources.items()}
+    frontier = load_json(paths["frontier"], "frontier")
+    architecture = load_json(paths["architecture_budget"], "architecture budget")
+    region = load_json(paths["region_feasibility"], "region feasibility")
+    array_slot_roles = load_json(
+        paths["array_slot_value_role_census"], "Array-slot value-role census"
+    )
+    if architecture.get("kind") != "able-bytecode-architecture-budget":
+        raise ValueError("architecture budget has an invalid kind")
+    if architecture.get("summary", {}).get("decision") != "no-go-register-representation-only":
+        raise ValueError("architecture budget no longer closes representation-only work")
+    if region.get("summary", {}).get("decision") != "no-go-current-semantic-region-tier":
+        raise ValueError("semantic-region tier is no longer closed")
+    if (
+        array_slot_roles.get("kind")
+        != "able-bytecode-array-slot-value-role-census"
+        or array_slot_roles.get("decision")
+        != "retain-diagnostics-no-runtime-candidate"
+    ):
+        raise ValueError("Array-slot value-role census no longer closes the candidate")
+    reconciliation = array_slot_roles.get("reconciliation", {})
+    if (
+        reconciliation.get("prior_shape_count") != 2241366
+        or reconciliation.get("role_attributed_count") != 2241366
+        or reconciliation.get("unknown_count") != 0
+    ):
+        raise ValueError("Array-slot value-role census does not reconcile exactly")
+    contracts = evidence.get("execution_contract")
+    if not isinstance(contracts, list) or len(contracts) < 8:
+        raise ValueError("native-tier execution contract is incomplete")
+    contract_ids = {row.get("id") for row in contracts if isinstance(row, dict)}
+    if len(contract_ids) != len(contracts) or None in contract_ids:
+        raise ValueError("native-tier execution contract IDs must be unique")
+    backends = evidence.get("backend_options")
+    if not isinstance(backends, list) or len(backends) < 3:
+        raise ValueError("native-tier evidence needs backend options")
+    selected_backends = [row for row in backends if row.get("selected") is True]
+    proxies = proxy_rows(frontier_by_mode(frontier), reduction_percent)
+    proxy_by_name = {row["benchmark"]: row for row in proxies}
+    hot_functions = hot_function_rows(evidence, proxy_by_name, reduction_percent)
+    scalar_proofs = scalar_proof_rows(evidence)
+    hint_rejection = scalar_slot_hint_rejection(evidence)
+    eligible_classes = eligible_hot_function_classes(
+        hot_functions, minimum_families, reduction_percent
+    )
+    entries = evidence.get("known_region_entry_counts")
+    if not isinstance(entries, dict):
+        raise ValueError("native-tier evidence needs known region entry counts")
+    regions = region_rows(
+        region, proxy_by_name, entries, reduction_percent
+    )
+    current_excess = sum(row["current_target_excess_seconds"] for row in proxies)
+    proxy_excess = sum(
+        row["compiled_proxy_target_excess_seconds"] for row in proxies
+    )
+    prototype_admitted = bool(selected_backends and eligible_classes)
+    return {
+        "kind": "able-bytecode-native-hot-tier-design-budget",
+        "schema_version": 1,
+        "sources": {
+            "evidence": source_record(evidence_path),
+            **{name: source_record(path) for name, path in paths.items()},
+        },
+        "summary": {
+            "decision": (
+                "prototype-admitted" if prototype_admitted
+                else "no-go-native-tier-prototype-current-evidence"
+            ),
+            "prototype_admitted": prototype_admitted,
+            "minimum_unlike_families": minimum_families,
+            "minimum_target_excess_reduction_percent": reduction_percent,
+            "common_bytecode_compiled_application_count": len(proxies),
+            "compiled_native_proxy_target_meets": sum(
+                row["compiled_proxy_reaches_target"] for row in proxies
+            ),
+            "compiled_native_proxy_target_misses": sum(
+                not row["compiled_proxy_reaches_target"] for row in proxies
+            ),
+            "current_target_excess_seconds": round(current_excess, 9),
+            "compiled_native_proxy_target_excess_seconds": round(proxy_excess, 9),
+            "compiled_native_proxy_excess_reduction_percent": round(
+                (current_excess - proxy_excess) / current_excess * 100.0, 6
+            ),
+            "known_region_application_count": len(regions),
+            "known_region_material_reduction_count": sum(
+                row["material_reduction_in_model"] for row in regions
+            ),
+            "known_region_target_closure_count": sum(
+                row["model_reaches_target"] for row in regions
+            ),
+            "hot_function_census_application_count": len(hot_functions),
+            "hot_function_contract_eligible_count": sum(
+                row["contract_eligible"] for row in hot_functions
+            ),
+            "scalar_proof_census_application_count": len(scalar_proofs),
+            "proven_integer_load_application_count": sum(
+                any(
+                    proof["opcode"] == "LoadSlot"
+                    and proof["proof"] == "primitive-slot-integer"
+                    for proof in row["proof_rows"]
+                )
+                for row in scalar_proofs
+            ),
+            "scalar_slot_hint_rejected": True,
+            "array_slot_value_role_candidate_closed": True,
+            "eligible_hot_function_class_count": len(eligible_classes),
+            "selected_backend_count": len(selected_backends),
+        },
+        "architecture": {
+            "candidate_class": evidence.get("candidate_class"),
+            "execution_contract": contracts,
+            "backend_options": backends,
+            "eligible_hot_function_classes": eligible_classes,
+            "constraints": evidence.get("constraints"),
+        },
+        "native_proxy_rows": proxies,
+        "known_region_budget": regions,
+        "hot_function_reach_budget": hot_functions,
+        "scalar_proof_gap_census": scalar_proofs,
+        "scalar_slot_hint_rejection": hint_rejection,
+        "array_slot_value_role_census": array_slot_roles,
+        "next_measurement": evidence.get("next_measurement"),
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Bytecode native hot-code tier design and target budget",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        "The architecture contract is defined, but no implementation prototype is",
+        "admitted. Current evidence has neither a qualifying three-family hot-function",
+        "reach class nor a selected portable native backend.",
+        "",
+        "## End-to-end native proxy",
+        "",
+        "Current compiled Able is the only complete semantics-preserving native engine",
+        "in the repository, so its full-process time is used as an attainable planning",
+        "proxy, not as a promised JIT result or a mathematical bound.",
+        "",
+        "| Measure | Result |",
+        "| --- | ---: |",
+        f"| Common selected applications | {summary['common_bytecode_compiled_application_count']} |",
+        f"| Proxy target meets | {summary['compiled_native_proxy_target_meets']} |",
+        f"| Proxy target misses | {summary['compiled_native_proxy_target_misses']} |",
+        f"| Current bytecode target excess | {summary['current_target_excess_seconds']:.6f}s |",
+        f"| Proxy target excess | {summary['compiled_native_proxy_target_excess_seconds']:.6f}s |",
+        f"| Target excess removed by proxy | {summary['compiled_native_proxy_excess_reduction_percent']:.2f}% |",
+        "",
+        "Native-equivalent execution would be transformative, but it is not sufficient",
+        f"for the product target: {summary['compiled_native_proxy_target_misses']} of "
+        f"{summary['common_bytecode_compiled_application_count']} rows still miss when replaced wholesale by",
+        "the current compiled engine. Concurrency, regex, text/map, nominal, and several",
+        "control-heavy rows therefore also depend on compiler/runtime improvements.",
+        "",
+        "## Known typed-region reach",
+        "",
+        "This model linearly substitutes current compiled time for the observed dynamic",
+        "instruction share. Instruction share is not wall-time share, so the result is",
+        "only an equal-cost reach-sizing model. It cannot prove a speedup.",
+        "",
+        "| Application | Family | Instruction share | Required fraction to target | Modeled target ratio | Excess removed | Material? |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for row in report["known_region_budget"]:
+        required = row["required_compiled_equivalent_fraction_to_target"]
+        required_text = "—" if required is None else f"{required * 100.0:.2f}%"
+        lines.append(
+            f"| `{row['benchmark']}` | {row['family']} | "
+            f"{row['instruction_share_percent']:.2f}% | {required_text} | "
+            f"{row['compiled_equivalent_region_model_target_ratio']:.2f}x | "
+            f"{row['modeled_target_excess_reduction_percent']:.2f}% | "
+            f"{'yes' if row['material_reduction_in_model'] else 'no'} |"
+        )
+    lines += [
+        "",
+        "Only Monte Carlo Pi clears the predeclared 25% target-excess reduction gate.",
+        "RMS Norm and Fixed Width 128 require roughly 84% and 98% compiled-equivalent",
+        "coverage to reach target, far above their known 12% and 7% safe-region shares.",
+        "Future Await Race cannot reach target even at whole-application compiled-proxy",
+        "speed because its current compiled runtime is itself about 3.03x over the",
+        "bytecode interpreter target. Fine-grained region compilation is not admitted.",
+        "",
+        "## Hot-function reach census",
+        "",
+        "The census counts bytecode instructions and program entries, not elapsed time.",
+        "Each row is one verifier-backed application run with bootstrap work reset",
+        "immediately before `main()`. The compiled-equivalent substitutions remain",
+        "equal-cost reach models, not performance measurements.",
+        "",
+        "| Application | Family | Hottest program | Program share | Primitive share | Max primitive span | Hottest-program excess removed | Contract eligible? |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for row in report["hot_function_reach_budget"]:
+        hottest = row["hottest_program"]
+        lines.append(
+            f"| `{row['benchmark']}` | {row['family']} | `{hottest['name']}` | "
+            f"{row['hottest_program_instruction_share_percent']:.2f}% | "
+            f"{row['primitive_eligible_instruction_share_percent']:.2f}% | "
+            f"{hottest['max_static_primitive_span']} | "
+            f"{row['hottest_program_modeled_target_excess_reduction_percent']:.2f}% | "
+            f"{'yes' if row['contract_eligible'] else 'no'} |"
+        )
+    lines += [
+        "",
+        "Work is coarse enough by source function—the hottest program owns roughly",
+        "38% to 63% of instructions—but not by the pointer-free leaf execution unit.",
+        "Only about 34% to 43% of all instructions are conservatively primitive-eligible,",
+        "and the hottest programs interrupt those operations with runtime effects after",
+        "at most four to seven static instructions. Compiling an entire hot function",
+        "would therefore require unsupported Go callbacks or dense side-exit/re-entry",
+        "traffic. The common candidate class is measured but contract-ineligible.",
+        "",
+        "## Scalar-proof gap census",
+        "",
+        "The retained opt-in census combines lowering-time slot facts with checked",
+        "type inference. Counts remain diagnostic and do not alter normal execution.",
+        "The table shows the largest proven scalar gap in each verifier-backed row.",
+        "",
+        "| Application | Family | Largest proven opcode/proof | Instructions | Share |",
+        "| --- | --- | --- | ---: | ---: |",
+    ]
+    for row in report["scalar_proof_gap_census"]:
+        proof = max(row["proof_rows"], key=lambda item: item["dynamic_instructions"])
+        lines.append(
+            f"| `{row['benchmark']}` | {row['family']} | `{proof['opcode']}` / "
+            f"`{proof['proof']}` | {proof['dynamic_instructions']} | "
+            f"{proof['instruction_share_percent']:.2f}% |"
+        )
+    rejection = report["scalar_slot_hint_rejection"]
+    lines += [
+        "",
+        "Proven integer `LoadSlot` traffic repeats in five unlike applications,",
+        "while Distance Field instead has 28.21% proven float `LoadSlot` traffic.",
+        "A guarded integer-load hint was tested against three unlike workloads and",
+        "rejected: every three-run average regressed (0.95%-17.06%). The candidate",
+        "added a hot branch but did not remove the existing carrier type switch.",
+        f"Disposition: {rejection['disposition']}",
+        "",
+        "The completed carrier/consumer census accounts for every proven integer",
+        "load in six applications. Raw-i32 values feeding",
+        "`JumpIfBinaryCompareFalse` crossed four unlike applications, but a balanced",
+        "six-process-per-side direct-bool candidate regressed Array Slice Window",
+        "8.66% and Reverse Complement 1.65%. Its largest apparent improvement was",
+        "matched by the zero-reach Distance Field control, so the candidate was removed.",
+        "",
+        "## Required execution architecture",
+        "",
+    ]
+    for row in report["architecture"]["execution_contract"]:
+        lines.append(f"- **`{row['id']}`:** {row['requirement']}")
+    lines += [
+        "",
+        "The central GC/ABI rule is intentionally strict: generated code is leaf code",
+        "over pointer-free state. Go retains every boxed or identity-bearing value in a",
+        "root table; allocation, calls, errors, effects, and suspension side-exit before",
+        "execution. This avoids embedding Go interface layouts or Go heap pointers in",
+        "unscanned native memory and keeps the ordinary VM semantically authoritative.",
+        "",
+        "## Backend decision",
+        "",
+        "| Backend | Disposition | Reason |",
+        "| --- | --- | --- |",
+    ]
+    for row in report["architecture"]["backend_options"]:
+        lines.append(
+            f"| `{row['id']}` | `{row['disposition']}` | {row['reason']} |"
+        )
+    lines += [
+        "",
+        "No backend is selected. Generated Go plugins repeat the current exact-toolchain",
+        "and deployment constraints; another Go executor repeats rejected mechanisms;",
+        "and choosing custom emitters or an external C-ABI JIT before proving coarse",
+        "function reach would commit substantial portability and security work without",
+        "an admitted performance unit.",
+        "",
+        "## Prototype admission gate",
+        "",
+        f"A prototype requires at least {summary['minimum_unlike_families']} unlike applications, "
+        f"at least {summary['minimum_target_excess_reduction_percent']:.0f}% modeled target-excess "
+        "reduction in every row, and a reviewed backend ADR. Current qualifying hot-function",
+        f"classes: {summary['eligible_hot_function_class_count']}; selected backends: "
+        f"{summary['selected_backend_count']}. Therefore the prototype remains closed.",
+        "",
+        "## Next recommendation",
+        "",
+        f"Complete **{report['next_measurement']['id']}**.",
+        "",
+        report["next_measurement"]["scope"],
+        "",
+        "Collect:",
+        "",
+    ]
+    lines.extend(f"- {field}." for field in report["next_measurement"]["fields"])
+    lines += [
+        "",
+        f"Admission: {report['next_measurement']['admission']}",
+        "",
+        "Why this is next: carrier, consumer, operation, operand-role, trace, and clean",
+        "CPU attribution close the shared `CallMemberArraySlot` lead. Its 2,241,334",
+        "common push values already take the monomorphic `u8` path, and push CPU is",
+        "material only in Reverse Complement. A refreshed broad owner matrix is needed",
+        "before another execution candidate can satisfy the three-family gate.",
+        "",
+        "This remains non-WASM work and forbids benchmark, application, named nominal,",
+        "and container-specific compilation paths.",
+        "",
+        "## Reproduction",
+        "",
+        "```sh",
+        "python3 v12/bench_bytecode_native_hot_tier_budget_test.py",
+        "v12/bench_bytecode_native_hot_tier_budget --check",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        report = build_report(args.evidence)
+    except ValueError as error:
+        parser.error(str(error))
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    rendered = markdown(report)
+    if args.json_out:
+        args.json_out.write_text(encoded, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.write_text(rendered, encoding="utf-8")
+    if args.check:
+        if CHECKED_JSON.read_text(encoding="utf-8") != encoded:
+            raise SystemExit("checked native-tier JSON artifact is stale")
+        if CHECKED_MARKDOWN.read_text(encoding="utf-8") != rendered:
+            raise SystemExit("checked native-tier Markdown artifact is stale")
+    elif not args.json_out and not args.markdown_out:
+        print(encoded, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

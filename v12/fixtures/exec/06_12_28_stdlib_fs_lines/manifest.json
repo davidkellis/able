@@ -1,0 +1,22 @@
+{
+  "description": "lazy fs.lines iteration, newline normalization, and file-handle cleanup",
+  "expect": {
+    "stdout": [
+      "initial_closed false",
+      "line0 alpha",
+      "line1 beta",
+      "line2 final",
+      "line3 end",
+      "eof_rename true",
+      "early0 first",
+      "early1 end",
+      "early_rename true",
+      "for_line break-first",
+      "break_rename true",
+      "mid_error_closed true",
+      "mid_after end",
+      "missing_not_found true"
+    ],
+    "exit": 0
+  }
+}

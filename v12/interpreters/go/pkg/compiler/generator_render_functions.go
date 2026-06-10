@@ -18,7 +18,9 @@ func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *func
 		return
 	}
 	g.refreshRepresentableFunctionInfo(info)
-	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+	bodyName := g.compiledBodyName(info)
+	entryName := g.compiledEntryName(info)
+	fmt.Fprintf(buf, "func %s(", bodyName)
 	for i, param := range info.Params {
 		if i > 0 {
 			fmt.Fprintf(buf, ", ")
@@ -54,6 +56,7 @@ func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *func
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn struct{}{}, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
 		return
 	}
 	if info.ReturnType == "runtime.Value" {
@@ -66,12 +69,14 @@ func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *func
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn val, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
 		return
 	}
 	converted, ok := g.expectRuntimeValueExpr(callExpr, info.ReturnType)
 	if !ok {
 		fmt.Fprintf(buf, "\tpanic(fmt.Errorf(\"compiler: missing fallback conversion for %s\"))\n", info.Name)
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
 		return
 	}
 	fmt.Fprintf(buf, "\tval, control := %s\n", callExpr)
@@ -80,6 +85,7 @@ func (g *generator) renderCompiledFunctionFallback(buf *bytes.Buffer, info *func
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn %s, nil\n", strings.ReplaceAll(converted, callExpr, "val"))
 	fmt.Fprintf(buf, "}\n\n")
+	g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
 }
 
 func (g *generator) renderCompiledMethods(buf *bytes.Buffer) {
@@ -92,7 +98,9 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 	}
 	info := method.Info
 	g.refreshRepresentableFunctionInfo(info)
-	fmt.Fprintf(buf, "func __able_compiled_%s(", info.GoName)
+	bodyName := g.compiledBodyName(info)
+	entryName := g.compiledEntryName(info)
+	fmt.Fprintf(buf, "func %s(", bodyName)
 	for i, param := range info.Params {
 		if i > 0 {
 			fmt.Fprintf(buf, ", ")
@@ -137,6 +145,7 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn struct{}{}, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
 		return
 	}
 	if info.ReturnType == "runtime.Value" {
@@ -149,12 +158,14 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 		fmt.Fprintf(buf, "\t}\n")
 		fmt.Fprintf(buf, "\treturn val, nil\n")
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
 		return
 	}
 	converted, ok := g.expectRuntimeValueExpr(callExpr, info.ReturnType)
 	if !ok {
 		fmt.Fprintf(buf, "\tpanic(fmt.Errorf(\"compiler: missing method fallback conversion for %s\"))\n", info.Name)
 		fmt.Fprintf(buf, "}\n\n")
+		g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
 		return
 	}
 	fmt.Fprintf(buf, "\tval, control := %s\n", callExpr)
@@ -162,6 +173,25 @@ func (g *generator) renderCompiledMethodFallback(buf *bytes.Buffer, method *meth
 	fmt.Fprintf(buf, "\t\treturn %s, control\n", zeroExpr)
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn %s, nil\n", strings.ReplaceAll(converted, callExpr, "val"))
+	fmt.Fprintf(buf, "}\n\n")
+	g.renderCompiledFallbackEntryWrapper(buf, entryName, bodyName, info)
+}
+
+func (g *generator) renderCompiledFallbackEntryWrapper(buf *bytes.Buffer, entryName string, bodyName string, info *functionInfo) {
+	if buf == nil || info == nil || entryName == "" || bodyName == "" {
+		return
+	}
+	fmt.Fprintf(buf, "func %s(", entryName)
+	args := make([]string, 0, len(info.Params))
+	for idx, param := range info.Params {
+		if idx > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "%s %s", param.GoName, param.GoType)
+		args = append(args, param.GoName)
+	}
+	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnType)
+	fmt.Fprintf(buf, "\treturn %s(%s)\n", bodyName, strings.Join(args, ", "))
 	fmt.Fprintf(buf, "}\n\n")
 }
 
@@ -179,7 +209,9 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 		}
 		genericNames := g.callableGenericNames(info)
 		fmt.Fprintf(buf, "func __able_wrap_%s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
-		writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "ctx.Env", "ctx != nil")
+		if !g.callableExecutionContextsEnabled() {
+			writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "ctx.Env", "ctx != nil")
+		}
 		if g.hasOptionalLastParam(info) && info.Arity > 0 {
 			fmt.Fprintf(buf, "\tif len(args) == %d {\n", info.Arity-1)
 			fmt.Fprintf(buf, "\t\targs = append(args, runtime.NilValue{})\n")
@@ -194,14 +226,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 				fmt.Fprintf(buf, "\t%sValue := args[%d]\n", argName, idx)
 				g.renderArgConversion(buf, argName, param, info.Name, info.Package, genericNames)
 			}
-			fmt.Fprintf(buf, "\tcompiledResult, control := __able_compiled_%s(", info.GoName)
-			for i, param := range info.Params {
-				if i > 0 {
-					fmt.Fprintf(buf, ", ")
-				}
-				fmt.Fprintf(buf, "%s", param.GoName)
-			}
-			fmt.Fprintf(buf, ")\n")
+			fmt.Fprintf(buf, "\tcompiledResult, control := %s(%s)\n", g.compiledNativeWrapperCallName(info), g.compiledNativeWrapperCallArgs(info, "__able_context_from_native(ctx)"))
 			fmt.Fprintf(buf, "\tif control != nil {\n")
 			fmt.Fprintf(buf, "\t\treturn nil, __able_control_to_error(rt, ctx, control)\n")
 			fmt.Fprintf(buf, "\t}\n")
@@ -227,6 +252,7 @@ func (g *generator) renderWrappers(buf *bytes.Buffer) {
 				qualified = info.QualifiedName
 			}
 			fmt.Fprintf(buf, "\t__able_mark_boundary_explicit(\"call_original\", %q)\n", qualified)
+			g.emitDynamicBoundaryTelemetry(buf, "explicit")
 			fmt.Fprintf(buf, "\treturn rt.CallOriginal(%q, args)\n", qualified)
 		} else {
 			fmt.Fprintf(buf, "\treturn nil, fmt.Errorf(\"compiler: missing compiled implementation for %s\")\n", info.Name)
@@ -246,8 +272,14 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 		info := method.Info
 		g.refreshRepresentableFunctionInfo(info)
 		genericNames := g.methodGenericNames(method)
+		if method.ExpectsSelf && len(info.Params) > 0 {
+			g.renderInstanceMethodWrappers(buf, method, genericNames)
+			continue
+		}
 		fmt.Fprintf(buf, "func __able_wrap_%s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
-		writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "ctx.Env", "ctx != nil")
+		if !g.callableExecutionContextsEnabled() {
+			writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "ctx.Env", "ctx != nil")
+		}
 		if g.hasOptionalLastParam(info) && info.Arity > 0 {
 			fmt.Fprintf(buf, "\tif len(args) == %d {\n", info.Arity-1)
 			fmt.Fprintf(buf, "\t\targs = append(args, runtime.NilValue{})\n")
@@ -261,14 +293,7 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 			fmt.Fprintf(buf, "\t%sValue := args[%d]\n", argName, idx)
 			g.renderArgConversion(buf, argName, param, info.Name, info.Package, genericNames)
 		}
-		fmt.Fprintf(buf, "\tcompiledResult, control := __able_compiled_%s(", info.GoName)
-		for i, param := range info.Params {
-			if i > 0 {
-				fmt.Fprintf(buf, ", ")
-			}
-			fmt.Fprintf(buf, "%s", param.GoName)
-		}
-		fmt.Fprintf(buf, ")\n")
+		fmt.Fprintf(buf, "\tcompiledResult, control := %s(%s)\n", g.compiledNativeWrapperCallName(info), g.compiledNativeWrapperCallArgs(info, "__able_context_from_native(ctx)"))
 		fmt.Fprintf(buf, "\tif control != nil {\n")
 		fmt.Fprintf(buf, "\t\treturn nil, __able_control_to_error(rt, ctx, control)\n")
 		fmt.Fprintf(buf, "\t}\n")
@@ -289,6 +314,73 @@ func (g *generator) renderMethodWrappers(buf *bytes.Buffer) {
 	}
 }
 
+func (g *generator) renderInstanceMethodWrappers(buf *bytes.Buffer, method *methodInfo, genericNames map[string]struct{}) {
+	if g == nil || buf == nil || method == nil || method.Info == nil || len(method.Info.Params) == 0 {
+		return
+	}
+	info := method.Info
+	fmt.Fprintf(buf, "func __able_wrap_%s(rt *bridge.Runtime, ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n", info.GoName)
+	fmt.Fprintf(buf, "\tif len(args) == 0 {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"arity mismatch calling %s: expected %d, got 0\")\n", info.Name, info.Arity)
+	fmt.Fprintf(buf, "\t}\n")
+	if g.callableExecutionContextsEnabled() {
+		fmt.Fprintf(buf, "\treturn __able_wrap_%s_ctx_direct(rt, ctx, args[0], args[1:])\n", info.GoName)
+	} else {
+		fmt.Fprintf(buf, "\treturn __able_wrap_%s_direct(rt, __able_compiled_direct_env_from_native(ctx), args[0], args[1:])\n", info.GoName)
+	}
+	fmt.Fprintf(buf, "}\n\n")
+
+	explicitArity := info.Arity - 1
+	if explicitArity < 0 {
+		explicitArity = 0
+	}
+	if g.callableExecutionContextsEnabled() {
+		fmt.Fprintf(buf, "func __able_wrap_%s_direct(rt *bridge.Runtime, __able_direct_env *runtime.Environment, receiver runtime.Value, args []runtime.Value) (runtime.Value, error) {\n", info.GoName)
+		fmt.Fprintf(buf, "\treturn __able_wrap_%s_ctx_direct(rt, &runtime.NativeCallContext{Env: __able_direct_env}, receiver, args)\n", info.GoName)
+		fmt.Fprintf(buf, "}\n\n")
+		fmt.Fprintf(buf, "func __able_wrap_%s_ctx_direct(rt *bridge.Runtime, ctx *runtime.NativeCallContext, receiver runtime.Value, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
+	} else {
+		fmt.Fprintf(buf, "func __able_wrap_%s_direct(rt *bridge.Runtime, __able_direct_env *runtime.Environment, receiver runtime.Value, args []runtime.Value) (result runtime.Value, err error) {\n", info.GoName)
+		writeRuntimeEnvSwapIfNeeded(buf, "\t", "rt", "__able_direct_env", "")
+	}
+	if g.hasOptionalLastParam(info) && explicitArity > 0 {
+		fmt.Fprintf(buf, "\tif len(args) == %d {\n", explicitArity-1)
+		fmt.Fprintf(buf, "\t\targs = append(args, runtime.NilValue{})\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
+	fmt.Fprintf(buf, "\tif len(args) != %d {\n", explicitArity)
+	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"arity mismatch calling %s: expected %d, got %%d\", len(args)+1)\n", info.Name, info.Arity)
+	fmt.Fprintf(buf, "\t}\n")
+	for idx, param := range info.Params {
+		argName := fmt.Sprintf("arg%d", idx)
+		if idx == 0 {
+			fmt.Fprintf(buf, "\t%sValue := receiver\n", argName)
+		} else {
+			fmt.Fprintf(buf, "\t%sValue := args[%d]\n", argName, idx-1)
+		}
+		g.renderArgConversion(buf, argName, param, info.Name, info.Package, genericNames)
+	}
+	fmt.Fprintf(buf, "\tcompiledResult, control := %s(%s)\n", g.compiledNativeWrapperCallName(info), g.compiledNativeWrapperCallArgs(info, "__able_context_from_native(ctx)"))
+	fmt.Fprintf(buf, "\tif control != nil {\n")
+	if !g.callableExecutionContextsEnabled() {
+		fmt.Fprintf(buf, "\t\tctx := &runtime.NativeCallContext{Env: __able_direct_env}\n")
+	}
+	fmt.Fprintf(buf, "\t\treturn nil, __able_control_to_error(rt, ctx, control)\n")
+	fmt.Fprintf(buf, "\t}\n")
+	recv := info.Params[0]
+	if g.typeCategory(recv.GoType) == "struct" {
+		baseName, ok := g.structHelperName(recv.GoType)
+		if !ok {
+			baseName = strings.TrimPrefix(recv.GoType, "*")
+		}
+		fmt.Fprintf(buf, "\tif err := __able_struct_%s_apply(rt, arg0Value, %s); err != nil {\n", baseName, recv.GoName)
+		fmt.Fprintf(buf, "\t\treturn nil, err\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
+	g.renderReturnConversion(buf, "compiledResult", info.ReturnType, g.functionReturnTypeExpr(info), info.Name, genericNames)
+	fmt.Fprintf(buf, "}\n\n")
+}
+
 func (g *generator) renderRegister(buf *bytes.Buffer) {
 	seedStructNames := g.sortedUniqueStructNames()
 	seenSeedStruct := make(map[string]struct{}, len(seedStructNames)+1)
@@ -300,10 +392,10 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 		sort.Strings(seedStructNames)
 	}
 
-	fmt.Fprintf(buf, "func Register(interp *interpreter.Interpreter) (*bridge.Runtime, error) {\n")
+	fmt.Fprintf(buf, "func Register(interp bridge.Interpreter) (*bridge.Runtime, error) {\n")
 	fmt.Fprintf(buf, "\treturn RegisterIn(interp, nil)\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func RegisterIn(interp *interpreter.Interpreter, env *runtime.Environment) (*bridge.Runtime, error) {\n")
+	fmt.Fprintf(buf, "func RegisterIn(interp bridge.Interpreter, env *runtime.Environment) (*bridge.Runtime, error) {\n")
 	fmt.Fprintf(buf, "\tentryEnv := env\n")
 	fmt.Fprintf(buf, "\tif entryEnv == nil && interp != nil {\n")
 	fmt.Fprintf(buf, "\t\tentryEnv = interp.GlobalEnvironment()\n")
@@ -391,7 +483,7 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn rt, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_seed_entry_struct_defs(interp *interpreter.Interpreter, entryEnv *runtime.Environment) {\n")
+	fmt.Fprintf(buf, "func __able_seed_entry_struct_defs(interp bridge.Interpreter, entryEnv *runtime.Environment) {\n")
 	fmt.Fprintf(buf, "\tif entryEnv == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -423,10 +515,10 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 		fmt.Fprintf(buf, "\t}\n")
 	}
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func RunMain(interp *interpreter.Interpreter) error {\n")
+	fmt.Fprintf(buf, "func RunMain(interp bridge.Interpreter) error {\n")
 	fmt.Fprintf(buf, "\treturn RunMainIn(interp, nil)\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func RunMainIn(interp *interpreter.Interpreter, env *runtime.Environment) error {\n")
+	fmt.Fprintf(buf, "func RunMainIn(interp bridge.Interpreter, env *runtime.Environment) error {\n")
 	fmt.Fprintf(buf, "\trt, err := RegisterIn(interp, env)\n")
 	fmt.Fprintf(buf, "\tif err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn err\n")
@@ -437,7 +529,7 @@ func (g *generator) renderRegister(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn RunRegisteredMain(rt, interp, entryEnv)\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func RunRegisteredMain(rt *bridge.Runtime, interp *interpreter.Interpreter, entryEnv *runtime.Environment) error {\n")
+	fmt.Fprintf(buf, "func RunRegisteredMain(rt *bridge.Runtime, interp bridge.Interpreter, entryEnv *runtime.Environment) error {\n")
 	fmt.Fprintf(buf, "\tif entryEnv == nil && rt != nil {\n")
 	fmt.Fprintf(buf, "\t\tentryEnv = rt.Env()\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -585,6 +677,15 @@ func (g *generator) renderArgConversion(buf *bytes.Buffer, argName string, param
 		fmt.Fprintf(buf, "\t%sRaw, err := bridge.AsUint(%sValue, %d)\n", argName, argName, bits)
 		g.renderConvertErr(buf)
 		fmt.Fprintf(buf, "\t%s := %s(%sRaw)\n", target, goType, argName)
+	case "int128", "uint128":
+		helper := "runtime.Int128FromValue"
+		if goType == "runtime.Uint128" {
+			helper = "runtime.Uint128FromValue"
+		}
+		fmt.Fprintf(buf, "\t%s, %sOk := %s(%sValue)\n", target, argName, helper, argName)
+		fmt.Fprintf(buf, "\tif !%sOk {\n", argName)
+		fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"type mismatch calling %s: expected %s\")\n", funcName, typeNameFromGoType(goType))
+		fmt.Fprintf(buf, "\t}\n")
 	case "struct":
 		if g.isArrayStructType(goType) {
 			fmt.Fprintf(buf, "\tvar %s *Array\n", target)
@@ -698,6 +799,8 @@ func (g *generator) renderReturnConversion(buf *bytes.Buffer, resultName, goType
 		fmt.Fprintf(buf, "\treturn bridge.ToUint(uint64(%s), runtime.IntegerType(\"u32\")), nil\n", resultName)
 	case "uint64":
 		fmt.Fprintf(buf, "\treturn bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\")), nil\n", resultName)
+	case "int128", "uint128":
+		fmt.Fprintf(buf, "\treturn (%s).IntegerValue(), nil\n", resultName)
 	case "struct":
 		lines, ok := g.structReturnConversionLines(resultName, goType, "rt")
 		if !ok {

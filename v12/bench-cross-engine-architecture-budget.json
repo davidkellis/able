@@ -1,0 +1,25 @@
+{
+  "kind": "able-cross-engine-architecture-budget-evidence",
+  "schema_version": 1,
+  "sources": {
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+    },
+    "bytecode_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
+      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+    },
+    "compiled_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
+      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+    }
+  },
+  "minimum_unlike_families": 3,
+  "next_architecture_lane": {
+    "id": "cross-engine-structural-strategy-reconciliation",
+    "scope": "Compare materially different remaining structural routes against the complete target budget before building more local candidates: typed bytecode specialization that removes dynamic semantic work, a lower-level portable VM backend, and further general compiled nominal-ABI simplification. Explicitly exclude completed Go-level region/register executors and the unadmitted native leaf tier.",
+    "admission": "Advance one route only when a concrete mechanism is applicable to at least three unlike verifier-backed applications, an optimistic end-to-end model removes at least 25% of target excess in every governing row, and the route is not equivalent to a completed rejection.",
+    "guards": "Preserve bytecode JSON and PiDigits established target guards plus compiled Binary Trees, JSON, and QuickSort guards."
+  }
+}

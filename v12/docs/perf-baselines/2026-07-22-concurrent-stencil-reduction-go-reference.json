@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-23T04:54:27Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 60,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/go-1.26/app.go",
+      "source_sha256": "ac0b3b8210a6c956b2fd4b97bdd0e477a6063dfc451e62d05efc72b82107cc20",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0051,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005217667,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.004955635,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.004676974,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005541082,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.004925552,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    }
+  ]
+}

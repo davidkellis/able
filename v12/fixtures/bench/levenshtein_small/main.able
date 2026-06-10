@@ -1,0 +1,96 @@
+package bench_levenshtein_small
+
+import able.kernel.{Array}
+import able.core.iteration.{IteratorEnd}
+import able.text.string.{String}
+
+fn to_chars(text: String) -> Array char {
+  chars: Array char = Array.new()
+  iter := text.chars()
+  loop {
+    iter.next() match {
+      case _: IteratorEnd => { break },
+      case ch: char => chars.push(ch)
+    }
+  }
+  chars
+}
+
+fn min3(a: i32, b: i32, c: i32) -> i32 {
+  best := if a < b { a } else { b }
+  if c < best { c } else { best }
+}
+
+fn distance(left: String, right: String) -> i32 {
+  a := to_chars(left)
+  b := to_chars(right)
+  prev: Array i32 = Array.with_capacity(b.len() + 1)
+  curr: Array i32 = Array.with_capacity(b.len() + 1)
+
+  idx := 0
+  loop {
+    if idx > b.len() { break }
+    prev.push(idx)
+    curr.push(0)
+    idx = idx + 1
+  }
+
+  row := 1
+  loop {
+    if row > a.len() { break }
+    curr[0] = row
+    col := 1
+    loop {
+      if col > b.len() { break }
+      cost := if a[row - 1]! == b[col - 1]! { 0 } else { 1 }
+      deletion := prev[col]! + 1
+      insertion := curr[col - 1]! + 1
+      replacement := prev[col - 1]! + cost
+      curr[col] = min3(deletion, insertion, replacement)
+      col = col + 1
+    }
+    col = 0
+    loop {
+      if col > b.len() { break }
+      prev[col] = curr[col]!
+      col = col + 1
+    }
+    row = row + 1
+  }
+
+  prev[b.len()]!
+}
+
+fn build_words() -> Array String {
+  [
+    "performance",
+    "performant",
+    "preference",
+    "conference",
+    "inference",
+    "difference",
+    "deference",
+    "reference",
+    "benchmark",
+    "benchmarked",
+    "watermark",
+    "framework"
+  ]
+}
+
+fn main() -> void {
+  words := build_words()
+  total: i64 = 0_i64
+  left := 0
+  loop {
+    if left >= words.len() { break }
+    right := left + 1
+    loop {
+      if right >= words.len() { break }
+      total = total + (distance(words[left]!, words[right]!) as i64)
+      right = right + 2
+    }
+    left = left + 1
+  }
+  print(total)
+}

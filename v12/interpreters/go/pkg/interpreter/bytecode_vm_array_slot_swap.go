@@ -23,7 +23,7 @@ func (vm *bytecodeVM) execArraySlotSwapSlot(instr *bytecodeInstruction, program 
 		if err != nil {
 			return vm.attachArraySlotSwapSlotError(err, instr)
 		}
-		vm.stack = append(vm.stack, runtime.VoidValue{})
+		vm.appendStackValue(runtime.VoidValue{})
 		vm.ip++
 		return nil
 	}
@@ -36,7 +36,7 @@ func (vm *bytecodeVM) execArraySlotSwapSlot(instr *bytecodeInstruction, program 
 	if err != nil {
 		return vm.attachArraySlotSwapSlotError(err, instr)
 	}
-	vm.stack = append(vm.stack, runtime.VoidValue{})
+	vm.appendStackValue(runtime.VoidValue{})
 	vm.ip++
 	return nil
 }
@@ -46,7 +46,7 @@ func (vm *bytecodeVM) resolveArraySlotSwapSlotAtSlots(instr *bytecodeInstruction
 	if !ok || arr == nil || !vm.canUseCanonicalArraySlotCallCacheForArray(arr) {
 		return vm.resolveArraySlotSwapSlot(instr, program, receiver, vm.slotMaterializedValue(firstSlot), vm.slotMaterializedValue(secondSlot))
 	}
-	if vm.lookupCachedCanonicalArraySlotCallForArray(program, vm.ip, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
+	if vm.lookupCachedCanonicalArraySlotCallForArrayValidated(program, vm.ip, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
 		if handled, err := vm.resolveArraySlotSwapSlotFastAtSlots(arr, firstSlot, secondSlot); handled || err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func (vm *bytecodeVM) resolveArraySlotSwapSlotAtSlots(instr *bytecodeInstruction
 
 func (vm *bytecodeVM) resolveArraySlotSwapSlot(instr *bytecodeInstruction, program *bytecodeProgram, receiver runtime.Value, firstIdx runtime.Value, secondIdx runtime.Value) error {
 	if arr, ok := receiver.(*runtime.ArrayValue); ok && arr != nil && vm.canUseCanonicalArraySlotCallCacheForArray(arr) {
-		if vm.lookupCachedCanonicalArraySlotCallForArray(program, vm.ip, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
+		if vm.lookupCachedCanonicalArraySlotCallForArrayValidated(program, vm.ip, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
 			if handled, err := vm.resolveArraySlotSwapSlotFast(arr, firstIdx, secondIdx); handled || err != nil {
 				return err
 			}
@@ -100,11 +100,11 @@ func (vm *bytecodeVM) resolveArraySlotSwapSlotFast(arr *runtime.ArrayValue, firs
 	if handled := vm.resolveTrackedArraySlotSwapSlotFast(arr, firstIdx, secondIdx); handled {
 		return true, nil
 	}
-	left, _, handled, err := vm.readArraySlotValueFast(arr, firstIdx)
+	left, _, handled, err := vm.readArraySlotValueFastChecked(arr, firstIdx)
 	if err != nil || !handled {
 		return handled, err
 	}
-	right, _, handled, err := vm.readArraySlotValueFast(arr, secondIdx)
+	right, _, handled, err := vm.readArraySlotValueFastChecked(arr, secondIdx)
 	if err != nil || !handled {
 		return handled, err
 	}
@@ -138,7 +138,7 @@ func (vm *bytecodeVM) resolveTrackedArraySlotSwapSlotFastAtSlots(arr *runtime.Ar
 	}
 	state.Values[first] = right
 	state.Values[second] = left
-	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, right, second, left)
+	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, second)
 	return true
 }
 
@@ -165,7 +165,7 @@ func (vm *bytecodeVM) resolveTrackedArraySlotSwapSlotFast(arr *runtime.ArrayValu
 	}
 	state.Values[first] = right
 	state.Values[second] = left
-	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, right, second, left)
+	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, second)
 	return true
 }
 
@@ -193,7 +193,7 @@ func (vm *bytecodeVM) genericArrayWriteSlotValue(receiver runtime.Value, index r
 		return err
 	}
 	args := [2]runtime.Value{index, value}
-	_, err = vm.interp.callCallableValueMutable(callee, args[:], vm.env, nil)
+	_, err = vm.callCallableValueMutable(callee, args[:], nil)
 	return err
 }
 

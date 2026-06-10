@@ -1,0 +1,73 @@
+File: compiled
+Build ID: 475693f45498aef121e90da0de2ae71eb8079039
+Type: alloc_objects
+Time: 2026-07-27 22:14:41 CDT
+Showing nodes accounting for 288312, 100% of 288312 total
+      flat  flat%   sum%        cum   cum%
+     98303 34.10% 34.10%     160199 55.56%  main.__able_call_value_fast
+     65537 22.73% 56.83%      65537 22.73%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     24577  8.52% 65.35%      24577  8.52%  main.(*__able_mutex_awaitable).toStruct
+     21846  7.58% 72.93%     283119 98.20%  main.__able_compiled_fn_commit_job
+     17749  6.16% 79.09%      34133 11.84%  main.__able_make_await_waker
+     13108  4.55% 83.63%      51922 18.01%  main.__able_initialize_await_state
+     10923  3.79% 87.42%      10923  3.79%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     10922  3.79% 91.21%      10922  3.79%  main.__able_array_iface_Awaitable_i64_to
+     10012  3.47% 94.68%      10012  3.47%  main.__able_make_await_registration_value
+      5461  1.89% 96.58%       5461  1.89%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+      5193  1.80% 98.38%       5193  1.80%  runtime.mallocgc
+      4681  1.62%   100%       4681  1.62%  main.(*__able_await_state).ensureWaitCh
+         0     0%   100%       5461  1.89%  able/interpreter-go/pkg/ast.Gen (inline)
+         0     0%   100%      49153 17.05%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%      16384  5.68%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%      16384  5.68%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%     283119 98.20%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%      16384  5.68%  main.(*__able_mutex_await_registration).trigger
+         0     0%   100%      27307  9.47%  main.(*__able_mutex_awaitable).commit
+         0     0%   100%      10012  3.47%  main.(*__able_mutex_awaitable).register
+         0     0%   100%      10012  3.47%  main.(*__able_mutex_awaitable).toStruct.func2
+         0     0%   100%      27307  9.47%  main.(*__able_mutex_awaitable).toStruct.func3
+         0     0%   100%     220313 76.41%  main.__able_await
+         0     0%   100%     220313 76.41%  main.__able_await_value
+         0     0%   100%     160199 55.56%  main.__able_await_with_state
+         0     0%   100%      27307  9.47%  main.__able_call_native_function
+         0     0%   100%      27307  9.47%  main.__able_call_native_function_value
+         0     0%   100%      27307  9.47%  main.__able_call_value
+         0     0%   100%      32768 11.37%  main.__able_cancel_await_registration
+         0     0%   100%      32768 11.37%  main.__able_clear_await_registrations
+         0     0%   100%      16384  5.68%  main.__able_compiled_fn_commit_job.func1
+         0     0%   100%      92298 32.01%  main.__able_compiled_fn_main.func1
+         0     0%   100%      62025 21.51%  main.__able_compiled_fn_main.func2
+         0     0%   100%      59164 20.52%  main.__able_compiled_fn_main.func3
+         0     0%   100%      69632 24.15%  main.__able_compiled_fn_main.func4
+         0     0%   100%     283119 98.20%  main.__able_compiled_fn_run_worker
+         0     0%   100%      30038 10.42%  main.__able_compiled_method_Mutex_await_lock_spec
+         0     0%   100%      16384  5.68%  main.__able_compiled_method_Mutex_unlock
+         0     0%   100%      49152 17.05%  main.__able_complete_await
+         0     0%   100%       8192  2.84%  main.__able_current_payload
+         0     0%   100%      27307  9.47%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0%   100%       5461  1.89%  main.__able_iface_Awaitable_i64_from_value
+         0     0%   100%       5461  1.89%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0%   100%      16384  5.68%  main.__able_invoke_await_waker
+         0     0%   100%     127431 44.20%  main.__able_invoke_awaitable_method
+         0     0%   100%     160199 55.56%  main.__able_method_call
+         0     0%   100%      24577  8.52%  main.__able_mutex_await_lock_impl
+         0     0%   100%      16384  5.68%  main.__able_mutex_unlock_impl
+         0     0%   100%      16384  5.68%  main.__able_notify_mutex_awaiters
+         0     0%   100%      53702 18.63%  main.__able_register_await_state
+         0     0%   100%     283119 98.20%  main.__able_run_compiled_task
+         0     0%   100%      24577  8.52%  main.__able_select_ready_await_arm
+         0     0%   100%       4681  1.62%  runtime.acquireSudog
+         0     0%   100%        512  0.18%  runtime.allocm
+         0     0%   100%       4681  1.62%  runtime.ensureSigM.func1
+         0     0%   100%        256 0.089%  runtime.mcall
+         0     0%   100%        256 0.089%  runtime.mstart
+         0     0%   100%        256 0.089%  runtime.mstart0
+         0     0%   100%        256 0.089%  runtime.mstart1
+         0     0%   100%        512  0.18%  runtime.newm
+         0     0%   100%       5193  1.80%  runtime.newobject
+         0     0%   100%        256 0.089%  runtime.park_m
+         0     0%   100%        512  0.18%  runtime.resetspinning
+         0     0%   100%        512  0.18%  runtime.schedule
+         0     0%   100%       4681  1.62%  runtime.selectgo
+         0     0%   100%        512  0.18%  runtime.startm
+         0     0%   100%        512  0.18%  runtime.wakep

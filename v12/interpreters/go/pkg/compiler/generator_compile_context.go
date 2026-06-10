@@ -5,16 +5,17 @@ import "able/interpreter-go/pkg/ast"
 func newCompileContext(gen *generator, info *functionInfo, functions map[string]*functionInfo, overloads map[string]*overloadInfo, packageName string, genericNames map[string]struct{}) *compileContext {
 	counter := 0
 	ctx := &compileContext{
-		function:     info,
-		params:       make(map[string]paramInfo),
-		locals:       make(map[string]paramInfo),
-		functions:    functions,
-		overloads:    overloads,
-		packageName:  packageName,
-		temps:        &counter,
-		loopDepth:    0,
-		breakpoints:  make(map[string]int),
-		genericNames: genericNames,
+		function:      info,
+		params:        make(map[string]paramInfo),
+		locals:        make(map[string]paramInfo),
+		functions:     functions,
+		overloads:     overloads,
+		packageName:   packageName,
+		temps:         &counter,
+		loopDepth:     0,
+		breakpoints:   make(map[string]int),
+		genericNames:  genericNames,
+		resultSources: make(map[string]*functionInfo),
 	}
 	if info != nil {
 		ctx.returnType = info.ReturnType
@@ -41,6 +42,16 @@ func newCompileContext(gen *generator, info *functionInfo, functions map[string]
 		ctx.typeBindings = gen.compileContextTypeBindings(info)
 	}
 	return ctx
+}
+
+func (c *compileContext) recordResultSource(name string, info *functionInfo) {
+	if c == nil || name == "" || info == nil {
+		return
+	}
+	if c.resultSources == nil {
+		c.resultSources = make(map[string]*functionInfo)
+	}
+	c.resultSources[name] = info
 }
 
 func (g *generator) compileContextTypeBindings(info *functionInfo) map[string]ast.TypeExpression {

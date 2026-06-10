@@ -6,10 +6,10 @@ import (
 )
 
 func (vm *bytecodeVM) execCanonicalStringByteIteratorNextCallMemberFast(instr bytecodeInstruction, receiverIndex int, callNode *ast.FunctionCall) (*bytecodeProgram, bool, error) {
-	if vm == nil || vm.interp == nil || instr.name != "next" || instr.argCount != 0 || receiverIndex < 0 || receiverIndex >= len(vm.stack) {
+	if vm == nil || vm.interp == nil || instr.name != "next" || instr.argCount != 0 || receiverIndex < 0 || receiverIndex >= vm.stackDepth() {
 		return nil, false, nil
 	}
-	if !vm.isCanonicalStringByteIteratorInterfaceReceiver(vm.stack[receiverIndex]) {
+	if !vm.isCanonicalStringByteIteratorInterfaceReceiver(vm.stackValue(receiverIndex)) {
 		return nil, false, nil
 	}
 	if _, ok, err := vm.canonicalStringBytesIteratorNextMethod(); err != nil || !ok {

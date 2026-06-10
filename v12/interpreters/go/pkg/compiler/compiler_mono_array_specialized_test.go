@@ -474,7 +474,7 @@ func compileAndRunSourceWithOptions(t *testing.T, tempPrefix string, source stri
 
 	outputDir := filepath.Join(workDir, "out")
 	opts.EntryPath = entryPath
-	result, err := New(opts).Compile(program)
+	result, err := New(compilerFixtureOptions(t, opts)).Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}

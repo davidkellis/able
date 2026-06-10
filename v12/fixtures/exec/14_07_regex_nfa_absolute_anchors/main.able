@@ -1,0 +1,72 @@
+package exec_14_07_regex_nfa_absolute_anchors
+
+import able.text.regex.{Regex, Match}
+import able.kernel.{Array}
+import able.text.automata.{NFA}
+import able.text.automata_dsl.{AutomataDSL, AutomataExpr}
+import able.text.string.{String, StringBuilder}
+
+## Semantics: ^ and $ are absolute Unicode-aware start/end assertions.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn show_shared_nfa_anchor() -> void {
+  parts: Array AutomataExpr := Array.new()
+  parts.push(AutomataDSL.start_anchor())
+  parts.push(AutomataDSL.literal_char('a'))
+  parts.push(AutomataDSL.end_anchor())
+  expression := AutomataDSL.seq(parts)
+  nfa: NFA := expression.to_nfa()
+
+  one := StringBuilder.with_capacity(1)
+  one.push_char('a')
+  two := StringBuilder.with_capacity(2)
+  two.push_char('a')
+  two.push_char('b')
+  one.finish() match {
+    case text: String => two.finish() match {
+      case longer: String => print(`shared_nfa ${nfa.matches(text)} ${nfa.matches(longer)}`),
+      case _ => print("shared_nfa build error")
+    },
+    case _ => print("shared_nfa build error")
+  }
+}
+
+fn main() -> void {
+  Regex.compile("^é$") match {
+    case regex: Regex => show_match("unicode_full", regex.match("é")),
+    case _ => print("unicode_full compile error")
+  }
+
+  Regex.compile("^é$") match {
+    case regex: Regex => show_match("not_prefix", regex.match("xé")),
+    case _ => print("not_prefix compile error")
+  }
+
+  Regex.compile("^(?:ab|c)+$") match {
+    case regex: Regex => show_match("grouped", regex.match("abcab")),
+    case _ => print("grouped compile error")
+  }
+
+  Regex.compile("^$") match {
+    case regex: Regex => show_match("empty", regex.match("")),
+    case _ => print("empty compile error")
+  }
+
+  Regex.compile("$") match {
+    case regex: Regex => show_match("end_only", regex.match("é")),
+    case _ => print("end_only compile error")
+  }
+
+  Regex.compile("^+") match {
+    case _: Regex => print("anchor_quantifier accepted"),
+    case _ => print("anchor_quantifier rejected")
+  }
+
+  show_shared_nfa_anchor()
+}

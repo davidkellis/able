@@ -76,7 +76,10 @@ type methodInfo struct {
 	MethodName   string
 	ReceiverType string
 	ExpectsSelf  bool
-	Info         *functionInfo
+	// ConcreteResolved prevents call-specific dispatch from specializing an
+	// already resolved structural generic-union method a second time.
+	ConcreteResolved bool
+	Info             *functionInfo
 }
 
 type implMethodInfo struct {

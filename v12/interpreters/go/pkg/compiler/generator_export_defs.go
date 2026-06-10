@@ -161,7 +161,7 @@ func (g *generator) sortedUnionDefsForPackage(pkgName string) []*ast.UnionDefini
 	return out
 }
 
-func (g *generator) renderInterfaceDefinitionExpr(def *ast.InterfaceDefinition, envExpr string) (string, bool) {
+func (g *generator) renderInterfaceDefinitionExpr(def *ast.InterfaceDefinition, envExpr string, retainDefaultBodies bool) (string, bool) {
 	if g == nil || def == nil || def.ID == nil || strings.TrimSpace(def.ID.Name) == "" || strings.TrimSpace(envExpr) == "" {
 		return "", false
 	}
@@ -205,9 +205,13 @@ func (g *generator) renderInterfaceDefinitionExpr(def *ast.InterfaceDefinition, 
 				returnExpr = rendered
 			}
 		}
-		defaultExpr, ok := g.renderBlockExpressionExpr(sig.DefaultImpl)
-		if !ok {
-			return "", false
+		defaultExpr := "nil"
+		if retainDefaultBodies {
+			var ok bool
+			defaultExpr, ok = g.renderBlockExpressionExpr(sig.DefaultImpl)
+			if !ok {
+				return "", false
+			}
 		}
 		signatureParts = append(signatureParts, fmt.Sprintf("ast.NewFunctionSignature(ast.NewIdentifier(%q), %s, %s, %s, %s, %s)", sig.Name.Name, paramsExpr, returnExpr, signatureGenericExpr, signatureWhereExpr, defaultExpr))
 	}

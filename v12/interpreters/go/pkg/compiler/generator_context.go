@@ -26,6 +26,18 @@ func runtimeLookupPackageName(pkg string) string {
 	return pkg
 }
 
+func runtimeStructLookupPackageNames(pkg string) []string {
+	pkg = strings.TrimSpace(pkg)
+	if pkg == "" {
+		return []string{""}
+	}
+	runtimePkg := runtimeLookupPackageName(pkg)
+	if runtimePkg == "" || runtimePkg == pkg {
+		return []string{pkg}
+	}
+	return []string{pkg, runtimePkg}
+}
+
 func (c *compileContext) setReason(reason string) {
 	if c == nil || reason == "" {
 		return
@@ -142,6 +154,12 @@ func (c *compileContext) child() *compileContext {
 		implSiblings:           c.implSiblings,
 		analysisOnly:           c.analysisOnly,
 		closureScope:           c.closureScope,
+		executionContextExpr:   c.executionContextExpr,
+		resultSources:          c.resultSources,
+		callerOwnedResultSlot:  c.callerOwnedResultSlot,
+		callerOwnedTailExpr:    c.callerOwnedTailExpr,
+		environmentEffect:      c.environmentEffect,
+		discardResult:          c.discardResult,
 	}
 }
 

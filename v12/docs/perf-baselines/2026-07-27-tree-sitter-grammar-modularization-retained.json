@@ -1,0 +1,70 @@
+{
+  "date": "2026-07-27",
+  "decision": "retained",
+  "behavior_changed": false,
+  "source_layout": {
+    "grammar.js": {
+      "before_lines": 1650,
+      "after_lines": 86
+    },
+    "grammar/helpers.js": {
+      "lines": 130
+    },
+    "grammar/declarations.js": {
+      "lines": 420
+    },
+    "grammar/expressions.js": {
+      "lines": 650
+    },
+    "grammar/literals-patterns-types.js": {
+      "lines": 418
+    }
+  },
+  "active_handwritten_go_or_javascript_files_over_1000": 0,
+  "generated_identity": {
+    "src/parser.c": "054369173a78160f15ebef87bced7c4717a4aaf85cfb04ded76eb6ab1ed4c6e3",
+    "src/grammar.json": "c9ed2e44a74e11f3a333ad6a9df51ce24696bd84f4314ce60c8069e048088b08",
+    "src/node-types.json": "07e23952fdcb7e586c116b28bc50b8927865f7354825e4d69779b95d677d20b1"
+  },
+  "package_dry_run": {
+    "status": "pass",
+    "grammar_modules_present": 4
+  },
+  "tree_sitter_corpus": {
+    "status": "pass",
+    "cases": 28,
+    "stale_expectations_corrected": 1
+  },
+  "go_parser_forced_relink": {
+    "status": "pass",
+    "reported_test_seconds": 0.15,
+    "timeout_seconds": 55
+  },
+  "diff_check_errors": 0,
+  "full_suite": {
+    "status": "pass",
+    "elapsed_seconds": 683.69,
+    "peak_rss_kb": 4609656,
+    "compiler_batches": 33,
+    "compiler_batch_19_seconds": 127.664,
+    "compiler_batch_29_seconds": 66.728,
+    "bytecode_fixture_seconds": 85.523
+  },
+  "canonical_stdlib": {
+    "status": "pass",
+    "elapsed_seconds": 53.04,
+    "peak_rss_kb": 803072,
+    "treewalker_reported_seconds": 17,
+    "bytecode_reported_seconds": 15
+  },
+  "cleanup": {
+    "applied": true,
+    "project_local_mib": 214,
+    "project_local_paths": 3,
+    "task_var_tmp_directories_removed": 3,
+    "recoverability": "reproducible-from-source",
+    "profiles_removed": false,
+    "post_cleanup_default_candidates": 0
+  },
+  "wasm_changed": false
+}

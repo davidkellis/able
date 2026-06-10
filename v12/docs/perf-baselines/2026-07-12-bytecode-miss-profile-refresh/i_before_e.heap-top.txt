@@ -1,0 +1,27 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: inuse_space
+Time: 2026-07-11 23:32:51 CDT
+Showing nodes accounting for 51.47MB, 100% of 51.47MB total
+Showing top 20 nodes out of 30
+      flat  flat%   sum%        cum   cum%
+   30.23MB 58.74% 58.74%    30.23MB 58.74%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+   18.58MB 36.10% 94.84%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.externCloneValueSlice (inline)
+    1.50MB  2.91% 97.75%     1.50MB  2.91%  able/interpreter-go/pkg/interpreter.init.func1
+    1.16MB  2.25%   100%     1.16MB  2.25%  runtime/pprof.StartCPUProfile
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateExternFunctionBody.(*Interpreter).makeExternNative.func1
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeExternHostFunction
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execAndFinishExactNativeCall
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedCallName
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallName
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execExactNativeCall
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runDetached
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%   100%    18.58MB 36.10%  able/interpreter-go/pkg/interpreter.(*externStringSliceCache).result

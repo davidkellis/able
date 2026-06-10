@@ -1,15 +1,25 @@
-# Channels & Mutexes – Host-Backed Concurrency Primitives
+# Historical Channel & Mutex Rollout Notes
 
-Status: Historical rollout note; active semantics live in the v12 spec and Go runtime code.
+Status: Archived; reconciled 2026-07-14
 Owners: Able v12 interpreter team
 
-## Overview
+> **Active contract:** spec §§12.5 and 12.7 define the language behavior.
+> Canonical Able APIs and error types live in external `able-stdlib` at
+> `src/concurrency/channel.able` and `src/concurrency/mutex.able`; the Go
+> reference runtime provides their kernel boundary. This note records a former
+> rollout proposal only. Its TypeScript paths, `FutureYieldSignal`, retired
+> in-tree stdlib paths, and remaining-work statements are not active backlog.
+> `12_07_channel_mutex_error_types` now proves the standardized
+> `ChannelNil`, `ChannelClosed`, `ChannelSendOnClosed`, and `MutexUnlocked`
+> payloads in every Go execution mode.
+
+## Historical Overview
 - Provide first-class `Channel<T>` and `Mutex` types with Crystal-style APIs.
 - Keep Able surface syntax unchanged; expose functionality through standard library structs.
 - Implement the semantics natively inside each active runtime via extern/prelude
   hooks. TypeScript references below are archival.
 
-## Design Shape
+## Historical Design Shape
 1. **Stdlib API**
    - Define `struct Channel<T>` / `struct Mutex` in Able source under `stdlib/concurrency`.
    - Public API mirrors Crystal:
@@ -38,12 +48,12 @@ Owners: Able v12 interpreter team
     - Mutex lock/unlock across multiple spawned tasks, `with_lock` behaviour, error cases.
    - Update `design/parser-ast-coverage.md` rows 121–122 once fixtures exist.
 
-## Open Questions / Follow-ups
+## Historical Open Questions / Follow-ups
 - Decide on optional helpers (`receive?`, nonblocking send) and error reporting strategy (exception vs result).
 - Ensure Go + TS interpreters expose a uniform extern helper API so stdlib stays target-agnostic.
 - Document manifest expectations for concurrency fixtures (e.g. result vs stdout) when they land.
 
-## TypeScript Runtime Alignment (2025-10-23)
+## Historical TypeScript Runtime Alignment (2025-10-23)
 
 With the executor contract shared across Go and TypeScript, the next milestone is to mirror Go-style blocking semantics for channels/mutexes inside the TypeScript interpreter. Key decisions/principles:
 
@@ -66,15 +76,16 @@ With the executor contract shared across Go and TypeScript, the next milestone i
    - Surface `"send on closed channel"` / `"receive on closed channel"` errors consistently with the Go runtime.
    - Guard against double-enqueue by clearing pending state when a task is cancelled; cancellation should remove the waiter entry and propagate an appropriate error when the task resumes.
 
-Implementation landed in `v12/interpreters/ts/src/interpreter/channels_mutex.ts` (with supporting future-handle metadata) and is covered by dedicated Bun tests plus the existing AST fixtures. Remaining follow-ups:
+The referenced TypeScript implementation is not present in the active v12
+workspace. Any future non-Go runtime needs a new design and cross-mode
+coverage; it must not resume this retired proposal as implementation guidance.
 
-- Mirror any future Go enhancements (e.g., select/timeouts) once spec language settles.
-- Audit nil-channel cancellation paths under heavier load; consider property tests around cancellation race behaviour.
-- Keep spec prose in sync as we document the helper guarantees called out in the TODO.
-
-## 2025-11-05 Wiring Audit (Phase α wrap-up)
+## Historical 2025-11-05 Wiring Audit (Phase α wrap-up)
 
 - **Runtime helpers registered in both interpreters.** Verified that `Interpreter.ensureChannelMutexBuiltins` and the Go `initChannelMutexBuiltins` install the full helper set (`__able_channel_new/send/receive/try_send/try_receive/close/is_closed`, `__able_mutex_new/lock/unlock`) and seed per-handle state (TS: cooperative queues; Go: buffered `chan`/`sync.Mutex`).
 - **Typechecker/fixture coverage.** Confirmed the helper signatures are declared in `v12/interpreters/ts/src/typechecker/checker.ts` and `interpreter-go/pkg/typechecker/decls.go`, and that the shared AST fixture suite already exercises channel/mutex semantics (`fixtures/ast/concurrency/*`, `fixtures/ast/stdlib/channel_mutex_helpers`). No schema drift detected between TS and Go decoders.
 - **New interpreter smoke tests.** Added Bun tests for nil-channel cancellation and mutex re-entry errors (`v12/interpreters/ts/test/concurrency/channel_mutex.test.ts`) to mirror the Go parity suite behaviour.
-- **Outstanding parity TODO.** Native helpers still raise generic runtime errors (`"send on closed channel"`, `"channel already closed"`) instead of materialising the stdlib `ChannelClosed/ChannelNil/ChannelSendOnClosed` structs. Capture conversion logic on both runtimes before we graduate Phase β; tracked in `PLAN.md` and `spec/todo.md`.
+- **Superseded TODO.** The later Go runtime and canonical external stdlib now
+  materialize the standard `ChannelClosed`, `ChannelNil`,
+  `ChannelSendOnClosed`, and `MutexUnlocked` payloads. The focused executable
+  fixture named above is the active semantic guard.

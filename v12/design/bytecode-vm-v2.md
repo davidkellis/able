@@ -1,1172 +1,185 @@
-# Bytecode VM v2 Design
-
-Date: 2026-04-30
-
-## Purpose
-
-The current Go bytecode VM is semantically useful but performance-limited. It
-has slot-indexed frames, inline call frames, expression caching, and several
-hot opcodes, but the common execution path still boxes most values as
-`runtime.Value` and routes many static operations through dynamic lookup or
-operator helpers.
-
-VM v2 is an incremental upgrade of the existing bytecode interpreter. It is not
-a new language runtime, not a fork of semantics, and not a benchmark-specific
-shortcut. The v12 spec remains the authority.
-
-## Spec Guardrails
-
-Every VM v2 optimization must preserve these v12 requirements:
-
-- Primitive integer arithmetic remains checked by default. Overflow in `+`,
-  `-`, `*`, integer exponentiation, casts, and fixed-width division edge cases
-  still raises the standard overflow error described in the spec.
-- Integer `//`, `%`, and `/%` keep Euclidean division/remainder semantics,
-  including division-by-zero and minimum-integer edge behavior.
-- Truthiness is unchanged: only `false`, `nil`, and values implementing
-  `Error` are falsy.
-- `Array T` is a mutable indexed sequence with stable runtime identity.
-  Native array bytecodes may optimize the canonical kernel/stdlib boundary, but
-  they must preserve allocation, length/capacity, indexing, mutation, iteration,
-  and `IndexError` behavior.
-- `String` remains the canonical immutable UTF-8 text value. Native string
-  bytecodes may avoid intermediate Able allocations but must preserve UTF-8,
-  byte/grapheme API contracts, and immutable value behavior.
-- Interface, union, nullable, `Error | T`, and dynamic values continue to use
-  the existing semantic runtime representation at dynamic boundaries.
-- `spawn`, `Future`, `await`, cancellation, `future_yield`, and deterministic
-  serial-executor behavior stay compatible with the concurrency spec and the
-  executor contract.
-- Diagnostics must still attach the same AST-context information as the
-  tree-walker and current bytecode VM.
-
-If a typed or quickened path cannot prove that it preserves these rules, it
-must box back to the existing `runtime.Value` path before proceeding.
-
-## Current VM Shape
-
-The active VM is stack based:
-
-- `bytecodeProgram` owns a linear instruction stream and optional
-  `bytecodeFrameLayout`.
-- Slot-eligible functions use flat `[]runtime.Value` frames instead of map
-  environment locals.
-- The operand stack is `[]runtime.Value`.
-- Calls can inline slot-eligible functions and have special self-recursive
-  frame paths.
-- Lookup/member/index/call caches sit beside the VM and preserve existing
-  runtime semantics.
-- Reduced recursion is currently helped by fused opcodes such as
-  slot-const arithmetic, fused conditional jumps, and fused self calls.
-
-This is a good migration base. VM v2 should reuse the lowering pipeline,
-diagnostic nodes, slot eligibility, call frame stack, serial-yield resume path,
-and runtime fallback helpers.
-
-## Core Representation
-
-Add typed cells as an internal VM representation:
-
-```go
-type bytecodeCellKind uint8
-
-const (
-    cellValue bytecodeCellKind = iota // boxed runtime.Value
-    cellRef                           // non-primitive runtime.Value/reference
-    cellBool
-    cellI32
-    cellF64
-)
-```
-
-The first implementation should not introduce every lane at once. Start with
-`cellI32`, then add `cellBool`, `cellF64`, and finally reference-specialized
-lanes when the boxing contract is stable.
-
-Typed cells have two mandatory operations:
-
-- `boxCell(...) runtime.Value`: materializes the exact existing runtime value.
-- `storeCellFromValue(...)`: accepts an existing `runtime.Value`, performs the
-  same validation/coercion checks as today, and fills the typed lane only when
-  safe.
-
-Typed storage is an optimization cache, not a new public value model.
-
-## Typed Frames And Stack
-
-Each slot-eligible program gains an optional typed layout derived from declared
-parameter/local facts and the existing slot analysis:
-
-- `slotKinds []bytecodeCellKind`
-- `paramKinds []bytecodeCellKind`
-- `returnKind bytecodeCellKind`
-- `hasTypedSlots bool`
-
-The VM frame stores typed values either as parallel arrays or as a compact
-cell slice. The first implementation should prefer the smallest scoped change
-that makes `i32` recursion measurable:
-
-- keep the existing `[]runtime.Value` slots for compatibility;
-- add an optional parallel `[]int32` plus a per-slot kind/valid bit for
-  `cellI32`;
-- only read from the typed lane when the current slot kind is known and valid;
-- clear or box the typed lane when a slot crosses a dynamic boundary.
-
-The operand stack should move to typed cells once slot reads can produce typed
-values. Until then, a typed frame that immediately boxes every load will not
-move external `fib`. The first stack slice should support:
-
-- `PushI32`, `PopI32`, `PeekI32`
-- boxed fallback push/pop for every existing opcode
-- `LoadSlotI32`, `StoreSlotI32`
-- `ConstI32`
-- `AddI32Checked`, `SubI32Checked`, `LessEqualI32`
-- `JumpIfFalseBool` or fused `JumpIfI32LessEqualConstFalse`
-- typed return for inline calls, boxing only when the caller expects boxed
-  values or crosses a runtime boundary
-
-## Dynamic Boundaries
-
-A typed value must be boxed before any operation that can observe or require a
-general `runtime.Value`:
-
-- environment definition/assignment outside a typed frame;
-- generic function calls or calls with type arguments;
-- interface, union, nullable, result/error, and `any` coercion;
-- dynamic member/index dispatch;
-- `match`, `rescue`, `ensure`, propagation, raise/rethrow, and diagnostics
-  paths that need semantic values;
-- array/map/struct literals unless the opcode is explicitly native and still
-  preserves runtime identity and error behavior;
-- host extern boundaries unless the host wrapper has a proven native carrier
-  path;
-- suspension/resume paths for `future_yield` and `await` unless the frame state
-  serializer preserves typed lanes exactly.
-
-The fallback rule is simple: when uncertain, box and run the existing code.
-
-## Quickening
-
-Quickening should come after typed cells are in place. A quickened opcode is a
-rewritten instruction guarded by the same semantic conditions that made the
-first execution valid.
-
-Initial quickening targets:
-
-- `call_name`: static function, inherent method, and stable overload entries.
-- `call_member`: primitive/kernel method and native interface default method
-  cases that already have cache entries.
-- `index_get` / `index_set`: canonical `Array T` paths and string/byte views.
-- `member_access`: struct field, bound method, and primitive member paths.
-
-Required guards:
-
-- callee or method identity;
-- receiver runtime shape or primitive kind;
-- package/environment revision when the lookup can be affected by mutation or
-  import/bootstrap state;
-- argument count and type-argument absence/presence;
-- fallback when a guard fails.
-
-Quickening must never bypass overload resolution, implementation specificity,
-safe navigation, implicit receiver rules, or dynamic interface dispatch unless
-the same result has been proven by the guard.
-
-## Native Array And String Bytecodes
-
-Array and String are allowed VM-native treatment because they are core
-language/stdlib boundary types in the v12 spec. This is not permission to add
-benchmark-specific bytecodes for arbitrary nominal containers.
-
-Array bytecodes should target:
-
-- `Array.with_capacity`, `push`, `len`/`size`, `capacity`;
-- indexed read/write with the same `IndexError` payloads;
-- iteration over canonical arrays without per-element method lookup;
-- mono primitive arrays for `u8`, `i32`, and `f64` after typed cells are stable.
-
-String bytecodes should target:
-
-- `len_bytes`, byte iteration, byte search, contains, replacement, and split;
-- UTF-8 validation boundaries;
-- zero-copy views only when the public API promises immutability and lifetime
-  safety.
-
-Any operation outside the canonical API shape falls back to method dispatch.
-
-## Concurrency And Resume
-
-The serial-yield and `await` paths must preserve typed state. Before enabling
-typed lanes for bytecode programs that can yield:
-
-- call frames must save typed slot arrays and typed operand-stack cells;
-- `finishRunResumable` must release typed frames exactly once;
-- unwound frames must not retain boxed references longer than the current
-  `runtime.Value` implementation would;
-- deterministic serial-executor tests must pass with typed lanes enabled.
-
-The first `i32` recursion slice can reject programs with `spawn`, `await`,
-`yield`, iterator literals, or ensure/rescue frames until resume coverage is
-added.
-
-## Implementation Tranches
-
-1. **Typed layout metadata**
-   - Extend `bytecodeFrameLayout` with slot kinds.
-   - Infer only simple primitive slots from declared types and existing slot
-     eligibility.
-   - Add tests proving unsupported/dynamic locals keep `cellValue`.
-
-2. **`i32` typed slots and stack**
-   - Add internal typed cells for `i32`.
-   - Lower/load/store `i32` parameters and locals without boxing in
-     slot-eligible non-yielding functions.
-   - Implement checked `i32` add/sub and `<=` using spec-compatible overflow
-     and diagnostic behavior.
-   - Keep all other opcodes boxing through the current VM path.
-   - Benchmark reduced `Fib30Bytecode` and external `fib`.
-
-3. **Typed inline calls and returns**
-   - Pass `i32` args/results between inline slot frames without boxing.
-   - Preserve coercion checks and generic return handling.
-   - Re-run recursive, return, and unwound-frame finalization tests.
-
-4. **Bool and `f64` lanes**
-   - First bool branch slice is landed for declared slot-backed conditions:
-     `if`, `elsif`, and `while` can use a bool-slot conditional jump.
-   - The reduced matrix f64 path now has direct float arithmetic, a fused
-     add-mul slot update, a guarded fused `Array.get!` operand update, and a
-     VM-owned raw accumulator cell for that fused update. The latest slice
-     now feeds raw `f32`/`f64` operands out of canonical `Array.get!` while
-     preserving nil/Error propagation. The next f64 lane should collapse the
-     remaining exact operand proof/read path or move toward typed f64
-     array/slot cells.
-   - Add broader bool cells and `f64` arithmetic/comparison lanes only after
-     post-branch profiles justify them.
-   - Target `sudoku` and `matrixmultiply` reduced/external profiles.
-
-5. **Quickened dispatch**
-   - Add guarded quickened call/member/index opcodes with cache invalidation.
-   - Keep counters for hit/miss/guard-fail rates.
-   - Target `i_before_e` and text-method traces.
-
-6. **Native Array/String bytecodes**
-   - Add canonical array/string fast paths behind exact API guards.
-   - Target `quicksort`, `i_before_e`, and future `base64`/`json` coverage.
-
-7. **Compact typed frames**
-   - Replace remaining hot boxed slot frame churn with compact typed frame
-     records once typed call/return behavior is proven.
-
-## Verification
-
-Every tranche needs three checks:
-
-- **Semantic parity:** focused `go test ./pkg/interpreter` slices covering both
-  bytecode and tree-walker fixture parity for the affected language construct.
-- **Spec edge cases:** explicit overflow, division/modulo, index bounds,
-  truthiness, nil/error, generic/dynamic fallback, and cancellation/yield tests
-  where relevant.
-- **Performance guardrail:** reduced benchmark first, then external scoreboard
-  rows when the reduced signal is real.
-
-Use feature flags or build-time toggles for large typed-lane changes until the
-parity surface is broad enough. A failing guard must fall back to the existing
-boxed VM path, not continue with partially typed state.
-
-## Current Status And Next Coding Slice
-
-The first three kept code slices are landed:
-
-- literal-only final `i32` add/sub expressions use a raw `i32` operand stack
-  and box back to `runtime.Value` before the existing return path;
-- simple declared `i32` params and typed local identifier declarations now
-  carry typed slot metadata, and safe final arithmetic can enter/leave the raw
-  stack through `LoadSlotI32` / `StoreSlotI32`;
-- the proven two-slot one-argument self-fast recursive frame shape can now
-  reuse the current slot frame by saving/restoring slot 0, avoiding
-  per-recursive-step two-slot frame acquire/release churn;
-- the fused self-call opcode now has an early exact-shape compact branch for
-  that same raw-immediate two-slot slot-0 recursive shape, avoiding the generic
-  immediate/layout/return-name ladder while preserving the boxed fallback path;
-- the direct small-`i32` return-add value-pair branch now lives inline in
-  `execReturnBinaryIntAdd`, so the aligned recursive return-add edge no longer
-  pays a helper call before boxing the checked result;
-- the exact compact self-call branch now writes the slot-0 self-fast frame
-  record directly, so the aligned recursive call edge no longer pays a helper
-  call just to append the proven compact frame.
-- the exact compact self-fast slot-0 frame now carries a raw `i32` lane beside
-  the boxed semantic slot value, letting recursive subtract and base-case
-  slot-const compare use proven raw `i32` state while all fallback/spec
-  boundaries continue to observe the boxed `runtime.Value`.
-- the exact slot-backed one-arg `i32` recurrence shape used by aligned
-  external `fib` now attaches a guarded native bytecode kernel for
-  `if n <= c { return r }` followed by `self(n-a) + self(n-b)`, preserving
-  checked `i32` overflow and boxing only at the bytecode boundary.
-- canonical kernel `Array.read_slot(i32)` and `Array.write_slot(i32, T)` now
-  have guarded tracked-array member fast paths, so real external quicksort
-  source sites can bypass the generic kernel method body while preserving
-  negative-index errors, out-of-bounds `nil` reads, growth-on-write, and boxed
-  dynamic fallback behavior.
-- ordinary non-safe `Array.read_slot(i32)` and `Array.write_slot(i32, T)` call
-  sites now lower to a guarded `CallMemberArraySlot` opcode. The first normal
-  member-resolution pass seeds a revision-guarded proof cache for canonical
-  kernel slot methods; subsequent executions bypass the broader
-  `execCallMember` dispatch shell and jump directly into the tracked-array
-  fast body.
-- cached `CallMemberArraySlot` hits now finish the tracked read/write body
-  directly after validating the array receiver and cache identity, avoiding
-  the broader cached-member fast-path switch and the old
-  `canUseCanonicalArraySlotCallCache(...)` guard on every hot hit.
-- slot-backed quicksort pivot-loop conditions of the form
-  `arr.read_slot(index) <op> pivotSlot` now lower to
-  `JumpIfArrayReadSlotCompareSlotFalse`, which reuses the guarded canonical
-  `read_slot` proof cache and skips the standalone read result, boxed bool,
-  and generic `JumpIfFalse` path when the proof holds.
-- ordinary slot-backed identifier-vs-identifier integer comparison conditions
-  now lower to `JumpIfIntCompareSlotFalse`, avoiding the load/load/boxed-bool
-  / `JumpIfFalse` sequence for quicksort guards like `lo >= hi`, `i > j`,
-  `i <= j`, `lo < j`, and `i < hi`.
-
-This proves the typed operand lane, checked overflow behavior, boxed boundary,
-VM reset behavior, declared slot metadata, compact self-fast frame restoration,
-and focused parity tests without replacing the general boxed frame model.
-
-Rejected experiments are part of the design record:
-
-- A parallel typed `i32` slot side cache across recursive frames passed focused
-  parity but regressed reduced `Fib30Bytecode`, so the next work should not
-  retry that shape.
-- Conservative untyped-local `i32` proof for quicksort partition locals passed
-  focused parity, but it did not produce a stable reduced quicksort win. Raw
-  declaration slots without an end-to-end typed update/call/return path are not
-  enough; do not reattempt untyped-local inference as a standalone slice.
-
-The next implementation tranche should not add another `fib`-only helper. The
-native recurrence kernel moved external bytecode `fib(45)` to `3.7633s` over
-`3/3` runs, close enough to Go that further recursion work should either:
-
-- generalize the recurrence machinery to generic `Int` / other primitive
-  widths while preserving checked overflow and boxed dynamic boundaries; or
-- pivot to the remaining external timeout families and resume typed slots,
-  native collection/string bytecodes, and quickening where fresh profiles put
-  the wall.
-
-After the first five quicksort pivots, the next collection/string slice should
-not target condition-only jumps again unless a fresh profile reverses the
-ranking. The reduced profile now puts the remaining wall in residual boxed
-slot updates, slot-call dispatch, frame release, small-int boxing, and the
-`swap` / recursive quicksort call path. The follow-up cached parameter
-simple-check slice removed the string-dispatch part of primitive inline
-argument checks. The follow-up discard-result store slice removed the
-push-then-pop roundtrip for statement-position fused slot-const
-self-assignments. The follow-up bracket-swap pattern opcode removes the
-standalone get/cast/set/cast/set sequence for the exact local swap block used
-by quicksort while keeping the same v12 index guards and generic fallback.
-The follow-up small-index swap lane removes the remaining broad index
-conversion/get/set ladder for the hot tracked-array swap shape. This still
-does not change the larger structural picture: the next bounded test should
-start from fresh profile evidence around fused array-index comparison, direct
-call-frame setup, generic binary/modulo work in `build_data`, or a v12-safe
-typed-loop lane while preserving the same boxed dynamic fallback behavior.
-
-The first reduced matrix slice confirms the same VM-v2 direction for `f64`.
-Canonical tracked-array `Array.get(i32)` success values with cached primitive
-`f32`/`f64` element tokens and matching actual float results now skip an
-immediately following postfix propagation opcode when the current method-cache
-version proves that primitive type does not implement `Error`. This is
-intentionally a boxed-boundary fusion: nil, stale non-float element shapes, and
-active primitive-Error impls keep the old propagation path.
-The kept profile removes propagation from the top reduced matrix profile, and
-the follow-up direct boxed-float binary path removes the old
-`evaluateArithmetic(Fast)` wall for primitive `+`, `-`, and `*`. The remaining
-lesson is unchanged but sharper: the next bounded matrix slice should carry raw
-`f64` values through expression arithmetic and slot updates before boxing at
-array/dynamic/spec boundaries. The follow-up `StoreSlotFloatAddMul` opcode now
-does this for the common `x = x + left * right` update while preserving
-evaluation order and boxed fallback behavior. The follow-up fused-array-get
-and raw-accumulator slices now feed canonical `Array.get(i32)!` operands into
-that update and keep the accumulator in a VM-owned float cell until a visible
-slot read. The raw-operand slice dropped reduced `matrixmultiply_f64_small` to
-a `4.06-4.43s/op` kept band.
-
-The follow-up native f64 dot-loop slice is the first deliberately broader
-VM-v2-style matrix cut: lowering recognizes only the exact slot-backed loop
-body `if k >= n { break }; s = s + ai.get(k)! * cj.get(k)!; k = k + 1`,
-attaches a plan to the existing `LoopEnter`, and leaves the original loop
-bytecode in place as the fallback. Runtime guards require the canonical
-`Array.get` method, tracked arrays, valid `i32` index/bound slots, and actual
-`f64` elements. When any guard fails, execution enters the original loop before
-the unsupported iteration.
-
-That tranche drops reduced `matrixmultiply_f64_small` to
-`319.62-333.92ms/op`, with a traced/profiled confirmation at `405.57ms/op`.
-Full external bytecode `matrixmultiply` now completes in `23.85s` instead of
-timing out at `90s`, beating the Ruby and Python references for this benchmark
-while still trailing Go by `27.10x`. The next f64 work should target the
-remaining matrix construction/transpose calls and then generalize the typed f64
-array/slot lane from this proof point, not add more boxed float helpers.
-
-The f64 row-cache follow-up validates the next VM-v2 direction: keep raw typed
-rows behind a guarded representation boundary instead of repeatedly proving
-boxed values. Dynamic array states now carry a revision, writes and state
-resyncs invalidate that revision, and the native dot loop caches each tracked
-row/column as `[]float64` for the duration of a VM run. The reduced matrix band
-falls again to `204.02-229.45ms/op`, with a profiled `236.52ms/op`
-confirmation. Full external bytecode `matrixmultiply` moves to `3.08s`, about
-`3.50x` the Go reference and faster than Ruby/Python. The next VM-v2 f64 work
-should attack row construction/transpose allocation and member dispatch, then
-consider a broader typed-array storage lane once the fallback boundary is as
-clear as this row cache.
-
-The small-integer float-cast follow-up is a smaller construction-side lesson:
-before adding another opcode, remove representation churn at existing primitive
-boundaries. Directly converting small boxed integers to `f32`/`f64` cuts reduced
-matrix allocation volume from about `1.63M/op` to about `913k/op` and moves the
-kept band to `184.04-212.11ms/op`; full external bytecode `matrixmultiply`
-moves to `2.90s`, about `3.30x` Go. The remaining VM-v2 matrix work should
-focus on collection construction dispatch and typed row storage, not on more
-boxed numeric helper rewrites.
-
-The tracked `Array.push` append helper is a small but useful reminder that the
-external benchmark shape matters. The reduced fixture was neutral because it
-still grows rows dynamically, but the external benchmark preallocates rows with
-`Array.with_capacity(n)`. Skipping redundant capacity checks and using
-unaliased tracked sync moves full external bytecode `matrixmultiply` to
-`2.75s` over `3/3` runs, about `3.12x` Go. The next VM-v2 matrix work should
-focus on remaining construction-time `Array.get`/`Array.slot` dispatch and GC
-scan pressure rather than another push helper.
-
-The adjacent-`Pop` push cleanup is useful mainly as a semantics guardrail for
-future quickening: only the proven canonical push fast path may skip the
-statement-result `Pop`; lowering still emits the `Pop` so generic fallback stack
-behavior is preserved. It improves the reduced matrix fixture to
-`176.45-186.98ms/op`, but external bytecode `matrixmultiply` is neutral at
-`2.774s` over `5/5`. That makes the next VM-v2 target construction-time
-`Array.get` reads and residual slot-call cache checks, not more push-specific
-work.
-
-The f64 dot-loop accumulator-store follow-up sharpens the typed-value boundary:
-owned float cells help repeated slot mutation, but the native dot loop writes
-the accumulator only once after it consumes the full row/column. Storing that
-completed accumulator as a plain `FloatValue` removes one unamortized allocation
-source without changing fallback semantics. Reduced matrix now lands at
-`163.01-170.93ms/op`, around `822.9k allocs/op`; full external bytecode
-`matrixmultiply` moves to `2.604s` over `5/5`, about `2.96x` Go. The next VM-v2
-matrix target should be remaining boxed float arithmetic/cast allocation or a
-real typed f64 row/storage lane, not broad owned-slot reuse.
-
-The f64 affine `Array.push` try-fast path confirms the right VM-v2 shape for
-construction-side numeric work: recognize a narrow slot-backed expression, emit
-a guarded opcode before the original bytecode, and let every guard miss fall
-through to the boxed path. For the matrix `build_matrix` expression, direct f64
-append drops reduced matrix to `121.57-136.46ms/op` after warmup and moves full
-external bytecode `matrixmultiply` to `2.130s` over `5/5`, about `2.42x` Go.
-The next VM-v2 matrix step should reduce row/column storage allocation and
-remaining construction/transpose array traffic, ideally with a guarded typed
-f64 row/storage lane rather than more per-helper boxed arithmetic shaving.
-
-The versioned-stdlib canonical proof follow-up fixes an important measurement
-boundary rather than the macro runtime wall. Installed stdlib origins under
-`.able/pkg/src/able/<version>/src/...` now validate as canonical stdlib paths,
-and direct/bound canonical nullable `Array.get` functions are accepted by the
-same proof as overload wrappers. This restores the runtime-only reduced matrix
-harness to a warmed `117.29-122.68ms/op` band instead of falling into generic
-`Array.get` fallback after warmup, while full external bytecode
-`matrixmultiply` remains neutral at `2.1333s` over `3/3`. The next VM-v2 matrix
-work is still typed row/storage allocation and construction/transpose traffic,
-not more canonical-origin or `Array.get` proof-cache polishing.
-
-The mono-f64 array storage tranche confirms the row-storage direction but also
-shows where the next boundary is. Dynamic rows can now promote to guarded mono
-f64 storage from the affine `Array.push` fast path, the native f64 dot-loop can
-read mono f64 rows without building a boxed row cache, and canonical
-`Array.get` fast paths read mono f64 handles without calling generic
-`ArrayStoreRead`. Reduced runtime-only matrix keeps the warmed wall-clock band
-while dropping allocation volume to about `21.8-22.0MB/op` and `193.1k
-allocs/op`; full external bytecode `matrixmultiply` moves to `2.0400s` over
-`3/3`, about `2.32x` Go. The remaining f64 matrix work is now boundary boxing:
-`finishArrayGetMemberFast(...)` still materializes about one boxed float per
-external result read, and the native dot-loop accumulator slot write still boxes
-one `FloatValue` per completed cell. The next VM-v2 matrix step should target a
-typed f64 cell/result boundary there, not another push/storage helper.
-
-The guarded nested-get push tranche removes the transpose-side boxed f64
-boundary for the exact canonical shape `ci.push(b.get(j)!.get(i)!)`. Lowering
-emits a try opcode ahead of the original call and the VM only commits when both
-`Array.get` calls and the destination `Array.push` are canonical, the propagated
-outer value is a concrete Array that cannot implement `Error`, and the inner row
-has an in-bounds raw f64 value; otherwise execution falls through to the
-unchanged bytecode. This drops reduced runtime-only matrix allocation from the
-prior `193k allocs/op` area to about `103k allocs/op` while keeping wall time in
-the same warmed band. Same-session external control without the fusion landed at
-`2.3533s`; the restored fused confirmation landed at `2.1840s` over `5/5`.
-Because the older mono-f64 best was `2.0400s`, treat this as a shape/allocation
-keep rather than proof that matrix wall time has reached a new low. The next
-work should target the dot-loop accumulator box and repeated array/cache guard
-costs, or graduate the matrix loop to a typed f64 cell/result boundary.
-
-The owned f64 accumulator cell tranche is a smaller typed-cell step. Ordinary
-float slot stores now seed/reuse the VM-owned float cell used by the fused
-float update machinery, and the native f64 dot-loop stores its accumulator
-through that cell. Slot loads still snapshot `*FloatValue` cells back to
-ordinary `FloatValue`, so user-visible primitive value semantics are unchanged.
-Reduced runtime-only matrix wall time moved to `108.75-114.94ms/op`, and full
-external bytecode `matrixmultiply` moved to `2.0840s` over `5/5`. Allocation did
-not drop because the box moved from the dot-loop accumulator write to the
-following `bytecodeSlotReadValue(...)` for `di.push(s)`. The next VM-v2 matrix
-step should therefore be a guarded slot-backed f64 push for that exact
-`Array.push` shape, not a broad load-slot pointer exposure.
-
-The reserved-capacity follow-up is an allocation-only keep from the full
-external profile. Interpreted `Array.with_capacity(n)` no longer allocates a
-dynamic `[]Value` backing immediately; it records logical capacity on the
-dynamic handle and lets the first dynamic write allocate the reserved backing.
-Rows that immediately promote through the guarded mono-f64 append path now skip
-the discarded dynamic backing entirely. This preserves `Array.capacity`, sparse
-writes, generic dynamic writes, and mono-f64 deopt behavior; `Array.new(n)` and
-`ArrayStoreNewWithCapacity(n)` remain eager for compatibility with compiled and
-runtime ABI paths that still observe `ArrayValue.Elements`.
-
-The reduced fixture is neutral because it uses `Array.new`, but full
-bytecode-runtime `matrixmultiply` allocation moves from the prior profiled
-`125.83MB` total / `121MB/op` area to `90.89MB` profiled total and
-`71.84MB/op` unprofiled. Full external bytecode `matrixmultiply` stays neutral
-at `2.1000s` over `5/5`, with lower GC. The next matrix work should return to
-the f64 result boundary (`bytecodeSlotReadValue(...)` feeding `di.push(s)`) or
-a broader typed f64 result-row lane, not generic capacity reservation.
-
-The native f64 dot-loop result append is the successful shape for that
-boundary. Instead of adding another pre-call try opcode for `di.push(s)`, the
-existing dot-loop plan now optionally spans the following discarded
-statement-position push of the same accumulator. If the dot-loop, canonical
-`Array.get`, canonical `Array.push`, and raw f64 append guards all pass, the VM
-appends the accumulator directly and jumps past the fallback push bytecode. If
-any guard fails, the original loop and push execute unchanged.
-
-This removes `bytecodeSlotReadValue(...)` from the allocation top list and
-moves full bytecode-runtime `matrixmultiply` to about `39.8MB/op` and `73.5k
-allocs/op`; full external bytecode `matrixmultiply` lands at `2.0240s` over
-`5/5`. The next matrix work should target mono-f64 append storage and growth,
-especially `ArrayStoreAppendF64Promote(...)` / `appendMonoF64Value(...)`, not
-more result-load boxing or standalone slot-push dispatch.
-
-The f64 dot-loop range-hoist follow-up is a modest CPU keep inside the existing
-native dot-loop. The VM now checks the whole `i32` index range against both raw
-f64 row slices before accumulating; successful guards run a plain `int` indexed
-Go loop, while negative or out-of-bounds ranges fall through before accumulator
-or index mutation. This keeps fallback bytecode responsible for observable
-nil/propagation behavior. Reduced runtime-only matrix moved from a same-session
-old-loop control at `107.86ms/op` to `104.74ms/op`, full external bytecode
-confirmed at `2.0060s` over `5/5`, and the profile shows
-`tryExecF64DotLoop(...)` around `0.91s` flat / `1.17s` cumulative with
-allocation unchanged. The next VM-v2 matrix slice should be plan-level
-row/handle caching or a typed matrix kernel boundary, not another isolated
-mono-f64 append helper rewrite.
-
-The f64 matrix row-kernel follow-up is the first kept typed matrix boundary in
-the bytecode VM. It keeps fallback bytecode intact, but attaches a guarded plan
-to the outer `j` loop when the source shape is exactly `s := 0.0`,
-`cj := c.get(j)!`, native f64 dot loop, `di.push(s)`, and `j = j + 1`. On the
-fast path, the VM validates canonical `Array.get` / `Array.push`, concrete row
-values, f64 row slices, non-negative in-bounds ranges, and destination
-non-aliasing before computing all remaining row cells and bulk-appending the
-raw f64 results. Reduced matrix moved from a fresh `105.35ms/op` baseline to
-`76.79ms/op` over `5/5`; full external bytecode `matrixmultiply` confirmed at
-`1.7580s` over `5/5` after an earlier `1.4967s` `3/3` run. The next VM-v2
-matrix slice should target mono-f64 row/result storage growth and capacity
-proofs, or turn build/transpose/multiply into a broader typed matrix bytecode
-contract.
-
-The f64 affine row-loop follow-up keeps that boundary narrow and moves it to
-matrix construction. Lowering recognizes only the exact `build_matrix` inner
-loop shape `if j >= n { break }; row.push(t * ((i - j) as f64) * ((i + j) as
-f64)); j = j + 1`, attaches a guarded plan to loop-enter, and leaves the
-fallback bytecode in place. The VM validates the same canonical `Array.push`
-proof as the existing per-cell affine push, rejects bad f64/i32/range operands
-before mutation, computes the remaining row values as raw f64, and bulk-appends
-them through mono-f64 storage. For `Array.new`, the bulk append preserves the
-amortized final capacity observable after repeated pushes; for
-`Array.with_capacity(n)`, it preserves the declared capacity.
-
-Reduced runtime-only `matrixmultiply_f64_small` moved from a fresh
-`74.64ms/op` baseline to `54.73ms/op` over `5/5`, and full external bytecode
-`matrixmultiply` confirmed at `1.4480s` over `5/5`, about `1.65x` Go. The next
-VM-v2 matrix slice should apply the same loop-level treatment to the transpose
-row shape `ci.push(b.get(j)!.get(i)!)`, then reassess whether the remaining
-wall is result row materialization, canonical get/push version checks, or a
-broader typed matrix bytecode contract.
-
-The f64 transpose row-loop follow-up completes the current build/transpose
-loop-fusion pair. Lowering recognizes only the exact `matmul` transpose loop
-shape `if j >= n { break }; ci.push(b.get(j)!.get(i)!); j = j + 1`, attaches a
-guarded plan to loop-enter, and leaves fallback bytecode intact. The VM gathers
-all remaining column values before mutating the destination row, requiring
-canonical `Array.get` / `Array.push`, Array-valued source rows, raw f64 row
-storage, non-negative i32 indices, and destination/source non-aliasing. This
-preserves propagation/fallback behavior and final row capacity while removing
-the repeated per-cell nested-get push dispatch.
-
-Reduced runtime-only `matrixmultiply_f64_small` moved from the prior
-`54.73ms/op` affine-row keep to `40.86ms/op` over `5/5`, and full external
-bytecode `matrixmultiply` confirmed at `1.3060s` over `5/5`, about `1.48x` Go.
-The remaining VM-v2 matrix wall is now the result row kernel: it still re-reads
-and revalidates every transposed `c` row for each output row. The next slice
-should test a guarded raw row-slice cache for the transposed matrix, or another
-row-kernel tightening with the same fallback discipline.
-
-The f64 row-slice cache follow-up proves that cache shape. Runtime mono arrays
-now carry a revision counter; f64 rows expose raw values plus revision so the VM
-can invalidate cached row slices after writes, appends, length changes, and
-capacity reallocations. The row kernel caches the transposed matrix only when
-the outer array is a tracked dynamic state and every source row is mono f64.
-Cache hits still recheck the outer revision, row handles, row revisions, row
-lengths, and destination non-aliasing. Partial loop resumes deliberately stay
-on the old row-by-row path so the fast path does not inspect rows the fallback
-loop would not touch.
-
-Reduced runtime-only `matrixmultiply_f64_small` moved from `40.86ms/op` to
-`39.20ms/op` over `5/5`, with a profiled confirmation at `37.11ms/op`. Full
-external bytecode `matrixmultiply` confirmed at `1.2240s` over `5/5`, about
-`1.39x` Go. This removes repeated transposed-row validation but not the core
-row-kernel dot work or result materialization. The next VM-v2 matrix slice
-should write computed row results directly into a guarded mono-f64 destination
-row, or otherwise remove the temporary result buffer and append copy while
-preserving row capacity semantics.
-
-The f64 direct result-row segment follow-up removes that buffer on the validated
-row-cache path. Runtime exposes an uninitialized f64 append segment that shares
-the same promotion and capacity-growth behavior as the existing bulk append.
-Once the row kernel has validated canonical push, cached source rows, source
-row revisions, and destination/source non-aliasing, it writes each computed dot
-result directly into the destination row segment. The fallback path still uses
-the older temporary buffer and bulk append.
-
-Reduced runtime-only `matrixmultiply_f64_small` moved from `39.20ms/op` to
-`37.72ms/op` over `5/5`, and full external bytecode `matrixmultiply` confirmed
-at `1.2160s` over `5/5`, about `1.38x` Go. The remaining VM-v2 matrix cost is
-mostly actual dot work plus smaller canonical/raw-read overhead in the matrix
-phases. The next slice should cache raw source row slices for the transpose
-row-loop or hoist remaining canonical/version checks before moving to a broader
-typed matrix storage contract.
-
-The transpose row-cache reuse follow-up removes that smaller transpose-side
-raw-read overhead. The recognized transpose loop now reuses the existing
-guarded mono-f64 row cache when it enters from the full-column start and
-`col < bound`, then writes the generated column directly into a guarded f64
-destination segment. Partial resumes, wider non-square column reads, stale
-source row revisions, length changes, canonical call invalidation, and
-destination/source aliasing keep the old fallback behavior.
-
-Reduced runtime-only `matrixmultiply_f64_small` moved from `37.72ms/op` to
-`32.78ms/op` over `5/5`, and full external bytecode `matrixmultiply` confirmed
-at `1.1180s` over `5/5`, about `1.27x` Go. The next VM-v2 matrix slice should
-target the actual dot-product row kernel or graduate this proven
-`[][]float64` + direct destination segment shape into a broader typed matrix
-storage contract if fresh profiles no longer show validation or allocation as
-the limiter.
-
-The batch-4 row-kernel follow-up targets the actual remaining dot work without
-changing the language-level matrix code. On the validated row-cache path, the
-kernel computes four destination cells per inner pass, so each `ai` source
-value is loaded once and applied to four cached transposed rows. Each
-individual dot product still accumulates left-to-right in the same order as
-the previous scalar loop, and the fallback row path is unchanged.
-
-Reduced runtime-only `matrixmultiply_f64_small` moved from a same-session
-`33.63ms/op` transpose-cache baseline to `16.96ms/op` over `5/5`, and full
-external bytecode `matrixmultiply` confirmed at `0.4640s` over `5/5`, about
-`0.53x` Go. The full profile now shows the batched dot helper itself at the
-top and row-cache revision validation next. Matrix is now competitive with the
-current external Go reference; further matrix work should be justified by a
-broad VM-v2 target such as row-cache validation amortization or typed storage,
-not by chasing this benchmark in isolation.
-
-## Leaf i32 Register Frame Seed
-
-The first non-sidecar `i32` register-frame slice is landed for conservative
-leaf functions only. It deliberately does not try to save typed registers
-through inline calls yet: slot analysis enables the lane only when the function
-body stays inside local primitive arithmetic/control-flow and avoids call,
-member, index, async, propagation, match/rescue, and untyped-declaration
-boundaries.
-
-Discarded typed `i32` stores now keep raw values in a pooled register frame
-for those functions, with generic slot loads boxing through the same v12
-materialization boundary as the broader design requires. Reduced quicksort is
-neutral because its hot locals remain untyped and its functions cross
-call/index/member boundaries. The next real `i32` step is call-frame-capable
-typed register save/restore plus explicit materialization boundaries; do not
-retry active-frame sidecars or untyped-local inference as standalone slices.
-
-## Call-capable i32 Register Frames
-
-The follow-up `i32` register-frame slice makes the raw lane safe across
-bytecode inline-call boundaries. Full call frames, self-fast call frames, and
-compact self-fast frames now detach the active `i32` register arrays when
-entering a callee, restore them on return/unwind, and release saved arrays
-through the existing frame pool during run cleanup.
-
-Program switching now preserves a restored caller register frame instead of
-reinitializing it from `[]runtime.Value` slots. That is the important semantic
-boundary: a caller local may be live only in the raw lane after a discarded
-typed store, so return-to-caller must restore the lane before the next
-`LoadSlotI32` / generic materializing load observes the local.
-
-Slot analysis now permits conservative direct named calls with register-safe
-arguments, while still rejecting recursive self-calls, member/index dispatch,
-type-argument calls, async/resume/error-control boundaries, and untyped
-declarations. `CallName` slot-argument lowering materializes arguments through
-the register-aware slot reader, so passing a raw-lane local to a callee boxes
-exactly at the call boundary and nowhere earlier.
-
-This is still a structural keep, not the final quicksort win. Reduced
-`Fib30Bytecode` remained healthy at `150.20ms/op`, `145.02ms/op`, and
-`152.79ms/op`; reduced in-tree quicksort stayed in range at `5.16ms/op`,
-`5.01ms/op`, and `5.15ms/op`. The next VM-v2 slice should either widen the
-register eligibility proof to more typed non-leaf shapes, or add the explicit
-typed materialization needed around index/member paths. Do not enable untyped
-locals or recursive self-call register frames until their save/restore and
-materialization profiles are proven separately.
-
-## Discarded typed i32 call-result stores
-
-The next typed non-leaf slice narrows one of the remaining boxed boundaries
-after direct helper calls. Generic `StoreSlot` / `StoreSlotNew` instructions
-for statement-position typed `i32` assignments can now be marked
-`discardResult`. At runtime, when an `i32` register frame is active, such a
-store consumes the boxed call result, validates/coerces it through the normal
-typed-assignment path, seeds the raw register lane, and leaves the
-`[]runtime.Value` slot empty. Non-discarded assignment expressions still leave
-their result on the stack, and unsupported/non-`i32` stores keep the existing
-boxed slot behavior.
-
-This keeps the v12 materialization rule explicit: the helper call still boxes
-at the call boundary, but a statement-position typed local no longer retains
-that boxed value in the frame when the raw lane is authoritative. The follow-up
-guard runs stayed non-regressive: reduced `Fib30Bytecode` landed at
-`144.95ms/op`, `148.52ms/op`, and `146.77ms/op`; reduced in-tree quicksort
-landed at `4.93ms/op`, `4.93ms/op`, and `5.15ms/op`.
-
-The next widening point is not untyped locals. It is index/member
-materialization: audit every slot-backed array/member/index opcode that reads
-`vm.slots[...]` directly, route proven dynamic-boundary operands through the
-register-aware materializer where needed, then only enable register-frame
-eligibility for those AST shapes once the boundary is pinned by tests and a
-fresh profile.
-
-## Raw i32 array/index slot operands
-
-That materialization audit is now partially landed. The VM has dedicated
-slot-based operand readers for the existing array/index fast opcodes:
-
-- `ArrayIndexGetSlot`
-- `ArrayIndexSetSlot`
-- `ArrayIndexSwapSlot`
-- `ArrayReadSlot`
-- `ArraySlotSwapSlot`
-- fused array compare jumps
-
-The design constraint is important: these readers do not replace the ordinary
-slot path. They prefer the current boxed `vm.slots[...]` cell and only fall
-back to the raw `i32` register lane when that slot is empty. They are also
-gated behind an active `i32` register frame, so non-register programs keep the
-old opcode path exactly.
-
-This keeps the v12 materialization rule explicit. A raw typed local may cross
-these opcode boundaries without an unnecessary box/unbox cycle, but only after
-the program has already entered the proven typed-register regime. The next
-eligibility step should therefore be narrow: enable only bracket-index
-read/write AST shapes that lower to these proven slot opcodes. General member
-dispatch, untyped locals, and recursive self-call register frames still need
-separate proof.
-
-## Bracket-index eligibility
-
-That next eligibility step is now landed. Slot analysis admits:
-
-- `IndexExpression`
-- plain `arr[idx] = value` assignment targets
-
-but only when the receiver/index/right-hand side are already register-safe.
-This keeps the proof bounded to the exact bracket-index AST shapes that lower
-to `ArrayIndexGetSlot` / `ArrayIndexSetSlot` and the related proven fast
-opcodes. Compound index assignment is still excluded because it carries extra
-read/compute/write behavior that deserves its own profile.
-
-The important design point is that this is not a new generic materialization
-rule. The previous tranche proved the opcode boundary; this tranche merely
-lets the frame-layout gate use that proof. Non-register programs stay on the
-old path, and unsupported AST shapes still fall back to boxed slots.
-
-## Canonical array-slot member eligibility
-
-That next logical step is now landed too. Slot analysis admits non-safe
-canonical `arr.read_slot(idx)` and `arr.write_slot(idx, value)` calls into the
-`i32` register-frame proof, but only when the receiver and argument
-expressions are already register-safe. Safe navigation, general member
-dispatch, type-argument calls, untyped locals, and recursive self-calls stay
-outside the gate.
-
-This completes the explicit array-slot materialization boundary that the
-previous operand work was preparing:
-
-- `arr.read_slot(idx)` can lower to `ArrayReadSlot`, which already knows how
-  to read a register-backed `i32` index slot. The kept correctness repair is
-  intentionally narrow: when the boxed index slot cell is empty but the raw
-  `i32` lane is live, `execArrayReadSlot(...)` materializes only that index
-  before reusing the existing canonical `read_slot` path.
-- `arr.write_slot(idx, value)` can lower to the guarded canonical
-  `CallMemberArraySlot` path, where the index and value box only at the
-  existing call/materialization boundary.
-
-Focused lowering and parity now pin a typed helper built from:
-
-- `idx: i32 := i`
-- `current: i32 := arr.read_slot(idx)`
-- `arr.write_slot(idx, current)`
-- final `arr.read_slot(idx)`
-
-The practical conclusion is useful even though the benchmark guards remain
-structural rather than headline-worthy. The remaining quicksort blocker is not
-another canonical slot-member proof. The current benchmark source still uses
-untyped locals for `pivot`, `i`, `j`, `tmp`, parser counters, and related hot
-state, so the next VM-v2 step should be explicit typed-local adoption in the
-benchmark/hot helper code or another separately-profiled typed AST shape. Do
-not broaden to general member dispatch or untyped-local inference from this
-result alone. A follow-up exact tracked-array
-`arr[idx] as i32 <op> rhs` compare micro-branch was tested and reverted; it
-did not produce a defensible reduced quicksort win.
-
-## Typed source and fused lowering
-
-The immediate follow-up tightened that conclusion. Broad typed-local edits to
-the quicksort benchmark source regressed reduced bytecode runtime because they
-added typed declaration/store overhead in functions that still do not enter the
-current register lane. A narrower `swap(...)`-only probe also regressed at
-first, but for a more useful reason: the existing swap-fusion matcher only
-accepted `tmp := ...`, so `tmp: i32 := ...` silently fell off the
-`ArrayIndexSwapSlot` / `ArraySlotSwapSlot` path.
-
-That matcher is now fixed. Swap fusion resolves simple typed-pattern temp
-declarations the same way general slot lowering already resolves typed local
-names. The benchmark sources can therefore keep a typed `tmp` in `swap(...)`
-without losing the fused swap opcode.
-
-This establishes an important VM-v2 rule for future source-shape work:
-
-- typed benchmark/source edits are not free by themselves;
-- before keeping them, check whether they preserve the existing fused lowering
-  and quickened/native hot opcodes;
-- when a typed shape breaks a proven hot opcode, fix the matcher first or do
-  not keep the source change.
-
-The next quicksort-facing step is therefore runtime-side, not more blind
-source typing: reduce typed declaration/store overhead for `i32` locals in
-functions that still miss the register lane, or only widen source typing where
-lowering already preserves a fused hot path.
-
-## Preseeded inline call-name callee frames
-
-The next kept helper-call slice stayed within the same VM-v2 materialization
-rules but tightened the direct inline call boundary. For already-proven direct
-typed callees, inline setup now allocates a pooled raw `i32` register frame,
-seeds it while arguments are copied/coerced into callee slots, and installs it
-immediately after `pushCallFrame(...)`. `switchRunProgram(...)` therefore sees
-`vm.i32RegisterProgram == next` and does not rebuild the callee raw lane from
-boxed slots.
-
-The important semantic point is that caller/callee responsibilities remain
-unchanged:
-
-- caller raw frames still detach into the saved call frame on entry,
-- callee boxed slots still exist as the semantic boundary,
-- the callee raw lane is only a trusted cache for already-proven `i32` slots,
-- unwind/return still restore the saved caller raw lane through the same
-  frame-pop machinery.
-
-Focused proof coverage now pins that behavior directly on the cached `CallName`
-inline path:
-
-- the callee raw slot is live before `switchRunProgram(...)`,
-- even if the boxed callee slot copy is cleared, the switch preserves the
-  pre-seeded raw frame,
-- `popCallFrameFields()` restores the caller raw lane exactly.
-
-This is a real runtime keep. Reduced in-tree quicksort moved to
-`5.47ms/op`, `5.23ms/op`, and `5.23ms/op`, while reduced `Fib30Bytecode`
-stayed healthy at `141.50ms/op`, `143.73ms/op`, and `144.42ms/op`. The
-post-keep quicksort profile no longer spends time in
-`activateI32RegisterFrame(...)`; the remaining helper-call wall is the slot-arg
-boxing and seed work around `tryInlineCachedCallNameDirectFromStack(...)`.
-
-The next bounded slice should therefore stay on that edge: bypass
-`pushCallNameSlotArgs(...)` for cached direct inline slot-arg helpers and seed
-the callee raw frame directly from caller slots/registers. Do not widen
-general member dispatch, untyped locals, or recursive self-call register-frame
-eligibility as part of that work.
-
-## Direct slot-arg inline call-name setup
-
-That follow-up slice is now landed too. Cached direct `CallName` helpers with
-slot arguments no longer stage those arguments on `vm.stack` before inlining.
-Instead, the VM now reads the declared caller slots directly, materializes the
-boxed callee semantic slots from that source, and seeds the callee raw `i32`
-register lane from caller slots/registers during setup.
-
-This keeps the same VM-v2 boundary discipline:
-
-- the callee still receives semantic boxed slots at the call boundary,
-- raw `i32` seeding is just a cache for already-proven typed slots,
-- unsupported call-name shapes still fall back to the existing stack-based
-  path.
-
-The practical win is narrower and more honest than “calls are solved.” The
-old `pushCallNameSlotArgs(...)` edge is gone from the reduced quicksort
-profile, but the profile still shows the replacement wall inside
-`tryInlineCachedCallNameDirectFromSlots(...)`, especially:
-
-- `slotMaterializedValue(...)`
-- `seedInlineCalleeI32RegisterSlot(...)`
-- remaining inline-parameter coercion checks
-
-So the next step is not another eligibility widening. The next step is to
-specialize this direct slot-based helper for the common no-coercion typed lane
-before broadening any new AST shape or recursive register-frame rule.
-
-## External Array u8 host-return boundary
-
-The next real quicksort keep did not come from another VM micro-fusion. It
-came from fixing the canonical external byte boundary that the quicksort
-benchmark actually uses.
-
-The important context was easy to miss during local runs:
-
-- the installed `~/.able` stdlib cache was stale and still implemented
-  `able.fs.read_bytes` as `open/read_all/push`;
-- the canonical external stdlib in `../able-stdlib` already had the intended
-  `fs_read_bytes_fast(path: String) -> IOError | Array u8` host boundary;
-- the bytecode interpreter was still paying the generic `fromHostValue(...)`
-  slice-to-array conversion cost even when the host result was already `[]byte`.
-
-The kept slice therefore stayed at the extern/runtime boundary:
-
-- add `runtime.ArrayStoreMonoValueFromU8Bytes(data []byte)`,
-- let `Interpreter.newU8ArrayValueFromBytes(...)` track that mono handle,
-- recognize `Array u8` and `IOError | Array u8` results in
-  `fromHostValue(...)`,
-- teach the cached direct extern fast invoker to return the same mono `Array u8`
-  value for `func(string) []byte` and matching union signatures.
-
-That is deliberately different from eager array materialization. The returned
-`Array u8` keeps its mono handle so the parser and `read_slot` fast paths can
-stay on raw bytes. The focused tests now prove both sides of that contract:
-
-- direct `runtime.ArrayStoreRead(...)` still returns small `u8` integers
-  without deoptimizing the handle,
-- `interp.ArrayElements(...)` still materializes the expected semantic view
-  when a boxed element slice is explicitly needed.
-
-Using the canonical external stdlib path
-
-`ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS=`
-
-the 1 MB external quicksort prefix moved from the restored baseline band
-
-- `1339761372 ns/op`, `30168336 B/op`, `1180550 allocs/op`
-- `1274955746 ns/op`, `30167304 B/op`, `1180521 allocs/op`
-- `1266301329 ns/op`, `30167864 B/op`, `1180542 allocs/op`
-
-to the kept band
-
-- `821446016 ns/op`, `14435568 B/op`, `1180502 allocs/op`
-- `823947705 ns/op`, `14435568 B/op`, `1180502 allocs/op`
-- `821112360 ns/op`, `14435584 B/op`, `1180503 allocs/op`
-
-and the profile no longer shows `Interpreter.fromHostValue(...)` as the dominant
-allocation wall.
-
-This is still not the full quicksort end state. Full external bytecode
-quicksort still timed out at `90s`. The profile after this keep moved the wall
-back where it belongs:
-
-- parser byte ingestion / integer push,
-- quicksort compare/read-slot loops,
-- residual boxed integer materialization around slot updates and helper calls.
-
-So the next quicksort tranche should not revisit `read_bytes` or generic extern
-array conversion. It should stay external-scale and target the parser-to-array
-boundary directly: either a v12-safe `Array u8` -> parsed integer ingest lane,
-or a typed `Array i32` push/read path that the parser and quicksort loop can
-share.
-
-## Parser digit-range conjunction lowering
-
-The follow-up keep stayed on that same parser boundary, but it did not require
-another runtime opcode. The useful shape was narrower: control-flow-only
-conjunctions whose conjuncts are already specialized slot-vs-int-const
-comparisons.
-
-Before this keep, the parser digit-range branch
-
-`byte >= 48_u8 && byte <= 57_u8`
-
-lowered through the generic `&&` expression machinery:
-
-- evaluate the lower-bound comparison as a boolean value,
-- `Dup`,
-- `JumpIfFalse`,
-- `Pop`,
-- evaluate the upper-bound comparison as another boolean.
-
-That is correct, but in `if` / `elsif` position it does work the VM does not
-need because the boolean value is consumed only for branching.
-
-The kept lowering therefore adds a bounded control-flow helper:
-
-- only `if` / `elsif` lowering uses it,
-- only conjunctions where every conjunct already matches
-  `bytecodeJumpIfFalseBinarySlotConstInstruction(...)` are eligible,
-- eligible conjunctions emit the specialized false-jumps directly in source
-  order,
-- everything else falls back to the existing generic `&&` lowering unchanged.
-
-For the parser digit-range branch this means:
-
-- lower bound: `JumpIfIntCompareSlotConstFalse`
-- upper bound: `JumpIfIntLessEqualSlotConstFalse`
-- no generic `Dup` / `JumpIfFalse` / bool materialization in control-flow
-  position
-
-This matters because it is v12-safe and deliberately not a broad boolean
-optimizer. The optimization only applies where:
-
-- evaluation order is preserved,
-- no conjunct has side effects beyond the already-lowered compare,
-- the runtime-observable boolean value is not required.
-
-On the canonical external 1 MB quicksort prefix, the current-host warmed band
-landed at:
-
-- `833773118 ns/op`
-- `853190719 ns/op`
-- `887188361 ns/op`
-
-with a profiled confirmation at `876787701 ns/op`.
-
-The host was noisy, so the right conclusion is not “this is the new global
-baseline.” The right conclusion is narrower and more useful: the parser no
-longer pays the generic `&&` bool path for its digit-range branch, and on the
-same machine that was enough to move the external prefix in the right
-direction.
-
-The next quicksort-facing step should stay on the parser byte boundary. Do not
-generalize this into a broad boolean-expression optimizer. The remaining wall is
-the digit decode / boxed integer update side once the parser crosses back into
-`runtime.Value` boundaries.
-
-## External quicksort boxed `i32` cache extension
-
-The follow-up work tested that parser arithmetic direction several ways and did
-not produce a defensible keep. The useful signal from the refreshed external
-profile was more concrete: the hot wall was not another source-expression
-fusion, it was boxed `i32` materialization itself.
-
-Before this keep, `bytecodeBoxedIntegerI32Value(...)` only had two modes:
-
-- shared small-int static cache for `-256..16384`
-- dynamic map/RWMutex cache for everything else
-
-That is a reasonable generic design, but it is a poor shape for the external
-quicksort prefix because the parser and partition loop repeatedly box `i32`
-values just above the shared small-int window. The VM was paying lock/map
-traffic for values that are hot, predictable, and still small.
-
-The kept slice therefore adds one narrow representation change:
-
-- keep the existing shared small-int cache exactly as-is
-- add an `i32`-only extended static boxed range for `16385..262143`
-- leave every other integer kind on the old behavior
-- preserve the dynamic `i32` map/RWMutex cache for values outside the extended
-  range
-
-This is intentionally conservative. It is not a new typed-slot lane, not a new
-opcode, and not a broad “cache all integers” policy. It is a bounded response
-to a measured hot path.
-
-On the canonical external 1 MB quicksort prefix, a refreshed restored baseline
-at `848512956 ns/op` moved to a kept `3/3` band of:
-
-- `782731349 ns/op`
-- `839980574 ns/op`
-- `819652168 ns/op`
-
-The profiled confirmation was noisy at `858471480 ns/op`, but the profile is
-the real proof here: `bytecodeBoxedIntegerI32Value(...)` dropped from about
-`320ms` cumulative in the refreshed baseline profile to about `70ms` after the
-keep. The old dynamic box-map path is no longer the main story.
-
-That matters for VM-v2 planning because it sharpens the next boundary. The
-remaining quicksort wall is now much more clearly in:
-
-- `arrayReadSlotValue(...)`
-- `execJumpIfArrayReadSlotCompareSlotFalse(...)`
-- `lookupCachedCanonicalArraySlotCallForArray(...)`
-- `compareBytecodeCondition(...)`
-
-So the next VM-v2 quicksort tranche should not go back to parser cast/subtract
-or affine fusion. It should target the array read/compare boundary directly, or
-move to a larger typed/native collection lane if the next external profile says
-that is finally warranted.
-
-## External quicksort tracked `Array i32` compare shortcut
-
-The next follow-up stayed on that same boundary and kept the scope tight. The
-useful shape was not “all array compares,” and not another cache-table rewrite.
-It was the exact tracked `Array i32` partition-loop guard that external
-quicksort pays constantly.
-
-Before this keep, the fused `read_slot` compare jump still did:
-
-- canonical array-slot cache lookup,
-- `arrayReadSlotValue(...)`,
-- boxed element materialization,
-- generic `compareBytecodeCondition(...)`.
-
-That is a decent general VM shape, but it is still too broad for the hot
-partition loop when the actual runtime state is:
-
-- cached canonical `read_slot`,
-- tracked `Array i32`,
-- direct slot-backed index,
-- direct slot-backed `pivot`.
-
-The kept runtime shortcut therefore adds one bounded fast path inside
-`execJumpIfArrayReadSlotCompareSlotFalse(...)`:
-
-- only cached canonical `read_slot` sites are eligible,
-- only tracked arrays are eligible,
-- only direct small `i32` element/right-slot pairs are eligible,
-- everything else falls back immediately to the old path.
-
-On the canonical external 1 MB quicksort prefix, the prior extended-boxing kept
-band at `782731349 ns/op`, `839980574 ns/op`, and `819652168 ns/op` moved to
-`754532197 ns/op`, `753549655 ns/op`, and `736386560 ns/op`, with a profiled
-confirmation at `771080932 ns/op`.
-
-The profile change is the more important proof:
-
-- `arrayReadSlotValue(...)` dropped from about `350ms` cumulative to about
-  `160ms`
-- `compareBytecodeCondition(...)` dropped from about `140ms` to about `60ms`
-- the fused jump still shows up, but much more of its work is now the new
-  raw-`i32` compare helper instead of the old boxed path
-
-This matters for VM-v2 direction because it reinforces the right strategy:
-where the benchmark is clearly paying a stable typed hot shape, a narrow typed
-shortcut inside an existing opcode is worth more than another generic parser
-fusion or cache-geometry tweak.
-
-The next quicksort-facing VM-v2 step should stay on this same edge. The live
-wall is now the remaining canonical array-slot cache lookup / tracked-read
-overhead around the new shortcut, not parser arithmetic syntax.
+# Bytecode VM: Active Contract
+
+## Status and authority
+
+This is the concise active contract for the Go bytecode VM. The name remains
+for existing references; it is not a second runtime, a pending VM rewrite, or
+a benchmark-specific implementation plan.
+
+`spec/full_spec_v12.md` defines Able semantics. The Go tree-walker is the
+behavioral reference. The bytecode lowering and VM source, focused regression
+tests, and `PLAN.md` define executable behavior and performance selection.
+The historical architecture and experiment records are linked below.
+
+## Current execution model
+
+The VM executes a linear `bytecodeProgram` with an operand stack of
+`runtime.Value`-compatible cells. Slot-eligible functions use
+`bytecodeFrameLayout` and a flat `[]runtime.Value` local frame; ineligible
+functions retain normal environment lookup. Inline direct calls use full,
+self-fast, or compact self-fast call frames, and preserve the caller's lookup,
+scope, iterator, loop, ownership, and raw-lane state across return/unwind.
+
+The VM has guarded raw primitive helpers where the existing lowering and frame
+contract admit them:
+
+- pooled i32 register lanes for eligible slot frames and separate value-slot
+  i32 sidecars for other slot frames;
+- raw integer/float operand or result cells where a checked opcode owns the
+  operation; and
+- canonical Array/String/kernel fast paths, lookup caches, and revision guards
+  for already-proven language/kernel boundaries.
+
+These are implementation caches over the runtime model. Generic loads,
+coercions, dynamic calls, public results, diagnostics, and any uncertain path
+use the canonical materialization and runtime-dispatch rules. The i32 frame
+contract and inert typechecker proof metadata are defined in
+`bytecode-i32-frame-abi-gate.md`.
+
+## Semantic guardrails
+
+- Preserve checked arithmetic, Euclidean integer division/modulo, truthiness,
+  errors, diagnostics, mutable Array identity, UTF-8 String behavior, and all
+  interface/union/dynamic semantics.
+- Preserve `spawn`, Future, yielding, cancellation, iterator cleanup, and
+  resume/unwind behavior. A path without an exact saved-state proof must use
+  the existing generic representation.
+- A guard failure must occur before observable mutation and execute the
+  established fallback. Never replay an effect after a failed fast-path guard.
+- Array and String receive VM-native treatment only at canonical
+  language/kernel APIs. Other nominal types, including all collections, use
+  shared runtime/member machinery; no named-container rule is allowed.
+- Existing fused legacy patterns are regression-constrained implementation
+  history, not templates for new source-shape, benchmark, or application
+  optimizations.
+
+## Caches and boundaries
+
+Lookup, member, index, and call caches are version/identity guarded and are
+invalidated through the existing runtime revision rules. A fast path may
+bypass repeated lookup only after the normal semantic resolution has proved
+the same target. It must retain argument, receiver, ownership, coercion, and
+error behavior.
+
+The VM may convert to raw internal cells only while the operation and frame
+own that representation. It must materialize before an environment escape,
+generic or dynamic dispatch, host/extern ABI edge, collection/nominal storage
+without a separately proved kernel boundary, public result, or an error/
+diagnostic/resume path that observes a runtime value.
+
+## Register-IR feasibility
+
+The 2026-07-18 typed-block feasibility census did not authorize an executable
+register dispatcher. A conservative static model removed at least 15% of
+dynamic instructions in Mandelbrot and Future Pipeline, but only 0.11%-6.46%
+in six unlike controls. Typed straight-line regions therefore do not justify a
+second execution engine. See
+`../docs/perf-baselines/2026-07-18-bytecode-register-ir-feasibility-gate.md`.
+
+The follow-up whole-function model clears that threshold in all eight unlike
+applications measured, with 30.09%-44.32% of dynamic instructions attributable
+only to `Const`, `ConstI32`, `LoadSlot`, `LoadSlotI32`, `Dup`, and `Pop`.
+Calls, dynamic operations, allocation, stores, errors, control flow, returns,
+and concurrency remain semantic instructions. This admits an opt-in executable
+prototype, not a default path. See
+`../docs/perf-baselines/2026-07-18-bytecode-operand-ir-feasibility-gate.md`.
+
+Subsequent executable work supplied that evidence and closed the separate
+whole-function executor. Register-native `MemberAccess` reached six unlike
+applications but was neutral or slower in all six. Removing register-frame
+allocation and millions of fruitless continuation probes did not repair the
+broad Word Frequency guard. Those paths were removed; the ordinary VM remains
+authoritative.
+
+The current target-budget audit also closes a complete register
+*representation by itself* as the next performance tranche. Six unlike
+applications execute 30.09%-44.32% modeled transport operations. Even an
+intentionally favorable equal-cost model that makes every one of those
+operations free yields only 1.43x-1.80x, while the applications require
+13.03x-117.50x to reach their current Python/Ruby budgets. All 143 live
+opcodes are classified: six are representation transport and 137 retain
+semantic work. See
+`../docs/perf-baselines/2026-07-21-bytecode-architecture-target-budget.md`.
+
+A future primary register IR is not forbidden, but it must be selected as part
+of a separately evidenced semantic-operation or allocation reduction. Do not
+reintroduce a parallel executor or implement complete register coverage merely
+to erase stack transport.
+
+The follow-up semantic-work audit normalizes the same six applications by hot
+iterations, routed tasks, words, window elements, and sequence bases. It finds
+no exact operation that is materially amplified in three unlike families.
+Binding stores and call/return recur in four families but are amplified only in
+the two stdlib-heavy rows; direct Array slot/member work is material in two;
+typed Result control is material in two. Native-library use and allocation are
+broad only as aggregate labels, with different contracts and concrete owners.
+See
+`../docs/perf-baselines/2026-07-21-bytecode-semantic-work-amplification.md`.
+
+Consequently, do not infer a VM candidate from total semantic-operation or
+allocation volume. The next admissible check is whether the same direct Array
+storage/member boundary also owns material work in a third unlike application;
+otherwise that route closes and selection returns to the compiled frontier.
+
+That Array check is complete. Canonical `Array.push` is material in Array Slice
+Window, Matrix Multiply, and Reverse Complement, but more than 99.999% of their
+slot calls already hit the direct cache and none report a fast-path miss. The
+push descendants divide among required independent slice backing/lease work,
+monomorphic f64 store synchronization, and retained raw-u8 append work. A prior
+generic validated-push wrapper also regressed broad guards. Even perfect removal
+of the complete push subtree would yield only 1.046x and 1.087x in the two
+target-missing rows. See
+`../docs/perf-baselines/2026-07-21-bytecode-array-semantic-boundary.md`.
+
+The opt-in stats snapshot now reports Array slot calls separately for `len`,
+`read_slot`, `write_slot`, and `push`. Keep those diagnostic counters, but do
+not reopen Array wrapper/storage generalization without a new exact shared leaf
+and evidence that invalidates the prior broad performance gate.
+
+The 2026-07-22 post-compiler three-shape refresh likewise leaves the VM
+unchanged. Split/join text, linked-list iterator collection, and numeric Array
+mapping still intersect only at aggregate call/return/type/map helpers. Their
+raw-integer, string-map, inline-return, and typed-pattern children have unlike
+semantic owners or already-rejected representations. Do not reopen those local
+families from their shared parent names; see
+`../docs/perf-baselines/2026-07-22-bytecode-three-shape-post-compiler-refresh.md`.
+
+The follow-up generic-union cohort admits one exact leaf: static generic-union
+method matching is material in three unlike applications and spans `Result`
+and `Option`. Do not implement it with a global match map or recursive
+unchanged-type identity reuse. The former removes the matcher but costs more
+than it saves; the latter reduces owner allocations but regresses the unrelated
+iterator guard. A future attempt must first prove instruction-local
+monomorphism and stable scope/method-version guards with opt-in counters; see
+`../docs/perf-baselines/2026-07-22-bytecode-generic-union-type-resolution-gate.md`.
+
+## Change and performance gate
+
+No typed-frame, quickening, raw-lane, host-boundary, array, text, recursion,
+or float change is selected merely because it improves one benchmark. New work
+must:
+
+1. identify the same concrete non-nominal material leaf in at least three
+   unlike verifier-backed applications;
+2. use source and focused tests to prove parity, fallback, invalidation, and
+   boundary behavior; and
+3. clear the bounded full bytecode coverage/performance gate without a
+   material regression outside its target.
+
+Until that evidence exists, refresh profiles and improve feature coverage
+instead of extending the historical typed-frame or source-shape proposals.
+
+## Historical records
+
+- [Architecture and staging record](./bytecode-vm-v2-historical-architecture.md)
+  summarizes the 2026-04 VM-v2 proposal and its superseded tranches.
+- [Performance experiment record](./bytecode-vm-v2-historical-performance.md)
+  summarizes later register, array/text, host, nominal, and float work.
+- [i32 register-frame gate](./bytecode-i32-frame-abi-gate.md) records the
+  live raw-lane lifecycle and rejected frame-object candidate.
+- [Performance competitiveness vision](./performance-competitiveness-vision.md)
+  is the current cross-application selection policy.
+
+The historical records retain rationale; they do not authorize their old next
+steps. New language behavior belongs in the spec and fixtures first. New VM
+performance work belongs in the verifier-backed selection process.

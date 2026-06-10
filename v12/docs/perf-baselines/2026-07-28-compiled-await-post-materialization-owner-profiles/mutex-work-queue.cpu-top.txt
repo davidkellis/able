@@ -1,0 +1,118 @@
+File: app
+Build ID: 53f557ed12beb99f9e783e9110572b9797ca089e
+Type: cpu
+Time: 2026-07-28 06:36:10 CDT
+Duration: 210.02ms, Total samples = 300ms (142.84%)
+Showing nodes accounting for 300ms, 100% of 300ms total
+      flat  flat%   sum%        cum   cum%
+      30ms 10.00% 10.00%       70ms 23.33%  runtime.mallocgcSmallScanNoHeader
+      20ms  6.67% 16.67%       20ms  6.67%  aeshashbody
+      20ms  6.67% 23.33%       20ms  6.67%  internal/sync.(*Mutex).Unlock (inline)
+      20ms  6.67% 30.00%       20ms  6.67%  main.__able_divmod_signed
+      20ms  6.67% 36.67%       40ms 13.33%  main.__able_invoke_awaitable_method_ctx
+      10ms  3.33% 40.00%       10ms  3.33%  able/interpreter-go/pkg/runtime.(*FutureValue).Context
+      10ms  3.33% 43.33%       10ms  3.33%  internal/runtime/atomic.(*UnsafePointer).StoreNoWB (inline)
+      10ms  3.33% 46.67%       20ms  6.67%  internal/sync.(*Mutex).lockSlow
+      10ms  3.33% 50.00%       10ms  3.33%  main.__able_array_values
+      10ms  3.33% 53.33%      130ms 43.33%  main.__able_await_ctx
+      10ms  3.33% 56.67%       30ms 10.00%  main.__able_compiled_fn_job_score_ctx
+      10ms  3.33% 60.00%       10ms  3.33%  main.__able_context_from_args
+      10ms  3.33% 63.33%       10ms  3.33%  main.__able_iface_Awaitable_i64_try_from_value
+      10ms  3.33% 66.67%       90ms 30.00%  main.__able_initialize_await_state_ctx
+      10ms  3.33% 70.00%       20ms  6.67%  main.__able_int64_from_value
+      10ms  3.33% 73.33%       10ms  3.33%  main.__able_runtime_integer_value (inline)
+      10ms  3.33% 76.67%       10ms  3.33%  runtime.(*mspan).writeHeapBitsSmall
+      10ms  3.33% 80.00%       10ms  3.33%  runtime.cansemacquire (inline)
+      10ms  3.33% 83.33%       10ms  3.33%  runtime.gwrite
+      10ms  3.33% 86.67%       80ms 26.67%  runtime.mallocgc
+      10ms  3.33% 90.00%       10ms  3.33%  runtime.memclrNoHeapPointers
+      10ms  3.33% 93.33%       10ms  3.33%  runtime.nextFreeFast (inline)
+      10ms  3.33% 96.67%       10ms  3.33%  runtime.publicationBarrier
+      10ms  3.33%   100%       10ms  3.33%  sync.(*RWMutex).RLock (inline)
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%       30ms 10.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinitionIn
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%       10ms  3.33%  internal/runtime/atomic.(*Pointer[go.shape.struct { runtime.spanSetBlockHeader2; runtime.spans [512]runtime.atomicMSpanPointer }]).StoreNoWB (inline)
+         0     0%   100%       20ms  6.67%  internal/sync.(*Mutex).Lock (inline)
+         0     0%   100%       10ms  3.33%  internal/sync.runtime_SemacquireMutex
+         0     0%   100%       10ms  3.33%  main.(*__able_await_state).setWaker
+         0     0%   100%      280ms 93.33%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%       10ms  3.33%  main.(*__able_mutex_awaitable).NativeAwaitableCommit
+         0     0%   100%       10ms  3.33%  main.(*__able_mutex_awaitable).NativeAwaitableRegister
+         0     0%   100%       10ms  3.33%  main.(*__able_mutex_awaitable).commit
+         0     0%   100%       10ms  3.33%  main.(*__able_mutex_awaitable).register
+         0     0%   100%       10ms  3.33%  main.RunRegisteredMain
+         0     0%   100%       10ms  3.33%  main.RunRegisteredMain.func1
+         0     0%   100%       10ms  3.33%  main.__able_acquire_await_state
+         0     0%   100%       40ms 13.33%  main.__able_array_iface_Awaitable_i64_to
+         0     0%   100%       10ms  3.33%  main.__able_await_arm_is_default_ctx
+         0     0%   100%      120ms 40.00%  main.__able_await_value_ctx
+         0     0%   100%       30ms 10.00%  main.__able_await_with_state_ctx
+         0     0%   100%       10ms  3.33%  main.__able_call_value_fast
+         0     0%   100%       10ms  3.33%  main.__able_call_value_fast_ctx
+         0     0%   100%       20ms  6.67%  main.__able_collect_await_arms_ctx
+         0     0%   100%       10ms  3.33%  main.__able_compiled_entry_fn_main_ctx
+         0     0%   100%       40ms 13.33%  main.__able_compiled_fn_claim_job_ctx
+         0     0%   100%      210ms 70.00%  main.__able_compiled_fn_commit_job_ctx
+         0     0%   100%       10ms  3.33%  main.__able_compiled_fn_main_ctx
+         0     0%   100%       70ms 23.33%  main.__able_compiled_fn_main_ctx.func1
+         0     0%   100%       90ms 30.00%  main.__able_compiled_fn_main_ctx.func2
+         0     0%   100%       60ms 20.00%  main.__able_compiled_fn_main_ctx.func3
+         0     0%   100%       60ms 20.00%  main.__able_compiled_fn_main_ctx.func4
+         0     0%   100%      280ms 93.33%  main.__able_compiled_fn_run_worker_ctx
+         0     0%   100%       40ms 13.33%  main.__able_compiled_fn_with_lock_spec_ctx
+         0     0%   100%       30ms 10.00%  main.__able_compiled_method_Mutex_await_lock_spec_ctx
+         0     0%   100%       20ms  6.67%  main.__able_compiled_method_Mutex_lock_ctx
+         0     0%   100%       20ms  6.67%  main.__able_compiled_method_Mutex_unlock_ctx
+         0     0%   100%       10ms  3.33%  main.__able_complete_await_ctx
+         0     0%   100%       10ms  3.33%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0%   100%       10ms  3.33%  main.__able_iface_Awaitable_i64_from_value
+         0     0%   100%       10ms  3.33%  main.__able_iface_Future_i64_runtime_adapter.__able_ctx_value
+         0     0%   100%       10ms  3.33%  main.__able_iface_Future_i64_runtime_adapter.value
+         0     0%   100%       50ms 16.67%  main.__able_make_await_waker_ctx
+         0     0%   100%       10ms  3.33%  main.__able_method_call
+         0     0%   100%       20ms  6.67%  main.__able_mutex_await_lock_ctx (inline)
+         0     0%   100%       20ms  6.67%  main.__able_mutex_await_lock_impl
+         0     0%   100%       20ms  6.67%  main.__able_mutex_lock_ctx (inline)
+         0     0%   100%       20ms  6.67%  main.__able_mutex_lock_impl
+         0     0%   100%       20ms  6.67%  main.__able_mutex_unlock_ctx (inline)
+         0     0%   100%       20ms  6.67%  main.__able_mutex_unlock_impl
+         0     0%   100%       10ms  3.33%  main.__able_notify_mutex_awaiters
+         0     0%   100%       10ms  3.33%  main.__able_register_await_state_ctx
+         0     0%   100%       10ms  3.33%  main.__able_register_compiled_call.func1
+         0     0%   100%      280ms 93.33%  main.__able_run_compiled_task
+         0     0%   100%       10ms  3.33%  main.__able_select_ready_await_arm_ctx
+         0     0%   100%      280ms 93.33%  main.__able_spawn_context.func1
+         0     0%   100%       10ms  3.33%  main.__able_wrap_fn_main
+         0     0%   100%       10ms  3.33%  main.main
+         0     0%   100%       10ms  3.33%  main.runMain
+         0     0%   100%       10ms  3.33%  runtime.(*mcache).prepareForSweep
+         0     0%   100%       10ms  3.33%  runtime.(*mcache).releaseAll
+         0     0%   100%       10ms  3.33%  runtime.(*mcentral).uncacheSpan
+         0     0%   100%       10ms  3.33%  runtime.(*spanSet).push
+         0     0%   100%       10ms  3.33%  runtime.(*sweepLocked).sweep
+         0     0%   100%       10ms  3.33%  runtime.Stack
+         0     0%   100%       10ms  3.33%  runtime.Stack.func1
+         0     0%   100%       10ms  3.33%  runtime.convT
+         0     0%   100%       10ms  3.33%  runtime.gcBgMarkWorker
+         0     0%   100%       10ms  3.33%  runtime.gcMarkDone
+         0     0%   100%       10ms  3.33%  runtime.gcMarkTermination
+         0     0%   100%       10ms  3.33%  runtime.gcMarkTermination.func3
+         0     0%   100%       10ms  3.33%  runtime.heapSetTypeNoHeader (inline)
+         0     0%   100%       10ms  3.33%  runtime.main
+         0     0%   100%       30ms 10.00%  runtime.makeslice
+         0     0%   100%       20ms  6.67%  runtime.mapaccess2_faststr
+         0     0%   100%       40ms 13.33%  runtime.newobject
+         0     0%   100%       10ms  3.33%  runtime.printFuncName
+         0     0%   100%       10ms  3.33%  runtime.printstring
+         0     0%   100%       10ms  3.33%  runtime.procresize
+         0     0%   100%       10ms  3.33%  runtime.semacquire1
+         0     0%   100%       10ms  3.33%  runtime.startTheWorldWithSema
+         0     0%   100%       20ms  6.67%  runtime.systemstack
+         0     0%   100%       10ms  3.33%  runtime.traceback (inline)
+         0     0%   100%       10ms  3.33%  runtime.traceback1
+         0     0%   100%       10ms  3.33%  runtime.traceback1.func1
+         0     0%   100%       10ms  3.33%  runtime.traceback2
+         0     0%   100%       20ms  6.67%  sync.(*Mutex).Lock (inline)
+         0     0%   100%       20ms  6.67%  sync.(*Mutex).Unlock (inline)

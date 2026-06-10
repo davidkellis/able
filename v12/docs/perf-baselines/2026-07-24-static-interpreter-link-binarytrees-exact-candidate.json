@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-07-24T21:36:09.730896Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/binarytrees.able",
+  "run_from": "/home/david/sync/projects/benchmarks/binarytrees",
+  "runs": 3,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 60,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 32.6167,
+      "avg_user_seconds": 32.2167,
+      "avg_sys_seconds": 0.2467,
+      "avg_gc": 205.33,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 33.45,
+          "user_seconds": 33.08,
+          "sys_seconds": 0.24,
+          "gc_count": 207.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "341de11a51feab3d8122b4b5d6a68b038a2d14434aa9bc2372f39300bf5f48e1"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 32.51,
+          "user_seconds": 32.09,
+          "sys_seconds": 0.26,
+          "gc_count": 206.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "341de11a51feab3d8122b4b5d6a68b038a2d14434aa9bc2372f39300bf5f48e1"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 31.89,
+          "user_seconds": 31.48,
+          "sys_seconds": 0.24,
+          "gc_count": 203.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "341de11a51feab3d8122b4b5d6a68b038a2d14434aa9bc2372f39300bf5f48e1"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/binarytrees/verify.rb",
+        "verified_runs": 3,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "341de11a51feab3d8122b4b5d6a68b038a2d14434aa9bc2372f39300bf5f48e1"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "kind": "able-discrete-event-simulation-application-gate",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "retain-application-and-evidence-no-production-change",
+  "selection_sha256": "e6a6ccacc9620f9e1b89e2510cab52a85114ddbf2f41e33abae7c6d8a70241f8",
+  "source": {
+    "path": "v12/examples/benchmarks/discrete_event_simulation/discrete_event_simulation.able",
+    "sha256": "f4229da6b02e7e79c49b81f266a08efb87476edade1255277a55fda77f10f22f"
+  },
+  "output": {
+    "text": "50000:3364:4096:4096:12513:695126337",
+    "sha256": "6aebca9b31a78441438d2321290a7b66dc831ddbc7671d783e4a725aed6e7405"
+  },
+  "pooled_measurements": {
+    "compiled": {
+      "able_cohort_means_seconds": [0.054, 0.052, 0.058],
+      "able_mean_seconds": 0.05466666666666667,
+      "go_cohort_means_seconds": [0.0138, 0.0141],
+      "go_mean_seconds": 0.01395,
+      "ratio": 3.9187574671445637,
+      "go_performance_percent": 25.51829268292683,
+      "target_status": "miss"
+    },
+    "bytecode": {
+      "able_cohort_means_seconds": [4.804, 4.584, 4.736],
+      "able_mean_seconds": 4.708,
+      "python_cohort_means_seconds": [0.1698, 0.2004],
+      "python_mean_seconds": 0.1851,
+      "ruby_cohort_means_seconds": [0.2095, 0.2192],
+      "ruby_mean_seconds": 0.21435,
+      "python_ratio": 25.43490005402485,
+      "ruby_ratio": 21.964077443433634,
+      "target_status": "miss"
+    }
+  },
+  "compiled_profile": {
+    "binary_sha256": "17b2f48ef53d49669302b3a3b7196a0b07c57344469de093e52f4fe65ceb15ca",
+    "cpu_processes": 30,
+    "cpu_samples_seconds": 0.54,
+    "main_allocated_bytes": [2319168, 2319168, 2319168],
+    "main_allocations": [108224, 108224, 108224],
+    "source_semantic_object_allocations": 108192,
+    "native_carriers": [
+      "[]*Scheduled_SimulationEvent",
+      "*EventQueue_SimulationEvent",
+      "*Scheduled_SimulationEvent",
+      "*SimulationEvent",
+      "int64",
+      "int32"
+    ],
+    "hot_runtime_value_transition": false,
+    "dependency_count": 96,
+    "interpreter_dependency": false,
+    "frontier_group": "compiled-iterator-control",
+    "disposition": "closed-no-shared-leaf"
+  },
+  "bytecode_profile": {
+    "benchmark_binary_sha256": "2c31655b97a0581e0c05caaa03d1ae3ecc91881f025ce7d16ed457c3dd6f205c",
+    "cpu_processes": 3,
+    "cpu_samples_seconds": 13.65,
+    "mean_ns_per_op": 4564684196.333333,
+    "mean_bytes_per_op": 128289384,
+    "mean_allocs_per_op": 3904826,
+    "frontier_group": "bytecode-iterator-control",
+    "disposition": "closed-no-shared-leaf"
+  },
+  "retained_production_change": false,
+  "canonical_stdlib_change": false,
+  "wasm_change": false
+}

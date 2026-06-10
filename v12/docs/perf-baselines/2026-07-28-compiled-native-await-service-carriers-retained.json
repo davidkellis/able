@@ -1,0 +1,147 @@
+{
+  "kind": "able-compiled-native-await-service-carriers-retained",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "cpu_affinity": "0-3",
+  "executor": "goroutine",
+  "gomaxprocs": 4,
+  "instrument_sha256": "cf6883f5cc3c29309e6d53886fdd26bb693a3918dd6b267a39b9a0bdefb0f620",
+  "runs": {
+    "construction_counter_per_application": 5,
+    "allocation_per_side_per_application": 5,
+    "timing_cohorts_per_application": 15,
+    "baseline_cpu_profiles_per_application": 10,
+    "baseline_allocation_profiles_per_application": 3,
+    "candidate_allocation_profiles_per_application": 1
+  },
+  "benchmarks": [
+    {
+      "benchmark": "await_channel_mux",
+      "source_sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+      "baseline_binary_sha256": "b21481d39d0e352970aa10b8295613f4a09ed2ecf9dfdab2441c3896664c3bc5",
+      "candidate_binary_sha256": "f3f3275ca8b8240f97d09dbe6baf3ec3fa638d60a35c7869a3385d6503d32817",
+      "stdout_sha256": "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693",
+      "interpreter_free": true,
+      "construction_counts": {
+        "await_wakers": [1024, 1024, 1024, 1024, 1024],
+        "await_registrations": [1024, 1024, 1024, 1024, 1024]
+      },
+      "allocation": {
+        "baseline_bytes": [6615312, 6617808, 6620464, 6622872, 6612912],
+        "candidate_bytes": [5557584, 5556432, 5556960, 5552256, 5554512],
+        "baseline_objects": [112652, 112692, 112701, 112678, 112640],
+        "candidate_objects": [101924, 101913, 101925, 101891, 101903],
+        "baseline_mean_bytes": 6617873.6,
+        "candidate_mean_bytes": 5555548.8,
+        "bytes_change_percent": -16.05,
+        "baseline_mean_objects": 112672.6,
+        "candidate_mean_objects": 101911.2,
+        "objects_change_percent": -9.55
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.083843033,
+        "candidate_mean_seconds": 0.082677021,
+        "candidate_change_percent": -1.39,
+        "paired_change_percent": -1.69,
+        "paired_ci95_percent": [-6.22, 2.84],
+        "go_mean_seconds": 0.003225869,
+        "candidate_go_time_ratio": 25.63,
+        "candidate_as_go_performance_percent": 3.90
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "source_sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696",
+      "baseline_binary_sha256": "6a633e23760455a591fc434df0c3b95168510bbec7331620ac8e6cbdf18edc3f",
+      "candidate_binary_sha256": "05123baf368dec98c20318a5ec567f4082ea71c88e47ba78c21eca61ff4d575c",
+      "stdout_sha256": "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e",
+      "interpreter_free": true,
+      "construction_counts": {
+        "await_wakers": [2048, 2048, 2048, 2048, 2048],
+        "await_registrations": [68, 63, 82, 62, 50]
+      },
+      "allocation": {
+        "baseline_bytes": [2808080, 2818568, 2845680, 2830480, 2799760],
+        "candidate_bytes": [1797056, 1810744, 1810120, 1778976, 1797912],
+        "baseline_objects": [45828, 45985, 46409, 46171, 45698],
+        "candidate_objects": [37590, 37864, 37836, 37126, 37615],
+        "baseline_mean_bytes": 2820513.6,
+        "candidate_mean_bytes": 1798961.6,
+        "bytes_change_percent": -36.22,
+        "baseline_mean_objects": 46018.2,
+        "candidate_mean_objects": 37606.2,
+        "objects_change_percent": -18.28
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.008299390,
+        "candidate_mean_seconds": 0.006086532,
+        "candidate_change_percent": -26.66,
+        "paired_change_percent": -26.16,
+        "paired_ci95_percent": [-31.08, -21.24],
+        "go_mean_seconds": 0.001853115,
+        "candidate_go_time_ratio": 3.28,
+        "candidate_as_go_performance_percent": 30.49
+      }
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "source_sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113",
+      "baseline_binary_sha256": "bd0166f5d54ea17ddff8e5e1656fcec8ada883a916474a21799a541f921345e5",
+      "candidate_binary_sha256": "38a71a3fafb77fe0c0c797ac6fbcc04683f421f2764d8e6b081e173c1c54ddc6",
+      "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58",
+      "interpreter_free": true,
+      "construction_counts": {
+        "await_wakers": [4096, 4096, 4096, 4096, 4096],
+        "await_registrations": [214, 201, 198, 212, 207]
+      },
+      "allocation": {
+        "baseline_bytes": [5787808, 5847152, 5769808, 5791616, 5791032],
+        "candidate_bytes": [3761296, 3778536, 3771176, 3762440, 3808984],
+        "baseline_objects": [95301, 96291, 95180, 95436, 95432],
+        "candidate_objects": [78737, 79059, 78950, 78861, 79676],
+        "baseline_mean_bytes": 5797483.2,
+        "candidate_mean_bytes": 3776486.4,
+        "bytes_change_percent": -34.86,
+        "baseline_mean_objects": 95528.0,
+        "candidate_mean_objects": 79056.6,
+        "objects_change_percent": -17.24
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.016371403,
+        "candidate_mean_seconds": 0.012475625,
+        "candidate_change_percent": -23.80,
+        "paired_change_percent": -23.57,
+        "paired_ci95_percent": [-26.51, -20.62],
+        "go_mean_seconds": 0.002331616,
+        "candidate_go_time_ratio": 5.35,
+        "candidate_as_go_performance_percent": 18.69
+      }
+    }
+  ],
+  "allocation_attribution": {
+    "baseline_objects_per_waker_construction": 5,
+    "candidate_objects_per_waker_construction": 1,
+    "baseline_objects_per_registration_construction": 5,
+    "candidate_objects_per_registration_construction": 1
+  },
+  "identity": {
+    "default_await_channel_mux": "byte-identical",
+    "default_mutex_await_journal": "byte-identical",
+    "default_mutex_work_queue": "byte-identical",
+    "experimental_await_free_nbody": "byte-identical"
+  },
+  "verification": {
+    "public_verifier_failures": 0,
+    "strict_interpreter_dependencies": 0,
+    "dynamic_user_awaitable_materialization": "pass",
+    "explicit_registration_cancel_materialization": "pass",
+    "execution_context_fixture_parity": "pass",
+    "compiler_bridge": "pass",
+    "compiled_cli": "pass",
+    "performance_ledger_current_closures": 21,
+    "performance_ledger_invalidations": 0
+  },
+  "next": "Count and attribute __able_context_from_native and __able_context_from_environment construction across the same three applications, then consider only a general allocation-free reverse context view that preserves dynamic and cross-package semantics."
+}

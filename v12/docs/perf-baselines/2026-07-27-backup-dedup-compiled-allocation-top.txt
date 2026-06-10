@@ -1,0 +1,53 @@
+File: compiled
+Build ID: 4c108c9842c44d5177f5ee9f5c8e486c54aa9061
+Type: alloc_space
+Time: 2026-07-27 13:10:59 CDT
+Showing nodes accounting for 10116.48kB, 99.09% of 10209.44kB total
+Dropped 90 nodes (cum <= 51.05kB)
+      flat  flat%   sum%        cum   cum%
+ 4403.16kB 43.13% 43.13%  4403.16kB 43.13%  runtime/pprof.allFrames
+ 1815.62kB 17.78% 60.91%  1865.10kB 18.27%  runtime/pprof.(*profileBuilder).emitLocation
+    1467kB 14.37% 75.28%  1468.50kB 14.38%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+     648kB  6.35% 81.63%  1171.88kB 11.48%  compress/flate.NewWriter (inline)
+     408kB  4.00% 85.62%  8245.20kB 80.76%  runtime/pprof.writeHeapInternal
+     320kB  3.13% 88.76%   523.88kB  5.13%  compress/flate.(*compressor).init
+  267.56kB  2.62% 91.38%  7837.20kB 76.76%  runtime/pprof.writeHeapProto
+     200kB  1.96% 93.34%      200kB  1.96%  compress/flate.newDeflateFast (inline)
+  160.19kB  1.57% 94.91%   160.23kB  1.57%  able/interpreter-go/pkg/runtime.HashMapStoreNew (inline)
+  136.50kB  1.34% 96.24%   146.12kB  1.43%  os.readFileContents
+  118.44kB  1.16% 97.40%   118.48kB  1.16%  main.__able_nullable_i64_from_value
+   93.25kB  0.91% 98.32%    93.25kB  0.91%  runtime/pprof.(*protobuf).string (inline)
+   78.09kB  0.76% 99.08%    78.09kB  0.76%  able/interpreter-go/pkg/runtime.(*HashMapValue).AppendEntry (inline)
+    0.50kB 0.0049% 99.09%  6270.23kB 61.42%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.06kB 0.00061% 99.09%  1963.91kB 19.24%  main.__able_compiled_fn_main
+    0.02kB 0.00023% 99.09%  8245.51kB 80.76%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00023% 99.09%  1963.93kB 19.24%  main.RunRegisteredMain
+    0.02kB 0.00023% 99.09%   136.38kB  1.34%  main.__able_compiled_fn_fs_read_bytes_fast
+    0.02kB 0.00023% 99.09%   136.36kB  1.34%  main.__able_host_fn_fs_read_bytes_fast
+    0.02kB 0.00015% 99.09%   160.34kB  1.57%  main.__able_compiled_method_HashMap_with_capacity_spec
+         0     0% 99.09%  8245.51kB 80.76%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.09%  8245.51kB 80.76%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.09%   160.23kB  1.57%  able/interpreter-go/pkg/runtime.HashMapStoreNewWithCapacity (inline)
+         0     0% 99.09%  1178.62kB 11.54%  compress/gzip.(*Writer).Write
+         0     0% 99.09%  1963.91kB 19.24%  main.RunRegisteredMain.func1
+         0     0% 99.09%   136.38kB  1.34%  main.__able_compiled_entry_fn_read_bytes
+         0     0% 99.09%   853.37kB  8.36%  main.__able_compiled_fn_chunk_count
+         0     0% 99.09%   136.38kB  1.34%  main.__able_compiled_fn_read_bytes
+         0     0% 99.09%  1666.41kB 16.32%  main.__able_compiled_fn_record_chunk
+         0     0% 99.09%   853.37kB  8.36%  main.__able_compiled_method_HashMap_raw_get_spec
+         0     0% 99.09%   813.05kB  7.96%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0% 99.09%    78.09kB  0.76%  main.__able_hash_map_set_impl
+         0     0% 99.09%   160.28kB  1.57%  main.__able_hash_map_with_capacity_impl
+         0     0% 99.09%  1963.91kB 19.24%  main.__able_register_compiled_call.func1
+         0     0% 99.09%  1963.91kB 19.24%  main.__able_wrap_fn_main
+         0     0% 99.09% 10209.44kB   100%  main.main
+         0     0% 99.09% 10209.44kB   100%  main.runMain
+         0     0% 99.09%  8245.51kB 80.76%  main.startMainProfilePhase (inline)
+         0     0% 99.09%   146.78kB  1.44%  os.ReadFile
+         0     0% 99.09% 10209.44kB   100%  runtime.main
+         0     0% 99.09%  8245.20kB 80.76%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.09%    93.25kB  0.91%  runtime/pprof.(*profileBuilder).build
+         0     0% 99.09%  1178.62kB 11.54%  runtime/pprof.(*profileBuilder).flush
+         0     0% 99.09%  1190.88kB 11.66%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 99.09%    93.25kB  0.91%  runtime/pprof.(*protobuf).strings
+         0     0% 99.09%  8245.20kB 80.76%  runtime/pprof.writeAlloc

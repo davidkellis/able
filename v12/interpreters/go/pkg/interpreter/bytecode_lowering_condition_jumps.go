@@ -6,6 +6,16 @@ func emitJumpIfFalseCondition(ctx *bytecodeLoweringContext, i *Interpreter, expr
 	if jumps, ok := bytecodeEmitJumpIfFalseSlotConstConjunction(ctx, expr); ok {
 		return jumps, nil
 	}
+	if instr, plan, ok := bytecodeJumpIfFalseFloatMulAddMulCompareConstInstruction(ctx, expr); ok {
+		jump := ctx.emit(instr)
+		ctx.setFloatMulAddMulCompareConstJumpPlan(jump, plan)
+		return []int{jump}, nil
+	}
+	if instr, plan, ok := bytecodeJumpIfFalseFloatAddCompareConstInstruction(ctx, expr); ok {
+		jump := ctx.emit(instr)
+		ctx.setFloatAddCompareConstJumpPlan(jump, plan)
+		return []int{jump}, nil
+	}
 	if instr, ok := bytecodeJumpIfFalseBinarySlotSlotInstruction(ctx, expr); ok {
 		return []int{ctx.emit(instr)}, nil
 	}

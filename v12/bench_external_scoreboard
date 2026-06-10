@@ -1,0 +1,999 @@
+#!/usr/bin/env python3
+"""Build the checked-in, report-only external application scoreboard.
+
+The scorecard deliberately consumes already verifier-backed measurements.  It
+does not run benchmarks, so it is safe to validate in the ordinary test lane.
+Fresh measurements remain the responsibility of bench_compare_external.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+from bench_execution_contract import declared_execution_contract, row_execution_contract
+from bench_scorecard_cohort import aggregate_manifest, canonical_stdlib_source_state
+from bench_scorecard_drift import current_source_drift
+from bench_scorecard_selection import canonical_record, manifest_keys, manifest_record
+from bench_scoreboard_render import render_json
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PERF_DIR = REPO_ROOT / "v12" / "docs" / "perf-baselines"
+LEGACY_DEFAULT_INPUTS = (
+    PERF_DIR / "2026-07-14-compiled-generality-scorecard.json",
+    PERF_DIR / "2026-07-14-bytecode-generality-scorecard.json",
+    PERF_DIR / "2026-07-14-compiled-async-coverage-scorecard.json",
+    PERF_DIR / "2026-07-14-bytecode-async-coverage-scorecard.json",
+)
+DEFAULT_JSON = PERF_DIR / "external-scoreboard-current.json"
+DEFAULT_MD = PERF_DIR / "external-scoreboard-current.md"
+CATALOG_SCRIPT = REPO_ROOT / "v12" / "bench_external_catalog.sh"
+CANONICAL_BENCHMARK_ROOT = REPO_ROOT / "v12" / "examples" / "benchmarks"
+TARGET_RATIO = 1.0 / 0.95
+
+
+def selected_current_cohort() -> tuple[list[Path], dict[str, Any] | None, dict[str, Any] | None]:
+    """Return raw comparison sources and source state named by current."""
+
+    try:
+        inputs, state = aggregate_manifest(DEFAULT_JSON, REPO_ROOT)
+        raw_selection = load_json(DEFAULT_JSON).get("selection_manifest")
+        selection = canonical_record(raw_selection) if raw_selection is not None else None
+        return inputs, state, selection
+    except ValueError:
+        return list(LEGACY_DEFAULT_INPUTS), None, None
+
+
+def display_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def canonical_benchmark_targets(benchmarks: list[str]) -> dict[str, Path]:
+    """Resolve canonical targets through the shell catalog's single mapping."""
+
+    if not benchmarks:
+        return {}
+    try:
+        result = subprocess.run(
+            [str(CATALOG_SCRIPT), "targets", *benchmarks],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as error:
+        raise ValueError(f"cannot read canonical benchmark catalog: {error}") from None
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "unknown catalog error"
+        raise ValueError(f"cannot read canonical benchmark catalog: {detail}")
+
+    targets: dict[str, Path] = {}
+    for line in result.stdout.splitlines():
+        benchmark, separator, raw_target = line.partition("\t")
+        if not separator or not benchmark or not raw_target:
+            raise ValueError("canonical benchmark catalog returned an invalid target row")
+        if benchmark in targets:
+            raise ValueError(f"canonical benchmark catalog repeated {benchmark!r}")
+        target = Path(raw_target).resolve()
+        if not target.is_file() or target.suffix != ".able":
+            raise ValueError(f"{benchmark}: canonical Able target is missing: {target}")
+        try:
+            target.relative_to(CANONICAL_BENCHMARK_ROOT)
+        except ValueError:
+            raise ValueError(f"{benchmark}: canonical target escapes {CANONICAL_BENCHMARK_ROOT}") from None
+        targets[benchmark] = target
+
+    requested = set(benchmarks)
+    if set(targets) != requested:
+        raise ValueError("canonical benchmark catalog returned an incomplete target set")
+    if len(set(targets.values())) != len(targets):
+        raise ValueError("canonical benchmark catalog maps multiple benchmarks to one Able source")
+    return targets
+
+
+def scorecard_source_fingerprint(row: dict[str, Any], target: Path) -> dict[str, str]:
+    """Return a current or measurement-recorded source fingerprint for a row."""
+
+    current_sha256 = sha256_file(target)
+    declared = row["able"].get("source")
+    if declared is None:
+        return {
+            "path": display_path(target),
+            "sha256": current_sha256,
+            "provenance": "current",
+        }
+    if not isinstance(declared, dict):
+        raise ValueError(f"{row['benchmark']}/{row['mode']}: able.source must be an object")
+    raw_path = declared.get("path")
+    declared_sha256 = declared.get("sha256")
+    if not isinstance(raw_path, str) or not raw_path or not is_sha256(declared_sha256):
+        raise ValueError(f"{row['benchmark']}/{row['mode']}: invalid able.source fingerprint")
+    measured_target = Path(raw_path)
+    if not measured_target.is_absolute():
+        measured_target = REPO_ROOT / measured_target
+    if measured_target.resolve() != target:
+        raise ValueError(
+            f"{row['benchmark']}/{row['mode']}: measured source does not match canonical target"
+        )
+    if declared_sha256 != current_sha256:
+        raise ValueError(
+            f"{row['benchmark']}/{row['mode']}: canonical Able source changed since measurement; "
+            "refresh the scorecard"
+        )
+    return {
+        "path": display_path(target),
+        "sha256": declared_sha256,
+        "provenance": "measured",
+    }
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"input file not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"scorecard root must be an object: {path}")
+    return value
+
+
+def load_stdlib_source_state(path: Path) -> dict[str, Any]:
+    """Read and validate the one canonical stdlib source state for a cohort."""
+
+    try:
+        return canonical_stdlib_source_state(load_json(path))
+    except ValueError as error:
+        raise ValueError(f"{display_path(path)}: {error}") from None
+
+
+def fingerprint_reference_source(
+    raw_path: Any,
+    recorded_sha256: Any,
+    context: str,
+    provenance: Any = None,
+) -> dict[str, str] | None:
+    """Validate and normalize one Go/Python/Ruby reference source identity."""
+
+    if raw_path is None:
+        return None
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"{context}: reference source path must be a non-empty string")
+    source_path = Path(raw_path)
+    if not source_path.is_absolute():
+        source_path = REPO_ROOT / source_path
+    source_path = source_path.resolve()
+    if not source_path.is_file():
+        raise ValueError(f"{context}: reference source is missing: {source_path}")
+    current_sha256 = sha256_file(source_path)
+    if recorded_sha256 is None:
+        return {
+            "path": display_path(source_path),
+            "sha256": current_sha256,
+            "provenance": "current",
+        }
+    if not is_sha256(recorded_sha256):
+        raise ValueError(f"{context}: reference source has an invalid SHA-256")
+    if recorded_sha256 != current_sha256:
+        raise ValueError(f"{context}: reference source changed since measurement; refresh references")
+    return {
+        "path": display_path(source_path),
+        "sha256": recorded_sha256,
+        "provenance": provenance if provenance in {"current", "measured"} else "measured",
+    }
+
+
+def reference_fingerprints_for_scorecard_source(
+    scorecard_path: Path, source: dict[str, Any]
+) -> dict[tuple[str, str], dict[str, str]]:
+    """Read optional fresh-reference artifacts named by one comparison report."""
+
+    fingerprints: dict[tuple[str, str], dict[str, str]] = {}
+
+    def add_report(raw_path: Any, default_language: str | None) -> None:
+        if raw_path is None:
+            return
+        if not isinstance(raw_path, str) or not raw_path:
+            raise ValueError(f"{display_path(scorecard_path)}: reference report path must be a string")
+        report_path = Path(raw_path)
+        if not report_path.is_absolute():
+            report_path = REPO_ROOT / report_path
+        report = load_json(report_path)
+        report_rows = report.get("rows")
+        if not isinstance(report_rows, list):
+            raise ValueError(f"{display_path(report_path)}: reference report rows must be an array")
+        for index, row in enumerate(report_rows):
+            if not isinstance(row, dict):
+                raise ValueError(f"{display_path(report_path)} row {index}: reference row must be an object")
+            benchmark = row.get("benchmark")
+            language = default_language if default_language is not None else row.get("language_family")
+            if not isinstance(benchmark, str) or not benchmark:
+                raise ValueError(f"{display_path(report_path)} row {index}: reference benchmark is missing")
+            if not isinstance(language, str) or not language:
+                raise ValueError(f"{display_path(report_path)} row {index}: reference language is missing")
+            fingerprint = fingerprint_reference_source(
+                row.get("source"),
+                row.get("source_sha256"),
+                f"{display_path(report_path)} {benchmark}/{language}",
+            )
+            if fingerprint is not None:
+                key = (benchmark, language)
+                existing = fingerprints.get(key)
+                if existing is not None and existing != fingerprint:
+                    raise ValueError(
+                        f"{display_path(report_path)}: conflicting reference source for {benchmark}/{language}"
+                    )
+                fingerprints[key] = fingerprint
+
+    add_report(source.get("go_reference_json"), "go")
+    add_report(source.get("reference_json"), None)
+    return fingerprints
+
+
+def contract_asset_fingerprint(
+    raw_path: Any, recorded_sha256: Any, context: str
+) -> dict[str, str]:
+    """Validate one verifier or declared input-file identity."""
+
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"{context}: asset path must be a non-empty string")
+    asset_path = Path(raw_path)
+    if not asset_path.is_absolute():
+        asset_path = REPO_ROOT / asset_path
+    asset_path = asset_path.resolve()
+    if not asset_path.is_file():
+        raise ValueError(f"{context}: asset is missing: {asset_path}")
+    current_sha256 = sha256_file(asset_path)
+    if recorded_sha256 is not None:
+        if not is_sha256(recorded_sha256):
+            raise ValueError(f"{context}: asset has an invalid SHA-256")
+        if recorded_sha256 != current_sha256:
+            raise ValueError(f"{context}: asset changed since measurement; refresh the scorecard")
+    return {"path": display_path(asset_path), "sha256": current_sha256}
+
+
+def benchmark_contract(
+    program_args: list[str],
+    verifier: dict[str, str] | None,
+    input_files: list[dict[str, str]],
+    provenance: str,
+) -> dict[str, Any]:
+    """Build the canonical verifier/declared-input contract and its digest."""
+
+    body = {
+        "program_args": program_args,
+        "verifier": verifier,
+        "input_files": input_files,
+    }
+    digest = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {**body, "sha256": digest, "provenance": provenance}
+
+
+def declared_benchmark_contract(raw_contract: Any, context: str) -> dict[str, Any]:
+    """Validate a contract captured by a fresh comparison measurement."""
+
+    if not isinstance(raw_contract, dict):
+        raise ValueError(f"{context}: benchmark_contract must be an object")
+    raw_args = raw_contract.get("program_args")
+    raw_inputs = raw_contract.get("input_files")
+    if not isinstance(raw_args, list) or not all(isinstance(arg, str) for arg in raw_args):
+        raise ValueError(f"{context}: benchmark_contract.program_args must be a string array")
+    if not isinstance(raw_inputs, list):
+        raise ValueError(f"{context}: benchmark_contract.input_files must be an array")
+
+    raw_verifier = raw_contract.get("verifier")
+    if raw_verifier is None:
+        verifier = None
+    else:
+        if not isinstance(raw_verifier, dict):
+            raise ValueError(f"{context}: benchmark_contract.verifier must be an object or null")
+        verifier = contract_asset_fingerprint(
+            raw_verifier.get("path"), raw_verifier.get("sha256"), f"{context}: verifier"
+        )
+
+    input_files: list[dict[str, str]] = []
+    for index, raw_input in enumerate(raw_inputs):
+        if not isinstance(raw_input, dict):
+            raise ValueError(f"{context}: input_files[{index}] must be an object")
+        argument = raw_input.get("argument")
+        if not isinstance(argument, str):
+            raise ValueError(f"{context}: input_files[{index}].argument must be a string")
+        fingerprint = contract_asset_fingerprint(
+            raw_input.get("path"),
+            raw_input.get("sha256"),
+            f"{context}: input_files[{index}]",
+        )
+        input_files.append({"argument": argument, **fingerprint})
+
+    provenance = raw_contract.get("provenance")
+    if provenance not in {"current", "measured"}:
+        raise ValueError(f"{context}: benchmark_contract.provenance must be current or measured")
+    normalized = benchmark_contract(raw_args, verifier, input_files, provenance)
+    recorded_sha256 = raw_contract.get("sha256")
+    if not is_sha256(recorded_sha256) or recorded_sha256 != normalized["sha256"]:
+        raise ValueError(f"{context}: benchmark_contract SHA-256 does not match its content")
+    return normalized
+
+
+def catalog_benchmark_contracts(
+    scorecard_path: Path, source: dict[str, Any], benchmarks: list[str]
+) -> dict[str, dict[str, Any]]:
+    """Reconstruct current contracts for reports produced before capture existed."""
+
+    raw_results = source.get("external_results_json")
+    if not isinstance(raw_results, str) or not raw_results:
+        raise ValueError(
+            f"{display_path(scorecard_path)}: legacy rows need external_results_json to reconstruct contracts"
+        )
+    results_path = Path(raw_results)
+    if not results_path.is_absolute():
+        results_path = REPO_ROOT / results_path
+    benchmark_repo = results_path.resolve().parent
+    if not benchmark_repo.is_dir():
+        raise ValueError(f"{display_path(scorecard_path)}: benchmark repository is missing: {benchmark_repo}")
+    try:
+        result = subprocess.run(
+            [str(CATALOG_SCRIPT), "contracts", str(benchmark_repo), *benchmarks],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as error:
+        raise ValueError(f"cannot read benchmark contract catalog: {error}") from None
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "unknown catalog error"
+        raise ValueError(f"cannot read benchmark contract catalog: {detail}")
+
+    contracts: dict[str, dict[str, Any]] = {}
+    for line in result.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 4:
+            raise ValueError("benchmark contract catalog returned an invalid row")
+        benchmark, raw_run_dir, raw_verifier, joined_args = fields
+        if not benchmark or benchmark in contracts:
+            raise ValueError("benchmark contract catalog returned a duplicate or empty benchmark")
+        run_dir = Path(raw_run_dir).resolve()
+        if not run_dir.is_dir():
+            raise ValueError(f"{benchmark}: catalog run directory is missing: {run_dir}")
+        verifier_path = Path(raw_verifier).resolve()
+        verifier = (
+            contract_asset_fingerprint(str(verifier_path), None, f"{benchmark}: verifier")
+            if verifier_path.is_file()
+            else None
+        )
+        program_args = [] if not joined_args else joined_args.split("\x1f")
+        input_files: list[dict[str, str]] = []
+        for argument in program_args:
+            candidate = Path(argument)
+            if not candidate.is_absolute():
+                candidate = run_dir / candidate
+            candidate = candidate.resolve()
+            if candidate.is_file():
+                input_files.append(
+                    {
+                        "argument": argument,
+                        **contract_asset_fingerprint(
+                            str(candidate), None, f"{benchmark}: input {argument}"
+                        ),
+                    }
+                )
+        contracts[benchmark] = benchmark_contract(program_args, verifier, input_files, "current")
+
+    if set(contracts) != set(benchmarks):
+        raise ValueError("benchmark contract catalog returned an incomplete benchmark set")
+    return contracts
+
+
+def nonnegative_int(value: Any, field: str, context: str) -> int:
+    if not isinstance(value, int) or value < 0:
+        raise ValueError(f"{context}: {field} must be a non-negative integer")
+    return value
+
+
+def validate_source(path: Path, source: dict[str, Any]) -> None:
+    context = display_path(path)
+    if not isinstance(source.get("generated_at"), str):
+        raise ValueError(f"{context}: generated_at must be a string")
+    if not isinstance(source.get("suite"), str):
+        raise ValueError(f"{context}: suite must be a string")
+    rows = source.get("rows")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"{context}: rows must be a non-empty array")
+
+    for index, row in enumerate(rows):
+        row_context = f"{context} row {index}"
+        if not isinstance(row, dict):
+            raise ValueError(f"{row_context}: row must be an object")
+        if not isinstance(row.get("benchmark"), str) or not row["benchmark"]:
+            raise ValueError(f"{row_context}: benchmark must be a non-empty string")
+        if not isinstance(row.get("mode"), str) or not row["mode"]:
+            raise ValueError(f"{row_context}: mode must be a non-empty string")
+        able = row.get("able")
+        if not isinstance(able, dict):
+            raise ValueError(f"{row_context}: able must be an object")
+        ok_runs = nonnegative_int(able.get("ok_runs"), "able.ok_runs", row_context)
+        timeouts = nonnegative_int(able.get("timeouts"), "able.timeouts", row_context)
+        failures = nonnegative_int(able.get("failures"), "able.failures", row_context)
+        if ok_runs:
+            value = able.get("avg_real_seconds")
+            if not isinstance(value, (int, float)) or value < 0:
+                raise ValueError(f"{row_context}: successful row needs avg_real_seconds")
+            validation = able.get("validation")
+            if not isinstance(validation, dict) or validation.get("status") != "verified":
+                raise ValueError(f"{row_context}: successful row must be verifier-backed")
+        source_fingerprint = able.get("source")
+        if source_fingerprint is not None and not isinstance(source_fingerprint, dict):
+            raise ValueError(f"{row_context}: able.source must be an object when present")
+        row_execution_contract(row, row_context)
+
+
+def derived_status(able: dict[str, Any]) -> str:
+    if able["ok_runs"] and not able["timeouts"] and not able["failures"]:
+        return "verified"
+    if able["ok_runs"]:
+        return "incomplete"
+    if able["timeouts"]:
+        return "timeout"
+    if able["failures"]:
+        return "failure"
+    return "unavailable"
+
+
+def ratio(comparisons: dict[str, Any], language: str) -> float | None:
+    comparison = comparisons.get(language)
+    if not isinstance(comparison, dict):
+        return None
+    value = comparison.get("ratio")
+    if not isinstance(value, (int, float)) or not math.isfinite(value):
+        return None
+    return float(value)
+
+
+def unranked_reason(row: dict[str, Any]) -> str | None:
+    """Return the machine-readable reason a scorecard row cannot be ranked.
+
+    A missing ratio is intentionally described as an unavailable reference,
+    rather than guessing whether its source process timed out, failed, or was
+    omitted.  The selected source scorecard remains the evidence for that
+    distinction.  Able's own bounded-run status is retained exactly because it
+    is part of this compact report.
+    """
+
+    mode = row["mode"]
+    able_status = row["able"].get("status")
+    if not isinstance(able_status, str):
+        able_status = derived_status(row["able"])
+    if able_status != "verified":
+        return f"able_{able_status}"
+
+    comparisons = row.get("comparisons", {})
+    if mode == "compiled":
+        if ratio(comparisons, "go") is None:
+            return "go_reference_unavailable"
+        return None
+    if mode == "bytecode":
+        missing = [
+            language
+            for language in ("python", "ruby")
+            if ratio(comparisons, language) is None
+        ]
+        if missing:
+            return "_and_".join(f"{language}_reference_unavailable" for language in missing)
+        return None
+    return "unsupported_mode"
+
+
+def target_status(row: dict[str, Any]) -> str:
+    if unranked_reason(row) is not None:
+        return "unranked"
+
+    comparisons = row["comparisons"]
+    if row["mode"] == "compiled":
+        return "meets" if ratio(comparisons, "go") <= TARGET_RATIO else "miss"
+    if row["mode"] == "bytecode":
+        return (
+            "meets"
+            if max(ratio(comparisons, "python"), ratio(comparisons, "ruby")) <= TARGET_RATIO
+            else "miss"
+        )
+    return "unranked"
+
+
+def format_unranked_reason(reason: str | None) -> str:
+    labels = {
+        "able_incomplete": "Able run incomplete",
+        "able_timeout": "Able timed out",
+        "able_failure": "Able run failed",
+        "able_unavailable": "Able run unavailable",
+        "go_reference_unavailable": "Go reference unavailable",
+        "python_reference_unavailable": "Python reference unavailable",
+        "ruby_reference_unavailable": "Ruby reference unavailable",
+        "python_reference_unavailable_and_ruby_reference_unavailable": (
+            "Python and Ruby references unavailable"
+        ),
+        "unsupported_mode": "Unsupported mode",
+    }
+    return labels.get(reason, "—")
+
+
+def compact_row(
+    row: dict[str, Any],
+    able_source: dict[str, str],
+    reference_sources: dict[str, dict[str, str]],
+    fallback_contract: dict[str, Any],
+) -> dict[str, Any]:
+    """Copy only scorecard data, leaving per-run working-directory paths out."""
+
+    able = row["able"]
+    copied_able = {
+        "status": derived_status(able),
+        "ok_runs": able["ok_runs"],
+        "timeouts": able["timeouts"],
+        "failures": able["failures"],
+        "real_seconds": able.get("avg_real_seconds"),
+        "user_seconds": able.get("avg_user_seconds"),
+        "sys_seconds": able.get("avg_sys_seconds"),
+        "gc_count": able.get("avg_gc"),
+        "verification": able.get("validation", {}).get("status"),
+    }
+    comparisons: dict[str, Any] = {}
+    execution_contract = row_execution_contract(
+        row, f"{row['benchmark']}/{row['mode']}"
+    )
+    for language, value in row.get("comparisons", {}).items():
+        if not isinstance(value, dict):
+            continue
+        copied_comparison = {
+            "implementation": value.get("reference_implementation"),
+            "real_seconds": value.get("reference_real_seconds"),
+            "ratio": value.get("ratio"),
+        }
+        declared_source = value.get("reference_source")
+        if declared_source is not None:
+            if not isinstance(declared_source, dict):
+                raise ValueError(f"{row['benchmark']}/{row['mode']}/{language}: invalid reference source")
+            fingerprint = fingerprint_reference_source(
+                declared_source.get("path"),
+                declared_source.get("sha256"),
+                f"{row['benchmark']}/{row['mode']}/{language}",
+                declared_source.get("provenance"),
+            )
+        else:
+            fingerprint = reference_sources.get(language)
+        if fingerprint is not None:
+            copied_comparison["source"] = fingerprint
+        if "execution_contract" in value:
+            copied_comparison["execution_contract"] = declared_execution_contract(
+                value["execution_contract"],
+                f"{row['benchmark']}/{row['mode']}/{language}: reference",
+            )
+        comparisons[language] = copied_comparison
+    compact = {
+        "benchmark": row["benchmark"],
+        "mode": row["mode"],
+        "able": copied_able,
+        "able_source": able_source,
+        "benchmark_contract": declared_benchmark_contract(
+            row["benchmark_contract"], f"{row['benchmark']}/{row['mode']}"
+        )
+        if "benchmark_contract" in row
+        else fallback_contract,
+        "comparisons": comparisons,
+    }
+    if execution_contract is not None:
+        compact["execution_contract"] = execution_contract
+    compact["target_status"] = target_status(compact)
+    compact["unranked_reason"] = unranked_reason(compact)
+    return compact
+
+
+def unique_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
+
+
+def build_scoreboard(
+    inputs: list[Path],
+    canonical_stdlib_state: dict[str, Any] | None = None,
+    selection_manifest: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    sources: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
+    benchmarks: list[str] = []
+    modes: list[str] = []
+    languages: list[str] = []
+    seen_rows: set[tuple[str, str]] = set()
+    generated_at: list[str] = []
+    raw_rows: list[
+        tuple[
+            dict[str, Any],
+            dict[tuple[str, str], dict[str, str]],
+            dict[str, dict[str, Any]],
+        ]
+    ] = []
+
+    for path in inputs:
+        source = load_json(path)
+        validate_source(path, source)
+        source_reference_fingerprints = reference_fingerprints_for_scorecard_source(path, source)
+        legacy_benchmarks = unique_preserving_order(
+            [row["benchmark"] for row in source["rows"] if "benchmark_contract" not in row]
+        )
+        source_contracts = (
+            catalog_benchmark_contracts(path, source, legacy_benchmarks) if legacy_benchmarks else {}
+        )
+        generated_at.append(source["generated_at"])
+        sources.append(
+            {
+                "path": display_path(path),
+                "generated_at": source["generated_at"],
+                "suite": source["suite"],
+                "modes": source.get("modes", []),
+                "languages": source.get("languages", []),
+                "cpu_affinity": source.get("cpu_affinity"),
+                **({"cpu_affinity_pool": source["cpu_affinity_pool"]} if source.get("cpu_affinity_pool") is not None else {}),
+            }
+        )
+        benchmarks.extend(source.get("benchmarks", []))
+        modes.extend(source.get("modes", []))
+        languages.extend(source.get("languages", []))
+        for row in source["rows"]:
+            key = (row["benchmark"], row["mode"])
+            if key in seen_rows:
+                raise ValueError(
+                    f"duplicate benchmark/mode row {key[0]!r}/{key[1]!r} across source scorecards"
+                )
+            seen_rows.add(key)
+            raw_rows.append((row, source_reference_fingerprints, source_contracts))
+
+    target_by_benchmark = canonical_benchmark_targets(
+        unique_preserving_order([row["benchmark"] for row, _, _ in raw_rows])
+    )
+    for row, source_reference_fingerprints, source_contracts in raw_rows:
+        fallback_contract = source_contracts.get(row["benchmark"])
+        if "benchmark_contract" not in row and fallback_contract is None:
+            raise ValueError(
+                f"{row['benchmark']}/{row['mode']}: missing reconstructed benchmark contract"
+            )
+        reference_sources = {
+            language: fingerprint
+            for (benchmark, language), fingerprint in source_reference_fingerprints.items()
+            if benchmark == row["benchmark"]
+        }
+        rows.append(
+            compact_row(
+                row,
+                scorecard_source_fingerprint(row, target_by_benchmark[row["benchmark"]]),
+                reference_sources,
+                fallback_contract or {},
+            )
+        )
+
+    allowed_modes = {"compiled", "bytecode"}
+    unexpected_modes = sorted(set(modes) - allowed_modes)
+    if unexpected_modes:
+        raise ValueError(f"scoreboard inputs have unsupported modes: {', '.join(unexpected_modes)}")
+
+    scoreboard: dict[str, Any] = {
+        "kind": "external-benchmark-scoreboard",
+        "generated_at": max(generated_at),
+        "measurement_source": (
+            "Verifier-backed application measurements recorded with each listed "
+            "source scorecard's process guard. This artifact never substitutes a "
+            "timeout or unavailable foreign reference with an inferred ratio."
+        ),
+        "targets": {
+            "compiled": {
+                "reference": "go",
+                "max_able_to_reference_ratio": TARGET_RATIO,
+                "meaning": "Able is at least 95% as fast as the Go reference.",
+            },
+            "bytecode": {
+                "references": ["python", "ruby"],
+                "max_able_to_reference_ratio": TARGET_RATIO,
+                "meaning": "Able is at least 95% as fast as both interpreter references.",
+            },
+        },
+        "sources": sources,
+        "benchmarks": unique_preserving_order(benchmarks),
+        "modes": unique_preserving_order(modes),
+        "languages": unique_preserving_order(languages),
+        "rows": rows,
+    }
+    if canonical_stdlib_state is not None:
+        scoreboard["canonical_stdlib_source_state"] = canonical_stdlib_source_state(
+            canonical_stdlib_state
+        )
+    if selection_manifest is not None:
+        selection_manifest = canonical_record(selection_manifest)
+        missing = sorted(manifest_keys(selection_manifest) - seen_rows)
+        if missing:
+            raise ValueError(
+                "selection manifest rows are absent from full status: "
+                + ", ".join(f"{benchmark}/{mode}" for benchmark, mode in missing[:5])
+            )
+        scoreboard["selection_manifest"] = selection_manifest
+    return scoreboard
+
+
+def fmt_seconds(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return "n/a"
+    return f"{value:.4f}"
+
+
+def fmt_ratio(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return "n/a"
+    return f"{value:.2f}x"
+
+
+def render_markdown(scoreboard: dict[str, Any]) -> str:
+    rows = scoreboard["rows"]
+    selection_manifest = scoreboard.get("selection_manifest")
+    selected = manifest_keys(selection_manifest) if isinstance(selection_manifest, dict) else None
+    compiled_ranked = [row for row in rows if row["mode"] == "compiled" and row["target_status"] != "unranked" and (selected is None or (row["benchmark"], row["mode"]) in selected)]
+    bytecode_ranked = [row for row in rows if row["mode"] == "bytecode" and row["target_status"] != "unranked" and (selected is None or (row["benchmark"], row["mode"]) in selected)]
+    compiled_meets = sum(row["target_status"] == "meets" for row in compiled_ranked)
+    bytecode_meets = sum(row["target_status"] == "meets" for row in bytecode_ranked)
+    measured_sources = sum(row["able_source"]["provenance"] == "measured" for row in rows)
+    measured_contracts = sum(
+        row["benchmark_contract"]["provenance"] == "measured" for row in rows
+    )
+    reference_sources = [
+        comparison["source"]
+        for row in rows
+        for comparison in row["comparisons"].values()
+        if isinstance(comparison.get("source"), dict)
+    ]
+    measured_reference_sources = sum(source["provenance"] == "measured" for source in reference_sources)
+    stdlib_state = scoreboard.get("canonical_stdlib_source_state")
+    lines = [
+        "# External Application Scoreboard",
+        "",
+        f"- Source measurements through: `{scoreboard['generated_at']}`",
+        "- Scope: verifier-backed Able application launches only; tree-walker is intentionally excluded from this performance target.",
+        "- Guard: each source scorecard records its process count, CPU-affinity when used, runtime settings, and per-process timeout.",
+        f"- Compiled: `{compiled_meets}/{len(compiled_ranked)}` selected rankable rows meet the 95%-of-Go target.",
+        f"- Bytecode: `{bytecode_meets}/{len(bytecode_ranked)}` selected rankable rows meet both 95%-of-Python and 95%-of-Ruby targets.",
+        f"- Canonical Able source fingerprints: `{len(rows)}` row fingerprints in JSON; `{measured_sources}` came from the measured source report and the remainder are current-source legacy fingerprints.",
+        f"- Verifier/declared-input contracts: `{len(rows)}` row fingerprints in JSON; `{measured_contracts}` were captured before the timed launch and the remainder are current-contract legacy reconstructions.",
+        f"- Matched reference source fingerprints: `{len(reference_sources)}` comparison fingerprints in JSON; `{measured_reference_sources}` came from measured reference reports and the remainder are current-source legacy fingerprints.",
+        "- `unranked` means a partial, timed-out, failed, or unavailable matched run/reference; it is never counted as a pass or fail.",
+        "- `Unranked reason` identifies whether the Able launch or its required reference prevents ranking; reference-unavailable does not infer why that source has no valid ratio.",
+        "",
+        "| Benchmark | Mode | Able status | Able (s) | Go / ratio | Python / ratio | Ruby / ratio | Target | Unranked reason |",
+        "| --- | --- | --- | ---: | --- | --- | --- | --- | --- |",
+    ]
+    if isinstance(stdlib_state, dict):
+        lines.insert(
+            9,
+            "- Canonical stdlib runtime sources: `{}` `.able` files, tree SHA-256 `{}`; Git `{}` ({}).".format(
+                stdlib_state["source_file_count"],
+                stdlib_state["source_tree_sha256"],
+                stdlib_state["git_head"] or "unavailable",
+                "dirty" if stdlib_state["git_dirty"] else "clean",
+            ),
+        )
+    if isinstance(selection_manifest, dict):
+        lines.insert(
+            10,
+            "- Strict candidate selection: `{}` reviewed benchmark/mode rows, SHA-256 `{}`; timeout rows remain in full status.".format(
+                selection_manifest["row_count"], selection_manifest["selection_sha256"]
+            ),
+        )
+    for row in rows:
+        comparisons = row["comparisons"]
+        def comparison(language: str) -> str:
+            value = comparisons.get(language)
+            if not value:
+                return "n/a"
+            return f"{fmt_seconds(value.get('real_seconds'))} / {fmt_ratio(value.get('ratio'))}"
+        lines.append(
+            "| `{}` | `{}` | `{}` | {} | {} | {} | {} | `{}` | {} |".format(
+                row["benchmark"],
+                row["mode"],
+                row["able"]["status"],
+                fmt_seconds(row["able"]["real_seconds"]),
+                comparison("go"),
+                comparison("python"),
+                comparison("ruby"),
+                row["target_status"],
+                format_unranked_reason(row["unranked_reason"]),
+            )
+        )
+    lines.extend(["", "## Source scorecards", ""])
+    for source in scoreboard["sources"]:
+        lines.append(
+            "- `{}` — `{}` (`{}`)".format(source["path"], source["suite"], source["generated_at"])
+        )
+    lines.extend(
+        [
+            "",
+            "Regenerate after a new verifier-backed source scorecard with:",
+            "",
+            "```sh",
+            "just bench-scoreboard",
+            "```",
+            "",
+            "To replace the selected sources, pass each new scorecard explicitly, for example",
+            "`just bench-scoreboard --input path/to/compiled.json --input path/to/bytecode.json`.",
+            "",
+            "Validate the checked-in report without running performance workloads with:",
+            "",
+            "```sh",
+            "just bench-scoreboard-check",
+            "```",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write_json(path: Path, scoreboard: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_json(scoreboard), encoding="utf-8")
+
+
+def write_markdown(path: Path, scoreboard: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_markdown(scoreboard), encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Build or validate the report-only external application scoreboard."
+    )
+    parser.add_argument(
+        "--input",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="source scorecard JSON (repeatable; defaults to the selected current cohort)",
+    )
+    parser.add_argument(
+        "--cohort",
+        metavar="PATH",
+        help="reuse the explicit source cohort recorded by a dated aggregate scorecard",
+    )
+    parser.add_argument(
+        "--stdlib-source-state",
+        metavar="PATH",
+        help="canonical stdlib source-state JSON captured before the timed launches",
+    )
+    parser.add_argument(
+        "--selection-manifest",
+        metavar="PATH",
+        help="reviewed mode-aware row manifest to embed in this full status cohort",
+    )
+    parser.add_argument("--output-json", metavar="PATH", help="write scoreboard JSON to PATH")
+    parser.add_argument("--output-md", metavar="PATH", help="write Markdown report to PATH")
+    parser.add_argument(
+        "--write-current",
+        action="store_true",
+        help="write the checked-in current JSON and Markdown artifacts",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="verify the checked-in current artifacts exactly match the source scorecards",
+    )
+    args = parser.parse_args()
+
+    if args.write_current and args.check:
+        parser.error("--write-current and --check cannot be combined")
+    if args.cohort and args.input:
+        parser.error("--cohort and --input cannot be combined")
+    if args.cohort and args.stdlib_source_state:
+        parser.error("--cohort already supplies its stdlib source state")
+    if args.cohort and args.selection_manifest:
+        parser.error("--cohort already supplies its embedded selection manifest")
+    if args.stdlib_source_state and not args.input:
+        parser.error("--stdlib-source-state requires one or more --input reports")
+    if args.selection_manifest and not args.input:
+        parser.error("--selection-manifest requires one or more --input reports")
+    if args.check and (
+        args.input
+        or args.cohort
+        or args.stdlib_source_state
+        or args.selection_manifest
+        or args.output_json
+        or args.output_md
+    ):
+        parser.error("--check validates the canonical default inputs and outputs only")
+    if not args.write_current and not args.check and not (args.output_json or args.output_md):
+        parser.error("choose --write-current, --check, or at least one output path")
+
+    try:
+        if args.cohort:
+            inputs, stdlib_state = aggregate_manifest(Path(args.cohort), REPO_ROOT)
+            raw_selection = load_json(Path(args.cohort)).get("selection_manifest")
+            selection = canonical_record(raw_selection) if raw_selection is not None else None
+        elif args.input:
+            inputs = [Path(value) for value in args.input]
+            stdlib_state = (
+                load_stdlib_source_state(Path(args.stdlib_source_state))
+                if args.stdlib_source_state
+                else None
+            )
+            selection = (
+                manifest_record(Path(args.selection_manifest), REPO_ROOT)
+                if args.selection_manifest
+                else None
+            )
+        else:
+            inputs, stdlib_state, selection = selected_current_cohort()
+        scoreboard = build_scoreboard(inputs, stdlib_state, selection)
+    except ValueError as error:
+        print(f"bench_external_scoreboard: {error}", file=sys.stderr)
+        return 2
+
+    if args.check:
+        expected_json = render_json(scoreboard)
+        expected_md = render_markdown(scoreboard)
+        actual_json = DEFAULT_JSON.read_text(encoding="utf-8") if DEFAULT_JSON.exists() else ""
+        actual_md = DEFAULT_MD.read_text(encoding="utf-8") if DEFAULT_MD.exists() else ""
+        if actual_json != expected_json or actual_md != expected_md:
+            print(
+                "bench_external_scoreboard: current artifacts are stale; run `just bench-scoreboard`",
+                file=sys.stderr,
+            )
+            return 1
+        print("external scoreboard check ok")
+        return 0
+
+    if args.write_current:
+        if not args.input and not args.cohort:
+            drifted = current_source_drift(scoreboard, DEFAULT_JSON)
+            if drifted:
+                print(
+                    "bench_external_scoreboard: benchmark, verifier/input, or reference source changed for "
+                    f"{', '.join(drifted)}; run `just bench-scorecard-refresh` before promotion",
+                    file=sys.stderr,
+                )
+                return 1
+        write_json(DEFAULT_JSON, scoreboard)
+        write_markdown(DEFAULT_MD, scoreboard)
+        print(f"wrote {display_path(DEFAULT_JSON)}")
+        print(f"wrote {display_path(DEFAULT_MD)}")
+        return 0
+
+    if args.output_json:
+        write_json(Path(args.output_json), scoreboard)
+    if args.output_md:
+        write_markdown(Path(args.output_md), scoreboard)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

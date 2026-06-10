@@ -154,6 +154,7 @@ type CheckResult struct {
 	Diagnostics []ModuleDiagnostic
 	Packages    map[string]PackageSummary
 	Inferred    map[string]InferenceMap
+	Methods     map[string]MethodSelectionMap
 }
 
 type packageExports struct {

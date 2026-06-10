@@ -1,0 +1,330 @@
+package concurrent_scene_tiles
+
+import able.kernel.{Array}
+import able.os
+
+DEFAULT_WIDTH: i32 := 64
+DEFAULT_HEIGHT: i32 := 48
+PROFILE_WIDTH: i32 := 28
+PROFILE_HEIGHT: i32 := 20
+LANE_COUNT: i64 := 4_i64
+MODULUS: i64 := 1_000_003_i64
+
+struct Point {
+  x: i64,
+  y: i64
+}
+
+struct PixelSample {
+  distance: i64,
+  intensity: i64
+}
+
+struct TileState {
+  pixels: i64,
+  inside: i64,
+  edge: i64,
+  bright: i64,
+  energy: i64,
+  checksum: i64,
+  min_distance: i64,
+  max_distance: i64
+}
+
+struct TileReport {
+  lane: i64,
+  pixels: i64,
+  inside: i64,
+  edge: i64,
+  bright: i64,
+  energy: i64,
+  checksum: i64,
+  min_distance: i64,
+  max_distance: i64
+}
+
+fn abs_i64(value: i64) -> i64 {
+  if value < 0_i64 { -value } else { value }
+}
+
+fn max_i64(left: i64, right: i64) -> i64 {
+  if left > right { left } else { right }
+}
+
+fn min_i64(left: i64, right: i64) -> i64 {
+  if left < right { left } else { right }
+}
+
+methods Point {
+  fn signature(self: Self, lane: i64) -> i64 {
+    (abs_i64(self.x) * 31_i64
+      + abs_i64(self.y) * 43_i64
+      + lane * 59_i64
+      + 17_i64) % MODULUS
+  }
+}
+
+methods TileState {
+  fn record(
+    self: Self,
+    point: Point,
+    sample: PixelSample,
+    lane: i64
+  ) -> TileState {
+    distance_abs := abs_i64(sample.distance)
+    next_energy := (self.energy
+      + sample.intensity * 7_i64
+      + distance_abs * 11_i64
+      + point.signature(lane)) % MODULUS
+    next_checksum := (self.checksum * 131_i64
+      + next_energy * 13_i64
+      + sample.intensity * 17_i64
+      + distance_abs * 19_i64
+      + point.signature(lane) * 23_i64) % MODULUS
+    TileState {
+      pixels: self.pixels + 1_i64,
+      inside: self.inside + if sample.distance <= 0_i64 { 1_i64 } else { 0_i64 },
+      edge: self.edge + if distance_abs <= 4_i64 { 1_i64 } else { 0_i64 },
+      bright: self.bright + if sample.intensity >= 128_i64 { 1_i64 } else { 0_i64 },
+      energy: next_energy,
+      checksum: next_checksum,
+      min_distance: if sample.distance < self.min_distance {
+        sample.distance
+      } else {
+        self.min_distance
+      },
+      max_distance: if sample.distance > self.max_distance {
+        sample.distance
+      } else {
+        self.max_distance
+      }
+    }
+  }
+
+  fn report(self: Self, lane: i64) -> TileReport {
+    TileReport {
+      lane,
+      pixels: self.pixels,
+      inside: self.inside,
+      edge: self.edge,
+      bright: self.bright,
+      energy: self.energy,
+      checksum: self.checksum,
+      min_distance: self.min_distance,
+      max_distance: self.max_distance
+    }
+  }
+}
+
+interface DistanceField {
+  fn sample(
+    self: Self,
+    point: Point,
+    lane: i64,
+    shader: (Point, i64, i64) -> i64
+  ) -> PixelSample
+}
+
+struct OctagonField {
+  center: Point,
+  radius: i64,
+  skew: i64
+}
+
+struct BoxField {
+  center: Point,
+  half_width: i64,
+  half_height: i64,
+  bevel: i64
+}
+
+impl DistanceField for OctagonField {
+  fn sample(
+    self: Self,
+    point: Point,
+    lane: i64,
+    shader: (Point, i64, i64) -> i64
+  ) -> PixelSample {
+    dx := abs_i64(point.x - self.center.x)
+    dy := abs_i64(point.y - self.center.y)
+    major := max_i64(dx, dy)
+    minor := min_i64(dx, dy)
+    distance := major + minor // 2_i64 - self.radius + self.skew
+    PixelSample {
+      distance,
+      intensity: shader(point, distance, lane)
+    }
+  }
+}
+
+impl DistanceField for BoxField {
+  fn sample(
+    self: Self,
+    point: Point,
+    lane: i64,
+    shader: (Point, i64, i64) -> i64
+  ) -> PixelSample {
+    dx := abs_i64(point.x - self.center.x) - self.half_width
+    dy := abs_i64(point.y - self.center.y) - self.half_height
+    outside := max_i64(dx, dy)
+    inside := min_i64(max_i64(dx, dy), 0_i64)
+    corner := max_i64(dx, 0_i64) + max_i64(dy, 0_i64)
+    distance := outside + corner // 3_i64 + inside // 2_i64 - self.bevel
+    PixelSample {
+      distance,
+      intensity: shader(point, distance, lane)
+    }
+  }
+}
+
+fn make_shader(
+  bias: i64,
+  scale: i64,
+  bands: i64,
+  twist: i64
+) -> (Point, i64, i64) -> i64 {
+  { point, distance, lane =>
+    distance_abs := abs_i64(distance)
+    band := (distance_abs + bias + lane * twist) % bands
+    coordinate := (abs_i64(point.x) * 3_i64
+      + abs_i64(point.y) * 5_i64
+      + lane * 7_i64) % 251_i64
+    (4096_i64
+      + bias * 11_i64
+      + coordinate
+      + band * scale
+      - distance_abs * twist) % 256_i64
+  }
+}
+
+fn render_tile(
+  lane: i64,
+  width: i32,
+  height: i32,
+  origin_x: i64,
+  origin_y: i64,
+  field: DistanceField,
+  shader: (Point, i64, i64) -> i64
+) -> TileReport {
+  state := TileState {
+    pixels: 0_i64,
+    inside: 0_i64,
+    edge: 0_i64,
+    bright: 0_i64,
+    energy: lane * 71_i64 + 19_i64,
+    checksum: lane * 97_i64 + 23_i64,
+    min_distance: 1_000_000_i64,
+    max_distance: -1_000_000_i64
+  }
+  row := 0
+  loop {
+    if row >= height { break }
+    column := 0
+    loop {
+      if column >= width { break }
+      point := Point {
+        x: origin_x + (column as i64) * 3_i64,
+        y: origin_y + (row as i64) * 3_i64
+      }
+      sample := field.sample(point, lane, shader)
+      state = state.record(point, sample, lane)
+      column = column + 1
+    }
+    row = row + 1
+  }
+  state.report(lane)
+}
+
+fn scene_width(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_WIDTH
+  } else {
+    DEFAULT_WIDTH
+  }
+}
+
+fn scene_height(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_HEIGHT
+  } else {
+    DEFAULT_HEIGHT
+  }
+}
+
+fn main() -> void {
+  args := os.args()
+  width := scene_width(args)
+  height := scene_height(args)
+  first_field: DistanceField = OctagonField {
+    center: Point { x: 91_i64, y: 67_i64 },
+    radius: 58_i64,
+    skew: 3_i64
+  }
+  second_field: DistanceField = BoxField {
+    center: Point { x: 257_i64, y: 71_i64 },
+    half_width: 53_i64,
+    half_height: 41_i64,
+    bevel: 5_i64
+  }
+  third_field: DistanceField = OctagonField {
+    center: Point { x: 83_i64, y: 221_i64 },
+    radius: 64_i64,
+    skew: 7_i64
+  }
+  fourth_field: DistanceField = BoxField {
+    center: Point { x: 251_i64, y: 217_i64 },
+    half_width: 47_i64,
+    half_height: 55_i64,
+    bevel: 9_i64
+  }
+  first_shader := make_shader(11_i64, 7_i64, 17_i64, 3_i64)
+  second_shader := make_shader(17_i64, 11_i64, 19_i64, 5_i64)
+  third_shader := make_shader(23_i64, 13_i64, 23_i64, 7_i64)
+  fourth_shader := make_shader(29_i64, 17_i64, 29_i64, 11_i64)
+
+  first := spawn {
+    render_tile(0_i64, width, height, 0_i64, 0_i64, first_field, first_shader)
+  }
+  second := spawn {
+    render_tile(1_i64, width, height, 168_i64, 0_i64, second_field, second_shader)
+  }
+  third := spawn {
+    render_tile(2_i64, width, height, 0_i64, 152_i64, third_field, third_shader)
+  }
+  fourth := spawn {
+    render_tile(3_i64, width, height, 168_i64, 152_i64, fourth_field, fourth_shader)
+  }
+  future_flush()
+
+  first_report := first.value()!
+  second_report := second.value()!
+  third_report := third.value()!
+  fourth_report := fourth.value()!
+  expected := (width as i64) * (height as i64) * LANE_COUNT
+  pixels := first_report.pixels
+    + second_report.pixels
+    + third_report.pixels
+    + fourth_report.pixels
+  inside := first_report.inside
+    + second_report.inside
+    + third_report.inside
+    + fourth_report.inside
+  edge := first_report.edge
+    + second_report.edge
+    + third_report.edge
+    + fourth_report.edge
+  bright := first_report.bright
+    + second_report.bright
+    + third_report.bright
+    + fourth_report.bright
+  energy := (first_report.energy
+    + second_report.energy
+    + third_report.energy
+    + fourth_report.energy) % MODULUS
+  checksum := (first_report.checksum * 3_i64
+    + second_report.checksum * 5_i64
+    + third_report.checksum * 7_i64
+    + fourth_report.checksum * 11_i64) % MODULUS
+
+  print(`${expected}:${pixels}:${inside}:${edge}:${bright}:${first_report.energy},${second_report.energy},${third_report.energy},${fourth_report.energy}:${first_report.checksum},${second_report.checksum},${third_report.checksum},${fourth_report.checksum}:${first_report.min_distance},${second_report.min_distance},${third_report.min_distance},${fourth_report.min_distance}:${first_report.max_distance},${second_report.max_distance},${third_report.max_distance},${fourth_report.max_distance}:${energy}:${checksum}`)
+}

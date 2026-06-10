@@ -1,0 +1,30 @@
+{
+  "kind": "truthiness-cast-numeric-next-closure-reach",
+  "date": "2026-07-21",
+  "diagnostic_only": true,
+  "production_instrumentation_retained": false,
+  "compiled": {
+    "processes_per_application": 1,
+    "verified_processes": 5,
+    "rows": [
+      {"benchmark": "distance_field", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "mandelbrot", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "monte_carlo_pi", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "nbody", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "rms_norm", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0}
+    ]
+  },
+  "bytecode": {
+    "processes_per_application": 2,
+    "verified_processes": 6,
+    "rows": [
+      {"benchmark": "fixed_width_128", "semantic_truthy_checks_per_process": [2000000, 2000000], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "rational_series", "semantic_truthy_checks_per_process": [650002, 650002], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [1000002, 1000002], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "wide_integer_records", "semantic_truthy_checks_per_process": [71996, 71996], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [768003, 768003], "explicit_cast_failures_per_process": [0, 0]}
+    ],
+    "reached_profile_gate": [
+      {"benchmark": "rational_series", "main_cpu_profiles": 2, "merged_cpu_samples_seconds": 8.62, "cast_opcode_cumulative_percent": 10.21, "explicit_cast_wrapper_flat_percent": 0.0, "raw_cast_cumulative_percent": 2.78, "cast_target_canonicalization_cumulative_percent": 2.09},
+      {"benchmark": "wide_integer_records", "main_cpu_profiles": 2, "merged_cpu_samples_seconds": 12.13, "cast_opcode_cumulative_percent": 5.11, "explicit_cast_wrapper_flat_percent": 0.0, "raw_cast_cumulative_percent": 2.31, "cast_target_canonicalization_cumulative_percent": 0.74}
+    ]
+  }
+}

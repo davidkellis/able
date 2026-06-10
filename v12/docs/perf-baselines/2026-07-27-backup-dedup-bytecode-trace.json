@@ -1,0 +1,254 @@
+{
+  "target_path": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+  "run_from": "/home/david/sync/projects/benchmarks",
+  "program_args": [
+    "word-frequency/corpus.md",
+    "--profile"
+  ],
+  "trace": {
+    "enabled": true,
+    "total_hits": 8513837,
+    "entries": [
+      {
+        "hits": 4194336,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 107,
+        "column": 19
+      },
+      {
+        "hits": 4194304,
+        "op": "call_member",
+        "name": "read_slot",
+        "lookup": "resolved_method",
+        "dispatch": "array_read_slot_mono_u8_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 108,
+        "column": 18
+      },
+      {
+        "hits": 15648,
+        "op": "call_member",
+        "name": "key",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 56,
+        "column": 10
+      },
+      {
+        "hits": 15648,
+        "op": "call_member",
+        "name": "raw_get",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 44,
+        "column": 3
+      },
+      {
+        "hits": 15648,
+        "op": "call_member",
+        "name": "raw_set",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 59,
+        "column": 3
+      },
+      {
+        "hits": 15648,
+        "op": "call_member",
+        "name": "score",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 71,
+        "column": 5
+      },
+      {
+        "hits": 15648,
+        "op": "call_name",
+        "name": "__able_hash_map_get",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 596,
+        "column": 42
+      },
+      {
+        "hits": 15648,
+        "op": "call_name",
+        "name": "__able_hash_map_set",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 597,
+        "column": 54
+      },
+      {
+        "hits": 15648,
+        "op": "call_name",
+        "name": "chunk_count",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 57,
+        "column": 11
+      },
+      {
+        "hits": 15616,
+        "op": "call_name",
+        "name": "record_chunk",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 114,
+        "column": 9
+      },
+      {
+        "hits": 32,
+        "op": "call_name",
+        "name": "record_chunk",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 127,
+        "column": 7
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "args",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 85,
+        "column": 11
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "get",
+        "lookup": "resolved_method",
+        "dispatch": "array_get_tracked_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 77,
+        "column": 24
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "get",
+        "lookup": "resolved_method",
+        "dispatch": "array_get_tracked_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 86,
+        "column": 31
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 77,
+        "column": 6
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "len",
+        "lookup": "resolved_method",
+        "dispatch": "array_len_fast",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 86,
+        "column": 14
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "read_bytes",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 87,
+        "column": 12
+      },
+      {
+        "hits": 1,
+        "op": "call_member",
+        "name": "with_capacity",
+        "lookup": "resolved_method",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 89,
+        "column": 30
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "__able_hash_map_with_capacity",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 593,
+        "column": 23
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "__able_os_args",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able-stdlib/src/os.able",
+        "line": 84,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "fs_path",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able-stdlib/src/fs.able",
+        "line": 639,
+        "column": 22
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "fs_read_bytes_fast",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able-stdlib/src/fs.able",
+        "line": 639,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "print",
+        "lookup": "name",
+        "dispatch": "exact_native",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 137,
+        "column": 3
+      },
+      {
+        "hits": 1,
+        "op": "call_name",
+        "name": "rounds_for",
+        "lookup": "name",
+        "dispatch": "inline",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "line": 88,
+        "column": 13
+      }
+    ]
+  }
+}

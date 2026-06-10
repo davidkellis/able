@@ -1,0 +1,345 @@
+package concurrent_tree_folds
+
+import able.kernel.{Array}
+import able.os
+
+DEFAULT_LEVELS: i32 := 11
+PROFILE_LEVELS: i32 := 8
+LANE_COUNT: i64 := 4_i64
+MODULUS: i64 := 1_000_003_i64
+
+struct TreeNode {
+  id: i32,
+  weight: i64,
+  left: i32,
+  right: i32,
+  depth: i32
+}
+
+struct FoldState {
+  nodes: i64,
+  kept: i64,
+  pruned: i64,
+  total: i64,
+  checksum: i64,
+  max_depth: i32
+}
+
+struct FoldStep {
+  state: FoldState,
+  value: i64
+}
+
+struct FoldReport {
+  lane: i64,
+  nodes: i64,
+  kept: i64,
+  pruned: i64,
+  root: i64,
+  total: i64,
+  checksum: i64,
+  max_depth: i32
+}
+
+methods TreeNode {
+  fn is_leaf(self: Self) -> bool {
+    self.left < 0
+  }
+
+  fn signature(self: Self, lane: i64) -> i64 {
+    ((self.id as i64) * 43_i64
+      + self.weight * 17_i64
+      + (self.depth as i64) * 29_i64
+      + if self.is_leaf() { 31_i64 } else { 47_i64 }
+      + lane * 53_i64) % MODULUS
+  }
+}
+
+methods FoldState {
+  fn record(
+    self: Self,
+    node: TreeNode,
+    value: i64,
+    pruned_node: bool,
+    lane: i64
+  ) -> FoldState {
+    next_total := (self.total
+      + value
+      + node.signature(lane)
+      + (node.depth as i64) * 11_i64) % MODULUS
+    next_checksum := (self.checksum * 131_i64
+      + next_total * 7_i64
+      + value * 13_i64
+      + node.weight * 19_i64
+      + (node.id as i64) * 23_i64) % MODULUS
+    FoldState {
+      nodes: self.nodes + 1_i64,
+      kept: self.kept + if pruned_node { 0_i64 } else { 1_i64 },
+      pruned: self.pruned + if pruned_node { 1_i64 } else { 0_i64 },
+      total: next_total,
+      checksum: next_checksum,
+      max_depth: if node.depth > self.max_depth { node.depth } else { self.max_depth }
+    }
+  }
+
+  fn report(self: Self, lane: i64, root: i64) -> FoldReport {
+    FoldReport {
+      lane,
+      nodes: self.nodes,
+      kept: self.kept,
+      pruned: self.pruned,
+      root,
+      total: self.total,
+      checksum: self.checksum,
+      max_depth: self.max_depth
+    }
+  }
+}
+
+interface FoldAlgebra {
+  fn combine(
+    self: Self,
+    node: TreeNode,
+    left: i64,
+    right: i64,
+    state: FoldState,
+    lane: i64,
+    weight: (TreeNode, i64, i64, i64) -> i64,
+    prune: (TreeNode, i64, i64) -> bool
+  ) -> FoldStep
+}
+
+struct AdditiveFold {
+  scale: i64,
+  salt: i64
+}
+
+struct MultiplicativeFold {
+  scale: i64,
+  salt: i64
+}
+
+impl FoldAlgebra for AdditiveFold {
+  fn combine(
+    self: Self,
+    node: TreeNode,
+    left: i64,
+    right: i64,
+    state: FoldState,
+    lane: i64,
+    weight: (TreeNode, i64, i64, i64) -> i64,
+    prune: (TreeNode, i64, i64) -> bool
+  ) -> FoldStep {
+    weighted := weight(node, left, right, self.scale)
+    pruned_node := prune(node, left, right)
+    value := if pruned_node {
+      (weighted + node.signature(lane) + self.salt * 37_i64) % MODULUS
+    } else {
+      (weighted
+        + left * 3_i64
+        + right * 5_i64
+        + self.salt * 41_i64
+        + lane * 7_i64) % MODULUS
+    }
+    FoldStep {
+      state: state.record(node, value, pruned_node, lane),
+      value
+    }
+  }
+}
+
+impl FoldAlgebra for MultiplicativeFold {
+  fn combine(
+    self: Self,
+    node: TreeNode,
+    left: i64,
+    right: i64,
+    state: FoldState,
+    lane: i64,
+    weight: (TreeNode, i64, i64, i64) -> i64,
+    prune: (TreeNode, i64, i64) -> bool
+  ) -> FoldStep {
+    weighted := weight(node, left, right, self.scale)
+    pruned_node := prune(node, left, right)
+    product := ((left + 1_i64) * (right + 1_i64)) % MODULUS
+    value := if pruned_node {
+      (weighted + node.weight * self.salt + lane * 59_i64) % MODULUS
+    } else {
+      (weighted
+        + product
+        + left * self.scale
+        + right * self.salt
+        + node.signature(lane)) % MODULUS
+    }
+    FoldStep {
+      state: state.record(node, value, pruned_node, lane),
+      value
+    }
+  }
+}
+
+fn make_weight(
+  bias: i64,
+  factor: i64,
+  twist: i64
+) -> (TreeNode, i64, i64, i64) -> i64 {
+  { node, left, right, scale =>
+    (node.weight * factor
+      + (node.id as i64) * bias
+      + (node.depth as i64) * twist
+      + left * scale
+      + right * (scale + 2_i64)
+      + bias * twist) % MODULUS
+  }
+}
+
+fn make_pruner(
+  divisor: i64,
+  offset: i64
+) -> (TreeNode, i64, i64) -> bool {
+  { node, left, right =>
+    ((node.id as i64)
+      + node.weight
+      + left
+      + right
+      + (node.depth as i64) * offset) % divisor == 0_i64
+  }
+}
+
+fn node_count(levels: i32) -> i32 {
+  count := 0
+  width := 1
+  level := 0
+  loop {
+    if level >= levels { break }
+    count = count + width
+    width = width * 2
+    level = level + 1
+  }
+  count
+}
+
+fn build_tree(lane: i64, levels: i32) -> Array TreeNode {
+  count := node_count(levels)
+  nodes: Array TreeNode = Array.with_capacity(count)
+  id := 0
+  depth := 0
+  next_boundary := 1
+  loop {
+    if id >= count { break }
+    if id >= next_boundary {
+      depth = depth + 1
+      next_boundary = next_boundary * 2 + 1
+    }
+    left := id * 2 + 1
+    right := left + 1
+    if left >= count {
+      left = -1
+      right = -1
+    }
+    weight := (((id as i64) * 97_i64
+      + lane * 131_i64
+      + ((id as i64) % 13_i64) * 17_i64
+      + (depth as i64) * 23_i64
+      + 29_i64) % 997_i64) + 1_i64
+    nodes.push(TreeNode { id, weight, left, right, depth })
+    id = id + 1
+  }
+  nodes
+}
+
+fn fold_tree(
+  lane: i64,
+  levels: i32,
+  algebra: FoldAlgebra,
+  weight: (TreeNode, i64, i64, i64) -> i64,
+  prune: (TreeNode, i64, i64) -> bool
+) -> FoldReport {
+  nodes := build_tree(lane, levels)
+  values: Array i64 = Array.with_capacity(nodes.len())
+  fill := 0
+  loop {
+    if fill >= nodes.len() { break }
+    values.push(0_i64)
+    fill = fill + 1
+  }
+  state := FoldState {
+    nodes: 0_i64,
+    kept: 0_i64,
+    pruned: 0_i64,
+    total: 0_i64,
+    checksum: lane * 71_i64 + 19_i64,
+    max_depth: 0
+  }
+  index := nodes.len() - 1
+  loop {
+    if index < 0 { break }
+    node := nodes[index]!
+    left := if node.left < 0 { 0_i64 } else { values[node.left]! }
+    right := if node.right < 0 { 0_i64 } else { values[node.right]! }
+    step := algebra.combine(node, left, right, state, lane, weight, prune)
+    values[index] = step.value
+    state = step.state
+    index = index - 1
+  }
+  state.report(lane, values[0]!)
+}
+
+fn tree_levels(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_LEVELS
+  } else {
+    DEFAULT_LEVELS
+  }
+}
+
+fn main() -> void {
+  levels := tree_levels(os.args())
+  first_algebra: FoldAlgebra = AdditiveFold { scale: 3_i64, salt: 11_i64 }
+  second_algebra: FoldAlgebra = MultiplicativeFold { scale: 5_i64, salt: 17_i64 }
+  third_algebra: FoldAlgebra = AdditiveFold { scale: 7_i64, salt: 23_i64 }
+  fourth_algebra: FoldAlgebra = MultiplicativeFold { scale: 11_i64, salt: 29_i64 }
+
+  first_weight := make_weight(11_i64, 3_i64, 5_i64)
+  second_weight := make_weight(17_i64, 5_i64, 7_i64)
+  third_weight := make_weight(23_i64, 7_i64, 11_i64)
+  fourth_weight := make_weight(29_i64, 11_i64, 13_i64)
+  first_prune := make_pruner(7_i64, 3_i64)
+  second_prune := make_pruner(11_i64, 5_i64)
+  third_prune := make_pruner(13_i64, 7_i64)
+  fourth_prune := make_pruner(17_i64, 11_i64)
+
+  first := spawn { fold_tree(0_i64, levels, first_algebra, first_weight, first_prune) }
+  second := spawn { fold_tree(1_i64, levels, second_algebra, second_weight, second_prune) }
+  third := spawn { fold_tree(2_i64, levels, third_algebra, third_weight, third_prune) }
+  fourth := spawn { fold_tree(3_i64, levels, fourth_algebra, fourth_weight, fourth_prune) }
+  future_flush()
+
+  first_report := first.value()!
+  second_report := second.value()!
+  third_report := third.value()!
+  fourth_report := fourth.value()!
+  nodes := first_report.nodes
+    + second_report.nodes
+    + third_report.nodes
+    + fourth_report.nodes
+  kept := first_report.kept
+    + second_report.kept
+    + third_report.kept
+    + fourth_report.kept
+  pruned := first_report.pruned
+    + second_report.pruned
+    + third_report.pruned
+    + fourth_report.pruned
+  total := (first_report.total
+    + second_report.total
+    + third_report.total
+    + fourth_report.total) % MODULUS
+  checksum := (first_report.checksum * 3_i64
+    + second_report.checksum * 5_i64
+    + third_report.checksum * 7_i64
+    + fourth_report.checksum * 11_i64) % MODULUS
+  expected := (node_count(levels) as i64) * LANE_COUNT
+
+  print(`${expected}:${nodes}:${kept}:${pruned}:${first_report.root},${second_report.root},${third_report.root},${fourth_report.root}:${first_report.total},${second_report.total},${third_report.total},${fourth_report.total}:${first_report.checksum},${second_report.checksum},${third_report.checksum},${fourth_report.checksum}:${first_report.max_depth},${second_report.max_depth},${third_report.max_depth},${fourth_report.max_depth}:${total}:${checksum}`)
+}

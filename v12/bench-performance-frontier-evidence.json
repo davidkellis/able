@@ -1,0 +1,555 @@
+{
+  "kind": "able-performance-frontier-evidence",
+  "schema_version": 1,
+  "selection_sha256": "e6a6ccacc9620f9e1b89e2510cab52a85114ddbf2f41e33abae7c6d8a70241f8",
+  "groups": [
+    {
+      "id": "compiled-target-guards",
+      "rows": [
+        "binarytrees/compiled",
+        "fib/compiled",
+        "json/compiled",
+        "quicksort/compiled"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
+      "artifact_identity": "truthiness-cast-target-guard-current-cohort",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.",
+      "rationale": "Binary Trees, JSON, and QuickSort are established target guards. Fib currently misses after a noisy prior meet but remains a source-exact control for every admitted compiled candidate.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md",
+        "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-compiled.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-go-reference.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-compiled.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-go-reference.json"
+      ]
+    },
+    {
+      "id": "compiled-current-control",
+      "rows": [
+        "matrixmultiply/compiled",
+        "tapelang_alphabet/compiled"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
+      "artifact_identity": "truthiness-cast-control-current-cohorts-and-reach",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Matrix primitive nested arithmetic and TapeLang flat dispatch remain separate generated bodies.",
+      "rationale": "Fresh current binaries expose no compiler/runtime child shared across these control-flow programs.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-compiled.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-go-reference.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-compiled.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-go-reference.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-compiled.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-go-reference.json"
+      ]
+    },
+    {
+      "id": "compiled-sudoku-quotient",
+      "rows": [
+        "sudoku_masks/compiled"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
+      "artifact_identity": "truthiness-cast-sudoku-current-cohorts-generated-scan-and-two-profile-merge",
+      "disposition": "closed-insufficient-breadth",
+      "exact_leaf_breadth": 1,
+      "owner": "find_best_empty search plus square_index; signed Euclidean division is 12.53% cumulative in two current merged profiles and material only in Sudoku.",
+      "rationale": "All nine generated application bodies avoid corrected truthiness/cast helpers. The exact quotient helper receives zero samples in three unlike controls, and even perfect removal leaves Sudoku 2.70x short of target.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-compiled.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-c2-compiled.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-go-reference.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-sudoku-quotient-c2-go-reference.json",
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "id": "compiled-float-numeric",
+      "rows": [
+        "distance_field/compiled",
+        "mandelbrot/compiled",
+        "monte_carlo_pi/compiled",
+        "nbody/compiled",
+        "rms_norm/compiled"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-numeric-next",
+      "artifact_identity": "frozen-current-repeated-timing-and-exact-reach-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
+      "rationale": "Fresh repeated timing and exact generated-runtime telemetry preserve the prior ownership result. All five rows have zero truthiness/cast bridge reach, so the closed raw-float lane/carrier evidence remains causal.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "id": "compiled-wide-numeric",
+      "rows": [
+        "fixed_width_128/compiled",
+        "rational_series/compiled",
+        "wide_integer_records/compiled"
+      ],
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Fresh post-semantic timing preserves the package-environment publication owner through SwapEnv/sync/atomic.StorePointer; exact compiled telemetry shows zero changed truthiness or cast-bridge reach in all three programs.",
+      "rationale": "The semantic correction does not reach these mains, while general execution-context and package-linkage alternatives already regressed unrelated N-Body and K-Nucleotide wall time. Nominal specialization remains prohibited.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "id": "compiled-byte-output",
+      "rows": [
+        "base64/compiled",
+        "fasta_generation/compiled",
+        "pidigits/compiled",
+        "reverse_complement/compiled"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-refresh",
+      "artifact_identity": "frozen-current-verifier-backed-timing-and-exact-reach",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Fresh post-semantic timing preserves the split among Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work; exact telemetry shows zero changed truthiness or cast-bridge reach in all four programs.",
+      "rationale": "The semantic correction does not reach these compiled mains. The retained write_all and generic u8 changes remain causal, and no compiler-controlled descendant is shared by three unlike applications.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "id": "compiled-text-map",
+      "rows": [
+        "backup_dedup/compiled",
+        "i_before_e/compiled",
+        "inventory_reconciliation/compiled",
+        "k_nucleotide/compiled",
+        "manifest_normalization/compiled",
+        "sensor_calibration/compiled",
+        "unicode_scalar_pipeline/compiled",
+        "word_frequency/compiled"
+      ],
+      "profile_freshness": "current-exact-backup-dedup-main-profile",
+      "artifact_identity": "frozen-current-verifier-backed-timing-plus-backup-dedup-strict-main-profiles",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Post-index text/map work still splits among integer conversion/equality, UTF-8/String, checked arithmetic, boxing, and allocation/GC descendants. Backup Dedup keeps bytes and integers native until the same runtime-backed generic nominal storage boundary already measured in K-Nucleotide, Inventory Reconciliation, and Word Frequency.",
+      "rationale": "Backup Dedup's strict profile attributes material allocation to ToDynamicI64 and nullable i64 recovery at generic map storage, while CPU is dominated by already-closed checked divmod/multiply/add helpers. A HashMap-specific rule is forbidden, and the general typed generic-nominal storage parent still requires an architectural identity/aliasing/fallback design rather than a local lowering fast path.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-compiled-allocation-top.txt",
+        "v12/docs/perf-baselines/2026-07-22-sensor-calibration-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-manifest-normalization-compiled-main-profile.txt"
+      ]
+    },
+    {
+      "id": "compiled-regex",
+      "rows": [
+        "config_validation_extraction/compiled",
+        "log_routing_redaction/compiled",
+        "policy_record_dispatch/compiled",
+        "regex_set_audit/compiled",
+        "regex_stream_audit/compiled",
+        "regex_suffix_audit/compiled"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-refresh",
+      "artifact_identity": "frozen-current-verifier-backed-timing-and-exact-reach",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 6,
+      "owner": "Fresh post-semantic timing preserves canonical NFA closure, move, and thread management across the related workload families. Exact telemetry finds generated truthiness only in Policy Record Dispatch, 2,048 times, with zero casts everywhere else.",
+      "rationale": "The changed semantic path is single-application and cannot invalidate the prior six-row NFA ownership. Closure scratch, capture templates, and primitive thread carriers are retained while arenas, state indexes, character specialization, and carrier/call alternatives already failed broad gates.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "id": "compiled-concurrency",
+      "rows": [
+        "await_channel_mux/compiled",
+        "channel_rollup/compiled",
+        "concurrent_audio_voices/compiled",
+        "concurrent_document_pipeline/compiled",
+        "concurrent_event_routing/compiled",
+        "concurrent_graph_visitors/compiled",
+        "concurrent_packet_codecs/compiled",
+        "concurrent_policy_callbacks/compiled",
+        "concurrent_scene_tiles/compiled",
+        "concurrent_signal_dispatch/compiled",
+        "concurrent_state_machines/compiled",
+        "concurrent_stateful_pipeline/compiled",
+        "concurrent_stencil_reduction/compiled",
+        "concurrent_text_index/compiled",
+        "concurrent_transform_chain/compiled",
+        "concurrent_tree_folds/compiled",
+        "dependency_wave_validation/compiled",
+        "future_await_race/compiled",
+        "future_pipeline/compiled",
+        "mutex_await_journal/compiled",
+        "mutex_ledger/compiled",
+        "mutex_work_queue/compiled",
+        "validated_job_pipeline/compiled"
+      ],
+      "profile_freshness": "current-exact-concurrent-packet-codecs-refresh",
+      "artifact_identity": "frozen-current-generated-binaries-plus-validated-job-stencil-signal-transform-policy-stateful-pipeline-state-machines-graph-visitors-tree-folds-scene-tiles-audio-voices-and-packet-codecs-main-profiles",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 23,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack remains the exact repeated compiled wall across worker-pool and ordered-stage interface/callback programs; native interface adapters are the missing explicit-context boundary.",
+      "rationale": "Concurrent Packet Codecs is 133.16x Go in its promoted cohort and 136.09x in the pooled ten-sample arithmetic mean. Three clean goroutine-executor profiles put bridge.currentGID and runtime.Stack at 97.12% cumulative, repeating Audio Voices, Scene Tiles, and Graph Visitors with both codec implementations and captured validators beneath the same wall. A static environment-independence candidate was reverted because typed callable parameters can originate in arbitrary captured package environments. The next safe candidate must propagate explicit execution context through native interface adapters and pass broad concurrent plus serial guards.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-23-concurrent-packet-codecs-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-packet-codecs-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-scene-tiles-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-scene-tiles-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-graph-visitors-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-graph-visitors-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-state-machines-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-state-machines-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-stateful-pipeline-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-stateful-pipeline-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-policy-callbacks-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-policy-callbacks-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-transform-chain-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-transform-chain-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-signal-dispatch-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-compiled-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-concurrent-document-pipeline-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-concurrent-document-pipeline-promotion-compiled.md",
+        "v12/docs/perf-baselines/2026-07-21-concurrent-document-pipeline-compiled-main-profile.txt",
+        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-comparison-d.json",
+        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-compiled-main-profile.txt"
+      ]
+    },
+    {
+      "id": "compiled-iterator-control",
+      "rows": [
+        "array_slice_window/compiled",
+        "binary_event_log/compiled",
+        "dependency_plan/compiled",
+        "discrete_event_simulation/compiled",
+        "document_audit/compiled",
+        "lexical_rollup/compiled",
+        "option_result_config/compiled"
+      ],
+      "profile_freshness": "current-exact-discrete-event-main-profile",
+      "artifact_identity": "retained-current-binaries-plus-discrete-event-native-generic-storage-timing-cpu-and-allocation-evidence",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "The shared escaping NativeBoundMethodValue box has been removed. Fresh evidence now also proves application-defined generic EventQueue/Scheduled storage uses direct native Go carriers; residual owners split among source-semantic heap allocation/GC, union method bodies, text/map boxing, direct numeric arithmetic, and closed goroutine identity.",
+      "rationale": "The retained direct-known-method and split-receiver ABI changes eliminated the admitted shared box. Discrete Event Simulation adds the missing application-defined generic-storage control, but its generated hot path has no runtime.Value or interpreter transition and its exact allocations match source-level event objects. No open concrete generated/runtime successor is material in three unlike applications.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-27-discrete-event-simulation-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-27-discrete-event-simulation-compiled-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-27-discrete-event-simulation-compiled-allocation-top.txt",
+        "v12/docs/perf-baselines/2026-07-22-compiled-post-abi-current-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-22-compiled-post-abi-current-profile-refresh.json",
+        "v12/docs/perf-baselines/2026-07-22-compiled-split-receiver-method-abi-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-compiled-generic-union-direct-known-method-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-compiled-generic-union-direct-known-method-gate.json",
+        "v12/docs/perf-baselines/2026-07-22-compiled-nominal-result-allocation-shape-census.md",
+        "v12/docs/perf-baselines/2026-07-22-compiled-nominal-result-allocation-shape-census.json",
+        "v12/docs/perf-baselines/2026-07-22-binary-event-log-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-target-guards",
+      "rows": [
+        "json/bytecode",
+        "pidigits/bytecode"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
+      "artifact_identity": "truthiness-cast-target-guard-current-cohort",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "JSON host decoding and PiDigits BigInt/native output are protected target-meeting rows.",
+      "rationale": "Every admitted VM candidate must preserve these current target meets.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-bytecode.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-interpreter-reference.json"
+      ]
+    },
+    {
+      "id": "bytecode-float-numeric",
+      "rows": [
+        "distance_field/bytecode",
+        "mandelbrot/bytecode",
+        "monte_carlo_pi/bytecode",
+        "rms_norm/bytecode"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-near-path",
+      "artifact_identity": "frozen-current-repeated-timing-and-exact-reach-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Validated float-slot reads and retained raw float arithmetic recur across three unlike scalar programs; Matrix dot-loop/Array, Monte Carlo integer recurrence/cast, and Reverse byte/Array work separate the concrete consumers.",
+      "rationale": "Fresh repeated timing and two exact main-only censuses per selected row preserve the six-application ownership result. Every row has zero changed Error-truthiness fallback and zero explicit-cast reach, so the closed float carrier and dispatcher evidence remains causal.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-wide-numeric",
+      "rows": [
+        "fixed_width_128/bytecode",
+        "rational_series/bytecode",
+        "wide_integer_records/bytecode"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-numeric-next",
+      "artifact_identity": "frozen-current-repeated-timing-reach-and-main-profile-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 4,
+      "owner": "Raw integer extraction recurs across the three wide programs and Reverse Complement, but its consumers split among checked wide operations, casts, comparisons, parsing, bitwise work, member calls, and byte loops.",
+      "rationale": "Two exact censuses per row find zero changed Error fallback; Rational and Wide reach successful explicit casts, but four current profiles put zero flat CPU in the catchable wrapper. Their raw conversion and target-canonicalization descendants remain two-row owners whose general bypass already reversed sign across broad wall cohorts.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-byte-output",
+      "rows": [
+        "base64/bytecode",
+        "fasta_generation/bytecode",
+        "reverse_complement/bytecode"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-refresh",
+      "artifact_identity": "frozen-current-verifier-backed-timing-and-exact-reach",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 3,
+      "owner": "Fresh post-semantic timing preserves the residual split among Base64 host kernels, Reverse Array/extern work, and FASTA call/arithmetic work. Two exact censuses per row find only four primitive truthiness checks in Reverse and zero changed paths everywhere.",
+      "rationale": "The retained generic monomorphic u8 path remains causal, while the semantic correction has zero material reach and exposes no second shared descendant across all three applications.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "id": "bytecode-text-map",
+      "rows": [
+        "backup_dedup/bytecode",
+        "binary_event_log/bytecode",
+        "i_before_e/bytecode",
+        "inventory_reconciliation/bytecode",
+        "k_nucleotide/bytecode",
+        "manifest_normalization/bytecode",
+        "sensor_calibration/bytecode",
+        "unicode_scalar_pipeline/bytecode",
+        "word_frequency/bytecode"
+      ],
+      "profile_freshness": "current-exact-backup-dedup-main-profile",
+      "artifact_identity": "frozen-current-verifier-backed-timing-plus-backup-dedup-runtime-profiles-and-trace",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 8,
+      "owner": "Backup Dedup repeats raw-integer extraction, checked stack append, arithmetic dispatch, Array-slot reads, Go map access, and allocation/GC ancestry already present in text/map workloads. Its traced byte reads and map calls already use the mono-u8 and inline/native paths.",
+      "rationale": "Backup Dedup's three profiles put bytecodeRawIntegerValueInfo at 3.49% flat, appendStackValue at 2.06%, and checked divmod plus binary dispatch above them. These exact generic families are already material across the corpus and their broad candidates are closed or rejected; the 8.5-million-call trace exposes no missed Array or map dispatch lowering, so no VM candidate is admitted.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-bytecode-trace.json",
+        "v12/docs/perf-baselines/2026-07-22-sensor-calibration-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-binary-event-log-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-manifest-normalization-bytecode-runtime-profile.json"
+      ]
+    },
+    {
+      "id": "bytecode-regex",
+      "rows": [
+        "config_validation_extraction/bytecode",
+        "log_routing_redaction/bytecode",
+        "policy_record_dispatch/bytecode",
+        "regex_set_audit/bytecode",
+        "regex_stream_audit/bytecode",
+        "regex_suffix_audit/bytecode"
+      ],
+      "profile_freshness": "current-exact-post-truthiness-cast-refresh",
+      "artifact_identity": "frozen-current-verifier-backed-timing-and-exact-reach",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 6,
+      "owner": "Fresh post-semantic timing and two exact censuses per row find 208,060-1,565,212 primitive truthiness checks but zero changed Error fallbacks or casts. Prior profiles still place the shared work in canonical NFA Array-slot cache/read and small named-struct field checks.",
+      "rationale": "The semantic correction has zero changed-path reach. The current direct Array cache is allocation-free and its remaining version checks preserve invalidation, while general field-map and NFA carrier/index/arena alternatives already failed broad wall-time gates.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-concurrency",
+      "rows": [
+        "await_channel_mux/bytecode",
+        "channel_rollup/bytecode",
+        "concurrent_audio_voices/bytecode",
+        "concurrent_document_pipeline/bytecode",
+        "concurrent_event_routing/bytecode",
+        "concurrent_graph_visitors/bytecode",
+        "concurrent_packet_codecs/bytecode",
+        "concurrent_policy_callbacks/bytecode",
+        "concurrent_scene_tiles/bytecode",
+        "concurrent_signal_dispatch/bytecode",
+        "concurrent_state_machines/bytecode",
+        "concurrent_stateful_pipeline/bytecode",
+        "concurrent_stencil_reduction/bytecode",
+        "concurrent_text_index/bytecode",
+        "concurrent_transform_chain/bytecode",
+        "concurrent_tree_folds/bytecode",
+        "dependency_wave_validation/bytecode",
+        "future_await_race/bytecode",
+        "future_pipeline/bytecode",
+        "mutex_await_journal/bytecode",
+        "mutex_ledger/bytecode",
+        "mutex_work_queue/bytecode",
+        "validated_job_pipeline/bytecode"
+      ],
+      "profile_freshness": "current-exact-concurrent-packet-codecs-refresh",
+      "artifact_identity": "frozen-current-verifier-backed-timing-plus-validated-job-stencil-signal-transform-policy-stateful-pipeline-state-machines-graph-visitors-tree-folds-scene-tiles-audio-voices-and-packet-codecs-profiles",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 23,
+      "owner": "The retained bounded member-method cache removes unbounded one-shot activation retention; residual cache validation, RWMutex reader bookkeeping, integer, arithmetic, nominal-field, frame/return, and member-dispatch work remains split among established semantic children.",
+      "rationale": "Concurrent Packet Codecs is 10.61x Python and 11.24x Ruby in its promoted cohort, and 9.73x Python and 9.94x Ruby in the pooled ten-sample arithmetic means. Its merged profile distributes cost across call/name/member dispatch, binary arithmetic, allocation and GC, callee-environment setup, return completion, and load-slot work. No deeper exact open leaf is both dominant and separable across unlike applications, so no bytecode candidate passes the broad bar.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-23-concurrent-packet-codecs-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-packet-codecs-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-bytecode-trace.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-scene-tiles-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-scene-tiles-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-scene-tiles-bytecode-trace.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-bytecode-trace.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-graph-visitors-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-graph-visitors-bytecode-bounded-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-graph-visitors-bytecode-runtime-stats.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-state-machines-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-state-machines-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-state-machines-bytecode-runtime-stats.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-stateful-pipeline-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-stateful-pipeline-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-stateful-pipeline-bytecode-runtime-stats.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-policy-callbacks-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-policy-callbacks-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-policy-callbacks-bytecode-runtime-stats.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-transform-chain-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-transform-chain-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-transform-chain-bytecode-runtime-stats.json",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-signal-dispatch-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-concurrent-document-pipeline-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-concurrent-document-pipeline-promotion-bytecode.md",
+        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-comparison-d.json",
+        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-bytecode-profile.txt"
+      ]
+    },
+    {
+      "id": "bytecode-iterator-control",
+      "rows": [
+        "array_slice_window/bytecode",
+        "dependency_plan/bytecode",
+        "discrete_event_simulation/bytecode",
+        "document_audit/bytecode",
+        "lexical_rollup/bytecode",
+        "option_result_config/bytecode"
+      ],
+      "profile_freshness": "current-exact-discrete-event-main-profile",
+      "artifact_identity": "current-control-cohorts-plus-discrete-event-runtime-profile",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 6,
+      "owner": "Current Array copying, graph/Queue, application-defined generic heap, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, propagation/type, active-lookup, return/frame, stack, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.",
+      "rationale": "The existing high-sample CPU and exact allocation evidence plus three warmed Discrete Event Simulation profiles expose no new storage-specific VM leaf. Its material descendants remain the already reviewed call/member, propagation/type, frame/stack, cache-map, and dispatcher families, so no concrete VM operation is reopened.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-27-discrete-event-simulation-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-27-discrete-event-simulation-bytecode-profile-top.txt",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-reach.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-bytecode.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-interpreter-reference.json"
+      ]
+    }
+  ]
+}

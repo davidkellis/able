@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-07-15T16:37:09Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 3,
+  "timeout_seconds": 45,
+  "cpu_affinity": "3",
+  "gomaxprocs": 1,
+  "rows": [
+    {
+      "benchmark": "option_result_config",
+      "source": "/home/david/sync/projects/benchmarks/option-result-config/go-1.26/app.go",
+      "source_sha256": "3ced806f4f42b53e457f102494807d04b0bab5a93f76c9a4a1338efedcd2d68a",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0032,
+      "validation": "verified",
+      "stdout_sha256": [
+        "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+      ]
+    }
+  ]
+}

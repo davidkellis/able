@@ -1,0 +1,24 @@
+package exec_14_19_regex_scanner_boundaries
+
+import able.text.regex.{Match, Regex, RegexOptions, RegexScanner}
+
+fn show_next(label: String, scanner: RegexScanner) -> void {
+  scanner.next() match {
+    case found: Match => print(`${label} ${found.matched} ${found.span.start}-${found.span.end}`),
+    case _ => print(`${label} none`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("cat$") match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("cat")
+      show_next("end-pending", scanner)
+      scanner.flush()
+      show_next("end-final", scanner)
+    },
+    case _ => print("end compile error")
+  }
+
+}

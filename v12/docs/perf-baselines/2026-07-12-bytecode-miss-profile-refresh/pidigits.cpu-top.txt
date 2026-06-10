@@ -1,0 +1,29 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: cpu
+Time: 2026-07-11 23:28:44 CDT
+Duration: 2.67s, Total samples = 2.63s (98.42%)
+Showing nodes accounting for 0.12s, 4.56% of 2.63s total
+Dropped 64 nodes (cum <= 0.01s)
+Showing top 20 nodes out of 182
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%     0%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%     0%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%     0%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%     0%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%     0%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%     0%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runDetached
+     0.03s  1.14%  1.14%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%  1.14%      2.43s 92.40%  able/interpreter-go/pkg/interpreter.BenchmarkBytecodeProgramRuntime
+         0     0%  1.14%      2.43s 92.40%  testing.(*B).run1.func1
+         0     0%  1.14%      2.43s 92.40%  testing.(*B).runN
+     0.04s  1.52%  2.66%      2.18s 82.89%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0%  2.66%      1.71s 65.02%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallName
+     0.02s  0.76%  3.42%      1.65s 62.74%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedCallName
+         0     0%  3.42%      1.58s 60.08%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execAndFinishExactNativeCall
+     0.02s  0.76%  4.18%      1.56s 59.32%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execExactNativeCall
+         0     0%  4.18%      1.54s 58.56%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateExternFunctionBody.(*Interpreter).makeExternNative.func1
+     0.01s  0.38%  4.56%      1.54s 58.56%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeExternHostFunction
+         0     0%  4.56%      1.07s 40.68%  able/interpreter-go/pkg/interpreter.buildExternPrimitiveIntegerFastInvoker.func8
+         0     0%  4.56%      0.54s 20.53%  math/big.nat.mul

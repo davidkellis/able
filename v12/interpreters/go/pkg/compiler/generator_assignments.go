@@ -2,12 +2,15 @@ package compiler
 
 import (
 	"fmt"
-	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
 
 func (g *generator) compileAssignment(ctx *compileContext, assign *ast.AssignmentExpression) ([]string, string, string, bool) {
+	return g.compileAssignmentMode(ctx, assign, false)
+}
+
+func (g *generator) compileAssignmentMode(ctx *compileContext, assign *ast.AssignmentExpression, discardResult bool) ([]string, string, string, bool) {
 	if assign == nil {
 		ctx.setReason("missing assignment")
 		return nil, "", "", false
@@ -20,7 +23,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		receiver := ast.NewIdentifier(ctx.implicitReceiver.Name)
 		memberExpr := ast.NewMemberAccessExpression(receiver, implicitTarget.Member)
 		synthetic := ast.NewAssignmentExpression(assign.Operator, memberExpr, assign.Right)
-		return g.compileAssignment(ctx, synthetic)
+		return g.compileAssignmentMode(ctx, synthetic, discardResult)
 	}
 	if indexTarget, ok := assign.Left.(*ast.IndexExpression); ok {
 		if assign.Operator == ast.AssignmentDeclare {
@@ -54,7 +57,10 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			idxTemp := ctx.newTemp()
 			indexTemp := ctx.newTemp()
 			lengthTemp := ctx.newTemp()
-			resultTemp := ctx.newTemp()
+			resultTemp := ""
+			if !discardResult {
+				resultTemp = ctx.newTemp()
+			}
 			lines := append([]string{}, valueLines...)
 			lines = append(lines, objLines...)
 			lines = append(lines, idxLines...)
@@ -65,9 +71,19 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				return nil, "", "", false
 			}
 			lines = append(lines, fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)))
-			lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
+			if !discardResult {
+				lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
+			}
 			lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp))
-			lines = append(lines, fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp))
+			if discardResult {
+				transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(__able_index_error(%s, %s))", indexTemp, lengthTemp)))
+				if !ok {
+					return nil, "", "", false
+				}
+				lines = append(lines, indentLines(transferLines, 1)...)
+			} else {
+				lines = append(lines, fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp))
+			}
 			lines = append(lines, "} else {")
 			if assign.Operator == ast.AssignmentAssign {
 				valueArgLines, valueAssignedExpr, ok := g.staticArrayCoerceValueExprLines(ctx, objType, valueExpr, valueType)
@@ -79,7 +95,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				lines = append(lines, indentLines(valueArgLines, 1)...)
 				lines = append(lines, fmt.Sprintf("\t%s := %s", valueTemp, valueAssignedExpr))
 				lines = append(lines, fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp))
-				lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, g.staticArrayResultValueExpr(objType, valueTemp)))
+				if !discardResult {
+					lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, g.staticArrayResultValueExpr(objType, valueTemp)))
+				}
 			} else {
 				valueArgLines, valueAssignedExpr, _, ok := g.lowerCoerceExpectedStaticExpr(ctx, nil, valueExpr, valueType, elemType)
 				if !ok {
@@ -116,12 +134,17 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				lines = append(lines, indentLines(storeLines, 1)...)
 				lines = append(lines, fmt.Sprintf("\t%s := %s", storedTemp, storedExpr))
 				lines = append(lines, fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, storedTemp))
-				lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, g.staticArrayResultValueExpr(objType, storedTemp)))
+				if !discardResult {
+					lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, g.staticArrayResultValueExpr(objType, storedTemp)))
+				}
 			}
 			lines = append(lines, "}")
 			lines = append(lines, g.staticArraySyncCall(objType, objTemp))
 			if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, indexTarget.Object, objTemp, objType); ok {
 				lines = append(lines, writebackLines...)
+			}
+			if discardResult {
+				return lines, "", "", true
 			}
 			return lines, resultTemp, "runtime.Value", true
 		}
@@ -209,8 +232,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 		return lines, computedTemp, "runtime.Value", true
 	}
 	if pattern, ok := assign.Left.(ast.Pattern); ok {
+		if isDiscardAssignmentPattern(pattern) {
+			return g.compileDiscardAssignment(ctx, assign)
+		}
 		if !isSimpleAssignmentPattern(pattern) {
-			return g.compilePatternAssignment(ctx, assign, pattern)
+			return g.compilePatternAssignmentMode(ctx, assign, pattern, discardResult)
 		}
 	}
 	if memberTarget, ok := assign.Left.(*ast.MemberAccessExpression); ok {
@@ -232,6 +258,11 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 				objLines = append(objLines, recoverLines...)
 				objExpr = recoveredExpr
 				objType = recoveredType
+			}
+		}
+		if g.isMonoArrayType(objType) {
+			if lines, resultExpr, resultType, ok := g.compileMonoArrayMetadataAssignment(ctx, assign, memberTarget, objLines, objExpr, objType); ok {
+				return lines, resultExpr, resultType, true
 			}
 		}
 		if info := g.staticStructInfoForAccess(objType); info != nil {
@@ -503,6 +534,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	moduleBindingReuse := !currentExists && g.hasModuleBindingName(ctx.packageName, name)
 	declaring := (assign.Operator == ast.AssignmentDeclare && !moduleBindingReuse) || (!exists && !moduleBindingReuse)
 	useEnvSet := !exists && moduleBindingReuse
+	forwardTypeExpr, forwardGoType := g.forwardFreshLambdaBindingCarrier(ctx, name, assign.Right, declaring, typeAnnotation)
 	var goType string
 	if typeAnnotation != nil {
 		mapped, ok := g.lowerCarrierType(ctx, typeAnnotation)
@@ -516,6 +548,9 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			return nil, "", "", false
 		}
 	}
+	if goType == "" {
+		goType = forwardGoType
+	}
 	if !declaring && goType == "" && exists {
 		if !currentExists {
 			goType = existing.GoType
@@ -524,10 +559,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 	var expr string
 	var exprLines []string
 	if goType != "" {
-		expectedTypeExpr := typeAnnotation
-		if expectedTypeExpr == nil && exists {
-			expectedTypeExpr = existing.TypeExpr
-		}
+		expectedTypeExpr := inferredAssignmentTypeExpr(typeAnnotation, forwardTypeExpr, existing, exists)
 		previousExpectedTypeExpr := ctx.expectedTypeExpr
 		ctx.expectedTypeExpr = expectedTypeExpr
 		compiledLines, compiled, _, ok := g.compileTailExpression(ctx, goType, assign.Right)
@@ -550,10 +582,7 @@ func (g *generator) compileAssignment(ctx *compileContext, assign *ast.Assignmen
 			return nil, "", "", false
 		}
 	}
-	assignmentTypeExpr := typeAnnotation
-	if assignmentTypeExpr == nil && exists {
-		assignmentTypeExpr = existing.TypeExpr
-	}
+	assignmentTypeExpr := inferredAssignmentTypeExpr(typeAnnotation, forwardTypeExpr, existing, exists)
 	if assignmentTypeExpr == nil {
 		if inferredTypeExpr, ok := g.inferLocalTypeExpr(ctx, assign.Right, goType); ok {
 			assignmentTypeExpr = inferredTypeExpr
@@ -722,150 +751,6 @@ func (g *generator) assignmentCarrierNeedsRefine(currentGoType string, refinedGo
 		return false
 	}
 	return currentInfo.GoName != refinedInfo.GoName
-}
-
-func (g *generator) compilePatternAssignment(ctx *compileContext, assign *ast.AssignmentExpression, pattern ast.Pattern) ([]string, string, string, bool) {
-	if assign == nil {
-		ctx.setReason("missing assignment")
-		return nil, "", "", false
-	}
-	if assign.Operator != ast.AssignmentDeclare && assign.Operator != ast.AssignmentAssign {
-		ctx.setReason("compound assignment not supported with patterns")
-		return nil, "", "", false
-	}
-	valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", assign.Right)
-	if !ok {
-		return nil, "", "", false
-	}
-	mode := patternBindingMode{declare: assign.Operator == ast.AssignmentDeclare}
-	if mode.declare {
-		newNames := map[string]struct{}{}
-		collectPatternBindingNames(pattern, newNames)
-		if len(newNames) == 0 {
-			ctx.setReason(":= requires new binding")
-			return nil, "", "", false
-		}
-		filtered := map[string]struct{}{}
-		for name := range newNames {
-			if _, ok := ctx.lookupCurrent(name); !ok {
-				filtered[name] = struct{}{}
-			}
-		}
-		if len(filtered) == 0 {
-			ctx.setReason(":= requires new binding")
-			return nil, "", "", false
-		}
-		mode.newNames = filtered
-	}
-
-	if valueType == "runtime.Value" || valueType == "any" {
-		valueTypeExpr, _ := g.inferLocalTypeExpr(ctx, assign.Right, valueType)
-		previousExpectedTypeExpr := ctx.expectedTypeExpr
-		if valueTypeExpr != nil {
-			ctx.expectedTypeExpr = g.lowerNormalizedTypeExpr(ctx, valueTypeExpr)
-		}
-		defer func() {
-			ctx.expectedTypeExpr = previousExpectedTypeExpr
-		}()
-		valConvLines, valueRuntime, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
-		if !ok {
-			ctx.setReason("pattern assignment value unsupported")
-			return nil, "", "", false
-		}
-		valueTemp := ctx.newTemp()
-		lines := append([]string{}, valueLines...)
-		lines = append(lines, valConvLines...)
-		lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueRuntime))
-		condLines, cond, ok := g.compileMatchPatternCondition(ctx, pattern, valueTemp, "runtime.Value")
-		if !ok {
-			return nil, "", "", false
-		}
-		bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, valueTemp, "runtime.Value", mode)
-		if !ok {
-			return nil, "", "", false
-		}
-		declLines, assignLines := splitPatternBindingLines(bindLines)
-		lines = append(lines, declLines...)
-		lines = append(lines, condLines...)
-		resultTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("var %s runtime.Value", resultTemp))
-		if cond != "true" {
-			lines = append(lines, fmt.Sprintf("if !(%s) { %s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"} } else {", cond, resultTemp))
-			lines = append(lines, assignLines...)
-			lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
-			lines = append(lines, "}")
-		} else {
-			lines = append(lines, assignLines...)
-			lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, valueTemp))
-		}
-		return lines, resultTemp, "runtime.Value", true
-	}
-
-	valueTemp := ctx.newTemp()
-	lines := append([]string{}, valueLines...)
-	lines = append(lines, fmt.Sprintf("%s := %s", valueTemp, valueExpr))
-	condLines, cond, ok := g.compileMatchPatternCondition(ctx, pattern, valueTemp, valueType)
-	if !ok {
-		return nil, "", "", false
-	}
-	bindLines, ok := g.compileAssignmentPatternBindings(ctx, pattern, valueTemp, valueType, mode)
-	if !ok {
-		return nil, "", "", false
-	}
-	declLines, assignLines := splitPatternBindingLines(bindLines)
-	lines = append(lines, declLines...)
-	lines = append(lines, condLines...)
-	resultTemp := ctx.newTemp()
-	lines = append(lines, fmt.Sprintf("var %s runtime.Value", resultTemp))
-	resultLines, resultExpr, ok := g.lowerRuntimeValue(ctx, valueTemp, valueType)
-	if !ok {
-		ctx.setReason("pattern assignment value unsupported")
-		return nil, "", "", false
-	}
-	if cond != "true" {
-		lines = append(lines, fmt.Sprintf("if !(%s) { %s = runtime.ErrorValue{Message: \"pattern assignment mismatch\"} } else {", cond, resultTemp))
-		lines = append(lines, assignLines...)
-		lines = append(lines, resultLines...)
-		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, resultExpr))
-		lines = append(lines, "}")
-	} else {
-		lines = append(lines, assignLines...)
-		lines = append(lines, resultLines...)
-		lines = append(lines, fmt.Sprintf("%s = %s", resultTemp, resultExpr))
-	}
-	return lines, resultTemp, "runtime.Value", true
-}
-
-func splitPatternBindingLines(lines []string) ([]string, []string) {
-	if len(lines) == 0 {
-		return nil, nil
-	}
-	decls := make([]string, 0, len(lines))
-	assigns := make([]string, 0, len(lines))
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "var ") {
-			if idx := strings.Index(trimmed, " = "); idx != -1 {
-				decl := strings.TrimSpace(trimmed[:idx])
-				expr := strings.TrimSpace(trimmed[idx+3:])
-				fields := strings.Fields(decl)
-				if len(fields) >= 2 {
-					name := fields[1]
-					decls = append(decls, decl)
-					assigns = append(assigns, fmt.Sprintf("%s = %s", name, expr))
-					continue
-				}
-			}
-			decls = append(decls, line)
-			continue
-		}
-		if strings.HasPrefix(trimmed, "_ = ") || strings.HasPrefix(trimmed, "_=") {
-			decls = append(decls, line)
-			continue
-		}
-		assigns = append(assigns, line)
-	}
-	return decls, assigns
 }
 
 func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {

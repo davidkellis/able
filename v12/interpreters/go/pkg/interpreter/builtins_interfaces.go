@@ -79,7 +79,7 @@ func buildInterfaceBundle() interfaceBundle {
 	for _, typeName := range []string{"String", "i32", "bool", "char", "f64"} {
 		implementations = append(implementations, makeDisplayImpl(typeName))
 	}
-	for _, typeName := range []string{"String", "i32", "bool", "char", "f64"} {
+	for _, typeName := range []string{"String", "i32", "bool", "char", "f64", "nil"} {
 		implementations = append(implementations, makeCloneImpl(typeName))
 	}
 	implementations = append(implementations, makeErrorImpl())

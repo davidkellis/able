@@ -260,7 +260,7 @@ func resumePayload(payload *asyncContextPayload) {
 	if payload == nil {
 		return
 	}
-	payload.awaitBlocked = false
+	payload.setAwaitBlocked(false)
 	if payload.resume != nil {
 		payload.resume()
 	}
@@ -422,7 +422,7 @@ func (i *Interpreter) channelSendSerial(callCtx *runtime.NativeCallContext, stat
 	state.mu.Unlock()
 
 	i.setPendingSendWaiter(waiter)
-	payloadCtx.awaitBlocked = true
+	payloadCtx.setAwaitBlocked(true)
 	if shouldNotify {
 		i.notifyChannelAwaiters(state, channelAwaitRecv)
 	}
@@ -522,7 +522,7 @@ func (i *Interpreter) channelReceiveSerial(callCtx *runtime.NativeCallContext, s
 	state.mu.Unlock()
 
 	i.setPendingReceiveWaiter(waiter)
-	payloadCtx.awaitBlocked = true
+	payloadCtx.setAwaitBlocked(true)
 	if shouldNotify {
 		i.notifyChannelAwaiters(state, channelAwaitSend)
 	}

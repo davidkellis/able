@@ -1,0 +1,115 @@
+package concurrent_text_index
+
+import able.collections.hash_map.*
+import able.collections.map.*
+import able.fs
+import able.kernel.{Array, Channel}
+import able.os
+
+struct WordScore {
+  bucket: i32,
+  value: i64
+}
+
+methods WordScore {
+  fn weighted(self: Self) -> i64 {
+    self.value * ((self.bucket as i64) + 3_i64)
+  }
+}
+
+fn classify(word: String) -> ?WordScore {
+  size := word.len_bytes()
+  if size < 5 || size > 12 { return nil }
+  if !word.contains("e") || (!word.contains("a") && !word.contains("i")) {
+    return nil
+  }
+  bucket := (size % 8) as i32
+  bonus := if word.contains("r") { 17_i64 } elsif word.contains("t") { 11_i64 } else { 5_i64 }
+  WordScore {
+    bucket,
+    value: (size as i64) * 29_i64 + bonus
+  }
+}
+
+fn produce(words: Array String, source: Channel String) -> i64 {
+  index := 0
+  loop {
+    if index >= words.len() { break }
+    source.send(words.get(index)!)
+    index = index + 1
+  }
+  source.close()
+  index as i64
+}
+
+fn work(source: Channel String, results: Channel WordScore) -> i64 {
+  selected := 0_i64
+  loop {
+    source.receive() match {
+      case nil => {
+        results.send(WordScore { bucket: -1, value: selected })
+        break
+      },
+      case word: String => {
+        classify(word) match {
+          case nil => {},
+          case score: WordScore => {
+            results.send(score)
+            selected = selected + 1_i64
+          }
+        }
+      }
+    }
+  }
+  selected
+}
+
+fn lookup(totals: Map i32 i64, bucket: i32) -> i64 {
+  totals.get(bucket) match {
+    case value: i64 => value,
+    case nil => 0_i64
+  }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "i-before-e/wordlist.txt" }
+  words: Array String = fs.read_lines_prefix(path, 16_384)
+  source: Channel String = Channel.new(16_384)
+  results: Channel WordScore = Channel.new(16_388)
+
+  producer := spawn { produce(words, source) }
+  first := spawn { work(source, results) }
+  second := spawn { work(source, results) }
+  third := spawn { work(source, results) }
+  fourth := spawn { work(source, results) }
+  future_flush()
+
+  totals: HashMap i32 i64 = HashMap.with_capacity(8)
+  finished := 0
+  selected := 0_i64
+  weighted := 0_i64
+  loop {
+    if finished >= 4 { break }
+    score := results.receive()!
+    if score.bucket < 0 {
+      finished = finished + 1
+      selected = selected + score.value
+    } else {
+      totals.set(score.bucket, lookup(totals, score.bucket) + score.value)
+      weighted = weighted + score.weighted()
+    }
+  }
+
+  bucket_checksum := 0_i64
+  bucket := 0
+  loop {
+    if bucket >= 8 { break }
+    bucket_checksum = bucket_checksum + lookup(totals, bucket) * ((bucket as i64) + 1_i64)
+    bucket = bucket + 1
+  }
+
+  produced := producer.value()! as i64
+  worker_total := (first.value()! as i64) + (second.value()! as i64) + (third.value()! as i64) + (fourth.value()! as i64)
+  print(`${words.len()}:${produced}:${selected}:${worker_total}:${bucket_checksum}:${weighted}`)
+}

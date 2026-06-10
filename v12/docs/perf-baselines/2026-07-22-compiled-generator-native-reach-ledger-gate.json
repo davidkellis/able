@@ -1,0 +1,45 @@
+{
+  "kind": "able-compiled-generator-native-reach-ledger-gate",
+  "date": "2026-07-22",
+  "decision": "rejected-no-code-retained",
+  "scope": "compiler-throughput-prerequisite",
+  "omission_enabled_for_measurement": false,
+  "guardrails": {
+    "source_root_only": true,
+    "canonical_external_stdlib": true,
+    "go_memory_limit": "1GiB",
+    "go_gc_percent": 50,
+    "process_timeout_seconds": 55,
+    "alternating_order": true
+  },
+  "rows": [
+    {
+      "application": "fib",
+      "baseline_samples_s": [0.42, 0.45, 0.50],
+      "disabled_ledger_samples_s": [0.70, 0.63, 0.68],
+      "baseline_mean_s": 0.456667,
+      "disabled_ledger_mean_s": 0.670000,
+      "change_pct": 46.72
+    },
+    {
+      "application": "word_frequency",
+      "baseline_samples_s": [33.97, 33.46],
+      "disabled_ledger_samples_s": [33.78, 31.95],
+      "baseline_mean_s": 33.715000,
+      "disabled_ledger_mean_s": 32.865000,
+      "change_pct": -2.52
+    }
+  ],
+  "six_application_omission_gate_run": false,
+  "six_application_omission_gate_skip_reason": "disabled reach bookkeeping was not effectively free",
+  "verification": {
+    "focused_reach_tests_before_removal": "passed",
+    "focused_compiler_semantic_tests_after_removal": "passed",
+    "compiler_bridge_suite_after_removal": "passed",
+    "whole_compiler_package_60s_attempt": "package-level timeout during boundary fixture batch 12_08_blocking_io_concurrency; no assertion failure"
+  },
+  "candidate_code_retained": false,
+  "stdlib_changed": false,
+  "wasm_changed": false,
+  "next": "add a source-equivalent portable application selected from the shallow high-weight interaction frontier after discounting closed mechanisms"
+}

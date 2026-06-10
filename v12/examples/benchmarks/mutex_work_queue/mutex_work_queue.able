@@ -1,0 +1,78 @@
+package mutex_work_queue
+
+import able.concurrency.{with_lock}
+import able.kernel.{Mutex}
+
+struct WorkQueue {
+  next_job: i64,
+  completed: i64,
+  total: i64,
+  checksum: i64
+}
+
+fn job_score(job: i64) -> i64 {
+  value := (job * 3253_i64) + 41_i64
+  step := 0_i64
+  loop {
+    if step >= 28_i64 { break }
+    value = ((value * 48271_i64) + (job * 131_i64) + step) % 1_000_003_i64
+    step = step + 1_i64
+  }
+  value
+}
+
+fn claim_job(queue: WorkQueue, mutex: Mutex, jobs: i64) -> i64 {
+  with_lock(mutex, fn() -> i64 {
+    if queue.next_job >= jobs {
+      -1_i64
+    } else {
+      job := queue.next_job
+      queue.next_job = queue.next_job + 1_i64
+      job
+    }
+  })
+}
+
+fn commit_job(queue: WorkQueue, mutex: Mutex, job: i64, score: i64) -> i64 {
+  await [mutex.await_lock(fn() -> i64 {
+    do {
+      queue.completed = queue.completed + 1_i64
+      queue.total = queue.total + score
+      queue.checksum = (queue.checksum + (score * (job + 37_i64))) % 1_000_003_i64
+      score
+    } ensure {
+      mutex.unlock()
+    }
+  })]
+}
+
+fn run_worker(queue: WorkQueue, mutex: Mutex, jobs: i64) -> i64 {
+  subtotal := 0_i64
+  loop {
+    job := claim_job(queue, mutex, jobs)
+    if job < 0_i64 { break }
+    score := job_score(job)
+    subtotal = subtotal + commit_job(queue, mutex, job, score)
+  }
+  subtotal
+}
+
+fn main() -> void {
+  workers := 4_i64
+  jobs := 4096_i64
+  queue := WorkQueue {
+    next_job: 0_i64,
+    completed: 0_i64,
+    total: 0_i64,
+    checksum: 0_i64
+  }
+  mutex := Mutex.new()
+
+  first := spawn { run_worker(queue, mutex, jobs) }
+  second := spawn { run_worker(queue, mutex, jobs) }
+  third := spawn { run_worker(queue, mutex, jobs) }
+  fourth := spawn { run_worker(queue, mutex, jobs) }
+
+  worker_total := (first.value()! as i64) + (second.value()! as i64) + (third.value()! as i64) + (fourth.value()! as i64)
+  print(`${workers}:${jobs}:${queue.next_job}:${queue.completed}:${queue.total}:${queue.checksum}:${worker_total}`)
+}

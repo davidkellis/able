@@ -95,7 +95,7 @@ func TestCompilerParameterizedStructUnionMembersUseConcreteStructHelpers(t *test
 	if !ok {
 		t.Fatalf("could not find native union try-from-value helper")
 	}
-	if !strings.Contains(tryFromBody, "__able_struct_Box_i32_from(coerced)") {
+	if !strings.Contains(tryFromBody, "__able_struct_Box_i32_try_from(value)") {
 		t.Fatalf("expected native union conversion to use the concrete struct helper for Box i32:\n%s", tryFromBody)
 	}
 
@@ -106,7 +106,7 @@ func TestCompilerParameterizedStructUnionMembersUseConcreteStructHelpers(t *test
 	if !strings.Contains(toBody, "__able_struct_Box_i32_to(rt, raw.Value)") {
 		t.Fatalf("expected native union conversion to use the concrete struct runtime helper for Box i32:\n%s", toBody)
 	}
-	if strings.Contains(tryFromBody, "__able_struct_Box_from(coerced)") || strings.Contains(toBody, "__able_struct_Box_to(rt, raw.Value)") {
+	if strings.Contains(tryFromBody, "__able_struct_Box_try_from(value)") || strings.Contains(toBody, "__able_struct_Box_to(rt, raw.Value)") {
 		t.Fatalf("expected native union conversion to avoid base generic struct helpers for Box i32:\ntry_from:\n%s\n\nto:\n%s", tryFromBody, toBody)
 	}
 }
@@ -141,6 +141,19 @@ func TestCompilerOrElseOnErrorUnionUsesNativeCarrierDetection(t *testing.T) {
 	}
 	if strings.Contains(body, "__able_is_error(") {
 		t.Fatalf("expected native union or-else to avoid runtime-value error probing:\n%s", body)
+	}
+	foundRegistration := false
+	for _, data := range result.Files {
+		text := string(data)
+		if strings.Contains(text, `RegisterCompiledImplMethodOverload("Error"`) {
+			foundRegistration = true
+		}
+		if strings.Contains(text, `RegisterCompiledImplMethodOverload("demo.Error"`) {
+			t.Fatalf("expected unresolved builtin Error ownership to remain interpreter-canonicalized:\n%s", text)
+		}
+	}
+	if !foundRegistration {
+		t.Fatal("expected compiled Error impl registration")
 	}
 }
 

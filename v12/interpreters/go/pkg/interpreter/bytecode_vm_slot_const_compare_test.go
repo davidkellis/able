@@ -54,6 +54,57 @@ func TestBytecodeVM_LoweringEmitsConditionalJumpForIntCompareSlotConstIf(t *test
 	}
 }
 
+func TestBytecodeVM_LoweringEmitsConditionalJumpForIntCompareConstSlotIf(t *testing.T) {
+	def := ast.Fn(
+		"loop_guard",
+		[]*ast.FunctionParameter{ast.Param("n", ast.Ty("i32"))},
+		[]ast.Statement{
+			ast.IfExpr(
+				ast.Bin(">", ast.Int(3), ast.ID("n")),
+				ast.Block(ast.Bin("-", ast.ID("n"), ast.Int(1))),
+			),
+			ast.IfExpr(
+				ast.Bin(">=", ast.Int(9), ast.ID("n")),
+				ast.Block(ast.Bin("-", ast.ID("n"), ast.Int(2))),
+			),
+			ast.ID("n"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	interp := NewBytecode()
+	program, err := interp.lowerFunctionDefinitionBytecode(def)
+	if err != nil {
+		t.Fatalf("bytecode lowering failed: %v", err)
+	}
+	sawLessThanCompare := false
+	sawLessEqualJump := false
+	for _, instr := range program.instructions {
+		switch instr.op {
+		case bytecodeOpJumpIfIntCompareSlotConstFalse:
+			if instr.operator != "<" || !instr.hasIntRaw || instr.intImmediateRaw != 3 {
+				t.Fatalf("unexpected normalized compare jump %#v", instr)
+			}
+			sawLessThanCompare = true
+		case bytecodeOpJumpIfIntLessEqualSlotConstFalse:
+			if instr.operator != "<=" || !instr.hasIntRaw || instr.intImmediateRaw != 9 {
+				t.Fatalf("unexpected normalized less-equal jump %#v", instr)
+			}
+			sawLessEqualJump = true
+		}
+	}
+	if !sawLessThanCompare || !sawLessEqualJump {
+		t.Fatalf("expected reversed compare lowering to emit both normalized compare and less-equal jumps, got compare=%v lessEqual=%v", sawLessThanCompare, sawLessEqualJump)
+	}
+	if bytecodeProgramContainsOpcode(program, bytecodeOpBinaryIntCompareSlotConst) {
+		t.Fatalf("expected reversed if-position compare to skip standalone bool-producing opcode")
+	}
+}
+
 func TestBytecodeVM_LoweringEmitsTypedIntegerSlotConstCompareJump(t *testing.T) {
 	u8 := ast.IntegerTypeU8
 	def := ast.Fn(

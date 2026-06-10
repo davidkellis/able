@@ -1,0 +1,68 @@
+File: compiled
+Build ID: 8699b28d7d5668d5bf56f89f6c5752800168aa2e
+Type: alloc_objects
+Time: 2026-07-28 09:44:05 CDT
+Showing nodes accounting for 74212, 99.58% of 74524 total
+Dropped 198 nodes (cum <= 372)
+      flat  flat%   sum%        cum   cum%
+     30629 41.10% 41.10%      30629 41.10%  runtime/pprof.allFrames
+      8274 11.10% 52.20%       8303 11.14%  runtime/pprof.(*profileBuilder).emitLocation
+      4608  6.18% 58.39%       4608  6.18%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+      4353  5.84% 64.23%      43384 58.21%  runtime/pprof.writeHeapProto
+      4114  5.52% 69.75%       4114  5.52%  able/interpreter-go/pkg/compiler/bridge.currentGID
+      4111  5.52% 75.26%       4111  5.52%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+      4107  5.51% 80.77%       4112  5.52%  able/interpreter-go/pkg/compiler/bridge.ToInt
+      2052  2.75% 83.53%      20663 27.73%  main.__able_compiled_fn_work_ctx
+      2052  2.75% 86.28%       2052  2.75%  main.__able_struct_JobResult_from
+      2052  2.75% 89.03%       2055  2.76%  main.__able_struct_JobTask_from
+      2050  2.75% 91.79%       2050  2.75%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+      2048  2.75% 94.53%       8196 11.00%  main.__able_compiled_fn_produce_ctx
+      1499  2.01% 96.54%       1499  2.01%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+      1229  1.65% 98.19%       1740  2.33%  main.__able_compiled_fn_validation_error_ctx
+      1016  1.36% 99.56%       1016  1.36%  main.__able_union_int64_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+         9 0.012% 99.57%       2227  2.99%  main.__able_compiled_fn_main_ctx
+         6 0.0081% 99.58%      38945 52.26%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         1 0.0013% 99.58%      43390 58.22%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.0013% 99.58%       2229  2.99%  main.RunRegisteredMain
+         1 0.0013% 99.58%      43385 58.22%  runtime/pprof.writeHeapInternal
+         0     0% 99.58%       4108  5.51%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 99.58%       4108  5.51%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 99.58%       4110  5.52%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0% 99.58%      43390 58.22%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.58%      43390 58.22%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.58%       4118  5.53%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0% 99.58%       4118  5.53%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0% 99.58%       4101  5.50%  internal/sync.(*entry[go.shape.interface {},go.shape.interface {}]).swap
+         0     0% 99.58%      28897 38.78%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 99.58%       2228  2.99%  main.RunRegisteredMain.func1
+         0     0% 99.58%       8195 11.00%  main.__able_compiled_entry_method_String_contains_ctx
+         0     0% 99.58%       2228  2.99%  main.__able_compiled_fn_main
+         0     0% 99.58%       8197 11.00%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.58%       4583  6.15%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.58%       5076  6.81%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 99.58%       5748  7.71%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 99.58%       5260  7.06%  main.__able_compiled_fn_main_ctx.func5
+         0     0% 99.58%      12450 16.71%  main.__able_compiled_fn_transform_ctx_into
+         0     0% 99.58%      11181 15.00%  main.__able_compiled_fn_validate_ctx
+         0     0% 99.58%       2055  2.76%  main.__able_compiled_method_Channel_receive_spec_a_ctx
+         0     0% 99.58%       2052  2.75%  main.__able_compiled_method_Channel_receive_spec_ctx
+         0     0% 99.58%       4106  5.51%  main.__able_compiled_method_Channel_send_spec_a_ctx
+         0     0% 99.58%       6148  8.25%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0% 99.58%       1269  1.70%  main.__able_compiled_method_Result__map_spec_ctx
+         0     0% 99.58%       2228  2.99%  main.__able_register_compiled_call.func1
+         0     0% 99.58%      28897 38.78%  main.__able_run_compiled_task
+         0     0% 99.58%      28869 38.74%  main.__able_spawn_context.func1
+         0     0% 99.58%       4104  5.51%  main.__able_struct_JobResult_to (inline)
+         0     0% 99.58%       4104  5.51%  main.__able_struct_JobResult_to_seen
+         0     0% 99.58%       6144  8.24%  main.__able_struct_JobTask_to (inline)
+         0     0% 99.58%       6144  8.24%  main.__able_struct_JobTask_to_seen
+         0     0% 99.58%        511  0.69%  main.__able_struct_ValidationError_to (inline)
+         0     0% 99.58%        511  0.69%  main.__able_struct_ValidationError_to_seen
+         0     0% 99.58%       2228  2.99%  main.__able_wrap_fn_main
+         0     0% 99.58%      45619 61.21%  main.main
+         0     0% 99.58%      45619 61.21%  main.runMain
+         0     0% 99.58%      43390 58.22%  main.startMainProfilePhase (inline)
+         0     0% 99.58%      45619 61.21%  runtime.main
+         0     0% 99.58%      43385 58.22%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.58%      43385 58.22%  runtime/pprof.writeAlloc
+         0     0% 99.58%       4118  5.53%  sync.(*Map).Store (inline)

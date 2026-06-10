@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""Validate operation-level benchmark depth and frontier linkage."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_MANIFEST = SCRIPT_DIR / "bench-operation-depth.json"
+DEFAULT_FEATURES = SCRIPT_DIR / "bench-feature-coverage.json"
+DEFAULT_FRONTIER = SCRIPT_DIR / "bench-performance-frontier-evidence.json"
+CATALOG = SCRIPT_DIR / "bench_external_catalog.sh"
+KINDS = {"portable", "mixed", "local_only"}
+BREADTH = {"sufficient", "insufficient", "local_only"}
+
+
+def load_json(path: Path, label: str) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+
+
+def string_list(value: Any, field: str, operation: str, allow_empty: bool) -> list[str]:
+    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+        raise ValueError(f"{operation}: {field} must be a list of non-empty strings")
+    if not allow_empty and not value:
+        raise ValueError(f"{operation}: {field} must not be empty")
+    if len(value) != len(set(value)):
+        raise ValueError(f"{operation}: {field} contains duplicates")
+    return value
+
+
+def catalog_targets() -> dict[str, Path]:
+    command = f"""
+source {CATALOG!s}
+root={SCRIPT_DIR!s}
+IFS=',' read -r -a names <<<"$(bench_external_suite_csv coverage)"
+for name in "${{names[@]}}"; do
+  target="$(bench_external_target "$root" "$name")" || exit 2
+  printf '%s\t%s\n' "$name" "$target"
+done
+"""
+    result = subprocess.run(
+        ["bash", "-c", command],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ValueError(result.stderr.strip() or "cannot read benchmark targets")
+    targets: dict[str, Path] = {}
+    for line in result.stdout.splitlines():
+        name, raw_path = line.split("\t", 1)
+        path = Path(raw_path).resolve()
+        if not path.is_file():
+            raise ValueError(f"portable benchmark source not found: {name}: {path}")
+        targets[name] = path
+    return targets
+
+
+def feature_families(path: Path) -> set[str]:
+    manifest = load_json(path, "feature coverage manifest")
+    families = manifest.get("families") if isinstance(manifest, dict) else None
+    if not isinstance(families, list):
+        raise ValueError("feature coverage manifest needs families")
+    result = {family.get("id") for family in families if isinstance(family, dict)}
+    if any(not isinstance(item, str) for item in result):
+        raise ValueError("feature coverage manifest has an invalid family id")
+    return result
+
+
+def frontier_groups(path: Path) -> dict[str, dict[str, Any]]:
+    manifest = load_json(path, "frontier evidence manifest")
+    groups = manifest.get("groups") if isinstance(manifest, dict) else None
+    if not isinstance(groups, list):
+        raise ValueError("frontier evidence manifest needs groups")
+    result: dict[str, dict[str, Any]] = {}
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("id"), str):
+            raise ValueError("frontier evidence manifest has an invalid group")
+        result[group["id"]] = group
+    return result
+
+
+def validate_fixture(raw_path: str, operation: str) -> None:
+    path = (SCRIPT_DIR / raw_path).resolve()
+    try:
+        path.relative_to(SCRIPT_DIR)
+    except ValueError:
+        raise ValueError(f"{operation}: local fixture escapes v12: {raw_path}") from None
+    if not raw_path.startswith("fixtures/"):
+        raise ValueError(f"{operation}: local fixture must be under fixtures/: {raw_path}")
+    if not path.is_dir() or not (path / "main.able").is_file():
+        raise ValueError(f"{operation}: local fixture has no main.able: {raw_path}")
+
+
+def validate_evidence(
+    value: Any, operation: str, targets: dict[str, Path]
+) -> tuple[set[str], set[str]]:
+    if not isinstance(value, list):
+        raise ValueError(f"{operation}: portable_evidence must be a list")
+    benchmarks: set[str] = set()
+    workloads: set[str] = set()
+    for index, evidence in enumerate(value):
+        if not isinstance(evidence, dict):
+            raise ValueError(f"{operation}: portable_evidence {index} must be an object")
+        benchmark = evidence.get("benchmark")
+        workload = evidence.get("workload")
+        if benchmark not in targets:
+            raise ValueError(f"{operation}: benchmark is outside coverage: {benchmark}")
+        if benchmark in benchmarks:
+            raise ValueError(f"{operation}: portable_evidence repeats benchmark: {benchmark}")
+        if not isinstance(workload, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", workload):
+            raise ValueError(f"{operation}: workload must be snake_case")
+        markers = string_list(evidence.get("source_markers"), "source_markers", operation, False)
+        source = targets[benchmark].read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in source:
+                raise ValueError(
+                    f"{operation}: source marker not found in {benchmark}: {marker!r}"
+                )
+        benchmarks.add(benchmark)
+        workloads.add(workload)
+    return benchmarks, workloads
+
+
+def validate(
+    manifest_path: Path, feature_path: Path, frontier_path: Path
+) -> tuple[int, int, int, int, int, int]:
+    manifest = load_json(manifest_path, "operation depth manifest")
+    if not isinstance(manifest, dict) or manifest.get("kind") != "able-performance-operation-depth":
+        raise ValueError("operation depth manifest has an invalid kind")
+    if manifest.get("schema_version") != 1:
+        raise ValueError("operation depth manifest needs schema_version 1")
+    threshold = manifest.get("unlike_workload_threshold")
+    if threshold != 3:
+        raise ValueError("operation depth manifest needs unlike_workload_threshold 3")
+    operations = manifest.get("operations")
+    if not isinstance(operations, list) or not operations:
+        raise ValueError("operation depth manifest needs operations")
+
+    targets = catalog_targets()
+    families = feature_families(feature_path)
+    groups = frontier_groups(frontier_path)
+    seen_ids: set[str] = set()
+    covered_families: set[str] = set()
+    sufficient = 0
+    insufficient = 0
+    local_only = 0
+    linked = 0
+    actionable = 0
+
+    for index, raw_operation in enumerate(operations):
+        if not isinstance(raw_operation, dict):
+            raise ValueError(f"operation {index}: entry must be an object")
+        operation = raw_operation.get("id")
+        if not isinstance(operation, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", operation):
+            raise ValueError(f"operation {index}: id must be snake_case")
+        if operation in seen_ids:
+            raise ValueError(f"operation depth repeats id: {operation}")
+        seen_ids.add(operation)
+
+        family = raw_operation.get("feature_family")
+        if family not in families:
+            raise ValueError(f"{operation}: unknown feature family: {family}")
+        covered_families.add(family)
+        kind = raw_operation.get("coverage_kind")
+        if kind not in KINDS:
+            raise ValueError(f"{operation}: invalid coverage_kind")
+        declared_breadth = raw_operation.get("breadth_status")
+        if declared_breadth not in BREADTH:
+            raise ValueError(f"{operation}: invalid breadth_status")
+
+        benchmarks, workloads = validate_evidence(
+            raw_operation.get("portable_evidence"), operation, targets
+        )
+        fixtures = string_list(raw_operation.get("local_fixtures"), "local_fixtures", operation, True)
+        for fixture in fixtures:
+            validate_fixture(fixture, operation)
+        if kind == "portable" and not benchmarks:
+            raise ValueError(f"{operation}: portable coverage needs source evidence")
+        if kind == "mixed" and (not benchmarks or not fixtures):
+            raise ValueError(f"{operation}: mixed coverage needs source evidence and local fixtures")
+        if kind == "local_only" and (benchmarks or not fixtures):
+            raise ValueError(f"{operation}: local_only coverage needs fixtures and no portable evidence")
+
+        derived_breadth = (
+            "local_only" if not benchmarks else "sufficient" if len(workloads) >= threshold else "insufficient"
+        )
+        if declared_breadth != derived_breadth:
+            raise ValueError(
+                f"{operation}: breadth_status {declared_breadth} does not match "
+                f"{len(workloads)} unlike workloads ({derived_breadth})"
+            )
+        if derived_breadth == "sufficient":
+            sufficient += 1
+        elif derived_breadth == "insufficient":
+            insufficient += 1
+        else:
+            local_only += 1
+
+        group_ids = string_list(raw_operation.get("frontier_groups"), "frontier_groups", operation, True)
+        for group_id in group_ids:
+            if group_id not in groups:
+                raise ValueError(f"{operation}: unknown frontier group: {group_id}")
+            group_rows = groups[group_id].get("rows", [])
+            if not any(row.split("/", 1)[0] in benchmarks for row in group_rows):
+                raise ValueError(f"{operation}: frontier group has no claimed benchmark: {group_id}")
+        if group_ids:
+            linked += 1
+        if derived_breadth == "sufficient" and any(
+            groups[group_id].get("disposition") == "actionable" for group_id in group_ids
+        ):
+            actionable += 1
+        rationale = raw_operation.get("rationale")
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise ValueError(f"{operation}: rationale must be a non-empty string")
+
+    missing_families = sorted(families - covered_families)
+    if missing_families:
+        raise ValueError("feature families absent from operation depth: " + ", ".join(missing_families))
+    return len(operations), sufficient, insufficient, local_only, linked, actionable
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST), metavar="PATH")
+    parser.add_argument("--features", default=str(DEFAULT_FEATURES), metavar="PATH")
+    parser.add_argument("--frontier", default=str(DEFAULT_FRONTIER), metavar="PATH")
+    args = parser.parse_args()
+    try:
+        operations, sufficient, insufficient, local_only, linked, actionable = validate(
+            Path(args.manifest), Path(args.features), Path(args.frontier)
+        )
+        print(
+            f"operation depth ok: {operations} operations, {sufficient} sufficient, "
+            f"{insufficient} insufficient, {local_only} local-only, {linked} frontier-linked, "
+            f"{actionable} actionable"
+        )
+        return 0
+    except ValueError as error:
+        print(f"bench_operation_depth_check: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

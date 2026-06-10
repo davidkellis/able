@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestCompilerControlToErrorPreservesExitSignals(t *testing.T) {
+func TestCompilerControlToErrorPreservesRuntimeErrors(t *testing.T) {
 	result := compileNoFallbackExecSource(t, "ablec-control-bridge-exit", strings.Join([]string{
 		"package demo",
 		"",
@@ -17,8 +17,11 @@ func TestCompilerControlToErrorPreservesExitSignals(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find __able_control_to_error helper")
 	}
-	if !strings.Contains(body, "interpreter.ExitCodeFromError(control.Err)") {
-		t.Fatalf("expected control bridge to preserve exit signals before wrapping raised values:\n%s", body)
+	if !strings.Contains(body, "return __able_value_error{value: __able_control_value(control), err: control.Err}") {
+		t.Fatalf("expected control bridge to preserve both the raised value and diagnostic error:\n%s", body)
+	}
+	if strings.Contains(body, "interpreter.ExitCodeFromError(control.Err)") {
+		t.Fatalf("expected control bridge to avoid redundant concrete interpreter inspection:\n%s", body)
 	}
 }
 

@@ -1,0 +1,504 @@
+#!/usr/bin/env python3
+"""Evaluate whether register-only VM architecture work can close target budgets."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-bytecode-architecture-budget.json"
+DEFAULT_FRONTIER = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json"
+)
+DEFAULT_OPCODE_NAMES = (
+    SCRIPT_DIR / "interpreters/go/pkg/interpreter/bytecode_op_names.go"
+)
+OPCODE_PATTERN = re.compile(r'^\s*bytecodeOp\w+:\s+"([^"]+)"', re.MULTILINE)
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def nonnegative_number(value: Any, label: str) -> float:
+    if not isinstance(value, (int, float)) or value < 0:
+        raise ValueError(f"{label} must be a non-negative number")
+    return float(value)
+
+
+def live_opcodes(path: Path) -> list[str]:
+    try:
+        source = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise ValueError(f"opcode names source not found: {path}") from None
+    names = OPCODE_PATTERN.findall(source)
+    if not names:
+        raise ValueError(f"no bytecode opcode names found in {path}")
+    if len(names) != len(set(names)):
+        raise ValueError("live bytecode opcode names are not unique")
+    return names
+
+
+def validate_categories(
+    evidence: dict[str, Any], live_names: list[str]
+) -> tuple[list[dict[str, Any]], set[str]]:
+    transport = evidence.get("transport_opcodes")
+    if not isinstance(transport, list) or not transport or any(
+        not isinstance(name, str) for name in transport
+    ):
+        raise ValueError("transport_opcodes must be a non-empty string array")
+    if len(transport) != len(set(transport)):
+        raise ValueError("transport_opcodes contains duplicates")
+    categories = evidence.get("opcode_categories")
+    if not isinstance(categories, list) or not categories:
+        raise ValueError("opcode_categories must be a non-empty array")
+    seen: dict[str, str] = {}
+    ids: set[str] = set()
+    for category in categories:
+        if not isinstance(category, dict):
+            raise ValueError("opcode category entries must be objects")
+        category_id = category.get("id")
+        role = category.get("role")
+        names = category.get("opcodes")
+        if not isinstance(category_id, str) or not category_id:
+            raise ValueError("opcode category needs an id")
+        if category_id in ids:
+            raise ValueError(f"opcode category id repeated: {category_id}")
+        ids.add(category_id)
+        if role not in {"removable-representation-dispatch", "required-semantic-work"}:
+            raise ValueError(f"opcode category {category_id} has invalid role")
+        if not isinstance(names, list) or not names:
+            raise ValueError(f"opcode category {category_id} needs opcodes")
+        for name in names:
+            if not isinstance(name, str) or not name:
+                raise ValueError(f"opcode category {category_id} has invalid opcode")
+            if name in seen:
+                raise ValueError(
+                    f"opcode {name} appears in both {seen[name]} and {category_id}"
+                )
+            seen[name] = category_id
+    live = set(live_names)
+    classified = set(seen)
+    missing = sorted(live - classified)
+    extra = sorted(classified - live)
+    if missing or extra:
+        details = []
+        if missing:
+            details.append("missing " + ", ".join(missing))
+        if extra:
+            details.append("unknown " + ", ".join(extra))
+        raise ValueError("opcode category coverage mismatch: " + "; ".join(details))
+    removable = {
+        name
+        for category in categories
+        if category["role"] == "removable-representation-dispatch"
+        for name in category["opcodes"]
+    }
+    if removable != set(transport):
+        raise ValueError("transport_opcodes do not match removable opcode categories")
+    return categories, set(transport)
+
+
+def frontier_bytecode_rows(value: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    if value.get("kind") != "able-performance-frontier":
+        raise ValueError("performance frontier has an invalid kind")
+    raw_rows = value.get("rows")
+    if not isinstance(raw_rows, list):
+        raise ValueError("performance frontier needs rows")
+    rows: dict[str, dict[str, Any]] = {}
+    for row in raw_rows:
+        if not isinstance(row, dict) or row.get("mode") != "bytecode":
+            continue
+        benchmark = row.get("benchmark")
+        if not isinstance(benchmark, str) or not benchmark:
+            raise ValueError("bytecode frontier row needs a benchmark")
+        if benchmark in rows:
+            raise ValueError(f"performance frontier repeats bytecode {benchmark}")
+        nonnegative_number(row.get("able_real_seconds"), f"{benchmark} Able time")
+        budget = nonnegative_number(
+            row.get("target_budget_seconds"), f"{benchmark} target budget"
+        )
+        if budget == 0:
+            raise ValueError(f"{benchmark} target budget must be positive")
+        rows[benchmark] = row
+    return rows
+
+
+def source_surface() -> dict[str, int]:
+    directory = SCRIPT_DIR / "interpreters/go/pkg/interpreter"
+    paths = sorted(directory.glob("bytecode_vm*.go"))
+    production = [path for path in paths if not path.name.endswith("_test.go")]
+    tests = [path for path in paths if path.name.endswith("_test.go")]
+    return {
+        "production_files": len(production),
+        "production_lines": sum(
+            len(path.read_text(encoding="utf-8").splitlines()) for path in production
+        ),
+        "test_files": len(tests),
+        "test_lines": sum(
+            len(path.read_text(encoding="utf-8").splitlines()) for path in tests
+        ),
+    }
+
+
+def build_report(
+    evidence_path: Path, frontier_path: Path, opcode_names_path: Path
+) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "architecture budget evidence")
+    if evidence.get("kind") != "able-bytecode-architecture-budget-evidence":
+        raise ValueError("architecture budget evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("architecture budget evidence needs schema_version 1")
+    names = live_opcodes(opcode_names_path)
+    categories, transport_names = validate_categories(evidence, names)
+    frontier = load_json(frontier_path, "performance frontier")
+    frontier_rows = frontier_bytecode_rows(frontier)
+
+    raw_apps = evidence.get("applications")
+    if not isinstance(raw_apps, list) or not raw_apps:
+        raise ValueError("architecture budget evidence needs applications")
+    application_names: set[str] = set()
+    families: set[str] = set()
+    applications: list[dict[str, Any]] = []
+    total_ops = 0
+    total_transport = 0
+    for raw in raw_apps:
+        if not isinstance(raw, dict):
+            raise ValueError("application entries must be objects")
+        benchmark = raw.get("benchmark")
+        family = raw.get("family")
+        if not isinstance(benchmark, str) or not benchmark:
+            raise ValueError("application entry needs a benchmark")
+        if benchmark in application_names:
+            raise ValueError(f"architecture evidence repeats {benchmark}")
+        if not isinstance(family, str) or not family:
+            raise ValueError(f"application {benchmark} needs a family")
+        if family in families:
+            raise ValueError(f"applications must be unlike; repeated family {family}")
+        if benchmark not in frontier_rows:
+            raise ValueError(f"performance frontier is missing bytecode {benchmark}")
+        application_names.add(benchmark)
+        families.add(family)
+        operations = int(nonnegative_number(raw.get("total_operations"), f"{benchmark} operations"))
+        if operations == 0:
+            raise ValueError(f"application {benchmark} operations must be positive")
+        counts = raw.get("transport_counts")
+        if not isinstance(counts, dict) or set(counts) != transport_names:
+            raise ValueError(
+                f"application {benchmark} transport counts must cover exactly "
+                + ", ".join(sorted(transport_names))
+            )
+        transport = int(
+            sum(
+                nonnegative_number(count, f"{benchmark} transport {name}")
+                for name, count in counts.items()
+            )
+        )
+        if transport >= operations:
+            raise ValueError(f"application {benchmark} transport must be below total")
+        semantic = operations - transport
+        row = frontier_rows[benchmark]
+        able_seconds = float(row["able_real_seconds"])
+        target_seconds = float(row["target_budget_seconds"])
+        required_speedup = able_seconds / target_seconds
+        uniform_speedup = operations / semantic
+        target_ns_per_semantic = target_seconds * 1_000_000_000.0 / semantic
+        applications.append(
+            {
+                **raw,
+                "transport_operations": transport,
+                "semantic_operations": semantic,
+                "transport_share_percent": round(100.0 * transport / operations, 6),
+                "current_seconds": able_seconds,
+                "target_budget_seconds": target_seconds,
+                "required_speedup": round(required_speedup, 6),
+                "current_ns_per_bytecode_operation": round(
+                    able_seconds * 1_000_000_000.0 / operations, 6
+                ),
+                "uniform_cost_transport_speedup": round(uniform_speedup, 6),
+                "uniform_cost_seconds_after_transport": round(
+                    able_seconds / uniform_speedup, 6
+                ),
+                "remaining_speedup_after_transport": round(
+                    required_speedup / uniform_speedup, 6
+                ),
+                "target_ns_per_remaining_semantic_operation": round(
+                    target_ns_per_semantic, 6
+                ),
+                "reference_language": row["fastest_reference"],
+                "reference_seconds": row["fastest_reference_real_seconds"],
+            }
+        )
+        total_ops += operations
+        total_transport += transport
+
+    closure = evidence.get("semantic_closure")
+    if not isinstance(closure, list) or len(closure) < 5:
+        raise ValueError("semantic_closure must contain the complete reviewed areas")
+    closure_ids: set[str] = set()
+    for item in closure:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+            raise ValueError("semantic_closure entries need ids")
+        if item["id"] in closure_ids:
+            raise ValueError(f"semantic closure id repeated: {item['id']}")
+        closure_ids.add(item["id"])
+        for key in ("requirement", "current_evidence"):
+            if not isinstance(item.get(key), str) or not item[key].strip():
+                raise ValueError(f"semantic closure {item['id']} needs {key}")
+
+    gates = evidence.get("empirical_gates")
+    if not isinstance(gates, list) or not gates:
+        raise ValueError("architecture budget evidence needs empirical_gates")
+    for gate in gates:
+        if not isinstance(gate, dict) or gate.get("result") != "rejected":
+            raise ValueError("every cited empirical architecture gate must be rejected")
+
+    minimum_remaining = min(
+        app["remaining_speedup_after_transport"] for app in applications
+    )
+    maximum_transport_speedup = max(
+        app["uniform_cost_transport_speedup"] for app in applications
+    )
+    decision = (
+        "no-go-register-representation-only"
+        if minimum_remaining > 5.0 and all(gate["result"] == "rejected" for gate in gates)
+        else "architecture-requires-review"
+    )
+    category_rows = [
+        {
+            "id": category["id"],
+            "role": category["role"],
+            "opcode_count": len(category["opcodes"]),
+            "opcodes": category["opcodes"],
+        }
+        for category in categories
+    ]
+    return {
+        "kind": "able-bytecode-architecture-budget",
+        "schema_version": 1,
+        "sources": {
+            "evidence": source_record(evidence_path),
+            "frontier": source_record(frontier_path),
+            "opcode_names": source_record(opcode_names_path),
+        },
+        "decision_scope": evidence["decision_scope"],
+        "summary": {
+            "decision": decision,
+            "application_count": len(applications),
+            "unlike_family_count": len(families),
+            "live_opcode_count": len(names),
+            "opcode_category_count": len(categories),
+            "transport_opcode_count": len(transport_names),
+            "semantic_opcode_count": len(names) - len(transport_names),
+            "semantic_closure_area_count": len(closure),
+            "total_dynamic_operations": total_ops,
+            "total_transport_operations": total_transport,
+            "weighted_transport_share_percent": round(
+                100.0 * total_transport / total_ops, 6
+            ),
+            "maximum_uniform_cost_transport_speedup": round(
+                maximum_transport_speedup, 6
+            ),
+            "minimum_remaining_speedup_after_transport": round(
+                minimum_remaining, 6
+            ),
+            "empirical_gate_count": len(gates),
+            "all_empirical_gates_rejected": all(
+                gate["result"] == "rejected" for gate in gates
+            ),
+        },
+        "applications": applications,
+        "opcode_categories": category_rows,
+        "semantic_closure": closure,
+        "empirical_gates": gates,
+        "implementation_surface": source_surface(),
+        "evidence": evidence["evidence"],
+        "recommendation": (
+            "Do not implement a complete typed/register representation as the next performance tranche. Measure semantic-work amplification per logical workload unit and select a shared language/runtime boundary that reduces semantic operations or allocations in at least three unlike applications."
+        ),
+    }
+
+
+def render_markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    target_ns = [
+        app["target_ns_per_remaining_semantic_operation"]
+        for app in report["applications"]
+    ]
+    lines = [
+        "# Bytecode architecture feasibility and target budget",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        report["recommendation"],
+        "",
+        "This decision is scoped to a register representation by itself. It does not "
+        "forbid future primary-VM redesign when separately justified semantic-operation "
+        "or allocation work requires it.",
+        "",
+        "## Target-budget model",
+        "",
+        "| Application | Family | Current / target s | Operations | Transport share | Required speedup | Uniform-cost transport speedup | Remaining speedup | Target ns / semantic op |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for app in report["applications"]:
+        lines.append(
+            f"| `{app['benchmark']}` | {app['family']} | "
+            f"{app['current_seconds']:.3f} / {app['target_budget_seconds']:.3f} | "
+            f"{app['total_operations']:,} | {app['transport_share_percent']:.2f}% | "
+            f"{app['required_speedup']:.2f}x | "
+            f"{app['uniform_cost_transport_speedup']:.2f}x | "
+            f"{app['remaining_speedup_after_transport']:.2f}x | "
+            f"{app['target_ns_per_remaining_semantic_operation']:.3f} |"
+        )
+    lines.extend(
+        [
+            "",
+            f"Across the six applications, {summary['total_transport_operations']:,} of "
+            f"{summary['total_dynamic_operations']:,} operations are modeled transport "
+            f"({summary['weighted_transport_share_percent']:.2f}%). The largest equal-cost "
+            f"planning gain is {summary['maximum_uniform_cost_transport_speedup']:.2f}x, "
+            f"while the smallest remaining target requirement is still "
+            f"{summary['minimum_remaining_speedup_after_transport']:.2f}x.",
+            "",
+            "The equal-cost calculation is deliberately favorable to transport removal: it "
+            "charges each removed load/constant/pop the same average cost as a semantic "
+            "operation, makes removal free, and adds no translation, register, merge, "
+            "materialization, or code-size cost. It is a planning scenario, not a timing "
+            "claim. The target nanoseconds show why representation work alone cannot close "
+            "the budget: the surviving calls, branches, stores, collection operations, "
+            "errors, and concurrency semantics would need to average "
+            f"{min(target_ns):.3f}-{max(target_ns):.3f} ns each.",
+            "",
+            "## Live opcode closure",
+            "",
+            f"All {summary['live_opcode_count']} live opcodes are classified exactly once. "
+            f"Only {summary['transport_opcode_count']} are removable representation "
+            f"dispatches; {summary['semantic_opcode_count']} retain observable or required "
+            "semantic work.",
+            "",
+            "| Category | Role | Opcodes |",
+            "| --- | --- | ---: |",
+        ]
+    )
+    for category in report["opcode_categories"]:
+        lines.append(
+            f"| `{category['id']}` | {category['role']} | "
+            f"{category['opcode_count']} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Complete semantic closure",
+            "",
+            "| Area | Required contract | Current evidence |",
+            "| --- | --- | --- |",
+        ]
+    )
+    for item in report["semantic_closure"]:
+        lines.append(
+            f"| `{item['id']}` | {item['requirement']} | {item['current_evidence']} |"
+        )
+    surface = report["implementation_surface"]
+    lines.extend(
+        [
+            "",
+            "The current VM surface contains "
+            f"{surface['production_files']} production `bytecode_vm*.go` files / "
+            f"{surface['production_lines']:,} lines and {surface['test_files']} test files / "
+            f"{surface['test_lines']:,} lines. A complete parallel executor would therefore "
+            "duplicate a large semantic authority unless it replaced the primary dispatcher "
+            "incrementally; the prior cold-fallback executor never reached that point.",
+            "",
+            "## Empirical architecture gates",
+            "",
+            "| Gate | Applications | Result | Observed range |",
+            "| --- | ---: | --- | ---: |",
+        ]
+    )
+    for gate in report["empirical_gates"]:
+        low, high = gate["delta_range_percent"]
+        lines.append(
+            f"| `{gate['id']}` | {gate['applications']} | `{gate['result']}` | "
+            f"{low:+.2f}% to {high:+.2f}% |"
+        )
+    lines.extend(["", "Reasons:", ""])
+    for gate in report["empirical_gates"]:
+        lines.append(f"- **{gate['id']}:** {gate['reason']}")
+    lines.extend(
+        [
+            "",
+            "## Reproduction",
+            "",
+            "The six opcode censuses use `ABLE_BYTECODE_STATS=1` with one measured "
+            "main per fresh process, `GOMAXPROCS=1`, `GOGC=50`, a 1 GiB memory limit, "
+            "and a 55-second timeout. Counts are deterministic and are not timing evidence. "
+            "The target side is the current five-process arithmetic-mean frontier.",
+            "",
+            "```sh",
+            "v12/bench_bytecode_architecture_budget \\",
+            "  --json-out /tmp/able-bytecode-architecture-budget.json \\",
+            "  --markdown-out /tmp/able-bytecode-architecture-budget.md",
+            "python3 v12/bench_bytecode_architecture_budget_test.py",
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--frontier", type=Path, default=DEFAULT_FRONTIER)
+    parser.add_argument("--opcode-names", type=Path, default=DEFAULT_OPCODE_NAMES)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        report = build_report(args.evidence, args.frontier, args.opcode_names)
+    except ValueError as error:
+        raise SystemExit(f"error: {error}") from None
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(encoded, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_out.write_text(render_markdown(report), encoding="utf-8")
+    if not args.json_out and not args.markdown_out:
+        print(encoded, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

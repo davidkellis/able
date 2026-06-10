@@ -1,0 +1,128 @@
+File: compiled
+Build ID: 486c97beb49084dd1a04192783747a196accdc33
+Type: cpu
+Time: 2026-07-28 09:43:04 CDT
+Duration: 1.43s, Total samples = 1.58s (110.65%)
+Showing nodes accounting for 1.58s, 100% of 1.58s total
+Showing top 120 nodes out of 175
+      flat  flat%   sum%        cum   cum%
+     0.15s  9.49%  9.49%      0.15s  9.49%  main.__able_checked_mul_signed
+     0.09s  5.70% 15.19%      0.13s  8.23%  runtime.tryDeferToSpanScan
+     0.07s  4.43% 19.62%      0.07s  4.43%  main.__able_checked_add_signed
+     0.07s  4.43% 24.05%      0.07s  4.43%  runtime.nextFreeFast (inline)
+     0.05s  3.16% 27.22%      0.05s  3.16%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.05s  3.16% 30.38%      0.05s  3.16%  main.__able_divmod_signed
+     0.05s  3.16% 33.54%      0.08s  5.06%  runtime.gcmarknewobject
+     0.05s  3.16% 36.71%      0.39s 24.68%  runtime.mallocgcSmallScanNoHeader
+     0.04s  2.53% 39.24%      0.34s 21.52%  main.__able_compiled_fn_parse_event_ctx
+     0.04s  2.53% 41.77%      0.10s  6.33%  main.__able_compiled_fn_record_checksum_ctx
+     0.04s  2.53% 44.30%      0.04s  2.53%  runtime.bool2int (inline)
+     0.04s  2.53% 46.84%      0.77s 48.73%  runtime.mallocgc
+     0.04s  2.53% 49.37%      0.09s  5.70%  runtime.scanObject
+     0.03s  1.90% 51.27%      0.08s  5.06%  able/interpreter-go/pkg/compiler/bridge.primitiveHashMapHash
+     0.03s  1.90% 53.16%      0.03s  1.90%  able/interpreter-go/pkg/runtime.HashBytes (inline)
+     0.03s  1.90% 55.06%      0.03s  1.90%  runtime.(*mspan).base (inline)
+     0.03s  1.90% 56.96%      0.05s  3.16%  runtime.(*mspan).writeHeapBitsSmall
+     0.03s  1.90% 58.86%      0.03s  1.90%  runtime.acquirem (inline)
+     0.03s  1.90% 60.76%      0.03s  1.90%  runtime.memclrNoHeapPointers
+     0.02s  1.27% 62.03%      0.02s  1.27%  able/interpreter-go/pkg/compiler/bridge.hashMapIntegerValue (inline)
+     0.02s  1.27% 63.29%      0.02s  1.27%  able/interpreter-go/pkg/compiler/bridge.primitiveHashMapKeyEqual
+     0.02s  1.27% 64.56%      0.24s 15.19%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     0.02s  1.27% 65.82%      0.02s  1.27%  internal/runtime/syscall/linux.Syscall6
+     0.02s  1.27% 67.09%      1.57s 99.37%  main.__able_compiled_fn_main_ctx
+     0.02s  1.27% 68.35%      0.07s  4.43%  main.__able_compiled_fn_score_event_ctx
+     0.02s  1.27% 69.62%      0.11s  6.96%  main.__able_struct_EventRecord_from
+     0.02s  1.27% 70.89%      0.03s  1.90%  runtime.mallocgcTiny
+     0.02s  1.27% 72.15%      0.02s  1.27%  runtime.memhash64
+     0.02s  1.27% 73.42%      0.02s  1.27%  runtime.releasem (inline)
+     0.01s  0.63% 74.05%      0.03s  1.90%  able/interpreter-go/pkg/compiler/bridge.AsInt
+     0.01s  0.63% 74.68%      0.39s 24.68%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     0.01s  0.63% 75.32%      0.01s  0.63%  able/interpreter-go/pkg/compiler/bridge.unwrapInterface
+     0.01s  0.63% 75.95%      0.01s  0.63%  able/interpreter-go/pkg/runtime.IntegerValue.ToInt64
+     0.01s  0.63% 76.58%      0.01s  0.63%  able/interpreter-go/pkg/runtime.NewSmallInt (inline)
+     0.01s  0.63% 77.22%      0.01s  0.63%  aeshashbody
+     0.01s  0.63% 77.85%      0.01s  0.63%  internal/abi.(*MapType).IndirectElem (inline)
+     0.01s  0.63% 78.48%      0.01s  0.63%  internal/runtime/atomic.(*Uint64).CompareAndSwap (inline)
+     0.01s  0.63% 79.11%      0.01s  0.63%  internal/runtime/atomic.(*UnsafePointer).StoreNoWB (inline)
+     0.01s  0.63% 79.75%      0.01s  0.63%  internal/runtime/maps.(*groupsReference).group (inline)
+     0.01s  0.63% 80.38%      0.01s  0.63%  internal/runtime/maps.mapKeyError2
+     0.01s  0.63% 81.01%      0.54s 34.18%  main.__able_compiled_fn_main_ctx.func1
+     0.01s  0.63% 81.65%      0.04s  2.53%  main.__able_nullable_i64_from_value
+     0.01s  0.63% 82.28%      0.74s 46.84%  main.__able_struct_EventRecord_to_seen
+     0.01s  0.63% 82.91%      0.01s  0.63%  main.__able_struct_instance
+     0.01s  0.63% 83.54%      0.02s  1.27%  main.__able_struct_named_field_value
+     0.01s  0.63% 84.18%      0.01s  0.63%  memeqbody
+     0.01s  0.63% 84.81%      0.05s  3.16%  runtime.(*mcache).refill
+     0.01s  0.63% 85.44%      0.03s  1.90%  runtime.(*mcentral).cacheSpan
+     0.01s  0.63% 86.08%      0.01s  0.63%  runtime.(*sweepLocked).sweep
+     0.01s  0.63% 86.71%      0.01s  0.63%  runtime.alignDown (inline)
+     0.01s  0.63% 87.34%      0.02s  1.27%  runtime.bulkBarrierPreWrite
+     0.01s  0.63% 87.97%      0.28s 17.72%  runtime.deductAssistCredit
+     0.01s  0.63% 88.61%      0.02s  1.27%  runtime.findObject
+     0.01s  0.63% 89.24%      0.01s  0.63%  runtime.heapArenaOf (inline)
+     0.01s  0.63% 89.87%      0.01s  0.63%  runtime.makeObjPtr (inline)
+     0.01s  0.63% 90.51%      0.03s  1.90%  runtime.mapaccess2_faststr
+     0.01s  0.63% 91.14%      0.06s  3.80%  runtime.markroot
+     0.01s  0.63% 91.77%      0.01s  0.63%  runtime.memequal
+     0.01s  0.63% 92.41%      0.01s  0.63%  runtime.memmove
+     0.01s  0.63% 93.04%      0.27s 17.09%  runtime.newobject
+     0.01s  0.63% 93.67%      0.01s  0.63%  runtime.pcvalue
+     0.01s  0.63% 94.30%      0.01s  0.63%  runtime.publicationBarrier
+     0.01s  0.63% 94.94%      0.01s  0.63%  runtime.readUintptr (inline)
+     0.01s  0.63% 95.57%      0.11s  6.96%  runtime.scanSpan
+     0.01s  0.63% 96.20%      0.01s  0.63%  runtime.spanClass.sizeclass (inline)
+     0.01s  0.63% 96.84%      0.01s  0.63%  runtime.spanHeapBitsRange (inline)
+     0.01s  0.63% 97.47%      0.01s  0.63%  runtime.spanOf (inline)
+     0.01s  0.63% 98.10%      0.01s  0.63%  runtime.spanSetScans
+     0.01s  0.63% 98.73%      0.01s  0.63%  runtime.typePointers.next
+     0.01s  0.63% 99.37%      0.02s  1.27%  runtime.typehash
+     0.01s  0.63%   100%      0.01s  0.63%  sync.(*RWMutex).RLock (inline)
+         0     0%   100%      0.04s  2.53%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%      0.08s  5.06%  able/interpreter-go/pkg/compiler/bridge.HashMapHashValue
+         0     0%   100%      0.02s  1.27%  able/interpreter-go/pkg/compiler/bridge.HashMapKeysEqual
+         0     0%   100%      0.01s  0.63%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0%   100%      0.02s  1.27%  able/interpreter-go/pkg/runtime.(*HashMapValue).HashCandidates (inline)
+         0     0%   100%      0.03s  1.90%  able/interpreter-go/pkg/runtime.(*HasherValue).WriteBytes (inline)
+         0     0%   100%      0.03s  1.90%  able/interpreter-go/pkg/runtime.(*HasherValue).WriteInt64 (inline)
+         0     0%   100%      0.02s  1.27%  gcWriteBarrier
+         0     0%   100%      0.05s  3.16%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0%   100%      0.05s  3.16%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+         0     0%   100%      0.04s  2.53%  internal/runtime/maps.(*Map).growToSmall
+         0     0%   100%      0.02s  1.27%  internal/runtime/maps.(*Map).putSlotSmall
+         0     0%   100%      0.02s  1.27%  internal/runtime/maps.NewEmptyMap (inline)
+         0     0%   100%      0.01s  0.63%  internal/runtime/maps.mapKeyError (inline)
+         0     0%   100%      0.04s  2.53%  internal/runtime/maps.newGroups (inline)
+         0     0%   100%      0.04s  2.53%  internal/runtime/maps.newarray
+         0     0%   100%      0.01s  0.63%  internal/runtime/maps.typedmemmove
+         0     0%   100%      0.01s  0.63%  internal/runtime/syscall/linux.EpollWait
+         0     0%   100%      1.57s 99.37%  main.RunRegisteredMain
+         0     0%   100%      1.57s 99.37%  main.RunRegisteredMain.func1
+         0     0%   100%      0.08s  5.06%  main.__able_compiled_fn_event_error_ctx
+         0     0%   100%      1.57s 99.37%  main.__able_compiled_fn_main
+         0     0%   100%      0.94s 59.49%  main.__able_compiled_fn_main_ctx.func2
+         0     0%   100%      0.13s  8.23%  main.__able_compiled_fn_map_count_ctx
+         0     0%   100%      0.03s  1.90%  main.__able_compiled_fn_read_u16_ctx
+         0     0%   100%      0.02s  1.27%  main.__able_compiled_fn_read_u32_ctx
+         0     0%   100%      0.13s  8.23%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0%   100%      0.03s  1.90%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0%   100%      0.96s 60.76%  main.__able_compiled_method_Result__map_spec_ctx
+         0     0%   100%      0.04s  2.53%  main.__able_hash_map_find_entry
+         0     0%   100%      0.09s  5.70%  main.__able_hash_map_get_ctx (inline)
+         0     0%   100%      0.09s  5.70%  main.__able_hash_map_get_impl
+         0     0%   100%      0.08s  5.06%  main.__able_hash_map_hash
+         0     0%   100%      0.02s  1.27%  main.__able_hash_map_keys_equal
+         0     0%   100%      0.03s  1.90%  main.__able_hash_map_set_ctx (inline)
+         0     0%   100%      0.03s  1.90%  main.__able_hash_map_set_impl
+         0     0%   100%      1.57s 99.37%  main.__able_register_compiled_call.func1
+         0     0%   100%      0.01s  0.63%  main.__able_struct_EventDecodeError_to (inline)
+         0     0%   100%      0.01s  0.63%  main.__able_struct_EventDecodeError_to_seen
+         0     0%   100%      0.35s 22.15%  main.__able_struct_EventRecord_apply
+         0     0%   100%      0.74s 46.84%  main.__able_struct_EventRecord_to (inline)
+         0     0%   100%      0.02s  1.27%  main.__able_union__EventRecord_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+         0     0%   100%      0.02s  1.27%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+         0     0%   100%      1.57s 99.37%  main.__able_wrap_fn_main
+         0     0%   100%      1.57s 99.37%  main.main
+         0     0%   100%      1.57s 99.37%  main.runMain
+         0     0%   100%      0.01s  0.63%  os.Open (inline)
+         0     0%   100%      0.01s  0.63%  os.OpenFile
+         0     0%   100%      0.01s  0.63%  os.ReadFile

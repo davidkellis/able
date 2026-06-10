@@ -1,0 +1,78 @@
+{
+  "kind": "truthiness-cast-wide-text-closure-reach",
+  "date": "2026-07-21",
+  "diagnostic_only": true,
+  "production_instrumentation_retained": false,
+  "compiled": {
+    "processes_per_application": 1,
+    "verified_processes": 3,
+    "rows": [
+      {
+        "benchmark": "fixed_width_128",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      },
+      {
+        "benchmark": "rational_series",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      },
+      {
+        "benchmark": "wide_integer_records",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      }
+    ]
+  },
+  "bytecode": {
+    "processes_per_application": 2,
+    "verified_processes": 10,
+    "rows": [
+      {
+        "benchmark": "i_before_e",
+        "semantic_truthy_checks_per_process": [694932, 694932],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [0, 0],
+        "explicit_cast_failures_per_process": [0, 0]
+      },
+      {
+        "benchmark": "inventory_reconciliation",
+        "semantic_truthy_checks_per_process": [0, 0],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [0, 0],
+        "explicit_cast_failures_per_process": [0, 0]
+      },
+      {
+        "benchmark": "k_nucleotide",
+        "semantic_truthy_checks_per_process": [63124394, 63124394],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [28, 28],
+        "explicit_cast_failures_per_process": [0, 0]
+      },
+      {
+        "benchmark": "unicode_scalar_pipeline",
+        "semantic_truthy_checks_per_process": [1769472, 1769472],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [0, 0],
+        "explicit_cast_failures_per_process": [0, 0]
+      },
+      {
+        "benchmark": "word_frequency",
+        "semantic_truthy_checks_per_process": [415293, 415293],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [0, 0],
+        "explicit_cast_failures_per_process": [0, 0]
+      }
+    ],
+    "profile_gate": {
+      "profiles_collected": 0,
+      "reason": "No changed Error fallback or cast-failure branch was reached, and the successful cast wrapper occurred in only one application."
+    }
+  }
+}

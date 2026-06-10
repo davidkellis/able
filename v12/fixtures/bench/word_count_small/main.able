@@ -1,0 +1,100 @@
+package bench_word_count_small
+
+import able.collections.hash_map.*
+import able.collections.map.*
+import able.core.interfaces.{Error}
+import able.kernel.{Array}
+import able.text.string.{String, StringBuilder}
+
+fn finish_builder(builder: StringBuilder) -> String {
+  builder.finish() match {
+    case value: String => value,
+    case err: Error => { raise err }
+  }
+}
+
+fn vocabulary() -> Array String {
+  [
+    "alpha",
+    "beta",
+    "gamma",
+    "delta",
+    "epsilon",
+    "zeta",
+    "eta",
+    "theta",
+    "iota",
+    "kappa",
+    "lambda",
+    "mu",
+    "nu",
+    "xi",
+    "omicron",
+    "pi"
+  ]
+}
+
+fn build_text(words: Array String, count: i32) -> String {
+  builder := StringBuilder.with_capacity(count * 8)
+  idx := 0
+  loop {
+    if idx >= count { break }
+    if idx > 0 {
+      builder.push_char(' ')
+    }
+    word_idx := ((idx * 13) + (idx // 7)) % words.len()
+    builder.push_string(words[word_idx]!)
+    idx = idx + 1
+  }
+  finish_builder(builder)
+}
+
+fn count_lookup(counts: Map String i32, word: String) -> i32 {
+  counts.get(word) match {
+    case value: i32 => value,
+    case nil => 0
+  }
+}
+
+fn count_store(counts: Map String i32, word: String, value: i32) -> void {
+  counts.set(word, value)
+}
+
+fn count_words(text: String, words: Array String) -> i64 {
+  counts: HashMap String i32 = HashMap.with_capacity(words.len() * 2)
+  parts := text.split(" ")
+  idx := 0
+  loop {
+    if idx >= parts.len() { break }
+    word := parts[idx]!
+    if word.len_bytes() > 0 {
+      current := count_lookup(counts, word)
+      count_store(counts, word, current + 1)
+    }
+    idx = idx + 1
+  }
+
+  total: i64 = parts.len() as i64
+  idx = 0
+  loop {
+    if idx >= words.len() { break }
+    word := words[idx]!
+    current := count_lookup(counts, word)
+    total = total + ((current as i64) * ((word.len_bytes() as i64) + 1_i64))
+    idx = idx + 1
+  }
+  total
+}
+
+fn main() -> void {
+  words := vocabulary()
+  text := build_text(words, 5_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 4 { break }
+    total = total + count_words(text, words)
+    rounds = rounds + 1
+  }
+  print(total)
+}

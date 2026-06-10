@@ -1,0 +1,118 @@
+{
+  "kind": "able-cross-family-architecture-ownership-census",
+  "schema_version": 2,
+  "date": "2026-07-21",
+  "frontier": {
+    "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+    "selected_rows": 85,
+    "compiled_rows": 46,
+    "bytecode_rows": 39,
+    "target_meets": 8,
+    "target_misses": 77,
+    "established_guards": 5,
+    "total_excess_seconds": 143.92705263157896,
+    "actionable_groups": 0
+  },
+  "revalidation": {
+    "current_family_closures": 18,
+    "retained_verified_timing_processes": 1710,
+    "changed_semantic_paths": [
+      "qualified Error truthiness",
+      "catchable explicit runtime cast failure"
+    ],
+    "production_instrumentation_retained": false
+  },
+  "admission_rule": "Admit an implementation candidate only when the same concrete non-nominal architectural cost is CPU-material in at least three unlike verifier-backed applications and a causal mechanism has not already failed broad guards.",
+  "boundaries": [
+    {
+      "id": "corrected-truthiness-cast-paths",
+      "mode": "cross-mode",
+      "breadth": "18 current family closures spanning all 85 selected frontier rows",
+      "exact_result": "Compiled reach appears in one Option/Result cast application, one regex truthiness application, and seven concurrency truthiness applications, but normal-build profiles sample zero CPU in the generated or shared truthiness/cast bridges. Bytecode exact censuses find zero corrected Error fallback in every refreshed application; successful cast-wrapper reach is either CPU-flat zero or a tiny single-application leaf.",
+      "disposition": "closed-no-shared-material-leaf",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-wide-text-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md"
+      ]
+    },
+    {
+      "id": "compiled-generated-runtime",
+      "mode": "compiled",
+      "breadth": "46 selected compiled applications plus post-fix generated bridge reach",
+      "exact_result": "Current compiled applications execute direct generated bodies. Boxed helpers and generic-union fallback remain absent or non-material; the newly corrected shared truthiness/cast bridges are sampled at zero CPU across admitted profiles.",
+      "disposition": "closed-no-shared-material-leaf",
+      "candidate_admitted": false
+    },
+    {
+      "id": "compiled-allocation-and-nominal-results",
+      "mode": "compiled",
+      "breadth": "text/map, wide numeric, float numeric, regex, and concurrency families",
+      "exact_result": "Material allocation owners remain map/text conversion, escaping wide nominal results, regex state, and concurrency state. Distance Field allocates fewer bytes than Go while remaining far outside target.",
+      "disposition": "closed-split-semantic-owners",
+      "candidate_admitted": false
+    },
+    {
+      "id": "compiled-runtime-initialization-and-context",
+      "mode": "compiled",
+      "breadth": "11 current concurrency applications and unlike serial guards",
+      "exact_result": "currentGID/runtime.Stack remains 74.07%-96.82% cumulative in the admitted current profiles, but the general execution-context replacement already regressed unlike concurrency and serial guards.",
+      "disposition": "closed-rejected-candidate",
+      "candidate_admitted": false
+    },
+    {
+      "id": "bytecode-primary-dispatch",
+      "mode": "bytecode",
+      "breadth": "39 selected bytecode rows; six-family current architecture selection",
+      "exact_result": "The dispatcher remains a shared parent, while direct opcode, layout, typed block, register-IR, and PGO mechanisms are already rejected or dynamically absent. The current transport-free ceiling still leaves all six architecture rows outside target.",
+      "disposition": "closed-rejected-mechanisms",
+      "candidate_admitted": false
+    },
+    {
+      "id": "bytecode-scalar-encoding",
+      "mode": "bytecode",
+      "breadth": "text, iterator, numeric, wide, byte-output, and regex families",
+      "exact_result": "Raw scalar extraction and transport remain recurrent, but carrier, sidecar, and raw-float alternatives reverse sign on guards. Corrected cast failures add no newly reached material child.",
+      "disposition": "closed-rejected-candidate",
+      "candidate_admitted": false
+    },
+    {
+      "id": "bytecode-call-return-continuation",
+      "mode": "bytecode",
+      "breadth": "call/return parents across text, iterator, numeric, map, regex, and control families",
+      "exact_result": "Concrete descendants still divide by call route and coercion. Caller-owned results, raw-cell preservation, and return-guard variants failed broad wall-time guards.",
+      "disposition": "closed-rejected-or-no-shared-child",
+      "candidate_admitted": false
+    },
+    {
+      "id": "bytecode-nominal-construction",
+      "mode": "bytecode",
+      "breadth": "text and regex nominal construction plus returned-shape selections",
+      "exact_result": "Hot definitions and lifetimes remain Utf8DecodeResult or RegexNFAThread in related consumers, not one non-escaping shape in three unlike applications.",
+      "disposition": "closed-insufficient-lifetime-breadth",
+      "candidate_admitted": false
+    },
+    {
+      "id": "cross-mode-map-and-allocation-parents",
+      "mode": "cross-mode",
+      "breadth": "aggregate Go map, malloc, and GC symbols across both modes",
+      "exact_result": "Caller attribution still separates environment bindings, caches, Able HashMap operations, parsing, result growth, nominal construction, and host conversion. These aggregate Go runtime symbols are not one Able mechanism.",
+      "disposition": "closed-no-shared-leaf",
+      "candidate_admitted": false
+    }
+  ],
+  "summary": {
+    "boundaries_audited": 9,
+    "boundaries_with_cross_family_recurrence": 7,
+    "new_candidates_admitted": 0,
+    "frontier_dispositions_changed": 0
+  },
+  "decision": {
+    "candidate": null,
+    "reason": "The corrected semantic paths add reach but no sampled shared CPU leaf. Every recurrent architecture parent remains split into unlike concrete owners or covered by a rejected general mechanism.",
+    "required_invalidation": "A new portable application family, changed production semantics, or exact profile evidence must expose one unrejected concrete child that is CPU-material in three unlike applications."
+  }
+}

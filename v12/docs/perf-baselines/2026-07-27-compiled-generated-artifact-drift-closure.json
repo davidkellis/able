@@ -1,0 +1,60 @@
+{
+  "date": "2026-07-27",
+  "decision": "retain_no_production_change",
+  "reason": "current hot generated machine code exactly matches the frozen unlike cohort",
+  "go_version": "go1.26.4 linux/amd64",
+  "frozen_compiler_sha256": "28697a5adf4f73918f3d83fbcddc211407dc7e539240f64e4127a4e3dd4ddcab",
+  "current_compiler_sha256": "2570b8372377e84406953583c6c440bc8a5c59392bc6ddbdc50d16cb9b3a6912",
+  "strict": {
+    "no_fallbacks": true,
+    "applications": 3,
+    "packages_per_graph": 96,
+    "interpreter_dependency_matches": 0,
+    "generated_interpreter_source_matches": 0
+  },
+  "applications": [
+    {
+      "name": "tapelang_alphabet",
+      "binary_sha256": "766be7e25186d71fec9148cdf857484b2ed8ae3e58fb4daa70261d2c2f7d453b",
+      "generated_primary_sha256": "0a38432e2f5ab3f651cd72286f6d255ab52961dd004119f2c00e3570b62868ca",
+      "verified_processes": 3,
+      "smoke_wall_mean_seconds": 3.8667
+    },
+    {
+      "name": "sudoku_masks",
+      "binary_sha256": "489ac83411f16a81d46bb1f0164a4d485c6bb85fd5c66566d3e706ac7c8f0fab",
+      "generated_primary_sha256": "2c85adecd8e26726cebda3f2a2d9e5b1bea51a5a9dd3582f438ab97809e2ed90",
+      "verified_processes": 3,
+      "smoke_wall_mean_seconds": 1.5433
+    },
+    {
+      "name": "fib",
+      "binary_sha256": "71ca195cc22c8a9dab94abdb054e3480dd212270ac48db520ff796190c42537a",
+      "generated_primary_sha256": "70b3e0eb1993b52e81dcb82d1192e353527e5008bdb6d4f26b02f8ca0c27ab27",
+      "verified_processes": 3,
+      "smoke_wall_mean_seconds": 3.5733
+    }
+  ],
+  "hot_symbols": [
+    {"function": "fib", "bytes": 166, "instructions": 52, "calls": 5, "conditional_jumps": 4, "unconditional_jumps": 1},
+    {"function": "execute", "bytes": 1018, "instructions": 276, "calls": 17, "conditional_jumps": 34, "unconditional_jumps": 19},
+    {"function": "Tape.inc", "bytes": 295, "instructions": 82, "calls": 4, "conditional_jumps": 10, "unconditional_jumps": 6},
+    {"function": "Tape.move", "bytes": 248, "instructions": 66, "calls": 4, "conditional_jumps": 5, "unconditional_jumps": 3},
+    {"function": "find_best_empty", "bytes": 784, "instructions": 198, "calls": 10, "conditional_jumps": 13, "unconditional_jumps": 5},
+    {"function": "bit_count", "bytes": 98, "instructions": 33, "calls": 2, "conditional_jumps": 3, "unconditional_jumps": 2},
+    {"function": "square_index", "bytes": 278, "instructions": 74, "calls": 5, "conditional_jumps": 5, "unconditional_jumps": 1},
+    {"function": "solve_with_masks", "bytes": 1477, "instructions": 348, "calls": 24, "conditional_jumps": 23, "unconditional_jumps": 6}
+  ],
+  "frozen_metric_mismatches": 0,
+  "cpu_profile_refresh_admitted": false,
+  "allocation_profile_refresh_admitted": false,
+  "production_prototype_admitted": false,
+  "ab_go_gate_entered": false,
+  "full_handoff": {
+    "passed": true,
+    "elapsed_seconds": 632.07,
+    "peak_rss_kb": 4657832,
+    "compiler_batches": 33,
+    "bytecode_fixture_seconds": 86.660
+  }
+}

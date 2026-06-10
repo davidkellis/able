@@ -1,0 +1,40 @@
+package bench_queue_i32_small
+
+import able.collections.queue.{Queue}
+
+fn build(size: i32) -> Queue i32 {
+  values: Queue i32 = Queue.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.enqueue(((i * 7) + 3) % 10_007)
+    i = i + 1
+  }
+  values
+}
+
+fn cycle(values: Queue i32, steps: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= steps { break }
+    maybe_value := values.dequeue()
+    value: i32 := maybe_value or { 0 }
+    total = total + (value as i64)
+    values.enqueue((value + (i * 3) + 11) % 32_749)
+    i = i + 1
+  }
+  total
+}
+
+fn main() -> void {
+  values := build(4_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 5 { break }
+    total = total + cycle(values, 8_000)
+    rounds = rounds + 1
+  }
+  print(total)
+}

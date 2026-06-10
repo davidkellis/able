@@ -420,6 +420,18 @@ func Imp(packagePath []interface{}, isWildcard bool, selectors []*ImportSelector
 	return NewImportStatement(ids, isWildcard, selectors, identifierPtr(alias))
 }
 
+func Exp(name interface{}) *ExportStatement {
+	return NewExportStatement(identifierPtr(name), nil, false)
+}
+
+func ExpAll(packagePath []interface{}) *ExportStatement {
+	ids := make([]*Identifier, len(packagePath))
+	for i, v := range packagePath {
+		ids[i] = identifierPtr(v)
+	}
+	return NewExportStatement(nil, ids, true)
+}
+
 func DynImp(packagePath []interface{}, isWildcard bool, selectors []*ImportSelector, alias interface{}) *DynImportStatement {
 	ids := make([]*Identifier, len(packagePath))
 	for i, v := range packagePath {

@@ -1,0 +1,269 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+workdir=""
+output=""
+benchmark_repo="$(realpath "$SCRIPT_DIR/../../benchmarks")"
+ablec=""
+benchmarks_csv="$(bench_external_suite_csv coverage)"
+emit_timeout=60
+build_timeout=60
+run_timeout=120
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_compiler_struct_field_reach_census \
+    --workdir DIR \
+    --output FILE \
+    [--benchmark-repo DIR] \
+    [--ablec FILE] \
+    [--benchmarks CSV]
+
+Strictly emits, links, instruments, and verifier-runs all 63 portable
+applications. The retained TSV separates emitted, linked, and executed reach
+for every corrected generated struct-field read family.
+EOF
+}
+
+die() {
+  echo "bench_compiler_struct_field_reach_census: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --output)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output"
+      output="$1"
+      ;;
+    --benchmark-repo)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"
+      benchmark_repo="$1"
+      ;;
+    --ablec)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --ablec"
+      ablec="$1"
+      ;;
+    --benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      ;;
+    --emit-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --emit-timeout"
+      emit_timeout="$1"
+      ;;
+    --build-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --build-timeout"
+      build_timeout="$1"
+      ;;
+    --run-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --run-timeout"
+      run_timeout="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$workdir" ]] || die "--workdir is required"
+[[ -n "$output" ]] || die "--output is required"
+workdir="$(realpath -m "$workdir")"
+output="$(realpath -m "$output")"
+benchmark_repo="$(realpath "$benchmark_repo")"
+stdlib_root="$(realpath "$SCRIPT_DIR/../../able-stdlib/src")"
+mkdir -p "$workdir"/{bin,generated,probe,tmp,gocache,extern} "$(dirname "$output")"
+[[ -d "$benchmark_repo" ]] || die "benchmark repo not found: $benchmark_repo"
+
+if [[ -z "$ablec" ]]; then
+  ablec="$workdir/bin/ablec"
+  echo ">>> Building retained ablec"
+  TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" \
+    go build -C "$GO_DIR" -o "$ablec" ./cmd/ablec
+else
+  ablec="$(realpath "$ablec")"
+fi
+[[ -x "$ablec" ]] || die "ablec not executable: $ablec"
+
+count_csv() {
+  local value="$1"
+  if [[ -z "$value" ]]; then
+    printf '%s\n' "none"
+  else
+    printf '%s\n' "$value"
+  fi
+}
+
+tmp_output="$(mktemp "$workdir/census.XXXXXX")"
+printf '%s\n' \
+  $'benchmark\tsource_sha256\tcompiled_sha256\tbinary_sha256\tprobe_binary_sha256\tinterpreter_free\temitted_branches\tlinked_branches\treached_branches\tprobe_status\tverifier_status\tstdout_sha256' \
+  >"$tmp_output"
+
+IFS=',' read -r -a benchmarks <<<"$benchmarks_csv"
+for index in "${!benchmarks[@]}"; do
+  benchmark="${benchmarks[$index]}"
+  echo ">>> [$((index + 1))/${#benchmarks[@]}] $benchmark"
+  target="$(realpath "$(bench_external_target "$SCRIPT_DIR" "$benchmark")")"
+  suite_dir="$(bench_external_suite_dir "$benchmark_repo" "$benchmark")"
+  run_dir="$(bench_external_run_dir "$benchmark_repo" "$benchmark")"
+  verifier="$suite_dir/verify.rb"
+  [[ -f "$target" ]] || die "source missing for $benchmark: $target"
+  [[ -d "$suite_dir" && -d "$run_dir" ]] ||
+    die "benchmark directories missing for $benchmark"
+  [[ -f "$verifier" ]] || die "public verifier missing for $benchmark"
+
+  if [[ -f "$suite_dir/setup.rb" ]]; then
+    (cd "$suite_dir" && ruby setup.rb >/dev/null)
+  fi
+
+  app_root="$workdir/generated/$benchmark"
+  probe_root="$workdir/probe/$benchmark"
+  mkdir -p "$app_root" "$probe_root/instrumented"
+
+  source_root_env=()
+  if bench_external_source_root_only "$benchmark"; then
+    source_root_env=(ABLE_SOURCE_ROOT_ONLY=1)
+  fi
+  (
+    cd "$run_dir"
+    timeout --signal=INT --kill-after=5 "$emit_timeout" \
+      env \
+        TMPDIR="$workdir/tmp" \
+        GOCACHE="$workdir/gocache" \
+        ABLE_EXTERN_CACHE="$workdir/extern" \
+        ABLE_PATH= \
+        ABLE_MODULE_PATHS= \
+        ABLE_STDLIB_ROOT="$stdlib_root" \
+        GOMEMLIMIT=1GiB \
+        GOGC=50 \
+        GOMAXPROCS=1 \
+        "${source_root_env[@]}" \
+        "$ablec" -main -pkg main -o "$app_root" --no-fallbacks "$target"
+  ) >/dev/null
+
+  deps="$(
+    TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" \
+      go list -C "$app_root" -mod=mod -deps .
+  )"
+  interpreter_free=true
+  if rg -q '^able/interpreter-go/pkg/interpreter$' <<<"$deps"; then
+    interpreter_free=false
+  fi
+
+  timeout --signal=INT --kill-after=5 "$build_timeout" \
+    env TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" GOMAXPROCS=1 \
+    go build -C "$app_root" -mod=mod -o "$app_root/compiled" . >/dev/null
+
+  overlay="$probe_root/overlay.json"
+  metadata="$probe_root/instrumentation.json"
+  python3 "$SCRIPT_DIR/bench_compiler_struct_field_reach_instrument.py" \
+    --module-dir "$app_root" \
+    --output-dir "$probe_root/instrumented" \
+    --overlay "$overlay" \
+    --metadata "$metadata"
+  timeout --signal=INT --kill-after=5 "$build_timeout" \
+    env TMPDIR="$workdir/tmp" GOCACHE="$workdir/gocache" GOMAXPROCS=1 \
+    go build -C "$app_root" -overlay="$overlay" -mod=mod \
+      -o "$probe_root/compiled" . >/dev/null
+
+  emitted="$(
+    python3 - "$metadata" <<'PY'
+import json
+import sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+print(",".join(sorted(key for key, value in data["branches"].items() if value)))
+PY
+  )"
+  linked="$(
+    { go tool nm "$probe_root/compiled" 2>/dev/null || true; } |
+      { rg -o '__able_struct_field_reach_[a-z_]+' || true; } |
+      sed 's/^__able_struct_field_reach_//' |
+      { rg -v '^mark$' || true; } |
+      sort -u |
+      paste -sd, -
+  )"
+
+  args=()
+  while IFS= read -r argument; do
+    [[ -n "$argument" ]] || continue
+    args+=("$argument")
+  done < <(bench_external_program_args "$benchmark")
+  executor="$(bench_external_executor_policy "$benchmark")"
+  logical_cpus="$(bench_external_logical_cpu_budget "$benchmark" compiled)"
+  stdout="$probe_root/stdout"
+  stderr="$probe_root/stderr"
+  set +e
+  (
+    cd "$run_dir"
+    timeout --signal=INT --kill-after=5 "$run_timeout" \
+      env \
+        TMPDIR="$workdir/tmp" \
+        ABLE_PATH= \
+        ABLE_MODULE_PATHS= \
+        ABLE_STDLIB_ROOT="$stdlib_root" \
+        ABLE_EXECUTOR="$executor" \
+        GOMAXPROCS="$logical_cpus" \
+        "$probe_root/compiled" "${args[@]}"
+  ) >"$stdout" 2>"$stderr"
+  probe_rc=$?
+  set -e
+
+  probe_status=pass
+  if [[ "$probe_rc" -ne 0 ]]; then
+    probe_status="exit-$probe_rc"
+  fi
+  verifier_status=not-run
+  if [[ "$probe_rc" -eq 0 ]] && ruby "$verifier" <"$stdout"; then
+    verifier_status=pass
+  elif [[ "$probe_rc" -eq 0 ]]; then
+    verifier_status=fail
+  fi
+  [[ "$probe_status" == pass && "$verifier_status" == pass ]] ||
+    die "$benchmark probe failed: $probe_status/$verifier_status"
+
+  reached="$(
+    { rg -o '__ABLE_STRUCT_FIELD_REACH__:[a-z_]+' "$stderr" || true; } |
+      sed 's/^__ABLE_STRUCT_FIELD_REACH__://' |
+      sort -u |
+      paste -sd, -
+  )"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$benchmark" \
+    "$(sha256sum "$target" | cut -d' ' -f1)" \
+    "$(sha256sum "$app_root/compiled.go" | cut -d' ' -f1)" \
+    "$(sha256sum "$app_root/compiled" | cut -d' ' -f1)" \
+    "$(sha256sum "$probe_root/compiled" | cut -d' ' -f1)" \
+    "$interpreter_free" \
+    "$(count_csv "$emitted")" \
+    "$(count_csv "$linked")" \
+    "$(count_csv "$reached")" \
+    "$probe_status" \
+    "$verifier_status" \
+    "$(sha256sum "$stdout" | cut -d' ' -f1)" \
+    >>"$tmp_output"
+done
+
+mv "$tmp_output" "$output"
+echo "wrote ${#benchmarks[@]} rows to $output"

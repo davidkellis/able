@@ -3,123 +3,12 @@ package interpreter
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
 var errBytecodeUnsupported = errors.New("bytecode lowering unsupported")
-
-func bytecodeSimpleLookupName(name string) bool {
-	return name != "" && !strings.Contains(name, ".")
-}
-
-func bytecodeIdentifierMemberName(expr ast.Expression) string {
-	if ident, ok := expr.(*ast.Identifier); ok && ident != nil {
-		return ident.Name
-	}
-	return ""
-}
-
-type bytecodeLoweringContext struct {
-	instructions           []bytecodeInstruction
-	scopeDepth             int
-	loopStack              []loopContext
-	allowPlaceholderLambda bool
-	frameLayout            *bytecodeFrameLayout // non-nil = slot mode
-	slotScopes             []map[string]int     // scope stack for slot lookups
-	slotKinds              []bytecodeCellKind   // typed-cell kind by slot while lowering
-	nextSlot               int                  // next available slot index
-	selfCallName           string               // current function name for self-recursive call lowering
-	selfCallSlot           int                  // reserved slot for self-recursive call fast path
-	discardExpressionValue bool
-	discardExpressionNode  ast.Expression
-	f64DotLoops            map[int]bytecodeF64DotLoopPlan
-	f64MatrixRowLoops      map[int]bytecodeF64MatrixRowLoopPlan
-	f64AffineRowLoops      map[int]bytecodeF64AffineRowLoopPlan
-	f64TransposeRowLoops   map[int]bytecodeF64TransposeRowLoopPlan
-	f64AffinePushes        map[int]bytecodeF64AffineProductPushPlan
-	f64NestedGetPushes     map[int]bytecodeF64NestedArrayGetPushPlan
-}
-
-type loopContext struct {
-	start      int
-	scopeDepth int
-	breakJumps []int
-}
-
-func (i *Interpreter) lowerModuleToBytecode(module *ast.Module) (*bytecodeProgram, error) {
-	if module == nil {
-		return nil, fmt.Errorf("bytecode lowering module is nil")
-	}
-	ctx := &bytecodeLoweringContext{
-		instructions:           make([]bytecodeInstruction, 0, len(module.Body)*2),
-		allowPlaceholderLambda: true,
-	}
-	if len(module.Body) == 0 {
-		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
-		ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
-		return &bytecodeProgram{instructions: ctx.instructions}, nil
-	}
-	for idx, stmt := range module.Body {
-		if stmt == nil {
-			return nil, bytecodeUnsupported("nil statement in module body")
-		}
-		if err := emitStatement(ctx, i, stmt, idx == len(module.Body)-1); err != nil {
-			return nil, err
-		}
-	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
-	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffineRowLoops: ctx.f64AffineRowLoops, f64TransposeRowLoops: ctx.f64TransposeRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
-}
-
-func (i *Interpreter) lowerExpressionToBytecode(expr ast.Expression) (*bytecodeProgram, error) {
-	return i.lowerExpressionToBytecodeWithOptions(expr, true)
-}
-
-func (i *Interpreter) lowerExpressionToBytecodeWithOptions(expr ast.Expression, allowPlaceholderLambda bool) (*bytecodeProgram, error) {
-	if expr == nil {
-		return nil, fmt.Errorf("bytecode lowering expression is nil")
-	}
-	if cached, ok := i.lookupCachedExpressionBytecode(expr, allowPlaceholderLambda); ok {
-		i.recordBytecodeExpressionCacheHit()
-		return cached, nil
-	}
-	i.recordBytecodeExpressionCacheMiss()
-	ctx := &bytecodeLoweringContext{
-		instructions:           make([]bytecodeInstruction, 0, 4),
-		allowPlaceholderLambda: allowPlaceholderLambda,
-	}
-	if emitted, err := bytecodeEmitFinalI32StackExpr(ctx, expr); err != nil {
-		return nil, err
-	} else if !emitted {
-		if err := emitExpression(ctx, i, expr); err != nil {
-			return nil, err
-		}
-	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
-	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	program := &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffineRowLoops: ctx.f64AffineRowLoops, f64TransposeRowLoops: ctx.f64TransposeRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}
-	return i.cacheExpressionBytecode(expr, allowPlaceholderLambda, program), nil
-}
-
-func (i *Interpreter) lowerBlockExpressionToBytecode(block *ast.BlockExpression, allowPlaceholderLambda bool) (*bytecodeProgram, error) {
-	if block == nil {
-		return nil, fmt.Errorf("bytecode lowering block is nil")
-	}
-	ctx := &bytecodeLoweringContext{
-		instructions:           make([]bytecodeInstruction, 0, len(block.Body)*2),
-		allowPlaceholderLambda: allowPlaceholderLambda,
-	}
-	if err := emitBlock(ctx, i, block); err != nil {
-		return nil, err
-	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpReturn})
-	bytecodeFuseImplicitReturnBinaryIntAdd(ctx.instructions, nil)
-	return &bytecodeProgram{instructions: ctx.instructions, f64DotLoops: ctx.f64DotLoops, f64MatrixRowLoops: ctx.f64MatrixRowLoops, f64AffineRowLoops: ctx.f64AffineRowLoops, f64TransposeRowLoops: ctx.f64TransposeRowLoops, f64AffinePushes: ctx.f64AffinePushes, f64NestedGetPushes: ctx.f64NestedGetPushes}, nil
-}
 
 func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statement, isLast bool) error {
 	resultDiscarded := false
@@ -132,6 +21,12 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 	case *ast.StructDefinition:
 		if s == nil {
 			return bytecodeUnsupported("nil struct definition")
+		}
+		if s.ID != nil && s.ID.Name != "" {
+			if ctx.structDefs == nil {
+				ctx.structDefs = make(map[string]*ast.StructDefinition, 4)
+			}
+			ctx.structDefs[s.ID.Name] = s
 		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpDefineStruct, node: s})
 	case *ast.UnionDefinition:
@@ -174,7 +69,7 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 			return bytecodeUnsupported("nil dynimport statement")
 		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpDynImport, node: s})
-	case *ast.PackageStatement, *ast.PreludeStatement:
+	case *ast.ExportStatement, *ast.PackageStatement, *ast.PreludeStatement:
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
 	case *ast.ReturnStatement:
 		if s == nil {
@@ -207,6 +102,13 @@ func emitStatement(ctx *bytecodeLoweringContext, i *Interpreter, stmt ast.Statem
 	case *ast.RaiseStatement:
 		if s == nil {
 			return bytecodeUnsupported("nil raise statement")
+		}
+		if s.Expression != nil {
+			if err := emitExpression(ctx, i, s.Expression); err != nil {
+				return err
+			}
+		} else {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
 		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpRaise, node: s})
 	case *ast.RethrowStatement:
@@ -323,23 +225,31 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.FloatValue{Val: val, TypeSuffix: suffix}})
 		return nil
 	case *ast.Identifier:
-		if slot, ok := ctx.lookupSlot(n.Name); ok {
+		if slot, implicit, ok := ctx.lookupAnySlot(n.Name); ok && implicit {
+			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadImplicitSlot, target: slot, name: n.Name, nameSimple: bytecodeSimpleLookupName(n.Name), node: n})
+		} else if ok {
 			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: slot, name: n.Name, node: n})
 		} else {
 			ctx.emit(bytecodeInstruction{op: bytecodeOpLoadName, name: n.Name, nameSimple: bytecodeSimpleLookupName(n.Name), node: n})
 		}
 		return nil
 	case *ast.MemberAccessExpression:
+		if instr, plan, ok := bytecodeLoadSlotStructFieldInstruction(ctx, n); ok {
+			memberIP := ctx.emit(instr)
+			bytecodeStoreNamedStructFieldMemberPlan(ctx, memberIP, plan.definition, plan.fieldIndex)
+			return nil
+		}
 		if err := emitExpression(ctx, i, n.Object); err != nil {
 			return err
 		}
-		ctx.emit(bytecodeInstruction{
+		memberIP := ctx.emit(bytecodeInstruction{
 			op:            bytecodeOpMemberAccess,
 			name:          bytecodeIdentifierMemberName(n.Member),
 			node:          n,
 			safe:          n.Safe,
 			preferMethods: false,
 		})
+		bytecodeStoreNamedStructMemberPlan(ctx, memberIP, n)
 		return nil
 	case *ast.IndexExpression:
 		if instr, ok := bytecodeArrayIndexGetSlotInstruction(ctx, n); ok {
@@ -361,17 +271,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				ctx.emit(instr)
 				return nil
 			}
-			if emitted, err := bytecodeEmitTryArrayPushF64NestedGet(ctx, i, n, member, memberName); err != nil {
-				return err
-			} else if emitted {
-				return nil
-			}
-			if emitted, err := bytecodeEmitTryArrayPushF64AffineProduct(ctx, i, n, member, memberName); err != nil {
-				return err
-			} else if emitted {
-				return nil
-			}
-			if err := emitExpression(ctx, i, member.Object); err != nil {
+			staticReceiver := false
+			if instr, ok := bytecodeStaticReceiverInstruction(ctx, member, memberName, len(n.Arguments)); ok {
+				ctx.emit(instr)
+				staticReceiver = true
+			} else if err := emitExpression(ctx, i, member.Object); err != nil {
 				return err
 			}
 			if member.Safe {
@@ -383,7 +287,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 					}
 				}
 				if memberName != "" {
-					ctx.emit(bytecodeInstruction{op: bytecodeOpCallMember, name: memberName, argCount: len(n.Arguments), node: n, safe: true})
+					op := bytecodeOpCallMember
+					if i.bytecodeGenericUnionMethodCallProven(n) {
+						op = bytecodeOpCallGenericUnionMember
+					}
+					ctx.emit(bytecodeInstruction{op: op, name: memberName, argCount: len(n.Arguments), node: n, safe: true})
 				} else {
 					ctx.emit(bytecodeInstruction{
 						op:            bytecodeOpMemberAccess,
@@ -406,17 +314,13 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				}
 			}
 			if memberName != "" {
-				op := bytecodeOpCallMember
-				if memberName == "get" && len(n.Arguments) == 1 {
-					op = bytecodeOpCallMemberArrayGet
-				} else if memberName == "next" && len(n.Arguments) == 0 {
-					op = bytecodeOpCallMemberNext
-				} else if memberName == "new" && len(n.Arguments) == 0 {
-					op = bytecodeOpCallMemberArrayNew
-				} else if bytecodeArraySlotCallShape(memberName, len(n.Arguments)) {
-					op = bytecodeOpCallMemberArraySlot
+				if staticReceiver {
+					ctx.emit(bytecodeStaticMemberCallInstruction(memberName, len(n.Arguments), n))
+				} else if i.bytecodeGenericUnionMethodCallProven(n) {
+					ctx.emit(bytecodeInstruction{op: bytecodeOpCallGenericUnionMember, name: memberName, argCount: len(n.Arguments), node: n})
+				} else {
+					ctx.emit(bytecodeCallMemberInstructionForName(memberName, len(n.Arguments), n))
 				}
-				ctx.emit(bytecodeInstruction{op: op, name: memberName, argCount: len(n.Arguments), node: n})
 			} else {
 				ctx.emit(bytecodeInstruction{
 					op:            bytecodeOpMemberAccess,
@@ -429,8 +333,22 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			return nil
 		}
 		if ident, ok := n.Callee.(*ast.Identifier); ok && ident != nil {
-			if slot, found := ctx.lookupSlot(ident.Name); found {
+			if slot, memberName, ok := bytecodeDottedSlotMemberCall(ctx, ident); ok {
 				ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: slot, name: ident.Name, node: ident})
+				for _, arg := range n.Arguments {
+					if err := emitExpression(ctx, i, arg); err != nil {
+						return err
+					}
+				}
+				ctx.emit(bytecodeCallMemberInstructionForName(memberName, len(n.Arguments), n))
+				return nil
+			}
+			if slot, implicit, found := ctx.lookupAnySlot(ident.Name); found {
+				op := bytecodeOpLoadSlot
+				if implicit {
+					op = bytecodeOpLoadImplicitSlot
+				}
+				ctx.emit(bytecodeInstruction{op: op, target: slot, name: ident.Name, nameSimple: bytecodeSimpleLookupName(ident.Name), node: ident})
 				for _, arg := range n.Arguments {
 					if err := emitExpression(ctx, i, arg); err != nil {
 						return err
@@ -461,7 +379,13 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 					return err
 				}
 			}
-			ctx.emit(bytecodeInstruction{op: bytecodeOpCallName, name: ident.Name, nameSimple: bytecodeSimpleLookupName(ident.Name), argCount: len(n.Arguments), node: n})
+			ctx.emit(bytecodeInstruction{
+				op:         bytecodeOpCallName,
+				name:       ident.Name,
+				nameSimple: bytecodeSimpleLookupName(ident.Name),
+				argCount:   len(n.Arguments),
+				node:       n,
+			})
 			return nil
 		}
 		if err := emitExpression(ctx, i, n.Callee); err != nil {
@@ -478,6 +402,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpMakeFunction, node: n})
 		return nil
 	case *ast.StructLiteral:
+		if emitted, err := emitSimpleNamedStructLiteral(ctx, i, n); err != nil {
+			return err
+		} else if emitted {
+			return nil
+		}
 		ctx.emit(bytecodeInstruction{op: bytecodeOpStructLiteral, node: n})
 		return nil
 	case *ast.MapLiteral:
@@ -554,6 +483,14 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			ctx.emit(bytecodeInstruction{op: bytecodeOpPipe, node: n.Right})
 			return nil
 		default:
+			if instr, ok := bytecodeBinaryCastSlotFloatConstInstruction(ctx, n); ok {
+				ctx.emit(instr)
+				return nil
+			}
+			if instr, ok := bytecodeBinaryFloatMulSlotConstInstruction(ctx, n); ok {
+				ctx.emit(instr)
+				return nil
+			}
 			if instr, ok := bytecodeBinarySlotConstInstruction(ctx, n); ok {
 				ctx.emit(instr)
 				return nil
@@ -565,7 +502,12 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				return err
 			}
 			op := bytecodeBinaryOpcodeForOperator(n.Operator)
-			ctx.emit(bytecodeInstruction{op: op, operator: n.Operator, node: n})
+			ctx.emit(bytecodeInstruction{
+				op:                  op,
+				operator:            n.Operator,
+				bitwiseRawCandidate: bytecodeDottedBitwiseOperator(n.Operator),
+				node:                n,
+			})
 			return nil
 		}
 	case *ast.UnaryExpression:
@@ -599,7 +541,14 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			if err := emitExpression(ctx, i, memberExpr.Object); err != nil {
 				return err
 			}
-			ctx.emit(bytecodeInstruction{op: bytecodeOpMemberSet, operator: string(n.Operator), node: memberExpr})
+			memberIP := ctx.emit(bytecodeInstruction{
+				op:       bytecodeOpMemberSet,
+				name:     bytecodeIdentifierMemberName(memberExpr.Member),
+				operator: string(n.Operator),
+				node:     memberExpr,
+				safe:     memberExpr.Safe,
+			})
+			bytecodeStoreNamedStructMemberPlan(ctx, memberIP, memberExpr)
 			return nil
 		}
 		if implicitExpr, ok := n.Left.(*ast.ImplicitMemberExpression); ok {
@@ -611,9 +560,10 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		}
 		name, ok := resolveAssignmentTargetName(n.Left)
 		_, typedSimple := n.Left.(*ast.TypedPattern)
-		useTypedSlotDeclare := typedSimple && ok && n.Operator == ast.AssignmentDeclare && ctx.frameLayout != nil
+		useTypedSlotTarget := typedSimple && ok && ctx.frameLayout != nil && (n.Operator == ast.AssignmentDeclare || n.Operator == ast.AssignmentAssign)
+		resultSimpleCheck := bytecodeExpressionSimpleTypeCheck(ctx, n.Right)
 		if pattern, ok := n.Left.(ast.Pattern); ok && pattern != nil {
-			if _, simple := resolveAssignmentTargetName(n.Left); !simple || (typedSimple && !useTypedSlotDeclare) {
+			if _, simple := resolveAssignmentTargetName(n.Left); !simple || (typedSimple && !useTypedSlotTarget) {
 				if err := emitExpression(ctx, i, n.Right); err != nil {
 					return err
 				}
@@ -626,6 +576,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				if ctx.frameLayout != nil && bytecodeCanEmitRawI32CompoundAssign(n.Operator) && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
 					if slot, found := ctx.lookupSlot(name); found && ctx.slotKind(slot) == bytecodeCellKindI32 {
 						bytecodeEmitRawI32StackExpr(ctx, n.Right)
+						ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckI32)
 						ctx.emit(bytecodeInstruction{op: bytecodeOpCompoundAssignSlotI32, target: slot, name: name, operator: string(n.Operator), node: n, discardResult: ctx.discardExpressionValue && ctx.discardExpressionNode == n})
 						return nil
 					}
@@ -633,7 +584,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				if err := emitExpression(ctx, i, n.Right); err != nil {
 					return err
 				}
-				if slot, found := ctx.lookupSlot(name); found {
+				if slot, implicit, found := ctx.lookupAnySlot(name); found && implicit {
+					ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckUnknown)
+					ctx.emit(bytecodeInstruction{op: bytecodeOpCompoundAssignImplicitSlot, target: slot, name: name, operator: string(n.Operator), node: n})
+				} else if found {
+					ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckUnknown)
 					ctx.emit(bytecodeInstruction{op: bytecodeOpCompoundAssignSlot, target: slot, name: name, operator: string(n.Operator), node: n})
 				} else {
 					ctx.emit(bytecodeInstruction{op: bytecodeOpAssignNameCompound, name: name, operator: string(n.Operator), node: n})
@@ -645,7 +600,79 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 			return bytecodeUnsupported("assignment expression operator %q target %T", n.Operator, n.Left)
 		}
 		typedPattern, hasTypedStore := typedIdentifierPatternFromTarget(n.Left)
+		if handled, err := emitGuardedImplicitSlotAssignment(ctx, i, n, name, typedPattern, hasTypedStore); handled || err != nil {
+			return err
+		}
 		if ctx.frameLayout != nil && ok {
+			if !hasTypedStore {
+				if plan, ok := bytecodeStoreSlotFloatAffineInstruction(ctx, n.Right, n); ok {
+					plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+					switch n.Operator {
+					case ast.AssignmentDeclare:
+						slot := ctx.declareSlotWithKind(name, bytecodeCellKindValue)
+						ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						plan.instr.target = slot
+						plan.instr.name = name
+						ip := ctx.emit(plan.instr)
+						ctx.setFloatAffineStorePlan(ip, plan.plan)
+						return nil
+					case ast.AssignmentAssign:
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+							plan.instr.target = slot
+							plan.instr.name = name
+							ip := ctx.emit(plan.instr)
+							ctx.setFloatAffineStorePlan(ip, plan.plan)
+							return nil
+						}
+					}
+				}
+				if instr, ok := bytecodeStoreSlotCastSlotFloatConstDivInstruction(ctx, n.Right, n); ok {
+					instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+					if n.Operator == ast.AssignmentDeclare {
+						slot := ctx.declareSlotWithKind(name, bytecodeCellKindValue)
+						ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						instr.target = slot
+						instr.name = name
+						ctx.emit(instr)
+						return nil
+					}
+					if n.Operator == ast.AssignmentAssign {
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+							instr.target = slot
+							instr.name = name
+							ctx.emit(instr)
+							return nil
+						}
+					}
+				}
+				if _, simpleIdent := n.Left.(*ast.Identifier); simpleIdent {
+					if instr, ok := bytecodeStoreSlotFloatBinaryInstruction(ctx, n.Right, n); ok {
+						instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if n.Operator == ast.AssignmentDeclare {
+							slot := ctx.declareSlotWithKind(name, bytecodeCellKindValue)
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+							instr.target = slot
+							instr.name = name
+							ctx.emit(instr)
+							return nil
+						}
+						if n.Operator == ast.AssignmentAssign {
+							if slot, found := ctx.lookupSlot(name); found {
+								ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+								instr.target = slot
+								instr.name = name
+								ctx.emit(instr)
+								return nil
+							}
+						}
+					}
+					if bytecodeTryEmitDeclaredFloatRegion(ctx, name, n, resultSimpleCheck) {
+						return nil
+					}
+				}
+			}
 			if n.Operator == ast.AssignmentAssign {
 				if _, simpleIdent := n.Left.(*ast.Identifier); simpleIdent {
 					if plan, ok := bytecodeStoreSlotFloatAddMulArrayGetPlan(ctx, name, n.Right, n); ok {
@@ -654,11 +681,25 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.rightReceiverSlot, name: plan.rightReceiverName, node: n.Right})
 						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.rightIndexSlot, name: plan.rightIndexName, node: n.Right})
 						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						}
+						ctx.emit(plan.instr)
+						return nil
+					}
+					if plan, ok := bytecodeStoreSlotFloatAddMulSlotPlan(ctx, name, n.Right, n); ok {
+						if err := emitExpression(ctx, i, plan.stackExpr); err != nil {
+							return err
+						}
+						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						}
 						ctx.emit(plan.instr)
 						return nil
 					}
 					if plan, ok := bytecodeStoreSlotFloatAddMulPlan(ctx, name, n.Right, n); ok {
-						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.targetSlot, name: name, node: n.Right})
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.baseSlot, name: plan.baseName, node: n.Right})
 						if err := emitExpression(ctx, i, plan.mulLeft); err != nil {
 							return err
 						}
@@ -666,7 +707,24 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 							return err
 						}
 						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						}
 						ctx.emit(plan.instr)
+						return nil
+					}
+					if plan, ok := bytecodeStoreSlotFloatAddSubPlan(ctx, name, n.Right, n); ok {
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.baseSlot, name: plan.baseName, node: n.Right})
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.subLeftSlot, name: plan.subLeftName, node: n.Right})
+						ctx.emit(bytecodeInstruction{op: bytecodeOpLoadSlot, target: plan.subRightSlot, name: plan.subRightName, node: n.Right})
+						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						}
+						ctx.emit(plan.instr)
+						return nil
+					}
+					if bytecodeTryEmitAssignedFloatRegion(ctx, name, n, resultSimpleCheck) {
 						return nil
 					}
 					if plan, ok := bytecodeStoreSlotIntMulConstAddPlan(ctx, name, n.Right, n); ok {
@@ -677,25 +735,60 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 							return err
 						}
 						plan.instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						}
 						ctx.emit(plan.instr)
+						return nil
+					}
+					if instr, ok := bytecodeStoreSlotIntMulConstModConstInstruction(ctx, name, n.Right, n); ok {
+						instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						}
+						ctx.emit(instr)
 						return nil
 					}
 					if instr, ok := bytecodeStoreSlotBinarySlotConstInstruction(ctx, name, n.Right, n); ok {
 						instr.discardResult = ctx.discardExpressionValue && ctx.discardExpressionNode == n
+						if slot, found := ctx.lookupSlot(name); found {
+							ctx.setSlotSimpleCheck(slot, resultSimpleCheck)
+						}
 						ctx.emit(instr)
 						return nil
 					}
 				}
 			}
-			if n.Operator == ast.AssignmentDeclare && hasTypedStore && bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32 && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
-				bytecodeEmitRawI32StackExpr(ctx, n.Right)
+			if n.Operator == ast.AssignmentDeclare && hasTypedStore && bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32 {
+				if instr, ok := bytecodeArrayReadSlotI32Instruction(ctx, n.Right); ok {
+					ctx.emit(instr)
+				} else if bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
+					bytecodeEmitRawI32StackExpr(ctx, n.Right)
+				} else {
+					if err := emitExpression(ctx, i, n.Right); err != nil {
+						return err
+					}
+					ctx.emit(bytecodeInstruction{op: bytecodeOpUnboxI32, node: n})
+				}
 				slot := ctx.declareSlotWithKind(name, bytecodeCellKindI32)
+				ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckForName(cachedSimpleTypeName(typedPattern.TypeAnnotation)))
+				ctx.setSlotExactStructDef(slot, bytecodeNominalNamedStructDefinitionForTypeExpr(ctx, typedPattern.TypeAnnotation))
 				ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n, discardResult: ctx.discardExpressionValue && ctx.discardExpressionNode == n})
 				return nil
 			}
 			if n.Operator == ast.AssignmentAssign {
-				if slot, found := ctx.lookupSlot(name); found && ctx.slotKind(slot) == bytecodeCellKindI32 && bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
-					bytecodeEmitRawI32StackExpr(ctx, n.Right)
+				if slot, found := ctx.lookupSlot(name); found && ctx.slotKind(slot) == bytecodeCellKindI32 {
+					if instr, ok := bytecodeArrayReadSlotI32Instruction(ctx, n.Right); ok {
+						ctx.emit(instr)
+					} else if bytecodeCanEmitRawI32StackExprWithSlots(ctx, n.Right) {
+						bytecodeEmitRawI32StackExpr(ctx, n.Right)
+					} else {
+						if err := emitExpression(ctx, i, n.Right); err != nil {
+							return err
+						}
+						ctx.emit(bytecodeInstruction{op: bytecodeOpUnboxI32, node: n})
+					}
+					ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckI32)
 					ctx.emit(bytecodeInstruction{op: bytecodeOpStoreSlotI32, target: slot, name: name, node: n, discardResult: ctx.discardExpressionValue && ctx.discardExpressionNode == n})
 					return nil
 				}
@@ -711,6 +804,16 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 					slotKind = bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation)
 				}
 				slot := ctx.declareSlotWithKind(name, slotKind)
+				if hasTypedStore {
+					ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckForName(cachedSimpleTypeName(typedPattern.TypeAnnotation)))
+				} else {
+					ctx.setSlotSimpleCheck(slot, bytecodeExpressionSimpleTypeCheck(ctx, n.Right))
+				}
+				if hasTypedStore {
+					ctx.setSlotExactStructDef(slot, bytecodeNominalNamedStructDefinitionForTypeExpr(ctx, typedPattern.TypeAnnotation))
+				} else {
+					ctx.setSlotExactStructDef(slot, bytecodeNominalNamedStructDefinitionForExpr(ctx, n.Right))
+				}
 				instr := bytecodeInstruction{op: bytecodeOpStoreSlotNew, target: slot, name: name, node: n}
 				if hasTypedStore {
 					instr.storeTyped = true
@@ -721,6 +824,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 				}
 				ctx.emit(instr)
 			} else if slot, found := ctx.lookupSlot(name); found {
+				if hasTypedStore {
+					ctx.setSlotSimpleCheck(slot, bytecodeSimpleTypeCheckForName(cachedSimpleTypeName(typedPattern.TypeAnnotation)))
+				} else {
+					ctx.setSlotSimpleCheck(slot, bytecodeExpressionSimpleTypeCheck(ctx, n.Right))
+				}
 				instr := bytecodeInstruction{op: bytecodeOpStoreSlot, target: slot, name: name, node: n}
 				if hasTypedStore {
 					instr.storeTyped = true
@@ -730,8 +838,13 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 						bytecodeCellKindForTypeExpr(typedPattern.TypeAnnotation) == bytecodeCellKindI32
 				}
 				ctx.emit(instr)
+			} else if emitGuardedImplicitSlotDeclaration(ctx, n, name, typedPattern, hasTypedStore) {
 			} else {
-				ctx.emit(bytecodeInstruction{op: bytecodeOpAssignName, name: name, node: n})
+				if hasTypedStore {
+					ctx.emit(bytecodeInstruction{op: bytecodeOpAssignPattern, operator: string(n.Operator), node: n})
+				} else {
+					ctx.emit(bytecodeInstruction{op: bytecodeOpAssignName, name: name, node: n})
+				}
 			}
 		} else {
 			op := bytecodeOpAssignName
@@ -747,6 +860,11 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		return emitIf(ctx, i, n)
 	case *ast.MatchExpression:
 		if emitted, err := emitSlotMatch(ctx, i, n); err != nil {
+			return err
+		} else if emitted {
+			return nil
+		}
+		if emitted, err := emitEnvMatch(ctx, i, n); err != nil {
 			return err
 		} else if emitted {
 			return nil
@@ -814,8 +932,7 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 	case *ast.IteratorLiteral:
 		var program *bytecodeProgram
 		if n != nil {
-			module := ast.NewModule(n.Body, nil, nil)
-			lowered, err := i.lowerModuleToBytecode(module)
+			lowered, _, err := i.lowerIteratorLiteralBodyToBytecode(n, ctx.definitionEnv)
 			if err != nil {
 				return err
 			}
@@ -836,40 +953,15 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 	}
 }
 
-func bytecodeCallNameSlotArgsInstruction(ctx *bytecodeLoweringContext, name string, call *ast.FunctionCall) (bytecodeInstruction, bool) {
-	if ctx == nil || ctx.frameLayout == nil || call == nil || name == "" {
-		return bytecodeInstruction{}, false
-	}
-	if len(call.Arguments) == 0 || len(call.Arguments) > 3 {
-		return bytecodeInstruction{}, false
-	}
-	slots := [3]int{-1, -1, -1}
-	for idx, arg := range call.Arguments {
-		ident, ok := arg.(*ast.Identifier)
-		if !ok || ident == nil {
-			return bytecodeInstruction{}, false
-		}
-		slot, found := ctx.lookupSlot(ident.Name)
-		if !found {
-			return bytecodeInstruction{}, false
-		}
-		slots[idx] = slot
-	}
-	return bytecodeInstruction{
-		op:           bytecodeOpCallName,
-		name:         name,
-		nameSimple:   bytecodeSimpleLookupName(name),
-		argCount:     len(call.Arguments),
-		target:       slots[0],
-		loopBreak:    slots[1],
-		loopContinue: slots[2],
-		node:         call,
-		slotArgs:     true,
-	}, true
-}
-
 func (ctx *bytecodeLoweringContext) emit(instr bytecodeInstruction) int {
 	ctx.instructions = append(ctx.instructions, instr)
+	if ctx.collectScalarProofs {
+		check := bytecodeSimpleTypeCheckUnknown
+		if bytecodeScalarProofUsesSlotCheck(instr.op) {
+			check = ctx.slotSimpleCheck(instr.target)
+		}
+		ctx.scalarProofChecks = append(ctx.scalarProofChecks, check)
+	}
 	return len(ctx.instructions) - 1
 }
 

@@ -78,17 +78,31 @@ func (g *generator) renderControlHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\treturn __able_control_from_error_with_node(nil, err)\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_control_from_error_with_node(node ast.Node, err error) *__ableControl {\n")
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "control_from_error",
+		GeneratedFunction: "__able_control_from_error_with_node",
+		AbleSource:        "<compiler-runtime>::error-control",
+		Carrier:           "error",
+		ImmediateConsumer: "*__ableControl",
+		Reason:            "preserve Able raise and runtime-error control semantics",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif err == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tswitch v := err.(type) {\n")
 	fmt.Fprintf(buf, "\tcase __able_value_error:\n")
-	fmt.Fprintf(buf, "\t\treturn __able_raise_control(node, v.value)\n")
+	fmt.Fprintf(buf, "\t\tif v.err == nil {\n")
+	fmt.Fprintf(buf, "\t\t\treturn __able_raise_control(node, v.value)\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\treturn &__ableControl{Kind: __ableControlRaise, Value: v.value, Err: bridge.RuntimeErrorWithContext(__able_runtime, node, v.err)}\n")
 	fmt.Fprintf(buf, "\tcase *__able_value_error:\n")
 	fmt.Fprintf(buf, "\t\tif v == nil {\n")
 	fmt.Fprintf(buf, "\t\t\treturn nil\n")
 	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\treturn __able_raise_control(node, v.value)\n")
+	fmt.Fprintf(buf, "\t\tif v.err == nil {\n")
+	fmt.Fprintf(buf, "\t\t\treturn __able_raise_control(node, v.value)\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\treturn &__ableControl{Kind: __ableControlRaise, Value: v.value, Err: bridge.RuntimeErrorWithContext(__able_runtime, node, v.err)}\n")
 	if g != nil && g.needsIterator {
 		fmt.Fprintf(buf, "\tcase __able_generator_stop:\n")
 		fmt.Fprintf(buf, "\t\treturn &__ableControl{Err: v}\n")
@@ -109,17 +123,19 @@ func (g *generator) renderControlHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\treturn control.Value\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_control_to_error(rt *bridge.Runtime, ctx *runtime.NativeCallContext, control *__ableControl) error {\n")
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "control_to_error",
+		GeneratedFunction: "__able_control_to_error",
+		AbleSource:        "<compiler-runtime>::error-control",
+		Carrier:           "*__ableControl",
+		ImmediateConsumer: "error",
+		Reason:            "preserve Able raise across a runtime-callable ABI",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif control == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif control.Kind == __ableControlRaise {\n")
-	fmt.Fprintf(buf, "\t\tif control.Err != nil {\n")
-	fmt.Fprintf(buf, "\t\t\tif _, ok := interpreter.ExitCodeFromError(control.Err); ok {\n")
-	fmt.Fprintf(buf, "\t\t\t\treturn control.Err\n")
-	fmt.Fprintf(buf, "\t\t\t}\n")
-	fmt.Fprintf(buf, "\t\t\treturn control.Err\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\treturn __able_value_error{value: __able_control_value(control)}\n")
+	fmt.Fprintf(buf, "\t\treturn __able_value_error{value: __able_control_value(control), err: control.Err}\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif control.Err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn control.Err\n")

@@ -1,0 +1,40 @@
+File: concurrent_audio_voices
+Build ID: cfb746249ce85c76b03ce2e3f3c74a617c6db86d
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_audio_voices/compiled_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_audio_voices/compiled_merged.cpu.pprof
+Time: 2026-07-23 17:35:30 CDT
+Duration: 3.53s, Total samples = 5.34s (151.22%)
+Showing nodes accounting for 0.94s, 17.60% of 5.34s total
+Dropped 56 nodes (cum <= 0.03s)
+Showing top 25 nodes out of 92
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      5.24s 98.13%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%     0%      5.24s 98.13%  main.__able_compiled_fn_synthesize_voice
+         0     0%     0%      5.24s 98.13%  main.__able_run_compiled_task
+     0.01s  0.19%  0.19%      5.20s 97.38%  runtime.systemstack
+         0     0%  0.19%      5.15s 96.44%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     0.01s  0.19%  0.37%      5.13s 96.07%  runtime.Stack
+         0     0%  0.37%      5.12s 95.88%  runtime.Stack.func1
+         0     0%  0.37%      4.95s 92.70%  runtime.traceback (inline)
+         0     0%  0.37%      4.95s 92.70%  runtime.traceback1
+     0.01s  0.19%  0.56%      4.50s 84.27%  runtime.traceback1.func1
+     0.09s  1.69%  2.25%      4.46s 83.52%  runtime.traceback2
+     0.03s  0.56%  2.81%      3.54s 66.29%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%  2.81%      2.61s 48.88%  main.__able_compiled_entry_impl_Oscillator_emit_0_a
+         0     0%  2.81%      2.61s 48.88%  main.__able_iface_Oscillator_adapter_ptr_TriangleOscillator.emit
+         0     0%  2.81%      2.58s 48.31%  main.__able_compiled_entry_impl_Oscillator_emit_0
+         0     0%  2.81%      2.58s 48.31%  main.__able_iface_Oscillator_adapter_ptr_PulseOscillator.emit
+     0.23s  4.31%  7.12%      1.83s 34.27%  runtime.printlock
+         0     0%  7.12%      1.65s 30.90%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%  7.12%      1.65s 30.90%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+     0.01s  0.19%  7.30%      1.60s 29.96%  runtime.lock (inline)
+     0.53s  9.93% 17.23%      1.59s 29.78%  runtime.lock2
+         0     0% 17.23%      1.59s 29.78%  runtime.lockWithRank (inline)
+     0.02s  0.37% 17.60%      1.41s 26.40%  runtime.printArgs
+         0     0% 17.60%      1.37s 25.66%  main.__able_compiled_fn_main.func2
+         0     0% 17.60%      1.31s 24.53%  main.__able_compiled_fn_main.func1
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_audio_voices/compiled_merged.cpu.pprof

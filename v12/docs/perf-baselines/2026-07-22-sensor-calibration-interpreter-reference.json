@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-07-23T00:17:00Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "suite": "custom",
+  "runs": 5,
+  "timeout_seconds": 90,
+  "cpu_affinity": "0-3",
+  "cpu_affinity_pool": "0-3",
+  "runtimes": {
+    "python": {
+      "executable": "/home/david/.local/share/mise/installs/python/latest/bin/python3",
+      "variant": "python-3.14",
+      "version": "Python 3.14.5"
+    },
+    "ruby": {
+      "executable": "/home/david/.local/share/mise/installs/ruby/latest/bin/ruby",
+      "variant": "ruby-4.0",
+      "version": "ruby 4.0.5 (2026-05-20 revision 64336ffd0e) +PRISM [x86_64-linux]"
+    }
+  },
+  "rows": [
+    {
+      "benchmark": "sensor_calibration",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/sensor-calibration/python-3.14/run.py",
+      "source_sha256": "03ddbcc562997e1901ff546c9a8e5212b59de2b51a8bd69d7295ffbc618d29bf",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0331,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.028099432,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.041965373,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.043484423,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.026226302,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.025862734,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "sensor_calibration",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/sensor-calibration/ruby-4.0/run.rb",
+      "source_sha256": "18fc9a0df5f593ed69981b767c2d9061df49bb803aa61fc39c21a0007ecc6db8",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0732,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.074560789,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.073700014,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.070819424,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.069513375,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.077506164,
+          "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}

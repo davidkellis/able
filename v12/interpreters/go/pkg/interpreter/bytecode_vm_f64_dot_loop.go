@@ -57,16 +57,16 @@ func (vm *bytecodeVM) tryExecF64DotLoop(program *bytecodeProgram, plan bytecodeF
 	if !plan.validForSlots(len(vm.slots)) || plan.successTarget <= vm.ip {
 		return false, nil
 	}
-	index, ok := bytecodeF64DotLoopI32Value(vm.slots[plan.indexSlot])
+	index, ok := vm.slotI32Value(plan.indexSlot)
 	if !ok {
 		return false, nil
 	}
-	bound, ok := bytecodeF64DotLoopI32Value(vm.slots[plan.boundSlot])
+	bound, ok := vm.slotI32Value(plan.boundSlot)
 	if !ok {
 		return false, nil
 	}
 	resultAppend := plan.resultAppend
-	acc, ok := bytecodeDirectF64Value(vm.slots[plan.accumulatorSlot])
+	acc, ok := vm.slotDirectF64Value(plan.accumulatorSlot)
 	if !ok {
 		return false, nil
 	}
@@ -78,7 +78,7 @@ func (vm *bytecodeVM) tryExecF64DotLoop(program *bytecodeProgram, plan bytecodeF
 			vm.ip = plan.resultTarget
 			return true, nil
 		}
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.appendStackValue(runtime.NilValue{})
 		vm.ip = plan.successTarget
 		return true, nil
 	}
@@ -134,7 +134,7 @@ func (vm *bytecodeVM) tryExecF64DotLoop(program *bytecodeProgram, plan bytecodeF
 		vm.ip = plan.resultTarget
 		return true, nil
 	}
-	vm.stack = append(vm.stack, runtime.NilValue{})
+	vm.appendStackValue(runtime.NilValue{})
 	vm.ip = plan.successTarget
 	return true, nil
 }
@@ -237,6 +237,9 @@ func (vm *bytecodeVM) f64DotLoopFloatValues(arr *runtime.ArrayValue) ([]float64,
 }
 
 func bytecodeDirectF64Value(value runtime.Value) (float64, bool) {
+	if raw, kind, ok := bytecodeDirectRawFloatValue(value); ok && kind == runtime.FloatF64 {
+		return raw, true
+	}
 	switch fv := value.(type) {
 	case runtime.FloatValue:
 		if fv.TypeSuffix == runtime.FloatF64 {
@@ -252,6 +255,7 @@ func bytecodeDirectF64Value(value runtime.Value) (float64, bool) {
 
 func (vm *bytecodeVM) storeI32Slot(slot int, value int64) {
 	boxed := bytecodeBoxedIntegerI32Value(value)
+	vm.clearActiveValueSlotFloat(slot)
 	vm.slots[slot] = boxed
 	if slot == 0 {
 		vm.setSelfFastSlot0I32Value(boxed)

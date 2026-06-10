@@ -670,3 +670,31 @@ func TestPropagationRequiresFutureErrorUnion(t *testing.T) {
 		t.Fatalf("expected no diagnostics for propagation on non-union type, got %v", diags)
 	}
 }
+
+func TestFunctionReturnAcceptsImplementationForInterfaceUnion(t *testing.T) {
+	checker := New()
+	module := ast.Mod(
+		[]ast.Statement{
+			ast.Iface("Marker", nil, nil, nil, nil, nil, false),
+			ast.StructDef("Issue", nil, ast.StructKindNamed, nil, nil, false),
+			ast.Impl("Marker", ast.Ty("Issue"), nil, nil, nil, nil, nil, false),
+			ast.Fn(
+				"make_issue",
+				nil,
+				[]ast.Statement{ast.Ret(ast.StructLit(nil, false, "Issue", nil, nil))},
+				ast.UnionT(ast.Ty("i32"), ast.Ty("Marker")),
+				nil, nil, false, false,
+			),
+		},
+		nil,
+		ast.Pkg([]interface{}{"main"}, false),
+	)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("CheckModule returned error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}

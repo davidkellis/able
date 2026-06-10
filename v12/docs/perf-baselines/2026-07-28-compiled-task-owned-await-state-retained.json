@@ -1,0 +1,188 @@
+{
+  "kind": "able-compiled-task-owned-await-state-retained",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "cpu_affinity": "0-3",
+  "executor": "goroutine",
+  "gomaxprocs": 4,
+  "timing_samples_sha256": "7d3645677dcc251e17874cee82adf1cc727c39d74d0bf74fc26934c0cee5eb13",
+  "runs": {
+    "cpu_profiles_per_application": 5,
+    "exact_allocation_profiles_per_side_per_application": 3,
+    "allocation_per_side_per_application": 5,
+    "timing_cohorts_per_application": 15,
+    "ordinary_serial_verifier_runs_per_application": 3,
+    "ordinary_goroutine_verifier_runs_per_application": 3
+  },
+  "benchmarks": [
+    {
+      "benchmark": "await_channel_mux",
+      "source_sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+      "baseline_binary_sha256": "8e0460b191edcd46450d01329ccaa2584e30a63ab797c0896e34010534fbd1c1",
+      "retained_binary_sha256": "b438fa0dcfdbd52c1edcfb62297f332128cee008016393cfd1f51b1853ca4e12",
+      "generated_source_sha256": "0ec233ce6a449805676e5d1fd99841e0e315b8de9cde23126ad57b4ad1beb788",
+      "owner": {
+        "baseline_states": [1024, 1024, 1024],
+        "retained_states": [1024, 1024, 1024],
+        "retained_collect_arm_objects": 3584
+      },
+      "allocation": {
+        "baseline_bytes": [5216024, 5221640, 5218304, 5218680, 5219304],
+        "retained_bytes": [5216040, 5221896, 5218120, 5222072, 5219560],
+        "baseline_objects": [96750, 96784, 96761, 96760, 96764],
+        "retained_objects": [96753, 96782, 96760, 96781, 96771],
+        "baseline_bytes_mean": 5218790.4,
+        "retained_bytes_mean": 5219537.6,
+        "paired_bytes_change_percent": 0.014,
+        "paired_bytes_ci95_percent": [-0.021, 0.050],
+        "baseline_objects_mean": 96763.8,
+        "retained_objects_mean": 96769.4,
+        "paired_objects_change_percent": 0.006,
+        "paired_objects_ci95_percent": [-0.006, 0.018]
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0728967032,
+        "retained_mean_seconds": 0.0710532984,
+        "raw_change_percent": -2.529,
+        "paired_change_percent": -2.018,
+        "paired_ci95_percent": [-4.597, 0.561],
+        "go_mean_seconds": 0.003062868,
+        "retained_go_time_ratio": 23.198,
+        "retained_as_percent_of_go_performance": 4.311
+      }
+    },
+    {
+      "benchmark": "future_await_race",
+      "source_sha256": "7950a425ac6225a577d7c234395ee4293d5c89c2ddfcb19fd87732e8d4d0335b",
+      "baseline_binary_sha256": "e7737ee974b4ce770d06d362decba92776b81838083f85680000d5cbb270f7ce",
+      "retained_binary_sha256": "9f92520daea45f13222b2f578ac57116e39b745e06ee2538e8996975dc30855f",
+      "generated_source_sha256": "c98a3cdccd579169cfa6ed9c1eba2b748cc3d3ae8b69dabe4f19628aba264f93",
+      "owner": {
+        "baseline_states": [192, 192, 192],
+        "retained_states": [96, 96, 96],
+        "retained_collect_arm_objects": 384
+      },
+      "allocation": {
+        "baseline_bytes": [706336, 708280, 714112, 709608, 709848],
+        "retained_bytes": [702168, 701432, 702504, 701616, 704088],
+        "baseline_objects": [12777, 12864, 12876, 12719, 13155],
+        "retained_objects": [13019, 12781, 13130, 13090, 13106],
+        "baseline_bytes_mean": 709636.8,
+        "retained_bytes_mean": 702361.6,
+        "paired_bytes_change_percent": -1.024,
+        "paired_bytes_ci95_percent": [-1.509, -0.540],
+        "baseline_objects_mean": 12878.2,
+        "retained_objects_mean": 13025.2,
+        "paired_objects_change_percent": 1.153,
+        "paired_objects_ci95_percent": [-0.800, 3.106]
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0104186376,
+        "retained_mean_seconds": 0.0103477159,
+        "raw_change_percent": -0.681,
+        "paired_change_percent": -0.233,
+        "paired_ci95_percent": [-4.627, 4.160],
+        "go_mean_seconds": 0.0022446792,
+        "retained_go_time_ratio": 4.610,
+        "retained_as_percent_of_go_performance": 21.693
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "source_sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696",
+      "baseline_binary_sha256": "6542a7a4c9a6842bef2de2c098255444a1545fa1fdc87e779b912254ab8d3f49",
+      "retained_binary_sha256": "9378227d497f998a2875b8b4099045bf1edfb3050420fd1f1e5d0a159e77b65f",
+      "generated_source_sha256": "0ec973f8a07eb1faf6bf8f96cd9060d8883f8d0e69eb381651edb324c1d59bfb",
+      "owner": {
+        "baseline_states": [2048, 2048, 2048],
+        "retained_states": [4, 4, 4],
+        "retained_collect_arm_objects": 4096
+      },
+      "allocation": {
+        "baseline_bytes": [1289000, 1282160, 1285296, 1284048, 1288672],
+        "retained_bytes": [1123824, 1119272, 1124344, 1121952, 1121320],
+        "baseline_objects": [29049, 29006, 29083, 29057, 29156],
+        "retained_objects": [27076, 26988, 27072, 27031, 27022],
+        "baseline_bytes_mean": 1285835.2,
+        "retained_bytes_mean": 1122142.4,
+        "paired_bytes_change_percent": -12.730,
+        "paired_bytes_ci95_percent": [-12.952, -12.508],
+        "baseline_objects_mean": 29070.2,
+        "retained_objects_mean": 27037.8,
+        "paired_objects_change_percent": -6.991,
+        "paired_objects_ci95_percent": [-7.235, -6.747]
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0054734866,
+        "retained_mean_seconds": 0.0055279096,
+        "raw_change_percent": 0.994,
+        "paired_change_percent": 1.417,
+        "paired_ci95_percent": [-3.219, 6.053],
+        "go_mean_seconds": 0.002103122,
+        "retained_go_time_ratio": 2.628,
+        "retained_as_percent_of_go_performance": 38.046
+      }
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "source_sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113",
+      "baseline_binary_sha256": "197ee376164bcd9f39e1e710c2842a96b6b1e7e94a2158f9557bdff8a3a9ad09",
+      "retained_binary_sha256": "301775f8ee1f05be624c7bde7a32b0f71ff15e2ae3f72c355ddc9fc42ffe1933",
+      "generated_source_sha256": "e704c1988bc1754cae3a3a3970e4dc6074676c0d6d92c7882c6377290299920a",
+      "owner": {
+        "baseline_states": [4096, 4096, 4096],
+        "retained_states": [4, 4, 4],
+        "retained_collect_arm_objects": 8192
+      },
+      "allocation": {
+        "baseline_bytes": [2789568, 2766664, 2792176, 2788752, 2780608],
+        "retained_bytes": [2460928, 2464760, 2451152, 2452008, 2451568],
+        "baseline_objects": [62768, 62318, 62759, 62775, 62597],
+        "retained_objects": [58586, 58656, 58476, 58495, 58377],
+        "baseline_bytes_mean": 2783553.6,
+        "retained_bytes_mean": 2456083.2,
+        "paired_bytes_change_percent": -11.763,
+        "paired_bytes_ci95_percent": [-12.393, -11.133],
+        "baseline_objects_mean": 62643.4,
+        "retained_objects_mean": 58518.0,
+        "paired_objects_change_percent": -6.585,
+        "paired_objects_ci95_percent": [-7.083, -6.086]
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0106823445,
+        "retained_mean_seconds": 0.0105479083,
+        "raw_change_percent": -1.259,
+        "paired_change_percent": -1.151,
+        "paired_ci95_percent": [-6.527, 4.226],
+        "go_mean_seconds": 0.0024919828,
+        "retained_go_time_ratio": 4.233,
+        "retained_as_percent_of_go_performance": 23.625
+      }
+    }
+  ],
+  "identity": {
+    "default_all_four": "byte-identical",
+    "measured_experimental_sources_match_final": true
+  },
+  "verification": {
+    "public_verifier_failures": 0,
+    "strict_interpreter_dependencies": 0,
+    "race_enabled_goroutine_applications": 4,
+    "execution_context_fixture_parity_seconds": 44.079,
+    "focused_await_and_boundary_guards_seconds": 9.956,
+    "bridge": "pass",
+    "runtime": "pass",
+    "compiled_cli": "pass",
+    "performance_ledger_current_closures": 21,
+    "performance_ledger_invalidations": 0,
+    "compiler_production_tree_sha256": "66f3d91d36dd42c3df4e1025052f716dd3aa30ab5c61b0cf1948aa2dc6fc5fee"
+  },
+  "next": {
+    "goal": "measure and prototype task-owned Await arm-scratch reuse",
+    "why": "slice-and-arm objects are the largest remaining exact generated Await allocation owner in all four post-state profiles",
+    "entails": "reuse only after cleanup, clear retained references, preserve nested fallback and dynamic Iterable/Awaitable behavior, and repeat broad semantic and performance gates",
+    "importance": "remove generated runtime overhead without reopening the rejected typed protocol path or crossing the compiler/interpreter boundary"
+  }
+}

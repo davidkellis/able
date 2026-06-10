@@ -1,0 +1,149 @@
+{
+  "target_path": "/home/david/sync/projects/able/v12/examples/benchmarks/i_before_e/i_before_e.able",
+  "run_from": "/home/david/sync/projects/benchmarks/i-before-e",
+  "program_args": [
+    "wordlist.txt"
+  ],
+  "before_final_gc": {
+    "HandleCount": 2,
+    "RevisionCount": 2,
+    "TotalStateCount": 2,
+    "Dynamic": {
+      "StateCount": 2,
+      "ValueCount": 172824,
+      "DeclaredCapacity": 172824,
+      "BackingCapacity": 172824,
+      "BackingBytes": 2765184
+    },
+    "I32": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "I64": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "Bool": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "Char": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "U8": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "U32": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "U64": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "F64": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    }
+  },
+  "after_final_gc": {
+    "HandleCount": 0,
+    "RevisionCount": 0,
+    "TotalStateCount": 0,
+    "Dynamic": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "I32": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "I64": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "Bool": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "Char": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "U8": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "U32": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "U64": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    },
+    "F64": {
+      "StateCount": 0,
+      "ValueCount": 0,
+      "DeclaredCapacity": 0,
+      "BackingCapacity": 0,
+      "BackingBytes": 0
+    }
+  },
+  "heap_after_final_gc": {
+    "heap_alloc": 34192920,
+    "heap_inuse": 40804352,
+    "heap_objects": 537591,
+    "num_gc": 9
+  }
+}

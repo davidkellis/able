@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+generated_root=""
+output=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_typed_generic_storage_census --generated-root DIR --output FILE
+
+Scans strict generated compiled.go files for the portable coverage catalog and
+writes a deterministic TSV manifest. Source emission is intentionally separate
+so callers can choose their own disk-backed workspace and compiler binary.
+EOF
+}
+
+die() {
+  echo "bench_typed_generic_storage_census: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --generated-root)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --generated-root"
+      generated_root="$1"
+      ;;
+    --output)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output"
+      output="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$generated_root" ]] || die "--generated-root is required"
+[[ -n "$output" ]] || die "--output is required"
+generated_root="$(realpath "$generated_root")"
+output="$(realpath -m "$output")"
+[[ -d "$generated_root" ]] || die "generated root not found: $generated_root"
+mkdir -p "$(dirname "$output")"
+
+count_matches() {
+  local pattern="$1"
+  local file="$2"
+  { rg -o "$pattern" "$file" 2>/dev/null || true; } | sort -u | wc -l
+}
+
+tmp_output="$(mktemp "${output}.tmp.XXXXXX")"
+trap 'rm -f "$tmp_output"' EXIT
+
+printf '%s\n' \
+  $'benchmark\tsource_sha256\tcompiled_sha256\tnative_array_carriers\tdirect_generic_carriers\thashmap_carriers\tchannel_carriers\thashmap_methods\tchannel_methods\tuser_structs\tuser_generic_structs\tmap_interface' \
+  >"$tmp_output"
+
+IFS=',' read -r -a benchmarks <<<"$(bench_external_suite_csv coverage)"
+for benchmark in "${benchmarks[@]}"; do
+  source_path="$(bench_external_target "$SCRIPT_DIR" "$benchmark")"
+  compiled_path="$generated_root/$benchmark/compiled.go"
+  [[ -f "$source_path" ]] || die "source missing for $benchmark: $source_path"
+  [[ -f "$compiled_path" ]] || die "compiled source missing for $benchmark: $compiled_path"
+
+  source_sha="$(sha256sum "$source_path" | cut -d' ' -f1)"
+  compiled_sha="$(sha256sum "$compiled_path" | cut -d' ' -f1)"
+  native_arrays="$(count_matches '^type __able_array_[A-Za-z0-9_]+ struct' "$compiled_path")"
+  direct_generics="$(count_matches '^type (ArrayIterator|ChannelIterator|Deque|DivModResult|DivMod|Indexed|Queue|Span)_[A-Za-z0-9_]+ struct' "$compiled_path")"
+  hashmap_carriers="$(count_matches '^type HashMap_[A-Za-z0-9_]+ struct' "$compiled_path")"
+  channel_carriers="$(count_matches '^type Channel_[A-Za-z0-9_]+ struct' "$compiled_path")"
+  hashmap_methods="$(count_matches '^func __able_compiled_method_HashMap_[A-Za-z0-9_]*_spec[^ (]*' "$compiled_path")"
+  channel_methods="$(count_matches '^func __able_compiled_method_Channel_[A-Za-z0-9_]*_spec[^ (]*' "$compiled_path")"
+  user_structs="$(rg -c '^\s*struct\s+' "$source_path" 2>/dev/null || printf '0')"
+  user_generic_structs="$(
+    awk '$1 == "struct" && $3 != "{" { count++ } END { print count + 0 }' "$source_path"
+  )"
+  map_interface=false
+  if rg -q '^type __able_iface_Map_[A-Za-z0-9_]+ interface' "$compiled_path"; then
+    map_interface=true
+  fi
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$benchmark" \
+    "$source_sha" \
+    "$compiled_sha" \
+    "$native_arrays" \
+    "$direct_generics" \
+    "$hashmap_carriers" \
+    "$channel_carriers" \
+    "$hashmap_methods" \
+    "$channel_methods" \
+    "$user_structs" \
+    "$user_generic_structs" \
+    "$map_interface" \
+    >>"$tmp_output"
+done
+
+mv "$tmp_output" "$output"
+trap - EXIT
+echo "wrote ${#benchmarks[@]} rows to $output"

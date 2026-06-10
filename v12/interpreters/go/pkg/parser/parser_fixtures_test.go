@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"os"
 	"testing"
 )
 
@@ -90,8 +89,4 @@ func skipFixtureTests(t *testing.T) {
 	if testing.Short() {
 		t.Skip("parser fixture corpus skipped in short test mode")
 	}
-	if val := os.Getenv("GO_PARSER_FIXTURES"); val == "1" {
-		return
-	}
-	t.Skip("parser fixture corpus temporarily disabled pending shared fixture decoder")
 }

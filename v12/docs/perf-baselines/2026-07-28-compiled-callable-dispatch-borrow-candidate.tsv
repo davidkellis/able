@@ -1,0 +1,17 @@
+slots	benchmark	variant	runs	mean_allocated_bytes	mean_allocations	bytes_change_percent	objects_change_percent	verified_runs
+4	future_await_race	baseline	5	916640.0	15032.0	0.00	0.00	5
+4	future_await_race	candidate	5	940224.0	14915.6	2.57	-0.77	5
+4	await_channel_mux	baseline	5	10399083.2	179204.0	0.00	0.00	5
+4	await_channel_mux	candidate	5	10597155.2	169477.8	1.90	-5.43	5
+4	mutex_await_journal	baseline	5	5435942.4	92537.6	0.00	0.00	5
+4	mutex_await_journal	candidate	5	5846539.2	86182.6	7.55	-6.87	5
+4	mutex_work_queue	baseline	5	11087465.6	189685.0	0.00	0.00	5
+4	mutex_work_queue	candidate	5	11878681.6	176367.8	7.14	-7.02	5
+1	future_await_race	baseline	5	913489.6	14987.0	0.00	0.00	5
+1	future_await_race	candidate	5	924755.2	14987.0	1.23	0.00	5
+1	await_channel_mux	baseline	5	10399947.2	179210.2	0.00	0.00	5
+1	await_channel_mux	candidate	5	10427481.6	171532.2	0.26	-4.28	5
+1	mutex_await_journal	baseline	5	5436355.2	92555.4	0.00	0.00	5
+1	mutex_await_journal	candidate	5	5538844.8	86240.2	1.89	-6.82	5
+1	mutex_work_queue	baseline	5	11083764.8	189622.8	0.00	0.00	5
+1	mutex_work_queue	candidate	5	11280947.2	176814.0	1.78	-6.75	5

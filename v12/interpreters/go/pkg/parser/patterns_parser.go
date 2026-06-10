@@ -24,7 +24,7 @@ func (ctx *parseContext) parsePatternInternal(node *sitter.Node) (ast.Pattern, e
 
 	source := ctx.source
 
-	if node.Kind() == "pattern" || node.Kind() == "pattern_base" {
+	if nodeKind(node) == "pattern" || nodeKind(node) == "pattern_base" {
 		if node.NamedChildCount() == 0 {
 			text := strings.TrimSpace(sliceContent(node, source))
 			if text == "_" {
@@ -42,18 +42,18 @@ func (ctx *parseContext) parsePatternInternal(node *sitter.Node) (ast.Pattern, e
 					return annotatePattern(ast.Wc(), child), nil
 				}
 			}
-			return nil, fmt.Errorf("parser: empty %s", node.Kind())
+			return nil, fmt.Errorf("parser: empty %s", nodeKind(node))
 		}
 		return ctx.parsePattern(node.NamedChild(0))
 	}
 
-	switch node.Kind() {
+	switch nodeKind(node) {
 	case "identifier":
 		expr, err := parseIdentifier(node, source)
 		if err != nil {
 			return nil, err
 		}
-		return annotatePattern(expr, node), nil
+		return expr, nil
 	case "_":
 		return annotatePattern(ast.Wc(), node), nil
 	case "literal_pattern":
@@ -61,7 +61,7 @@ func (ctx *parseContext) parsePatternInternal(node *sitter.Node) (ast.Pattern, e
 		if err != nil {
 			return nil, err
 		}
-		return annotatePattern(pattern, node), nil
+		return pattern, nil
 	case "struct_pattern":
 		return ctx.parseStructPattern(node)
 	case "array_pattern":
@@ -91,12 +91,12 @@ func (ctx *parseContext) parsePatternInternal(node *sitter.Node) (ast.Pattern, e
 		}
 		return annotatePattern(pattern, node), nil
 	default:
-		return nil, fmt.Errorf("parser: unsupported pattern kind %q", node.Kind())
+		return nil, fmt.Errorf("parser: unsupported pattern kind %q", nodeKind(node))
 	}
 }
 
 func (ctx *parseContext) parseLiteralPattern(node *sitter.Node) (ast.Pattern, error) {
-	if node == nil || node.Kind() != "literal_pattern" {
+	if node == nil || nodeKind(node) != "literal_pattern" {
 		return nil, fmt.Errorf("parser: expected literal_pattern node")
 	}
 	literalNode := firstNamedChild(node)
@@ -120,12 +120,12 @@ func (ctx *parseContext) parseLiteralPattern(node *sitter.Node) (ast.Pattern, er
 }
 
 func (ctx *parseContext) parseStructPattern(node *sitter.Node) (ast.Pattern, error) {
-	if node == nil || node.Kind() != "struct_pattern" {
+	if node == nil || nodeKind(node) != "struct_pattern" {
 		return nil, fmt.Errorf("parser: expected struct_pattern node")
 	}
 
 	var structType *ast.Identifier
-	typeNode := node.ChildByFieldName("type")
+	typeNode := childByFieldName(node, "type")
 	if typeNode != nil {
 		parts, err := parseQualifiedIdentifier(typeNode, ctx.source)
 		if err != nil {
@@ -153,14 +153,14 @@ func (ctx *parseContext) parseStructPattern(node *sitter.Node) (ast.Pattern, err
 			continue
 		}
 		elem := child
-		if child.Kind() == "struct_pattern_element" {
+		if nodeKind(child) == "struct_pattern_element" {
 			elem = firstNamedChild(child)
 			if elem == nil {
 				continue
 			}
 		}
 
-		if elem.Kind() == "struct_pattern_field" {
+		if nodeKind(elem) == "struct_pattern_field" {
 			field, err := ctx.parseStructPatternField(elem)
 			if err != nil {
 				return nil, err
@@ -245,12 +245,12 @@ func extractIdentifierName(raw string) string {
 }
 
 func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.StructPatternField, error) {
-	if node == nil || node.Kind() != "struct_pattern_field" {
+	if node == nil || nodeKind(node) != "struct_pattern_field" {
 		return nil, fmt.Errorf("parser: expected struct_pattern_field node")
 	}
 
 	var fieldName *ast.Identifier
-	if nameNode := node.ChildByFieldName("field"); nameNode != nil {
+	if nameNode := childByFieldName(node, "field"); nameNode != nil {
 		name, err := parseIdentifier(nameNode, ctx.source)
 		if err != nil {
 			return nil, err
@@ -259,7 +259,7 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 	}
 
 	var binding *ast.Identifier
-	if bindingNode := node.ChildByFieldName("binding"); bindingNode != nil {
+	if bindingNode := childByFieldName(node, "binding"); bindingNode != nil {
 		id, err := parseIdentifier(bindingNode, ctx.source)
 		if err != nil {
 			return nil, err
@@ -268,7 +268,7 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 	}
 
 	var typeAnnotation ast.TypeExpression
-	if typeNode := node.ChildByFieldName("type"); typeNode != nil {
+	if typeNode := childByFieldName(node, "type"); typeNode != nil {
 		if typeExpr := ctx.parseTypeExpression(typeNode); typeExpr != nil {
 			typeAnnotation = typeExpr
 		}
@@ -294,7 +294,7 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 	}
 
 	var pattern ast.Pattern
-	if valueNode := node.ChildByFieldName("value"); valueNode != nil {
+	if valueNode := childByFieldName(node, "value"); valueNode != nil {
 		valuePattern, err := ctx.parsePattern(valueNode)
 		if err != nil {
 			return nil, err
@@ -319,7 +319,7 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 	}
 
 	var bindingForField *ast.Identifier
-	if valueNode := node.ChildByFieldName("value"); valueNode != nil && binding != nil {
+	if valueNode := childByFieldName(node, "value"); valueNode != nil && binding != nil {
 		bindingForField = binding
 	}
 
@@ -329,7 +329,7 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 }
 
 func (ctx *parseContext) parseArrayPattern(node *sitter.Node) (ast.Pattern, error) {
-	if node == nil || node.Kind() != "array_pattern" {
+	if node == nil || nodeKind(node) != "array_pattern" {
 		return nil, fmt.Errorf("parser: expected array_pattern node")
 	}
 
@@ -341,7 +341,7 @@ func (ctx *parseContext) parseArrayPattern(node *sitter.Node) (ast.Pattern, erro
 		if child == nil || isIgnorableNode(child) {
 			continue
 		}
-		if child.Kind() == "array_pattern_rest" {
+		if nodeKind(child) == "array_pattern_rest" {
 			if rest != nil {
 				return nil, fmt.Errorf("parser: multiple array rest patterns")
 			}
@@ -365,7 +365,7 @@ func (ctx *parseContext) parseArrayPattern(node *sitter.Node) (ast.Pattern, erro
 }
 
 func (ctx *parseContext) parseArrayPatternRest(node *sitter.Node) (ast.Pattern, error) {
-	if node == nil || node.Kind() != "array_pattern_rest" {
+	if node == nil || nodeKind(node) != "array_pattern_rest" {
 		return nil, fmt.Errorf("parser: expected array_pattern_rest node")
 	}
 

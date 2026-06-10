@@ -1,23 +1,58 @@
-# Compiler + Interpreter Vision (v12)
+# Compiler + Interpreter Vision (Historical Direction and Current VM Record)
 
-This document captures the long-term execution strategy for the shared semantic
-core, bytecode direction, and interpreter/runtime relationship.
+This is an architecture-history document, not a language or lowering
+specification. It preserves earlier typed-core-IR and shared-runtime ideas for
+context while recording the execution contracts that actually exist in the Go
+reference implementation.
 
-Authority note:
-- active compiler lowering architecture is defined by
-  `compiler-go-lowering-spec.md`, `compiler-go-lowering-plan.md`,
-  `compiler-native-lowering.md`, and `compiler-aot.md`;
-- this document is background architecture for shared IR/runtime direction and
-  bytecode evolution, not the authority for allowing fallback-driven compiled
-  execution.
+## Current authority and implementation boundary
 
-## Goals
+- [`spec/full_spec_v12.md`](../../spec/full_spec_v12.md) defines Able
+  semantics. The AST and the Go tree-walker and bytecode VM must remain in
+  parity with it.
+- The active bytecode implementation is the Go source under
+  `interpreter-go/pkg/interpreter/bytecode_*.go`; its focused tests are the
+  executable record for instruction, frame, cache, and return behavior. This
+  document deliberately does not define a serialized bytecode ABI.
+- The active compiler is the direct AST-to-Go generator in
+  `interpreter-go/pkg/compiler`. `compiler-go-lowering-spec.md`,
+  `compiler-go-lowering-plan.md`,
+  `compiler-native-lowering-guardrails.md`, strict
+  compiler tests, and `docs/compiler-full-matrix.md` describe its current
+  lowering and verification boundary. `compiler-aot.md` is a historical
+  proposal, not additional authority.
+- `PLAN.md` owns performance selection. A runtime or compiler optimization
+  needs a concrete, non-nominal shared leaf that recurs across unlike verified
+  applications; a faster isolated benchmark is not enough.
+
+### Current Go execution record
+
+The Go bytecode VM uses an in-memory instruction stream and the same runtime
+value model as the tree-walker. It retains an operand stack, but it is not a
+stack-only VM: eligible functions use analysed slot-indexed local frames, and
+proved eligible `i32` functions may use a raw register frame. Inline calls use
+VM call frames that preserve caller program, instruction position, stack
+boundary, local-frame state, lookup state, coercion metadata, and raw-frame
+state. Calls outside that inline path retain the ordinary semantic dispatch
+bridge. The exact eligibility, invalidation, and fallback rules are source and
+test contracts, not promises made by this design record.
+
+The current compiler typechecks, discovers the static module graph and dynamic
+boundaries, then emits Go directly from the AST. It has no standalone typed
+core IR and no general shared VM/compiler runtime ABI. Strict no-fallback
+policies protect statically representable paths; dynamic features cross the
+existing explicit boundary machinery.
+
+No architectural migration, new backend, serialized bytecode format, or
+performance exception is authorized by the historical sections below.
+
+## Historical goals
 - Keep full Able expressiveness (dynamic interface values, metaprogramming, concurrency).
 - Compiled output should be close to host performance (Go first, then other targets).
 - Interpreted execution should move toward the performance of modern interpreted languages.
 - A single semantic core must drive both interpreter and compiler backends.
 
-## Recommended execution model
+## Historical recommended execution model
 - Build a typed core IR from the AST.
 - Two backends:
   1) Bytecode VM interpreter (fast, portable).
@@ -27,7 +62,7 @@ Authority note:
 - Dynamic features route to runtime or VM entry points only when the source
   program crosses an explicit dynamic boundary.
 
-## Interface dispatch in compiled + interpreted code
+## Historical interface-dispatch direction
 - Dynamic/runtime interface values may carry dictionary-style metadata (see
   `v12/design/interface-dispatch-dictionaries.md`).
 - Static compiled code should use direct calls or generated native interface
@@ -36,7 +71,7 @@ Authority note:
 - Dictionaries can remain part of the interpreter/dynamic runtime model and may
   still be useful at explicit dynamic boundaries.
 
-## Interpreter modernization direction
+## Historical interpreter-modernization direction
 - Move from tree-walking to bytecode or SSA-based VM:
   - Lower AST -> typed IR -> bytecode.
   - Use inline caches for member/method lookups and dictionary dispatch.
@@ -44,9 +79,12 @@ Authority note:
 - Start with a stack-based bytecode to minimize compiler complexity, then consider register-based once stabilized.
 - Maintain determinism for concurrency semantics (`spawn` / `Future` handles) while improving throughput.
 
-## Bytecode VM format + calling convention (current Go runtime)
-This section documents the **current** stack-based bytecode used by the Go VM. It is a
-lowering target for the AST (pre-IR) and must remain in parity with tree-walker semantics.
+## Historical stack-oriented bytecode snapshot
+
+This was an early stack-oriented description of the VM. It predates slot
+layouts, inline VM call frames, raw scalar carriers, and the register-frame
+work recorded above. It remains useful as design history only; do not use its
+instruction list or its call-frame statements as a current opcode contract.
 
 ### Program model
 - **Program**: linear instruction stream. Each program runs with a single operand stack.
@@ -56,8 +94,8 @@ lowering target for the AST (pre-IR) and must remain in parity with tree-walker 
 - **Control flow**: absolute jump targets by instruction index.
 
 ### Instruction encoding (in-memory)
-The Go VM currently uses an in-memory struct representation (no serialized bytecode
-format yet). Each instruction carries inline operands:
+The historical VM used an in-memory struct representation rather than a
+serialized bytecode format. Each instruction carried inline operands:
 - `op`: opcode enum.
 - `name`: identifier payload for `load_name`, `assign_name`, `call_name`, `break_label`.
 - `operator`: operator token for `binary`, `unary`, compound assignments, member/index sets.
@@ -72,8 +110,8 @@ format yet). Each instruction carries inline operands:
 ### Execution + call frames
 - The VM itself is not re-entrant; nested execution (e.g., placeholder lambdas) spins up
   a new VM instance.
-- Function calls use the same runtime overload dispatch as the tree-walker and do **not**
-  allocate an explicit VM call frame.
+- This historical text's claim that calls have no explicit VM frame has been
+  superseded by the current inline-call frame implementation.
 - `call` expects the callee below its arguments on the stack; arguments are pushed
   left-to-right, then popped in reverse to preserve order before invoking the callee.
 - `call_name` pops only arguments and resolves the callee by name (including `Type.method`).
@@ -186,7 +224,7 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
 #### Return
 - `return`: `S, value -> (exit)` (returns from program)
 
-## Compiler direction (Go first)
+## Historical compiler direction (Go first)
 - Emit Go code from typed IR.
 - Generate explicit runtime calls for:
   - interface coercion + dictionary dispatch
@@ -194,7 +232,7 @@ Notation: `S` is the operand stack. Effects are shown as `... -> ...`.
   - concurrency scheduling (`spawn`)
 - Keep the runtime ABI stable so the interpreter and compiler stay in lockstep.
 
-## Typed Core IR (proposed)
+## Historical typed-core-IR proposal
 The core IR is a typed, SSA-like, control-flow graph used by both the VM and
 codegen. It is intentionally small and explicit about runtime calls so we can
 preserve v12 semantics while keeping backends simple.
@@ -350,7 +388,7 @@ conservative and mirrors current runtime semantics (tree-walker + bytecode).
 - All effectful operations (I/O, concurrency, metaprogramming) remain explicit
   runtime calls for parity across backends.
 
-## Runtime ABI (stable surface for VM + codegen)
+## Historical shared-runtime-ABI proposal
 The runtime ABI is the shared contract implemented by the Go runtime and the VM
 host layer. ABI calls are used by compiled code and the VM; the tree-walker can
 reuse the same surface for consistency.
@@ -387,7 +425,7 @@ reuse the same surface for consistency.
 - Shared formatting helpers for runtime/typechecker diagnostics so backends emit
   identical messages.
 
-## Immediate next steps
+## Historical immediate next steps
 - Define a typed core IR and document it.
 - Prototype a minimal bytecode VM (values, calls, control flow).
 - Add conformance tests that run on both tree-walker and VM backends.

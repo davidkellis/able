@@ -1,0 +1,547 @@
+{
+  "kind": "external-application-variance-report",
+  "measurement_source": "Verifier-backed external scorecards. Embedded successful per-run samples are used when available; legacy reports contribute one aggregate sample per input. This report describes variability only; it is not a timing threshold gate.",
+  "sources": [
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c1-base64-compiled.json",
+      "generated_at": "2026-07-21T01:50:04.611061Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c2-base64-compiled.json",
+      "generated_at": "2026-07-21T02:54:12.147455Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c3-base64-compiled.json",
+      "generated_at": "2026-07-21T02:59:03.794006Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c1-base64-bytecode.json",
+      "generated_at": "2026-07-21T02:03:24.657931Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c2-base64-bytecode.json",
+      "generated_at": "2026-07-21T02:55:14.635554Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c3-base64-bytecode.json",
+      "generated_at": "2026-07-21T02:58:13.505603Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "ruby",
+        "python"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c1-monte-carlo-compiled.json",
+      "generated_at": "2026-07-21T01:52:33.908646Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c2-monte-carlo-compiled.json",
+      "generated_at": "2026-07-21T02:55:51.221924Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-c3-monte-carlo-compiled.json",
+      "generated_at": "2026-07-21T02:57:48.454910Z",
+      "suite": "custom",
+      "cpu_affinity": "0-15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "base64",
+      "mode": "bytecode",
+      "samples": [
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.806,
+          "ratios": {
+            "python": 0.7004668114531067,
+            "ruby": 1.0476794981891497
+          },
+          "reference_samples": {
+            "python": [
+              3.980737418,
+              3.909274987,
+              3.936868029,
+              4.151384606,
+              4.051361021
+            ],
+            "ruby": [
+              2.742761642,
+              2.733467702,
+              2.596271164,
+              2.793605522,
+              2.525326342
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.912,
+          "ratios": {
+            "python": 0.7249912861624258,
+            "ruby": 1.20569725074528
+          },
+          "reference_samples": {
+            "python": [
+              4.204103081,
+              4.054487695,
+              3.797984452,
+              3.879776152,
+              4.146885269
+            ],
+            "ruby": [
+              2.466096885,
+              2.410880759,
+              2.393527034,
+              2.441959334,
+              2.363427107
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.886,
+          "ratios": {
+            "ruby": 1.136444181925576,
+            "python": 0.7346128391793515
+          },
+          "reference_samples": {
+            "ruby": [
+              3.026032914,
+              2.57374596,
+              2.397194431,
+              2.331360445,
+              2.36899596
+            ],
+            "python": [
+              3.80189771,
+              4.155492699,
+              3.899134822,
+              3.877704308,
+              3.908662905
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 15,
+        "mean": 2.8680000000000003,
+        "median": 2.86,
+        "minimum": 2.72,
+        "maximum": 3.13,
+        "range": 0.4099999999999997,
+        "half_spread_pct": 7.147838214783815,
+        "sample_stdev": 0.10955755173814873,
+        "coefficient_of_variation_pct": 3.8199983172297323
+      },
+      "reference_seconds": {
+        "python": {
+          "samples": 15,
+          "mean": 3.9837170102666666,
+          "median": 3.936868029,
+          "minimum": 3.797984452,
+          "maximum": 4.204103081,
+          "range": 0.4061186290000003,
+          "half_spread_pct": 5.097232408242962,
+          "sample_stdev": 0.13430435427413562,
+          "coefficient_of_variation_pct": 3.3713327007920526
+        },
+        "ruby": {
+          "samples": 15,
+          "mean": 2.5443102134,
+          "median": 2.466096885,
+          "minimum": 2.331360445,
+          "maximum": 3.026032914,
+          "range": 0.6946724689999999,
+          "half_spread_pct": 13.65148921977754,
+          "sample_stdev": 0.20015559729020074,
+          "coefficient_of_variation_pct": 7.866792195230383
+        }
+      },
+      "ratios": {
+        "python": {
+          "samples": 3,
+          "mean": 0.7200236455982947,
+          "median": 0.7249912861624258,
+          "minimum": 0.7004668114531067,
+          "maximum": 0.7346128391793515,
+          "range": 0.034146027726244754,
+          "half_spread_pct": 2.3711740534487267,
+          "sample_stdev": 0.01760670020052507,
+          "coefficient_of_variation_pct": 2.4452947216608423
+        },
+        "ruby": {
+          "samples": 3,
+          "mean": 1.1299403102866685,
+          "median": 1.136444181925576,
+          "minimum": 1.0476794981891497,
+          "maximum": 1.20569725074528,
+          "range": 0.15801775255613015,
+          "half_spread_pct": 6.992305306642289,
+          "sample_stdev": 0.07920939205955398,
+          "coefficient_of_variation_pct": 7.010051003442682
+        }
+      }
+    },
+    {
+      "benchmark": "base64",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 2.68,
+          "ratios": {
+            "go": 1.0279226756673827
+          },
+          "reference_samples": {
+            "go": [
+              2.711428729,
+              2.566755079,
+              2.552334078,
+              2.51607125,
+              2.689593956
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.524,
+          "ratios": {
+            "go": 0.9998019409784115
+          },
+          "reference_samples": {
+            "go": [
+              2.54969212,
+              2.609131857,
+              2.616820065,
+              2.451110724,
+              2.395864163
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.472,
+          "ratios": {
+            "go": 0.9741104149426646
+          },
+          "reference_samples": {
+            "go": [
+              2.627806657,
+              2.571995244,
+              2.48140489,
+              2.525287591,
+              2.481768127
+            ]
+          }
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 15,
+        "mean": 2.558666666666667,
+        "median": 2.53,
+        "minimum": 2.37,
+        "maximum": 2.94,
+        "range": 0.5699999999999998,
+        "half_spread_pct": 11.138613861386135,
+        "sample_stdev": 0.15315103034337738,
+        "coefficient_of_variation_pct": 5.985579612169516
+      },
+      "reference_seconds": {
+        "go": {
+          "samples": 15,
+          "mean": 2.5564709686666665,
+          "median": 2.552334078,
+          "minimum": 2.395864163,
+          "maximum": 2.711428729,
+          "range": 0.31556456599999994,
+          "half_spread_pct": 6.171878536226512,
+          "sample_stdev": 0.08633933517529208,
+          "coefficient_of_variation_pct": 3.377285963091635
+        }
+      },
+      "ratios": {
+        "go": {
+          "samples": 3,
+          "mean": 1.0006116771961528,
+          "median": 0.9998019409784115,
+          "minimum": 0.9741104149426646,
+          "maximum": 1.0279226756673827,
+          "range": 0.05381226072471812,
+          "half_spread_pct": 2.6889682556727323,
+          "sample_stdev": 0.026915267147717515,
+          "coefficient_of_variation_pct": 2.6898813756738957
+        }
+      }
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "missing",
+          "able_seconds": null,
+          "ratios": {},
+          "reference_samples": {}
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.214,
+          "ratios": {
+            "go": 0.9272097053726169
+          },
+          "reference_samples": {
+            "go": [
+              0.204775219,
+              0.199381194,
+              0.209378515,
+              0.28430062,
+              0.256342032
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.228,
+          "ratios": {
+            "go": 1.1579481970543424
+          },
+          "reference_samples": {
+            "go": [
+              0.197286837,
+              0.19685152,
+              0.194988561,
+              0.195979563,
+              0.199379883
+            ]
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.21,
+          "ratios": {
+            "go": 0.9497964721845319
+          },
+          "reference_samples": {
+            "go": [
+              0.211005872,
+              0.203666915,
+              0.230861755,
+              0.231585616,
+              0.228262352
+            ]
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 15,
+        "mean": 0.21733333333333335,
+        "median": 0.21,
+        "minimum": 0.19,
+        "maximum": 0.28,
+        "range": 0.09000000000000002,
+        "half_spread_pct": 20.705521472392643,
+        "sample_stdev": 0.024630604269214894,
+        "coefficient_of_variation_pct": 11.333100123871882
+      },
+      "reference_seconds": {
+        "go": {
+          "samples": 15,
+          "mean": 0.21626976360000003,
+          "median": 0.204775219,
+          "minimum": 0.194988561,
+          "maximum": 0.28430062,
+          "range": 0.089312059,
+          "half_spread_pct": 20.648299954954958,
+          "sample_stdev": 0.025862211005197904,
+          "coefficient_of_variation_pct": 11.95831103465353
+        }
+      },
+      "ratios": {
+        "go": {
+          "samples": 3,
+          "mean": 1.0116514582038303,
+          "median": 0.9497964721845319,
+          "minimum": 0.9272097053726169,
+          "maximum": 1.1579481970543424,
+          "range": 0.23073849168172544,
+          "half_spread_pct": 11.404050763263745,
+          "sample_stdev": 0.12719902655867746,
+          "coefficient_of_variation_pct": 12.573404162785188
+        }
+      }
+    }
+  ],
+  "required_successful_runs": 5
+}

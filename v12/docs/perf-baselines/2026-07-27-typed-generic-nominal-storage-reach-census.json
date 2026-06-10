@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "title": "Typed generic-nominal storage reach census",
+  "decision": {
+    "production_change": "none",
+    "candidate_admitted": false,
+    "reason": "Runtime-backed typed storage is broad, but it separates into HashMap value semantics and Channel scheduler semantics. Direct generic nominal fields are already native, and the application corpus has no user-defined generic storage nominal from which to derive one language-general representation rule."
+  },
+  "scope": {
+    "catalog_applications": 62,
+    "strict_emissions": 62,
+    "successful_emissions": 62,
+    "dependency_graphs": 62,
+    "interpreter_dependency_graphs": 0,
+    "source_root_mode": "catalog target with ABLE_SOURCE_ROOT_ONLY=1",
+    "fallback_mode": "--no-fallbacks",
+    "workspace": "disk-backed /var/tmp; removed after verification"
+  },
+  "provenance": {
+    "compiler_sha256": "6c6128c7c5de533c687dc062e5b4e9e517824b3dfb4167e67dd22e3054eea787",
+    "census_tool_sha256": "dd5986ae77058c7315ca4a6a37ab92e8c7584474637b5614b91ae990d0a28f0f",
+    "catalog_sha256": "0fbab7e784b5f1ad5f7c375cece62f77d09d0c26b12c599dcdd1b1057753e864",
+    "manifest_sha256": "11734d0f87605ca9fb953fb10fe06eb90512b5cdc1f1d722697231180ef39867",
+    "manifest": "2026-07-27-typed-generic-nominal-storage-census.tsv"
+  },
+  "generated_carriers": {
+    "native_array_variants_per_application_sum": 1164,
+    "native_array_variants_distinct": 55,
+    "direct_generic_variants_per_application_sum": 310,
+    "direct_generic_variants_distinct": 36,
+    "direct_generic_families": [
+      "ArrayIterator",
+      "ChannelIterator",
+      "Deque",
+      "DivMod",
+      "DivModResult",
+      "Indexed",
+      "Queue",
+      "Span"
+    ],
+    "direct_generic_runtime_value_fields": 0,
+    "application_struct_declarations": 95,
+    "application_generic_struct_declarations": 0
+  },
+  "runtime_backed_storage": {
+    "applications_with_executable_operations": 25,
+    "overlap_applications": [
+      "concurrent_event_routing",
+      "concurrent_text_index",
+      "dependency_wave_validation"
+    ],
+    "hashmap": {
+      "carrier_variants_per_application_sum": 15,
+      "applications_with_executable_operations": 14,
+      "generated_specialized_methods": 125,
+      "applications_with_map_interface": 11,
+      "applications": [
+        "backup_dedup",
+        "binary_event_log",
+        "config_validation_extraction",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "inventory_reconciliation",
+        "k_nucleotide",
+        "log_routing_redaction",
+        "policy_record_dispatch",
+        "regex_set_audit",
+        "regex_stream_audit",
+        "regex_suffix_audit",
+        "word_frequency"
+      ],
+      "semantic_parent": "Able hashing and equality, mutation, aliasing, clone, iteration, insertion identity, and nullable recovery",
+      "application_nominal_payload_controls": [
+        "dependency_wave_validation: HashMap i64 WaveResult"
+      ]
+    },
+    "channel": {
+      "carrier_variants_per_application_sum": 27,
+      "applications_with_carriers": 16,
+      "applications_with_executable_operations": 14,
+      "generated_specialized_methods": 109,
+      "applications": [
+        "await_channel_mux",
+        "channel_rollup",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_policy_callbacks",
+        "concurrent_signal_dispatch",
+        "concurrent_stateful_pipeline",
+        "concurrent_stencil_reduction",
+        "concurrent_text_index",
+        "concurrent_transform_chain",
+        "dependency_wave_validation",
+        "future_await_race",
+        "future_pipeline",
+        "validated_job_pipeline"
+      ],
+      "semantic_parent": "ordering, blocking, wakeup, cancellation, close, concurrent payload lifetime, and scheduler bookkeeping",
+      "applications_with_application_nominal_payloads": 10
+    }
+  },
+  "dependency_wave_allocation_control": {
+    "binary_sha256": "9f8235bac86d6a277bf5c82e52ed38545b4e7ed93ec3c353aec27663d455437b",
+    "verified_output_sha256": "980cc3fc4b704724ab3d52d09a956a5c0b83099550466cbce9b3fa85b59958ad",
+    "main_allocated_bytes": [
+      6515176,
+      6515320,
+      6515320
+    ],
+    "main_allocations": [
+      122125,
+      122125,
+      122117
+    ],
+    "main_gc_count": [
+      3,
+      3,
+      3
+    ],
+    "mean_main_allocated_bytes": 6515272,
+    "mean_main_allocations": 122122.33333333333,
+    "hashmap_operation_cumulative_allocations": [
+      36610,
+      36073,
+      36229
+    ],
+    "channel_operation_cumulative_allocations": [
+      46864,
+      47399,
+      47236
+    ],
+    "mean_hashmap_operation_cumulative_allocations": 36304,
+    "mean_channel_operation_cumulative_allocations": 47166.333333333336,
+    "mean_hashmap_share_of_main_allocations": 0.297276,
+    "mean_channel_share_of_main_allocations": 0.386222,
+    "mean_combined_share_of_main_allocations": 0.683498,
+    "note": "Top-level operation routes are disjoint. Percentages use phase-stats allocation counts rather than pprof serialization totals."
+  },
+  "classification": {
+    "nominal_origin": {
+      "direct_generic_nominals": "native Go fields",
+      "HashMap": "runtime handle plus runtime.Value kernel store",
+      "Channel": "runtime handle plus runtime.Value scheduler payload"
+    },
+    "carrier": {
+      "primitive_and_static_array": "native Go",
+      "application_nominal": "native pointer/struct until a runtime service boundary",
+      "runtime_service_payload": "runtime.Value"
+    },
+    "identity_and_aliasing": {
+      "direct_nominal": "preserved by shared native nominal lowering guards",
+      "HashMap": "store-owned mutation and lookup identity",
+      "Channel": "payload must outlive sender and cross goroutines"
+    },
+    "interface_exposure": {
+      "HashMap": "11 of 14 executable applications expose generated Map interfaces; three call concrete methods",
+      "Channel": "concrete specialized methods enter scheduler helpers"
+    },
+    "fallback_materialization": "All surveyed applications are fallback-free and interpreter-free; observed materialization is required by the current runtime-service ABIs, not compiler fallback."
+  },
+  "verification": {
+    "census_rerun_byte_identical": true,
+    "bash_syntax": "pass",
+    "focused_compiler_test_seconds": 3.113,
+    "focused_compiler_tests": [
+      "TestCompilerGenericNominalMethodSpecializationStaysNative",
+      "TestCompilerBoundGenericFieldCarrierSpecializationStaysNative",
+      "TestCompilerGenericInterfaceTouchpointsStayNative",
+      "TestCompilerCallerOwnedNominalResultIsStructuralAndPreservesAliases",
+      "TestCompilerCallerOwnedNominalResultExecutesAliasAndEscapeCases",
+      "TestCompilerGenericMapInterfaceSignatureStaysNative",
+      "TestCompilerChannelPayloadRecoveryStartsAtBlockingPath"
+    ]
+  },
+  "next": {
+    "action": "Expand the portable suite only with a genuine unlike application/domain whose natural design uses application-defined generic storage, then measure it before reopening representation work.",
+    "why": "The current corpus proves runtime-service cost but contains no application-defined generic storage nominal, so it cannot distinguish a general nominal-lowering defect from HashMap- and Channel-specific ABIs.",
+    "entails": "Select a real feature-covering workload without benchmark-only APIs or workload shaping; create source-equivalent Able, Go, Python, and Ruby implementations whose hot state naturally lives in an application-defined generic nominal backed by static Arrays; verify strict interpreter-free generation, native fields and aliases, then collect repeated verifier-backed timings and exact allocation profiles.",
+    "importance": "A native result closes the general nominal route and keeps attention on kernel services; a material runtime.Value transition would be the first admissible evidence for a shared compiler representation correction."
+  }
+}

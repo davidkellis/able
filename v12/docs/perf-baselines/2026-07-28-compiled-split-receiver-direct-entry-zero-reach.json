@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "runs_per_application": 5,
+  "all_runs_verified": true,
+  "candidate": "compiler-owned split-receiver bound carrier preserving a compiled method direct entry",
+  "disposition": "zero-reach-closed-no-production-change",
+  "applications": {
+    "future_await_race": {
+      "context_calls_mean": 912.6,
+      "native_bound_calls_mean": 912.6,
+      "successful_method_lookups_mean": 912.6,
+      "compiled_direct_entries_mean": 0.0,
+      "lookups_without_compiled_direct_mean": 912.6,
+      "interpreter_dependency": false,
+      "compiled_source_sha256": "72a91043c11cba0a05a646b9c6f2845a84b4b34042c321f862759b10950c6de8"
+    },
+    "await_channel_mux": {
+      "context_calls_mean": 9216.0,
+      "native_bound_calls_mean": 8704.0,
+      "successful_method_lookups_mean": 8704.0,
+      "compiled_direct_entries_mean": 0.0,
+      "lookups_without_compiled_direct_mean": 8704.0,
+      "interpreter_dependency": false,
+      "compiled_source_sha256": "5971b39b350969c2d27c71e1a258eb902d4920e0a834e7877192012119448de8"
+    },
+    "mutex_await_journal": {
+      "context_calls_mean": 8559.8,
+      "native_bound_calls_mean": 6511.8,
+      "successful_method_lookups_mean": 6511.8,
+      "compiled_direct_entries_mean": 0.0,
+      "lookups_without_compiled_direct_mean": 6511.8,
+      "interpreter_dependency": false,
+      "compiled_source_sha256": "3f8cbdfd9a08ea15a4ccde26b30234fc179b445658a78fd451d8821ffc1540ae"
+    },
+    "mutex_work_queue": {
+      "context_calls_mean": 17073.4,
+      "native_bound_calls_mean": 12977.4,
+      "successful_method_lookups_mean": 12977.4,
+      "compiled_direct_entries_mean": 0.0,
+      "lookups_without_compiled_direct_mean": 12977.4,
+      "interpreter_dependency": false,
+      "compiled_source_sha256": "7e3c6c2615bcfa63c4589c38238fe91ed39045e2e8132b0a3c408d52cc255cca"
+    }
+  },
+  "reached_value_families": [
+    "Future built-in methods",
+    "generated Awaitable closure methods",
+    "generated AwaitRegistration closure methods",
+    "generated AwaitWaker closure methods"
+  ],
+  "allocation_measurement": "not-run-candidate-had-zero-reach",
+  "wall_and_go_measurement": "not-run-candidate-had-zero-reach"
+}

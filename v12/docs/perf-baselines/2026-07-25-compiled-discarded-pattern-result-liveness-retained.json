@@ -1,0 +1,213 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain",
+  "candidate": "general discarded pattern-assignment success-result liveness",
+  "settings": {
+    "cpu_affinity": "9",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timed_runs_per_lane": 20,
+    "warmups_per_lane": 2,
+    "order_balanced": true,
+    "cpu_profiles_per_candidate_application": 10,
+    "allocation_profiles_per_lane_application": 3,
+    "strict_no_fallbacks": true,
+    "public_verifier_required": true
+  },
+  "admission": {
+    "existing_material_applications": [
+      "Concurrent Event Routing",
+      "Sensor Calibration"
+    ],
+    "third_application": "Manifest Normalization",
+    "third_application_pattern_executions": 4096,
+    "third_application_array_conversion_bridge_to_string_objects": 19072,
+    "third_application_complete_array_conversion_allocations": 26752,
+    "rejected_as_nonmaterial": {
+      "application": "Concurrent Policy Callbacks",
+      "pattern_executions": 32
+    }
+  },
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_mean_nanoseconds": 32681433.35,
+      "candidate_mean_nanoseconds": 27285545.5,
+      "go_mean_nanoseconds": 3332604.2,
+      "candidate_change_percent": -16.5106,
+      "candidate_over_go": 8.1875,
+      "go_performance_percent": 12.2138,
+      "samples_nanoseconds": {
+        "baseline": [
+          28586681, 28050019, 30852813, 30186610, 31970154,
+          39325684, 27111391, 31433802, 24469964, 49875733,
+          28927517, 31004000, 33309200, 32519667, 27842876,
+          50040568, 31224950, 33396193, 33280304, 30220541
+        ],
+        "candidate": [
+          31918267, 34147207, 23724754, 24119000, 34943206,
+          22636551, 26715783, 24529258, 41123652, 21979750,
+          25626493, 26432344, 27028933, 26526432, 23161005,
+          25228397, 25317983, 27737157, 27306429, 25508309
+        ],
+        "go": [
+          2695932, 3006702, 3361009, 3850446, 3375517,
+          3003527, 3167135, 2778015, 3361269, 4594282,
+          2980478, 3211618, 4095497, 3200304, 3126547,
+          3327989, 3309081, 3460699, 3579829, 3166208
+        ]
+      },
+      "allocation": {
+        "baseline_samples_bytes_allocations_gc": [
+          [11607992, 155661, 7],
+          [11609032, 155670, 7],
+          [11606872, 155649, 6]
+        ],
+        "candidate_samples_bytes_allocations_gc": [
+          [8960952, 104602, 7],
+          [8960600, 104598, 6],
+          [8960760, 104599, 6]
+        ],
+        "baseline_mean_bytes": 11607965.3333,
+        "candidate_mean_bytes": 8960770.6667,
+        "bytes_change_percent": -22.805,
+        "baseline_mean_allocations": 155660,
+        "candidate_mean_allocations": 104599.6667,
+        "allocations_change_percent": -32.8025,
+        "baseline_mean_gc": 6.6667,
+        "candidate_mean_gc": 6.3333
+      },
+      "candidate_sha256": "83de9d4e8ecc8ec9d9bb6dce76edae6343c9e253e4e927fe6318e4271b99f927"
+    },
+    {
+      "name": "Sensor Calibration",
+      "baseline_mean_nanoseconds": 21068310.65,
+      "candidate_mean_nanoseconds": 15355945.55,
+      "go_mean_nanoseconds": 4457919.4,
+      "candidate_change_percent": -27.1135,
+      "candidate_over_go": 3.4446,
+      "go_performance_percent": 29.0306,
+      "samples_nanoseconds": {
+        "baseline": [
+          32707968, 30452527, 29169359, 16680211, 15746703,
+          20336984, 21746155, 16608928, 20872328, 20296653,
+          18022352, 17507923, 17516020, 15768041, 13993812,
+          21316309, 16398304, 30705590, 29370015, 16150031
+        ],
+        "candidate": [
+          22214183, 11297366, 19110583, 14853565, 12883328,
+          16154615, 17628671, 14692961, 15594213, 13806225,
+          12017082, 13714920, 11968865, 11473982, 11454631,
+          11355021, 21901850, 20805966, 13171588, 21019296
+        ],
+        "go": [
+          3601549, 4153085, 3988913, 3836280, 3379734,
+          3689097, 3865088, 4037225, 3964659, 7331658,
+          3793756, 3392269, 3614606, 3373843, 3103320,
+          5105820, 7041669, 9635273, 3679935, 4570609
+        ]
+      },
+      "allocation": {
+        "baseline_samples_bytes_allocations_gc": [
+          [6394928, 125377, 6],
+          [6394944, 125377, 6],
+          [6394944, 125377, 6]
+        ],
+        "candidate_samples_bytes_allocations_gc": [
+          [4039744, 60097, 3],
+          [4039744, 60097, 4],
+          [4039728, 60097, 3]
+        ],
+        "baseline_mean_bytes": 6394938.6667,
+        "candidate_mean_bytes": 4039738.6667,
+        "bytes_change_percent": -36.8291,
+        "baseline_mean_allocations": 125377,
+        "candidate_mean_allocations": 60097,
+        "allocations_change_percent": -52.067,
+        "baseline_mean_gc": 6,
+        "candidate_mean_gc": 3.3333
+      },
+      "candidate_sha256": "d8c62082b1843a90457b6bc3b87838a04e7326c9f0f267ecfcf486b90dbe44c7"
+    },
+    {
+      "name": "Manifest Normalization",
+      "baseline_mean_nanoseconds": 15483508.05,
+      "candidate_mean_nanoseconds": 14311767.5,
+      "go_mean_nanoseconds": 2931388.45,
+      "candidate_change_percent": -7.5677,
+      "candidate_over_go": 4.8822,
+      "go_performance_percent": 20.4824,
+      "samples_nanoseconds": {
+        "baseline": [
+          16238920, 14466322, 14397260, 15410274, 14431529,
+          14832452, 15698441, 14587282, 15297792, 17273224,
+          16014099, 14961732, 15055284, 16391130, 15404470,
+          15888896, 15117461, 16189066, 14748070, 17266457
+        ],
+        "candidate": [
+          13814877, 13332076, 13768225, 14271391, 14001453,
+          13534073, 13965060, 13792765, 14345397, 14068919,
+          16790274, 15849377, 15688868, 14825344, 14761583,
+          14231106, 13355545, 14120115, 14479013, 13239889
+        ],
+        "go": [
+          2679532, 2870268, 3056852, 3706973, 3146843,
+          2782543, 3486884, 2718406, 2718612, 2693993,
+          3012785, 2937324, 3063334, 2939975, 2679347,
+          3054919, 2874266, 2833339, 2704516, 2667058
+        ]
+      },
+      "allocation": {
+        "baseline_samples_bytes_allocations_gc": [
+          [6805432, 119878, 6],
+          [6805336, 119877, 7],
+          [6805432, 119878, 6]
+        ],
+        "candidate_samples_bytes_allocations_gc": [
+          [5824440, 93126, 5],
+          [5824408, 93126, 5],
+          [5824360, 93125, 5]
+        ],
+        "baseline_mean_bytes": 6805400,
+        "candidate_mean_bytes": 5824402.6667,
+        "bytes_change_percent": -14.415,
+        "baseline_mean_allocations": 119877.6667,
+        "candidate_mean_allocations": 93125.6667,
+        "allocations_change_percent": -22.3161,
+        "baseline_mean_gc": 6.3333,
+        "candidate_mean_gc": 5
+      },
+      "candidate_sha256": "c16b65b21535289c10f239a6332ca994a6e3211a2eabf946ee28466bfb22fd70"
+    }
+  ],
+  "geometric_mean_change_percent": {
+    "wall_time": -17.4531,
+    "allocated_bytes": -25.2689,
+    "allocations": -36.9856
+  },
+  "geometric_mean_candidate_over_go": 5.1638,
+  "geometric_mean_go_performance_percent": 19.3655,
+  "profile_conclusion": {
+    "selected_pattern_result_array_conversion_removed_in_all_three": true,
+    "new_legal_semantic_owner_shared_by_same_three": false,
+    "next_two_application_owner": "native nominal argument conversion when a nested generic callback invokes an erased captured callable",
+    "next_third_application_to_profile": "Binary Event Log"
+  },
+  "verification": {
+    "timed_processes_passed_public_verifier": 180,
+    "warmup_processes_passed_public_verifier": 18,
+    "candidate_cpu_profile_processes_passed_public_verifier": 30,
+    "baseline_and_candidate_allocation_profile_processes_passed_public_verifier": 18,
+    "strict_dependency_graphs_without_interpreter": 3,
+    "generated_source_guards_passed": true,
+    "semantic_executable_guard_passed": true,
+    "six_assignment_pattern_fixtures_passed": true,
+    "pattern_focused_compiler_tests_passed": true,
+    "ablec_package_passed": true
+  },
+  "stdlib_changed": false,
+  "runtime_changed": false,
+  "interpreter_changed": false,
+  "wasm_changed": false
+}

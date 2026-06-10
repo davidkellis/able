@@ -183,7 +183,7 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 		t.Fatalf("channel_instance type = %T, want *runtime.StructInstanceValue", chanVal)
 	}
 
-	capacityVal, ok := chanStruct.Fields["capacity"]
+	capacityVal, ok := structNamedFieldValue(chanStruct, "capacity")
 	if !ok {
 		t.Fatalf("channel capacity field missing")
 	}
@@ -199,7 +199,7 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 		t.Fatalf("channel capacity = %v, want 0", capacityInt.BigInt())
 	}
 
-	handleVal, ok := chanStruct.Fields["handle"]
+	handleVal, ok := structNamedFieldValue(chanStruct, "handle")
 	if !ok {
 		t.Fatalf("channel handle field missing")
 	}
@@ -227,7 +227,7 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 		t.Fatalf("mutex_instance type = %T, want *runtime.StructInstanceValue", mutexVal)
 	}
 
-	mutexHandle, ok := mutexStructVal.Fields["handle"]
+	mutexHandle, ok := structNamedFieldValue(mutexStructVal, "handle")
 	if !ok {
 		t.Fatalf("mutex handle field missing")
 	}

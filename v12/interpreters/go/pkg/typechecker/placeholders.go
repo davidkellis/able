@@ -249,7 +249,6 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 	default:
 		return nil
 	}
-	return nil
 }
 
 func (p *placeholderAnalyzer) visitStatement(stmt ast.Statement) error {

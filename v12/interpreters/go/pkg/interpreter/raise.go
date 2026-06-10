@@ -9,3 +9,8 @@ func Raise(interp *Interpreter, value runtime.Value, env *runtime.Environment) e
 	}
 	return raiseSignal{value: interp.makeErrorValue(value, env)}
 }
+
+// RaiseValue implements the compiler bridge's dynamic-runtime contract.
+func (i *Interpreter) RaiseValue(value runtime.Value, env *runtime.Environment) error {
+	return Raise(i, value, env)
+}

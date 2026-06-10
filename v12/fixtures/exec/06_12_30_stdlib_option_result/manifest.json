@@ -1,0 +1,27 @@
+{
+  "description": "Option and Result generic union helpers preserve receiver type arguments and dispatch overlapping method names",
+  "expect": {
+    "stdout": [
+      "true",
+      "true",
+      "7",
+      "9",
+      "14",
+      "12",
+      "true",
+      "true",
+      "true",
+      "9",
+      "11",
+      "21",
+      "true",
+      "7",
+      "true",
+      "true",
+      "true",
+      "option unwrap error",
+      "result unwrap error"
+    ],
+    "exit": 0
+  }
+}

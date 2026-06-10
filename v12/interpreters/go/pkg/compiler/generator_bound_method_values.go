@@ -60,17 +60,34 @@ func (g *generator) compileNativeBoundMethodValue(ctx *compileContext, objectExp
 		paramParts = append(paramParts, fmt.Sprintf("%s %s", name, paramType))
 		argNames = append(argNames, name)
 	}
+	if g.callableExecutionContextsEnabled() {
+		paramParts = append(paramParts, "__able_exec_ctx "+executionContextType)
+	}
 	var callExpr string
 	if g.nativeInterfaceInfoForGoType(objectType) != nil {
-		callExpr = fmt.Sprintf("%s.%s(%s)", receiverTemp, sanitizeIdent(method.MethodName), strings.Join(argNames, ", "))
+		methodName := sanitizeIdent(method.MethodName)
+		callArgs := append([]string{}, argNames...)
+		if g.callableExecutionContextsEnabled() {
+			methodName = "__able_ctx_" + methodName
+			callArgs = append(callArgs, "__able_exec_ctx")
+		}
+		callExpr = fmt.Sprintf("%s.%s(%s)", receiverTemp, methodName, strings.Join(callArgs, ", "))
 	} else {
 		args := append([]string{}, argNames...)
 		if method.ExpectsSelf {
 			args = append([]string{receiverTemp}, args...)
 		}
-		callExpr = fmt.Sprintf("%s(%s)", g.compiledCallTargetName(ctx.packageName, method.Info), strings.Join(args, ", "))
+		target := g.compiledCallTargetName(ctx.packageName, method.Info)
+		if g.callableExecutionContextsEnabled() {
+			target = compiledContextName(target)
+			args = append(args, "__able_exec_ctx")
+		}
+		callExpr = fmt.Sprintf("%s(%s)", target, strings.Join(args, ", "))
 	}
-	bodyParts := append([]string{}, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	bodyParts := []string{}
+	if !g.callableExecutionContextsEnabled() {
+		bodyParts = append(bodyParts, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	}
 	bodyParts = append(bodyParts, fmt.Sprintf("return %s", callExpr))
 	callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { %s })", callableInfo.GoType, strings.Join(paramParts, ", "), callableInfo.ReturnGoType, strings.Join(bodyParts, "; "))
 	return lines, callableExpr, callableInfo.GoType, true
@@ -93,8 +110,20 @@ func (g *generator) compileNativeInterfaceBoundMethodValue(ctx *compileContext, 
 		paramParts = append(paramParts, fmt.Sprintf("%s %s", name, paramType))
 		argNames = append(argNames, name)
 	}
-	callExpr := fmt.Sprintf("%s.%s(%s)", receiverTemp, method.GoName, strings.Join(argNames, ", "))
-	bodyParts := append([]string{}, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	if g.callableExecutionContextsEnabled() {
+		paramParts = append(paramParts, "__able_exec_ctx "+executionContextType)
+	}
+	methodName := method.GoName
+	callArgs := append([]string{}, argNames...)
+	if g.callableExecutionContextsEnabled() {
+		methodName = nativeInterfaceContextMethodName(method)
+		callArgs = append(callArgs, "__able_exec_ctx")
+	}
+	callExpr := fmt.Sprintf("%s.%s(%s)", receiverTemp, methodName, strings.Join(callArgs, ", "))
+	bodyParts := []string{}
+	if !g.callableExecutionContextsEnabled() {
+		bodyParts = append(bodyParts, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	}
 	bodyParts = append(bodyParts, fmt.Sprintf("return %s", callExpr))
 	callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { %s })", callableInfo.GoType, strings.Join(paramParts, ", "), callableInfo.ReturnGoType, strings.Join(bodyParts, "; "))
 	return lines, callableExpr, callableInfo.GoType, true

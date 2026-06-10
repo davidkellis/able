@@ -11,11 +11,15 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			typeExpr = expanded
 		}
 	}
-	if valueExpr := i.typeExpressionFromValue(value); valueExpr != nil {
-		expandedValue := i.expandTypeAliasesCached(valueExpr)
-		if expandedValue != nil && typeExpressionsEqual(typeExpr, expandedValue) {
-			return true
-		}
+	if matched, ok := i.matchesTypeWithoutRuntimeValue(typeExpr); ok {
+		return matched
+	}
+	if matched, ok := i.matchesTypeWithRawPrimitiveValue(typeExpr, value); ok {
+		return matched
+	}
+	value = bytecodeMaterializeRawValue(bytecodeSlotReadValue(value))
+	if matched, ok := fastExactNamedStructTypeMatch(i, typeExpr, value); ok {
+		return matched
 	}
 	switch t := typeExpr.(type) {
 	case *ast.WildcardTypeExpression:
@@ -23,10 +27,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 	case *ast.SimpleTypeExpression:
 		name := normalizeKernelAliasName(t.Name.Name)
 		if name == "Error" {
-			switch value.(type) {
-			case runtime.ErrorValue, *runtime.ErrorValue:
-				return true
-			}
+			return i.matchesErrorValue(value)
 		}
 		if name == "Self" {
 			return true
@@ -104,7 +105,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				if !ok {
 					return false
 				}
-				okImpl, err := i.typeImplementsInterface(info, name, nil, make(map[string]struct{}))
+				okImpl, err := i.typeImplementsInterface(info, name, nil, make(map[interfaceImplCacheKey]struct{}))
 				return err == nil && okImpl
 			}
 		case "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128":
@@ -195,7 +196,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 						}
 						return false
 					}
-					okImpl, err := i.typeImplementsInterface(info, name, nil, make(map[string]struct{}))
+					okImpl, err := i.typeImplementsInterface(info, name, nil, make(map[interfaceImplCacheKey]struct{}))
 					if err == nil && okImpl {
 						return true
 					}
@@ -231,7 +232,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				if !ok {
 					return false
 				}
-				okImpl, err := i.typeImplementsInterface(info, baseName, t.Arguments, make(map[string]struct{}))
+				okImpl, err := i.typeImplementsInterface(info, baseName, t.Arguments, make(map[interfaceImplCacheKey]struct{}))
 				return err == nil && okImpl
 			}
 		}
@@ -256,7 +257,14 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				return true
 			}
 			elemType := t.Arguments[0]
-			for _, el := range arr.Elements {
+			if matched, decided := i.matchesMonoArrayElementTypeWithoutMaterializing(arr, elemType); decided {
+				return matched
+			}
+			values := arr.Elements
+			if len(values) == 0 {
+				values = i.arrayValuesForTypeInspection(arr)
+			}
+			for _, el := range values {
 				if !i.matchesType(elemType, el) {
 					return false
 				}
@@ -289,23 +297,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			if i.matchesType(t.Arguments[0], value) {
 				return true
 			}
-			switch v := value.(type) {
-			case runtime.ErrorValue, *runtime.ErrorValue:
-				return true
-			case runtime.InterfaceValue:
-				if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
-					return true
-				}
-			case *runtime.InterfaceValue:
-				if v != nil && v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
-					return true
-				}
-			}
-			if info, ok := i.getTypeInfoForValue(value); ok {
-				okImpl, err := i.typeImplementsInterface(info, "Error", nil, make(map[string]struct{}))
-				return err == nil && okImpl
-			}
-			return false
+			return i.matchesErrorValue(value)
 		}
 		if baseName == "Option" && len(t.Arguments) > 0 {
 			if _, ok := value.(runtime.NilValue); ok {
@@ -332,7 +324,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 					if !ok {
 						return false
 					}
-					okImpl, err := i.typeImplementsInterface(info, baseName, t.Arguments, make(map[string]struct{}))
+					okImpl, err := i.typeImplementsInterface(info, baseName, t.Arguments, make(map[interfaceImplCacheKey]struct{}))
 					if err == nil && okImpl {
 						return true
 					}
@@ -401,23 +393,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		if i.matchesType(t.InnerType, value) {
 			return true
 		}
-		switch v := value.(type) {
-		case runtime.ErrorValue, *runtime.ErrorValue:
-			return true
-		case runtime.InterfaceValue:
-			if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
-				return true
-			}
-		case *runtime.InterfaceValue:
-			if v != nil && v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
-				return true
-			}
-		}
-		if info, ok := i.getTypeInfoForValue(value); ok {
-			okImpl, err := i.typeImplementsInterface(info, "Error", nil, make(map[string]struct{}))
-			return err == nil && okImpl
-		}
-		return false
+		return i.matchesErrorValue(value)
 	case *ast.UnionTypeExpression:
 		for _, member := range t.Members {
 			if i.matchesType(member, value) {
@@ -430,6 +406,115 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 	}
 }
 
+func (i *Interpreter) matchesTypeWithoutRuntimeValue(typeExpr ast.TypeExpression) (bool, bool) {
+	switch t := typeExpr.(type) {
+	case *ast.WildcardTypeExpression:
+		return true, true
+	case *ast.SimpleTypeExpression:
+		if t == nil || t.Name == nil {
+			return false, false
+		}
+		name := normalizeKernelAliasName(t.Name.Name)
+		if name == "Self" {
+			return true, true
+		}
+		if isPrimitiveName(name) {
+			return false, false
+		}
+		switch name {
+		case "Error", "IoHandle", "ProcHandle", "String", "bool", "char", "nil", "void",
+			"IteratorEnd", "Iterator", "Future":
+			return false, false
+		}
+		if _, ok := i.unionDefinitions[name]; ok {
+			return false, false
+		}
+		if _, ok := i.interfaces[name]; ok {
+			return false, false
+		}
+		if i.isKnownTypeName(name) {
+			return false, false
+		}
+		return true, true
+	case *ast.GenericTypeExpression:
+		if t == nil {
+			return false, false
+		}
+		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base != nil && base.Name != nil {
+			baseName := normalizeKernelAliasName(base.Name.Name)
+			if baseName == "Self" || (len(baseName) == 1 && baseName[0] >= 'A' && baseName[0] <= 'Z') {
+				return true, true
+			}
+		}
+	}
+	return false, false
+}
+
+func (i *Interpreter) matchesTypeWithRawPrimitiveValue(typeExpr ast.TypeExpression, value runtime.Value) (bool, bool) {
+	if bytecodeIsRawIntegerCarrier(value) {
+		if kind, raw, ok := bytecodeRawIntegerValueInfo(value); ok {
+			return i.matchesRawIntegerType(typeExpr, kind, raw)
+		}
+	}
+	if _, _, ok := bytecodeDirectRawFloatValue(value); ok {
+		return matchesRawFloatType(typeExpr)
+	}
+	return false, false
+}
+
+func (i *Interpreter) matchesRawIntegerType(typeExpr ast.TypeExpression, sourceKind runtime.IntegerType, raw int64) (bool, bool) {
+	simple, ok := typeExpr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return false, false
+	}
+	name := normalizeKernelAliasName(simple.Name.Name)
+	targetKind := runtime.IntegerType(name)
+	if _, ok := lookupIntegerInfo(targetKind); ok {
+		if sourceKind == targetKind || integerRangeWithinKinds(sourceKind, targetKind) {
+			return true, true
+		}
+		sourceInfo, sourceKnown := lookupIntegerInfo(sourceKind)
+		if sourceKnown && !sourceInfo.signed && raw < 0 {
+			return false, true
+		}
+		return smallIntWithinRange(raw, targetKind), true
+	}
+	switch name {
+	case "f32", "f64":
+		return true, true
+	case "String", "bool", "char", "nil", "void", "IteratorEnd", "Iterator", "Future":
+		return false, true
+	}
+	if i != nil {
+		if _, ok := i.unionDefinitions[name]; ok {
+			return false, false
+		}
+		if _, ok := i.interfaces[name]; ok {
+			return false, false
+		}
+		if i.isKnownTypeName(name) {
+			return false, true
+		}
+	}
+	return false, false
+}
+
+func matchesRawFloatType(typeExpr ast.TypeExpression) (bool, bool) {
+	simple, ok := typeExpr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return false, false
+	}
+	switch normalizeKernelAliasName(simple.Name.Name) {
+	case "f32", "f64":
+		return true, true
+	case "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128",
+		"String", "bool", "char", "nil", "void", "IteratorEnd", "Iterator", "Future":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
 // MatchesType exposes runtime type matching for compiler helpers.
 func (i *Interpreter) MatchesType(typeExpr ast.TypeExpression, value runtime.Value) bool {
 	return i.matchesType(typeExpr, value)
@@ -439,15 +524,172 @@ func (i *Interpreter) isKnownTypeName(name string) bool {
 	if name == "" {
 		return false
 	}
+	if i != nil {
+		if known, ok := i.lookupKnownTypeNameCache(name); ok {
+			return known
+		}
+	}
+	known := i.scanKnownTypeName(name)
+	if i != nil {
+		i.storeKnownTypeNameCache(name, known)
+	}
+	return known
+}
+
+func (i *Interpreter) scanKnownTypeName(name string) bool {
+	if i == nil {
+		return false
+	}
 	for _, pkg := range i.packageRegistry {
 		if val, ok := pkg[name]; ok {
-			switch val.(type) {
-			case *runtime.StructDefinitionValue, runtime.UnionDefinitionValue:
+			if packageRegistrySymbolIsKnownType(val) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func (i *Interpreter) lookupKnownTypeNameCache(name string) (bool, bool) {
+	if i == nil || name == "" {
+		return false, false
+	}
+	if i.envSingleThread {
+		known, ok := i.knownTypeNameCache[name]
+		return known, ok
+	}
+	i.typeInfoCacheMu.RLock()
+	defer i.typeInfoCacheMu.RUnlock()
+	known, ok := i.knownTypeNameCache[name]
+	return known, ok
+}
+
+func (i *Interpreter) storeKnownTypeNameCache(name string, known bool) {
+	if i == nil || name == "" {
+		return
+	}
+	if i.envSingleThread {
+		if i.knownTypeNameCache == nil {
+			i.knownTypeNameCache = make(map[string]bool)
+		}
+		i.knownTypeNameCache[name] = known
+		return
+	}
+	i.typeInfoCacheMu.Lock()
+	defer i.typeInfoCacheMu.Unlock()
+	if i.knownTypeNameCache == nil {
+		i.knownTypeNameCache = make(map[string]bool)
+	}
+	i.knownTypeNameCache[name] = known
+}
+
+func (i *Interpreter) updateKnownTypeNameCacheForPackageSymbol(name string, val runtime.Value) {
+	if packageRegistrySymbolIsKnownType(val) {
+		i.storeKnownTypeNameCache(name, true)
+		return
+	}
+	if _, ok := i.lookupKnownTypeNameCache(name); ok {
+		i.storeKnownTypeNameCache(name, i.scanKnownTypeName(name))
+	}
+}
+
+func packageRegistrySymbolIsKnownType(val runtime.Value) bool {
+	switch val.(type) {
+	case *runtime.StructDefinitionValue,
+		runtime.StructDefinitionValue,
+		runtime.UnionDefinitionValue,
+		*runtime.UnionDefinitionValue:
+		return true
+	default:
+		return false
+	}
+}
+
+func (i *Interpreter) matchesMonoArrayElementTypeWithoutMaterializing(arr *runtime.ArrayValue, elemType ast.TypeExpression) (bool, bool) {
+	if arr == nil || elemType == nil {
+		return false, false
+	}
+	handle, sourceTypeName, ok := monoArrayHandleAndElementTypeName(arr)
+	if !ok {
+		return false, false
+	}
+	size, err := runtime.ArrayStoreSize(handle)
+	if err != nil {
+		return false, false
+	}
+	if size == 0 {
+		return true, true
+	}
+	if expanded := i.expandTypeAliasesCached(elemType); expanded != nil {
+		elemType = expanded
+	}
+	switch t := elemType.(type) {
+	case *ast.WildcardTypeExpression:
+		return true, true
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return false, false
+		}
+		return i.matchesMonoArraySimpleElementType(sourceTypeName, normalizeKernelAliasName(t.Name.Name))
+	default:
+		return false, false
+	}
+}
+
+func monoArrayHandleAndElementTypeName(arr *runtime.ArrayValue) (int64, string, bool) {
+	if arr == nil {
+		return 0, "", false
+	}
+	for _, handle := range []int64{arr.Handle, arr.TrackedHandle} {
+		if handle == 0 {
+			continue
+		}
+		typeName, ok, err := runtime.ArrayStoreMonoElementTypeNameIfKnown(handle)
+		if err == nil && ok {
+			return handle, typeName, true
+		}
+	}
+	return 0, "", false
+}
+
+func (i *Interpreter) matchesMonoArraySimpleElementType(sourceTypeName string, targetName string) (bool, bool) {
+	if targetName == "" {
+		return false, false
+	}
+	if _, ok := i.interfaces[targetName]; ok {
+		okImpl, err := i.typeImplementsInterface(typeInfo{name: sourceTypeName}, targetName, nil, make(map[interfaceImplCacheKey]struct{}))
+		return err == nil && okImpl, true
+	}
+
+	sourceIntegerKind := runtime.IntegerType(sourceTypeName)
+	_, sourceIsInteger := lookupIntegerInfo(sourceIntegerKind)
+	targetIntegerKind := runtime.IntegerType(targetName)
+	_, targetIsInteger := lookupIntegerInfo(targetIntegerKind)
+	sourceIsFloat := sourceTypeName == "f32" || sourceTypeName == "f64"
+
+	switch targetName {
+	case "bool", "char", "String":
+		return sourceTypeName == targetName, true
+	case "nil", "void", "IteratorEnd", "Iterator", "Future":
+		return false, true
+	case "f32", "f64":
+		return sourceIsInteger || sourceIsFloat, true
+	}
+
+	if targetIsInteger {
+		if !sourceIsInteger {
+			return false, true
+		}
+		if sourceIntegerKind == targetIntegerKind || integerRangeWithinKinds(sourceIntegerKind, targetIntegerKind) {
+			return true, true
+		}
+		return false, false
+	}
+
+	if i.isKnownTypeName(targetName) {
+		return false, true
+	}
+	return false, false
 }
 
 func isCallableValue(value runtime.Value) bool {
@@ -475,7 +717,7 @@ func isPrimitiveName(name string) bool {
 	case "f32", "f64":
 		return true
 	}
-	if _, err := getIntegerInfo(runtime.IntegerType(name)); err == nil {
+	if _, ok := lookupIntegerInfo(runtime.IntegerType(name)); ok {
 		return true
 	}
 	return false
@@ -483,6 +725,12 @@ func isPrimitiveName(name string) bool {
 
 func normalizeKernelAliasName(name string) string {
 	switch name {
+	case "able.core.interfaces.Error":
+		return "Error"
+	case "able.core.iteration.Iterator":
+		return "Iterator"
+	case "able.concurrency.future.Future":
+		return "Future"
 	case "KernelArray":
 		return "Array"
 	case "KernelChannel":
@@ -527,8 +775,11 @@ func isSingletonStructDef(def *ast.StructDefinition) bool {
 }
 
 func primitiveImplementsInterfaceMethod(typeName, ifaceName, methodName string) bool {
-	if typeName == "" || typeName == "nil" || typeName == "void" {
+	if typeName == "" || typeName == "void" {
 		return false
+	}
+	if typeName == "nil" {
+		return ifaceName == "Clone" && methodName == "clone"
 	}
 	if !isPrimitiveName(typeName) {
 		return false

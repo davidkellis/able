@@ -1,0 +1,38 @@
+package bench_channel_roundtrip_i32_small
+
+import able.kernel.{Channel}
+
+fn round(count: i32) -> i64 {
+  ch: Channel i32 = Channel.new(count)
+  spawn {
+    i := 0
+    loop {
+      if i >= count { break }
+      ch.send(((i * 17) + 5) % 50_021)
+      i = i + 1
+    }
+    ch.close()
+    0
+  }
+
+  future_flush()
+  total: i64 = 0_i64
+  loop {
+    ch.receive() match {
+      case nil => { break },
+      case value: i32 => { total = total + (value as i64) }
+    }
+  }
+  total
+}
+
+fn main() -> void {
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 8 { break }
+    total = total + round(10_000)
+    rounds = rounds + 1
+  }
+  print(total)
+}

@@ -8,6 +8,13 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
+func (i *Interpreter) acquireTreewalkerBlockScopeEnv(block *ast.BlockExpression, parent *runtime.Environment, scopeCapacity int) (*runtime.Environment, bool) {
+	if i != nil && i.blockAllowsTransientRuntimeScopeCached(block) {
+		return i.acquireTransientRuntimeScopeEnvWithCapacity(parent, scopeCapacity), true
+	}
+	return runtime.NewEnvironmentWithValueCapacity(parent, scopeCapacity), false
+}
+
 func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environment) (result runtime.Value, err error) {
 	state := i.stateFromEnv(env)
 	defer func() {
@@ -78,6 +85,11 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 		return runtime.NilValue{}, nil
 	case *ast.ImportStatement:
 		return i.evaluateImportStatement(n, env)
+	case *ast.ExportStatement:
+		if err := i.evaluateModuleExports([]*ast.ExportStatement{n}, env); err != nil {
+			return nil, err
+		}
+		return runtime.NilValue{}, nil
 	case *ast.DynImportStatement:
 		return i.evaluateDynImportStatement(n, env)
 	case *ast.PreludeStatement:
@@ -90,10 +102,13 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 }
 
 func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Environment) (runtime.Value, error) {
-	payload := payloadFromState(env.RuntimeData())
+	payload := payloadFromState(i.runtimeDataFromEnv(env))
 	scopeCapacity := blockLocalBindingCapacity(block)
 	if payload == nil {
-		scope := runtime.NewEnvironmentWithValueCapacity(env, scopeCapacity)
+		scope, transient := i.acquireTreewalkerBlockScopeEnv(block, env, scopeCapacity)
+		if transient {
+			defer i.releaseTransientRuntimeScopeEnv(scope)
+		}
 		var result runtime.Value = runtime.VoidValue{}
 		for _, stmt := range block.Body {
 			val, err := i.evaluateStatement(stmt, scope)
@@ -134,7 +149,7 @@ func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Env
 		if err != nil {
 			if errors.Is(err, errSerialYield) {
 				nextIdx := idx
-				if !payload.awaitBlocked {
+				if !payload.isAwaitBlocked() {
 					nextIdx++
 				}
 				frame.index = nextIdx
@@ -472,6 +487,10 @@ func (i *Interpreter) isIteratorEnd(val runtime.Value) bool {
 	switch v := val.(type) {
 	case runtime.IteratorEndValue:
 		return true
+	case *runtime.StructDefinitionValue:
+		return v != nil && v.Node != nil && v.Node.ID != nil && isSingletonStructDef(v.Node) && v.Node.ID.Name == "IteratorEnd"
+	case runtime.StructDefinitionValue:
+		return v.Node != nil && v.Node.ID != nil && isSingletonStructDef(v.Node) && v.Node.ID.Name == "IteratorEnd"
 	case *runtime.InterfaceValue:
 		return i.isIteratorEnd(v.Underlying)
 	case *runtime.StructInstanceValue:

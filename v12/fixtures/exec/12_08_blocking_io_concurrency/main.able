@@ -32,6 +32,17 @@ func ensurePipe() (*os.File, *os.File) {
   }
   return pipeReader, pipeWriter
 }
+
+func resetPipe() {
+  if pipeReader != nil {
+    _ = pipeReader.Close()
+    pipeReader = nil
+  }
+  if pipeWriter != nil {
+    _ = pipeWriter.Close()
+    pipeWriter = nil
+  }
+}
 }
 
 extern typescript fn pipe_reader() -> IoHandle {
@@ -54,7 +65,16 @@ extern go fn pipe_writer() -> IoHandle {
   return w
 }
 
+extern typescript fn reset_pipe() -> void {
+  pipeStream = null;
+}
+
+extern go fn reset_pipe() -> void {
+  resetPipe()
+}
+
 fn main() -> void {
+  reset_pipe()
   reader_handle := pipe_reader()
   writer_handle := pipe_writer()
 

@@ -1,0 +1,44 @@
+File: compiled
+Build ID: e1083383164c54b5004176cfa1275a4b22f585a9
+Type: cpu
+Time: 2026-07-28 09:44:08 CDT
+Duration: 243.79ms, Total samples = 470ms (192.79%)
+Showing nodes accounting for 470ms, 100% of 470ms total
+      flat  flat%   sum%        cum   cum%
+     170ms 36.17% 36.17%      170ms 36.17%  able/interpreter-go/pkg/runtime.Uint128.DivMod
+      60ms 12.77% 48.94%      260ms 55.32%  main.__able_compiled_fn_rational_gcd_i128_ctx
+      30ms  6.38% 55.32%       40ms  8.51%  able/interpreter-go/pkg/runtime.Int128.MulChecked
+      30ms  6.38% 61.70%       40ms  8.51%  able/interpreter-go/pkg/runtime.int128FromMagnitude
+      20ms  4.26% 65.96%      240ms 51.06%  able/interpreter-go/pkg/runtime.Int128.DivMod
+      20ms  4.26% 70.21%      330ms 70.21%  main.__able_compiled_fn_rational_build_ctx_into
+      20ms  4.26% 74.47%       20ms  4.26%  main.__able_divmod_signed
+      20ms  4.26% 78.72%       20ms  4.26%  main.__able_signed_bounds (inline)
+      10ms  2.13% 80.85%       10ms  2.13%  able/interpreter-go/pkg/runtime.Int128.Compare (inline)
+      10ms  2.13% 82.98%       10ms  2.13%  able/interpreter-go/pkg/runtime.Int128.IsNegative (inline)
+      10ms  2.13% 85.11%       10ms  2.13%  able/interpreter-go/pkg/runtime.Uint128.Compare (inline)
+      10ms  2.13% 87.23%       10ms  2.13%  able/interpreter-go/pkg/runtime.Uint128.MulChecked
+      10ms  2.13% 89.36%       90ms 19.15%  main.__able_compiled_fn_normalization_checksum_ctx
+      10ms  2.13% 91.49%      210ms 44.68%  main.__able_compiled_fn_rational_from_i128_ctx_into
+      10ms  2.13% 93.62%      140ms 29.79%  main.__able_compiled_fn_rational_normalize_ctx_into
+      10ms  2.13% 95.74%       90ms 19.15%  main.__able_compiled_method_Rational_add_ctx_into
+      10ms  2.13% 97.87%      100ms 21.28%  main.__able_compiled_method_Rational_mul_ctx_into
+      10ms  2.13%   100%       10ms  2.13%  runtime.scanObjectsSmall
+         0     0%   100%      460ms 97.87%  main.RunRegisteredMain
+         0     0%   100%      460ms 97.87%  main.RunRegisteredMain.func1
+         0     0%   100%       20ms  4.26%  main.__able_checked_mul_signed
+         0     0%   100%      460ms 97.87%  main.__able_compiled_fn_main
+         0     0%   100%      460ms 97.87%  main.__able_compiled_fn_main_ctx
+         0     0%   100%      370ms 78.72%  main.__able_compiled_fn_series_checksum_ctx
+         0     0%   100%       80ms 17.02%  main.__able_compiled_method_Rational_div_ctx_into
+         0     0%   100%      140ms 29.79%  main.__able_compiled_method_Rational_new_ctx_into
+         0     0%   100%      460ms 97.87%  main.__able_register_compiled_call.func1
+         0     0%   100%      460ms 97.87%  main.__able_wrap_fn_main
+         0     0%   100%      460ms 97.87%  main.main
+         0     0%   100%      460ms 97.87%  main.runMain
+         0     0%   100%       10ms  2.13%  runtime.gcBgMarkWorker
+         0     0%   100%       10ms  2.13%  runtime.gcBgMarkWorker.func2
+         0     0%   100%       10ms  2.13%  runtime.gcDrain
+         0     0%   100%       10ms  2.13%  runtime.gcDrainMarkWorkerFractional (inline)
+         0     0%   100%      460ms 97.87%  runtime.main
+         0     0%   100%       10ms  2.13%  runtime.scanSpan
+         0     0%   100%       10ms  2.13%  runtime.systemstack

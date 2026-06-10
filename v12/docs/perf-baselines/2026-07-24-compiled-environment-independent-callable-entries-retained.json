@@ -1,0 +1,105 @@
+{
+  "date": "2026-07-24",
+  "decision": "retain",
+  "candidate": "propagate package-environment independence through typed callable invocations and lambdas, and select raw generated Go bodies at proven-independent call sites",
+  "settings": {
+    "cpu_affinity": "14",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "pairs": 5,
+    "order_balanced": true,
+    "frozen_binaries": true,
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Option/Result Config",
+      "baseline_seconds": [0.05, 0.04, 0.04, 0.04, 0.04],
+      "baseline_mean_seconds": 0.042,
+      "candidate_seconds": [0.04, 0.04, 0.03, 0.04, 0.03],
+      "candidate_mean_seconds": 0.036,
+      "change_percent": -14.29,
+      "baseline_mean_gc": 9.0,
+      "candidate_mean_gc": 9.0,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.002112, 0.002237, 0.001979, 0.002364, 0.002127],
+      "go_mean_seconds": 0.002164,
+      "candidate_over_go": 16.64,
+      "sha256": {
+        "baseline": "03117d4947f1435b80a822be7c4e758e917e3ba413e99ee7105b3c25f605eba7",
+        "candidate": "6f2978a22a90f78a2e0978affc81f7874dae83a69aa05f9c1e1c74c211305cf2",
+        "go": "5d1d88194ad4cb04ebf27498b09d5986c57ec48db51f68cc269d718ea788ab6e"
+      }
+    },
+    {
+      "name": "Dependency Wave Validation",
+      "baseline_seconds": [0.60, 0.57, 0.58, 0.59, 0.61],
+      "baseline_mean_seconds": 0.590,
+      "candidate_seconds": [0.33, 0.33, 0.32, 0.32, 0.37],
+      "candidate_mean_seconds": 0.334,
+      "change_percent": -43.39,
+      "baseline_mean_gc": 12.8,
+      "candidate_mean_gc": 10.8,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.002410, 0.002389, 0.002450, 0.002511, 0.002526],
+      "go_mean_seconds": 0.0024572,
+      "candidate_over_go": 135.93,
+      "profile": {
+        "baseline_total_seconds": 2.94,
+        "candidate_total_seconds": 1.67,
+        "baseline_current_gid_seconds": 2.74,
+        "candidate_current_gid_seconds": 1.49,
+        "current_gid_change_percent": -45.62
+      },
+      "sha256": {
+        "baseline": "9a1d878210adc912f6b78c2b59fe3d92e5cf998b3887e8bff8222179e4d961a1",
+        "candidate": "eb3622753d2413896e410bbd51c202d70c3ca1cf5496a0c57927fa24e5a76e59",
+        "go": "0f227dac75454acb4cc3ebb460f262d4709c0543bd778916b82109f687d65a64"
+      }
+    },
+    {
+      "name": "Validated Job Pipeline",
+      "baseline_seconds": [0.42, 0.41, 0.42, 0.41, 0.40],
+      "baseline_mean_seconds": 0.412,
+      "candidate_seconds": [0.36, 0.34, 0.36, 0.34, 0.35],
+      "candidate_mean_seconds": 0.350,
+      "change_percent": -15.05,
+      "baseline_mean_gc": 7.4,
+      "candidate_mean_gc": 6.8,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.002330, 0.002193, 0.002162, 0.002287, 0.002189],
+      "go_mean_seconds": 0.0022322,
+      "candidate_over_go": 156.80,
+      "profile": {
+        "baseline_total_seconds": 2.87,
+        "candidate_total_seconds": 1.72,
+        "baseline_current_gid_seconds": 2.73,
+        "candidate_current_gid_seconds": 1.59,
+        "current_gid_change_percent": -41.76
+      },
+      "sha256": {
+        "baseline": "ac46c865b758274d10f73d61ebbde47a7fa84c54e3eee2bc532ad111694bc4a8",
+        "candidate": "0487e3173491c9fa28ec43a6731c98545dccf6c6b0ac5ec94514ef7c4ea01cb4",
+        "go": "dee94a7d62df04b2ec8d3c2cfbe83f948e74013bf6dec5abe0fa359904c6c683"
+      }
+    }
+  ],
+  "residual_profile": {
+    "dependency_wave_validation_current_gid_cumulative_percent": 89.22,
+    "validated_job_pipeline_current_gid_cumulative_percent": 92.44
+  },
+  "temporary_evidence_root": "/tmp/able-aot-lowering-refresh-20260724.YOsC5D",
+  "changed_surfaces": ["compiler"],
+  "unchanged_surfaces": [
+    "canonical_stdlib",
+    "runtime",
+    "interpreter",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "kind": "truthiness-cast-text-byte-next-closure-reach",
+  "date": "2026-07-21",
+  "diagnostic_only": true,
+  "production_instrumentation_retained": false,
+  "compiled": {
+    "processes_per_application": 1,
+    "verified_processes": 5,
+    "rows": [
+      {
+        "benchmark": "i_before_e",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      },
+      {
+        "benchmark": "inventory_reconciliation",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      },
+      {
+        "benchmark": "k_nucleotide",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      },
+      {
+        "benchmark": "unicode_scalar_pipeline",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      },
+      {
+        "benchmark": "word_frequency",
+        "semantic_truthy_checks": 0,
+        "semantic_truthy_error_fallbacks": 0,
+        "explicit_cast_checks": 0,
+        "explicit_cast_failures": 0
+      }
+    ]
+  },
+  "bytecode": {
+    "processes_per_application": 2,
+    "verified_processes": 6,
+    "rows": [
+      {
+        "benchmark": "base64",
+        "semantic_truthy_checks_per_process": [0, 0],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [0, 0],
+        "explicit_cast_failures_per_process": [0, 0]
+      },
+      {
+        "benchmark": "fasta_generation",
+        "semantic_truthy_checks_per_process": [0, 0],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [0, 0],
+        "explicit_cast_failures_per_process": [0, 0]
+      },
+      {
+        "benchmark": "reverse_complement",
+        "semantic_truthy_checks_per_process": [4, 4],
+        "semantic_truthy_error_fallbacks_per_process": [0, 0],
+        "explicit_cast_checks_per_process": [0, 0],
+        "explicit_cast_failures_per_process": [0, 0]
+      }
+    ]
+  },
+  "profile_gate": {
+    "profiles_collected": 0,
+    "reason": "No changed Error-truthiness fallback or explicit-cast path was reached in either closure."
+  }
+}

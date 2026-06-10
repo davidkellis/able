@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-07-20T06:51:44Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "suite": "custom",
+  "runs": 5,
+  "timeout_seconds": 55,
+  "cpu_affinity": "0",
+  "cpu_affinity_pool": "0",
+  "runtimes": {
+    "python": {
+      "executable": "/home/david/.local/share/mise/installs/python/latest/bin/python3",
+      "variant": "python-3.14",
+      "version": "Python 3.14.5"
+    },
+    "ruby": {
+      "executable": "/home/david/.local/share/mise/installs/ruby/latest/bin/ruby",
+      "variant": "ruby-4.0",
+      "version": "ruby 4.0.5 (2026-05-20 revision 64336ffd0e) +PRISM [x86_64-linux]"
+    }
+  },
+  "rows": [
+    {
+      "benchmark": "sudoku_masks",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/sudoku-masks/python-3.14/run.py",
+      "source_sha256": "b108bfa273342d263666719c550b2ea3b4a99ee7fbdb2d08a88eb0e88343bcd7",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 17.9122,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 18.019903569,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 17.747185834,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 17.772798843,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 17.918802198,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 18.10240436,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/sudoku-masks/ruby-4.0/run.rb",
+      "source_sha256": "d20ad64fac37d7688b05c6d63af6442c0a4b928ffe964bf86939057af512c6b6",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 22.2367,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 21.315204647,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 22.350135441,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 23.375903701,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 22.463660154,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 21.678399462,
+          "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}

@@ -1,0 +1,185 @@
+{
+  "kind": "able-interpreter-free-compiled-runtime-profile-refresh-evidence",
+  "schema_version": 1,
+  "date": "2026-07-24",
+  "decision": "no-go-no-shared-generated-owner",
+  "compiler_contract": {
+    "no_fallbacks": true,
+    "interpreter_dependency_in_go_graph": false,
+    "interpreter_symbols_in_binary": false,
+    "canonical_stdlib_source_file_count": 70,
+    "canonical_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b"
+  },
+  "profile_contract": {
+    "cpu_profile_processes_per_application": 3,
+    "allocation_counter_processes_per_application": 3,
+    "sampled_allocation_profiles_per_application": 1,
+    "main_only": true,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "process_timeout_seconds": 55
+  },
+  "applications": [
+    {
+      "benchmark": "k_nucleotide",
+      "family": "text-map",
+      "able_source": "v12/examples/benchmarks/k_nucleotide/k_nucleotide.able",
+      "able_source_sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a",
+      "go_source": "../benchmarks/k-nucleotide/app.go",
+      "go_source_sha256": "8f1ec0923f819b16a7a63adbb1f3d7165c526e7df73462e8edf865d6a39c9a29",
+      "verifier_sha256": "5992ceafc2e064cc7f7e486adc8a0edf7066567383dd8b7c049088ec2c81d086",
+      "generated_go_sha256": "88840adaeda2033a53a5cbeaf16318d2a525cb394f94eda69956e97672c69209",
+      "compiled_binary_sha256": "5a99db28ccea38ccf6c1403c38e4a4137629cbd3353eba165d3ac99e8766867e",
+      "go_binary_sha256": "56185e84adc8580fc17bfc86d71f049a6386bb731ee318713ba4c0ad29ecbc2b",
+      "execution_contract": {
+        "cpu_affinity": "0",
+        "gomaxprocs": 1,
+        "executor": "serial",
+        "timing_gogc": 50
+      },
+      "timing": {
+        "able_real_seconds": [3.02, 2.86, 2.57, 2.53, 3.20],
+        "go_real_seconds": [0.05, 0.08, 0.06, 0.05, 0.06],
+        "able_mean_seconds": 2.836,
+        "go_mean_seconds": 0.060,
+        "able_over_go": 47.266667
+      },
+      "cpu_profile": {
+        "merged_samples_seconds": 9.06,
+        "leading_exact_owners": [
+          {"name": "able/interpreter-go/pkg/compiler/bridge.primitiveHashMapKeyEqual", "flat_percent": 8.28, "cumulative_percent": 10.04},
+          {"name": "able/interpreter-go/pkg/compiler/bridge.primitiveHashMapHash", "flat_percent": 4.42, "cumulative_percent": 6.07},
+          {"name": "main.__able_hash_map_find_entry", "flat_percent": 2.21, "cumulative_percent": 12.91}
+        ]
+      },
+      "main_allocation_samples": [
+        {"allocated_bytes": 1217949984, "allocations": 27733940, "gc_count": 179},
+        {"allocated_bytes": 1215422032, "allocations": 27733668, "gc_count": 226},
+        {"allocated_bytes": 1217543872, "allocations": 27733896, "gc_count": 184}
+      ],
+      "main_allocation_mean": {
+        "allocated_bytes": 1216971962.667,
+        "allocations": 27733834.667,
+        "gc_count": 196.333
+      },
+      "allocation_owners": [
+        {"name": "main.__able_string_from_builtin_impl", "space_percent": 34.50},
+        {"name": "able/interpreter-go/pkg/compiler/bridge.ToUint", "space_percent": 29.82},
+        {"name": "able/interpreter-go/pkg/compiler/bridge.ToInt", "space_percent": 15.26}
+      ]
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "family": "recursive-integer-array-search",
+      "able_source": "v12/examples/benchmarks/sudoku_masks/sudoku_masks.able",
+      "able_source_sha256": "88294708698dd72bd6ac6a6249633cc7fddf4274a33587930f8e932b00b199a5",
+      "go_source": "../benchmarks/sudoku-masks/go-1.26/app.go",
+      "go_source_sha256": "0a925cd66382c7162c8dab61c6fc4f95b895528ea580afb0f504e531983db223",
+      "verifier_sha256": "9965f0368b5808682d964f945946bb0fa8ebf1062bc938038d3a92849ca682c8",
+      "generated_go_sha256": "911cabe685e7632be89a5a57769f62a74627923cab1c7a5c239b5e2e8d6ed517",
+      "compiled_binary_sha256": "415cf1e3d920a936fd4e7a6881901bae021d4ec443e40b074813c20a7c6552ad",
+      "go_binary_sha256": "bd2746cd56bebd7869b9bdaa9da54b040269d470b6dc2e8d64728fc253f5784d",
+      "execution_contract": {
+        "cpu_affinity": "0",
+        "gomaxprocs": 1,
+        "executor": "serial",
+        "timing_gogc": 50
+      },
+      "timing": {
+        "able_real_seconds": [2.21, 2.09, 2.32, 2.33, 2.12],
+        "go_real_seconds": [0.69, 0.71, 0.76, 0.68, 0.61],
+        "able_mean_seconds": 2.214,
+        "go_mean_seconds": 0.690,
+        "able_over_go": 3.208696
+      },
+      "cpu_profile": {
+        "merged_samples_seconds": 6.75,
+        "leading_exact_owners": [
+          {"name": "main.__able_compiled_fn_find_best_empty", "flat_percent": 31.11, "cumulative_percent": 92.15},
+          {"name": "main.__able_checked_mul_signed", "flat_percent": 12.89, "cumulative_percent": 13.63},
+          {"name": "main.__able_divmod_signed", "flat_percent": 12.44, "cumulative_percent": 14.67}
+        ]
+      },
+      "main_allocation_samples": [
+        {"allocated_bytes": 156390472, "allocations": 7802772, "gc_count": 133},
+        {"allocated_bytes": 156390504, "allocations": 7802772, "gc_count": 132},
+        {"allocated_bytes": 156390216, "allocations": 7802768, "gc_count": 133}
+      ],
+      "main_allocation_mean": {
+        "allocated_bytes": 156390397.333,
+        "allocations": 7802770.667,
+        "gc_count": 132.667
+      },
+      "allocation_owners": [
+        {"name": "main.__able_compiled_fn_find_best_empty", "space_percent": 98.64}
+      ]
+    },
+    {
+      "benchmark": "binarytrees",
+      "family": "parallel-recursive-nominal-allocation",
+      "able_source": "v12/examples/benchmarks/binarytrees.able",
+      "able_source_sha256": "d973598c0ca4e88fcbe96dc852fa64a935cd651b3b85be10121222e9694293d8",
+      "go_source": "../benchmarks/binarytrees/go-1.26/app.go",
+      "go_source_sha256": "27d067b4bfe5f501f1fe2d6a3e0254d699759c750296d9414161c2b5d3623b9f",
+      "verifier_sha256": "7d0f8379c38438b28d4684cf85eaba3c43a8a6d502f0fa0c2d2e58cd667a4bec",
+      "generated_go_sha256": "62530b090430917571e12c42f9b6519692c7f1f25bbe6728bf359d78f14091ea",
+      "compiled_binary_sha256": "14c3d38d36c34c77a99c94533473a599237fab2a4b185fd508b776c0c678a07f",
+      "go_binary_sha256": "cbd46160bab212e2a5958f39e58610bcc7ed4d8f2af2783caab4b758896a6b00",
+      "execution_contract": {
+        "cpu_affinity": "0-3",
+        "gomaxprocs": 4,
+        "executor": "goroutine",
+        "timing_gogc": "default"
+      },
+      "timing": {
+        "able_real_seconds": [8.23, 8.19, 8.09],
+        "go_real_seconds": [8.22, 8.80, 7.84],
+        "able_mean_seconds": 8.170,
+        "go_mean_seconds": 8.286667,
+        "able_over_go": 0.985921
+      },
+      "cpu_profile": {
+        "merged_samples_seconds": 130.62,
+        "leading_exact_owners": [
+          {"name": "runtime.tryDeferToSpanScan", "flat_percent": 22.98, "cumulative_percent": 30.29},
+          {"name": "runtime.mallocgc", "flat_percent": 3.78, "cumulative_percent": 71.21},
+          {"name": "main.__able_compiled_fn_make_tree", "flat_percent": 2.69, "cumulative_percent": 77.78}
+        ]
+      },
+      "main_allocation_samples": [
+        {"allocated_bytes": 9820583480, "allocations": 613771235, "gc_count": 203},
+        {"allocated_bytes": 9820590128, "allocations": 613771252, "gc_count": 203},
+        {"allocated_bytes": 9820599312, "allocations": 613771247, "gc_count": 211}
+      ],
+      "main_allocation_mean": {
+        "allocated_bytes": 9820590973.333,
+        "allocations": 613771244.667,
+        "gc_count": 205.667
+      },
+      "allocation_owners": [
+        {"name": "main.__able_compiled_fn_make_tree", "space_percent": 100.0}
+      ]
+    }
+  ],
+  "exact_cpu_intersection": {
+    "all_symbol_count": 26,
+    "generated_or_able_runtime_symbol_count": 0,
+    "largest_flat_shared_symbol": {
+      "name": "runtime.tryDeferToSpanScan",
+      "flat_percent": {
+        "k_nucleotide": 7.84,
+        "sudoku_masks": 1.19,
+        "binarytrees": 22.98
+      }
+    },
+    "allocator_parent": {
+      "name": "runtime.mallocgc",
+      "cumulative_percent": {
+        "k_nucleotide": 38.74,
+        "sudoku_masks": 11.70,
+        "binarytrees": 71.21
+      }
+    },
+    "classification": "go-runtime-allocation-and-gc-only"
+  }
+}

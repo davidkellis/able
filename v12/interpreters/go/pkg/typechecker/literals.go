@@ -332,10 +332,11 @@ func (c *Checker) checkTypeCastExpression(env *Environment, expr *ast.TypeCastEx
 	if isNumericType(valueType) && isNumericType(targetType) {
 		return diags, targetType
 	}
-	if iface, args, ok := interfaceFromType(targetType); ok {
-		if okImpl, _ := c.typeImplementsInterface(valueType, iface, args); okImpl {
-			return diags, targetType
-		}
+	if _, _, ok := interfaceFromType(targetType); ok {
+		// An explicit interface cast is a runtime-checked upcast. The checker
+		// may use a proven implementation for other decisions, but lack of that
+		// proof must not reject the cast itself (spec §6.3.5 C1/N3).
+		return diags, targetType
 	}
 	if nullable, ok := targetType.(NullableType); ok {
 		if iface, args, ok := interfaceFromType(nullable.Inner); ok {

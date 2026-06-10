@@ -1,0 +1,39 @@
+package bench_array_map_i32_small
+
+import able.collections.array
+import able.kernel.{Array}
+
+fn build(size: i32) -> Array i32 {
+  values: Array i32 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.push(((i * 17) + 5) % 20_011)
+    i = i + 1
+  }
+  values
+}
+
+fn sum(values: Array i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= values.len() { break }
+    total = total + (values[i]! as i64)
+    i = i + 1
+  }
+  total
+}
+
+fn main() -> void {
+  values := build(6_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 6 { break }
+    mapped := values.map(fn(value: i32) -> i32 { ((value * 7) + 3) % 65_521 })
+    total = total + sum(mapped)
+    rounds = rounds + 1
+  }
+  print(total)
+}

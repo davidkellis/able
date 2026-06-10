@@ -1,0 +1,49 @@
+File: interpreter.test
+Build ID: 044a9b0b6ab0a7cea7a9fd0b0e025b79e2156ccb
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_audio_voices/bytecode_runtime_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_audio_voices/bytecode_runtime_merged.cpu.pprof
+Time: 2026-07-23 17:36:10 CDT
+Duration: 2.95s, Total samples = 2.98s (100.89%)
+Showing nodes accounting for 0.71s, 23.83% of 2.98s total
+Dropped 97 nodes (cum <= 0.01s)
+Showing top 25 nodes out of 160
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      2.85s 95.64%  able/interpreter-go/pkg/interpreter.(*GoroutineExecutor).runTask
+         0     0%     0%      2.85s 95.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).runAsyncBytecodeProgram
+         0     0%     0%      2.85s 95.64%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execSpawn.func1
+     0.19s  6.38%  6.38%      2.85s 95.64%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%  6.38%      2.85s 95.64%  able/interpreter-go/pkg/interpreter.(*executorBase).safeInvoke
+     0.04s  1.34%  7.72%      1.13s 37.92%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+     0.04s  1.34%  9.06%      0.77s 25.84%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallName
+     0.06s  2.01% 11.07%      0.57s 19.13%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+         0     0% 11.07%      0.34s 11.41%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).bytecodeCalleeEnv
+         0     0% 11.07%      0.33s 11.07%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedCallName
+     0.01s  0.34% 11.41%      0.33s 11.07%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineCachedCallNameDirectFromStack
+     0.02s  0.67% 12.08%      0.33s 11.07%  runtime.mallocgc
+     0.01s  0.34% 12.42%      0.29s  9.73%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMember
+     0.03s  1.01% 13.42%      0.27s  9.06%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishInlineReturn
+     0.02s  0.67% 14.09%      0.27s  9.06%  able/interpreter-go/pkg/interpreter.ApplyBinaryOperatorFast
+     0.01s  0.34% 14.43%      0.26s  8.72%  runtime.systemstack
+     0.02s  0.67% 15.10%      0.22s  7.38%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotOpcode
+     0.02s  0.67% 15.77%      0.18s  6.04%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineResolvedCallFromStack
+         0     0% 15.77%      0.17s  5.70%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedResolvedMemberCall
+         0     0% 15.77%      0.17s  5.70%  runtime.newobject
+     0.01s  0.34% 16.11%      0.15s  5.03%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotStructField
+     0.03s  1.01% 17.11%      0.15s  5.03%  able/interpreter-go/pkg/interpreter.bytecodeBuildCallNameCacheEntry
+     0.04s  1.34% 18.46%      0.15s  5.03%  able/interpreter-go/pkg/interpreter.evaluateArithmeticFast
+     0.14s  4.70% 23.15%      0.15s  5.03%  sync/atomic.(*Int32).Add (inline)
+     0.02s  0.67% 23.83%      0.14s  4.70%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).lookupIdentifierNameForCallCache
+
+Three runtime measurements are 1037651773, 1010447245, and 949719757
+ns/op, averaging 999272925 ns/op. They average 181197235 B/op and
+4103104 allocations/op.
+
+The dispatch trace records 507928 calls. The dominant application helpers,
+inherent methods, and interface calls resolve inline: 32768 each for
+advance, record, and signature; 32764 of 32768 emit calls are inline, with
+only the first four interface resolutions generic.
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_audio_voices/bytecode_runtime_merged.cpu.pprof

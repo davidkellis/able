@@ -1,0 +1,169 @@
+{
+  "runs_per_side": 5,
+  "rows": [
+    {
+      "benchmark": "i_before_e",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/i_before_e/i_before_e.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/i-before-e",
+        "verifier": "/home/david/sync/projects/benchmarks/i-before-e/verify.rb",
+        "args": [
+          "wordlist.txt"
+        ],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": false
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 0.6035366739961319,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 0.5830927399802022,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 0.5258400680031627,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 3,
+            "order": 1
+          },
+          {
+            "seconds": 0.524404602998402,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 4,
+            "order": 2
+          },
+          {
+            "seconds": 0.5474232070264407,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 5,
+            "order": 1
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.5296735060110223,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 0.5466117270116229,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 0.5251190009876154,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 3,
+            "order": 2
+          },
+          {
+            "seconds": 0.5425690099946223,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 4,
+            "order": 1
+          },
+          {
+            "seconds": 0.5989925220201258,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39",
+            "pair": 5,
+            "order": 2
+          }
+        ]
+      },
+      "baseline_mean_seconds": 0.5568594584008679,
+      "candidate_mean_seconds": 0.5485931532050017,
+      "change_percent": -1.4844508917213228
+    },
+    {
+      "benchmark": "base64",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/base64/base64.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/base64",
+        "verifier": "/home/david/sync/projects/benchmarks/base64/verify.rb",
+        "args": [],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": false
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 3.0223045099992305,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 3.0557910880015697,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 2.9692588899924885,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 3,
+            "order": 1
+          },
+          {
+            "seconds": 3.1396493680076674,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 4,
+            "order": 2
+          },
+          {
+            "seconds": 3.0649768320145085,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 5,
+            "order": 1
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 3.0632181070104707,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 3.1103079140011687,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 2.9857874070003163,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 3,
+            "order": 2
+          },
+          {
+            "seconds": 3.1106607010005973,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 4,
+            "order": 1
+          },
+          {
+            "seconds": 3.0746843660017475,
+            "stdout_sha256": "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316",
+            "pair": 5,
+            "order": 2
+          }
+        ]
+      },
+      "baseline_mean_seconds": 3.050396137603093,
+      "candidate_mean_seconds": 3.06893169900286,
+      "change_percent": 0.6076444030096217
+    }
+  ]
+}

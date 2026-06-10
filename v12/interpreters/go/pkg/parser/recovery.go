@@ -64,7 +64,7 @@ func recoverableWhitespaceErrors(root *sitter.Node, source []byte) bool {
 func nearestInterfaceDefinition(node *sitter.Node) *sitter.Node {
 	parent := node
 	for parent != nil {
-		if parent.Kind() == "interface_definition" {
+		if nodeKind(parent) == "interface_definition" {
 			return parent
 		}
 		parent = parent.Parent()
@@ -73,13 +73,13 @@ func nearestInterfaceDefinition(node *sitter.Node) *sitter.Node {
 }
 
 func recoverInterfaceBaseSelfType(node *sitter.Node, source []byte) (ast.TypeExpression, *sitter.Node, bool) {
-	if node == nil || node.Kind() != "interface_definition" {
+	if node == nil || nodeKind(node) != "interface_definition" {
 		return nil, nil, false
 	}
 	var errorNode *sitter.Node
 	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
-		if child == nil || child.Kind() != "ERROR" {
+		if child == nil || nodeKind(child) != "ERROR" {
 			continue
 		}
 		text := strings.TrimSpace(sliceContent(child, source))
@@ -173,10 +173,10 @@ func parseTypeExpressionFromText(text string) ast.TypeExpression {
 	var target *sitter.Node
 	for i := uint(0); i < root.NamedChildCount(); i++ {
 		child := root.NamedChild(i)
-		if child == nil || child.Kind() != "type_alias_definition" {
+		if child == nil || nodeKind(child) != "type_alias_definition" {
 			continue
 		}
-		target = child.ChildByFieldName("target")
+		target = childByFieldName(child, "target")
 		break
 	}
 	if target == nil {

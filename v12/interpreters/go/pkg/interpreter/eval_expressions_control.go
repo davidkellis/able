@@ -31,24 +31,18 @@ func (i *Interpreter) isTruthy(val runtime.Value) bool {
 	switch v := val.(type) {
 	case runtime.BoolValue:
 		return v.Val
+	case *runtime.BoolValue:
+		return v != nil && v.Val
 	case runtime.NilValue:
+		return false
+	case *runtime.NilValue:
 		return false
 	case runtime.ErrorValue:
 		return false
-	case runtime.InterfaceValue:
-		if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
-			return false
-		}
+	case *runtime.ErrorValue:
+		return false
 	}
-	if info, ok := i.getTypeInfoForValue(val); ok {
-		if entry, _ := i.lookupImplEntry(info, "Error", nil); entry != nil {
-			return false
-		}
-		if i.compiledImplChecker != nil && i.compiledImplChecker(info.name, "Error") {
-			return false
-		}
-	}
-	return true
+	return !i.matchesErrorValue(val)
 }
 
 func (i *Interpreter) IsTruthy(val runtime.Value) bool {
@@ -62,7 +56,11 @@ func isNumericValue(val runtime.Value) bool {
 	case *runtime.StructInstanceValue:
 		return isRatioValue(val)
 	default:
-		return false
+		if _, _, ok := bytecodeDirectRawFloatValue(val); ok {
+			return true
+		}
+		_, _, ok := bytecodeRawIntegerValueInfo(val)
+		return ok
 	}
 }
 
@@ -90,6 +88,12 @@ func numericToFloat(val runtime.Value) (float64, error) {
 		}
 		return 0, fmt.Errorf("Arithmetic requires numeric operands")
 	default:
+		if raw, _, ok := bytecodeDirectRawFloatValue(val); ok {
+			return raw, nil
+		}
+		if _, raw, ok := bytecodeRawIntegerValueInfo(val); ok {
+			return float64(raw), nil
+		}
 		return 0, fmt.Errorf("Arithmetic requires numeric operands")
 	}
 }
@@ -100,15 +104,26 @@ func assignStructMember(interp *Interpreter, inst *runtime.StructInstanceValue, 
 	}
 	switch mem := member.(type) {
 	case *ast.Identifier:
-		if inst.Fields == nil {
+		if !structUsesNamedFieldStorage(inst) {
 			return nil, fmt.Errorf("Expected named struct instance")
 		}
-		current, ok := inst.Fields[mem.Name]
+		current, ok := structNamedFieldValue(inst, mem.Name)
 		if !ok {
 			return nil, fmt.Errorf("No field named '%s'", mem.Name)
 		}
+		if mem.Name == "storage_handle" && isCanonicalArrayStructInstance(inst) {
+			if err := prepareCanonicalArrayStructStorageHandle(inst, value, operator); err != nil {
+				return nil, err
+			}
+			if !structSetNamedFieldValue(inst, "storage_handle", value) {
+				return nil, fmt.Errorf("No field named 'storage_handle'")
+			}
+			return value, nil
+		}
 		if operator == ast.AssignmentAssign {
-			inst.Fields[mem.Name] = value
+			if !structSetNamedFieldValue(inst, mem.Name, value) {
+				return nil, fmt.Errorf("No field named '%s'", mem.Name)
+			}
 			return value, nil
 		}
 		if !isCompound {
@@ -118,7 +133,9 @@ func assignStructMember(interp *Interpreter, inst *runtime.StructInstanceValue, 
 		if err != nil {
 			return nil, err
 		}
-		inst.Fields[mem.Name] = computed
+		if !structSetNamedFieldValue(inst, mem.Name, computed) {
+			return nil, fmt.Errorf("No field named '%s'", mem.Name)
+		}
 		return computed, nil
 	case *ast.IntegerLiteral:
 		if inst.Positional == nil {
@@ -130,6 +147,17 @@ func assignStructMember(interp *Interpreter, inst *runtime.StructInstanceValue, 
 		idx := int(mem.Value.Int64())
 		if idx < 0 || idx >= len(inst.Positional) {
 			return nil, fmt.Errorf("Struct field index out of bounds")
+		}
+		if isCanonicalArrayStructInstance(inst) &&
+			idx < len(inst.Definition.Node.Fields) &&
+			inst.Definition.Node.Fields[idx] != nil &&
+			inst.Definition.Node.Fields[idx].Name != nil &&
+			inst.Definition.Node.Fields[idx].Name.Name == "storage_handle" {
+			if err := prepareCanonicalArrayStructStorageHandle(inst, value, operator); err != nil {
+				return nil, err
+			}
+			inst.Positional[idx] = value
+			return value, nil
 		}
 		if operator == ast.AssignmentAssign {
 			inst.Positional[idx] = value
@@ -148,6 +176,35 @@ func assignStructMember(interp *Interpreter, inst *runtime.StructInstanceValue, 
 	default:
 		return nil, fmt.Errorf("Unsupported member assignment target %s", mem.NodeType())
 	}
+}
+
+func isCanonicalArrayStructInstance(inst *runtime.StructInstanceValue) bool {
+	return inst != nil &&
+		inst.Definition != nil &&
+		inst.Definition.Node != nil &&
+		inst.Definition.Node.ID != nil &&
+		inst.Definition.Node.ID.Name == "Array"
+}
+
+func prepareCanonicalArrayStructStorageHandle(inst *runtime.StructInstanceValue, value runtime.Value, operator ast.AssignmentOperator) error {
+	if operator != ast.AssignmentAssign {
+		return fmt.Errorf("unsupported assignment operator %s", operator)
+	}
+	integer, ok := value.(runtime.IntegerValue)
+	if !ok {
+		return fmt.Errorf("array storage_handle must be an integer")
+	}
+	handle, fits := integer.ToInt64()
+	if !fits || handle <= 0 {
+		return fmt.Errorf("array storage_handle must be positive")
+	}
+	if _, err := runtime.ArrayStoreEnsureHandle(handle, 0, 0); err != nil {
+		return err
+	}
+	if err := runtime.ArrayStoreTrackStructInstanceLease(inst, handle); err != nil {
+		return err
+	}
+	return nil
 }
 
 func integerBitWidth(t runtime.IntegerType) int {

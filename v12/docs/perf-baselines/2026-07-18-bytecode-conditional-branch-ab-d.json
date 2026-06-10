@@ -1,0 +1,64 @@
+{
+  "runs_per_side": 3,
+  "rows": [
+    {
+      "benchmark": "reverse_complement",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/reverse-complement",
+        "verifier": "/home/david/sync/projects/benchmarks/reverse-complement/verify.rb",
+        "args": [
+          "reverse-complement-input.fasta"
+        ],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": false
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 6.998101847013459,
+            "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 7.090754311007913,
+            "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 6.973355858004652,
+            "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+            "pair": 3,
+            "order": 1
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 6.994300398015184,
+            "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 7.100442567985738,
+            "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 6.839535884995712,
+            "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+            "pair": 3,
+            "order": 2
+          }
+        ]
+      },
+      "baseline_mean_seconds": 7.0207373386753416,
+      "candidate_mean_seconds": 6.978092950332211,
+      "change_percent": -0.6074061211236881
+    }
+  ]
+}

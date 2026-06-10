@@ -1,0 +1,28 @@
+File: able
+Build ID: 594d75b5254c69d4cd3e7b4ab6644e73355cf0a7
+Type: alloc_space
+Time: 2026-07-11 23:27:28 CDT
+Showing nodes accounting for 1180MB, 95.22% of 1239.21MB total
+Dropped 151 nodes (cum <= 6.20MB)
+Showing top 20 nodes out of 76
+      flat  flat%   sum%        cum   cum%
+  486.06MB 39.22% 39.22%   486.06MB 39.22%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+  377.61MB 30.47% 69.69%   447.20MB 36.09%  able/interpreter-go/pkg/interpreter.(*Interpreter).initStringHostBuiltins.func5
+  123.01MB  9.93% 79.62%   123.01MB  9.93%  able/interpreter-go/pkg/runtime.ArrayEnsureCapacity
+      48MB  3.87% 83.49%       48MB  3.87%  able/interpreter-go/pkg/interpreter.bytecodeBoxedIntegerI32Value (inline)
+   47.70MB  3.85% 87.34%    47.70MB  3.85%  able/interpreter-go/pkg/interpreter.bytecodeBoxedIntegerValue
+   26.01MB  2.10% 89.44%    37.80MB  3.05%  able/interpreter-go/pkg/runtime.ArrayStoreEnsure
+   23.59MB  1.90% 91.35%    23.59MB  1.90%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+      17MB  1.37% 92.72%    69.59MB  5.62%  able/interpreter-go/pkg/interpreter.(*Interpreter).newArrayValue
+   11.79MB  0.95% 93.67%    14.79MB  1.19%  able/interpreter-go/pkg/interpreter.(*Interpreter).trackArrayValueLocked
+    7.71MB  0.62% 94.29%     9.21MB  0.74%  able/interpreter-go/pkg/ast.annotateOrigins
+       7MB  0.56% 94.86%        7MB  0.56%  github.com/tree-sitter/go-tree-sitter.newNode (inline)
+    4.02MB  0.32% 95.18%     9.03MB  0.73%  able/interpreter-go/pkg/interpreter.init
+    0.50MB  0.04% 95.22%     9.07MB  0.73%  able/interpreter-go/pkg/interpreter.(*Interpreter).lowerFunctionDefinitionBytecodeWithMethodSetEnv
+         0     0% 95.22%     9.21MB  0.74%  able/interpreter-go/pkg/ast.AnnotateOrigins
+         0     0% 95.22%     9.21MB  0.74%  able/interpreter-go/pkg/ast.annotateValue
+         0     0% 95.22%    21.21MB  1.71%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions
+         0     0% 95.22%    21.71MB  1.75%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions.func1
+         0     0% 95.22%    12.50MB  1.01%  able/interpreter-go/pkg/driver.(*Loader).parseFile
+         0     0% 95.22%     9.21MB  0.74%  able/interpreter-go/pkg/driver.combinePackage
+         0     0% 95.22%  1156.29MB 93.31%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction

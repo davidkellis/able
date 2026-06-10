@@ -190,7 +190,7 @@ func (i *Interpreter) expandTypeAliasesCached(expr ast.TypeExpression) ast.TypeE
 	if i == nil || expr == nil || len(i.typeAliases) == 0 {
 		return expr
 	}
-	if !typeExpressionReferencesAlias(expr, i.typeAliases) {
+	if !i.typeExpressionReferencesAliasCached(expr) {
 		return expr
 	}
 	if i.envSingleThread {
@@ -223,6 +223,42 @@ func (i *Interpreter) expandTypeAliasesCached(expr ast.TypeExpression) ast.TypeE
 	i.typeAliasExpansionCache[expr] = expanded
 	i.typeAliasCacheMu.Unlock()
 	return expanded
+}
+
+func (i *Interpreter) typeExpressionReferencesAliasCached(expr ast.TypeExpression) bool {
+	if i == nil || expr == nil || len(i.typeAliases) == 0 {
+		return false
+	}
+	if i.envSingleThread {
+		if cached, ok := i.typeAliasReferenceCache[expr]; ok {
+			return cached
+		}
+		referenced := typeExpressionReferencesAlias(expr, i.typeAliases)
+		if i.typeAliasReferenceCache == nil {
+			i.typeAliasReferenceCache = make(map[ast.TypeExpression]bool)
+		}
+		i.typeAliasReferenceCache[expr] = referenced
+		return referenced
+	}
+	i.typeAliasCacheMu.RLock()
+	if cached, ok := i.typeAliasReferenceCache[expr]; ok {
+		i.typeAliasCacheMu.RUnlock()
+		return cached
+	}
+	i.typeAliasCacheMu.RUnlock()
+
+	referenced := typeExpressionReferencesAlias(expr, i.typeAliases)
+	i.typeAliasCacheMu.Lock()
+	if i.typeAliasReferenceCache == nil {
+		i.typeAliasReferenceCache = make(map[ast.TypeExpression]bool)
+	}
+	if cached, ok := i.typeAliasReferenceCache[expr]; ok {
+		i.typeAliasCacheMu.Unlock()
+		return cached
+	}
+	i.typeAliasReferenceCache[expr] = referenced
+	i.typeAliasCacheMu.Unlock()
+	return referenced
 }
 
 func typeExpressionReferencesAlias(

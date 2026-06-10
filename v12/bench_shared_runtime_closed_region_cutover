@@ -1,0 +1,541 @@
+#!/usr/bin/env python3
+"""Generate and check the shared-runtime closed-region cutover decision."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-shared-runtime-closed-region-cutover.json"
+CHECKED_JSON = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-shared-runtime-closed-region-cutover-decision.json"
+)
+CHECKED_MARKDOWN = SCRIPT_DIR / "design/shared-runtime-closed-region-cutover.md"
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def resolve_path(raw_path: str) -> Path:
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    return path.resolve()
+
+
+def source_record(path: Path) -> dict[str, str]:
+    try:
+        payload = path.read_bytes()
+    except FileNotFoundError:
+        raise ValueError(f"source not found: {path}") from None
+    return {
+        "path": str(path),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
+def require_markers(path: Path, markers: Any, label: str) -> None:
+    if not isinstance(markers, list) or not all(
+        isinstance(marker, str) and marker for marker in markers
+    ):
+        raise ValueError(f"{label} markers must be a non-empty string array")
+    source = path.read_text(encoding="utf-8")
+    missing = [marker for marker in markers if marker not in source]
+    if missing:
+        raise ValueError(f"{label} source markers missing from {path}: {missing}")
+
+
+def indexed_rows(rows: Any, key: str, label: str) -> dict[str, dict[str, Any]]:
+    if not isinstance(rows, list):
+        raise ValueError(f"{label} must be an array")
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get(key), str):
+            raise ValueError(f"{label} rows need string {key}")
+        value = row[key]
+        if value in result:
+            raise ValueError(f"{label} repeats {key} {value}")
+        result[value] = row
+    return result
+
+
+def validate_inputs(
+    evidence: dict[str, Any],
+    sources: dict[str, Path],
+    loaded: dict[str, dict[str, Any]],
+) -> None:
+    if evidence.get("kind") != "able-shared-runtime-closed-region-cutover-evidence":
+        raise ValueError("closed-region evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("closed-region evidence needs schema_version 1")
+    expected_kinds = {
+        "semantic_abi_feasibility": "able-shared-runtime-semantic-abi-feasibility",
+        "shadow_flow": "able-semantic-abi-shadow-image-lowering",
+        "native_hot_tier": "able-bytecode-native-hot-tier-design-budget",
+        "production_pilot": "able-shared-value-heap-production-pilot",
+        "portable_frontier": "able-feature-interaction-triple-frontier",
+    }
+    for key, kind in expected_kinds.items():
+        if loaded[key].get("kind") != kind:
+            raise ValueError(f"{key} has invalid kind")
+    feasibility = loaded["semantic_abi_feasibility"]["summary"]
+    if not feasibility.get("feasibility_passes"):
+        raise ValueError("semantic ABI feasibility prerequisite no longer passes")
+    pilot = loaded["production_pilot"]
+    if pilot.get("decision") != (
+        "reject-live-cell-call-veneer-require-native-shared-ownership"
+    ):
+        raise ValueError("production pilot decision drifted")
+    if pilot.get("candidate_retained") is not False:
+        raise ValueError("production pilot unexpectedly retained its candidate")
+    kernel = evidence.get("transitive_primitive_kernel")
+    if not isinstance(kernel, dict):
+        raise ValueError("transitive primitive kernel evidence is required")
+    source_key = kernel.get("source")
+    if not isinstance(source_key, str) or source_key not in sources:
+        raise ValueError("transitive primitive kernel source is invalid")
+    require_markers(sources[source_key], kernel.get("markers"), "primitive kernel")
+
+
+def ownership_budget(
+    evidence: dict[str, Any], sources: dict[str, Path]
+) -> tuple[list[dict[str, Any]], set[str]]:
+    domains = evidence.get("ownership_domains")
+    if not isinstance(domains, list) or len(domains) != 7:
+        raise ValueError("closed-region evidence needs seven ownership domains")
+    result = []
+    ids: set[str] = set()
+    for domain in domains:
+        if not isinstance(domain, dict):
+            raise ValueError("ownership domains must be objects")
+        domain_id = domain.get("id")
+        source_key = domain.get("source")
+        if not isinstance(domain_id, str) or domain_id in ids:
+            raise ValueError("ownership domain IDs must be unique strings")
+        if not isinstance(source_key, str) or source_key not in sources:
+            raise ValueError(f"ownership domain {domain_id} has invalid source")
+        require_markers(
+            sources[source_key], domain.get("markers"), f"ownership domain {domain_id}"
+        )
+        ids.add(domain_id)
+        result.append(
+            {
+                "id": domain_id,
+                "source": source_record(sources[source_key]),
+                "marker_count": len(domain["markers"]),
+            }
+        )
+    return result, ids
+
+
+def target_rows(native: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    rows = indexed_rows(
+        native.get("hot_function_reach_budget"),
+        "benchmark",
+        "native hot-function reach budget",
+    )
+    rows.pop("concurrent_event_routing", None)
+    if len(rows) != 5:
+        raise ValueError("closed-region decision requires five serial target rows")
+    return rows
+
+
+def flow_rows(flow: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    rows = indexed_rows(flow.get("applications"), "name", "shadow-flow applications")
+    expected = {"fixed_width_128", "distance_field", "array_slice_window"}
+    if set(rows) != expected:
+        raise ValueError("shadow-flow application set drifted")
+    return rows
+
+
+def application_budget(
+    evidence: dict[str, Any],
+    sources: dict[str, Path],
+    native_rows: dict[str, dict[str, Any]],
+    flows: dict[str, dict[str, Any]],
+    ownership_ids: set[str],
+) -> list[dict[str, Any]]:
+    apps = evidence.get("applications")
+    indexed = indexed_rows(apps, "benchmark", "closed-region applications")
+    if set(indexed) != set(native_rows):
+        raise ValueError("closed-region applications do not match target model")
+    result = []
+    for benchmark in native_rows:
+        app = indexed[benchmark]
+        native = native_rows[benchmark]
+        hottest = native.get("hottest_program")
+        if not isinstance(hottest, dict):
+            raise ValueError(f"{benchmark} has no hottest-program budget")
+        if hottest.get("name") != app.get("function"):
+            raise ValueError(f"{benchmark} hottest function drifted")
+        if native.get("family") != app.get("family"):
+            raise ValueError(f"{benchmark} family drifted")
+        source_key = app.get("source")
+        if not isinstance(source_key, str) or source_key not in sources:
+            raise ValueError(f"{benchmark} source is invalid")
+        require_markers(sources[source_key], app.get("source_markers"), benchmark)
+        context_key = app.get("context_source")
+        if context_key is not None:
+            if not isinstance(context_key, str) or context_key not in sources:
+                raise ValueError(f"{benchmark} context source is invalid")
+            require_markers(
+                sources[context_key],
+                app.get("context_markers"),
+                f"{benchmark} context",
+            )
+        required_domains = app.get("required_ownership_domains")
+        if not isinstance(required_domains, list) or not required_domains:
+            raise ValueError(f"{benchmark} needs ownership domains")
+        unknown = set(required_domains) - ownership_ids
+        if unknown:
+            raise ValueError(f"{benchmark} has unknown ownership domains: {unknown}")
+        boxed_params = hottest.get("boxed_param_count")
+        boxed_return = hottest.get("boxed_return")
+        if not isinstance(boxed_params, int) or not isinstance(boxed_return, bool):
+            raise ValueError(f"{benchmark} boxed boundary evidence is invalid")
+        crosses_identity = boxed_params > 0 or boxed_return
+        bounded = (
+            not crosses_identity
+            and app.get("transitive_internalization_bounded") is True
+            and app.get("minimum_closed_scope")
+            != "interpreter-instance-runtime"
+        )
+        reduction = native.get(
+            "hottest_program_modeled_target_excess_reduction_percent"
+        )
+        if not isinstance(reduction, (int, float)):
+            raise ValueError(f"{benchmark} target-excess model is invalid")
+        flow = flows.get(benchmark)
+        if benchmark == "distance_field":
+            if flow is None or set(flow.get("host_effects", [])) != {
+                "able.math.hypot",
+                "able.host.print",
+            }:
+                raise ValueError("distance_field shadow effects drifted")
+        if benchmark == "fixed_width_128":
+            if flow is None or not any(
+                target.get("owner_type") == "UInt128"
+                for target in flow.get("call_targets", [])
+            ):
+                raise ValueError("fixed_width_128 nominal calls drifted")
+        if benchmark == "array_slice_window":
+            if flow is None or not {
+                target.get("name") for target in flow.get("call_targets", [])
+            }.issuperset({"len", "slice", "read_slot"}):
+                raise ValueError("array_slice_window collection calls drifted")
+        result.append(
+            {
+                "benchmark": benchmark,
+                "family": app["family"],
+                "function": app["function"],
+                "function_entries": hottest.get("entries"),
+                "boxed_param_count": boxed_params,
+                "boxed_return": boxed_return,
+                "crosses_legacy_identity_boundary": crosses_identity,
+                "transitive_internalization_bounded": app[
+                    "transitive_internalization_bounded"
+                ],
+                "bounded_closed_region_candidate": bounded,
+                "minimum_closed_scope": app["minimum_closed_scope"],
+                "required_ownership_domains": required_domains,
+                "ownership_domain_count": len(required_domains),
+                "modeled_target_excess_reduction_percent": float(reduction),
+                "passes_25_percent_performance_gate": float(reduction) >= 25.0,
+                "reason": app["reason"],
+            }
+        )
+    return result
+
+
+def frontier_lane(frontier: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
+    triples = frontier.get("triples")
+    if not isinstance(triples, list):
+        raise ValueError("portable frontier needs triples")
+    top = next(
+        (row for row in triples if row.get("priority_rank") == 1),
+        None,
+    )
+    expected = [
+        "concurrency",
+        "control_flow",
+        "expressions_arrays_text_files",
+    ]
+    if not isinstance(top, dict) or top.get("families") != expected:
+        raise ValueError("portable frontier priority-one triple drifted")
+    lane = evidence.get("next_lane")
+    if not isinstance(lane, dict):
+        raise ValueError("closed-region evidence needs a next lane")
+    return lane | {
+        "frontier_priority_rank": 1,
+        "frontier_families": expected,
+        "frontier_current_depth": top.get("current_count"),
+        "frontier_adjacent_excess_seconds": top.get("adjacent_excess_seconds"),
+    }
+
+
+def build_report(evidence_path: Path) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "closed-region evidence")
+    raw_sources = evidence.get("sources")
+    if not isinstance(raw_sources, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in raw_sources.items()
+    ):
+        raise ValueError("closed-region evidence needs string source paths")
+    sources = {key: resolve_path(value) for key, value in raw_sources.items()}
+    json_keys = {
+        "semantic_abi_feasibility",
+        "shadow_flow",
+        "native_hot_tier",
+        "production_pilot",
+        "portable_frontier",
+    }
+    loaded = {key: load_json(sources[key], key) for key in json_keys}
+    validate_inputs(evidence, sources, loaded)
+    ownership, ownership_ids = ownership_budget(evidence, sources)
+    rows = application_budget(
+        evidence,
+        sources,
+        target_rows(loaded["native_hot_tier"]),
+        flow_rows(loaded["shadow_flow"]),
+        ownership_ids,
+    )
+    contract = evidence.get("cut_contract")
+    if not isinstance(contract, dict) or not isinstance(contract.get("required"), dict):
+        raise ValueError("closed-region cut contract is invalid")
+    required_contract = contract["required"]
+    if not all(value is True for value in required_contract.values()):
+        raise ValueError("all closed-region contract obligations must be required")
+    performance_passes = sum(
+        row["passes_25_percent_performance_gate"] for row in rows
+    )
+    bounded = [row for row in rows if row["bounded_closed_region_candidate"]]
+    bounded_families = sorted({row["family"] for row in bounded})
+    wholesale = [
+        row
+        for row in rows
+        if row["minimum_closed_scope"] == "interpreter-instance-runtime"
+    ]
+    minimum_families = contract.get("minimum_unlike_families")
+    breadth_passes = isinstance(minimum_families, int) and (
+        len(bounded_families) >= minimum_families
+    )
+    implementation_admitted = (
+        performance_passes == len(rows)
+        and breadth_passes
+        and len(wholesale) == 0
+    )
+    decision = (
+        "admit-shared-runtime-closed-region-cutover"
+        if implementation_admitted
+        else "close-shared-runtime-production-migration-no-three-unlike-closed-cut"
+    )
+    return {
+        "kind": "able-shared-runtime-closed-region-cutover-decision",
+        "schema_version": 1,
+        "sources": {"evidence": source_record(evidence_path.resolve())}
+        | {key: source_record(path) for key, path in sorted(sources.items())},
+        "summary": {
+            "decision": decision,
+            "target_model_row_count": len(rows),
+            "target_model_material_row_count": performance_passes,
+            "bounded_closed_region_candidate_count": len(bounded),
+            "bounded_closed_region_unlike_family_count": len(bounded_families),
+            "minimum_unlike_families": minimum_families,
+            "wholesale_interpreter_runtime_cut_count": len(wholesale),
+            "ownership_domain_count": len(ownership),
+            "breadth_gate_passes": breadth_passes,
+            "implementation_admitted": implementation_admitted,
+            "runtime_or_interpreter_change_retained": False,
+            "compiler_change_retained": False,
+            "stdlib_change_retained": False,
+            "wasm_change_retained": False,
+        },
+        "cut_contract": contract,
+        "ownership_budget": ownership,
+        "applications": rows,
+        "bounded_candidate_families": bounded_families,
+        "decision_rationale": [
+            "All five target models clear the per-row 25% performance-materiality gate.",
+            "Four functions cross legacy identity-bearing nominal, String, or Array objects; their smallest adapter-free cut expands to interpreter-instance ownership.",
+            "Distance Field is the sole bounded primitive-only candidate, contingent on internalizing hypot, sqrt, and the f64 sqrt kernel operation.",
+            "One bounded family cannot satisfy the three-unlike-family admission rule, and implementing the other four would be a wholesale runtime migration rather than a staged cut.",
+            "The prior call/return veneer remains rejected; no graph conversion, borrowed host-object loop, or duplicate semantic runtime is admitted.",
+        ],
+        "next_lane": frontier_lane(
+            loaded["portable_frontier"], evidence
+        ),
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Shared-runtime closed-region cutover decision",
+        "",
+        "Date: 2026-07-22",
+        "",
+        "Status: production migration closed; no staged three-family cut exists",
+        "",
+        "## Decision",
+        "",
+        f"**`{summary['decision']}`**.",
+        "",
+        "The performance opportunity is real, but the production ownership cut is not",
+        "staged broadly enough to pursue. All five hot-function models clear the 25%",
+        "target-excess bar. Only Distance Field can be enclosed below an entire",
+        "interpreter instance, and that is one float-numeric family rather than the",
+        "required three unlike families.",
+        "",
+        "No runtime, interpreter, compiler, canonical-stdlib, dependency, benchmark,",
+        "language, or WASM implementation change is retained by this decision.",
+        "",
+        "## Cut contract",
+        "",
+    ]
+    for name in report["cut_contract"]["required"]:
+        lines.append(f"- `{name}`")
+    lines += [
+        "",
+        "A cut must select ordinary-VM fallback before function entry, retain one",
+        "semantic owner throughout the region, and avoid live-frame conversion, object",
+        "graph conversion, call/return cell veneers, and per-operation Go transitions.",
+        "A whole interpreter-instance replacement is not a bounded migration stage.",
+        "",
+        "## Static ownership reach",
+        "",
+        f"The current Go runtime stores semantic values across all {summary['ownership_domain_count']}",
+        "ownership domains below:",
+        "",
+        "| Domain | Static source markers |",
+        "| --- | ---: |",
+    ]
+    for domain in report["ownership_budget"]:
+        lines.append(f"| `{domain['id']}` | {domain['marker_count']} |")
+    lines += [
+        "",
+        "These are not independent adapters. Arrays and maps contain `Value`; closures",
+        "capture environments; evaluation signals, bytecode slots, call frames, native",
+        "functions, definitions, and host roots all retain the same identity graph.",
+        "",
+        "## Whole-function cut model",
+        "",
+        "| Application | Hot function | Identity crosses entry/exit? | Minimum closed scope | Ownership domains | Target excess removed | Bounded? |",
+        "| --- | --- | --- | --- | ---: | ---: | --- |",
+    ]
+    for row in report["applications"]:
+        lines.append(
+            f"| `{row['benchmark']}` | `{row['function']}` | "
+            f"{'yes' if row['crosses_legacy_identity_boundary'] else 'no'} | "
+            f"`{row['minimum_closed_scope']}` | {row['ownership_domain_count']} | "
+            f"{row['modeled_target_excess_reduction_percent']:.2f}% | "
+            f"{'yes' if row['bounded_closed_region_candidate'] else 'no'} |"
+        )
+    lines += ["", "Application-specific closure reasons:", ""]
+    for row in report["applications"]:
+        lines.append(f"- **`{row['benchmark']}`**: {row['reason']}")
+    lines += [
+        "",
+        "Distance Field is the one bounded exception because `main` has no",
+        "identity-bearing parameter or result. It would still require `hypot`, `sqrt`,",
+        "and the f64 sqrt kernel operation to execute inside the semantic runtime; the",
+        "final print can remain a declared host effect. Building that route would optimize",
+        "only one workload family, so it fails the broad-applicability gate.",
+        "",
+        "The other four cuts reach legacy nominal/String/Array identities. Keeping those",
+        "objects Go-owned creates repeated semantic exits; converting them breaks alias",
+        "identity; migrating their transitive owners reaches environments, frames,",
+        "collections, dispatch, errors, and host roots. That is a wholesale runtime",
+        "cutover, not an incremental region.",
+        "",
+        "## Budget conclusion",
+        "",
+        f"- Performance-material rows: {summary['target_model_material_row_count']}/{summary['target_model_row_count']}.",
+        f"- Bounded adapter-free rows: {summary['bounded_closed_region_candidate_count']}/{summary['target_model_row_count']}.",
+        f"- Unlike bounded families: {summary['bounded_closed_region_unlike_family_count']}/{summary['minimum_unlike_families']} required.",
+        f"- Interpreter-instance cuts: {summary['wholesale_interpreter_runtime_cut_count']}/{summary['target_model_row_count']}.",
+        "- Production implementation admitted: no.",
+        "",
+        "The standalone semantic ABI, codec, shadow images, and conformance models remain",
+        "valid research artifacts. They no longer constitute a production migration",
+        "roadmap under the current Go-owned runtime.",
+        "",
+        "## Next recommendation",
+        "",
+    ]
+    lane = report["next_lane"]
+    lines += [
+        f"Complete **`{lane['id']}`**.",
+        "",
+        lane["scope"],
+        "",
+        f"Why: {lane['why']}",
+        "",
+        "The checked interaction frontier ranks",
+        f"`{' + '.join(lane['frontier_families'])}` first at depth",
+        f"{lane['frontier_current_depth']}, adjacent to",
+        f"{lane['frontier_adjacent_excess_seconds']:.6f} seconds of current target excess.",
+        "",
+        f"Admission: {lane['admission']}",
+        "",
+        f"Exclusions: {lane['exclusions']}",
+        "",
+        "## Reproduction",
+        "",
+        "```sh",
+        "python3 v12/bench_shared_runtime_closed_region_cutover_test.py",
+        "v12/bench_shared_runtime_closed_region_cutover --check",
+        "just bench-architecture-budget-check",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        report = build_report(args.evidence)
+    except ValueError as error:
+        parser.error(str(error))
+    rendered_json = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    rendered_markdown = markdown(report)
+    if args.json_out:
+        args.json_out.write_text(rendered_json, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.write_text(rendered_markdown, encoding="utf-8")
+    if args.check:
+        if report["summary"]["implementation_admitted"]:
+            raise SystemExit("shared-runtime implementation requires review")
+        if args.evidence.resolve() == DEFAULT_EVIDENCE.resolve():
+            if CHECKED_JSON.read_text(encoding="utf-8") != rendered_json:
+                raise SystemExit("checked closed-region JSON artifact is stale")
+            if CHECKED_MARKDOWN.read_text(encoding="utf-8") != rendered_markdown:
+                raise SystemExit("checked closed-region decision is stale")
+    if not args.json_out and not args.markdown_out and not args.check:
+        print(rendered_json, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

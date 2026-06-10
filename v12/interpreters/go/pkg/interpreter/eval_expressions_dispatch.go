@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -10,10 +11,18 @@ import (
 )
 
 func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Environment) (result runtime.Value, err error) {
-	state := i.stateFromEnv(env)
+	var state *evalState
+	getState := func() *evalState {
+		if state == nil {
+			state = i.stateFromEnv(env)
+		}
+		return state
+	}
 	defer func() {
 		err = i.wrapStandardRuntimeError(err)
-		err = i.attachRuntimeContext(err, node, state)
+		if err != nil {
+			err = i.attachRuntimeContext(err, node, getState())
+		}
 	}()
 	if node == nil {
 		return runtime.NilValue{}, nil
@@ -24,7 +33,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 	if serial, ok := i.executor.(*SerialExecutor); ok {
 		var payload *asyncContextPayload
 		if env != nil {
-			payload = payloadFromState(env.RuntimeData())
+			payload = payloadFromState(i.runtimeDataFromEnv(env))
 		}
 		if payload == nil {
 			serialSync = serial
@@ -36,8 +45,12 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 			serialSync.endSynchronousSection()
 		}
 	}()
+	if value, ok, err := i.evaluateExpressionLeafFastPath(node, env); ok {
+		return value, err
+	}
+	state = getState()
 	if !state.hasPlaceholderFrame() {
-		if value, ok, err := i.tryBuildPlaceholderFunction(node, env); err != nil {
+		if value, ok, err := i.tryBuildPlaceholderFunctionWithState(node, env, state); err != nil {
 			return nil, err
 		} else if ok {
 			return value, nil
@@ -94,7 +107,8 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		if err != nil {
 			return nil, err
 		}
-		return i.castValueToType(n.TargetType, value)
+		targetType := i.canonicalizeTypeExpressionCached(n.TargetType, env, i.typeExpressionReferencesAliasCached(n.TargetType))
+		return i.castValueToType(targetType, value)
 	case *ast.StringInterpolation:
 		var builder strings.Builder
 		for _, part := range n.Parts {
@@ -187,6 +201,57 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 	}
 }
 
+func (i *Interpreter) evaluateExpressionLeafFastPath(node ast.Expression, env *runtime.Environment) (runtime.Value, bool, error) {
+	switch n := node.(type) {
+	case *ast.StringLiteral:
+		return runtime.StringValue{Val: n.Value}, true, nil
+	case *ast.BooleanLiteral:
+		return runtime.BoolValue{Val: n.Value}, true, nil
+	case *ast.CharLiteral:
+		if len(n.Value) == 0 {
+			return nil, true, fmt.Errorf("empty char literal")
+		}
+		return runtime.CharValue{Val: []rune(n.Value)[0]}, true, nil
+	case *ast.NilLiteral:
+		return runtime.NilValue{}, true, nil
+	case *ast.IntegerLiteral:
+		suffix := runtime.IntegerI32
+		if n.IntegerType != nil {
+			suffix = runtime.IntegerType(*n.IntegerType)
+		}
+		val := bigFromLiteral(n.Value)
+		info, err := getIntegerInfo(suffix)
+		if err != nil {
+			return nil, true, err
+		}
+		if err := ensureFitsInteger(info, val); err != nil {
+			return nil, true, err
+		}
+		return runtime.NewBigIntValue(val, suffix), true, nil
+	case *ast.FloatLiteral:
+		suffix := runtime.FloatF64
+		if n.FloatType != nil {
+			suffix = runtime.FloatType(*n.FloatType)
+		}
+		val := n.Value
+		if suffix == runtime.FloatF32 {
+			val = float64(float32(val))
+		}
+		return runtime.FloatValue{Val: val, TypeSuffix: suffix}, true, nil
+	case *ast.Identifier:
+		val, err := env.Get(n.Name)
+		if err != nil {
+			return nil, true, err
+		}
+		return val, true, nil
+	case *ast.LambdaExpression:
+		val, err := i.evaluateLambdaExpression(n, env)
+		return val, true, err
+	default:
+		return nil, false, nil
+	}
+}
+
 func (i *Interpreter) evaluateIfExpression(expr *ast.IfExpression, env *runtime.Environment) (runtime.Value, error) {
 	cond, err := i.evaluateExpression(expr.IfCondition, env)
 	if err != nil {
@@ -215,24 +280,31 @@ func (i *Interpreter) evaluateMatchExpression(expr *ast.MatchExpression, env *ru
 	if err != nil {
 		return nil, err
 	}
-	for _, clause := range expr.Clauses {
+	plans := i.matchExpressionClausePlans(expr)
+	for idx, clause := range expr.Clauses {
 		if clause == nil {
 			continue
 		}
-		clauseEnv, matched := i.matchPattern(clause.Pattern, subject, env)
+		plan := plans[idx]
+		clauseEnv, matched, transientEnv, transientBindings := i.matchPatternForClauseTransient(clause.Pattern, subject, env, plan)
 		if !matched {
+			i.releaseTransientClauseMatch(transientEnv, transientBindings)
 			continue
 		}
 		if clause.Guard != nil {
 			guardVal, err := i.evaluateExpression(clause.Guard, clauseEnv)
 			if err != nil {
+				i.releaseTransientClauseMatch(transientEnv, transientBindings)
 				return nil, err
 			}
 			if !i.isTruthy(guardVal) {
+				i.releaseTransientClauseMatch(transientEnv, transientBindings)
 				continue
 			}
 		}
-		return i.evaluateExpression(clause.Body, clauseEnv)
+		result, err := i.evaluateExpression(clause.Body, clauseEnv)
+		i.releaseTransientClauseMatch(transientEnv, transientBindings)
+		return result, err
 	}
 	return nil, fmt.Errorf("Non-exhaustive match")
 }
@@ -246,9 +318,12 @@ func (i *Interpreter) evaluateRescueExpression(expr *ast.RescueExpression, env *
 	if !ok {
 		return nil, err
 	}
-	for _, clause := range expr.Clauses {
-		clauseEnv, matched := i.matchPattern(clause.Pattern, rs.value, env)
+	plans := i.rescueExpressionClausePlans(expr)
+	for idx, clause := range expr.Clauses {
+		plan := plans[idx]
+		clauseEnv, matched, transientEnv, transientBindings := i.matchPatternForClauseTransient(clause.Pattern, rs.value, env, plan)
 		if !matched {
+			i.releaseTransientClauseMatch(transientEnv, transientBindings)
 			continue
 		}
 		state := i.stateFromEnv(clauseEnv)
@@ -257,15 +332,18 @@ func (i *Interpreter) evaluateRescueExpression(expr *ast.RescueExpression, env *
 			guardVal, gErr := i.evaluateExpression(clause.Guard, clauseEnv)
 			if gErr != nil {
 				state.popRaise()
+				i.releaseTransientClauseMatch(transientEnv, transientBindings)
 				return nil, gErr
 			}
 			if !i.isTruthy(guardVal) {
 				state.popRaise()
+				i.releaseTransientClauseMatch(transientEnv, transientBindings)
 				continue
 			}
 		}
 		result, bodyErr := i.evaluateExpression(clause.Body, clauseEnv)
 		state.popRaise()
+		i.releaseTransientClauseMatch(transientEnv, transientBindings)
 		if bodyErr != nil {
 			return nil, bodyErr
 		}
@@ -293,12 +371,12 @@ func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *
 	if err != nil {
 		if rs, ok := err.(raiseSignal); ok {
 			handlerCapacity := blockLocalBindingCapacity(expr.Handler)
+			var handlerEnv *runtime.Environment
 			if expr.ErrorBinding != nil {
 				handlerCapacity++
-			}
-			handlerEnv := runtime.NewEnvironmentWithValueCapacity(env, handlerCapacity)
-			if expr.ErrorBinding != nil {
-				handlerEnv.Define(expr.ErrorBinding.Name, rs.value)
+				handlerEnv = runtime.NewEnvironmentWithSingleBinding(env, handlerCapacity, expr.ErrorBinding.Name, rs.value)
+			} else {
+				handlerEnv = runtime.NewEnvironmentWithValueCapacity(env, handlerCapacity)
 			}
 			result, handlerErr := i.evaluateBlock(expr.Handler, handlerEnv)
 			if handlerErr != nil {
@@ -326,12 +404,12 @@ func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *
 	}
 	if failureKind != "" {
 		handlerCapacity := blockLocalBindingCapacity(expr.Handler)
+		var handlerEnv *runtime.Environment
 		if expr.ErrorBinding != nil && failureKind == "error" {
 			handlerCapacity++
-		}
-		handlerEnv := runtime.NewEnvironmentWithValueCapacity(env, handlerCapacity)
-		if expr.ErrorBinding != nil && failureKind == "error" {
-			handlerEnv.Define(expr.ErrorBinding.Name, failureValue)
+			handlerEnv = runtime.NewEnvironmentWithSingleBinding(env, handlerCapacity, expr.ErrorBinding.Name, failureValue)
+		} else {
+			handlerEnv = runtime.NewEnvironmentWithValueCapacity(env, handlerCapacity)
 		}
 		result, handlerErr := i.evaluateBlock(expr.Handler, handlerEnv)
 		if handlerErr != nil {
@@ -415,10 +493,30 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 
 func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value) (runtime.Value, error) {
 	rawOperand := unwrapInterfaceValue(operand)
+	rawOperand = bytecodeMaterializeRawValue(rawOperand)
 	switch operator {
 	case "-":
 		switch v := rawOperand.(type) {
 		case runtime.IntegerValue:
+			if result, ok, err := fastNegateSmallIntegerValue(v); ok {
+				return result, err
+			}
+			neg := new(big.Int).Neg(v.BigInt())
+			info, err := getIntegerInfo(v.TypeSuffix)
+			if err != nil {
+				return nil, err
+			}
+			if err := ensureFitsInteger(info, neg); err != nil {
+				return nil, err
+			}
+			return runtime.NewBigIntValue(neg, v.TypeSuffix), nil
+		case *runtime.IntegerValue:
+			if v == nil {
+				return nil, fmt.Errorf("unary '-' not supported for %T", operand)
+			}
+			if result, ok, err := fastNegateSmallIntegerValue(*v); ok {
+				return result, err
+			}
 			neg := new(big.Int).Neg(v.BigInt())
 			info, err := getIntegerInfo(v.TypeSuffix)
 			if err != nil {
@@ -429,6 +527,11 @@ func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value)
 			}
 			return runtime.NewBigIntValue(neg, v.TypeSuffix), nil
 		case runtime.FloatValue:
+			return runtime.FloatValue{Val: -v.Val, TypeSuffix: v.TypeSuffix}, nil
+		case *runtime.FloatValue:
+			if v == nil {
+				return nil, fmt.Errorf("unary '-' not supported for %T", operand)
+			}
 			return runtime.FloatValue{Val: -v.Val, TypeSuffix: v.TypeSuffix}, nil
 		default:
 			if result, ok, err := i.applyUnaryInterface(operator, operand); ok {
@@ -465,6 +568,22 @@ func (i *Interpreter) applyUnaryOperator(operator string, operand runtime.Value)
 	default:
 		return nil, fmt.Errorf("unsupported unary operator %s", operator)
 	}
+}
+
+func fastNegateSmallIntegerValue(value runtime.IntegerValue) (runtime.Value, bool, error) {
+	valueRef := &value
+	if !valueRef.IsSmallRef() {
+		return nil, false, nil
+	}
+	raw := valueRef.Int64FastRef()
+	if raw == math.MinInt64 {
+		return nil, false, nil
+	}
+	neg := -raw
+	if err := ensureFitsInt64Type(value.TypeSuffix, neg); err != nil {
+		return nil, true, err
+	}
+	return boxedOrSmallIntegerValue(value.TypeSuffix, neg), true, nil
 }
 
 // ApplyUnaryOperator exposes unary operator dispatch for compiled/runtime interop.

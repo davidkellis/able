@@ -374,7 +374,9 @@ func (g *generator) compileRuntimeStructPatternAssignmentBindings(ctx *compileCo
 	positionalTemp := ctx.newTemp()
 	lines := []string{
 		fmt.Sprintf("%s := __able_struct_instance(%s)", instTemp, subjectTemp),
-		fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp),
+	}
+	if pattern.IsPositional {
+		lines = append(lines, fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp))
 	}
 	for idx, field := range pattern.Fields {
 		fieldPattern, ok := positionalStructFieldPattern(field)
@@ -383,12 +385,12 @@ func (g *generator) compileRuntimeStructPatternAssignmentBindings(ctx *compileCo
 			return nil, false
 		}
 		fieldTemp := ctx.newTemp()
-		if field.FieldName != nil && field.FieldName.Name != "" {
+		if !pattern.IsPositional && field.FieldName != nil && field.FieldName.Name != "" {
 			lines = append(lines, fmt.Sprintf("var %s runtime.Value", fieldTemp))
-			lines = append(lines, fmt.Sprintf("if %s != nil { %s = %s[%d] } else { %s = %s.Fields[%q] }", positionalTemp, fieldTemp, positionalTemp, idx, fieldTemp, instTemp, field.FieldName.Name))
+			lines = append(lines, fmt.Sprintf("%s, _ = __able_struct_named_field_value(%s, %q)", fieldTemp, instTemp, field.FieldName.Name))
 		} else {
 			lines = append(lines, fmt.Sprintf("var %s runtime.Value", fieldTemp))
-			lines = append(lines, fmt.Sprintf("if %s != nil { %s = %s[%d] } else { %s = runtime.NilValue{} }", positionalTemp, fieldTemp, positionalTemp, idx, fieldTemp))
+			lines = append(lines, fmt.Sprintf("%s = %s[%d]", fieldTemp, positionalTemp, idx))
 		}
 		lines = append(lines, fmt.Sprintf("_ = %s", fieldTemp))
 		fieldExpr := fieldTemp

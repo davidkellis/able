@@ -24,6 +24,9 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 	objectDiags, objectType := c.checkExpression(env, expr.Object)
 	diags = append(diags, objectDiags...)
 	wrapType := objectType
+	previousMemberAccess := c.activeMemberAccess
+	c.activeMemberAccess = expr
+	defer func() { c.activeMemberAccess = previousMemberAccess }()
 
 	var (
 		memberName       string

@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""Validate the rejected shared-value call/return production pilot record."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from pathlib import Path
+from typing import Any
+
+
+ROOT = Path(__file__).resolve().parent
+REPO_ROOT = ROOT.parent
+DEFAULT_REPORT = (
+    ROOT
+    / "docs/perf-baselines/2026-07-22-shared-value-heap-production-pilot.json"
+)
+EXPECTED_ROWS = {
+    ("array_slice_window", "bytecode"),
+    ("array_slice_window", "treewalker"),
+    ("dependency_plan", "bytecode"),
+    ("dependency_plan", "treewalker"),
+    ("option_result_config", "bytecode"),
+    ("option_result_config", "treewalker"),
+}
+REVERTED_FILES = [
+    ROOT / "interpreters/go/internal/semanticabi/livebinding/value.go",
+    ROOT / "interpreters/go/pkg/interpreter/shared_value_call_boundary.go",
+    ROOT / "interpreters/go/pkg/interpreter/shared_value_call_boundary_test.go",
+]
+REVERTED_MARKERS = [
+    "ABLE_SHARED_VALUE_CALL_BOUNDARY",
+    "sharedValueCallBoundary",
+    "invokeFunctionOrdinary",
+]
+
+
+def load(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"pilot report not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid pilot report: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError("pilot report must be an object")
+    return value
+
+
+def mean(values: list[float]) -> float:
+    if not values:
+        raise ValueError("cannot average an empty cohort")
+    return sum(values) / len(values)
+
+
+def close(actual: float, expected: float, label: str) -> None:
+    if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=0.000001):
+        raise ValueError(f"{label}: got {actual}, want {expected}")
+
+
+def validate_configuration(
+    value: dict[str, Any], label: str
+) -> tuple[float, float]:
+    samples = value.get("samples_seconds")
+    cohort_means = value.get("cohort_means_seconds")
+    if not isinstance(samples, list) or len(samples) != 10:
+        raise ValueError(f"{label} needs ten samples")
+    if not isinstance(cohort_means, list) or len(cohort_means) != 2:
+        raise ValueError(f"{label} needs two cohort means")
+    samples = [float(item) for item in samples]
+    cohort_means = [float(item) for item in cohort_means]
+    close(cohort_means[0], mean(samples[:5]), f"{label} first cohort")
+    close(cohort_means[1], mean(samples[5:]), f"{label} second cohort")
+    pooled = mean(samples)
+    close(float(value["pooled_mean_seconds"]), pooled, f"{label} pooled mean")
+    spread = (max(cohort_means) / min(cohort_means) - 1.0) * 100.0
+    close(
+        float(value["cohort_spread_percent"]),
+        spread,
+        f"{label} cohort spread",
+    )
+    return pooled, float(value["pooled_gc_count"])
+
+
+def validate_report(report: dict[str, Any]) -> None:
+    if report.get("kind") != "able-shared-value-heap-production-pilot":
+        raise ValueError("unexpected report kind")
+    if (
+        report.get("decision")
+        != "reject-live-cell-call-veneer-require-native-shared-ownership"
+    ):
+        raise ValueError("unexpected pilot decision")
+    if report.get("candidate_retained") or report.get("production_tree_changed"):
+        raise ValueError("rejected candidate cannot remain in production")
+
+    measurement = report.get("measurement")
+    if not isinstance(measurement, dict):
+        raise ValueError("measurement record is missing")
+    if (
+        measurement.get("runs_per_cohort") != 5
+        or measurement.get("cohorts_per_configuration") != 2
+        or measurement.get("verified_selection_processes") != 120
+        or measurement.get("failed_processes") != 0
+        or measurement.get("timed_out_processes") != 0
+        or not measurement.get("reverse_order_pair")
+    ):
+        raise ValueError("measurement protocol is incomplete")
+
+    rows = report.get("rows")
+    if not isinstance(rows, list):
+        raise ValueError("pilot rows are missing")
+    actual_rows = {(row.get("benchmark"), row.get("mode")) for row in rows}
+    if actual_rows != EXPECTED_ROWS:
+        raise ValueError("pilot row set does not cover the selected applications")
+
+    dispositions: list[str] = []
+    for row in rows:
+        label = f"{row['benchmark']}/{row['mode']}"
+        baseline = row.get("baseline")
+        candidate = row.get("candidate")
+        if not isinstance(baseline, dict) or not isinstance(candidate, dict):
+            raise ValueError(f"{label} configurations are missing")
+        baseline_mean, _ = validate_configuration(baseline, f"{label} baseline")
+        candidate_mean, _ = validate_configuration(candidate, f"{label} candidate")
+        delta = (candidate_mean / baseline_mean - 1.0) * 100.0
+        close(float(row["delta_percent"]), delta, f"{label} delta")
+        dispositions.append(str(row.get("disposition")))
+
+    if sum(value.startswith("regress") for value in dispositions) != 4:
+        raise ValueError("report must retain four regressed rows")
+    if sum(value.startswith("isolated-improvement") for value in dispositions) != 1:
+        raise ValueError("report must retain one isolated volatile improvement")
+
+    summary = report.get("summary")
+    if not isinstance(summary, dict):
+        raise ValueError("pilot summary is missing")
+    if (
+        summary.get("regressed_rows") != 4
+        or summary.get("neutral_rows") != 1
+        or summary.get("isolated_improved_rows") != 1
+        or summary.get("broad_improvement")
+        or summary.get("candidate_admitted")
+        or summary.get("runtime_or_interpreter_change_retained")
+        or summary.get("stdlib_change_retained")
+        or summary.get("compiler_change_retained")
+        or summary.get("wasm_change_retained")
+    ):
+        raise ValueError("pilot summary does not match the rejected disposition")
+
+
+def validate_revert() -> None:
+    leftovers = [str(path.relative_to(REPO_ROOT)) for path in REVERTED_FILES if path.exists()]
+    if leftovers:
+        raise ValueError("rejected pilot files remain: " + ", ".join(leftovers))
+    roots = [
+        ROOT / "interpreters/go/pkg/interpreter",
+        ROOT / "interpreters/go/internal/semanticabi",
+    ]
+    for root in roots:
+        for path in root.rglob("*.go"):
+            text = path.read_text(encoding="utf-8")
+            for marker in REVERTED_MARKERS:
+                if marker in text:
+                    raise ValueError(
+                        f"rejected pilot marker {marker!r} remains in "
+                        f"{path.relative_to(REPO_ROOT)}"
+                    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+
+    report = load(args.report)
+    validate_report(report)
+    if args.check:
+        validate_revert()
+    print(
+        "shared-value production pilot: "
+        "120 verified processes, 4 regressions, candidate reverted"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

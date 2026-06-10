@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-07-21T23:57:03.785546Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "fixed_width_128",
+    "rational_series",
+    "wide_integer_records"
+  ],
+  "timeout_seconds": 55,
+  "telemetry_build": true,
+  "telemetry_mode": "dynamic-boundary",
+  "rows": [
+    {
+      "benchmark": "fixed_width_128",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_cast_check": 0,
+        "explicit_cast_failure": 0,
+        "explicit_dynamic_call": 2,
+        "host_abi_call": 2,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 0,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "rational_series",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_cast_check": 0,
+        "explicit_cast_failure": 0,
+        "explicit_dynamic_call": 2,
+        "host_abi_call": 2,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 0,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_cast_check": 0,
+        "explicit_cast_failure": 0,
+        "explicit_dynamic_call": 3,
+        "host_abi_call": 3,
+        "residual_polymorphic_call": 3,
+        "runtime_service_call": 0,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "explicit_dynamic_call": 7,
+    "residual_polymorphic_call": 7,
+    "host_abi_call": 7,
+    "runtime_service_call": 0,
+    "semantic_truthy_check": 0,
+    "semantic_truthy_error_fallback": 0,
+    "explicit_cast_check": 0,
+    "explicit_cast_failure": 0
+  }
+}

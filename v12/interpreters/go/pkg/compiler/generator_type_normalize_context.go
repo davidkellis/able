@@ -22,6 +22,20 @@ func (g *generator) importedSelectorAliasAppearsInTypeExpr(pkgName string, expr 
 	if g == nil || expr == nil {
 		return false
 	}
+	resolvedPkg := strings.TrimSpace(pkgName)
+	cacheKey := typeExprPackageCacheKey{Expr: expr, PackageName: resolvedPkg}
+	if cached, ok := g.typeExprPackageCache[cacheKey]; ok && cached.ImportedAliasKnown {
+		return cached.ImportedAliasAppears
+	}
+	appears := g.importedSelectorAliasAppearsInTypeExprUncached(resolvedPkg, expr)
+	entry := g.typeExprPackageCache[cacheKey]
+	entry.ImportedAliasKnown = true
+	entry.ImportedAliasAppears = appears
+	g.typeExprPackageCache[cacheKey] = entry
+	return appears
+}
+
+func (g *generator) importedSelectorAliasAppearsInTypeExprUncached(pkgName string, expr ast.TypeExpression) bool {
 	if g.importedSelectorAliasStartsTypeExpr(pkgName, expr) {
 		return true
 	}
@@ -83,6 +97,8 @@ func (g *generator) invalidateNormalizedTypeExprCaches() {
 	}
 	g.normalizedTypeExprCache = make(map[string]ast.TypeExpression)
 	g.normalizedTypeExprPackageCache = make(map[string]string)
+	g.typeExprPackageCache = make(map[typeExprPackageCacheKey]typeExprPackageCacheEntry)
+	g.normalizedTypeExprStringCache = make(map[ast.TypeExpression]string)
 }
 
 func (g *generator) normalizeTypeExprContextForPackage(pkgName string, expr ast.TypeExpression) (string, ast.TypeExpression) {
@@ -94,6 +110,10 @@ func (g *generator) normalizeTypeExprContextForPackage(pkgName string, expr ast.
 		if recorded := strings.TrimSpace(g.normalizedTypeExprPackagesByExpr[expr]); recorded != "" {
 			resolvedPkg = recorded
 		}
+	}
+	sourceCacheKey := typeExprPackageCacheKey{Expr: expr, PackageName: resolvedPkg}
+	if cached, ok := g.typeExprPackageCache[sourceCacheKey]; ok && cached.NormalizedExpr != nil {
+		return cached.NormalizedPackage, cached.NormalizedExpr
 	}
 	cacheKey := normalizeTypeExprCacheKey(g, resolvedPkg, expr)
 	if cacheKey != "" {
@@ -110,6 +130,7 @@ func (g *generator) normalizeTypeExprContextForPackage(pkgName string, expr ast.
 					g.normalizedTypeExprPackagesByExpr[cached] = resolvedPkg
 				}
 			}
+			g.recordNormalizedTypeExprSource(expr, resolvedPkg, cached)
 			return resolvedPkg, cached
 		}
 	}
@@ -127,6 +148,7 @@ func (g *generator) normalizeTypeExprContextForPackage(pkgName string, expr ast.
 			g.normalizedTypeExprPackageCache[cacheKey] = resolvedPkg
 		}
 	}
+	g.recordNormalizedTypeExprSource(expr, resolvedPkg, normalized)
 	return resolvedPkg, normalized
 }
 

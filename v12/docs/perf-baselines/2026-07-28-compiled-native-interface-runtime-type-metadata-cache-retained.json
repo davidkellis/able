@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain-general-native-interface-runtime-type-metadata-cache",
+  "candidate": "initialize one immutable runtime type expression per generated native-interface specialization",
+  "allocation_runs_per_lane": 5,
+  "balanced_timing_runs_per_lane": 15,
+  "applications": {
+    "future_await_race": {
+      "allocation": {
+        "baseline_bytes_mean": 908548.8,
+        "candidate_bytes_mean": 907185.6,
+        "bytes_percent": -0.15004147273102175,
+        "baseline_objects_mean": 14830.4,
+        "candidate_objects_mean": 14796.8,
+        "objects_percent": -0.2265616571366924
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.014733968266666666,
+        "candidate_mean_seconds": 0.014977170866666667,
+        "raw_mean_percent": 1.6506252463581728,
+        "paired_mean_percent": 2.2880081152694003,
+        "paired_95_percent_ci": [-3.6865492836221843, 8.262565514160984],
+        "go_mean_seconds": 0.0015768425333333334,
+        "candidate_go_time_ratio": 9.498203244813539
+      },
+      "compiled_source_sha256": "3d3dc44171cecc1977e04bcdec69a873e952be48ee0a47638a39d12cdcc03af0",
+      "binary_sha256": "1c33a50e4d2c2728e6e7a3d7287e8fbde145cc9e76b869b5b123d416b95c8ab4",
+      "stdout_sha256": "33297798eeb96d6d471a6afe97ec8a8bf09eda0ce30e13917aed1db40fb930e4"
+    },
+    "await_channel_mux": {
+      "allocation": {
+        "baseline_bytes_mean": 10025206.4,
+        "candidate_bytes_mean": 8516681.6,
+        "bytes_percent": -15.047319125519454,
+        "baseline_objects_mean": 168964.2,
+        "candidate_objects_mean": 144398.0,
+        "objects_percent": -14.53929293897761
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.09058582826666667,
+        "candidate_mean_seconds": 0.08837728660000001,
+        "raw_mean_percent": -2.438065323159766,
+        "paired_mean_percent": -2.1925472259861225,
+        "paired_95_percent_ci": [-6.063428265652858, 1.678333813680613],
+        "go_mean_seconds": 0.0025230779333333332,
+        "candidate_go_time_ratio": 35.02756907839206
+      },
+      "compiled_source_sha256": "c7a99b387e9e83e26d70bcc72869c02f8bf45172b03d347428faa8945f9af60c",
+      "binary_sha256": "197f2a765b72bc742f9e216a3e2d705f5c8a1ad52db9b9f6fd14cb518b05d950",
+      "stdout_sha256": "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693"
+    },
+    "mutex_await_journal": {
+      "allocation": {
+        "baseline_bytes_mean": 5159265.6,
+        "candidate_bytes_mean": 4405400.0,
+        "bytes_percent": -14.61187809365736,
+        "baseline_objects_mean": 85778.0,
+        "candidate_objects_mean": 73484.2,
+        "objects_percent": -14.332113129240598
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.009721264333333333,
+        "candidate_mean_seconds": 0.009454171866666666,
+        "raw_mean_percent": -2.747507500138957,
+        "paired_mean_percent": -2.392909867698662,
+        "paired_95_percent_ci": [-8.143016880021326, 3.3571971446240023],
+        "go_mean_seconds": 0.0016197714666666666,
+        "candidate_go_time_ratio": 5.8367319472063794
+      },
+      "compiled_source_sha256": "1d050fccf759e809fc9ada04c02d24c718db4022544bb389b346303f302b50e1",
+      "binary_sha256": "fbea818d94b31f665b6a239ea0f6a731165d5811732d322534912efa48626880",
+      "stdout_sha256": "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e"
+    },
+    "mutex_work_queue": {
+      "allocation": {
+        "baseline_bytes_mean": 10511736.0,
+        "candidate_bytes_mean": 9012971.2,
+        "bytes_percent": -14.258014090156001,
+        "baseline_objects_mean": 175663.8,
+        "candidate_objects_mean": 151272.6,
+        "objects_percent": -13.885160175289379
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.020230118933333333,
+        "candidate_mean_seconds": 0.0189977404,
+        "raw_mean_percent": -6.091800732336439,
+        "paired_mean_percent": -5.369912780683087,
+        "paired_95_percent_ci": [-12.714509325834705, 1.9746837644685309],
+        "go_mean_seconds": 0.0020536665999999998,
+        "candidate_go_time_ratio": 9.250644870983441
+      },
+      "compiled_source_sha256": "4586b117d305cda3721b02641426d74bf2223ed86f00f45770e1bf36f73ca292",
+      "binary_sha256": "20dbf46a8f4b5ceef4097b14ed35e9bd87e4fd73cae52713cfb9437633b672b3",
+      "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58"
+    }
+  },
+  "allocation_samples_manifest_sha256": "10bd9d53fc590723ac79cc5ec87136f459852faad02ccdc85319c0946bded464",
+  "balanced_samples_sha256": "d0e38a38f2aba4fa5d383afeff625ab905b3454fff38968d0e66772bb13382ce",
+  "retained_measurement_processes": 224,
+  "all_public_verifiers_passed": true,
+  "all_dependency_graphs_interpreter_free": true,
+  "wall_time_claim": "neutral-all-paired-95-percent-intervals-cross-zero",
+  "verification_note": "The full compiler package reached its ten-minute aggregate timeout; the in-progress fallback fixture passed alone in 167.402 seconds."
+}

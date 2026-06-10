@@ -1,0 +1,140 @@
+{
+  "kind": "able-v12-correctness-release-readiness-closure",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "release-surface-green-no-production-change",
+  "evidence_repair": {
+    "failure": "The cross-engine structural-strategy snapshot pinned a predecessor closure-ledger fingerprint.",
+    "closure_ledger_sha256": "f00e9fafd2ad222c018de0748093957687bfd555f3bceb711825ef23191c3ffc",
+    "closure_count": 21,
+    "invalidated_closure_count": 0,
+    "refreshed_artifacts": [
+      {
+        "path": "v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json",
+        "sha256": "69679874a7d9666a32411bb126c726349cdfeff692055d6c0d13bf53b5d1f78e"
+      },
+      {
+        "path": "v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
+        "sha256": "af7eb2539bb16be719af1ead3eb276b8f912e788a15de84371b30436c3d57f2e"
+      },
+      {
+        "path": "v12/docs/perf-baselines/2026-07-22-shared-runtime-semantic-abi-feasibility.json",
+        "sha256": "b7d4ffb2e26f4f88dc317bd456e7f84d7e865d902f661f80ebcd0a867960acfb"
+      },
+      {
+        "path": "v12/docs/perf-baselines/2026-07-22-shared-runtime-closed-region-cutover-decision.json",
+        "sha256": "83e9792145e78d48bd55e53ecae68c51f4965666302db1e2b14217616f00dea5"
+      }
+    ],
+    "decision_changed": false,
+    "prototype_admitted": false
+  },
+  "gates": [
+    {
+      "command": "go vet ./...",
+      "result": "pass",
+      "elapsed_seconds": 8.73,
+      "peak_rss_kb": 554804
+    },
+    {
+      "command": "go build ./...",
+      "result": "pass",
+      "elapsed_seconds": 2.55,
+      "peak_rss_kb": 378808
+    },
+    {
+      "command": "./run_all_tests.sh",
+      "result": "pass",
+      "elapsed_seconds": 880.18,
+      "peak_rss_kb": 4440504,
+      "compiler_batches": 34,
+      "bytecode_fixture_seconds": 85.938
+    },
+    {
+      "command": "./run_all_tests.sh --compiler",
+      "result": "pass",
+      "elapsed_seconds": 4947,
+      "peak_rss_kb": 2782396,
+      "compiler_core_batches": 33,
+      "parity_outliers": 3,
+      "release_audit_shards": 120
+    },
+    {
+      "command": "./run_all_tests.sh --compiled-cli",
+      "result": "pass",
+      "elapsed_seconds": 1276.93,
+      "peak_rss_kb": 3312312,
+      "cache_state": "cold"
+    },
+    {
+      "command": "warm JSON-event compiled CLI replay",
+      "result": "pass",
+      "elapsed_seconds": 184.74,
+      "peak_rss_kb": 2733408,
+      "longest_individual_test_seconds": 31.09
+    },
+    {
+      "command": "./run_stdlib_tests.sh",
+      "result": "pass",
+      "elapsed_seconds": 33.62,
+      "peak_rss_kb": 840004,
+      "treewalker_seconds": 17,
+      "bytecode_seconds": 16
+    }
+  ],
+  "timing_policy": {
+    "longest_compiler_individual_test_seconds": 34.94,
+    "interface_lookup_shard_8_wall_seconds": [
+      19.38,
+      19.54,
+      19.98
+    ],
+    "interface_lookup_shard_8_mean_seconds": 19.63,
+    "boundary_shard_22_wall_seconds": [
+      17.72,
+      17.5,
+      18.45
+    ],
+    "boundary_shard_22_mean_seconds": 17.89,
+    "individual_test_limit_seconds": 60,
+    "violation_count": 0
+  },
+  "cache_cleanup": {
+    "root": "/var/tmp/able-compiled-test-cache",
+    "initial_valid_entries": 94,
+    "initial_valid_bytes": 3464331864,
+    "removed_entries": 52,
+    "removed_bytes": 1878969544,
+    "final_valid_entries": 42,
+    "final_valid_bytes": 1585362320,
+    "unknown_entries_preserved": 258,
+    "unknown_bytes_preserved": 190478898
+  },
+  "contracts": {
+    "selection_rows": 119,
+    "compiled_rows": 63,
+    "bytecode_rows": 56,
+    "actionable_frontier_groups": 0,
+    "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "git_diff_check": "pass",
+    "maintained_go_files_at_or_above_1000_lines": 0
+  },
+  "production_changes": {
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "dependency": false,
+    "benchmark": false,
+    "wasm": false
+  },
+  "next": {
+    "tranche": "post-july-28-release-consolidation-inventory-refresh",
+    "why": "The current execution and evidence gates are green and no shared performance owner is admitted, while the long-running dirty worktree has accumulated retained work since the prior inventory.",
+    "entails": "Non-mutating mapping of current changed and untracked v12 paths to retained records and dependency-ordered review boundaries, with no deletion, reset, commit, history rewrite, or WASM work.",
+    "importance": "Turns the verified native-lowering state into an auditable release candidate without inventing a narrow performance optimization."
+  }
+}

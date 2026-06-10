@@ -1,0 +1,235 @@
+{
+  "kind": "external-application-variance-report",
+  "measurement_source": "Independent verifier-backed one-process external scorecards. This report describes variability only; it is not a timing threshold gate.",
+  "sources": [
+    {
+      "path": "v12/tmp/perf/2026-07-13-bytecode-json-pidigits-threshold-protocol/bytecode-r1.json",
+      "generated_at": "2026-07-13T21:26:12.983848Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-bytecode-json-pidigits-threshold-protocol/bytecode-r2.json",
+      "generated_at": "2026-07-13T21:26:48.701656Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-bytecode-json-pidigits-threshold-protocol/bytecode-r3.json",
+      "generated_at": "2026-07-13T21:27:26.221933Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-bytecode-json-pidigits-threshold-protocol/bytecode-r4.json",
+      "generated_at": "2026-07-13T21:28:01.776320Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-bytecode-json-pidigits-threshold-protocol/bytecode-r5.json",
+      "generated_at": "2026-07-13T21:28:35.144268Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "bytecode"
+      ],
+      "languages": [
+        "python",
+        "ruby"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "json",
+      "mode": "bytecode",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 0.91,
+          "ratios": {
+            "python": 0.35601111067642116,
+            "ruby": 0.5260115606936416
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.84,
+          "ratios": {
+            "python": 0.28332433890987585,
+            "ruby": 0.4157386785449146
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.92,
+          "ratios": {
+            "python": 0.35707354938870567,
+            "ruby": 0.5346971986516332
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.86,
+          "ratios": {
+            "python": 0.30117317457538084,
+            "ruby": 0.3720366845474996
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.85,
+          "ratios": {
+            "python": 0.3288328368602267,
+            "ruby": 0.48971596474045054
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 5,
+        "mean": 0.876,
+        "median": 0.86,
+        "minimum": 0.84,
+        "maximum": 0.92,
+        "range": 0.08000000000000007,
+        "half_spread_pct": 4.566210045662104,
+        "sample_stdev": 0.03646916505762097,
+        "coefficient_of_variation_pct": 4.163146696075453
+      },
+      "ratios": {
+        "python": {
+          "samples": 5,
+          "mean": 0.3252830020821221,
+          "median": 0.3288328368602267,
+          "minimum": 0.28332433890987585,
+          "maximum": 0.35707354938870567,
+          "range": 0.07374921047882982,
+          "half_spread_pct": 11.336161128427307,
+          "sample_stdev": 0.032822515444408874,
+          "coefficient_of_variation_pct": 10.09044900419432
+        },
+        "ruby": {
+          "samples": 5,
+          "mean": 0.4676400174356279,
+          "median": 0.48971596474045054,
+          "minimum": 0.3720366845474996,
+          "maximum": 0.5346971986516332,
+          "range": 0.16266051410413362,
+          "half_spread_pct": 17.391637588684798,
+          "sample_stdev": 0.07110730676648251,
+          "coefficient_of_variation_pct": 15.205564989157638
+        }
+      }
+    },
+    {
+      "benchmark": "pidigits",
+      "mode": "bytecode",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 2.86,
+          "ratios": {
+            "python": 0.7083942238624823,
+            "ruby": 0.27394898418567226
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.43,
+          "ratios": {
+            "python": 0.5805896688488557,
+            "ruby": 0.23867989392004718
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.56,
+          "ratios": {
+            "python": 0.5952242553884071,
+            "ruby": 0.21433535109972457
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.43,
+          "ratios": {
+            "python": 0.5948738035202821,
+            "ruby": 0.2328299862026675
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 2.36,
+          "ratios": {
+            "python": 0.5818253537793995,
+            "ruby": 0.23144061979013436
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 5,
+        "mean": 2.528,
+        "median": 2.43,
+        "minimum": 2.36,
+        "maximum": 2.86,
+        "range": 0.5,
+        "half_spread_pct": 9.889240506329115,
+        "sample_stdev": 0.19917329138215287,
+        "coefficient_of_variation_pct": 7.87869032366111
+      },
+      "ratios": {
+        "python": {
+          "samples": 5,
+          "mean": 0.6121814610798852,
+          "median": 0.5948738035202821,
+          "minimum": 0.5805896688488557,
+          "maximum": 0.7083942238624823,
+          "range": 0.12780455501362664,
+          "half_spread_pct": 10.438453558212952,
+          "sample_stdev": 0.05422990905425489,
+          "coefficient_of_variation_pct": 8.85846966985795
+        },
+        "ruby": {
+          "samples": 5,
+          "mean": 0.23824696703964915,
+          "median": 0.2328299862026675,
+          "minimum": 0.21433535109972457,
+          "maximum": 0.27394898418567226,
+          "range": 0.05961363308594769,
+          "half_spread_pct": 12.510890238536964,
+          "sample_stdev": 0.021921774991468863,
+          "coefficient_of_variation_pct": 9.20128187311641
+        }
+      }
+    }
+  ]
+}

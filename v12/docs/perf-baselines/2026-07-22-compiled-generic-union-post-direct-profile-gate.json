@@ -1,0 +1,55 @@
+{
+  "kind": "able-compiled-generic-union-post-direct-profile-gate",
+  "schema_version": 1,
+  "date": "2026-07-22",
+  "mode": "compiled",
+  "decision": "keep_no_additional_change",
+  "profile_protocol": {
+    "verified_processes": 50,
+    "failures": 0,
+    "timeouts": 0,
+    "phase": "main_cpu_only",
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "logical_cpu_budget": 1,
+    "timeout_seconds": 55
+  },
+  "profiles": [
+    {"benchmark":"binary_event_log","processes":5,"merged_samples_seconds":2.68,"static_union_cumulative_percent":26.49,"known_helper_cumulative_percent":24.63,"registration_closure_cumulative_percent":17.54,"registration_closure_flat_percent":0.0,"mallocgc_cumulative_percent":54.48,"known_helper_flat_alloc_objects":610304,"known_helper_flat_alloc_bytes":14123008},
+    {"benchmark":"option_result_config","processes":15,"merged_samples_seconds":1.77,"static_union_cumulative_percent":50.85,"known_helper_cumulative_percent":45.20,"registration_closure_cumulative_percent":31.64,"registration_closure_flat_percent":0.0,"mallocgc_cumulative_percent":58.76,"known_helper_flat_alloc_objects":417792,"known_helper_flat_alloc_bytes":9830400},
+    {"benchmark":"manifest_normalization","processes":15,"merged_samples_seconds":1.79,"static_union_cumulative_percent":20.11,"known_helper_cumulative_percent":18.99,"registration_closure_cumulative_percent":18.44,"registration_closure_flat_percent":0.56,"mallocgc_cumulative_percent":43.02,"known_helper_flat_alloc_objects":57344,"known_helper_flat_alloc_bytes":1343488},
+    {"benchmark":"policy_record_dispatch","processes":15,"merged_samples_seconds":1.94,"static_union_cumulative_percent":11.86,"known_helper_cumulative_percent":11.34,"registration_closure_cumulative_percent":10.31,"registration_closure_flat_percent":0.0,"mallocgc_cumulative_percent":46.91,"known_helper_flat_alloc_objects":14848,"known_helper_flat_alloc_bytes":339968}
+  ],
+  "rejected_candidate": {
+    "name": "generated_native_call_context_pool",
+    "scope": "all statically known native generic-union instance-method calls",
+    "general_rule": true,
+    "type_specific_branches": [],
+    "source_retained": false,
+    "reason": "real allocation reductions but mixed wall results, including Option and Policy regressions",
+    "valid_timing_processes": 160,
+    "invalid_harness_setup_processes_excluded": 20,
+    "allocation_processes": 20,
+    "all_valid_samples_verified": true
+  },
+  "timings": [
+    {"benchmark":"binary_event_log","current_seconds":[0.88,0.68,0.64,0.62,0.60,0.63,0.74,0.69,0.66,0.63,0.89,1.00,0.77,0.83,0.89,0.67,0.76,0.71,0.72,0.64],"candidate_seconds":[0.69,0.71,0.75,0.70,0.71,0.65,0.59,0.65,0.75,0.66,0.73,0.94,0.95,0.79,0.70,0.70,0.71,0.69,0.62,0.61],"current_mean_seconds":0.7325,"candidate_mean_seconds":0.7150,"candidate_delta_percent":-2.389,"current_median_seconds":0.700,"candidate_median_seconds":0.700},
+    {"benchmark":"option_result_config","current_seconds":[0.22,0.21,0.21,0.20,0.21,0.21,0.21,0.21,0.21,0.21,0.22,0.18,0.19,0.18,0.21,0.17,0.17,0.17,0.17,0.19],"candidate_seconds":[0.21,0.36,0.18,0.18,0.21,0.21,0.21,0.20,0.21,0.20,0.21,0.20,0.22,0.35,0.19,0.18,0.21,0.21,0.21,0.21],"current_mean_seconds":0.1975,"candidate_mean_seconds":0.2180,"candidate_delta_percent":10.380,"current_median_seconds":0.210,"candidate_median_seconds":0.210},
+    {"benchmark":"manifest_normalization","current_seconds":[0.27,0.19,0.23,0.28,0.21,0.22,0.22,0.22,0.22,0.22,0.23,0.21,0.22,0.23,0.22,0.26,0.28,0.19,0.18,0.19],"candidate_seconds":[0.30,0.18,0.19,0.22,0.20,0.19,0.19,0.19,0.19,0.22,0.20,0.21,0.22,0.21,0.23,0.19,0.19,0.19,0.20,0.17],"current_mean_seconds":0.2245,"candidate_mean_seconds":0.2040,"candidate_delta_percent":-9.131,"current_median_seconds":0.220,"candidate_median_seconds":0.195},
+    {"benchmark":"policy_record_dispatch","current_seconds":[0.26,0.21,0.21,0.24,0.25,0.21,0.22,0.21,0.21,0.23,0.19,0.21,0.21,0.21,0.19,0.22,0.20,0.21,0.22,0.21],"candidate_seconds":[0.26,0.22,0.21,0.24,0.24,0.22,0.21,0.21,0.28,0.22,0.23,0.23,0.23,0.22,0.23,0.21,0.20,0.21,0.23,0.26],"current_mean_seconds":0.2160,"candidate_mean_seconds":0.2280,"candidate_delta_percent":5.556,"current_median_seconds":0.210,"candidate_median_seconds":0.225}
+  ],
+  "allocation_means": [
+    {"benchmark":"binary_event_log","current_allocations":4465436.8,"candidate_allocations":4240199.8,"allocation_delta_percent":-5.044,"current_bytes":273425644.8,"candidate_bytes":268022041.6,"byte_delta_percent":-1.976},
+    {"benchmark":"option_result_config","current_allocations":1360322.0,"candidate_allocations":1212875.4,"allocation_delta_percent":-10.839,"current_bytes":46044529.6,"candidate_bytes":42506240.0,"byte_delta_percent":-7.684},
+    {"benchmark":"manifest_normalization","current_allocations":997350.6,"candidate_allocations":976834.4,"allocation_delta_percent":-2.057,"current_bytes":45704526.4,"candidate_bytes":44611422.4,"byte_delta_percent":-2.392},
+    {"benchmark":"policy_record_dispatch","current_allocations":961314.8,"candidate_allocations":955694.0,"allocation_delta_percent":-0.585,"current_bytes":48748643.2,"candidate_bytes":48619145.6,"byte_delta_percent":-0.266}
+  ],
+  "next_candidate": {
+    "kind": "feasibility_audit_only",
+    "mechanism": "split receiver from explicit args in the general compiled instance-method wrapper ABI",
+    "why": "the remaining receiver-prefix slice allocation repeats exactly in all four owners and avoids the rejected synchronization mechanism"
+  },
+  "stdlib_changes": false,
+  "bytecode_changes": false,
+  "wasm_changes": false
+}

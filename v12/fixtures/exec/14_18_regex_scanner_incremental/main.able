@@ -1,0 +1,39 @@
+package exec_14_18_regex_scanner_incremental
+
+import able.text.regex.{Match, Regex, RegexScanner}
+
+fn show_next(label: String, scanner: RegexScanner) -> void {
+  scanner.next() match {
+    case found: Match => print(`${label} ${found.matched} ${found.span.start}-${found.span.end}`),
+    case _ => print(`${label} none`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("a+") match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("a")
+      show_next("greedy-one", scanner)
+      scanner.feed("a")
+      show_next("greedy-two", scanner)
+      scanner.flush()
+      show_next("greedy-final", scanner)
+      show_next("greedy-end", scanner)
+    },
+    case _ => print("greedy compile error")
+  }
+
+  Regex.compile("ab") match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("abxaby")
+      show_next("early-one", scanner)
+      show_next("early-two", scanner)
+      show_next("early-end", scanner)
+      scanner.flush()
+    },
+    case _ => print("early compile error")
+  }
+
+}

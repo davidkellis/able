@@ -1,0 +1,6 @@
+{
+  "description": "weighted graph shortest path benchmark using Heap i64 state packing",
+  "expect": {
+    "exit": 0
+  }
+}

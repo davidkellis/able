@@ -1,0 +1,85 @@
+{
+  "date": "2026-07-22",
+  "decision": "keep_no_performance_change",
+  "guardrails": {
+    "gomaxprocs": 1,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "timeout_seconds_per_process": 55,
+    "source_root_only": true,
+    "independent_timing_processes_per_workload": 5
+  },
+  "workloads": [
+    {
+      "name": "string_split_join_small",
+      "calls_per_process": 5,
+      "successful_processes": 5,
+      "mean_ns_per_op": 1049314877.4,
+      "median_ns_per_op": 1029842194,
+      "min_ns_per_op": 1009352657,
+      "max_ns_per_op": 1117997485,
+      "sample_cv_percent": 4.1273,
+      "bytes_per_op": 51316321,
+      "allocs_per_op": 579839,
+      "profile_calls": 8,
+      "cpu_sample_seconds": 8.43,
+      "expected_output": "191484"
+    },
+    {
+      "name": "linked_list_iterator_collect_i64_small",
+      "calls_per_process": 20,
+      "successful_processes": 5,
+      "mean_ns_per_op": 430248930,
+      "median_ns_per_op": 430671761,
+      "min_ns_per_op": 414590604,
+      "max_ns_per_op": 448746065,
+      "sample_cv_percent": 3.0499,
+      "bytes_per_op": 8363839,
+      "allocs_per_op": 192559,
+      "profile_calls": 25,
+      "cpu_sample_seconds": 11.04,
+      "expected_output": "382455000"
+    },
+    {
+      "name": "array_map_i32_small",
+      "calls_per_process": 75,
+      "successful_processes": 5,
+      "mean_ns_per_op": 77668204,
+      "median_ns_per_op": 76242584,
+      "min_ns_per_op": 72652783,
+      "max_ns_per_op": 84721969,
+      "sample_cv_percent": 6.7173,
+      "bytes_per_op": 805804,
+      "allocs_per_op": 119,
+      "profile_calls": 120,
+      "cpu_sample_seconds": 9.34,
+      "expected_output": "1097192358"
+    }
+  ],
+  "profile_percentages": {
+    "string_split_join_small": {
+      "raw_integer_flat": 1.19,
+      "fast_string_map_cumulative": 10.08,
+      "finish_inline_return_cumulative": 17.20,
+      "typed_pattern_jump_cumulative": 15.66,
+      "no_runtime_value_match_under_typed_pattern": 2.25
+    },
+    "linked_list_iterator_collect_i64_small": {
+      "raw_integer_flat": 4.98,
+      "fast_string_map_cumulative": 6.07,
+      "finish_inline_return_cumulative": 6.61,
+      "typed_pattern_jump_cumulative": 3.35,
+      "no_runtime_value_match_under_typed_pattern": 2.26
+    },
+    "array_map_i32_small": {
+      "raw_integer_flat": 7.17,
+      "fast_string_map_cumulative": 4.39,
+      "finish_inline_return_cumulative": 9.64,
+      "typed_pattern_jump_cumulative": 5.25,
+      "no_runtime_value_match_under_typed_pattern": 3.64
+    }
+  },
+  "failures": 0,
+  "timeouts": 0,
+  "raw_artifacts": "v12/.profiles/20260722_three_shape_refresh"
+}

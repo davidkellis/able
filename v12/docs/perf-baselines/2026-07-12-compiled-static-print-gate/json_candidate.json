@@ -1,0 +1,43 @@
+{
+  "generated_at": "2026-07-12T04:13:41.124579Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/json/json.able",
+  "run_from": "/home/david/sync/projects/benchmarks/json",
+  "runs": 3,
+  "timeout_seconds": 45,
+  "modes": [
+    "compiled"
+  ],
+  "compiled_build_args": [
+    "--experimental-static-builtin-print"
+  ],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "2",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.8633,
+      "avg_user_seconds": 0.6267,
+      "avg_sys_seconds": 0.18,
+      "avg_gc": 6.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/json/verify.rb",
+        "verified_runs": 3,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+        ]
+      }
+    }
+  ]
+}

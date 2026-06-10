@@ -1,0 +1,253 @@
+{
+  "kind": "able-compiler-full-suite-contract-reconciliation",
+  "decision": "rebaseline-reviewed-compiler-and-shared-semantics-scopes",
+  "conclusion": "A final-code 24-batch whole-fixture audit and two independent five-process performance cohorts over affected unlike applications support rebasing compiler-production and shared-interpreter-semantics without changing any of the 21 closure dispositions. This is an evidence rebase, not a performance win, and admits no implementation candidate.",
+  "scope_review": {
+    "invalidated_closures_before_reconciliation": 21,
+    "compiler_production_invalidations": 12,
+    "shared_interpreter_semantics_invalidations": 21,
+    "compiler_production_tree_sha256": "32b4b72605927c1a207ecbfe88f7431bdadea5d11f19aa66971117e567d03d1f",
+    "shared_interpreter_semantics_tree_sha256": "bed9ad5ebc8c3601426ddfc30242f33f71d1fc0ba226e57dc2cf540b296db064",
+    "candidate_admitted": false
+  },
+  "correctness_evidence": {
+    "whole_fixture_audit": {
+      "test": "TestCompilerInterfaceLookupBypassForStaticFixtures",
+      "fixture_selector": "all",
+      "batch_count": 24,
+      "passed_batches": 24,
+      "contracts": [
+        "stdout-stderr-exit",
+        "strict-dispatch",
+        "zero-boundary-fallback",
+        "zero-interface-lookup-fallback",
+        "zero-global-environment-fallback"
+      ],
+      "elapsed_seconds_by_batch": [
+        263,
+        270,
+        259,
+        260,
+        313,
+        378,
+        198,
+        342,
+        286,
+        203,
+        239,
+        254,
+        207,
+        223,
+        208,
+        211,
+        225,
+        206,
+        249,
+        209,
+        202,
+        235,
+        197,
+        200
+      ]
+    },
+    "focused_repetitions": [
+      {
+        "name": "generated-error-carrier-singleton-rescue-generic-union",
+        "passed": 3,
+        "attempted": 3,
+        "elapsed_seconds": [
+          31.92,
+          3.9,
+          4.0
+        ],
+        "arithmetic_mean_seconds": 13.273333333333333
+      },
+      {
+        "name": "stdlib-option-result-compiled-execution",
+        "passed": 3,
+        "attempted": 3,
+        "elapsed_seconds": [
+          9.32,
+          3.04,
+          3.11
+        ],
+        "arithmetic_mean_seconds": 5.156666666666666
+      },
+      {
+        "name": "strict-interface-diagnostic-preservation",
+        "passed": 3,
+        "attempted": 3,
+        "elapsed_seconds": [
+          39.44,
+          5.71,
+          5.61
+        ],
+        "arithmetic_mean_seconds": 16.92
+      },
+      {
+        "name": "reporters-interface-audit",
+        "passed": 3,
+        "attempted": 3,
+        "elapsed_seconds": [
+          57.28,
+          57.07,
+          58.98
+        ],
+        "arithmetic_mean_seconds": 57.776666666666664
+      },
+      {
+        "name": "implicit-void-static-recursive-carrier",
+        "passed": 3,
+        "attempted": 3,
+        "elapsed_seconds": [
+          30.963,
+          28.97,
+          30.31
+        ],
+        "arithmetic_mean_seconds": 30.081
+      }
+    ],
+    "default_handoff": {
+      "script": "./run_all_tests.sh",
+      "noncompiler_packages_passed": true,
+      "compiler_short_mode_batches": 31,
+      "compiler_short_mode_batches_passed": 31,
+      "bytecode_fixture_passed": true
+    }
+  },
+  "measurement_policy": {
+    "arithmetic_mean_used": true,
+    "cohorts_per_ranked_benchmark_mode": 2,
+    "processes_per_cohort": 5,
+    "processes_per_ranked_benchmark_mode": 10,
+    "ranked_processes": 100,
+    "all_ranked_outputs_verified": true,
+    "ranked_failures": 0,
+    "ranked_timeouts": 0,
+    "volatile_above_cohort_spread_percent": 15.0,
+    "legacy_sudoku": "unranked after five first-cohort compiled timeouts; sudoku_masks is the maintained guard"
+  },
+  "measurements": [
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "cohort_means_seconds": [1.95, 2.114],
+      "pooled_mean_seconds": 2.032,
+      "cohort_spread_percent": 8.070866141732283,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false,
+      "go_reference_mean_seconds": 2.01,
+      "pooled_able_to_go_ratio": 1.0109452736318407,
+      "within_95_percent_of_go_target": true
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "mode": "compiled",
+      "cohort_means_seconds": [2.15, 2.078],
+      "pooled_mean_seconds": 2.114,
+      "cohort_spread_percent": 3.4058656575212864,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    },
+    {
+      "benchmark": "nbody",
+      "mode": "compiled",
+      "cohort_means_seconds": [0.176, 0.156],
+      "pooled_mean_seconds": 0.166,
+      "cohort_spread_percent": 12.048192771084347,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    },
+    {
+      "benchmark": "dependency_plan",
+      "mode": "compiled",
+      "cohort_means_seconds": [0.118, 0.1],
+      "pooled_mean_seconds": 0.109,
+      "cohort_spread_percent": 16.5137614678899,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": true
+    },
+    {
+      "benchmark": "future_pipeline",
+      "mode": "compiled",
+      "cohort_means_seconds": [0.406, 0.368],
+      "pooled_mean_seconds": 0.387,
+      "cohort_spread_percent": 9.819121447028418,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "mode": "compiled",
+      "cohort_means_seconds": [0.402, 0.416],
+      "pooled_mean_seconds": 0.409,
+      "cohort_spread_percent": 3.422982885085574,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    },
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "mode": "compiled",
+      "cohort_means_seconds": [0.262, 0.274],
+      "pooled_mean_seconds": 0.268,
+      "cohort_spread_percent": 4.477611940298511,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    },
+    {
+      "benchmark": "future_pipeline",
+      "mode": "bytecode",
+      "cohort_means_seconds": [0.486, 0.52],
+      "pooled_mean_seconds": 0.503,
+      "cohort_spread_percent": 6.759443339960238,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "mode": "bytecode",
+      "cohort_means_seconds": [0.258, 0.25],
+      "pooled_mean_seconds": 0.254,
+      "cohort_spread_percent": 3.149606299212601,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    },
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "mode": "bytecode",
+      "cohort_means_seconds": [1.97, 1.87],
+      "pooled_mean_seconds": 1.92,
+      "cohort_spread_percent": 5.208333333333338,
+      "sample_count": 10,
+      "all_outputs_verified": true,
+      "volatile": false
+    }
+  ],
+  "inputs": {
+    "compiled_cohort_a": {
+      "path": "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-compiled-final-a.json",
+      "sha256": "a7174342ce58653339757e153a18db652a2cbb1aacea9d7c26ee829e103ac619"
+    },
+    "compiled_cohort_b": {
+      "path": "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-compiled-final-b.json",
+      "sha256": "ec7e5fbafb907235b4bf4b0018d57cb0bd2b3024c975cd7957ae42d043e80ef4"
+    },
+    "bytecode_cohort_a": {
+      "path": "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-bytecode.json",
+      "sha256": "2bd6a839521b3d71eb4ad45d9f0baab08c8eeebe65e5fb96cc061d9b032d6039"
+    },
+    "bytecode_cohort_b": {
+      "path": "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-bytecode-b.json",
+      "sha256": "ceeb7b2fd8e2f89423f1f45155d6f769f4dbca108aae053300ecd4a7dbbeca90"
+    }
+  }
+}

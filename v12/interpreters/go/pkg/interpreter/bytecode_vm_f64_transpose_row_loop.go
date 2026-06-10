@@ -15,7 +15,7 @@ func (vm *bytecodeVM) tryExecF64TransposeRowLoop(program *bytecodeProgram, plan 
 		return false, nil
 	}
 	if index >= bound {
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.appendStackValue(runtime.NilValue{})
 		vm.ip = plan.successTarget
 		return true, nil
 	}
@@ -56,7 +56,7 @@ func (vm *bytecodeVM) tryExecF64TransposeRowLoop(program *bytecodeProgram, plan 
 			segment[rowIdx-start] = rows[rowIdx][colIdx]
 		}
 		vm.storeI32Slot(plan.indexSlot, int64(end))
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.appendStackValue(runtime.NilValue{})
 		vm.ip = plan.successTarget
 		return true, nil
 	}
@@ -80,7 +80,7 @@ func (vm *bytecodeVM) tryExecF64TransposeRowLoop(program *bytecodeProgram, plan 
 		return false, nil
 	}
 	vm.storeI32Slot(plan.indexSlot, int64(end))
-	vm.stack = append(vm.stack, runtime.NilValue{})
+	vm.appendStackValue(runtime.NilValue{})
 	vm.ip = plan.successTarget
 	return true, nil
 }

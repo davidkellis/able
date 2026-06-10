@@ -1,0 +1,49 @@
+File: run
+Build ID: 483f2a5e62eb13be97b6f87b6118d9a9c9e8d3f2
+Type: cpu
+Time: 2026-07-23 09:29:01 CDT
+Duration: 25.13s, Total samples = 55.24s (219.79%)
+Showing nodes accounting for 51.99s, 94.12% of 55.24s total
+Dropped 147 nodes (cum <= 0.28s)
+Showing top 40 nodes out of 95
+      flat  flat%   sum%        cum   cum%
+    14.68s 26.57% 26.57%     14.68s 26.57%  runtime.procyieldAsm
+     7.46s 13.50% 40.08%      7.46s 13.50%  runtime.futex
+     5.90s 10.68% 50.76%     25.89s 46.87%  runtime.lock2
+     4.06s  7.35% 58.11%      8.20s 14.84%  runtime.unlock2
+        3s  5.43% 63.54%      3.50s  6.34%  runtime.step
+     2.62s  4.74% 68.28%      7.90s 14.30%  runtime.pcvalue
+     2.53s  4.58% 72.86%      4.49s  8.13%  runtime.recordForPanic
+     1.33s  2.41% 75.27%      5.93s 10.73%  runtime.gwrite
+     1.20s  2.17% 77.44%      1.20s  2.17%  runtime.memmove
+     1.09s  1.97% 79.42%     27.02s 48.91%  runtime.printlock
+     0.96s  1.74% 81.15%      0.96s  1.74%  runtime.(*moduledata).textAddr
+     0.73s  1.32% 82.48%      0.73s  1.32%  indexbytebody
+     0.64s  1.16% 83.64%      8.86s 16.04%  runtime.printunlock (partial-inline)
+     0.50s  0.91% 84.54%      0.50s  0.91%  runtime.readvarint (inline)
+     0.50s  0.91% 85.45%      3.88s  7.02%  runtime.unlock2Wake
+     0.48s  0.87% 86.31%      0.50s  0.91%  runtime.findfunc
+     0.47s  0.85% 87.17%      1.68s  3.04%  runtime.printhexopts
+     0.46s  0.83% 88.00%      1.42s  2.57%  runtime.funcInfo.entry (inline)
+     0.38s  0.69% 88.69%      4.26s  7.71%  runtime.printstring
+     0.35s  0.63% 89.32%      0.35s  0.63%  runtime.osyield
+     0.35s  0.63% 89.95%      4.81s  8.71%  runtime.semasleep
+     0.35s  0.63% 90.59%     45.59s 82.53%  runtime.traceback2
+     0.25s  0.45% 91.04%     12.84s 23.24%  runtime.printArgs
+     0.21s  0.38% 91.42%      1.62s  2.93%  runtime.(*unwinder).resolveInternal
+     0.21s  0.38% 91.80%      3.30s  5.97%  runtime.semawakeup (inline)
+     0.20s  0.36% 92.16%      0.83s  1.50%  runtime.findnull
+     0.16s  0.29% 92.45%      1.84s  3.33%  runtime.printhex
+     0.11s   0.2% 92.65%      0.62s  1.12%  runtime.showfuncinfo
+     0.10s  0.18% 92.83%      1.97s  3.57%  runtime.(*unwinder).next
+     0.09s  0.16% 92.99%     54.32s 98.33%  runtime.systemstack
+     0.08s  0.14% 93.14%     54.07s 97.88%  runtime.Stack.func1
+     0.08s  0.14% 93.28%      0.30s  0.54%  runtime.cheaprandn (inline)
+     0.08s  0.14% 93.43%      4.46s  8.07%  runtime.futexsleep
+     0.06s  0.11% 93.54%      0.35s  0.63%  runtime.funcfile
+     0.06s  0.11% 93.65%      5.92s 10.72%  runtime.funcline1
+     0.06s  0.11% 93.75%      8.42s 15.24%  runtime.printArgs.func2 (inline)
+     0.06s  0.11% 93.86%     51.45s 93.14%  runtime.traceback1
+     0.05s 0.091% 93.95%     54.05s 97.85%  main.__able_compiled_fn_transform_window
+     0.05s 0.091% 94.04%      1.02s  1.85%  runtime.printint
+     0.04s 0.072% 94.12%      2.53s  4.58%  runtime.goroutineheader

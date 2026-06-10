@@ -1,0 +1,6 @@
+{
+  "description": "run-length encoding benchmark over generated text",
+  "expect": {
+    "exit": 0
+  }
+}

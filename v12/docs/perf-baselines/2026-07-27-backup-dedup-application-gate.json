@@ -1,0 +1,118 @@
+{
+  "kind": "able-backup-dedup-application-gate",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "retain-application-and-evidence-no-production-change",
+  "selection_sha256": "f73258e3609b83b0933e0a46cb1c4b50d2ce0e90f1aff18ae0497c8604a7541c",
+  "source": {
+    "path": "v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+    "sha256": "e29c9ccd3c94346397695303b1fb83d4e705aa9ce2d5b7194b8964268822f944"
+  },
+  "normal_output": {
+    "text": "3912:489:131072:917504:8:451996",
+    "sha256": "bf4d5c89239bd78c6dcb9d755b8df4e90bc092c2a64bf15e45786e815918504e"
+  },
+  "profile_output": {
+    "text": "15648:489:131072:4063232:32:256346",
+    "sha256": "04dcff26401fff548ffc38dd20247e2008289d1aebfbca839a404cabcc47de1a"
+  },
+  "selected_rows": {
+    "compiled": {
+      "able_seconds": 0.06,
+      "go_seconds": 0.0092,
+      "ratio": 6.521739130434782,
+      "target_status": "miss"
+    },
+    "bytecode": {
+      "able_seconds": 1.916,
+      "python_seconds": 0.2794,
+      "ruby_seconds": 0.1168,
+      "python_ratio": 6.857551896921976,
+      "ruby_ratio": 16.404109589041095,
+      "target_status": "miss"
+    }
+  },
+  "compiled_profile": {
+    "binary_sha256": "3de3f8c05c83d30ea76b026eaa656fdf2ac69c034971971d7b3c77cff1c00617",
+    "cpu_processes": 3,
+    "cpu_samples_seconds": 0.28,
+    "main_allocated_bytes": [
+      2011064,
+      2011064
+    ],
+    "main_allocations": [
+      47027,
+      47027
+    ],
+    "dominant_cpu_flat": [
+      {
+        "owner": "main.__able_divmod_signed",
+        "percent": 46.43
+      },
+      {
+        "owner": "main.__able_checked_mul_signed",
+        "percent": 21.43
+      },
+      {
+        "owner": "main.__able_checked_add_signed",
+        "percent": 14.29
+      }
+    ],
+    "dominant_application_allocation": [
+      {
+        "owner": "bridge.ToDynamicI64",
+        "bytes": 1502208,
+        "objects": 31296
+      },
+      {
+        "owner": "main.__able_nullable_i64_from_value",
+        "bytes": 121280,
+        "objects": 7580
+      }
+    ],
+    "dependency_count": 96,
+    "interpreter_dependency": false,
+    "frontier_group": "compiled-text-map",
+    "disposition": "closed-no-shared-leaf"
+  },
+  "bytecode_profile": {
+    "benchmark_binary_sha256": "2c31655b97a0581e0c05caaa03d1ae3ecc91881f025ce7d16ed457c3dd6f205c",
+    "cpu_processes": 3,
+    "cpu_samples_seconds": 18.92,
+    "mean_ns_per_op": 6351454667.666667,
+    "mean_bytes_per_op": 75057624,
+    "mean_allocs_per_op": 8616697.333333334,
+    "dominant_cpu_flat": [
+      {
+        "owner": "bytecodeVM.runResumable",
+        "percent": 13.69
+      },
+      {
+        "owner": "bytecodeVM.execBinary",
+        "percent": 3.7
+      },
+      {
+        "owner": "bytecodeRawIntegerValueInfo",
+        "percent": 3.49
+      },
+      {
+        "owner": "evaluateDivModFast",
+        "percent": 3.44
+      },
+      {
+        "owner": "bytecodeVM.appendStackValue",
+        "percent": 2.06
+      }
+    ],
+    "trace_total_hits": 8513837,
+    "array_len_fast_hits": 4194336,
+    "array_read_slot_mono_u8_fast_hits": 4194304,
+    "hash_map_raw_get_inline_hits": 15648,
+    "hash_map_raw_set_inline_hits": 15648,
+    "frontier_group": "bytecode-text-map",
+    "disposition": "closed-rejected-candidate"
+  },
+  "retained_production_change": false,
+  "canonical_stdlib_change": false,
+  "wasm_change": false
+}

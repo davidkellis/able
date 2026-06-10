@@ -1,0 +1,23 @@
+Manifest Normalization compiled main profile
+Date: 2026-07-21
+Binary SHA-256: ad2e379216ff5832405c51cbeea52334f5fffb155a71fc6abb98bdd45f878013
+Protocol: three verified main-phase CPU profiles, GOMAXPROCS=1, GOGC=50,
+GOMEMLIMIT=1GiB, CPU 0, merged with go tool pprof.
+Duration: 535.66 ms
+Samples: 570 ms
+
+Exact material paths:
+
+  flat    cumulative  symbol
+  17.54%  26.32%      runtime.tryDeferToSpanScan
+   7.02%  43.86%      runtime.mallocgc
+   3.51%   3.51%      main.__able_int64_from_value
+   1.75%  15.79%      main.__able_string_to_builtin_impl
+   0.00%  15.79%      fmt.Sprintf
+   0.00%   7.02%      bridge.(*Runtime).StructDefinition
+   0.00%   7.02%      runtime.ArrayStoreEnsure
+
+The String.to_builtin path is CPU-material here, K-Nucleotide, and Policy
+Record Dispatch. A generic candidate deferred indexed diagnostic formatting
+until conversion failure. It improved K-Nucleotide about 1.5%, but regressed
+Policy about 2.9% and Manifest about 1%, so it was reverted.

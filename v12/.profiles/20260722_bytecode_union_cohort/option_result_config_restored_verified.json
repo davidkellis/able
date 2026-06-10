@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-07-22T11:33:19.314895Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/option_result_config/option_result_config.able",
+  "run_from": "/home/david/sync/projects/benchmarks/option-result-config",
+  "runs": 5,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": null,
+  "results": [
+    {
+      "mode": "bytecode",
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.924,
+      "avg_user_seconds": 0.868,
+      "avg_sys_seconds": 0.048,
+      "avg_gc": 9.4,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.96,
+          "user_seconds": 0.9,
+          "sys_seconds": 0.05,
+          "gc_count": 9.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.86,
+          "user_seconds": 0.81,
+          "sys_seconds": 0.04,
+          "gc_count": 9.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.89,
+          "user_seconds": 0.83,
+          "sys_seconds": 0.05,
+          "gc_count": 10.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.97,
+          "user_seconds": 0.91,
+          "sys_seconds": 0.05,
+          "gc_count": 10.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.94,
+          "user_seconds": 0.89,
+          "sys_seconds": 0.05,
+          "gc_count": 9.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/option-result-config/verify.rb",
+        "verified_runs": 5,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+        ]
+      }
+    }
+  ]
+}

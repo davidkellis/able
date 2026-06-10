@@ -30,7 +30,7 @@ func (vm *bytecodeVM) canUseCanonicalArrayNewCallCache(instr bytecodeInstruction
 	if !bytecodeCanonicalArrayDefinitionReceiver(vm.interp, receiver) {
 		return false
 	}
-	return vm.env.RuntimeData() == nil
+	return !vm.hasRuntimeData()
 }
 
 func (entry bytecodeInlineArrayNewCallCacheEntry) matchesCanonicalArrayNewCallIdentity(program *bytecodeProgram, ip int, env *runtime.Environment) bool {
@@ -62,7 +62,7 @@ func (vm *bytecodeVM) promoteCanonicalArrayNewCallHot(entry bytecodeInlineArrayN
 }
 
 func (vm *bytecodeVM) canonicalArrayNewCallVersions(env *runtime.Environment) (uint64, uint64, uint64) {
-	return vm.bytecodeEnvRevision(env), vm.bytecodeGlobalRevision(), vm.bytecodeMethodCacheVersion()
+	return vm.bytecodeEnvGlobalAndMethodVersions(env)
 }
 
 func (vm *bytecodeVM) lookupCachedCanonicalArrayNewCall(program *bytecodeProgram, ip int, instr bytecodeInstruction, receiver runtime.Value) bool {

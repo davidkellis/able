@@ -5,6 +5,7 @@ import "able/interpreter-go/pkg/ast"
 type diagNodeInfo struct {
 	Name       string
 	GoType     string
+	Node       ast.Node
 	Span       ast.Span
 	Origin     string
 	CallName   string
@@ -73,4 +74,10 @@ type compileContext struct {
 	coercedNominalOrigins  map[string]nominalCoercionOrigin
 	analysisOnly           bool
 	closureScope           bool
+	executionContextExpr   string
+	resultSources          map[string]*functionInfo
+	callerOwnedResultSlot  string
+	callerOwnedTailExpr    ast.Expression
+	environmentEffect      *compiledEnvironmentEffect
+	discardResult          bool
 }

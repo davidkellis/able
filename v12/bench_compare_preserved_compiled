@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+bench_repo="$REPO_ROOT/../benchmarks"
+suite_name="$(bench_external_default_suite)"
+benchmarks_csv="$(bench_external_suite_csv "$suite_name")"
+benchmarks_override=false
+runs=5
+cohorts=2
+timeout_seconds=90
+build_timeout_seconds=300
+max_cohort_spread_percent=15
+cpu_affinity="${ABLE_BENCH_CPU_AFFINITY:-}"
+go_reference_json=""
+output_json=""
+output_md=""
+workdir=""
+keep_tmp=false
+require_quiet_cpu=false
+compiled_build_args=()
+
+usage() {
+  cat <<'EOF'
+Usage: v12/bench_compare_preserved_compiled --output-json PATH [options]
+
+Builds every selected Able application before timing begins, then reuses those
+exact binaries in forward/reverse verifier-backed cohorts. The lane rejects
+rows whose cohort means disagree beyond the configured spread limit.
+
+Options:
+      --benchmark-repo DIR  External benchmarks repository (default: ../benchmarks)
+      --suite NAME          Catalog suite (default: core)
+  -b, --benchmarks CSV      Explicit benchmark list
+  -r, --runs N              Timed processes per benchmark/cohort (default: 5)
+      --cohorts N           Independently ordered cohorts (default: 2; minimum: 2)
+  -t, --timeout SEC         Timeout per timed process (default: 90)
+      --build-timeout SEC   Timeout per untimed build (default: 300; 0 disables)
+      --max-cohort-spread-percent N
+                            Reject if max/min cohort means differ by more than N%
+                            (default: 15)
+      --cpu-affinity CPUSET CPU pool resolved through catalog CPU budgets
+      --require-quiet-cpu   Require the first serial CPU to pass host preflight
+      --compiled-build-arg ARG
+                            Extra compiled build argument; may be repeated
+      --go-reference-json PATH
+                            Fresh bench_refresh_go_refs report (required for
+                            promotion-eligible comparisons)
+      --output-json PATH    Required machine-readable evidence report
+      --output-md PATH      Optional Markdown summary
+      --workdir DIR         Artifact workspace
+      --keep                Keep artifact workspace after composing the report
+  -h, --help                Show this help
+EOF
+}
+
+die() { echo "bench_compare_preserved_compiled: $*" >&2; exit 1; }
+is_int() { [[ "$1" =~ ^[0-9]+$ ]]; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --benchmark-repo) shift; [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"; bench_repo="$1" ;;
+    --suite) shift; [[ $# -gt 0 ]] || die "missing value for --suite"; suite_name="$1" ;;
+    -b|--benchmarks) shift; [[ $# -gt 0 ]] || die "missing value for --benchmarks"; benchmarks_csv="$1"; benchmarks_override=true ;;
+    -r|--runs) shift; [[ $# -gt 0 ]] || die "missing value for --runs"; runs="$1" ;;
+    --cohorts) shift; [[ $# -gt 0 ]] || die "missing value for --cohorts"; cohorts="$1" ;;
+    -t|--timeout) shift; [[ $# -gt 0 ]] || die "missing value for --timeout"; timeout_seconds="$1" ;;
+    --build-timeout) shift; [[ $# -gt 0 ]] || die "missing build timeout"; build_timeout_seconds="$1" ;;
+    --max-cohort-spread-percent) shift; [[ $# -gt 0 ]] || die "missing spread limit"; max_cohort_spread_percent="$1" ;;
+    --cpu-affinity) shift; [[ $# -gt 0 ]] || die "missing value for --cpu-affinity"; cpu_affinity="$1" ;;
+    --cpu-affinity=*) cpu_affinity="${1#*=}" ;;
+    --require-quiet-cpu) require_quiet_cpu=true ;;
+    --compiled-build-arg) shift; [[ $# -gt 0 ]] || die "missing compiled build arg"; compiled_build_args+=("$1") ;;
+    --compiled-build-arg=*) compiled_build_args+=("${1#*=}") ;;
+    --go-reference-json) shift; [[ $# -gt 0 ]] || die "missing Go reference JSON"; go_reference_json="$1" ;;
+    --output-json) shift; [[ $# -gt 0 ]] || die "missing output JSON"; output_json="$1" ;;
+    --output-md) shift; [[ $# -gt 0 ]] || die "missing output Markdown"; output_md="$1" ;;
+    --workdir) shift; [[ $# -gt 0 ]] || die "missing workdir"; workdir="$1" ;;
+    --keep) keep_tmp=true ;;
+    -*) die "unknown option: $1" ;;
+    *) die "unexpected positional argument: $1" ;;
+  esac
+  shift
+done
+
+is_int "$runs" && ((runs > 0)) || die "--runs must be a positive integer"
+is_int "$cohorts" && ((cohorts >= 2)) || die "--cohorts must be at least 2"
+is_int "$timeout_seconds" && ((timeout_seconds > 0)) || die "--timeout must be positive"
+is_int "$build_timeout_seconds" && ((build_timeout_seconds >= 0)) || die "--build-timeout must be non-negative"
+[[ "$max_cohort_spread_percent" =~ ^[0-9]+([.][0-9]+)?$ ]] || die "spread limit must be non-negative"
+[[ -n "$output_json" ]] || die "--output-json is required"
+if [[ "$benchmarks_override" == false ]]; then
+  benchmarks_csv="$(bench_external_suite_csv "$suite_name")" || die "unknown suite: $suite_name"
+else
+  suite_name=custom
+fi
+
+bench_repo="$(realpath "$bench_repo")"
+[[ -d "$bench_repo" ]] || die "benchmark repository not found: $bench_repo"
+output_json="$(realpath -m "$output_json")"
+mkdir -p "$(dirname "$output_json")"
+if [[ -n "$output_md" ]]; then
+  output_md="$(realpath -m "$output_md")"
+  mkdir -p "$(dirname "$output_md")"
+fi
+if [[ -n "$go_reference_json" ]]; then
+  go_reference_json="$(realpath "$go_reference_json")"
+  [[ -f "$go_reference_json" ]] || die "Go reference JSON not found"
+fi
+
+cpu_pool="$(bench_external_effective_cpu_pool "$cpu_affinity")" || die "cannot resolve CPU pool"
+taskset -c "$cpu_pool" true >/dev/null 2>&1 || die "invalid CPU pool: $cpu_pool"
+if [[ "$require_quiet_cpu" == true ]]; then
+  quiet_cpu="$(bench_external_resolve_cpu_affinity "$cpu_pool" 1)" || die "cannot resolve quiet CPU"
+  "$SCRIPT_DIR/bench_host_cpu_check" --cpu "$quiet_cpu"
+fi
+
+mkdir -p "$SCRIPT_DIR/tmp"
+if [[ -z "$workdir" ]]; then
+  workdir="$(mktemp -d "$SCRIPT_DIR/tmp/preserved-compiled.XXXXXX")"
+else
+  workdir="$(realpath -m "$workdir")"
+  mkdir -p "$workdir"
+fi
+if [[ "$keep_tmp" == false ]]; then trap 'rm -rf "$workdir"' EXIT; fi
+mkdir -p "$workdir/artifacts" "$workdir/metadata" "$workdir/results"
+metadata_jsonl="$workdir/metadata.jsonl"
+result_jsonl="$workdir/results.jsonl"
+: > "$metadata_jsonl"
+: > "$result_jsonl"
+
+IFS=',' read -r -a benchmarks <<< "$benchmarks_csv"
+echo ">>> Preserved compiled build phase: ${#benchmarks[@]} applications"
+echo ">>> Workdir: $workdir"
+echo ">>> CPU pool: $cpu_pool"
+
+for bench in "${benchmarks[@]}"; do
+  [[ -n "$bench" ]] || continue
+  suite_dir="$(bench_external_suite_dir "$bench_repo" "$bench")"
+  [[ -d "$suite_dir" ]] || die "suite directory not found for $bench"
+  if [[ -f "$suite_dir/setup.rb" ]]; then (cd "$suite_dir" && ruby setup.rb >/dev/null); fi
+  verifier="$suite_dir/verify.rb"
+  [[ -f "$verifier" ]] || die "preserved lane requires verifier: $verifier"
+  target="$(realpath "$(bench_external_target "$SCRIPT_DIR" "$bench")")"
+  run_from="$(realpath "$(bench_external_run_dir "$bench_repo" "$bench")")"
+  logical_cpu_budget="$(bench_external_logical_cpu_budget "$bench" compiled)"
+  resolved_affinity="$(bench_external_resolve_cpu_affinity "$cpu_pool" "$logical_cpu_budget")" || \
+    die "CPU pool cannot satisfy $bench budget"
+  executor_policy="$(bench_external_executor_policy "$bench")"
+  executor_args=()
+  executor="$(bench_external_executor "$bench" || true)"
+  [[ -z "$executor" ]] || executor_args=(--executor "$executor")
+  source_root_args=()
+  source_root_only=false
+  if bench_external_source_root_only "$bench"; then source_root_args=(--source-root-only); source_root_only=true; fi
+  program_args=()
+  while IFS= read -r arg; do [[ -z "$arg" ]] || program_args+=("$arg"); done < <(bench_external_program_args "$bench")
+  artifact_dir="$workdir/artifacts/$bench"
+  echo ">>> Building $bench"
+  env GOMAXPROCS="$logical_cpu_budget" "$SCRIPT_DIR/bench_perf" \
+    --runs 1 --timeout "$timeout_seconds" --build-timeout "$build_timeout_seconds" --modes compiled --compiled-build-only \
+    --workdir "$artifact_dir" --keep --run-from "$run_from" \
+    "${compiled_build_args[@]/#/--compiled-build-arg=}" \
+    "${executor_args[@]}" "${source_root_args[@]}" \
+    "${program_args[@]/#/--program-arg=}" "$target"
+  [[ -x "$artifact_dir/compiled" ]] || die "build did not produce $bench binary"
+
+  python - "$metadata_jsonl" "$bench" "$target" "$run_from" "$verifier" "$artifact_dir" \
+    "$logical_cpu_budget" "$resolved_affinity" "$executor_policy" "$source_root_only" \
+    "$(printf '%s\034' "${program_args[@]}")" "$(printf '%s\034' "${compiled_build_args[@]}")" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+
+(output, benchmark, target, run_from, verifier, artifact_dir, budget, affinity,
+ executor, source_root_only, raw_args, raw_build_args) = sys.argv[1:]
+args = [item for item in raw_args.split("\x1c") if item]
+build_args = [item for item in raw_build_args.split("\x1c") if item]
+run_dir = Path(run_from).resolve()
+verifier_path = Path(verifier).resolve()
+def fingerprint(path):
+    return {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+inputs = []
+for argument in args:
+    candidate = Path(argument)
+    candidate = (candidate if candidate.is_absolute() else run_dir / candidate).resolve()
+    if candidate.is_file(): inputs.append({"argument": argument, **fingerprint(candidate)})
+contract = {"program_args": args, "verifier": fingerprint(verifier_path), "input_files": inputs}
+contract["sha256"] = hashlib.sha256(json.dumps(contract, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+contract["provenance"] = "measured"
+entry = {
+    "benchmark": benchmark, "target": str(Path(target).resolve()), "run_from": str(run_dir),
+    "binary": str(Path(artifact_dir).resolve() / "compiled"),
+    "generated_dir": str(Path(artifact_dir).resolve() / "compiled-src"),
+    "program_args": args, "compiled_build_args": build_args,
+    "source_root_only": source_root_only == "true", "verifier": str(verifier_path),
+    "benchmark_contract": contract,
+    "execution_contract": {"mode": "compiled", "logical_cpu_budget": int(budget),
+                           "cpu_affinity": affinity, "executor_policy": executor},
+}
+with open(output, "a") as stream: stream.write(json.dumps(entry, sort_keys=True) + "\n")
+PY
+done
+
+echo ">>> All builds complete; beginning preserved-binary timing cohorts"
+for ((cohort = 1; cohort <= cohorts; cohort++)); do
+  order=("${benchmarks[@]}")
+  if ((cohort % 2 == 0)); then
+    reversed=()
+    for ((index = ${#order[@]} - 1; index >= 0; index--)); do reversed+=("${order[$index]}"); done
+    order=("${reversed[@]}")
+  fi
+  echo ">>> Cohort $cohort order: ${order[*]}"
+  for order_index in "${!order[@]}"; do
+    bench="${order[$order_index]}"
+    metadata="$workdir/metadata/$bench.json"
+    python - "$metadata_jsonl" "$bench" "$metadata" <<'PY'
+import json, sys
+source, benchmark, output = sys.argv[1:]
+for line in open(source):
+    row = json.loads(line)
+    if row["benchmark"] == benchmark:
+        open(output, "w").write(json.dumps(row))
+        break
+else: raise SystemExit(f"missing metadata for {benchmark}")
+PY
+    mapfile -t fields < <(python - "$metadata" <<'PY'
+import json, sys
+d=json.load(open(sys.argv[1]))
+for field in (d["target"],d["run_from"],d["verifier"],d["binary"],str(d["execution_contract"]["logical_cpu_budget"]),
+              d["execution_contract"]["cpu_affinity"],d["execution_contract"]["executor_policy"],
+              "true" if d["source_root_only"] else "false"):
+    print(field)
+for arg in d["program_args"]: print("ARG=" + arg)
+PY
+)
+    target="${fields[0]}"; run_from="${fields[1]}"; verifier="${fields[2]}"; binary="${fields[3]}"
+    logical_cpu_budget="${fields[4]}"; resolved_affinity="${fields[5]}"; executor_policy="${fields[6]}"
+    source_root_only="${fields[7]}"; program_args=()
+    for field in "${fields[@]:8}"; do program_args+=("${field#ARG=}"); done
+    executor_args=(); [[ "$executor_policy" == serial ]] || executor_args=(--executor goroutine)
+    source_root_args=(); [[ "$source_root_only" == false ]] || source_root_args=(--source-root-only)
+    result="$workdir/results/cohort-${cohort}-${bench}.json"
+    echo ">>> Timing cohort $cohort: $bench"
+    env GOMAXPROCS="$logical_cpu_budget" "$SCRIPT_DIR/bench_perf" \
+      --runs "$runs" --timeout "$timeout_seconds" --modes compiled \
+      --compiled-binary "$binary" --run-from "$run_from" --output-json "$result" \
+      --cpu-affinity "$resolved_affinity" --verify-ruby-script "$verifier" \
+      "${executor_args[@]}" "${source_root_args[@]}" \
+      "${program_args[@]/#/--program-arg=}" "$target"
+    python - "$result" "$order_index" <<'PY'
+import json, sys
+path, order_index = sys.argv[1:]
+payload=json.load(open(path)); payload["preserved_order_index"]=int(order_index)
+open(path,"w").write(json.dumps(payload, indent=2)+"\n")
+PY
+    printf '%s\t%s\t%s\n' "$bench" "$cohort" "$result" >> "$result_jsonl"
+  done
+done
+
+manifest="$workdir/manifest.json"
+python - "$metadata_jsonl" "$result_jsonl" "$manifest" "$suite_name" "$bench_repo" "$cpu_pool" \
+  "$runs" "$cohorts" "$max_cohort_spread_percent" "$go_reference_json" "$keep_tmp" <<'PY'
+import json, sys
+(metadata_path, results_path, output, suite, benchmark_repo, cpu_pool, runs, cohorts,
+ spread, go_reference, keep_tmp) = sys.argv[1:]
+entries = [json.loads(line) for line in open(metadata_path) if line.strip()]
+paths = {}
+for line in open(results_path):
+    benchmark, cohort, path = line.rstrip("\n").split("\t")
+    paths.setdefault(benchmark, {})[int(cohort)] = path
+for entry in entries:
+    entry["cohort_results"] = [paths[entry["benchmark"]][index] for index in range(1, int(cohorts)+1)]
+payload = {"suite": suite, "benchmark_repo": benchmark_repo, "cpu_affinity_pool": cpu_pool,
+           "runs_per_cohort": int(runs), "cohort_count": int(cohorts),
+           "max_cohort_spread_percent": float(spread),
+           "go_reference_json": go_reference or None,
+           "artifact_workspace_retained": keep_tmp == "true", "benchmarks": entries}
+open(output,"w").write(json.dumps(payload, indent=2)+"\n")
+PY
+
+report_args=(--manifest "$manifest" --output-json "$output_json")
+[[ -z "$output_md" ]] || report_args+=(--output-md "$output_md")
+python "$SCRIPT_DIR/bench_preserved_compiled_report.py" "${report_args[@]}"
+echo ">>> Wrote preserved compiled report: $output_json"
+[[ -z "$output_md" ]] || echo ">>> Wrote Markdown summary: $output_md"
+if [[ "$keep_tmp" == true ]]; then echo ">>> Kept artifacts in: $workdir"; fi

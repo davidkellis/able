@@ -146,3 +146,110 @@ func TestBytecodeVM_ResetForRunPreservesConstCaches(t *testing.T) {
 		t.Fatalf("expected immediate table cache to be reused across pooled runs")
 	}
 }
+
+func TestBytecodeVM_ValidatedIntegerConstSlotsUsesDirectCache(t *testing.T) {
+	vm := &bytecodeVM{}
+	firstProgram := &bytecodeProgram{instructions: []bytecodeInstruction{{op: bytecodeOpConst}}}
+	secondProgram := &bytecodeProgram{instructions: []bytecodeInstruction{{op: bytecodeOpConst}, {op: bytecodeOpConst}}}
+
+	first := vm.validatedIntegerConstSlots(firstProgram)
+	second := vm.validatedIntegerConstSlots(secondProgram)
+	if len(first) != len(firstProgram.instructions) || len(second) != len(secondProgram.instructions) {
+		t.Fatalf("unexpected direct cache setup lengths: first=%d second=%d", len(first), len(second))
+	}
+	delete(vm.validatedIntConsts, firstProgram)
+
+	got := vm.validatedIntegerConstSlots(firstProgram)
+	if len(got) != len(first) || (len(got) > 0 && &got[0] != &first[0]) {
+		t.Fatalf("expected direct cache to preserve first program validation slice after backing map removal")
+	}
+	if !validatedIntegerConstDirectCacheContains(vm, firstProgram) || !validatedIntegerConstDirectCacheContains(vm, secondProgram) {
+		t.Fatalf("expected direct cache to retain both warmed programs")
+	}
+}
+
+func TestBytecodeVM_ValidatedIntegerConstSlotsUsesHotAltCache(t *testing.T) {
+	vm := &bytecodeVM{}
+	firstProgram := &bytecodeProgram{instructions: []bytecodeInstruction{{op: bytecodeOpConst}}}
+	secondProgram := &bytecodeProgram{instructions: []bytecodeInstruction{{op: bytecodeOpConst}, {op: bytecodeOpConst}}}
+
+	first := vm.validatedIntegerConstSlots(firstProgram)
+	second := vm.validatedIntegerConstSlots(secondProgram)
+	if len(first) != len(firstProgram.instructions) || len(second) != len(secondProgram.instructions) {
+		t.Fatalf("unexpected hot cache setup lengths: first=%d second=%d", len(first), len(second))
+	}
+
+	vm.validatedIntConsts = nil
+	vm.validatedIntConstsDirect = [bytecodeProgramMetadataDirectCacheSize]bytecodeValidatedIntConstDirectCacheEntry{}
+
+	got := vm.validatedIntegerConstSlots(firstProgram)
+	if len(got) != len(first) || (len(got) > 0 && &got[0] != &first[0]) {
+		t.Fatalf("expected hot alternate cache to preserve first program validation slice")
+	}
+	if vm.validatedIntConsts != nil {
+		t.Fatalf("hot alternate cache hit should not allocate validation map")
+	}
+	if vm.validatedIntConstsHotProgram != firstProgram || vm.validatedIntConstsHotAltProgram != secondProgram {
+		t.Fatalf("expected alternate cache hit to promote first program")
+	}
+}
+
+func TestBytecodeVM_ValidatedIntegerConstSlotsSkipsFinalizedProgramWithoutIntegerConsts(t *testing.T) {
+	vm := &bytecodeVM{}
+	program := finalizeBytecodeProgramMetadata(&bytecodeProgram{instructions: []bytecodeInstruction{
+		{op: bytecodeOpConst, value: runtime.BoolValue{Val: true}},
+		{op: bytecodeOpReturn},
+	}})
+
+	if got := vm.validatedIntegerConstSlots(program); got != nil {
+		t.Fatalf("finalized program without integer consts should skip validation cache, got len=%d", len(got))
+	}
+	if vm.validatedIntConsts != nil {
+		t.Fatalf("skipping validation should not allocate VM validation map")
+	}
+}
+
+func validatedIntegerConstDirectCacheContains(vm *bytecodeVM, program *bytecodeProgram) bool {
+	if vm == nil || program == nil {
+		return false
+	}
+	for _, entry := range vm.validatedIntConstsDirect {
+		if entry.program == program {
+			return true
+		}
+	}
+	return false
+}
+
+func TestBytecodeVM_ValidatedIntegerConstSlotsRefreshesStaleDirectEntry(t *testing.T) {
+	vm := &bytecodeVM{}
+	program := &bytecodeProgram{instructions: []bytecodeInstruction{{op: bytecodeOpConst}}}
+	first := vm.validatedIntegerConstSlots(program)
+	program.instructions = append(program.instructions, bytecodeInstruction{op: bytecodeOpConst})
+
+	got := vm.validatedIntegerConstSlots(program)
+	if len(got) != len(program.instructions) {
+		t.Fatalf("expected stale direct validation entry to refresh length=%d, got %d", len(program.instructions), len(got))
+	}
+	if len(first) > 0 && len(got) > 0 && &got[0] == &first[0] {
+		t.Fatalf("expected stale direct validation entry to allocate refreshed backing slice")
+	}
+}
+
+func TestBytecodeVM_ValidatedIntegerConstSlotsRefreshesStaleHotEntry(t *testing.T) {
+	vm := &bytecodeVM{}
+	program := &bytecodeProgram{instructions: []bytecodeInstruction{{op: bytecodeOpConst}}}
+	first := vm.validatedIntegerConstSlots(program)
+
+	program.instructions = append(program.instructions, bytecodeInstruction{op: bytecodeOpConst})
+	vm.validatedIntConsts = nil
+	vm.validatedIntConstsDirect = [bytecodeProgramMetadataDirectCacheSize]bytecodeValidatedIntConstDirectCacheEntry{}
+
+	got := vm.validatedIntegerConstSlots(program)
+	if len(got) != len(program.instructions) {
+		t.Fatalf("expected stale hot validation entry to refresh length=%d, got %d", len(program.instructions), len(got))
+	}
+	if len(first) > 0 && len(got) > 0 && &got[0] == &first[0] {
+		t.Fatalf("expected stale hot validation entry to allocate refreshed backing slice")
+	}
+}

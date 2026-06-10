@@ -1,0 +1,91 @@
+package exec_14_12_regex_capture_groups
+
+import able.text.regex.{Regex, RegexScanner, Match, Span}
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case found: Match => print(`${label} ${found.matched} ${found.span.start}-${found.span.end} groups=${found.groups.len()}`)
+  }
+}
+
+fn show_group(label: String, value: ?Match, index: i32) -> void {
+  value match {
+    case nil => print(`${label} no-match`),
+    case found: Match => show_match_group(label, found, index)
+  }
+}
+
+fn show_match_group(label: String, found: Match, index: i32) -> void {
+  group := found.groups.read_slot(index)
+  group.value match {
+    case nil => print(`${label} nil`),
+    case text: String => group.span match {
+      case nil => print(`${label} missing-span`),
+      case span: Span => print(`${label} ${text} ${span.start}-${span.end}`)
+    }
+  }
+}
+
+fn main() -> void {
+  Regex.compile("(ab)+") match {
+    case regex: Regex => {
+      found := regex.match("zababx")
+      show_match("repeat", found)
+      show_group("repeat-group", found, 0)
+    },
+    case _ => print("repeat compile error")
+  }
+
+  Regex.compile("(a|ab)c") match {
+    case regex: Regex => {
+      found := regex.match("zabc")
+      show_match("alternation", found)
+      show_group("alternation-group", found, 0)
+    },
+    case _ => print("alternation compile error")
+  }
+
+  Regex.compile("(a)?b") match {
+    case regex: Regex => show_group("optional", regex.match("b"), 0),
+    case _ => print("optional compile error")
+  }
+
+  Regex.compile("((a)b)") match {
+    case regex: Regex => {
+      found := regex.match("zab")
+      show_group("nested-outer", found, 0)
+      show_group("nested-inner", found, 1)
+    },
+    case _ => print("nested compile error")
+  }
+
+  Regex.compile("(é+)") match {
+    case regex: Regex => show_group("unicode", regex.match("xéé"), 0),
+    case _ => print("unicode compile error")
+  }
+
+  Regex.compile("(a*)") match {
+    case regex: Regex => show_group("empty", regex.match(""), 0),
+    case _ => print("empty compile error")
+  }
+
+  Regex.compile("(a+)") match {
+    case regex: Regex => {
+      iterator := regex.find_all("xaaay")
+      iterator.next() match {
+        case found: Match => show_match_group("find-all", found, 0),
+        case _ => print("find-all none")
+      }
+      scanner := regex.scan("")
+      scanner.feed("xa")
+      scanner.feed("aay")
+      scanner.flush()
+      scanner.next() match {
+        case found: Match => show_match_group("scanner", found, 0),
+        case _ => print("scanner none")
+      }
+    },
+    case _ => print("streaming compile error")
+  }
+}

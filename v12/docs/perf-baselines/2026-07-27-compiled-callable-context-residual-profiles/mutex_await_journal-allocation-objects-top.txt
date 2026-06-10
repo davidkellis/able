@@ -1,0 +1,48 @@
+File: compiled
+Build ID: 400ec6093dca7339e0cbd1811ac7f05a7c74a63a
+Type: alloc_objects
+Time: 2026-07-27 23:59:32 CDT
+Showing nodes accounting for 126981, 99.36% of 127804 total
+Dropped 172 nodes (cum <= 639)
+Showing top 40 nodes out of 71
+      flat  flat%   sum%        cum   cum%
+     20480 16.02% 16.02%      20480 16.02%  main.(*__able_mutex_awaitable).toStruct
+     13695 10.72% 26.74%      13695 10.72%  runtime/pprof.allFrames
+     10240  8.01% 34.75%      10245  8.02%  main.__able_make_await_waker_ctx
+     10048  7.86% 42.61%      10048  7.86%  main.__able_native_call_context
+      8000  6.26% 48.87%      34667 27.13%  main.__able_call_value_fast_ctx
+      7536  5.90% 54.77%      42203 33.02%  main.__able_method_call_ctx
+      6613  5.17% 59.94%       6613  5.17%  main.__able_context_from_environment (inline)
+      4101  3.21% 63.15%       4101  3.21%  able/interpreter-go/pkg/compiler/bridge.ToInt
+      4100  3.21% 66.36%       4100  3.21%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+      4100  3.21% 69.57%       4100  3.21%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+      4096  3.20% 72.77%       4096  3.20%  main.__able_array_iface_Awaitable_i64_to
+      4096  3.20% 75.98%      10240  8.01%  main.__able_collect_await_arms_ctx
+      4096  3.20% 79.18%       4096  3.20%  main.__able_fn_void_to_int64_to_runtime_value
+      3532  2.76% 81.95%       3557  2.78%  runtime/pprof.(*profileBuilder).emitLocation
+      2320  1.82% 83.76%       2320  1.82%  main.__able_make_await_registration_value_ctx
+      2048  1.60% 85.37%       2048  1.60%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+      2048  1.60% 86.97%       2048  1.60%  main.(*__able_await_state).ensureWaitCh
+      2048  1.60% 88.57%     108689 85.04%  main.__able_compiled_fn_run_lane_ctx
+      2048  1.60% 90.17%      14338 11.22%  main.__able_iface_Awaitable_i64_try_from_value
+      2048  1.60% 91.78%       2048  1.60%  main.__able_iface_Awaitable_i64_wrap_runtime (inline)
+      2048  1.60% 93.38%      24581 19.23%  main.__able_initialize_await_state_ctx
+      2048  1.60% 94.98%      22528 17.63%  main.__able_mutex_await_lock_impl
+      2048  1.60% 96.58%       2171  1.70%  main.__able_notify_mutex_awaiters
+      1617  1.27% 97.85%      18970 14.84%  runtime/pprof.writeHeapProto
+       956  0.75% 98.60%       1435  1.12%  main.__able_call_value_fast
+       474  0.37% 98.97%       1896  1.48%  main.__able_method_call
+       464  0.36% 99.33%       6985  5.47%  main.__able_register_await_state_ctx
+        20 0.016% 99.35%       4665  3.65%  main.(*__able_mutex_awaitable).register
+         6 0.0047% 99.35%      17265 13.51%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         5 0.0039% 99.35%      36993 28.95%  main.__able_await_with_state_ctx
+         1 0.00078% 99.36%      18976 14.85%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00078% 99.36%      18971 14.84%  runtime/pprof.writeHeapInternal
+         0     0% 99.36%       2048  1.60%  able/interpreter-go/pkg/ast.Gen (inline)
+         0     0% 99.36%       4100  3.21%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0% 99.36%       8200  6.42%  able/interpreter-go/pkg/ast.Ty (inline)
+         0     0% 99.36%      18976 14.85%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.36%      18976 14.85%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.36%     108718 85.07%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 99.36%      14465 11.32%  main.(*__able_mutex_awaitable).commit
+         0     0% 99.36%       4665  3.65%  main.(*__able_mutex_awaitable).toStruct.func2

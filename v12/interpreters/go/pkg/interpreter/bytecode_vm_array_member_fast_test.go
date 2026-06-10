@@ -461,7 +461,7 @@ func TestBytecodeVM_CanonicalArrayGetCallCacheFeedsArrayGetOpcode(t *testing.T) 
 	}
 }
 
-func TestBytecodeVM_LoweringEmitsArrayGetCallMemberOpcode(t *testing.T) {
+func TestBytecodeVM_LoweringUsesStaticCandidateForUnknownArrayGetReceiver(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.CallExpr(ast.Member(ast.ID("arr"), "get"), ast.Int(0)),
 	}, nil, nil)
@@ -471,14 +471,14 @@ func TestBytecodeVM_LoweringEmitsArrayGetCallMemberOpcode(t *testing.T) {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
 	for _, instr := range program.instructions {
-		if instr.op == bytecodeOpCallMemberArrayGet {
+		if instr.op == bytecodeOpCallStaticMember {
 			if instr.name != "get" || instr.argCount != 1 {
-				t.Fatalf("unexpected Array.get opcode instruction: %#v", instr)
+				t.Fatalf("unexpected static get call instruction: %#v", instr)
 			}
 			return
 		}
 	}
-	t.Fatalf("expected lowering to emit guarded Array.get call-member opcode")
+	t.Fatalf("expected lowering to emit static-candidate get call")
 }
 
 func TestBytecodeVM_StaticArrayNewFastPathSemantics(t *testing.T) {
@@ -779,16 +779,19 @@ impl Iterator u8 for RawStringBytesIter {
 	if !ok || iface == nil {
 		t.Fatalf("bytes result = %#v, want Iterator interface", vm.stack[0])
 	}
-	if iface.Methods == nil || iface.Methods["next"] == nil {
-		t.Fatalf("bytes interface methods = %#v, want cached next method", iface.Methods)
+	if method, ok := interfaceValueLookupMethod(iface, "next"); !ok || method == nil {
+		t.Fatalf("bytes interface methods = %#v / %#v, want cached next method", iface.Methods, iface.SharedMethods)
 	}
 	iter, ok := iface.Underlying.(*runtime.StructInstanceValue)
 	if !ok || iter == nil || iter.Definition != iterDef {
 		t.Fatalf("bytes underlying = %#v, want RawStringBytesIter", iface.Underlying)
 	}
-	arr, ok := iter.Fields["bytes"].(*runtime.ArrayValue)
+	if iter.Fields != nil {
+		t.Fatalf("bytes iterator should use named positional storage, got map fields %#v", iter.Fields)
+	}
+	arr, ok := bytecodeStructArrayField(iter, "bytes")
 	if !ok || arr == nil {
-		t.Fatalf("bytes field = %#v, want Array u8", iter.Fields["bytes"])
+		t.Fatalf("bytes field = %#v, want Array u8", iter)
 	}
 	size, err := runtime.ArrayStoreSize(arr.Handle)
 	if err != nil {
@@ -870,8 +873,8 @@ func TestBytecodeVM_StringByteIteratorNextFastPathDetectsCanonicalMethod(t *test
 	interp.SetNodeOrigins(map[ast.Node]string{
 		wrongReturn: "/tmp/able-stdlib/src/text/string.able",
 	})
-	if got := vm.memberMethodFastPathFor(key, &runtime.FunctionValue{Declaration: wrongReturn}); got != bytecodeMemberMethodFastPathNone {
-		t.Fatalf("non-u8 iterator next should not receive string byte iterator fast path, got %d", got)
+	if got := vm.memberMethodFastPathFor(key, &runtime.FunctionValue{Declaration: wrongReturn}); got != bytecodeMemberMethodFastPathStringCharIteratorNext {
+		t.Fatalf("char iterator next should receive string char iterator fast path, got %d", got)
 	}
 }
 

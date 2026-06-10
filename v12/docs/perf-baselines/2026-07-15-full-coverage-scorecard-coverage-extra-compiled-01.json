@@ -1,0 +1,116 @@
+{
+  "generated_at": "2026-07-15T08:57:35.897503Z",
+  "suite": "custom",
+  "benchmarks": [
+    "fixed_width_128",
+    "rational_series",
+    "word_frequency"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-15-full-coverage-scorecard-coverage-extra-go-reference.json",
+  "cpu_affinity": "14",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "fixed_width_128",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "fixed_width_128",
+        "mode": "compiled",
+        "ok_runs": 3,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 7.4033,
+        "avg_user_seconds": 7.3067,
+        "avg_sys_seconds": 0.07,
+        "avg_gc": 234.33,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/fixed-width-128/verify.rb",
+          "verified_runs": 3,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0053,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 1396.8490566037735
+        }
+      }
+    },
+    {
+      "benchmark": "rational_series",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "rational_series",
+        "mode": "compiled",
+        "ok_runs": 3,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 2.1633,
+        "avg_user_seconds": 2.1033,
+        "avg_sys_seconds": 0.0267,
+        "avg_gc": 53.33,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/rational-series/verify.rb",
+          "verified_runs": 3,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0123,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 175.8780487804878
+        }
+      }
+    },
+    {
+      "benchmark": "word_frequency",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "word_frequency",
+        "mode": "compiled",
+        "ok_runs": 3,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.2133,
+        "avg_user_seconds": 0.1567,
+        "avg_sys_seconds": 0.03,
+        "avg_gc": 4.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/word-frequency/verify.rb",
+          "verified_runs": 3,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0049,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 43.53061224489796
+        }
+      }
+    }
+  ]
+}

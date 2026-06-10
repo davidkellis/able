@@ -1,0 +1,6 @@
+{
+  "description": "tree-map insertion lookup and mutation benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

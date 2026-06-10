@@ -1,0 +1,183 @@
+{
+  "kind": "bytecode-three-unlike-exact-owner-closure",
+  "date": "2026-07-26",
+  "decision": "retain-no-change-no-shared-concrete-owner",
+  "artifacts": {
+    "repository_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+    "repository_dirty": true,
+    "go_version": "go1.26.4",
+    "able_cli_sha256": "5f1108bc9596e74dd37e29fdb863bf8fa517e91935fd7db83ceecc940b896666",
+    "interpreter_test_sha256": "5069b6dff944d7e68aeb38fb9b85dab990b4d29c842a6cfed04fe66897cb01ab",
+    "interpreter_test_matches_2026_07_24_refresh": true,
+    "stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+    "stdlib_dirty": true,
+    "stdlib_able_source_files": 70,
+    "stdlib_relative_path_hash_sha256": "97ce89a04cace9e6075655723dc79a1928f1743ae887716a6c7bebda36e5a23b"
+  },
+  "execution_contract": {
+    "cpu_affinity": "6",
+    "logical_cpu_budget": 1,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timeout_seconds": 59,
+    "source_root_only": true,
+    "normal_typechecking": true,
+    "warmup_main_calls": 1,
+    "measured_main_calls": 1,
+    "timing_processes_per_application_and_lane": 5,
+    "cpu_profile_processes_per_application": 3,
+    "exact_allocation_processes_per_application": 3,
+    "sampled_allocation_processes_per_application": 1,
+    "allocation_profile_rate_bytes": 65536
+  },
+  "workloads": [
+    {
+      "benchmark": "word_frequency",
+      "family": "file-text-map-result",
+      "source": {
+        "path": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+        "sha256": "ad6e5d39c1685931dfb7b86fb7ce2afe783a1088ffc646a5482540606cd79a3f"
+      },
+      "run_from": "../benchmarks/word-frequency",
+      "program_args": ["corpus.md"],
+      "executor": "serial",
+      "verifier_sha256": "75ee8f994b642c522f43edcde282bd2e8964346ed9cf7c5cd9530740583857ac",
+      "input_sha256": "eea236b8dc71ecc6c306719e9a1cfd842309c616438d5c4c84e13c44056c9164",
+      "python_source_sha256": "07f6d7bf1629dfa4d3c06c74c5e5b7593bc01cded12d30659da36f4fe641a18c",
+      "ruby_source_sha256": "6c31037565a1d96128a4874a8dd99ef1c91ab3905682ebb99a37caaf585d6758",
+      "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+      "timing": {
+        "able_seconds": [1.93, 1.28, 1.22, 1.66, 1.37],
+        "python_seconds": [0.01, 0.01, 0.01, 0.02, 0.01],
+        "ruby_seconds": [0.05, 0.04, 0.05, 0.08, 0.05],
+        "able_mean_seconds": 1.492,
+        "python_mean_seconds": 0.012,
+        "ruby_mean_seconds": 0.054,
+        "able_to_python_ratio": 124.3333333333,
+        "able_to_ruby_ratio": 27.6296296296
+      },
+      "cpu_merged_profile_sha256": "c71eadaecc009969def0f9a938633bde308be706c8bc2c2345ea2b72015be80f",
+      "cpu_sample_seconds": 3.29,
+      "allocation_profile_sha256": "63dfbba1acc4d1d879d471829093378f859db094681454c30e45060b47208f73",
+      "exact_allocation": {
+        "bytes_per_op": [48372392, 48463784, 48372376],
+        "allocations_per_op": [637262, 637269, 637262],
+        "mean_bytes_per_op": 48402850.6667,
+        "mean_allocations_per_op": 637264.3333
+      }
+    },
+    {
+      "benchmark": "rms_norm",
+      "family": "float-array-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/rms_norm/rms_norm.able",
+        "sha256": "b289c78432f7c4077e259810c9e788341824899188821df669af345eed04dc59"
+      },
+      "run_from": "../benchmarks/rms-norm",
+      "program_args": [],
+      "executor": "serial",
+      "verifier_sha256": "6b5dcc689725e902d8bf9d0f98dc9515ea3c29a6c290e80e0d757d6374293776",
+      "python_source_sha256": "91cd92bc83b0e0e5635a1c17bf64cbbd1d1883fec81f78a0fbe8ba22c299f2d0",
+      "ruby_source_sha256": "55b6a731691291a2d1b7293cc4ba140939ba6bf661b896337632dd11396b273b",
+      "stdout_sha256": "255c3e1c7ae7f523918e96244a6ac395b58699c4d2220549b097702faaa1037b",
+      "timing": {
+        "able_seconds": [4.36, 4.13, 4.39, 4.65, 4.59],
+        "python_seconds": [0.94, 0.96, 0.77, 0.79, 0.81],
+        "ruby_seconds": [0.58, 0.48, 0.47, 0.49, 0.64],
+        "able_mean_seconds": 4.424,
+        "python_mean_seconds": 0.854,
+        "ruby_mean_seconds": 0.532,
+        "able_to_python_ratio": 5.1803278689,
+        "able_to_ruby_ratio": 8.3157894737
+      },
+      "cpu_merged_profile_sha256": "16ce6d17e822064ef40203cf8afd1bcdb298c8fe7ff23803b17c573c9b483998",
+      "cpu_sample_seconds": 12.81,
+      "allocation_profile_sha256": "ba1674e7e63a5eb8ce2db1748a018165dba9e049e0e4a4281e8b48950c82dbd2",
+      "exact_allocation": {
+        "bytes_per_op": [288052872, 288052904, 288052888],
+        "allocations_per_op": [20000125, 20000125, 20000125],
+        "mean_bytes_per_op": 288052888,
+        "mean_allocations_per_op": 20000125
+      }
+    },
+    {
+      "benchmark": "concurrent_signal_dispatch",
+      "family": "concurrency-interface-nominal-i64",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_signal_dispatch/concurrent_signal_dispatch.able",
+        "sha256": "79d9f7945ab5278b5725a0c28ee1e1bdf66a81530f95777c6478e9efa01d63d0"
+      },
+      "run_from": "../benchmarks/concurrent-signal-dispatch",
+      "program_args": ["signals.txt"],
+      "executor": "goroutine",
+      "verifier_sha256": "0aef6a952c067f2726ef1fdbdf969edf85e38364aae25a11424c8c11b87a6c30",
+      "input_sha256": "a0e00d93a4642546c06a13092459644608d1aaee0fabc989cfcb19a78a8c154a",
+      "python_source_sha256": "f80c9a053527f1469810dcabdadf34f65d379caf9cafdf1fe94fdd33e641458b",
+      "ruby_source_sha256": "597334c92f06c02c4f3c5770fe59e65db92dc0b3bcd1c5e3898b5a380a8c8eb1",
+      "stdout_sha256": "cb24d4b4ebe05455c69d9232b5bee08e27e1f864776c80996a0253ece9d69d94",
+      "timing": {
+        "able_seconds": [1.47, 1.37, 1.34, 1.38, 1.91],
+        "python_seconds": [0.06, 0.05, 0.05, 0.05, 0.05],
+        "ruby_seconds": [0.07, 0.07, 0.07, 0.07, 0.07],
+        "able_mean_seconds": 1.494,
+        "python_mean_seconds": 0.052,
+        "ruby_mean_seconds": 0.07,
+        "able_to_python_ratio": 28.7307692308,
+        "able_to_ruby_ratio": 21.3428571429
+      },
+      "cpu_merged_profile_sha256": "eeb2dc6f91774581073707d52a7ce3e1f6c9f2f9a9b0b7ea644966bbaf4332bc",
+      "cpu_sample_seconds": 3.61,
+      "allocation_profile_sha256": "76dc9d31995689348c1160c1b6362dbe764d922c890834f1772f4df675e19634",
+      "exact_allocation": {
+        "bytes_per_op": [125874000, 125903848, 125925008],
+        "allocations_per_op": [4584079, 4584113, 4584136],
+        "mean_bytes_per_op": 125900952,
+        "mean_allocations_per_op": 4584109.3333
+      }
+    }
+  ],
+  "cpu_flat_intersection_at_least_one_percent": [
+    {
+      "symbol": "able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable",
+      "word_frequency_percent": 7.29,
+      "rms_norm_percent": 8.67,
+      "concurrent_signal_dispatch_percent": 6.65,
+      "disposition": "aggregate-dispatcher"
+    },
+    {
+      "symbol": "runtime.tryDeferToSpanScan",
+      "word_frequency_percent": 3.65,
+      "rms_norm_percent": 2.81,
+      "concurrent_signal_dispatch_percent": 4.71,
+      "disposition": "gc-symptom-different-allocation-owners"
+    },
+    {
+      "symbol": "able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendSlotStackValueChecked",
+      "word_frequency_percent": 2.13,
+      "rms_norm_percent": 1.17,
+      "concurrent_signal_dispatch_percent": 1.39,
+      "disposition": "closed-stack-carrier-parent"
+    }
+  ],
+  "allocation_flat_intersection_at_least_one_percent": [],
+  "candidate": {
+    "advanced": false,
+    "ab_experiment_run": false,
+    "reason": "No new concrete non-nominal VM/runtime operation or removable allocation is material in all three unlike applications."
+  },
+  "verification": {
+    "timed_verified_processes": 45,
+    "cpu_profile_processes_passed": 9,
+    "exact_allocation_processes_passed": 9,
+    "sampled_allocation_processes_passed": 3,
+    "focused_test_command": "GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 go test ./pkg/interpreter -run TestBytecode -count=1 -timeout 60s",
+    "focused_test_result": "ok",
+    "focused_test_seconds": 36.148,
+    "full_handoff_command": "./run_all_tests.sh",
+    "full_handoff_result": "all-tests-completed-successfully",
+    "compiler_batches_passed": 32,
+    "bytecode_fixture_pass_seconds": 261.476
+  },
+  "next_recommendation": "Build a corpus-wide current-artifact exact-owner frequency census over the 54 rankable bytecode rows and admit code only for a non-closed exact leaf material in at least three unlike applications."
+}

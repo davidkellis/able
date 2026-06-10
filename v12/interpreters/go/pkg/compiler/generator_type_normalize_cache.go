@@ -113,7 +113,10 @@ func normalizeTypeExprIdentityKey(g *generator, pkgName string, expr ast.TypeExp
 		for _, arg := range t.Arguments {
 			parts = append(parts, normalizeTypeExprIdentityKey(g, resolvedPkg, arg))
 		}
-		return prefix + "generic(" + strings.Join(parts, ",") + ")"
+		// The base key already carries the nominal definition's package. Keeping
+		// the caller context here makes an imported generic alias and its
+		// canonical target look like distinct types.
+		return "generic(" + strings.Join(parts, ",") + ")"
 	case *ast.NullableTypeExpression:
 		if t == nil {
 			return ""

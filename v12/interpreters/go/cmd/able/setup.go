@@ -10,8 +10,11 @@ import (
 )
 
 func runSetup(args []string) int {
-	if len(args) > 0 {
-		fmt.Fprintf(os.Stderr, "able setup does not take arguments (received %s)\n", strings.Join(args, " "))
+	prewarmExtern := false
+	if len(args) == 1 && args[0] == "--prewarm-extern" {
+		prewarmExtern = true
+	} else if len(args) > 0 {
+		fmt.Fprintf(os.Stderr, "able setup accepts only --prewarm-extern (received %s)\n", strings.Join(args, " "))
 		return 1
 	}
 
@@ -49,6 +52,16 @@ func runSetup(args []string) int {
 		}
 	}
 	fmt.Fprintf(os.Stdout, "stdlib %s cached at %s\n", resolved.pkg.Version, stdlibPath)
+
+	if prewarmExtern {
+		searchPaths := setupPrewarmSearchPaths(resolvePackageSrcPath(stdlibPath), kernelPath)
+		result, packageCount, prewarmErr := prewarmExternHostModules(searchPaths)
+		if prewarmErr != nil {
+			fmt.Fprintf(os.Stderr, "failed to prewarm extern host cache: %v\n", prewarmErr)
+			return 1
+		}
+		fmt.Fprintf(os.Stdout, "prewarmed %d Go extern host modules from %d packages\n", result.Modules, packageCount)
+	}
 
 	// Write a marker lockfile so ad-hoc scripts know where to find stdlib.
 	markerLock := driver.NewLockfile("_global", cliToolVersion)

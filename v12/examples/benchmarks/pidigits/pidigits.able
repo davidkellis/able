@@ -41,7 +41,7 @@ fn next_term(
     next = next + 1_i64
     y2 := next * 2_i64 + 1_i64
 
-    tmp.mul_i64(numer, 2_i64)
+    tmp.lsh(numer, 1)
     accum.add(accum, tmp)
     accum.mul_i64(accum, y2)
     denom.mul_i64(denom, y2)
@@ -54,31 +54,19 @@ fn next_term(
   next
 }
 
-fn extract_digit(
-  nth: i64,
-  accum: BigIntRef,
-  denom: BigIntRef,
-  numer: BigIntRef,
-  tmp1: BigIntRef,
-  tmp2: BigIntRef
-) -> i64 {
-  tmp1.mul_i64(numer, nth)
-  tmp2.add(tmp1, accum)
-  tmp1.div(tmp2, denom)
-  tmp1.to_i64()
-}
-
 fn eliminate_digit(
   digit: i64,
   accum: BigIntRef,
   denom: BigIntRef,
   numer: BigIntRef,
-  tmp: BigIntRef
+  tmp: BigIntRef,
+  ten: BigIntRef
 ) -> void {
-  tmp.mul_i64(denom, digit)
+  tmp.set_i64(digit)
+  tmp.mul(denom, tmp)
   accum.sub(accum, tmp)
-  accum.mul_i64(accum, 10_i64)
-  numer.mul_i64(numer, 10_i64)
+  accum.mul(accum, ten)
+  numer.mul(numer, ten)
 }
 
 fn print_final_line(line: String, line_count: i32, total: i32) -> void {
@@ -101,6 +89,8 @@ fn main() {
   accum := BigIntRef.zero()
   denom := BigIntRef.one()
   numer := BigIntRef.one()
+  three := BigIntRef.new(3_i64)
+  ten := BigIntRef.new(10_i64)
 
   line := ""
   line_count := 0
@@ -113,8 +103,13 @@ fn main() {
     digit := 0_i64
     loop {
       k = next_term(k, accum, denom, numer, tmp1)
-      d3 := extract_digit(3_i64, accum, denom, numer, tmp1, tmp2)
-      d4 := extract_digit(4_i64, accum, denom, numer, tmp1, tmp2)
+      tmp1.mul(three, numer)
+      tmp2.add(tmp1, accum)
+      tmp1.div(tmp2, denom)
+      d3 := tmp1.to_i64()
+      tmp2.add(tmp2, numer)
+      tmp1.div(tmp2, denom)
+      d4 := tmp1.to_i64()
       if d3 == d4 {
         digit = d3
         break
@@ -130,10 +125,12 @@ fn main() {
       line_count = 0
     }
 
-    eliminate_digit(digit, accum, denom, numer, tmp1)
+    eliminate_digit(digit, accum, denom, numer, tmp1, ten)
   }
 
   print_final_line(line, line_count, produced)
+  three.dispose()
+  ten.dispose()
   tmp1.dispose()
   tmp2.dispose()
   accum.dispose()

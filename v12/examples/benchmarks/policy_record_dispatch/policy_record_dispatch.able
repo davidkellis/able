@@ -1,0 +1,202 @@
+package policy_record_dispatch
+
+import able.collections.hash_map.*
+import able.collections.map.*
+import able.core.interfaces.{Error}
+import able.core.options.*
+import able.fs
+import able.kernel.{Array}
+import able.os
+import able.text.regex.{Match, Regex}
+
+RECORD_LIMIT: i32 := 32
+DEFAULT_ROUNDS: i32 := 64
+
+struct PolicyError { code: i32 }
+
+impl Error for PolicyError {
+  fn message(self: Self) -> String { "invalid policy record" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct PolicyRecord {
+  source: String,
+  severity: String,
+  region: String,
+  owner: String,
+  payload: String
+}
+
+struct AcceptedDecision {
+  bucket: i32,
+  value: i64
+}
+
+struct RejectedDecision {
+  code: i32,
+  value: i64
+}
+
+union DecisionState = AcceptedDecision | RejectedDecision
+
+struct PolicyDecision {
+  sequence: i64,
+  state: DecisionState
+}
+
+methods PolicyDecision {
+  fn accepted(self: Self) -> bool {
+    self.state match {
+      case AcceptedDecision { bucket: _, value: _ } => true,
+      case RejectedDecision { code: _, value: _ } => false
+    }
+  }
+
+  fn bucket(self: Self) -> i32 {
+    self.state match {
+      case AcceptedDecision { bucket, value: _ } => bucket,
+      case RejectedDecision { code: _, value: _ } => -1
+    }
+  }
+
+  fn value(self: Self) -> i64 {
+    self.state match {
+      case AcceptedDecision { bucket: _, value } => value,
+      case RejectedDecision { code: _, value } => value
+    }
+  }
+
+  fn checksum(self: Self) -> i64 {
+    self.state match {
+      case AcceptedDecision { bucket, value } => value * 7_i64 + (bucket as i64) * 19_i64 + self.sequence * 3_i64,
+      case RejectedDecision { code, value } => value * 11_i64 + (code as i64) * 23_i64 + self.sequence * 5_i64
+    }
+  }
+}
+
+fn policy_error(code: i32) -> Error {
+  error: Error = PolicyError { code }
+  error
+}
+
+fn compile_regex(pattern: String) -> Regex {
+  Regex.compile(pattern) match {
+    case regex: Regex => regex,
+    case err: Error => { raise err }
+  }
+}
+
+fn group_value(found: Match, index: i32) -> String {
+  found.groups.read_slot(index).value match {
+    case value: String => value,
+    case nil => { raise "required policy capture did not participate" }
+  }
+}
+
+fn parse_record(schema: Regex, line: String) -> Result PolicyRecord {
+  schema.match(line) match {
+    case nil => policy_error(1),
+    case found: Match => PolicyRecord {
+      source: group_value(found, 0),
+      severity: group_value(found, 1),
+      region: group_value(found, 2),
+      owner: group_value(found, 3),
+      payload: group_value(found, 4)
+    }
+  }
+}
+
+fn policy_bucket(severity: String) -> i32 {
+  if severity == "ERROR" { 0 }
+  elsif severity == "WARN" { 1 }
+  elsif severity == "INFO" { 2 }
+  else { 3 }
+}
+
+fn score_record(record: PolicyRecord, sequence: i64, salt: i64) -> AcceptedDecision {
+  PolicyRecord {
+    source::source_name,
+    severity,
+    region::region_name,
+    owner,
+    payload
+  } := record
+  bucket := policy_bucket(severity)
+  state := (source_name.len_bytes() as i64) * 31_i64
+  state = state + (region_name.len_bytes() as i64) * 17_i64
+  state = state + (owner.len_bytes() as i64) * 13_i64
+  state = state + (payload.len_bytes() as i64) * 7_i64 + sequence * 3_i64 + salt
+  step := 0_i64
+  loop {
+    if step >= 5_i64 { break }
+    if payload.contains("cache") && (step % 2_i64) == 0_i64 {
+      state = (state * 131_i64 + sequence + step) % 1_000_003_i64
+    } elsif region_name == "eu-west" {
+      state = (state * 73_i64 + (bucket as i64) + step) % 1_000_003_i64
+    } else {
+      state = (state * 67_i64 + salt + step) % 1_000_003_i64
+    }
+    step = step + 1_i64
+  }
+  AcceptedDecision { bucket, value: state }
+}
+
+fn evaluate(schema: Regex, line: String, sequence: i64, scorer: (PolicyRecord, i64) -> AcceptedDecision) -> PolicyDecision {
+  resolved := parse_record(schema, line).map<AcceptedDecision>({ record => scorer(record, sequence) })
+  if resolved.is_ok() {
+    PolicyDecision { sequence, state: resolved.unwrap_or(AcceptedDecision { bucket: 0, value: 0_i64 }) }
+  } else {
+    PolicyDecision { sequence, state: RejectedDecision { code: 1, value: 97_i64 + (sequence % 101_i64) } }
+  }
+}
+
+fn lookup(counts: Map i32 i64, bucket: i32) -> i64 {
+  counts.get(bucket) match {
+    case value: i64 => value,
+    case nil => 0_i64
+  }
+}
+
+fn policy_rounds(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" { 1 } else { DEFAULT_ROUNDS }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "records.txt" }
+  lines := fs.read_lines_prefix(path, RECORD_LIMIT)
+  rounds := policy_rounds(args)
+  schema := compile_regex("^([a-z]+)[|](INFO|WARN|ERROR|DEBUG)[|](us-east|eu-west|ap-south)[|]([a-z]+)[|]([a-z-]{5,})$")
+  salt := 17_i64
+  scorer := { record, sequence => score_record(record, sequence, salt) }
+
+  counts: HashMap i32 i64 = HashMap.with_capacity(4)
+  accepted := 0_i64
+  rejected := 0_i64
+  total := 0_i64
+  checksum := 0_i64
+  sequence := 0_i64
+  round := 0
+  loop {
+    if round >= rounds { break }
+    index := 0
+    loop {
+      if index >= lines.len() { break }
+      decision := evaluate(schema, lines.get(index)!, sequence, scorer)
+      if decision.accepted() {
+        accepted = accepted + 1_i64
+        bucket := decision.bucket()
+        counts.set(bucket, lookup(counts, bucket) + 1_i64)
+      } else {
+        rejected = rejected + 1_i64
+      }
+      total = total + decision.value()
+      checksum = (checksum + decision.checksum()) % 1_000_003_i64
+      sequence = sequence + 1_i64
+      index = index + 1
+    }
+    round = round + 1
+  }
+
+  print(`${sequence}:${accepted}:${rejected}:${lookup(counts, 0)},${lookup(counts, 1)},${lookup(counts, 2)},${lookup(counts, 3)}:${total}:${checksum}`)
+}

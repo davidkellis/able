@@ -1,0 +1,24 @@
+File: compiled
+Build ID: a383248e378b59abe8ff3fe98f2d5144933bb2c7
+Type: cpu
+Time: 2026-07-27 15:05:37 CDT
+Processes: 30 independently verified main-only profiles
+Total samples: 540ms
+
+      flat  flat%   sum%        cum   cum%
+     160ms 29.63% 29.63%      160ms 29.63%  runtime.tryDeferToSpanScan
+     120ms 22.22% 51.85%      350ms 64.81%  main.__able_compiled_method_EventQueue_pop_spec
+      60ms 11.11% 62.96%       60ms 11.11%  main.__able_compiled_method_EventQueue_comes_before_spec (inline)
+      50ms  9.26% 72.22%      540ms   100%  main.__able_compiled_fn_main
+      40ms  7.41% 79.63%       40ms  7.41%  main.__able_checked_mul_signed
+      20ms  3.70% 83.33%      170ms 31.48%  gcWriteBarrier
+      20ms  3.70% 87.04%       20ms  3.70%  runtime.(*mspan).writeHeapBitsSmall
+      20ms  3.70% 90.74%       20ms  3.70%  runtime.memclrNoHeapPointers
+      10ms  1.85% 92.59%       10ms  1.85%  main.__able_checked_add_signed
+      10ms  1.85% 94.44%       30ms  5.56%  main.__able_compiled_method_EventQueue_push_spec
+      10ms  1.85% 96.30%       10ms  1.85%  main.__able_divmod_signed
+
+The merged profile contains no interpreter, runtime.Value conversion, bridge,
+interface dispatch, or generic-value recovery owner. The material application
+owner is the generated EventQueue heap itself; the material runtime owner is
+Go GC scanning/write-barrier work for source-equivalent event allocations.

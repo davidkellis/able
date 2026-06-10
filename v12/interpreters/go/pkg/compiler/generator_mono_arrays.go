@@ -22,5 +22,9 @@ const (
 )
 
 func (g *generator) monoArraysEnabled() bool {
-	return g != nil && g.opts.ExperimentalMonoArrays
+	// Static Array values are part of the compiler's native carrier contract.
+	// The legacy ExperimentalMonoArrays options remain in the public Options
+	// struct for source compatibility, but they may no longer select the
+	// runtime-store representation for statically representable arrays.
+	return g != nil
 }

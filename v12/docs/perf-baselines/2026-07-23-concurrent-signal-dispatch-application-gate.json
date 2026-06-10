@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "gate": "portable-concurrent-interface-data-application-frontier",
+  "application": "concurrent_signal_dispatch",
+  "decision": "retain-application-no-performance-candidate",
+  "normal_output": "2048:2048:2048:1024:1024:499,506,529,514:1009575853:1049137146:557952",
+  "stdout_sha256": "cb24d4b4ebe05455c69d9232b5bee08e27e1f864776c80996a0253ece9d69d94",
+  "timed_processes": {
+    "compiled": 10,
+    "go": 10,
+    "bytecode": 10,
+    "python": 10,
+    "ruby": 10,
+    "verified": 50,
+    "failures": 0,
+    "timeouts": 0
+  },
+  "pooled_means_seconds": {
+    "compiled": 0.283,
+    "go": 0.00525,
+    "bytecode": 1.67,
+    "python": 0.06325,
+    "ruby": 0.08615
+  },
+  "pooled_ratios": {
+    "compiled_over_go": 53.9047619048,
+    "bytecode_over_python": 26.4031620553,
+    "bytecode_over_ruby": 19.384793964
+  },
+  "cohort_mean_spread_percent": {
+    "compiled": 9.1872791519,
+    "go": 1.9047619048,
+    "bytecode": 6.7065868263,
+    "python": 6.4822134387,
+    "ruby": 14.0452698781
+  },
+  "profile_evidence": {
+    "compiled": {
+      "processes": 3,
+      "merged_cpu_samples_seconds": 1.12,
+      "current_gid_cumulative_percent": 93.75,
+      "interface_entry_cumulative_percent": 16.07,
+      "disposition": "closed-rejected-fixed-context-candidate",
+      "merged_profile_sha256": "8f8a70ddd0f7d8bbb49ffa3fa2094913bc685fc253576fd9677bd03363c3a1c0"
+    },
+    "bytecode": {
+      "processes": 3,
+      "mean_ns_per_op": 1313981626.3333333,
+      "mean_bytes_per_op": 108910669.33333333,
+      "mean_allocs_per_op": 2456331.6666666665,
+      "merged_cpu_samples_seconds": 3.92,
+      "array_read_slot_cumulative_percent": 39.8,
+      "raw_integer_value_info_flat_percent": 3.57,
+      "invoke_function_cumulative_percent": 54.34,
+      "disposition": "closed-existing-array-raw-integer-call-and-type-families",
+      "merged_profile_sha256": "acaa051bb3dd04362851b816dfb4d7d3daebd73b9751e171e289df5ef73f0290"
+    }
+  },
+  "interaction_frontier": {
+    "portable_applications": 52,
+    "family_count": 11,
+    "triple_count": 165,
+    "baseline_min_depth": 1,
+    "current_min_depth": 3,
+    "baseline_depth_one_triples": 8,
+    "current_depth_one_triples": 0,
+    "improved_triples": 163,
+    "performance_frontier_total_excess_seconds": 164.12684210526317,
+    "next_triple_adjacent_excess_seconds": 34.721473684210526
+  },
+  "source_sha256": {
+    "canonical_able": "79d9f7945ab5278b5725a0c28ee1e1bdf66a81530f95777c6478e9efa01d63d0",
+    "external_able": "79d9f7945ab5278b5725a0c28ee1e1bdf66a81530f95777c6478e9efa01d63d0",
+    "input": "a0e00d93a4642546c06a13092459644608d1aaee0fabc989cfcb19a78a8c154a",
+    "verifier": "0aef6a952c067f2726ef1fdbdf969edf85e38364aae25a11424c8c11b87a6c30",
+    "go": "fa2d920afaf8cc1fc02a8dd9182eace3a9d84797de5caec72dbd9c816d05bf50",
+    "python": "f80c9a053527f1469810dcabdadf34f65d379caf9cafdf1fe94fdd33e641458b",
+    "ruby": "597334c92f06c02c4f3c5770fe59e65db92dc0b3bcd1c5e3898b5a380a8c8eb1"
+  },
+  "constraints": {
+    "compiler_or_runtime_change": false,
+    "canonical_stdlib_change": false,
+    "wasm_change": false,
+    "benchmark_specific_optimization": false,
+    "non_primitive_nominal_special_case": false
+  },
+  "next": "portable-concurrent-callable-data-application-frontier"
+}

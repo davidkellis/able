@@ -90,6 +90,10 @@
         "named": true
       },
       {
+        "type": "export_statement",
+        "named": true
+      },
+      {
         "type": "expression_statement",
         "named": true
       },
@@ -735,6 +739,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "export_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "path": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "import_path",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -3793,6 +3823,10 @@
     "named": false
   },
   {
+    "type": "export",
+    "named": false
+  },
+  {
     "type": "extern",
     "named": false
   },
@@ -3806,6 +3840,10 @@
   },
   {
     "type": "for",
+    "named": false
+  },
+  {
+    "type": "from",
     "named": false
   },
   {

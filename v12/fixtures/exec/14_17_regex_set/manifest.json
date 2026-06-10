@@ -1,0 +1,17 @@
+{
+  "description": "regex sets compile patterns into one combined NFA and return matching source indices deterministically",
+  "expect": {
+    "stdout": [
+      "ordered true 3 [0|1|2]",
+      "repeat true 1 [1]",
+      "none false 0 []",
+      "empty-set false 0 []",
+      "zero-width true 1 [0]",
+      "case-fold true 1 [0]",
+      "multiline true 1 [0]",
+      "anchored false 0 []",
+      "invalid rejected",
+      "unsupported rejected"
+    ]
+  }
+}

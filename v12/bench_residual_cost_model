@@ -1,0 +1,466 @@
+#!/usr/bin/env python3
+"""Reconcile application-level residual cost evidence with the current frontier."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-residual-cost-evidence.json"
+DEFAULT_FRONTIER = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json"
+)
+VALID_DYNAMIC_STATUSES = {"measured", "guard-capped", "guard-skipped"}
+VALID_MECHANISM_STATUSES = {
+    "open",
+    "closed-rejected",
+    "insufficient-breadth",
+    "observational-only",
+}
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def require_nonnegative(value: Any, label: str) -> float:
+    if not isinstance(value, (int, float)) or value < 0:
+        raise ValueError(f"{label} must be a non-negative number")
+    return float(value)
+
+
+def validate_evidence(value: dict[str, Any]) -> tuple[list[dict[str, Any]], int]:
+    if value.get("kind") != "able-cross-mode-residual-cost-evidence":
+        raise ValueError("residual evidence has an invalid kind")
+    if value.get("schema_version") != 1:
+        raise ValueError("residual evidence needs schema_version 1")
+    minimum = value.get("minimum_unlike_applications")
+    if type(minimum) is not int or minimum < 2:
+        raise ValueError("minimum_unlike_applications must be an integer >= 2")
+    applications = value.get("applications")
+    if not isinstance(applications, list) or not applications:
+        raise ValueError("residual evidence needs applications")
+    names: set[str] = set()
+    families: set[str] = set()
+    for app in applications:
+        if not isinstance(app, dict):
+            raise ValueError("application evidence entries must be objects")
+        name = app.get("benchmark")
+        family = app.get("family")
+        if not isinstance(name, str) or not name:
+            raise ValueError("application evidence needs a benchmark")
+        if name in names:
+            raise ValueError(f"residual evidence repeats benchmark {name}")
+        if not isinstance(family, str) or not family:
+            raise ValueError(f"application {name} needs a family")
+        if family in families:
+            raise ValueError(f"selected applications must be unlike; repeated {family}")
+        names.add(name)
+        families.add(family)
+        static = app.get("bytecode_static")
+        if not isinstance(static, dict):
+            raise ValueError(f"application {name} needs bytecode_static")
+        require_nonnegative(static.get("function_count"), f"{name} function_count")
+        require_nonnegative(
+            static.get("instruction_count"), f"{name} instruction_count"
+        )
+        dynamic = app.get("bytecode_dynamic")
+        if not isinstance(dynamic, dict) or dynamic.get("status") not in VALID_DYNAMIC_STATUSES:
+            raise ValueError(f"application {name} has invalid bytecode_dynamic status")
+        if dynamic["status"] == "measured":
+            total = require_nonnegative(
+                dynamic.get("total_operations"), f"{name} total_operations"
+            )
+            top = dynamic.get("top_operations")
+            if not isinstance(top, list) or not top:
+                raise ValueError(f"measured application {name} needs top_operations")
+            if sum(require_nonnegative(item.get("count"), f"{name} top count") for item in top) > total:
+                raise ValueError(f"application {name} top operations exceed total")
+        else:
+            reason = dynamic.get("reason")
+            if not isinstance(reason, str) or not reason.strip():
+                raise ValueError(f"guarded application {name} needs a reason")
+        allocation = app.get("bytecode_allocation")
+        if not isinstance(allocation, dict):
+            raise ValueError(f"application {name} needs bytecode_allocation")
+        require_nonnegative(allocation.get("bytes_per_main"), f"{name} bytes_per_main")
+        require_nonnegative(
+            allocation.get("allocations_per_main"), f"{name} allocations_per_main"
+        )
+        telemetry = app.get("compiled_telemetry")
+        if not isinstance(telemetry, dict):
+            raise ValueError(f"application {name} needs compiled_telemetry")
+        for key, count in telemetry.items():
+            require_nonnegative(count, f"{name} telemetry {key}")
+    return applications, minimum
+
+
+def frontier_rows(value: dict[str, Any]) -> tuple[dict[tuple[str, str], dict[str, Any]], float]:
+    if value.get("kind") != "able-performance-frontier":
+        raise ValueError("performance frontier has an invalid kind")
+    rows = value.get("rows")
+    if not isinstance(rows, list):
+        raise ValueError("performance frontier needs rows")
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    total = 0.0
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("performance frontier rows must be objects")
+        name = row.get("benchmark")
+        mode = row.get("mode")
+        if not isinstance(name, str) or mode not in {"bytecode", "compiled"}:
+            raise ValueError("performance frontier row needs benchmark and mode")
+        key = (name, mode)
+        if key in by_key:
+            raise ValueError(f"performance frontier repeats {name}/{mode}")
+        require_nonnegative(row.get("excess_seconds"), f"{name}/{mode} excess")
+        by_key[key] = row
+        total += float(row["excess_seconds"])
+    summary = value.get("summary")
+    recorded = summary.get("total_excess_seconds") if isinstance(summary, dict) else None
+    if not isinstance(recorded, (int, float)) or abs(total - float(recorded)) > 0.000001:
+        raise ValueError("performance frontier excess total does not reconcile")
+    return by_key, total
+
+
+def build_report(
+    evidence_path: Path, frontier_path: Path
+) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "residual evidence")
+    applications, minimum = validate_evidence(evidence)
+    frontier = load_json(frontier_path, "performance frontier")
+    rows_by_key, frontier_total = frontier_rows(frontier)
+    app_names = {app["benchmark"] for app in applications}
+    family_by_app = {app["benchmark"]: app["family"] for app in applications}
+
+    rows: list[dict[str, Any]] = []
+    selected_excess = 0.0
+    for app in applications:
+        modes: dict[str, dict[str, Any]] = {}
+        for mode in ("compiled", "bytecode"):
+            key = (app["benchmark"], mode)
+            if key not in rows_by_key:
+                raise ValueError(f"performance frontier is missing {app['benchmark']}/{mode}")
+            frontier_row = rows_by_key[key]
+            selected_excess += float(frontier_row["excess_seconds"])
+            modes[mode] = {
+                "able_real_seconds": frontier_row["able_real_seconds"],
+                "fastest_reference": frontier_row["fastest_reference"],
+                "fastest_reference_real_seconds": frontier_row[
+                    "fastest_reference_real_seconds"
+                ],
+                "reference_ratio": frontier_row["worst_ratio"],
+                "reference_ratio_language": frontier_row["worst_ratio_reference"],
+                "excess_seconds": frontier_row["excess_seconds"],
+            }
+        rows.append({**app, "modes": modes})
+
+    raw_mechanisms = evidence.get("mechanisms")
+    if not isinstance(raw_mechanisms, list):
+        raise ValueError("residual evidence needs mechanisms")
+    mechanisms: list[dict[str, Any]] = []
+    ids: set[str] = set()
+    for raw in raw_mechanisms:
+        if not isinstance(raw, dict):
+            raise ValueError("mechanisms must be objects")
+        mechanism_id = raw.get("id")
+        status = raw.get("status")
+        names = raw.get("applications")
+        modes = raw.get("modes")
+        if not isinstance(mechanism_id, str) or not mechanism_id:
+            raise ValueError("mechanism needs an id")
+        if mechanism_id in ids:
+            raise ValueError(f"residual evidence repeats mechanism {mechanism_id}")
+        ids.add(mechanism_id)
+        if status not in VALID_MECHANISM_STATUSES:
+            raise ValueError(f"mechanism {mechanism_id} has invalid status")
+        if not isinstance(names, list) or any(name not in app_names for name in names):
+            raise ValueError(f"mechanism {mechanism_id} names an unknown application")
+        if not isinstance(modes, list) or not modes or any(
+            mode not in {"bytecode", "compiled"} for mode in modes
+        ):
+            raise ValueError(f"mechanism {mechanism_id} has invalid modes")
+        unlike_families = {family_by_app[name] for name in names}
+        covered_excess = sum(
+            float(rows_by_key[(name, mode)]["excess_seconds"])
+            for name in names
+            for mode in modes
+        )
+        eligible = status == "open" and len(unlike_families) >= minimum
+        mechanisms.append(
+            {
+                **raw,
+                "application_count": len(set(names)),
+                "unlike_family_count": len(unlike_families),
+                "covered_application_excess_seconds": round(covered_excess, 6),
+                "eligible": eligible,
+            }
+        )
+    mechanisms.sort(
+        key=lambda item: (
+            not item["eligible"],
+            -item["unlike_family_count"],
+            -item["covered_application_excess_seconds"],
+            item["id"],
+        )
+    )
+    eligible = [item["id"] for item in mechanisms if item["eligible"]]
+    dynamic_counts = {status: 0 for status in sorted(VALID_DYNAMIC_STATUSES)}
+    for app in applications:
+        dynamic_counts[app["bytecode_dynamic"]["status"]] += 1
+    telemetry_totals: dict[str, int] = {}
+    for app in applications:
+        for key, count in app["compiled_telemetry"].items():
+            telemetry_totals[key] = telemetry_totals.get(key, 0) + int(count)
+    return {
+        "kind": "able-cross-mode-residual-cost-model",
+        "schema_version": 1,
+        "sources": {
+            "evidence": source_record(evidence_path),
+            "frontier": source_record(frontier_path),
+        },
+        "selection_reason": evidence["selection_reason"],
+        "summary": {
+            "application_count": len(applications),
+            "unlike_family_count": len({app["family"] for app in applications}),
+            "selected_mode_rows": len(applications) * 2,
+            "selected_excess_seconds": round(selected_excess, 6),
+            "frontier_total_excess_seconds": round(frontier_total, 6),
+            "selected_excess_share_percent": round(
+                100.0 * selected_excess / frontier_total, 6
+            ),
+            "minimum_unlike_applications": minimum,
+            "dynamic_stats_status_counts": dynamic_counts,
+            "compiled_telemetry_totals": telemetry_totals,
+            "eligible_mechanisms": eligible,
+            "decision": "candidate-eligible" if eligible else "no-candidate",
+        },
+        "applications": rows,
+        "mechanisms": mechanisms,
+        "recommendation": (
+            "Implement the highest-ranked eligible generic mechanism."
+            if eligible
+            else "Do not implement another leaf optimization from this evidence; quantify whether a complete typed/register bytecode architecture can meet the remaining interpreter budget while keeping compiler work on its separate domain-owner tracks."
+        ),
+    }
+
+
+def format_seconds(value: float) -> str:
+    return f"{value:.3f}"
+
+
+def render_markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Cross-mode residual cost model",
+        "",
+        report["selection_reason"],
+        "",
+        "## Selection",
+        "",
+        f"The {summary['application_count']} unlike applications contribute "
+        f"{summary['selected_excess_seconds']:.3f} of "
+        f"{summary['frontier_total_excess_seconds']:.3f} aggregate target-excess "
+        f"seconds ({summary['selected_excess_share_percent']:.2f}%).",
+        "",
+        "| Application | Family | Compiled s / ratio / excess | Bytecode s / ratio / excess | VM allocations | Dynamic VM ops |",
+        "| --- | --- | ---: | ---: | ---: | ---: |",
+    ]
+    for app in report["applications"]:
+        compiled = app["modes"]["compiled"]
+        bytecode = app["modes"]["bytecode"]
+        allocation = app["bytecode_allocation"]
+        dynamic = app["bytecode_dynamic"]
+        dynamic_text = (
+            f"{dynamic['total_operations']:,}"
+            if dynamic["status"] == "measured"
+            else dynamic["status"]
+        )
+        lines.append(
+            f"| `{app['benchmark']}` | {app['family']} | "
+            f"{format_seconds(compiled['able_real_seconds'])} / "
+            f"{compiled['reference_ratio']:.2f}x / "
+            f"{format_seconds(compiled['excess_seconds'])} | "
+            f"{format_seconds(bytecode['able_real_seconds'])} / "
+            f"{bytecode['reference_ratio']:.2f}x / "
+            f"{format_seconds(bytecode['excess_seconds'])} | "
+            f"{allocation['bytes_per_main']:,} B / "
+            f"{allocation['allocations_per_main']:,} | {dynamic_text} |"
+        )
+    lines.extend(
+        [
+            "",
+            "The dynamic opcode observer changes execution cost and is used only for counts. "
+            "A capped or skipped row is missing evidence, never a zero. Static lowering covers "
+            "all five applications.",
+            "",
+            "## Fresh generated and lowering evidence",
+            "",
+            "| Application | Functions / instructions | Static tracked lowering | Generic-union fast / fallback | Residual polymorphic |",
+            "| --- | ---: | --- | ---: | ---: |",
+        ]
+    )
+    for app in report["applications"]:
+        static = app["bytecode_static"]
+        hits = ", ".join(
+            f"{name}={count}"
+            for name, count in static["tracked_opcode_hits"].items()
+            if count
+        ) or "none"
+        telemetry = app["compiled_telemetry"]
+        lines.append(
+            f"| `{app['benchmark']}` | {static['function_count']} / "
+            f"{static['instruction_count']} | {hits} | "
+            f"{telemetry['generic_union_method_call']:,} / "
+            f"{telemetry['generic_union_fallback']:,} | "
+            f"{telemetry['residual_polymorphic_call']:,} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Dynamic VM operation evidence",
+            "",
+            "| Application | Status / total | Leading operations | Inline-call misses |",
+            "| --- | ---: | --- | ---: |",
+        ]
+    )
+    for app in report["applications"]:
+        dynamic = app["bytecode_dynamic"]
+        if dynamic["status"] == "measured":
+            status = f"measured / {dynamic['total_operations']:,}"
+            leading = ", ".join(
+                f"{item['name']}={item['count']:,}"
+                for item in dynamic["top_operations"]
+            )
+            misses = f"{dynamic['inline_call_misses']:,}"
+        else:
+            status = dynamic["status"]
+            leading = dynamic["reason"]
+            misses = "n/a"
+        lines.append(
+            f"| `{app['benchmark']}` | {status} | {leading} | {misses} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Cross-mode mechanism gate",
+            "",
+            "| Mechanism | Modes | Unlike families | Covered app excess | Status |",
+            "| --- | --- | ---: | ---: | --- |",
+        ]
+    )
+    for mechanism in report["mechanisms"]:
+        lines.append(
+            f"| {mechanism['label']} | {', '.join(mechanism['modes'])} | "
+            f"{mechanism['unlike_family_count']} | "
+            f"{mechanism['covered_application_excess_seconds']:.3f} s | "
+            f"`{mechanism['status']}` |"
+        )
+    lines.extend(["", "## Reconciliation", ""])
+    for mechanism in report["mechanisms"]:
+        lines.append(f"- **{mechanism['label']}:** {mechanism['reason']}")
+    telemetry = summary["compiled_telemetry_totals"]
+    lines.extend(
+        [
+            "",
+            "The generated-call audit observed "
+            f"{telemetry.get('generic_union_method_call', 0):,} fast generic-union calls "
+            f"and {telemetry.get('generic_union_fallback', 0):,} fallbacks. Their complete "
+            "absence from the text/map and both numeric applications prevents that boundary "
+            "from explaining the selected five-family residual.",
+            "",
+            "The only three-family repeated dynamic VM leader is stack/slot transport. That "
+            "is architectural evidence, not a newly eligible leaf: previously attempted partial "
+            "register, operand-lane, carrier, call, and return descendants did not pass broad gates.",
+            "",
+            "## Decision",
+            "",
+            f"**{summary['decision']}**. {report['recommendation']}",
+            "",
+            "## Reproduction",
+            "",
+            "Fresh lowering and generated-boundary acquisition:",
+            "",
+            "```sh",
+            "GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 v12/bench_bytecode_audit \\",
+            "  --benchmarks k_nucleotide,fixed_width_128,distance_field,policy_record_dispatch,concurrent_event_routing \\",
+            "  --output-json /tmp/able-residual-bytecode-audit.json \\",
+            "  --output-md /tmp/able-residual-bytecode-audit.md",
+            "v12/bench_compiled_boundary_audit --telemetry call-path --timeout 45 \\",
+            "  --benchmarks k_nucleotide,fixed_width_128,distance_field,policy_record_dispatch,concurrent_event_routing \\",
+            "  --output-json /tmp/able-residual-call-path.json",
+            "v12/bench_compiled_boundary_audit --telemetry dynamic-boundary --timeout 45 \\",
+            "  --benchmarks k_nucleotide,fixed_width_128,distance_field,policy_record_dispatch,concurrent_event_routing \\",
+            "  --output-json /tmp/able-residual-dynamic-boundary.json",
+            "```",
+            "",
+            "The VM operation counts use the existing opt-in `ABLE_BYTECODE_STATS=1` "
+            "runtime-benchmark observer, one measured main per fresh process, a 1 GiB "
+            "memory limit, and a 55-second outer timeout. Fixed Width, Distance Field, "
+            "and Event Routing completed. Policy was capped and K-Nucleotide was skipped "
+            "as recorded above.",
+            "",
+            "Model generation and contract tests:",
+            "",
+            "```sh",
+            "v12/bench_residual_cost_model \\",
+            "  --json-out v12/docs/perf-baselines/2026-07-21-cross-mode-residual-cost-model.json \\",
+            "  --markdown-out v12/docs/perf-baselines/2026-07-21-cross-mode-residual-cost-model.md",
+            "python3 v12/bench_residual_cost_model_test.py",
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--frontier", type=Path, default=DEFAULT_FRONTIER)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        report = build_report(args.evidence, args.frontier)
+    except ValueError as error:
+        raise SystemExit(f"error: {error}") from None
+    encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    if args.json_out:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(encoded, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_out.write_text(render_markdown(report), encoding="utf-8")
+    if not args.json_out and not args.markdown_out:
+        print(encoded, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

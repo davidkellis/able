@@ -1,0 +1,121 @@
+{
+  "kind": "able-compiled-allocation-shape-evidence",
+  "schema_version": 1,
+  "date": "2026-07-21",
+  "minimum_unlike_families": 3,
+  "material_cpu_percent": 1.0,
+  "applications": [
+    {
+      "benchmark": "k_nucleotide",
+      "family": "text-map",
+      "logical_units": 2000000,
+      "logical_unit": "target-sequence bases",
+      "able_source": "v12/examples/benchmarks/k_nucleotide/k_nucleotide.able",
+      "able_source_sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a",
+      "go_source": "../benchmarks/k-nucleotide/app.go",
+      "go_source_sha256": "8f1ec0923f819b16a7a63adbb1f3d7165c526e7df73462e8edf865d6a39c9a29",
+      "generated_app_sha256": "9677ee4e7e4dbf3baae3ac0b7d626d740938b1a4f016a1f40e3840af4d4a1551",
+      "able_allocation_samples": [[1224424416, 27734581], [1224424448, 27734582]],
+      "go_allocation_samples": [[4959208, 85], [4959208, 85]],
+      "cpu_seconds": 5.90,
+      "owners": ["bridge.ToUint/ToInt primitive boxes", "String builtin conversion and UTF-8 decoding", "HashMap hash/equality and Go GC"]
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "logical_units": 2000000,
+      "logical_unit": "checksum loop iterations",
+      "able_source": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+      "able_source_sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e",
+      "go_source": "../benchmarks/fixed-width-128/go-1.26/app.go",
+      "go_source_sha256": "4125d090eb3cb657b79c2fc02d3170d7aaa62588f92a1e504f0140d1dbd65094",
+      "generated_app_sha256": "017d2c08b9fca3b54241771b00f53f843d7ca70bcdd5b077949127027db4485d",
+      "able_allocation_samples": [[35535960, 2220982], [35535960, 2220982]],
+      "go_allocation_samples": [[400, 7], [400, 7]],
+      "cpu_seconds": 0.28,
+      "owners": ["loop-carried UInt128 nominal results", "caller-owned nominal result ABI", "Go GC"]
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "logical_units": 2000000,
+      "logical_unit": "numeric loop iterations",
+      "able_source": "v12/examples/benchmarks/distance_field/distance_field.able",
+      "able_source_sha256": "80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88",
+      "go_source": "../benchmarks/distance-field/go-1.26/app.go",
+      "go_source_sha256": "418832deca45aa420b724aeca415542cc5d3eac0ce5b9ad1c6305654e52a03b8",
+      "generated_app_sha256": "36d7e18a19d79799d94ba1f7ead6611b12c5a177017ec22de67a4bf53a1c60ff",
+      "able_allocation_samples": [[144, 7], [144, 7]],
+      "go_allocation_samples": [[384, 5], [384, 5]],
+      "cpu_seconds": 0.0,
+      "owners": ["direct native float loop", "no material generated-main allocation"]
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "family": "regex-dispatch",
+      "logical_units": 2048,
+      "logical_unit": "records processed",
+      "able_source": "v12/examples/benchmarks/policy_record_dispatch/policy_record_dispatch.able",
+      "able_source_sha256": "cd6089f205ff542c9c9c07c5526d47b9fc4287f9fd9c7081947d363610ec5263",
+      "go_source": "../benchmarks/policy-record-dispatch/go-1.26/app.go",
+      "go_source_sha256": "a31c758f4f52941e200b527621253bf7559e55b3da8561671aab5dab0c813ed5",
+      "generated_app_sha256": "9a0b565ab393ce5b776efead541c27065f3a7a15021bc7615c3338a1c98ebfac",
+      "able_allocation_samples": [[49171192, 970528], [49163216, 970531]],
+      "go_allocation_samples": [[322736, 3366], [322736, 3366]],
+      "cpu_seconds": 0.26,
+      "owners": ["regex NFA thread/capture storage", "String/UTF-8 conversion", "bridge.ToUint and nominal seen conversion"]
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency",
+      "logical_units": 4096,
+      "logical_unit": "routed tasks",
+      "able_source": "v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able",
+      "able_source_sha256": "23d12e189b92ee44f83917df8a8fa8a84f2ab77242f9785474df345fbe5e274b",
+      "go_source": "../benchmarks/concurrent-event-routing/go-1.26/app.go",
+      "go_source_sha256": "b6707e2193637e4a257a84f8ef9cf9208671e0d1bf9ed71b978ce5ef71659e1c",
+      "generated_app_sha256": "0bbfc2fbc40d0507787163005a81c0f7931b4fb136875301ee210446becf9993",
+      "able_allocation_samples": [[77738496, 1502284], [77804464, 1502288]],
+      "go_allocation_samples": [[604968, 4162], [604968, 4162]],
+      "cpu_seconds": 4.69,
+      "owners": ["currentGID stack discovery", "String split/UTF-8 conversion", "bridge.ToUint and nominal seen conversion"]
+    }
+  ],
+  "mechanisms": [
+    {
+      "id": "builtin-string-conversion",
+      "applications": ["k_nucleotide", "policy_record_dispatch", "concurrent_event_routing"],
+      "cpu_cumulative_percent": [22.03, 15.38, 0.64],
+      "allocation_object_percent": [25.98, 7.80, 11.33],
+      "disposition": "insufficient-three-family-cpu-leverage"
+    },
+    {
+      "id": "bridge-to-uint",
+      "applications": ["k_nucleotide", "policy_record_dispatch", "concurrent_event_routing"],
+      "cpu_cumulative_percent": [14.75, 3.85, 0.0],
+      "allocation_object_percent": [35.86, 11.37, 9.37],
+      "disposition": "causally-closed-and-insufficient-three-family-cpu-leverage"
+    },
+    {
+      "id": "loop-carried-nominal-result",
+      "applications": ["fixed_width_128"],
+      "cpu_cumulative_percent": [89.29],
+      "allocation_object_percent": [98.63],
+      "disposition": "single-family"
+    },
+    {
+      "id": "regex-nfa-storage",
+      "applications": ["policy_record_dispatch"],
+      "cpu_cumulative_percent": [46.15],
+      "allocation_object_percent": [31.0],
+      "disposition": "single-family"
+    },
+    {
+      "id": "goroutine-identity-discovery",
+      "applications": ["concurrent_event_routing"],
+      "cpu_cumulative_percent": [91.26],
+      "allocation_object_percent": [11.08],
+      "disposition": "single-family-and-causally-closed"
+    }
+  ]
+}

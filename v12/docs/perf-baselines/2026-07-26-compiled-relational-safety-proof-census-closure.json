@@ -1,0 +1,73 @@
+{
+  "schema": "able-v12-compiled-relational-safety-proof-census-closure-v1",
+  "date": "2026-07-26",
+  "decision": "retain report-only observer; retain no production change",
+  "repository_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+  "stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+  "compiler_sha256": "28697a5adf4f73918f3d83fbcddc211407dc7e539240f64e4127a4e3dd4ddcab",
+  "observer_sha256": "3c3fa13563f0ce3529751a4cabfab10d40a2925966ac90b15d9b47c5a3faa545",
+  "dependency_audit_sha256": "b78d576407e283c8413e310c2c066ea86a15b8c8fe1abaa4bad0a988139f880d",
+  "joined_rows_sha256": "6ad13ca04a79a42fba17554e9de7ec6b70192eecc64dbde504b6427b910c3cb9",
+  "protocol": {
+    "strict_applications": 61,
+    "compiled_build_args": ["-no-fallbacks"],
+    "artifact_smoke_runs_per_application": 1,
+    "verified_smoke_runs": 61,
+    "timeouts": 0,
+    "failures": 0,
+    "performance_source": "2026-07-26-current-strict-compiled-scorecard-owner-closure.json",
+    "artifact_workspace": "disk-backed /var/tmp; removed after recording"
+  },
+  "dependency_graphs": {
+    "interpreter_free": 61,
+    "package_counts": {"96": 60, "119": 1},
+    "119_package_application": "base64"
+  },
+  "census": {
+    "reachable_bounds_checks": 1006,
+    "proven_safe_checks": 89,
+    "applications_with_proven_checks": 12,
+    "applications_without_proven_checks": 49,
+    "safe_rows": [
+      {"benchmark":"nbody","checks":52,"safe":32,"universal_safe":0,"closed_only_safe":32,"dynamic_safe_checks":22500243,"able_seconds":0.082,"go_seconds":0.0354,"target_excess_seconds":0.0447368272,"material":true},
+      {"benchmark":"config_validation_extraction","checks":129,"safe":15,"universal_safe":15,"closed_only_safe":0,"dynamic_safe_checks":15,"able_seconds":0.048,"go_seconds":0.0039,"target_excess_seconds":0.0438947352,"material":false},
+      {"benchmark":"concurrent_policy_callbacks","checks":17,"safe":7,"universal_safe":7,"closed_only_safe":0,"dynamic_safe_checks":7,"able_seconds":0.03,"go_seconds":0.005,"target_excess_seconds":0.02473684,"material":false},
+      {"benchmark":"log_routing_redaction","checks":146,"safe":5,"universal_safe":5,"closed_only_safe":0,"dynamic_safe_checks":5,"able_seconds":0.064,"go_seconds":0.0054,"target_excess_seconds":0.0583157872,"material":false},
+      {"benchmark":"binary_event_log","checks":26,"safe":4,"universal_safe":4,"closed_only_safe":0,"dynamic_safe_checks":4,"able_seconds":0.148,"go_seconds":0.0079,"target_excess_seconds":0.1396842072,"material":false},
+      {"benchmark":"concurrent_signal_dispatch","checks":11,"safe":4,"universal_safe":4,"closed_only_safe":0,"dynamic_safe_checks":4,"able_seconds":0.032,"go_seconds":0.0051,"target_excess_seconds":0.0266315768,"material":false},
+      {"benchmark":"concurrent_stateful_pipeline","checks":7,"safe":4,"universal_safe":4,"closed_only_safe":0,"dynamic_safe_checks":4,"able_seconds":0.044,"go_seconds":0.0047,"target_excess_seconds":0.0390526296,"material":false},
+      {"benchmark":"concurrent_stencil_reduction","checks":11,"safe":4,"universal_safe":4,"closed_only_safe":0,"dynamic_safe_checks":4,"able_seconds":0.04,"go_seconds":0.0051,"target_excess_seconds":0.0346315768,"material":false},
+      {"benchmark":"concurrent_transform_chain","checks":11,"safe":4,"universal_safe":4,"closed_only_safe":0,"dynamic_safe_checks":4,"able_seconds":0.032,"go_seconds":0.0048,"target_excess_seconds":0.0269473664,"material":false},
+      {"benchmark":"sudoku_masks","checks":32,"safe":4,"universal_safe":0,"closed_only_safe":4,"dynamic_safe_checks":9040,"able_seconds":1.748,"go_seconds":0.5631,"target_excess_seconds":1.1552629208,"material":false},
+      {"benchmark":"manifest_normalization","checks":8,"safe":3,"universal_safe":3,"closed_only_safe":0,"dynamic_safe_checks":3,"able_seconds":0.046,"go_seconds":0.0043,"target_excess_seconds":0.0414736824,"material":false},
+      {"benchmark":"sensor_calibration","checks":10,"safe":3,"universal_safe":3,"closed_only_safe":0,"dynamic_safe_checks":3,"able_seconds":0.046,"go_seconds":0.0046,"target_excess_seconds":0.0411578928,"material":false}
+    ]
+  },
+  "proof_classes": [
+    {"name":"closed direct-call fixed Array length plus loop interval","applications":2,"material_applications":1,"decision":"reject"},
+    {"name":"local fixed Array length plus literal index","applications":10,"material_applications":0,"decision":"reject"},
+    {"name":"aggregate bounds-proof parent","applications":12,"material_applications":1,"decision":"reject"}
+  ],
+  "changes": {
+    "observer": true,
+    "production_compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter": false,
+    "vm": false,
+    "stdlib": false,
+    "benchmarks": false,
+    "language": false,
+    "dependencies": false,
+    "wasm": false
+  },
+  "verification": {
+    "focused_observer_tests": "pass",
+    "strict_builds_and_verifiers": "61/61 pass",
+    "interpreter_free_graphs": "61/61 pass",
+    "run_all_tests": "pass; final bytecode fixture corpus 86.045 seconds",
+    "changed_source_file_length_limit": "pass; every observer source file below 1000 lines",
+    "repository_length_check": "pre-existing oversized files remain outside this tranche"
+  },
+  "next": "begin typed bytecode i32 slot storage with three unlike material applications and repeated verifier-backed baseline/candidate/Python/Ruby measurement"
+}

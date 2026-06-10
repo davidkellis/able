@@ -1,0 +1,101 @@
+{
+  "kind": "able-compiled-struct-definition-typed-key-gate",
+  "schema_version": 1,
+  "date": "2026-07-22",
+  "mode": "compiled",
+  "decision": "retained",
+  "candidate": {
+    "old_key": "fmt.Sprintf(\"%p:%s\", env, name)",
+    "new_key": "struct{ env *runtime.Environment; name string }",
+    "type_specific_branches": [],
+    "stdlib_changes": false,
+    "bytecode_changes": false,
+    "wasm_changes": false
+  },
+  "protocol": {
+    "direction_reversed_cohorts": true,
+    "all_samples_retained": true,
+    "main_only_cpu_profiles": 50,
+    "exact_allocation_profiles": 8,
+    "lightweight_candidate_allocation_processes": 20,
+    "owner_timing_processes": 160,
+    "control_timing_processes": 80,
+    "verified_benchmark_processes": 318,
+    "benchmark_failures": 0,
+    "benchmark_timeouts": 0,
+    "timeout_seconds": 55,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "cpu_affinity": "0"
+  },
+  "profile_admission": [
+    {"benchmark":"binary_event_log","formatted_key_objects":557060},
+    {"benchmark":"option_result_config","formatted_key_objects":12866},
+    {"benchmark":"manifest_normalization","formatted_key_objects":38920},
+    {"benchmark":"policy_record_dispatch","formatted_key_objects":28680}
+  ],
+  "owners": [
+    {
+      "benchmark": "binary_event_log",
+      "current_seconds": [0.66,0.63,0.63,1.02,0.59,0.59,0.64,0.60,0.59,0.63,0.65,0.61,0.59,0.59,0.61,0.58,0.61,0.60,0.72,0.65],
+      "candidate_seconds": [0.59,0.74,0.58,0.55,0.52,0.52,0.53,0.54,0.53,0.55,0.60,0.51,0.55,0.55,0.54,0.51,0.52,0.53,0.55,0.51],
+      "current_mean_seconds": 0.6395,
+      "candidate_mean_seconds": 0.551,
+      "delta_percent": -13.839,
+      "current_allocation_objects": [4014877,4014876,4014877,4014875,4014877],
+      "candidate_allocation_objects": [3457793,3457792,3457793,3457793,3457793],
+      "current_allocated_bytes": [261858560,261858400,261858528,261858392,261858544],
+      "candidate_allocated_bytes": [244031272,244031128,244031272,244031256,244031240]
+    },
+    {
+      "benchmark": "option_result_config",
+      "current_seconds": [0.15,0.15,0.15,0.14,0.14,0.14,0.16,0.16,0.15,0.15,0.14,0.15,0.14,0.15,0.15,0.14,0.14,0.15,0.15,0.19],
+      "candidate_seconds": [0.15,0.14,0.15,0.14,0.14,0.15,0.16,0.15,0.15,0.15,0.14,0.16,0.14,0.15,0.15,0.14,0.14,0.15,0.15,0.15],
+      "current_mean_seconds": 0.1495,
+      "candidate_mean_seconds": 0.1475,
+      "delta_percent": -1.338,
+      "current_allocation_objects": [1065409,1065408,1065409,1065408,1065408],
+      "candidate_allocation_objects": [1052543,1052543,1052544,1052544,1052543],
+      "current_allocated_bytes": [38180208,38180048,38180208,38180064,38180064],
+      "candidate_allocated_bytes": [37768552,37768552,37768696,37768696,37768552]
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "current_seconds": [0.16,0.18,0.16,0.19,0.16,0.19,0.19,0.17,0.16,0.19,0.16,0.24,0.19,0.15,0.16,0.18,0.17,0.19,0.19,0.19],
+      "candidate_seconds": [0.16,0.19,0.16,0.15,0.15,0.15,0.16,0.18,0.16,0.16,0.20,0.19,0.15,0.16,0.16,0.16,0.17,0.16,0.18,0.17],
+      "current_mean_seconds": 0.1785,
+      "candidate_mean_seconds": 0.166,
+      "delta_percent": -7.003,
+      "current_allocation_objects": [956388,956397,956391,956390,956391],
+      "candidate_allocation_objects": [917563,917470,917470,917470,917469],
+      "current_allocated_bytes": [44622904,44660288,44623184,44623096,44623256],
+      "candidate_allocated_bytes": [43967872,43066496,43066608,43066496,43066464]
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "current_seconds": [0.20,0.18,0.23,0.19,0.19,0.20,0.22,0.29,0.19,0.17,0.35,0.20,0.17,0.19,0.17,0.24,0.18,0.18,0.33,0.18],
+      "candidate_seconds": [0.21,0.18,0.19,0.20,0.18,0.21,0.20,0.19,0.18,0.19,0.32,0.18,0.19,0.18,0.18,0.16,0.16,0.19,0.19,0.30],
+      "current_mean_seconds": 0.2125,
+      "candidate_mean_seconds": 0.199,
+      "delta_percent": -6.353,
+      "current_allocation_objects": [950050,950050,950051,950051,950051],
+      "candidate_allocation_objects": [921370,921370,921371,921385,921377],
+      "current_allocated_bytes": [48470800,48470896,48470960,48470896,48471024],
+      "candidate_allocated_bytes": [47323864,47323848,47323992,47452408,47361016]
+    }
+  ],
+  "controls": [
+    {"benchmark":"nbody","current_seconds":[0.26,0.19,0.21,0.14,0.15,0.15,0.15,0.13,0.13,0.14],"candidate_seconds":[0.14,0.16,0.14,0.14,0.14,0.17,0.15,0.15,0.14,0.15],"current_mean_seconds":0.165,"candidate_mean_seconds":0.148,"delta_percent":-10.303},
+    {"benchmark":"binarytrees","current_seconds":[30.28,30.17,31.44,30.59,30.76,30.74],"candidate_seconds":[31.30,29.92,30.11,30.34,30.97,31.73],"current_mean_seconds":30.663333,"candidate_mean_seconds":30.728333,"delta_percent":0.212},
+    {"benchmark":"k_nucleotide","current_seconds":[3.08,3.15,3.11,3.16,3.00,2.72,3.07,3.00],"candidate_seconds":[3.19,3.10,3.02,3.15,2.98,3.03,2.71,2.87],"current_mean_seconds":3.03625,"candidate_mean_seconds":3.00625,"delta_percent":-0.988},
+    {"benchmark":"matrixmultiply","current_seconds":[1.13,1.12,1.17,1.15,1.16,1.17,1.16,1.21],"candidate_seconds":[1.02,1.16,1.08,1.11,1.27,1.17,1.20,1.21],"current_mean_seconds":1.15875,"candidate_mean_seconds":1.1525,"delta_percent":-0.539},
+    {"benchmark":"mutex_ledger","current_seconds":[0.55,0.52,0.57,0.55,0.51,0.54,0.66,0.56],"candidate_seconds":[0.51,0.57,0.50,0.55,0.56,0.55,0.61,0.62],"current_mean_seconds":0.5575,"candidate_mean_seconds":0.55875,"delta_percent":0.224}
+  ],
+  "post_change_next_leaf": [
+    {"benchmark":"binary_event_log","ast_new_identifier_objects":106496,"ast_new_simple_type_expression_objects":106496},
+    {"benchmark":"option_result_config","ast_new_identifier_objects":116064,"ast_new_simple_type_expression_objects":116064},
+    {"benchmark":"manifest_normalization","ast_new_identifier_objects":4099,"ast_new_simple_type_expression_objects":4099},
+    {"benchmark":"policy_record_dispatch","ast_new_identifier_objects":2051,"ast_new_simple_type_expression_objects":2051}
+  ]
+}

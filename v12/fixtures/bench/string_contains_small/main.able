@@ -1,0 +1,46 @@
+package bench_string_contains_small
+
+import able.core.interfaces.{Error}
+import able.text.string.{String, StringBuilder}
+
+fn build_text(parts: i32) -> String {
+  builder := StringBuilder.with_capacity(parts * 28)
+  i := 0
+  loop {
+    if i >= parts { break }
+    builder.push_string(`segment${i}:able:${(i * 9) % 257};`)
+    i = i + 1
+  }
+  builder.finish() match {
+    case text: String => text,
+    case err: Error => { raise err }
+  }
+}
+
+fn score(text: String) -> i64 {
+  total: i64 = 0_i64
+  if text.contains("able") {
+    total = total + 1_i64
+  }
+  if text.contains("segment77") {
+    total = total + 77_i64
+  }
+  replaced := text.replace("able", "ABLE")
+  total = total + (replaced.len_bytes() as i64)
+  if replaced.contains("ABLE:99") {
+    total = total + 99_i64
+  }
+  total
+}
+
+fn main() -> void {
+  text := build_text(2_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 8 { break }
+    total = total + score(text)
+    rounds = rounds + 1
+  }
+  print(total)
+}

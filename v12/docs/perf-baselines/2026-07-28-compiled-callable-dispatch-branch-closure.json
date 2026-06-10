@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "runs_per_application": 5,
+  "all_runs_verified": true,
+  "applications": {
+    "future_await_race": {
+      "context_calls_mean": 902.4,
+      "context_native_bound_calls_mean": 902.4,
+      "context_method_lookup_success_mean": 902.4,
+      "legacy_native_bound_calls_mean": 207.8,
+      "current_gid_total_mean": 1293.2,
+      "legacy_await_waker_current_gid_mean": 108.8
+    },
+    "await_channel_mux": {
+      "context_calls_mean": 9216.0,
+      "context_native_bound_calls_mean": 8704.0,
+      "context_method_lookup_success_mean": 8704.0,
+      "legacy_native_bound_calls_mean": 2048.0,
+      "current_gid_total_mean": 8707.0,
+      "legacy_await_waker_current_gid_mean": 512.0
+    },
+    "mutex_await_journal": {
+      "context_calls_mean": 8520.8,
+      "context_native_bound_calls_mean": 6472.8,
+      "context_method_lookup_success_mean": 6472.8,
+      "legacy_native_bound_calls_mean": 120.6,
+      "current_gid_total_mean": 130.6,
+      "legacy_await_waker_current_gid_mean": 116.6
+    },
+    "mutex_work_queue": {
+      "context_calls_mean": 17206.6,
+      "context_native_bound_calls_mean": 13110.6,
+      "context_method_lookup_success_mean": 13110.6,
+      "legacy_native_bound_calls_mean": 296.8,
+      "current_gid_total_mean": 306.8,
+      "legacy_await_waker_current_gid_mean": 292.8
+    }
+  },
+  "zero_context_branches": [
+    "native_function_pointer",
+    "compatibility_default",
+    "default_with_environment",
+    "default_environment_swapped",
+    "method_lookup_error",
+    "method_callable_error",
+    "method_nil_result",
+    "method_node_call"
+  ],
+  "largest_shared_branch": "context native-bound method lookup and receiver injection",
+  "borrow_args_candidate": {
+    "disposition": "rejected-and-removed",
+    "four_slot": {
+      "future_await_race": {"bytes_percent": 2.57, "objects_percent": -0.77},
+      "await_channel_mux": {"bytes_percent": 1.90, "objects_percent": -5.43},
+      "mutex_await_journal": {"bytes_percent": 7.55, "objects_percent": -6.87},
+      "mutex_work_queue": {"bytes_percent": 7.14, "objects_percent": -7.02}
+    },
+    "one_slot": {
+      "future_await_race": {"bytes_percent": 1.23, "objects_percent": 0.00},
+      "await_channel_mux": {"bytes_percent": 0.26, "objects_percent": -4.28},
+      "mutex_await_journal": {"bytes_percent": 1.89, "objects_percent": -6.82},
+      "mutex_work_queue": {"bytes_percent": 1.78, "objects_percent": -6.75}
+    }
+  }
+}

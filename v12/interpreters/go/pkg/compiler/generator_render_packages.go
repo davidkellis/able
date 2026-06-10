@@ -61,7 +61,7 @@ func (g *generator) renderRegisterPackageRegistrars(buf *bytes.Buffer) bool {
 		return false
 	}
 	packageList := g.registrationPackageList()
-	fmt.Fprintf(buf, "func __able_register_compiled_method_impl_packages(rt *bridge.Runtime, interp *interpreter.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n")
+	fmt.Fprintf(buf, "func __able_register_compiled_method_impl_packages(rt *bridge.Runtime, interp bridge.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n")
 	for idx, pkgName := range packageList {
 		fmt.Fprintf(buf, "\tif err := %s(rt, interp, entryEnv, __able_bootstrapped_metadata); err != nil {\n", g.packageMethodImplRegistrarFuncName(pkgName, idx))
 		fmt.Fprintf(buf, "\t\treturn err\n")
@@ -69,7 +69,7 @@ func (g *generator) renderRegisterPackageRegistrars(buf *bytes.Buffer) bool {
 	}
 	fmt.Fprintf(buf, "\treturn nil\n")
 	fmt.Fprintf(buf, "}\n\n")
-	fmt.Fprintf(buf, "func __able_register_compiled_packages(rt *bridge.Runtime, interp *interpreter.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n")
+	fmt.Fprintf(buf, "func __able_register_compiled_packages(rt *bridge.Runtime, interp bridge.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n")
 	for idx, pkgName := range packageList {
 		fmt.Fprintf(buf, "\tif err := %s(rt, interp, entryEnv, __able_bootstrapped_metadata); err != nil {\n", g.packageRegistrarFuncName(pkgName, idx))
 		fmt.Fprintf(buf, "\t\treturn err\n")
@@ -86,7 +86,7 @@ func (g *generator) renderRegisterPackageRegistrar(buf *bytes.Buffer, pkgName st
 		return false
 	}
 	fnName := g.packageRegistrarFuncName(pkgName, idx)
-	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, interp *interpreter.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
+	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, interp bridge.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
 	fmt.Fprintf(buf, "\t_ = __able_bootstrapped_metadata\n")
 	fmt.Fprintf(buf, "\t_ = rt\n")
 	fmt.Fprintf(buf, "\t_ = interp\n")
@@ -153,7 +153,6 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 	imports := []string{
 		"able/interpreter-go/pkg/ast",
 		"able/interpreter-go/pkg/compiler/bridge",
-		"able/interpreter-go/pkg/interpreter",
 		"able/interpreter-go/pkg/runtime",
 	}
 	sort.Strings(imports)
@@ -164,8 +163,7 @@ func (g *generator) renderCompiledPackageCallableFile(pkgName string, idx int) (
 	fmt.Fprintf(&buf, ")\n\n")
 	fmt.Fprintf(&buf, "var _ = ast.NewIdentifier\n\n")
 	fnName := g.packageCallableRegistrarFuncName(pkgName, idx)
-	fmt.Fprintf(&buf, "func %s(rt *bridge.Runtime, interp *interpreter.Interpreter, pkgEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
-	fmt.Fprintf(&buf, "\t_ = rt\n")
+	fmt.Fprintf(&buf, "func %s(rt *bridge.Runtime, interp bridge.Interpreter, pkgEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
 	fmt.Fprintf(&buf, "\t_ = interp\n")
 	fmt.Fprintf(&buf, "\t_ = pkgEnv\n")
 	fmt.Fprintf(&buf, "\t_ = __able_bootstrapped_metadata\n")
@@ -320,8 +318,10 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 	imports := []string{
 		"able/interpreter-go/pkg/ast",
 		"able/interpreter-go/pkg/compiler/bridge",
-		"able/interpreter-go/pkg/interpreter",
 		"able/interpreter-go/pkg/runtime",
+	}
+	if g.retainsPackageInterfaceDefaultBodies() {
+		imports = append(imports, "able/interpreter-go/pkg/interpreter")
 	}
 	sort.Strings(imports)
 	fmt.Fprintf(&buf, "import (\n")
@@ -330,8 +330,11 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 	}
 	fmt.Fprintf(&buf, ")\n\n")
 	fmt.Fprintf(&buf, "var _ = ast.NewIdentifier\n\n")
+	if g.retainsPackageInterfaceDefaultBodies() {
+		fmt.Fprintf(&buf, "var _ = interpreter.DecodeNodeJSON\n\n")
+	}
 	fnName := g.packageMethodImplRegistrarFuncName(pkgName, idx)
-	fmt.Fprintf(&buf, "func %s(rt *bridge.Runtime, interp *interpreter.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
+	fmt.Fprintf(&buf, "func %s(rt *bridge.Runtime, interp bridge.Interpreter, entryEnv *runtime.Environment, __able_bootstrapped_metadata bool) error {\n", fnName)
 	fmt.Fprintf(&buf, "\t_ = rt\n")
 	fmt.Fprintf(&buf, "\t_ = interp\n")
 	fmt.Fprintf(&buf, "\t_ = entryEnv\n")
@@ -363,6 +366,13 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 		if !g.registerableMethod(method) {
 			continue
 		}
+		qualified := method.Info.QualifiedName
+		if qualified == "" {
+			qualified = qualifiedName(pkgName, method.MethodName)
+		}
+		fmt.Fprintf(&buf, "\tif original, err := pkgEnv.Get(%q); err == nil {\n", method.MethodName)
+		fmt.Fprintf(&buf, "\t\trt.RegisterOriginal(%q, original)\n", qualified)
+		fmt.Fprintf(&buf, "\t}\n")
 		targetExpr, ok := g.renderTypeExpression(method.TargetType)
 		if !ok {
 			return nil, fmt.Errorf("compiler: render method target type %s.%s", method.TargetName, method.MethodName)
@@ -394,6 +404,9 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 				minArgs = 0
 			}
 			fmt.Fprintf(&buf, "\t__able_register_compiled_method(%q, %q, %t, %d, %d, __able_wrap_%s)\n", method.TargetName, method.MethodName, method.ExpectsSelf, arity, minArgs, method.Info.GoName)
+			if method.ExpectsSelf {
+				fmt.Fprintf(&buf, "\t__able_register_compiled_method_direct(%q, %q, __able_wrap_%s_direct)\n", method.TargetName, method.MethodName, method.Info.GoName)
+			}
 			if !method.ExpectsSelf {
 				// Define static method into both package and entry environments for interpreter lookup
 				qualified := method.TargetName + "." + method.MethodName
@@ -437,9 +450,14 @@ func (g *generator) renderCompiledPackageMethodImplFile(pkgName string, idx int,
 			fmt.Fprintf(&buf, "\t}\n")
 			continue
 		}
+		interfacePkg := ""
+		if _, resolvedPkg, resolved := g.interfaceDefinitionForPackage(implMethod.Info.Package, implMethod.InterfaceName); resolved {
+			interfacePkg = resolvedPkg
+		}
+		interfaceIdentity := runtimeInterfaceIdentity(interfacePkg, implMethod.InterfaceName)
 		fmt.Fprintf(&buf, "\tif __able_bootstrapped_metadata && interp != nil {\n")
 		fmt.Fprintf(&buf, "\t\tif err := interp.RegisterCompiledImplMethodOverload(%q, %s, %s, %q, %q, %q, %s, __able_function_thunk_%s); err != nil {\n",
-			implMethod.InterfaceName, targetExpr, ifaceArgsExpr, constraintKey, implMethod.ImplName, implMethod.MethodName, paramExprs, implMethod.Info.GoName)
+			interfaceIdentity, targetExpr, ifaceArgsExpr, constraintKey, implMethod.ImplName, implMethod.MethodName, paramExprs, implMethod.Info.GoName)
 		fmt.Fprintf(&buf, "\t\t\treturn err\n")
 		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t}\n")

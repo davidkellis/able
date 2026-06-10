@@ -1,0 +1,335 @@
+{
+  "kind": "bytecode-three-unlike-semantic-owner-refresh",
+  "date": "2026-07-24",
+  "decision": "retain-no-change-no-shared-semantic-owner",
+  "artifacts": {
+    "repository_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+    "repository_dirty": true,
+    "go_version": "go1.26.4",
+    "able_cli_sha256": "c43d0e475fba52be3df1001607df300239858156f77558c91e8a822a91a99026",
+    "interpreter_test_sha256": "5069b6dff944d7e68aeb38fb9b85dab990b4d29c842a6cfed04fe66897cb01ab",
+    "stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+    "stdlib_dirty": true,
+    "stdlib_able_source_files": 70,
+    "stdlib_source_tree_sha256": "7fd5c9baf427f10ff612f592b5a7820a7f93abeba6959725175a0c7748b2fb4e"
+  },
+  "execution_contract": {
+    "cpu_affinity": "6",
+    "quiet_cpu_preflight": "passed",
+    "logical_cpu_budget": 1,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timeout_seconds": 59,
+    "source_root_only": true,
+    "normal_typechecking": true,
+    "warmup_main_calls": 1,
+    "measured_main_calls": 1,
+    "cpu_profile_processes_per_application": 3,
+    "exact_allocation_processes_per_application": 3,
+    "sampled_allocation_processes_per_application": 1,
+    "timing_processes_per_application_and_lane": 5,
+    "allocation_profile_rate_bytes": 65536
+  },
+  "workloads": [
+    {
+      "benchmark": "policy_record_dispatch",
+      "family": "regex-text-map-nominal",
+      "source": {
+        "path": "v12/examples/benchmarks/policy_record_dispatch/policy_record_dispatch.able",
+        "sha256": "cd6089f205ff542c9c9c07c5526d47b9fc4287f9fd9c7081947d363610ec5263"
+      },
+      "run_from": "../benchmarks/policy-record-dispatch",
+      "program_args": [
+        "records.txt"
+      ],
+      "executor": "serial",
+      "verifier": {
+        "path": "../benchmarks/policy-record-dispatch/verify.rb",
+        "sha256": "bdadd6235ab65152d46da27ca9d005456cf36835463505e0ac65c527f890f002"
+      },
+      "input": {
+        "path": "../benchmarks/policy-record-dispatch/records.txt",
+        "sha256": "50c2a7addf912c35236ce9fc3174e8b87c10cbd52b5aa55b6f7ff75109a376ba"
+      },
+      "reference_sources": {
+        "python": {
+          "path": "../benchmarks/policy-record-dispatch/python-3.14/run.py",
+          "sha256": "9b1deb13f7883db77316cff9fa4fdd3bfba53e730adab5a3098966f68cca98e1"
+        },
+        "ruby": {
+          "path": "../benchmarks/policy-record-dispatch/ruby-4.0/run.rb",
+          "sha256": "af815023090cd27bf2338575d47bd39a6309d0aa5df14b6ef2b2c8cb8d5a3f0e"
+        }
+      },
+      "stdout_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05",
+      "cpu_profiles": [
+        "cbb16c0574ad5aaf511df2da9801ed5e7cbc3260f58a28717ec43195de3f350c",
+        "d8165840b6fa2f3a3e5004264d32945565c36461bcae11b04277426ff59f915f",
+        "ace2173a61482b706834c5256f37b64ee3672b54c458093691833ccc23f8b004"
+      ],
+      "cpu_sample_seconds": 19.08,
+      "allocation_profile_sha256": "bdc756c971adf0e6c557310e79e0bc24b51210f72033aa26ec5c55edf5374c29",
+      "exact_allocation": {
+        "samples": [
+          {
+            "ns_per_op": 6241098810,
+            "bytes_per_op": 132173584,
+            "allocations_per_op": 1402480
+          },
+          {
+            "ns_per_op": 6761003064,
+            "bytes_per_op": 132540544,
+            "allocations_per_op": 1402480
+          },
+          {
+            "ns_per_op": 6797397408,
+            "bytes_per_op": 132135544,
+            "allocations_per_op": 1402450
+          }
+        ],
+        "mean_bytes_per_op": 132283224,
+        "mean_allocations_per_op": 1402470
+      },
+      "timing": {
+        "able_seconds": [
+          7.32,
+          6.77,
+          6.64,
+          6.73,
+          6.94
+        ],
+        "python_seconds": [
+          0.02,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "ruby_seconds": [
+          0.04,
+          0.04,
+          0.04,
+          0.04,
+          0.04
+        ],
+        "able_mean_seconds": 6.88,
+        "python_mean_seconds": 0.012,
+        "ruby_mean_seconds": 0.04,
+        "able_to_python_ratio": 573.3333333333333,
+        "able_to_ruby_ratio": 172.0
+      }
+    },
+    {
+      "benchmark": "mandelbrot",
+      "family": "float-byte-array",
+      "source": {
+        "path": "v12/examples/benchmarks/mandelbrot/mandelbrot.able",
+        "sha256": "663385828c4e7318bac285c4fcce27d3b435f9a3536a1a20b3cfa09af2a32315"
+      },
+      "run_from": "../benchmarks/mandelbrot",
+      "program_args": [],
+      "executor": "serial",
+      "verifier": {
+        "path": "../benchmarks/mandelbrot/verify.rb",
+        "sha256": "85990429fafcff01ae0fe0b272aab43102571248ce7e8fa52a53cc044d992af1"
+      },
+      "reference_sources": {
+        "python": {
+          "path": "../benchmarks/mandelbrot/python-3.14/run.py",
+          "sha256": "6a3aaece33adafca79ed1ed3aa2d6e7861f4a45d7c5416668ea4a58f503f9365"
+        },
+        "ruby": {
+          "path": "../benchmarks/mandelbrot/ruby-4.0/run.rb",
+          "sha256": "7f814f0ccfd009685befd6bc57e9984e3fd9b2990c88dd1264e9f8676ea7aa2c"
+        }
+      },
+      "stdout_sha256": "d1560cadc49ab9dca30a4cfbe4123c1fcc0240ed80de27ad37d7fcc97159173e",
+      "cpu_profiles": [
+        "d413c1d1120793dd757be206de4f3d53a8cd006a0fe1417491e7c5e4f90f38d8",
+        "f8d194d7705ff9fcaf68889e33fff40fe0b4070ec004fdbf33d5f39092a75c1d",
+        "e519fdc1ffe3ca7a43f216149b26000e3af4ae94966821641949cd450be9de0c"
+      ],
+      "cpu_sample_seconds": 17.26,
+      "allocation_profile_sha256": "69e079634d46904e3d0e9467ef0b082751632372d8f0459ff1f5a464b4fbe5a7",
+      "exact_allocation": {
+        "samples": [
+          {
+            "ns_per_op": 5910513581,
+            "bytes_per_op": 615167904,
+            "allocations_per_op": 76303081
+          },
+          {
+            "ns_per_op": 6228406071,
+            "bytes_per_op": 615168456,
+            "allocations_per_op": 76303087
+          },
+          {
+            "ns_per_op": 5758350001,
+            "bytes_per_op": 615167872,
+            "allocations_per_op": 76303078
+          }
+        ],
+        "mean_bytes_per_op": 615168077.3333334,
+        "mean_allocations_per_op": 76303082
+      },
+      "timing": {
+        "able_seconds": [
+          6.28,
+          6.08,
+          6.14,
+          6.11,
+          6.38
+        ],
+        "python_seconds": [
+          1.19,
+          1.17,
+          1.17,
+          1.21,
+          1.12
+        ],
+        "ruby_seconds": [
+          1.86,
+          1.88,
+          1.81,
+          1.96,
+          1.79
+        ],
+        "able_mean_seconds": 6.198,
+        "python_mean_seconds": 1.172,
+        "ruby_mean_seconds": 1.86,
+        "able_to_python_ratio": 5.288395904436861,
+        "able_to_ruby_ratio": 3.3322580645161293
+      }
+    },
+    {
+      "benchmark": "concurrent_audio_voices",
+      "family": "concurrency-interface-callback",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "sha256": "b6a5d1e0d2901bd3341b02d1f3445601ef05670cb2442c9f706305f4ec8b7cad"
+      },
+      "run_from": "../benchmarks/concurrent-audio-voices",
+      "program_args": [],
+      "executor": "goroutine",
+      "verifier": {
+        "path": "../benchmarks/concurrent-audio-voices/verify.rb",
+        "sha256": "b03c00f7c71ef951a9f384f694a71a409fae28cf11323faa1e20eb3e8e33809f"
+      },
+      "reference_sources": {
+        "python": {
+          "path": "../benchmarks/concurrent-audio-voices/python-3.14/run.py",
+          "sha256": "155733b9ae06ffdcf26e93ff29df13fbf347aa5b4d69214081514d6a1604d57f"
+        },
+        "ruby": {
+          "path": "../benchmarks/concurrent-audio-voices/ruby-4.0/run.rb",
+          "sha256": "7b46e07d280de350c422e2ee61130ba5840f801132e9e441c6e4ccce30f2101a"
+        }
+      },
+      "stdout_sha256": "6ec28390bc9c749cf18e4a6fbd4bc03154345e1acf0a2f6601baab16884a6e28",
+      "cpu_profiles": [
+        "c9bedd7f9f15b69f833ec8bbc983427d0adb387d08c50d134bf5914391d9db28",
+        "6bfe4542c83be22267de23509e854750fb2f90c975fa8d0df5f08ddba9fca871",
+        "87b6fe9bd4e30c04182cd3ff8e0aa37836326eb5d248e2c311d7ed792eab91e0"
+      ],
+      "cpu_sample_seconds": 3.34,
+      "allocation_profile_sha256": "5c3410df2f186ef6f8c1a9ef70929654023321424a3d73e66f635acd71a9d6fe",
+      "exact_allocation": {
+        "samples": [
+          {
+            "ns_per_op": 1088858543,
+            "bytes_per_op": 181159512,
+            "allocations_per_op": 4103043
+          },
+          {
+            "ns_per_op": 1012553444,
+            "bytes_per_op": 181159232,
+            "allocations_per_op": 4103039
+          },
+          {
+            "ns_per_op": 1102198710,
+            "bytes_per_op": 181159192,
+            "allocations_per_op": 4103040
+          }
+        ],
+        "mean_bytes_per_op": 181159312,
+        "mean_allocations_per_op": 4103040.6666666665
+      },
+      "timing": {
+        "able_seconds": [
+          1.2,
+          1.22,
+          1.27,
+          1.29,
+          1.25
+        ],
+        "python_seconds": [
+          0.11,
+          0.11,
+          0.11,
+          0.12,
+          0.11
+        ],
+        "ruby_seconds": [
+          0.1,
+          0.11,
+          0.1,
+          0.11,
+          0.1
+        ],
+        "able_mean_seconds": 1.246,
+        "python_mean_seconds": 0.112,
+        "ruby_mean_seconds": 0.104,
+        "able_to_python_ratio": 11.125,
+        "able_to_ruby_ratio": 11.98076923076923
+      }
+    }
+  ],
+  "cpu_flat_intersection_at_least_one_percent": [
+    {
+      "symbol": "able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable",
+      "policy_percent": 15.62,
+      "mandelbrot_percent": 17.44,
+      "audio_percent": 6.59,
+      "disposition": "aggregate-dispatcher"
+    },
+    {
+      "symbol": "able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendSlotStackValueChecked",
+      "policy_percent": 3.25,
+      "mandelbrot_percent": 4.06,
+      "audio_percent": 1.8,
+      "disposition": "closed-stack-carrier-parent"
+    },
+    {
+      "symbol": "runtime.tryDeferToSpanScan",
+      "policy_percent": 1.21,
+      "mandelbrot_percent": 4.92,
+      "audio_percent": 6.89,
+      "disposition": "gc-symptom-different-allocation-owners"
+    },
+    {
+      "symbol": "able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendStackValue",
+      "policy_percent": 1.05,
+      "mandelbrot_percent": 1.74,
+      "audio_percent": 1.8,
+      "disposition": "closed-stack-carrier-parent"
+    }
+  ],
+  "allocation_flat_intersection_at_least_one_percent": [],
+  "candidate": {
+    "advanced": false,
+    "ab_experiment_run": false,
+    "reason": "No new exact VM/runtime semantic operation or removable allocation is material in all three unlike applications."
+  },
+  "verification": {
+    "artifact_smoke_verifiers_passed": 3,
+    "timed_verified_processes": 45,
+    "cpu_profile_processes_passed": 9,
+    "exact_allocation_processes_passed": 9,
+    "sampled_allocation_processes_passed": 3,
+    "test_command": "GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 go test ./pkg/interpreter -run TestBytecode -count=1 -timeout 60s",
+    "test_result": "ok",
+    "test_seconds": 27.069
+  },
+  "next_recommendation": "Reconcile every active bytecode VM v2 candidate direction against the complete current closure ledger and admit a prototype only for a cohesive primary-VM change with at least 25% modeled target-excess reduction in three unlike applications."
+}

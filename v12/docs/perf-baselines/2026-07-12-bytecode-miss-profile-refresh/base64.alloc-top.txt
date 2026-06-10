@@ -1,0 +1,28 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: alloc_space
+Time: 2026-07-11 23:28:38 CDT
+Showing nodes accounting for 2127.98MB, 99.28% of 2143.40MB total
+Dropped 53 nodes (cum <= 10.72MB)
+Showing top 20 nodes out of 29
+      flat  flat%   sum%        cum   cum%
+ 1199.39MB 55.96% 55.96%  1199.39MB 55.96%  plugin/unnamed-fd977a3d36305ae39ba131aa4614e1e38c0ff114.encode_bytes
+  899.78MB 41.98% 97.94%   899.78MB 41.98%  plugin/unnamed-fd977a3d36305ae39ba131aa4614e1e38c0ff114.decode_bytes
+   28.81MB  1.34% 99.28%    28.81MB  1.34%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0% 99.28%  2099.17MB 97.94%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateExternFunctionBody.(*Interpreter).makeExternNative.func1
+         0     0% 99.28%  2099.17MB 97.94%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeExternHostFunction
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0% 99.28%  2099.17MB 97.94%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execAndFinishExactNativeCall
+         0     0% 99.28%  2099.17MB 97.94%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0% 99.28%  2099.17MB 97.94%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallStaticMember
+         0     0% 99.28%  2099.17MB 97.94%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execExactNativeCall
+         0     0% 99.28%  2099.17MB 97.94%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStaticMemberCallable
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runDetached
+         0     0% 99.28%  2100.29MB 97.99%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0% 99.28%  2104.47MB 98.18%  able/interpreter-go/pkg/interpreter.BenchmarkBytecodeProgramRuntime
+         0     0% 99.28%  1199.39MB 55.96%  able/interpreter-go/pkg/interpreter.buildExternPrimitiveByteArrayFastInvoker.func2

@@ -1,0 +1,146 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "candidate": "native carrier inference for callables captured by nested generic callbacks",
+  "reason": "the exact erased captured-callable boundary is material in Manifest Normalization and Binary Event Log but absent from current Concurrent Event Routing",
+  "artifacts": "/tmp/able-captured-callable-20260725.nyhWWS",
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "slug": "concurrent-event-routing",
+      "source_sha256": "23d12e189b92ee44f83917df8a8fa8a84f2ab77242f9785474df345fbe5e274b",
+      "verifier_sha256": "9002ac45510f4c7962475abc25d2507103f3a319a8db11a12554ad6551def6e1",
+      "binary_sha256": "79c53727a425e6359326bbfd8875b66fe7b8f651a363dc037d01ecb61dde4708",
+      "interpreter_dependency": false,
+      "verified_output": "4096:4096:3072:1024:768,768,768,768:1538066199:499321",
+      "captured_carrier": "__able_fn__EventRecord_int64_to__AcceptedRoute",
+      "nested_native_argument_conversion_callsites": 0,
+      "candidate_boundary_present": false,
+      "allocation": {
+        "allocated_bytes_samples": [
+          8959944,
+          8959784,
+          8959960
+        ],
+        "allocated_bytes_mean": 8959896,
+        "allocation_samples": [
+          104585,
+          104584,
+          104585
+        ],
+        "allocations_mean": 104584.66666666667,
+        "gc_samples": [
+          6,
+          5,
+          6
+        ],
+        "gc_mean": 5.666666666666667,
+        "candidate_conversion_flat_objects": 0,
+        "candidate_conversion_cumulative_objects": 0
+      },
+      "cpu": {
+        "profile_count": 10,
+        "merged_samples_ms": 190,
+        "candidate_conversion_cumulative_ms": 0
+      }
+    },
+    {
+      "name": "Manifest Normalization",
+      "slug": "manifest-normalization",
+      "source_sha256": "518c9a692dddea837201c064a353dd1d10af968631f460553d59e3b48f62f078",
+      "verifier_sha256": "9aa52ef7fd9d6750a99d6ba4b1546ea8edf87f3be15c0e1bdd62776c62cdef39",
+      "binary_sha256": "91d0e018792d81927ed2b013cce3f0bd68547733e71d4338a12f3bef7897cab2",
+      "interpreter_dependency": false,
+      "verified_output": "4096:3072:1024:1024,1024,1024:1577539338:803938",
+      "captured_carrier": "__able_fn_runtime.Value_runtime.Value_to__NormalizedManifest",
+      "nested_native_argument_conversion_callsites": 1,
+      "candidate_boundary_present": true,
+      "allocation": {
+        "allocated_bytes_samples": [
+          5824360,
+          5824296,
+          5824360
+        ],
+        "allocated_bytes_mean": 5824338.666666667,
+        "allocation_samples": [
+          93126,
+          93125,
+          93126
+        ],
+        "allocations_mean": 93125.66666666667,
+        "gc_samples": [
+          5,
+          5,
+          5
+        ],
+        "gc_mean": 5,
+        "candidate_conversion_flat_objects": 18432,
+        "candidate_conversion_cumulative_objects": 49152,
+        "candidate_conversion_flat_space_kib": 2784,
+        "candidate_conversion_cumulative_space_kib": 3264
+      },
+      "cpu": {
+        "profile_count": 10,
+        "merged_samples_ms": 100,
+        "candidate_conversion_cumulative_ms": 60
+      }
+    },
+    {
+      "name": "Binary Event Log",
+      "slug": "binary-event-log",
+      "source_sha256": "e4ca203e32038d569c0d2040e4b3ef71da73cfc5a54649bf7fbe4dfd2012da35",
+      "verifier_sha256": "aa1146cc5702cdc8fc0695960c84883a91d2c42fcdd6790f1115e4408366cfe6",
+      "binary_sha256": "0fd2085de8914545197f02cbe3fdef573315fa8de2cd4066df022d11cf175f6b",
+      "interpreter_dependency": false,
+      "verified_output": "65536:53248:12288:22:13312,14336,12288,13312:648192:26622961321:945064",
+      "captured_carrier": "__able_fn_runtime.Value_runtime.Value_to_int64",
+      "nested_native_argument_conversion_callsites": 1,
+      "candidate_boundary_present": true,
+      "allocation": {
+        "allocated_bytes_samples": [
+          94117224,
+          94117192,
+          94117208
+        ],
+        "allocated_bytes_mean": 94117208,
+        "allocation_samples": [
+          1209078,
+          1209078,
+          1209078
+        ],
+        "allocations_mean": 1209078,
+        "gc_samples": [
+          89,
+          89,
+          90
+        ],
+        "gc_mean": 89.33333333333333,
+        "candidate_conversion_flat_objects": 319488,
+        "candidate_conversion_cumulative_objects": 851968,
+        "candidate_conversion_flat_space_kib": 48256,
+        "candidate_conversion_cumulative_space_kib": 73216
+      },
+      "cpu": {
+        "profile_count": 10,
+        "merged_samples_ms": 1600,
+        "candidate_conversion_cumulative_ms": 920
+      }
+    }
+  ],
+  "verification": {
+    "strict_builds": 3,
+    "public_verifier_passes": 42,
+    "exact_allocation_runs": 9,
+    "cpu_profile_runs": 30,
+    "ablec_test_seconds": 5.686,
+    "all_dependency_graphs_omit_interpreter": true,
+    "compiler_or_runtime_code_changed": false,
+    "stdlib_changed": false,
+    "wasm_changed": false
+  },
+  "next": {
+    "candidate": "general native nominal-to-static-interface payload preservation during error construction",
+    "why": "the refreshed profiles expose concrete application-error conversion through the shared static interface encoding path in all three unlike programs",
+    "constraint": "the rule must use shared nominal/interface semantic encoding and must not name Error implementations, Result, containers, or application types"
+  }
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -34,18 +35,35 @@ func ensureEmbeddedKernel() (string, error) {
 		return "", fmt.Errorf("resolve ABLE_HOME for embedded kernel: %w", err)
 	}
 	target := filepath.Join(cacheDir, "pkg", "src", "kernel", version, "src")
-	if _, err := os.Stat(filepath.Join(target, "kernel.able")); err == nil {
-		return target, nil // already extracted
+	parentDir := filepath.Dir(target)
+	if embeddedKernelCacheCurrent(target, parentDir) {
+		return target, nil
 	}
 	if err := extractEmbeddedFS(embeddedKernelFS, "embedded/kernel/src", target); err != nil {
 		return "", fmt.Errorf("extract embedded kernel: %w", err)
 	}
 	// Also extract package.yml to parent directory for manifest loading.
-	parentDir := filepath.Dir(target)
 	if err := extractEmbeddedFS(embeddedKernelFS, "embedded/kernel/package.yml", filepath.Join(parentDir, "package.yml")); err != nil {
 		return "", fmt.Errorf("extract embedded kernel manifest: %w", err)
 	}
 	return target, nil
+}
+
+// embeddedKernelCacheCurrent reports whether the cached embedded files still
+// match this CLI build. The kernel version intentionally changes less often
+// than its declarations, so versioned cache paths alone cannot detect updates.
+func embeddedKernelCacheCurrent(srcDir, packageDir string) bool {
+	return embeddedFileMatches(filepath.Join(srcDir, "kernel.able"), "embedded/kernel/src/kernel.able") &&
+		embeddedFileMatches(filepath.Join(packageDir, "package.yml"), "embedded/kernel/package.yml")
+}
+
+func embeddedFileMatches(path, embeddedPath string) bool {
+	cached, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	embedded, err := embeddedKernelFS.ReadFile(embeddedPath)
+	return err == nil && bytes.Equal(cached, embedded)
 }
 
 // extractEmbeddedFS extracts files from an embed.FS subtree to a target path.

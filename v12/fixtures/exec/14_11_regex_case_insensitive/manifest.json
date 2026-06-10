@@ -1,0 +1,15 @@
+{
+  "description": "case-insensitive regex atoms and classes use Unicode simple-fold equivalence without multi-code-point expansion",
+  "expect": {
+    "stdout": [
+      "default nil",
+      "kelvin K 0-3",
+      "sigma ς 0-2",
+      "range AbZ 0-3",
+      "negated nil",
+      "no_expansion nil",
+      "anchored KKk 0-5",
+      "shared_fold_nfa true false"
+    ]
+  }
+}

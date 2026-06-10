@@ -3,7 +3,7 @@ package compiler
 import "bytes"
 
 func (g *generator) renderRuntimeAwaitHelpers(buf *bytes.Buffer) {
-	buf.WriteString(`
+	buf.WriteString(g.receiverFreeClosureOwnedNativeMethods(`
 const __able_max_sleep_ms = int64(2_147_483_647)
 
 func __able_duration_from_value(val runtime.Value) (time.Duration, error) {
@@ -81,7 +81,35 @@ func __able_duration_from_value(val runtime.Value) (time.Duration, error) {
 	}
 }
 
-func __able_make_default_awaitable(callback runtime.Value) runtime.Value {
+type __able_default_awaitable struct {
+	callback runtime.Value
+}
+
+func (a *__able_default_awaitable) Kind() runtime.Kind {
+	return runtime.KindStructInstance
+}
+
+func (a *__able_default_awaitable) NativeAwaitableIsReady(_ *runtime.NativeCallContext) (bool, error) {
+	return true, nil
+}
+
+func (a *__able_default_awaitable) NativeAwaitableRegister(_ *runtime.NativeCallContext, _ runtime.Value) (runtime.Value, error) {
+	return __able_make_await_registration_value(nil), nil
+}
+
+func (a *__able_default_awaitable) NativeAwaitableCommit(_ *runtime.NativeCallContext) (runtime.Value, error) {
+	if a == nil || a.callback == nil {
+		return runtime.NilValue{}, nil
+	}
+	value, control := __able_call_value(a.callback, nil, nil)
+	return value, __able_control_to_error(__able_runtime, nil, control)
+}
+
+func (a *__able_default_awaitable) NativeAwaitableIsDefault() bool {
+	return true
+}
+
+func (a *__able_default_awaitable) MaterializeRuntimeValue() runtime.Value {
 	inst := &runtime.StructInstanceValue{
 		Fields: make(map[string]runtime.Value),
 	}
@@ -103,11 +131,7 @@ func __able_make_default_awaitable(callback runtime.Value) runtime.Value {
 		Name:  "Awaitable.commit",
 		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
-			if callback == nil {
-				return runtime.NilValue{}, nil
-			}
-			value, control := __able_call_value(callback, nil, nil)
-			return value, __able_control_to_error(__able_runtime, nil, control)
+			return a.NativeAwaitableCommit(nil)
 		},
 	}
 	isDefault := runtime.NativeFunctionValue{
@@ -124,6 +148,10 @@ func __able_make_default_awaitable(callback runtime.Value) runtime.Value {
 	return inst
 }
 
+func __able_make_default_awaitable(callback runtime.Value) runtime.Value {
+	return &__able_default_awaitable{callback: callback}
+}
+
 type __able_timer_awaitable struct {
 	deadline  time.Time
 	callback  runtime.Value
@@ -138,6 +166,30 @@ func __able_new_timer_awaitable(duration time.Duration, callback runtime.Value) 
 		deadline: time.Now().Add(duration),
 		callback: callback,
 	}
+}
+
+func (a *__able_timer_awaitable) Kind() runtime.Kind {
+	return runtime.KindStructInstance
+}
+
+func (a *__able_timer_awaitable) NativeAwaitableIsReady(_ *runtime.NativeCallContext) (bool, error) {
+	return a.isReady(), nil
+}
+
+func (a *__able_timer_awaitable) NativeAwaitableRegister(_ *runtime.NativeCallContext, waker runtime.Value) (runtime.Value, error) {
+	return a.register(waker)
+}
+
+func (a *__able_timer_awaitable) NativeAwaitableCommit(_ *runtime.NativeCallContext) (runtime.Value, error) {
+	return a.commit()
+}
+
+func (a *__able_timer_awaitable) NativeAwaitableIsDefault() bool {
+	return false
+}
+
+func (a *__able_timer_awaitable) MaterializeRuntimeValue() runtime.Value {
+	return a.toStruct()
 }
 
 func (a *__able_timer_awaitable) markReadyLocked() {
@@ -288,7 +340,7 @@ func __able_await_sleep_ms_impl(args []runtime.Value) (runtime.Value, error) {
 		callback = args[len(args)-1]
 	}
 	awaitable := __able_new_timer_awaitable(duration, callback)
-	return awaitable.toStruct(), nil
+	return awaitable, nil
 }
 
 type __able_await_arm_state struct {
@@ -306,56 +358,57 @@ type __able_await_state struct {
 	waitCh      chan struct{}
 	payload     *__able_async_payload
 	waker       runtime.Value
+` + g.awaitStateContextFields() + `
 }
 
 var __able_await_round_robin atomic.Int64
 
-func (s *__able_await_state) ensureWaitCh() chan struct{} {
+` + g.awaitSignalMethods() + `
+
+func (s *__able_await_state) consumeWakePending() bool {
+	if s == nil {
+		return false
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.waitCh == nil {
-		s.waitCh = make(chan struct{}, 1)
+	if !s.wakePending {
+		return false
 	}
-	return s.waitCh
+	s.waiting = false
+	s.wakePending = false
+` + g.awaitSignalDrain() + `	return true
 }
 
-func (s *__able_await_state) signal() {
-	ch := s.ensureWaitCh()
-	select {
-	case ch <- struct{}{}:
-	default:
+// beginWaiting publishes waiting state before registration. An awaitable may
+// wake synchronously while register is running, so publishing it afterward
+// could erase the wake and leave the task parked indefinitely.
+func (s *__able_await_state) beginWaiting() bool {
+	if s == nil {
+		return false
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.waiting {
+		return false
+	}
+	s.waiting = true
+	s.wakePending = false
+	return true
 }
 
-func (p *__able_async_payload) getAwaitState(expr *ast.AwaitExpression) *__able_await_state {
-	if p == nil || expr == nil {
-		return nil
-	}
-	if p.awaitStates == nil {
-		return nil
-	}
-	return p.awaitStates[expr]
-}
-
-func (p *__able_async_payload) setAwaitState(expr *ast.AwaitExpression, state *__able_await_state) {
-	if p == nil || expr == nil || state == nil {
+func (s *__able_await_state) clearWaiting() {
+	if s == nil {
 		return
 	}
-	if p.awaitStates == nil {
-		p.awaitStates = make(map[*ast.AwaitExpression]*__able_await_state)
-	}
-	p.awaitStates[expr] = state
+	s.mu.Lock()
+	s.waiting = false
+	s.wakePending = false
+` + g.awaitSignalDrain() + `	s.mu.Unlock()
 }
 
-func (p *__able_async_payload) clearAwaitState(expr *ast.AwaitExpression) {
-	if p == nil || expr == nil {
-		return
-	}
-	if p.awaitStates == nil {
-		return
-	}
-	delete(p.awaitStates, expr)
-}
+` + g.awaitWakePendingMethod() + `
+
+` + g.awaitStateCacheMethods() + `
 
 func __able_await_value(expr *ast.AwaitExpression, iterable runtime.Value) (runtime.Value, error) {
 	payload := __able_current_payload()
@@ -508,18 +561,28 @@ func __able_complete_await(payload *__able_async_payload, expr *ast.AwaitExpress
 }
 
 func __able_cleanup_await_state(payload *__able_async_payload, expr *ast.AwaitExpression, state *__able_await_state) {
+	__able_clear_await_registrations(state)
+	state.clearWaiting()
+	if payload != nil {
+		payload.awaitBlocked.Store(false)
+		payload.clearAwaitState(expr)
+	}
+}
+
+// __able_clear_await_registrations runs after every wake as well as during
+// final cleanup. A wake only asks the task to recheck readiness; another task
+// can acquire the resource before commit, so old one-shot registrations cannot
+// be retained for the next wait cycle.
+func __able_clear_await_registrations(state *__able_await_state) {
+	if state == nil {
+		return
+	}
 	for _, arm := range state.arms {
 		if arm == nil {
 			continue
 		}
 		__able_cancel_await_registration(arm.registration)
 		arm.registration = nil
-	}
-	state.waiting = false
-	state.wakePending = false
-	if payload != nil {
-		payload.awaitBlocked = false
-		payload.clearAwaitState(expr)
 	}
 }
 
@@ -532,6 +595,22 @@ func __able_cancel_await_registration(reg runtime.Value) {
 }
 
 func __able_invoke_awaitable_method(awaitable runtime.Value, method string, args []runtime.Value) (runtime.Value, error) {
+	if native, ok := awaitable.(runtime.NativeAwaitableValue); ok {
+		switch method {
+		case "is_ready":
+			ready, err := native.NativeAwaitableIsReady(nil)
+			return runtime.BoolValue{Val: ready}, err
+		case "register":
+			if len(args) == 0 {
+				return nil, fmt.Errorf("register expects waker argument")
+			}
+			return native.NativeAwaitableRegister(nil, args[len(args)-1])
+		case "commit":
+			return native.NativeAwaitableCommit(nil)
+		case "is_default":
+			return runtime.BoolValue{Val: native.NativeAwaitableIsDefault()}, nil
+		}
+	}
 	val, control := __able_method_call(awaitable, method, args)
 	if control != nil {
 		return nil, __able_control_to_error(__able_runtime, nil, control)
@@ -550,22 +629,15 @@ func __able_make_await_waker(payload *__able_async_payload, state *__able_await_
 	inst := &runtime.StructInstanceValue{
 		Definition: def,
 		Fields:     make(map[string]runtime.Value),
-	}
-	triggered := false
+	}` + g.awaitWakerContextSpacing() + `
 	wakeFn := runtime.NativeFunctionValue{
 		Name:  "AwaitWaker.wake",
 		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
-			if triggered {
-				return runtime.NilValue{}, nil
+` + g.legacyAwaitWakeBeforePayload() + `			if payload != nil {
+				payload.awaitBlocked.Store(false)
 			}
-			triggered = true
-			state.wakePending = true
-			if payload != nil {
-				payload.awaitBlocked = false
-			}
-			state.signal()
-			if payload != nil && payload.resumeTask != nil {
+` + g.legacyAwaitWakeAfterPayload() + `			if payload != nil && payload.resumeTask != nil {
 				payload.resumeTask()
 			}
 			return runtime.NilValue{}, nil
@@ -591,37 +663,58 @@ func __able_await_with_state(payload *__able_async_payload, expr *ast.AwaitExpre
 			__able_cleanup_await_state(payload, expr, state)
 			return nil, context.Canceled
 		}
-		if state.wakePending {
-			state.waiting = false
-			state.wakePending = false
+		if state.consumeWakePending() {
+			__able_clear_await_registrations(state)
 			continue
 		}
-		if !state.waiting {
+		if state.beginWaiting() {
 			if err := __able_register_await_state(state); err != nil {
+				state.clearWaiting()
 				return nil, err
 			}
-			state.waiting = true
-			state.wakePending = false
 		}
 
 		waitCh := state.ensureWaitCh()
-		payload.awaitBlocked = true
-
-		if payload == nil || payload.yield == nil || payload.resume == nil {
+		if payload == nil || payload.handle == nil {
 			return nil, fmt.Errorf("await expressions must run inside an asynchronous task")
 		}
+		payload.awaitBlocked.Store(true)
 
-		payload.yield <- __able_compiled_yield{}
-		<-payload.resume
-
-		payload.awaitBlocked = false
-		state.waiting = false
-		state.wakePending = false
-
-		select {
-		case <-waitCh:
-		default:
+		if payload.yield != nil && payload.resume != nil {
+			payload.yield <- __able_compiled_yield{}
+			<-payload.resume
+			select {
+			case <-waitCh:
+			default:
+			}
+		} else {
+			// Goroutine-backed tasks have no cooperative resume channel. Their
+			// waker signals waitCh directly, while task cancellation wakes the
+			// wait through the Future context.
+			if exec := __able_future_executor(); exec != nil {
+				exec.MarkBlocked(payload.handle)
+			}
+			ctx := payload.handle.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			select {
+			case <-waitCh:
+			case <-ctx.Done():
+				if exec := __able_future_executor(); exec != nil {
+					exec.MarkUnblocked(payload.handle)
+				}
+				__able_cleanup_await_state(payload, expr, state)
+				return nil, context.Canceled
+			}
+			if exec := __able_future_executor(); exec != nil {
+				exec.MarkUnblocked(payload.handle)
+			}
 		}
+
+		payload.awaitBlocked.Store(false)
+		__able_clear_await_registrations(state)
+		state.clearWaiting()
 	}
 }
 
@@ -656,5 +749,27 @@ func __able_call_value_fast(fn runtime.Value, args []runtime.Value) (runtime.Val
 		return bridge.CallValueWithNode(__able_runtime, fn, args, nil)
 	}
 }
-`)
+
+func __able_call_known_native_method_fast(receiver runtime.Value, entry *__able_compiled_method_entry, args []runtime.Value) (runtime.Value, error) {
+	if __able_runtime == nil {
+		return nil, fmt.Errorf("compiler: missing runtime")
+	}
+	if entry == nil || entry.fn == nil {
+		return nil, fmt.Errorf("compiler: missing compiled method")
+	}
+	env := __able_runtime.Env()
+	if entry.direct != nil {
+		return entry.direct(__able_runtime, env, receiver, args)
+	}
+	var state any
+	if env != nil {
+		state = env.RuntimeData()
+	}
+	ctx := &runtime.NativeCallContext{Env: env, State: state}
+	injected := append([]runtime.Value{receiver}, args...)
+	return entry.fn.Impl(ctx, injected)
+}
+`))
+	g.renderRuntimeExecutionContextCallHelpers(buf)
+	g.renderRuntimeExecutionContextAwaitHelpers(buf)
 }

@@ -3,48 +3,118 @@ package interpreter
 import (
 	"fmt"
 	"math"
+	"weak"
 
-	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
 type arrayState = runtime.ArrayState
 
+// pruneArrayHandleTracking drops completed ArrayValue views without retaining
+// them. It also keeps the single-view path compact after a shared view expires.
+// Callers hold the interpreter array mutex.
+func pruneArrayHandleTracking(tracking *arrayHandleTracking) int {
+	if tracking == nil {
+		return 0
+	}
+	if tracking.many == nil {
+		arr := tracking.single.Value()
+		if arr == nil {
+			tracking.single = weak.Pointer[runtime.ArrayValue]{}
+			return 0
+		}
+		arr.TrackedAliases = false
+		return 1
+	}
+
+	live := 0
+	var only *runtime.ArrayValue
+	for ref := range tracking.many {
+		arr := ref.Value()
+		if arr == nil {
+			delete(tracking.many, ref)
+			continue
+		}
+		live++
+		only = arr
+	}
+	switch live {
+	case 0:
+		tracking.single = weak.Pointer[runtime.ArrayValue]{}
+		tracking.many = nil
+	case 1:
+		tracking.single = weak.Make(only)
+		tracking.many = nil
+		only.TrackedAliases = false
+	default:
+		tracking.single = weak.Pointer[runtime.ArrayValue]{}
+		for ref := range tracking.many {
+			if arr := ref.Value(); arr != nil {
+				arr.TrackedAliases = true
+			} else {
+				delete(tracking.many, ref)
+			}
+		}
+	}
+	return live
+}
+
 func (i *Interpreter) trackArrayValue(handle int64, arr *runtime.ArrayValue) {
+	if i == nil {
+		return
+	}
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	i.trackArrayValueLocked(handle, arr)
+}
+
+func (i *Interpreter) trackArrayValueLocked(handle int64, arr *runtime.ArrayValue) {
 	if arr == nil || handle == 0 {
 		return
 	}
 	if arr.Handle != 0 && arr.Handle != handle {
-		i.untrackArrayValue(arr.Handle, arr)
+		i.untrackArrayValueLocked(arr.Handle, arr)
 	}
 	if i.arraysByHandle == nil {
 		i.arraysByHandle = make(map[int64]arrayHandleTracking)
 	}
+	_ = runtime.ArrayStoreTrackArrayValueLease(arr, handle)
 	arr.Handle = handle
 	arr.TrackedHandle = handle
 	tracking := i.arraysByHandle[handle]
+	pruneArrayHandleTracking(&tracking)
 	switch {
-	case tracking.single == arr:
-		arr.TrackedAliases = false
 	case tracking.many != nil:
 		arr.TrackedAliases = true
-		tracking.many[arr] = struct{}{}
-	case tracking.single == nil:
+		tracking.many[weak.Make(arr)] = struct{}{}
+	case tracking.single.Value() == nil:
 		arr.TrackedAliases = false
-		tracking.single = arr
+		tracking.single = weak.Make(arr)
+	case tracking.single.Value() == arr:
+		arr.TrackedAliases = false
 	default:
-		tracking.single.TrackedAliases = true
+		previous := tracking.single.Value()
+		previous.TrackedAliases = true
 		arr.TrackedAliases = true
-		tracking.many = map[*runtime.ArrayValue]struct{}{
-			tracking.single: {},
-			arr:             {},
+		tracking.many = map[weak.Pointer[runtime.ArrayValue]]struct{}{
+			weak.Make(previous): {},
+			weak.Make(arr):      {},
 		}
-		tracking.single = nil
+		tracking.single = weak.Pointer[runtime.ArrayValue]{}
 	}
 	i.arraysByHandle[handle] = tracking
 }
 
 func (i *Interpreter) untrackArrayValue(handle int64, arr *runtime.ArrayValue) {
+	if i == nil {
+		return
+	}
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	i.untrackArrayValueLocked(handle, arr)
+}
+
+func (i *Interpreter) untrackArrayValueLocked(handle int64, arr *runtime.ArrayValue) {
 	if i == nil || arr == nil || handle == 0 || i.arraysByHandle == nil {
 		return
 	}
@@ -52,22 +122,16 @@ func (i *Interpreter) untrackArrayValue(handle int64, arr *runtime.ArrayValue) {
 	if !ok {
 		return
 	}
+	pruneArrayHandleTracking(&tracking)
 	switch {
-	case tracking.single == arr:
-		tracking.single = nil
+	case tracking.single.Value() == arr:
+		tracking.single = weak.Pointer[runtime.ArrayValue]{}
 		arr.TrackedAliases = false
 	case tracking.many != nil:
-		delete(tracking.many, arr)
+		delete(tracking.many, weak.Make(arr))
 		arr.TrackedAliases = false
-		if len(tracking.many) == 1 {
-			for only := range tracking.many {
-				tracking.single = only
-				only.TrackedAliases = false
-			}
-			tracking.many = nil
-		}
 	}
-	if tracking.single == nil && len(tracking.many) == 0 {
+	if pruneArrayHandleTracking(&tracking) == 0 {
 		if arr.TrackedHandle == handle {
 			arr.TrackedHandle = 0
 		}
@@ -84,20 +148,105 @@ func updateArrayElementTypeTokenForWrite(state *arrayState, idx int, value runti
 	}
 	state.Revision++
 	if idx == 0 {
+		if updateKnownI32FirstElementMetadataForWrite(state, value) {
+			return
+		}
 		token, ok := bytecodeIndexValueTypeToken(value)
 		if !ok {
 			token, ok = bytecodeArrayElementTypeTokenFromValues(state.Values)
 		}
 		state.ElementTypeToken = token
 		state.ElementTypeTokenKnown = ok
+		updateTrackedArrayI32RawCacheForWrite(state, idx, value)
 		return
 	}
 	if state.ElementTypeTokenKnown {
+		updateTrackedArrayI32RawCacheForWrite(state, idx, value)
 		return
 	}
 	token, ok := bytecodeArrayElementTypeTokenFromValues(state.Values)
 	state.ElementTypeToken = token
 	state.ElementTypeTokenKnown = ok
+	updateTrackedArrayI32RawCacheForWrite(state, idx, value)
+}
+
+func updateKnownI32FirstElementMetadataForWrite(state *arrayState, value runtime.Value) bool {
+	if state == nil ||
+		!state.ElementTypeTokenKnown ||
+		state.ElementTypeToken != bytecodeIndexTypeI32 ||
+		len(state.Values) == 0 ||
+		len(state.CachedI32Values) != len(state.Values) ||
+		len(state.CachedI32ValuesValid) != len(state.Values) {
+		return false
+	}
+	raw, ok := bytecodeDirectSmallI32Value(value)
+	if !ok || raw < math.MinInt32 || raw > math.MaxInt32 {
+		return false
+	}
+	if !state.CachedI32ValuesValid[0] {
+		state.CachedI32ValuesCount++
+	}
+	state.CachedI32Values[0] = int32(raw)
+	state.CachedI32ValuesValid[0] = true
+	state.CachedI32ValuesKnown = state.CachedI32ValuesCount == len(state.Values)
+	return true
+}
+
+func updateArrayElementTypeTokenForLength(state *arrayState) {
+	if state == nil {
+		return
+	}
+	token, ok := bytecodeArrayElementTypeTokenFromValues(state.Values)
+	state.ElementTypeToken = token
+	state.ElementTypeTokenKnown = ok
+	if !ok || token != bytecodeIndexTypeI32 {
+		clearTrackedArrayI32RawCache(state)
+		return
+	}
+	if !reconcileTrackedArrayI32RawCacheLength(state, -1) {
+		return
+	}
+}
+
+func updateTrackedArrayMetadataForSwap(state *arrayState, first int, second int) {
+	if state == nil {
+		return
+	}
+	state.Revision += 2
+	if !state.ElementTypeTokenKnown || first == 0 || second == 0 {
+		token, ok := bytecodeArrayElementTypeTokenFromValues(state.Values)
+		state.ElementTypeToken = token
+		state.ElementTypeTokenKnown = ok
+		refreshTrackedArrayI32RawCache(state)
+		return
+	}
+	if state.ElementTypeToken == bytecodeIndexTypeI32 {
+		swapTrackedArrayI32RawCache(state, first, second)
+	}
+}
+
+func arrayStateWriteKeepsMaterializedValues(state *arrayState, value runtime.Value) {
+	if state == nil || !state.ValuesMaterialized {
+		return
+	}
+	if bytecodeIsRawIntegerCarrier(value) {
+		state.ValuesMaterialized = false
+		return
+	}
+	switch value.(type) {
+	case bytecodeRawF32SlotValue, bytecodeRawF64SlotValue:
+		state.ValuesMaterialized = false
+	}
+}
+
+func materializeArrayStateValues(state *arrayState) {
+	if state == nil || state.ValuesMaterialized {
+		return
+	}
+	for idx, value := range state.Values {
+		state.Values[idx] = bytecodeMaterializeRawValue(bytecodeSlotReadValue(value))
+	}
+	state.ValuesMaterialized = true
 }
 
 func syncTrackedArrayValue(arr *runtime.ArrayValue, handle int64, state *arrayState) {
@@ -110,7 +259,110 @@ func syncTrackedArrayValue(arr *runtime.ArrayValue, handle int64, state *arraySt
 	arr.Elements = state.Values
 }
 
-func (i *Interpreter) syncTrackedArrayWrite(arr *runtime.ArrayValue, state *arrayState, idx int, value runtime.Value) {
+func (i *Interpreter) syncArrayHandleState(handle int64, state *arrayState) {
+	if i == nil {
+		return
+	}
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	i.syncArrayHandleStateLocked(handle, state)
+}
+
+func (i *Interpreter) syncArrayHandleStateLocked(handle int64, state *arrayState) {
+	if i == nil || state == nil || i.arraysByHandle == nil || handle == 0 {
+		return
+	}
+	tracking, ok := i.arraysByHandle[handle]
+	if !ok {
+		return
+	}
+	if tracking.many == nil {
+		arr := tracking.single.Value()
+		if arr == nil {
+			delete(i.arraysByHandle, handle)
+			return
+		}
+		arr.TrackedAliases = false
+		syncTrackedArrayValue(arr, handle, state)
+		return
+	}
+	for ref := range tracking.many {
+		arr := ref.Value()
+		if arr == nil {
+			delete(tracking.many, ref)
+			continue
+		}
+		syncTrackedArrayValue(arr, handle, state)
+	}
+	if pruneArrayHandleTracking(&tracking) == 0 {
+		delete(i.arraysByHandle, handle)
+		return
+	}
+	i.arraysByHandle[handle] = tracking
+}
+
+func invalidateTrackedArrayValue(arr *runtime.ArrayValue, handle int64) {
+	if arr == nil {
+		return
+	}
+	arr.Handle = handle
+	arr.TrackedHandle = handle
+	arr.State = nil
+	arr.Elements = nil
+}
+
+func (i *Interpreter) invalidateArrayHandleValueView(handle int64) {
+	if i == nil {
+		return
+	}
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	i.invalidateArrayHandleValueViewLocked(handle)
+}
+
+func (i *Interpreter) invalidateArrayHandleValueViewLocked(handle int64) {
+	if i == nil || i.arraysByHandle == nil || handle == 0 {
+		return
+	}
+	tracking, ok := i.arraysByHandle[handle]
+	if !ok {
+		return
+	}
+	if tracking.many == nil {
+		arr := tracking.single.Value()
+		if arr == nil {
+			delete(i.arraysByHandle, handle)
+			return
+		}
+		arr.TrackedAliases = false
+		invalidateTrackedArrayValue(arr, handle)
+		return
+	}
+	for ref := range tracking.many {
+		arr := ref.Value()
+		if arr == nil {
+			delete(tracking.many, ref)
+			continue
+		}
+		invalidateTrackedArrayValue(arr, handle)
+	}
+	if pruneArrayHandleTracking(&tracking) == 0 {
+		delete(i.arraysByHandle, handle)
+		return
+	}
+	i.arraysByHandle[handle] = tracking
+}
+
+func (i *Interpreter) syncTrackedArrayState(arr *runtime.ArrayValue, state *arrayState) {
+	if i == nil {
+		return
+	}
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	i.syncTrackedArrayStateLocked(arr, state)
+}
+
+func (i *Interpreter) syncTrackedArrayStateLocked(arr *runtime.ArrayValue, state *arrayState) {
 	if i == nil || arr == nil || state == nil {
 		return
 	}
@@ -118,57 +370,80 @@ func (i *Interpreter) syncTrackedArrayWrite(arr *runtime.ArrayValue, state *arra
 	if handle == 0 {
 		handle = arr.TrackedHandle
 	}
-	updateArrayElementTypeTokenForWrite(state, idx, value)
 	syncTrackedArrayValue(arr, handle, state)
-	if !arr.TrackedAliases || i.arraysByHandle == nil || handle == 0 {
+	if !arr.TrackedAliases || handle == 0 {
 		return
 	}
-	tracking, ok := i.arraysByHandle[handle]
-	if !ok {
+	i.syncArrayHandleStateLocked(handle, state)
+}
+
+func (i *Interpreter) syncTrackedArrayWrite(arr *runtime.ArrayValue, state *arrayState, idx int, value runtime.Value) {
+	if i == nil || arr == nil || state == nil {
 		return
 	}
-	if tracking.single != nil {
-		if tracking.single != arr {
-			syncTrackedArrayValue(tracking.single, handle, state)
-		}
+	updateArrayElementTypeTokenForWrite(state, idx, value)
+	arrayStateWriteKeepsMaterializedValues(state, value)
+	i.syncTrackedArrayState(arr, state)
+}
+
+func (i *Interpreter) syncArrayHandleWrite(handle int64, state *arrayState, idx int, value runtime.Value) {
+	if i == nil || state == nil {
 		return
 	}
-	for other := range tracking.many {
-		if other == nil || other == arr {
-			continue
-		}
-		syncTrackedArrayValue(other, handle, state)
+	updateArrayElementTypeTokenForWrite(state, idx, value)
+	state.ValuesMaterialized = true
+	i.syncArrayHandleState(handle, state)
+}
+
+func (i *Interpreter) syncArrayHandleWriteAfterStore(handle int64, idx int, value runtime.Value) {
+	if i == nil || handle == 0 {
+		return
+	}
+	if _, ok, err := runtime.ArrayStoreMonoElementTypeNameIfKnown(handle); err == nil && ok {
+		i.invalidateArrayHandleValueView(handle)
+		return
+	}
+	if state, err := runtime.ArrayStoreState(handle); err == nil {
+		i.syncArrayHandleWrite(handle, state, idx, value)
 	}
 }
 
-func (i *Interpreter) syncArrayValues(handle int64, state *arrayState) {
-	if state == nil || i.arraysByHandle == nil {
+func (i *Interpreter) syncArrayHandleLength(handle int64, state *arrayState) {
+	if i == nil || state == nil {
 		return
 	}
+	updateArrayElementTypeTokenForLength(state)
+	i.syncArrayHandleState(handle, state)
+}
+
+func (i *Interpreter) syncArrayHandleMetadata(handle int64, state *arrayState) {
+	if i == nil || state == nil {
+		return
+	}
+	i.syncArrayHandleState(handle, state)
+}
+
+func (i *Interpreter) syncArrayValues(handle int64, state *arrayState) {
+	if i == nil {
+		return
+	}
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	i.syncArrayValuesLocked(handle, state)
+}
+
+func (i *Interpreter) syncArrayValuesLocked(handle int64, state *arrayState) {
+	if state == nil {
+		return
+	}
+	materializeArrayStateValues(state)
 	state.Revision++
+	state.ValuesMaterialized = true
 	token, ok := bytecodeArrayElementTypeTokenFromValues(state.Values)
 	state.ElementTypeToken = token
 	state.ElementTypeTokenKnown = ok
-	tracking, ok := i.arraysByHandle[handle]
-	if !ok {
-		return
-	}
-	if tracking.single != nil {
-		tracking.single.Handle = handle
-		tracking.single.TrackedHandle = handle
-		tracking.single.State = state
-		tracking.single.Elements = state.Values
-		return
-	}
-	for arr := range tracking.many {
-		if arr == nil {
-			continue
-		}
-		arr.Handle = handle
-		arr.TrackedHandle = handle
-		arr.State = state
-		arr.Elements = state.Values
-	}
+	refreshTrackedArrayI32RawCache(state)
+	i.syncArrayHandleStateLocked(handle, state)
 }
 
 func (i *Interpreter) ensureArrayBuiltins() {
@@ -195,16 +470,54 @@ func (i *Interpreter) ensureArrayState(arr *runtime.ArrayValue, capacityHint int
 		return nil, fmt.Errorf("array receiver is nil")
 	}
 	i.ensureArrayBuiltins()
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
 	if arr.State != nil && arr.Handle != 0 && arr.TrackedHandle == arr.Handle && capacityHint <= arr.State.Capacity {
+		materializeArrayStateValues(arr.State)
+		arr.Elements = arr.State.Values
 		return arr.State, nil
+	}
+	for idx, value := range arr.Elements {
+		arr.Elements[idx] = bytecodeMaterializeRawValue(bytecodeSlotReadValue(value))
 	}
 	state, handle, err := runtime.ArrayStoreEnsure(arr, capacityHint)
 	if err != nil {
 		return nil, err
 	}
 	arr.State = state
-	i.trackArrayValue(handle, arr)
-	i.syncArrayValues(handle, state)
+	i.trackArrayValueLocked(handle, arr)
+	i.syncArrayValuesLocked(handle, state)
+	return state, nil
+}
+
+func (i *Interpreter) ensureArrayStateForMetadata(arr *runtime.ArrayValue, capacityHint int) (*arrayState, error) {
+	if arr == nil {
+		return nil, fmt.Errorf("array receiver is nil")
+	}
+	i.ensureArrayBuiltins()
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	if state := arrayCurrentTrackedState(arr); state != nil && capacityHint <= state.Capacity {
+		return state, nil
+	}
+	handle := arrayValueHandle(arr)
+	if handle != 0 {
+		state, err := runtime.ArrayStoreEnsureHandle(handle, len(arr.Elements), capacityHint)
+		if err != nil {
+			return nil, err
+		}
+		arr.State = state
+		i.trackArrayValueLocked(handle, arr)
+		i.syncTrackedArrayStateLocked(arr, state)
+		return state, nil
+	}
+	state, handle, err := runtime.ArrayStoreEnsure(arr, capacityHint)
+	if err != nil {
+		return nil, err
+	}
+	arr.State = state
+	i.trackArrayValueLocked(handle, arr)
+	i.syncTrackedArrayStateLocked(arr, state)
 	return state, nil
 }
 
@@ -225,13 +538,17 @@ func (i *Interpreter) arrayValueFromHandle(handle int64, lengthHint int, capacit
 		return nil, fmt.Errorf("array handle must be non-zero")
 	}
 	i.ensureArrayBuiltins()
-	arr, state, err := runtime.ArrayStoreValueFromHandle(handle, lengthHint, capacityHint)
+	arr, state, err := runtime.ArrayStoreValueViewFromHandle(handle, lengthHint, capacityHint)
 	if err != nil {
 		return nil, err
 	}
-	arr.State = state
-	i.syncArrayValues(handle, state)
-	i.trackArrayValue(handle, arr)
+	i.arrayMu.Lock()
+	defer i.arrayMu.Unlock()
+	i.trackArrayValueLocked(handle, arr)
+	if state != nil {
+		arr.State = state
+		i.syncArrayValuesLocked(handle, state)
+	}
 	return arr, nil
 }
 
@@ -262,36 +579,67 @@ func (i *Interpreter) newU8ArrayValueFromBytes(data []byte) *runtime.ArrayValue 
 	return arr
 }
 
-func (i *Interpreter) arrayValueFromStructFields(fields map[string]runtime.Value) (*runtime.ArrayValue, error) {
-	var handle int64
-	var length int
-	var capacity int
-	if fields != nil {
-		if hv, ok := fields["storage_handle"]; ok {
-			if intVal, ok := hv.(runtime.IntegerValue); ok {
-				if h, ok := intVal.ToInt64(); ok {
-					handle = h
-				}
-			}
-		}
-		if lv, ok := fields["length"]; ok {
-			if l, err := arrayIndexFromValue(lv); err == nil {
-				length = l
-			}
-		}
-		if cv, ok := fields["capacity"]; ok {
-			if c, err := arrayIndexFromValue(cv); err == nil {
-				capacity = c
-			}
-		}
+func (i *Interpreter) newOwnedU8ArrayValueFromBytes(data []byte) *runtime.ArrayValue {
+	arr := runtime.ArrayStoreMonoValueFromOwnedU8Bytes(data)
+	if arr != nil {
+		i.trackArrayValue(arr.Handle, arr)
 	}
-	if capacity < length {
-		capacity = length
+	return arr
+}
+
+func monoArrayHandleForGenericElementType(env *runtime.Environment, capacity int) (int64, bool) {
+	if env == nil {
+		return 0, false
 	}
-	if handle != 0 {
-		return i.arrayValueFromHandle(handle, length, capacity)
+	raw, ok := env.Lookup("T")
+	if !ok {
+		return 0, false
 	}
-	return i.newArrayValue(make([]runtime.Value, length, capacity), capacity), nil
+	var ref runtime.TypeRefValue
+	switch typed := raw.(type) {
+	case runtime.TypeRefValue:
+		ref = typed
+	case *runtime.TypeRefValue:
+		if typed == nil {
+			return 0, false
+		}
+		ref = *typed
+	default:
+		return 0, false
+	}
+	if ref.TypeName == "" || len(ref.TypeArgs) != 0 {
+		return 0, false
+	}
+	switch ref.TypeName {
+	case "i32":
+		return runtime.ArrayStoreMonoNewWithCapacityI32(capacity), true
+	case "i64":
+		return runtime.ArrayStoreMonoNewWithCapacityI64(capacity), true
+	case "bool":
+		return runtime.ArrayStoreMonoNewWithCapacityBool(capacity), true
+	case "char":
+		return runtime.ArrayStoreMonoNewWithCapacityChar(capacity), true
+	case "u8":
+		return runtime.ArrayStoreMonoNewWithCapacityU8(capacity), true
+	case "u32":
+		return runtime.ArrayStoreMonoNewWithCapacityU32(capacity), true
+	case "u64":
+		return runtime.ArrayStoreMonoNewWithCapacityU64(capacity), true
+	case "f64":
+		return runtime.ArrayStoreMonoNewWithCapacityF64(capacity), true
+	default:
+		return 0, false
+	}
+}
+
+func arrayHandleForCapacity(env *runtime.Environment, capacity int) int64 {
+	if handle, ok := monoArrayHandleForGenericElementType(env, capacity); ok {
+		return handle
+	}
+	if capacity <= 0 {
+		return runtime.ArrayStoreNew()
+	}
+	return runtime.ArrayStoreNewReservedCapacity(capacity)
 }
 
 func (i *Interpreter) initArrayBuiltins() {
@@ -303,13 +651,9 @@ func (i *Interpreter) initArrayBuiltins() {
 	}
 
 	parseArrayHandle := func(val runtime.Value) (int64, error) {
-		intVal, ok := val.(runtime.IntegerValue)
-		if !ok {
+		n, err := hostIntegerToInt64(val)
+		if err != nil {
 			return 0, fmt.Errorf("array handle must be an integer")
-		}
-		n, ok := intVal.ToInt64()
-		if !ok {
-			return 0, fmt.Errorf("array handle is out of range")
 		}
 		return n, nil
 	}
@@ -318,11 +662,15 @@ func (i *Interpreter) initArrayBuiltins() {
 		Name:       "__able_array_new",
 		Arity:      0,
 		BorrowArgs: true,
-		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+		Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 0 {
 				return nil, fmt.Errorf("__able_array_new expects no arguments")
 			}
-			handle := runtime.ArrayStoreNew()
+			var env *runtime.Environment
+			if ctx != nil {
+				env = ctx.Env
+			}
+			handle := arrayHandleForCapacity(env, 0)
 			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}
@@ -331,7 +679,7 @@ func (i *Interpreter) initArrayBuiltins() {
 		Name:       "__able_array_with_capacity",
 		Arity:      1,
 		BorrowArgs: true,
-		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+		Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_array_with_capacity expects capacity argument")
 			}
@@ -342,7 +690,11 @@ func (i *Interpreter) initArrayBuiltins() {
 			if capacity < 0 {
 				capacity = 0
 			}
-			handle := runtime.ArrayStoreNewReservedCapacity(capacity)
+			var env *runtime.Environment
+			if ctx != nil {
+				env = ctx.Env
+			}
+			handle := arrayHandleForCapacity(env, capacity)
 			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
 	}
@@ -415,7 +767,7 @@ func (i *Interpreter) initArrayBuiltins() {
 				return nil, err
 			}
 			if state, err := runtime.ArrayStoreState(handle); err == nil {
-				i.syncArrayValues(handle, state)
+				i.syncArrayHandleLength(handle, state)
 			}
 			return runtime.NilValue{}, nil
 		},
@@ -467,9 +819,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			if err := runtime.ArrayStoreWrite(handle, idx, args[2]); err != nil {
 				return nil, err
 			}
-			if state, err := runtime.ArrayStoreState(handle); err == nil {
-				i.syncArrayValues(handle, state)
-			}
+			i.syncArrayHandleWriteAfterStore(handle, idx, args[2])
 			return runtime.NilValue{}, nil
 		},
 	}
@@ -494,7 +844,7 @@ func (i *Interpreter) initArrayBuiltins() {
 				return nil, err
 			}
 			if state, err := runtime.ArrayStoreState(handle); err == nil {
-				i.syncArrayValues(handle, state)
+				i.syncArrayHandleMetadata(handle, state)
 			}
 			return runtime.NewSmallInt(handle, runtime.IntegerI64), nil
 		},
@@ -529,7 +879,7 @@ func (i *Interpreter) initArrayBuiltins() {
 		Name:       "Array.new",
 		Arity:      0,
 		BorrowArgs: true,
-		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+		Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			capacity := 0
 			if len(args) > 1 {
 				return nil, fmt.Errorf("Array.new expects zero or one argument")
@@ -547,6 +897,13 @@ func (i *Interpreter) initArrayBuiltins() {
 			if capacity < 0 {
 				capacity = 0
 			}
+			var env *runtime.Environment
+			if ctx != nil {
+				env = ctx.Env
+			}
+			if handle, ok := monoArrayHandleForGenericElementType(env, capacity); ok {
+				return i.arrayValueFromHandle(handle, 0, capacity)
+			}
 			return i.newArrayValue(make([]runtime.Value, 0, capacity), capacity), nil
 		},
 	}
@@ -563,105 +920,4 @@ func (i *Interpreter) initArrayBuiltins() {
 	i.global.Define("__able_array_clone", arrayClone)
 	i.global.Define("Array", arrayPkg)
 	i.arrayReady = true
-}
-
-func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression) (runtime.Value, error) {
-	if arr == nil {
-		return nil, fmt.Errorf("array receiver is nil")
-	}
-	state, err := i.ensureArrayState(arr, 0)
-	if err != nil {
-		return nil, err
-	}
-	ident, ok := member.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("array member access expects identifier")
-	}
-	switch ident.Name {
-	case "storage_handle":
-		if boxed, ok := boxedSmallIntValue(runtime.IntegerI64, arr.Handle); ok {
-			return boxed, nil
-		}
-		return runtime.NewSmallInt(arr.Handle, runtime.IntegerI64), nil
-	case "length":
-		return state.BoxedLengthValue(), nil
-	case "capacity":
-		return state.BoxedCapacityValue(), nil
-	case "iterator":
-		fn := runtime.NativeFunctionValue{
-			Name:       "array.iterator",
-			Arity:      0,
-			BorrowArgs: true,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("iterator expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("iterator receiver must be an array")
-				}
-				index := 0
-				iter := runtime.NewIteratorValue(func() (runtime.Value, bool, error) {
-					current, err := i.ensureArrayState(receiver, 0)
-					if err != nil {
-						return nil, true, err
-					}
-					if index >= len(current.Values) {
-						return runtime.IteratorEnd, true, nil
-					}
-					val := current.Values[index]
-					index++
-					if val == nil {
-						return runtime.NilValue{}, false, nil
-					}
-					return val, false, nil
-				}, nil)
-				return iter, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
-	default:
-		return nil, fmt.Errorf("array has no member '%s' (import able.collections.array for stdlib helpers)", ident.Name)
-	}
-}
-
-func isDirectArrayMemberName(name string) bool {
-	switch name {
-	case "storage_handle", "length", "capacity", "iterator":
-		return true
-	default:
-		return false
-	}
-}
-
-func arrayIndexFromValue(val runtime.Value) (int, error) {
-	switch v := val.(type) {
-	case runtime.IntegerValue:
-		if v.Sign() < 0 {
-			return 0, fmt.Errorf("array index must be non-negative")
-		}
-		res, ok := v.ToInt64()
-		if !ok {
-			return 0, fmt.Errorf("array index out of range")
-		}
-		if res > math.MaxInt {
-			return 0, fmt.Errorf("array index out of range")
-		}
-		return int(res), nil
-	default:
-		return 0, fmt.Errorf("array index must be an integer")
-	}
-}
-
-func makeIndexError(index int, length int) runtime.Value {
-	payload := map[string]runtime.Value{
-		"index":  runtime.NewSmallInt(int64(index), runtime.IntegerI64),
-		"length": runtime.NewSmallInt(int64(length), runtime.IntegerI64),
-	}
-	message := fmt.Sprintf("index %d out of bounds for length %d", index, length)
-	return runtime.ErrorValue{
-		TypeName: ast.NewIdentifier("IndexError"),
-		Payload:  payload,
-		Message:  message,
-	}
 }

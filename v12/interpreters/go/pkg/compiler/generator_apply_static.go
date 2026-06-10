@@ -3,6 +3,12 @@ package compiler
 import "able/interpreter-go/pkg/ast"
 
 func (g *generator) compileStaticApplyCall(ctx *compileContext, call *ast.FunctionCall, expected string, receiverExpr string, receiverType string, callNode string) ([]string, string, string, bool) {
+	if ctx != nil && ctx.environmentEffect != nil {
+		// A callable value may carry an arbitrary captured package environment.
+		// Keep imported callers behind their entry wrappers unless every call is
+		// resolved to a concrete functionInfo through the named-call path.
+		ctx.environmentEffect.localIndependent = false
+	}
 	if g == nil || ctx == nil || call == nil || receiverExpr == "" || receiverType == "" {
 		return nil, "", "", false
 	}

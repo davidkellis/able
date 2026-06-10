@@ -72,11 +72,11 @@ func TestBytecodeVMAcquireSlotFramePrefillsHotBatchForSmallLayouts(t *testing.T)
 	if len(acquired) != 3 {
 		t.Fatalf("expected acquired slot frame length 3, got %d", len(acquired))
 	}
-	if vm.slotFrameHotSize != 3 {
-		t.Fatalf("expected hot slot frame size 3, got %d", vm.slotFrameHotSize)
+	if vm.slotFrameHotSize != 0 {
+		t.Fatalf("expected legacy hot slot frame size to stay empty for small layout, got %d", vm.slotFrameHotSize)
 	}
-	if len(vm.slotFrameHotPool) != bytecodeSlotFrameBatchSize-1 {
-		t.Fatalf("expected hot slot frame pool size %d after batch prefill, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameHotPool))
+	if len(vm.slotFrameSmallHotPools[3]) != bytecodeSlotFrameBatchSize-1 {
+		t.Fatalf("expected size-3 hot slot frame pool size %d after batch prefill, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameSmallHotPools[3]))
 	}
 }
 
@@ -88,11 +88,11 @@ func TestBytecodeVMAcquireSlotFrame2UsesHotBatch(t *testing.T) {
 	if len(acquired) != 2 {
 		t.Fatalf("expected acquired slot frame length 2, got %d", len(acquired))
 	}
-	if vm.slotFrameHotSize != 2 {
-		t.Fatalf("expected hot slot frame size 2, got %d", vm.slotFrameHotSize)
+	if vm.slotFrameHotSize != 0 {
+		t.Fatalf("expected legacy hot slot frame size to stay empty for size-2 frame, got %d", vm.slotFrameHotSize)
 	}
-	if len(vm.slotFrameHotPool) != bytecodeSlotFrameBatchSize-1 {
-		t.Fatalf("expected hot slot frame pool size %d after size-2 prefill, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameHotPool))
+	if len(vm.slotFrameSmallHotPools[2]) != bytecodeSlotFrameBatchSize-1 {
+		t.Fatalf("expected size-2 hot slot frame pool size %d after prefill, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameSmallHotPools[2]))
 	}
 
 	vm.releaseSlotFrame(acquired)
@@ -121,24 +121,68 @@ func TestBytecodeVMReleaseSlotFrame2ClearsAndReusesHotPool(t *testing.T) {
 	}
 }
 
-func TestBytecodeVMAcquireSlotFrameSpillsOldHotBatchOnSizeChange(t *testing.T) {
+func TestBytecodeVMReleaseSlotFrame4ClearsAndReusesHotPool(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+
+	acquired := vm.acquireSlotFrame(4)
+	for idx := range acquired {
+		acquired[idx] = runtime.StringValue{Val: "slot"}
+	}
+
+	vm.releaseSlotFrame4(acquired)
+	for idx, value := range acquired {
+		if value != nil {
+			t.Fatalf("expected releaseSlotFrame4 to clear slot %d, got %#v", idx, value)
+		}
+	}
+
+	reacquired := vm.acquireSlotFrame(4)
+	if len(reacquired) != 4 || &reacquired[0] != &acquired[0] {
+		t.Fatalf("expected size-4 frame to round-trip through dedicated release path")
+	}
+}
+
+func TestBytecodeVMAcquireSlotFrameKeepsIndependentSmallHotPools(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
 
 	_ = vm.acquireSlotFrame(2)
-	if len(vm.slotFrameHotPool) == 0 {
-		t.Fatalf("expected initial hot pool prefill for size 2")
+	if len(vm.slotFrameSmallHotPools[2]) == 0 {
+		t.Fatalf("expected initial small hot pool prefill for size 2")
 	}
 
 	_ = vm.acquireSlotFrame(3)
-	if vm.slotFrameHotSize != 3 {
-		t.Fatalf("expected hot slot frame size to switch to 3, got %d", vm.slotFrameHotSize)
+	if vm.slotFrameHotSize != 0 {
+		t.Fatalf("expected legacy hot slot frame size to stay empty for small frames, got %d", vm.slotFrameHotSize)
+	}
+	if len(vm.slotFrameSmallHotPools[3]) != bytecodeSlotFrameBatchSize-1 {
+		t.Fatalf("expected size-3 hot slot frame pool size %d, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameSmallHotPools[3]))
+	}
+	if vm.slotFramePool != nil && len(vm.slotFramePool[2]) != 0 {
+		t.Fatalf("expected size-2 small hot frames to remain out of general pool")
+	}
+}
+
+func TestBytecodeVMAcquireSlotFrameSpillsLegacyHotBatchOnSizeChange(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+
+	_ = vm.acquireSlotFrame(bytecodeSlotFrameSmallHotMaxSlots + 1)
+	if len(vm.slotFrameHotPool) == 0 {
+		t.Fatalf("expected initial legacy hot pool prefill")
+	}
+
+	nextSize := bytecodeSlotFrameSmallHotMaxSlots + 2
+	_ = vm.acquireSlotFrame(nextSize)
+	if vm.slotFrameHotSize != nextSize {
+		t.Fatalf("expected legacy hot slot frame size to switch to %d, got %d", nextSize, vm.slotFrameHotSize)
 	}
 	if len(vm.slotFrameHotPool) != bytecodeSlotFrameBatchSize-1 {
-		t.Fatalf("expected refreshed hot slot frame pool size %d for size 3, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameHotPool))
+		t.Fatalf("expected refreshed legacy hot slot frame pool size %d, got %d", bytecodeSlotFrameBatchSize-1, len(vm.slotFrameHotPool))
 	}
-	if vm.slotFramePool == nil || len(vm.slotFramePool[2]) == 0 {
-		t.Fatalf("expected prior size-2 hot frames to spill into general pool")
+	if vm.slotFramePool == nil || len(vm.slotFramePool[bytecodeSlotFrameSmallHotMaxSlots+1]) == 0 {
+		t.Fatalf("expected prior legacy hot frames to spill into general pool")
 	}
 }
 
@@ -247,6 +291,36 @@ func TestBytecodeVMPushSelfFastMinimalCallFrameUsesMinimalStacks(t *testing.T) {
 	}
 }
 
+func TestBytecodeVMPushCallFrameUsesMinimalSelfFastWithAmbientControlStacks(t *testing.T) {
+	interp := NewBytecode()
+	env := interp.GlobalEnvironment()
+	vm := newBytecodeVM(interp, env)
+
+	callerSlots := vm.acquireSlotFrame(2)
+	vm.currentProgram = &bytecodeProgram{
+		frameLayout: &bytecodeFrameLayout{
+			preservesControlFlow: true,
+		},
+	}
+	vm.iterStack = []forLoopIterator{{}, {}}
+	vm.loopStack = []bytecodeLoopFrame{{}, {}}
+
+	vm.pushCallFrame(9, vm.currentProgram, callerSlots, env, nil, 1, 1, false, true)
+
+	if len(vm.selfFastMinimal) != 1 {
+		t.Fatalf("expected ambient self-fast call to keep minimal frame, got %d", len(vm.selfFastMinimal))
+	}
+	if len(vm.selfFastCallFrames) != 0 {
+		t.Fatalf("expected full self-fast frame stack to remain empty, got %d", len(vm.selfFastCallFrames))
+	}
+	if got := vm.selfFastMinimal[0].iterBase; got != 1 {
+		t.Fatalf("expected iterBase 1 on compact frame, got %d", got)
+	}
+	if got := vm.selfFastMinimal[0].loopBase; got != 1 {
+		t.Fatalf("expected loopBase 1 on compact frame, got %d", got)
+	}
+}
+
 func TestBytecodeVMSelfFastSlot0FrameRestoresCallerSlot(t *testing.T) {
 	interp := NewBytecode()
 	env := interp.GlobalEnvironment()
@@ -259,7 +333,7 @@ func TestBytecodeVMSelfFastSlot0FrameRestoresCallerSlot(t *testing.T) {
 	}
 	vm.slots[0] = runtime.NewSmallInt(6, runtime.IntegerI32)
 
-	returnIP, _, returnSlots, _, _, _, _, _, ok := vm.popCallFrameFields()
+	returnIP, _, returnSlots, _, _, _, _, _, _, ok := vm.popCallFrameFields()
 	if !ok {
 		t.Fatalf("expected compact self-fast frame to pop")
 	}
@@ -316,6 +390,9 @@ func TestBytecodeVMFusedSelfCallSlot0FrameReusesCurrentSlots(t *testing.T) {
 	}
 	if &vm.slots[0] != slot0 {
 		t.Fatalf("expected compact fused self-call to reuse current slot frame")
+	}
+	if _, ok := vm.slots[0].(bytecodeRawI32SlotValue); !ok {
+		t.Fatalf("expected compact fused self-call to keep raw i32 slot0, got %#v", vm.slots[0])
 	}
 	if got, ok := bytecodeRawI32Value(vm.slots[0]); !ok || got != 9 {
 		t.Fatalf("expected callee slot0 to be 9, got %d ok=%v", got, ok)

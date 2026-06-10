@@ -199,6 +199,11 @@ func (i ImplementationNamespaceType) Name() string {
 	return "Implementation"
 }
 
+func isNamedImplementationNamespaceType(typ Type) bool {
+	namespace, ok := typ.(ImplementationNamespaceType)
+	return ok && namespace.Impl != nil && namespace.Impl.ImplName != ""
+}
+
 type MethodSetSpec struct {
 	TypeParams    []GenericParamSpec
 	Target        Type

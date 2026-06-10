@@ -53,39 +53,13 @@ func bytecodeF64DotLoopPlanForLoop(ctx *bytecodeLoweringContext, loop *ast.LoopE
 		return bytecodeF64DotLoopPlan{}, false
 	}
 	return bytecodeF64DotLoopPlan{
-		accumulatorSlot:   addMulPlan.targetSlot,
-		indexSlot:         indexSlot,
-		boundSlot:         boundSlot,
-		leftReceiverSlot:  addMulPlan.leftReceiverSlot,
-		rightReceiverSlot: addMulPlan.rightReceiverSlot,
+		accumulatorSlot:    addMulPlan.targetSlot,
+		indexSlot:          indexSlot,
+		boundSlot:          boundSlot,
+		leftReceiverSlot:   addMulPlan.leftReceiverSlot,
+		rightReceiverSlot:  addMulPlan.rightReceiverSlot,
+		resultReceiverSlot: -1,
 	}, true
-}
-
-func bytecodeF64DotLoopResultAppendReceiverSlot(ctx *bytecodeLoweringContext, loop *ast.LoopExpression, stmt ast.Statement) (int, bool) {
-	if ctx == nil || ctx.frameLayout == nil || ctx.frameLayout.needsEnvScopes || loop == nil || loop.Body == nil || len(loop.Body.Body) != 3 || stmt == nil {
-		return -1, false
-	}
-	accumulatorName, _, ok := bytecodeF64DotLoopAssignment(loop.Body.Body[1])
-	if !ok || accumulatorName == "" {
-		return -1, false
-	}
-	call, ok := stmt.(*ast.FunctionCall)
-	if !ok || call == nil || len(call.Arguments) != 1 || len(call.TypeArguments) != 0 {
-		return -1, false
-	}
-	if bytecodeIdentifierExpressionName(call.Arguments[0]) != accumulatorName {
-		return -1, false
-	}
-	member, ok := call.Callee.(*ast.MemberAccessExpression)
-	if !ok || member == nil || member.Safe || bytecodeIdentifierMemberName(member.Member) != "push" {
-		return -1, false
-	}
-	receiverName := bytecodeIdentifierExpressionName(member.Object)
-	if receiverName == "" {
-		return -1, false
-	}
-	slot, found := ctx.lookupSlot(receiverName)
-	return slot, found
 }
 
 func bytecodeF64DotLoopBreakCondition(stmt ast.Statement) (string, string, bool) {

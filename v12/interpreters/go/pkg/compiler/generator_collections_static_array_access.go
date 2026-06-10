@@ -229,7 +229,10 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		indexTemp := ctx.newTemp()
 		valueTemp := ctx.newTemp()
 		lengthTemp := ctx.newTemp()
-		resultTemp := ctx.newTemp()
+		resultTemp := ""
+		if !ctx.discardResult {
+			resultTemp = ctx.newTemp()
+		}
 		lines := append(setIdxLines, setValLines...)
 		lines = append(lines, fmt.Sprintf("%s := %s", objTemp, objExpr))
 		lines, ok = g.appendIndexIntLines(ctx, lines, idxExpr, idxType, idxTemp, indexTemp)
@@ -239,9 +242,21 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		lines = append(lines,
 			fmt.Sprintf("%s := %s", valueTemp, valueExpr),
 			fmt.Sprintf("%s := %s", lengthTemp, g.staticArrayLengthExpr(objTemp)),
-			fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp),
-			fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp),
-			fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp),
+		)
+		if !ctx.discardResult {
+			lines = append(lines, fmt.Sprintf("var %s runtime.Value = runtime.NilValue{}", resultTemp))
+		}
+		lines = append(lines, fmt.Sprintf("if %s < 0 || %s >= %s {", indexTemp, indexTemp, lengthTemp))
+		if ctx.discardResult {
+			transferLines, ok := g.lowerControlTransfer(ctx, g.raiseControlExpr("nil", fmt.Sprintf("__able_error_value(__able_index_error(%s, %s))", indexTemp, lengthTemp)))
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, indentLines(transferLines, 1)...)
+		} else {
+			lines = append(lines, fmt.Sprintf("\t%s = __able_index_error(%s, %s)", resultTemp, indexTemp, lengthTemp))
+		}
+		lines = append(lines,
 			"} else {",
 			fmt.Sprintf("\t%s.Elements[%s] = %s", objTemp, indexTemp, valueTemp),
 			"}",
@@ -249,6 +264,9 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 		)
 		if writebackLines, ok := g.appendRecoveredStaticArrayWriteback(ctx, objNode, objTemp, objType); ok {
 			lines = append(lines, writebackLines...)
+		}
+		if ctx.discardResult {
+			return lines, "", "", true
 		}
 		if effectiveExpected == "" || effectiveExpected == "runtime.Value" {
 			return lines, resultTemp, "runtime.Value", true

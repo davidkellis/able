@@ -1,0 +1,116 @@
+{
+  "generated_at": "2026-07-15T08:54:55.736896Z",
+  "suite": "custom",
+  "benchmarks": [
+    "await_channel_mux",
+    "mutex_ledger",
+    "mutex_await_journal"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-15-full-coverage-scorecard-async-go-reference.json",
+  "cpu_affinity": "14",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "await_channel_mux",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "await_channel_mux",
+        "mode": "compiled",
+        "ok_runs": 3,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.33,
+        "avg_user_seconds": 0.3,
+        "avg_sys_seconds": 0.02,
+        "avg_gc": 3.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/await-channel-mux/verify.rb",
+          "verified_runs": 3,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0044,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 75.0
+        }
+      }
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "mutex_ledger",
+        "mode": "compiled",
+        "ok_runs": 3,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.51,
+        "avg_user_seconds": 0.4767,
+        "avg_sys_seconds": 0.0233,
+        "avg_gc": 3.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/mutex-ledger/verify.rb",
+          "verified_runs": 3,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "58f2e2fda882a7c1e5032a2f34c4d9d05f40ced51199c0be0672ecc4d4cf14e4"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0041,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 124.39024390243901
+        }
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "mutex_await_journal",
+        "mode": "compiled",
+        "ok_runs": 3,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.42,
+        "avg_user_seconds": 0.39,
+        "avg_sys_seconds": 0.0233,
+        "avg_gc": 3.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/mutex-await-journal/verify.rb",
+          "verified_runs": 3,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0038,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 110.52631578947368
+        }
+      }
+    }
+  ]
+}

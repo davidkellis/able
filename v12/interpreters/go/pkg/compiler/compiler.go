@@ -8,13 +8,32 @@ import (
 )
 
 type Options struct {
-	PackageName               string
-	EmitMain                  bool
-	EntryPath                 string
-	RequireNoFallbacks        bool
-	RequireStaticNoFallbacks  bool
+	PackageName              string
+	EmitMain                 bool
+	EntryPath                string
+	RequireNoFallbacks       bool
+	RequireStaticNoFallbacks bool
+	// ExperimentalMonoArrays and ExperimentalMonoArraysSet are retained for
+	// source compatibility only. Static Array lowering is permanently enabled;
+	// these fields no longer permit callers to select runtime-store carriers.
 	ExperimentalMonoArrays    bool
 	ExperimentalMonoArraysSet bool
+	// ExperimentalExecutionContext enables the generated-call context ABI
+	// prototype. It is intentionally opt-in until broad profile guards retain
+	// it across concurrent and serial workloads.
+	ExperimentalExecutionContext bool
+	// EmitDynamicBoundaryTelemetry adds debug-only counters to generated code
+	// for classified dynamic/host/runtime-service crossings. It must remain
+	// opt-in so normal compiled binaries have no telemetry branch or allocation.
+	EmitDynamicBoundaryTelemetry bool
+	// EmitCallPathTelemetry adds debug-only counters for residual generated
+	// call helpers. It is selection instrumentation only: normal generated
+	// binaries must not contain its counters, branches, or atomic operations.
+	EmitCallPathTelemetry bool
+	// EmitTypedBoundaryTelemetry adds main-only debug counters for conversions
+	// between native generated values and the shared runtime representation.
+	// It is selection instrumentation and must remain absent from normal builds.
+	EmitTypedBoundaryTelemetry bool
 }
 
 type Result struct {
@@ -64,6 +83,7 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	// collect() resolves compileability before dynamic usage is known; rerun so
 	// dynamic modules are allowed to keep explicit boundary call sites compiled.
 	gen.resolveCompileabilityFixedPoint()
+	gen.resolveCallerOwnedResults()
 	gen.discardRedundantImplFallbackSpecializations()
 	appendDynamicFeatureWarnings(gen, dynamicReport)
 	fallbacks := gen.collectFallbacks()

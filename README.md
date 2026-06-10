@@ -48,6 +48,17 @@ Combined test suites:
 ./run_all_tests.sh --version=v12 --compiler-full-matrix
 ```
 
+## Disk Cleanup
+
+From the repository root, use `just cleanup` to preview only project-local
+generated caches, temporary benchmark workspaces, fixture build targets, and
+local test binaries and Python bytecode/test caches. It deletes nothing. Use
+`just cleanup-apply` only when you are ready to reclaim that space. `just
+cleanup-archives-preview` shows the same set plus archived local profiles;
+`just cleanup-archives` removes it. These recipes refuse paths containing
+tracked files and leave source fixtures, the external `able-stdlib` checkout,
+and frozen v10/v11 workspaces untouched.
+
 ## Contributing
 - Follow the roadmap in `PLAN.md`; update it when work progresses.
 - Record architectural decisions in `v12/design/` with clear timestamps and motivation.

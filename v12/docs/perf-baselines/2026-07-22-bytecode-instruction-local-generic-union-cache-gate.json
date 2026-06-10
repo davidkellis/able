@@ -1,0 +1,40 @@
+{
+  "date": "2026-07-22",
+  "decision": "reject_instruction_local_generic_union_cache",
+  "retained_runtime_change": false,
+  "census": {
+    "owners": {
+      "calls": 151416,
+      "sites": 16,
+      "repeat_opportunities": 151400,
+      "stable_name_guard_hits": 151400,
+      "exact_environment_hits": 0,
+      "binding_resolved_calls": 0
+    },
+    "policy": {
+      "calls": 5632,
+      "sites": 3,
+      "repeat_opportunities": 5629,
+      "stable_name_guard_hits": 5629
+    },
+    "unrelated_control_successful_resolutions": 0
+  },
+  "owner_gate": [
+    {"workload":"binary_event_log","control_ns_per_op":7552184210,"candidate_ns_per_op":4874167893,"time_delta_percent":-35.4602,"bytes_delta_percent":-51.1268,"allocs_delta_percent":-39.8098},
+    {"workload":"option_result_config","control_ns_per_op":1024979220.5,"candidate_ns_per_op":746937802,"time_delta_percent":-27.1265,"bytes_delta_percent":-29.1250,"allocs_delta_percent":-25.3301},
+    {"workload":"manifest_normalization","control_ns_per_op":1674600129,"candidate_ns_per_op":1369269586,"time_delta_percent":-18.2330,"bytes_delta_percent":-27.4178,"allocs_delta_percent":-27.3089},
+    {"workload":"policy_record_dispatch","control_ns_per_op":7252571409,"candidate_ns_per_op":6654542687.5,"time_delta_percent":-8.2457}
+  ],
+  "unrelated_controls": [
+    {"workload":"string_split_join_small","candidate_ns_per_op":1034031947,"control_ns_per_op":1062532941,"time_delta_percent":-2.6824,"processes_candidate":5,"processes_control":5},
+    {"workload":"linked_list_iterator_collect_i64_small","candidate_ns_per_op":439526754.5,"control_ns_per_op":428124679,"time_delta_percent":2.6632,"processes_candidate":10,"processes_control":5,"allocation_change":"none"},
+    {"workload":"array_map_i32_small","candidate_ns_per_op":77013176,"control_ns_per_op":77460721,"time_delta_percent":-0.5778,"processes_candidate":5,"processes_control":5}
+  ],
+  "candidate_direct_verification": {"processes":20,"verified":20,"failures":0,"timeouts":0},
+  "raw_artifacts": [
+    "v12/.profiles/20260722_bytecode_generic_union_census",
+    "v12/.profiles/20260722_bytecode_generic_union_candidate",
+    "v12/.profiles/20260722_bytecode_generic_union_final"
+  ],
+  "next": "audit exact typechecker per-call method-resolution provenance and admit a dedicated lowering only for immutable proven generic-union method sites"
+}

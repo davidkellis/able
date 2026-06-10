@@ -1,0 +1,21 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [{ "type": "Identifier", "name": "source_reexport_source" }]
+  },
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": { "type": "Identifier", "name": "value" },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [{ "type": "ReturnStatement", "argument": { "type": "IntegerLiteral", "value": 42 } }]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

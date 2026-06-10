@@ -1,0 +1,52 @@
+package bench_ascii_lower_small
+
+import able.core.interfaces.{Error}
+import able.core.iteration.{IteratorEnd}
+import able.text.ascii
+import able.text.string.{String, StringBuilder}
+
+fn finish(builder: StringBuilder) -> String {
+  builder.finish() match {
+    case value: String => value,
+    case err: Error => { raise err }
+  }
+}
+
+fn build_text(parts: i32) -> String {
+  builder := StringBuilder.with_capacity(parts * 20)
+  i := 0
+  loop {
+    if i >= parts { break }
+    builder.push_string(`AbC${i}xYz${(i * 13) % 97}!`)
+    i = i + 1
+  }
+  finish(builder)
+}
+
+fn score(text: String) -> i64 {
+  iter := text.bytes()
+  total: i64 = 0_i64
+  loop {
+    iter.next() match {
+      case IteratorEnd {} => { break },
+      case byte: u8 => {
+        if ascii.is_ascii_alpha(byte) {
+          total = total + (ascii.to_ascii_lower(byte) as i64)
+        }
+      }
+    }
+  }
+  total
+}
+
+fn main() -> void {
+  text := build_text(4_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 8 { break }
+    total = total + score(text)
+    rounds = rounds + 1
+  }
+  print(total)
+}

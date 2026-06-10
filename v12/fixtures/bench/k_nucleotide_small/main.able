@@ -1,0 +1,222 @@
+package bench_k_nucleotide_small
+
+import able.collections.array
+import able.fs
+import able.io
+import able.math
+import able.os
+import able.kernel.{Array, HashMap}
+
+struct CountEntry {
+  key: u64,
+  count: i32
+}
+
+fn default_input_path() -> String { "knucleotide-input.fasta" }
+
+fn nucleotide_code(byte: u8) -> u64 {
+  if byte == 65_u8 || byte == 97_u8 { return 0_u64 }
+  if byte == 67_u8 || byte == 99_u8 { return 1_u64 }
+  if byte == 71_u8 || byte == 103_u8 { return 2_u64 }
+  3_u64
+}
+
+fn code_byte(code: u64) -> u8 {
+  if code == 0_u64 { return 65_u8 }
+  if code == 1_u64 { return 67_u8 }
+  if code == 2_u64 { return 71_u8 }
+  84_u8
+}
+
+fn read_target_sequence(path: String) -> Array u8 {
+  lines := fs.read_lines(path)
+  bytes: Array u8 := Array.new()
+  in_target := false
+  i := 0
+  loop {
+    if i >= lines.len() { break }
+    line := lines.get(i)!
+    if line.starts_with(">THREE") {
+      in_target = true
+      i = i + 1
+      continue
+    }
+    if in_target {
+      if line.starts_with(">") { break }
+      if line.len_bytes() > 0 {
+        bytes.push_all(io.string_to_bytes(line))
+      }
+    }
+    i = i + 1
+  }
+  bytes
+}
+
+fn encode_window(bytes: Array u8, start: i32, k: i32) -> u64 {
+  value := 0_u64
+  i := 0
+  loop {
+    if i >= k { break }
+    value = (value .<< 2_u64) .| nucleotide_code(bytes.read_slot(start + i))
+    i = i + 1
+  }
+  value
+}
+
+fn window_mask(k: i32) -> u64 {
+  mask := 0_u64
+  i := 0
+  loop {
+    if i >= k { break }
+    mask = (mask .<< 2_u64) .| 3_u64
+    i = i + 1
+  }
+  mask
+}
+
+fn increment_count(counts: HashMap u64 i32, key: u64) -> void {
+  current := counts.raw_get(key) match {
+    case nil => 0,
+    case value: i32 => value
+  }
+  counts.raw_set(key, current + 1)
+}
+
+fn count_windows(bytes: Array u8, k: i32) -> HashMap u64 i32 {
+  counts: HashMap u64 i32 := HashMap.with_capacity(1024)
+  total := bytes.len()
+  if total < k { return counts }
+
+  key := encode_window(bytes, 0, k)
+  increment_count(counts, key)
+  mask := window_mask(k)
+  i := k
+  loop {
+    if i >= total { break }
+    key = ((key .<< 2_u64) .& mask) .| nucleotide_code(bytes.read_slot(i))
+    increment_count(counts, key)
+    i = i + 1
+  }
+  counts
+}
+
+fn decode_key(key: u64, k: i32) -> String {
+  remaining := key
+  bytes: Array u8 := Array.with_capacity(k)
+  i := 0
+  loop {
+    if i >= k { break }
+    bytes.push(65_u8)
+    i = i + 1
+  }
+  i = k - 1
+  loop {
+    if i < 0 { break }
+    bytes.write_slot(i, code_byte(remaining .& 3_u64))
+    remaining = remaining .>> 2_u64
+    i = i - 1
+  }
+  io.bytes_to_string(bytes)
+}
+
+fn entry_before(left: CountEntry, right: CountEntry) -> bool {
+  if left.count > right.count { return true }
+  if left.count < right.count { return false }
+  left.key < right.key
+}
+
+fn sorted_entries(counts: HashMap u64 i32) -> Array CountEntry {
+  entries: Array CountEntry := Array.new()
+  counts.raw_for_each(fn(key: u64, count: i32) -> void {
+    entries.push(CountEntry { key, count })
+  })
+
+  i := 1
+  loop {
+    if i >= entries.len() { break }
+    current := entries.read_slot(i)
+    j := i
+    loop {
+      if j <= 0 { break }
+      prev := entries.read_slot(j - 1)
+      if entry_before(prev, current) { break }
+      entries.write_slot(j, prev)
+      j = j - 1
+    }
+    entries.write_slot(j, current)
+    i = i + 1
+  }
+  entries
+}
+
+fn pad_three(value: i32) -> String {
+  if value < 10 { return `00${value}` }
+  if value < 100 { return `0${value}` }
+  `${value}`
+}
+
+fn format_percent(count: i32, total: i32) -> String {
+  scaled := math.round(((count as f64) * 100000.0) / (total as f64)) as i32
+  whole := scaled // 1000
+  fraction := scaled % 1000
+  `${whole}.${pad_three(fraction)}`
+}
+
+fn print_frequency_table(bytes: Array u8, k: i32) -> void {
+  counts := count_windows(bytes, k)
+  entries := sorted_entries(counts)
+  total := bytes.len() - k + 1
+  i := 0
+  loop {
+    if i >= entries.len() { break }
+    entry := entries.read_slot(i)
+    print(`${decode_key(entry.key, k)} ${format_percent(entry.count, total)}`)
+    i = i + 1
+  }
+}
+
+fn target_sequences() -> Array String {
+  targets: Array String := Array.with_capacity(5)
+  targets.push("GGT")
+  targets.push("GGTA")
+  targets.push("GGTATT")
+  targets.push("GGTATTTTAATT")
+  targets.push("GGTATTTTAATTTATAGT")
+  targets
+}
+
+fn target_count(bytes: Array u8, target: String) -> i32 {
+  target_bytes := io.string_to_bytes(target)
+  total := bytes.len()
+  k := target_bytes.len()
+  if total < k { return 0 }
+
+  target_key := encode_window(target_bytes, 0, k)
+  key := encode_window(bytes, 0, k)
+  matches := if key == target_key { 1 } else { 0 }
+  mask := window_mask(k)
+  i := k
+  loop {
+    if i >= total { break }
+    key = ((key .<< 2_u64) .& mask) .| nucleotide_code(bytes.read_slot(i))
+    if key == target_key { matches = matches + 1 }
+    i = i + 1
+  }
+  matches
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { default_input_path() }
+  bytes := read_target_sequence(path)
+
+  print_frequency_table(bytes, 1)
+  print("")
+  print_frequency_table(bytes, 2)
+  print("")
+
+  for target in target_sequences() {
+    print(`${target_count(bytes, target)} ${target}`)
+  }
+  return
+}

@@ -259,6 +259,104 @@ func TestCompilerNoFallbacksStringBuilderUsesNativeArrayPushAll(t *testing.T) {
 	}
 }
 
+func TestCompilerCanonicalStringFromBytesPreservesValidation(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"import able.collections.array",
+		"import able.core.interfaces.{Error}",
+		"import able.kernel.{Array}",
+		"import able.text.string.{String, StringEncodingError}",
+		"",
+		"fn main() -> void {",
+		"  valid: Array u8 = Array.new()",
+		"  valid.push(104_u8)",
+		"  valid.push(195_u8)",
+		"  valid.push(169_u8)",
+		"  String.from_bytes(valid) match {",
+		"    case value: String => print(value.len_bytes()),",
+		"    case _err: StringEncodingError => print(-1)",
+		"  }",
+		"  invalid: Array u8 = Array.new()",
+		"  invalid.push(255_u8)",
+		"  String.from_bytes(invalid) match {",
+		"    case _value: String => print(-2),",
+		"    case _err: Error => print(0)",
+		"  }",
+		"}",
+		"",
+	}, "\n")
+
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-string-from-bytes-validation", source, Options{
+		PackageName:        "main",
+		EmitMain:           true,
+		RequireNoFallbacks: true,
+	})
+	if got := strings.TrimSpace(stdout); got != "3\n0" {
+		t.Fatalf("expected valid byte length and invalid UTF-8 error, got %q", stdout)
+	}
+}
+
+func TestCompilerCanonicalStringCharsPreservesUnicodeIteration(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"import able.collections.array",
+		"import able.core.interfaces.{Error}",
+		"import able.core.iteration.{IteratorEnd}",
+		"import able.kernel.{Array}",
+		"import able.text.string.{String}",
+		"",
+		"fn count_chars(value: String) -> i32 {",
+		"  iter := value.chars()",
+		"  count := 0",
+		"  loop {",
+		"    iter.next() match {",
+		"      case _: IteratorEnd => { break },",
+		"      case _: char => count = count + 1",
+		"    }",
+		"  }",
+		"  count",
+		"}",
+		"",
+		"fn invalid_chars_raise(value: String) -> i32 {",
+		"  do {",
+		"    value.chars()",
+		"    1",
+		"  } rescue {",
+		"    case _: Error => 0",
+		"  }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  valid: Array u8 = Array.new()",
+		"  valid.push(65_u8)",
+		"  valid.push(195_u8)",
+		"  valid.push(169_u8)",
+		"  valid.push(240_u8)",
+		"  valid.push(159_u8)",
+		"  valid.push(152_u8)",
+		"  valid.push(128_u8)",
+		"  String.from_bytes(valid) match {",
+		"    case value: String => print(count_chars(value)),",
+		"    case _: Error => print(-1)",
+		"  }",
+		"  invalid: Array u8 = Array.new()",
+		"  invalid.push(255_u8)",
+		"  invalid_string := String.from_bytes_unchecked(invalid)",
+		"  print(invalid_chars_raise(invalid_string))",
+		"}",
+		"",
+	}, "\n")
+
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-string-chars-validation", source, Options{
+		PackageName:        "main",
+		EmitMain:           true,
+		RequireNoFallbacks: true,
+	})
+	if got := strings.TrimSpace(stdout); got != "3\n0" {
+		t.Fatalf("expected multi-byte character count and invalid UTF-8 error, got %q", stdout)
+	}
+}
+
 func TestCompilerNoFallbacksVectorStringCompiledBuildKeepsNativeStringReceiver(t *testing.T) {
 	stdout := compileAndRunExecSourceWithOptions(t, "ablec-vector-string-native-receiver", strings.Join([]string{
 		"package demo",

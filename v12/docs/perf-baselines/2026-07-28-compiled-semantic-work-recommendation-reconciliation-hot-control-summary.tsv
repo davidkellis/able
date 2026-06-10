@@ -1,0 +1,15 @@
+application	function	control_free	universal_range_free	closed_reachable	closed_range_free	range_class	primitive_blockers	relational_checks	relational_safe
+tapelang_alphabet	__able_compiled_fn_execute_ctx	false	false	true	false	reachable-unproven	1	5	0
+tapelang_alphabet	__able_compiled_method_Tape_get_ctx	true	true	true	true	control-free	0	1	0
+tapelang_alphabet	__able_compiled_method_Tape_inc_ctx	false	false	true	false	reachable-unproven	1	2	0
+tapelang_alphabet	__able_compiled_method_Tape_move_ctx	false	false	true	false	reachable-unproven	1	0	0
+sudoku_masks	__able_compiled_fn_bit_count_ctx	false	false	true	false	reachable-unproven	1	0	0
+sudoku_masks	__able_compiled_fn_find_best_empty_ctx	false	false	true	false	reachable-unproven	0	5	0
+sudoku_masks	__able_compiled_fn_solve_with_masks_ctx	false	false	true	false	reachable-unproven	1	16	0
+sudoku_masks	__able_compiled_fn_square_index_ctx	false	false	true	true	call-site-specializable	4	0	0
+nbody	__able_compiled_fn_advance_ctx	false	false	true	false	reachable-unproven	1	29	9
+nbody	__able_compiled_fn_energy_ctx	false	false	true	false	reachable-unproven	0	14	14
+nbody	__able_compiled_fn_offset_momentum_ctx	false	false	true	false	reachable-unproven	0	9	9
+matrixmultiply	__able_compiled_fn_matmul_ctx	false	false	true	false	reachable-unproven	0	6	0
+pidigits	__able_compiled_fn_eliminate_digit_ctx	true	true	true	false	control-free	0	0	0
+pidigits	__able_compiled_fn_next_term_ctx	false	false	true	false	reachable-unproven	3	0	0

@@ -1,0 +1,92 @@
+{
+  "date": "2026-07-18",
+  "decision": "no-production-change",
+  "admission": {
+    "minimum_unlike_applications": 3,
+    "minimum_bytecode_call_share_percent": 1.0,
+    "minimum_calls": 100,
+    "required_modes": [
+      "bytecode",
+      "compiled"
+    ]
+  },
+  "catalog": {
+    "selected_bytecode_applications": 27,
+    "complete_first_call_traces": 25,
+    "total_traced_call_sites": 116647436,
+    "canonical_stdlib_call_sites": 56542508,
+    "selection_manifest_file_sha256": "19c0b7c5c9a41226cfff851b99ffeca46317ff7f8ab608378deb2c66153c06fe",
+    "selection_manifest_semantic_sha256": "9976ccea0e85b2acf92b019727e81b0ce88a347828b3ffb675d869cae81eca7c"
+  },
+  "canonical_stdlib": {
+    "source_file_count": 70,
+    "source_tree_sha256": "f7a470aae4fba342e5bbc3fce53ee26fa6f96df71dde18e057e044520624dafc",
+    "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "git_dirty": true
+  },
+  "excluded_trace_rows": [
+    {
+      "application": "k_nucleotide",
+      "reason": "two traced main calls exceeded the 55-second process cap",
+      "normal_verified_seconds": 40.88,
+      "normal_stdout_sha256": "d628623daa677c00673df8d4961d14eb271b4112cdcb65b8233f07b69d7b49b8"
+    },
+    {
+      "application": "option_result_config",
+      "reason": "the steady-state harness's repeated main call reached an ambiguous or_else overload",
+      "normal_verified_seconds": 0.9,
+      "normal_stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"
+    }
+  ],
+  "fresh_material_function_owners": [
+    {
+      "owner": "able.io.slice_bytes_from_offset",
+      "source": "io.able:587",
+      "applications": {
+        "mandelbrot": 59.998,
+        "reverse_complement": 33.516
+      }
+    },
+    {
+      "owner": "able.math.sqrt",
+      "source": "math.able:203",
+      "applications": {
+        "rms_norm": 50.0,
+        "distance_field": 33.333
+      }
+    },
+    {
+      "owner": "able.core.iteration.filter",
+      "source": "core/iteration.able:15",
+      "applications": {
+        "lexical_rollup": 45.137,
+        "document_audit": 30.944
+      }
+    },
+    {
+      "owner": "able.text.regex_nfa.regex_nfa_upsert_thread",
+      "source": "text/regex_nfa.able:612",
+      "applications": {
+        "regex_set_audit": 35.363,
+        "regex_stream_audit": 29.447
+      }
+    }
+  ],
+  "reconciliation": [
+    {
+      "owner": "able.math.sqrt",
+      "status": "closed-shared-owner",
+      "evidence": "retained reduced-NBody bytecode and compiled NBody/Distance/RMS profiles supply the third unlike application; the native sqrt bridge and imported raw compiled calls are retained, while later bytecode scalar-result and typed-native-region carriers were rejected"
+    },
+    {
+      "owner": "able.text.regex_nfa",
+      "status": "closed-related-family",
+      "evidence": "three regex consumers exist but are one algorithm family rather than unlike applications; state index and thread arena candidates were rejected and the successful primitive thread carrier/capture-template work is already retained"
+    },
+    {
+      "owner": "able.io.slice_bytes_from_offset",
+      "status": "coverage-gated-lead",
+      "evidence": "material in two unlike bytecode applications and compiled Reverse Complement, but no third independent bulk-output application currently clears the admission rule"
+    }
+  ]
+}

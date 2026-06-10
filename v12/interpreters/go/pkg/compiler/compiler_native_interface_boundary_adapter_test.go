@@ -48,6 +48,11 @@ func TestCompilerResultMatcherBoundaryHelperReusesNativeMatcherAdapter(t *testin
 	if !strings.Contains(compiledSrc, "__able_iface_Matcher_Result_f64__wrap___able_iface_Matcher_f64(converted)") {
 		t.Fatalf("expected Matcher<Result<f64>> boundary helper path to wrap the recovered Matcher<f64> carrier directly:\n%s", compiledSrc)
 	}
+	concreteProbe := strings.Index(compiledSrc, "bridge.MatchType(rt, ast.Ty(\"BeWithinMatcher\"), base)")
+	siblingProbe := strings.Index(compiledSrc, "bridge.MatchType(rt, ast.Gen(ast.Ty(\"Matcher\"), ast.Ty(\"f64\")), base)")
+	if concreteProbe < 0 || siblingProbe < 0 || concreteProbe > siblingProbe {
+		t.Fatalf("expected Matcher<Result<f64>> recovery to probe its concrete matcher before the sibling interface")
+	}
 }
 
 func TestCompilerSiblingMatcherBoundaryHelperProbesConcreteSiblingAdapters(t *testing.T) {
@@ -99,5 +104,50 @@ func TestCompilerSiblingMatcherBoundaryHelperProbesConcreteSiblingAdapters(t *te
 	}
 	if !strings.Contains(compiledSrc, "__able_iface_Matcher_i32_wrap___able_iface_Matcher_i64(__able_iface_Matcher_i64_wrap_ptr_CustomMatcher_i64(converted))") {
 		t.Fatalf("expected Matcher<i32> boundary helper to bridge recovered CustomMatcher<i64> values through Matcher<i64>:\n%s", compiledSrc)
+	}
+}
+
+func TestCompilerWideIntegerMatcherAdapterBoxesOnlyAtGenericBoundary(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"interface Matcher T for Self {",
+		"  fn matches(self: Self, value: T) -> bool",
+		"}",
+		"",
+		"struct EqMatcher T { expected: T }",
+		"",
+		"impl Matcher T for EqMatcher T {",
+		"  fn matches(self: Self, value: T) -> bool { value == self.expected }",
+		"}",
+		"",
+		"fn accept_i128(matcher: Matcher i128, value: i128) -> bool {",
+		"  matcher.matches(value)",
+		"}",
+		"",
+		"fn accept_u128(matcher: Matcher u128, value: u128) -> bool {",
+		"  matcher.matches(value)",
+		"}",
+		"",
+		"fn main() -> bool {",
+		"  accept_i128(EqMatcher { expected: -170141183460469231731687303715884105728_i128 }, -170141183460469231731687303715884105728_i128) &&",
+		"    accept_u128(EqMatcher { expected: 340282366920938463463374607431768211455_u128 }, 340282366920938463463374607431768211455_u128)",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	for _, fragment := range []string{
+		"__able_iface_Matcher_i128_adapter_ptr_EqMatcher",
+		"__able_iface_Matcher_u128_adapter_ptr_EqMatcher",
+		"arg0.IntegerValue()",
+	} {
+		if !strings.Contains(compiledSrc, fragment) {
+			t.Fatalf("expected wide primitive matcher boundary to contain %q:\n%s", fragment, compiledSrc)
+		}
+	}
+	if strings.Contains(compiledSrc, "unsupported native interface conversion from runtime.Int128") ||
+		strings.Contains(compiledSrc, "unsupported native interface conversion from runtime.Uint128") {
+		t.Fatalf("expected wide primitive matcher adapters to use the shared runtime integer encoding")
 	}
 }

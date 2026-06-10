@@ -9,7 +9,7 @@ source of truth.
 `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`,
 `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`,
 `if`, `or`, `else`, `while`, `for`, `in`, `match`, `case`, `breakpoint`,
-`break`, `continue`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`,
+`break`, `continue`, `raise`, `rescue`, `ensure`, `rethrow`, `spawn`,
 `as`, `nil`, `void`, `true`, `false`, `where`.
 
 The grammar should treat these as reserved tokens when parsing identifiers.

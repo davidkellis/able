@@ -1,0 +1,235 @@
+package concurrent_state_machines
+
+import able.kernel.{Array}
+import able.os
+
+DEFAULT_STEPS: i32 := 2048
+PROFILE_STEPS: i32 := 256
+MACHINE_COUNT: i64 := 4_i64
+MODULUS: i64 := 1_000_003_i64
+
+struct Signal {
+  code: i64,
+  weight: i64,
+  active: bool
+}
+
+struct MachineState {
+  machine: i64,
+  step: i64,
+  phase: i64,
+  value: i64,
+  checksum: i64,
+  accepted: i64,
+  redirected: i64
+}
+
+struct MachineReport {
+  machine: i64,
+  steps: i64,
+  accepted: i64,
+  redirected: i64,
+  value: i64,
+  checksum: i64
+}
+
+methods MachineState {
+  fn advance(
+    self: Self,
+    signal: Signal,
+    delta: i64,
+    accepted: bool
+  ) -> MachineState {
+    next_phase := (self.phase
+      + signal.code
+      + if accepted { 1_i64 } else { 3_i64 }
+      + self.machine) % 11_i64
+    next_value := (self.value * 67_i64
+      + delta
+      + signal.weight * 11_i64
+      + next_phase * 13_i64
+      + self.step * 3_i64) % MODULUS
+    next_checksum := (self.checksum * 131_i64
+      + next_value * 7_i64
+      + signal.code * 17_i64
+      + signal.weight * 19_i64
+      + self.machine * 23_i64
+      + self.step) % MODULUS
+    MachineState {
+      machine: self.machine,
+      step: self.step + 1_i64,
+      phase: next_phase,
+      value: next_value,
+      checksum: next_checksum,
+      accepted: self.accepted + if accepted { 1_i64 } else { 0_i64 },
+      redirected: self.redirected + if accepted { 0_i64 } else { 1_i64 }
+    }
+  }
+
+  fn report(self: Self) -> MachineReport {
+    MachineReport {
+      machine: self.machine,
+      steps: self.step,
+      accepted: self.accepted,
+      redirected: self.redirected,
+      value: self.value,
+      checksum: self.checksum
+    }
+  }
+}
+
+interface StateHandler {
+  fn apply(
+    self: Self,
+    state: MachineState,
+    signal: Signal,
+    adjust: (MachineState, Signal, i64) -> i64
+  ) -> MachineState
+}
+
+struct GateHandler {
+  threshold: i64,
+  gain: i64
+}
+
+struct CycleHandler {
+  period: i64,
+  offset: i64
+}
+
+impl StateHandler for GateHandler {
+  fn apply(
+    self: Self,
+    state: MachineState,
+    signal: Signal,
+    adjust: (MachineState, Signal, i64) -> i64
+  ) -> MachineState {
+    marker := (signal.code + state.phase + self.threshold) % 13_i64
+    accepted := signal.active || marker < 8_i64
+    raw := adjust(state, signal, self.gain)
+    delta := if accepted {
+      (raw + marker * self.gain) % MODULUS
+    } else {
+      (raw + self.threshold * 29_i64 + signal.weight) % MODULUS
+    }
+    state.advance(signal, delta, accepted)
+  }
+}
+
+impl StateHandler for CycleHandler {
+  fn apply(
+    self: Self,
+    state: MachineState,
+    signal: Signal,
+    adjust: (MachineState, Signal, i64) -> i64
+  ) -> MachineState {
+    marker := (state.step + signal.code + self.offset) % self.period
+    accepted := marker != 0_i64 && (signal.active || (signal.weight % 3_i64) != 0_i64)
+    raw := adjust(state, signal, self.offset)
+    delta := if accepted {
+      (raw + self.offset * 17_i64 + marker * 31_i64) % MODULUS
+    } else {
+      (raw + self.period * 37_i64 + state.phase * 5_i64) % MODULUS
+    }
+    state.advance(signal, delta, accepted)
+  }
+}
+
+fn make_adjuster(
+  bias: i64,
+  factor: i64,
+  twist: i64
+) -> (MachineState, Signal, i64) -> i64 {
+  { state, signal, gain =>
+    (state.value * factor
+      + state.phase * twist
+      + signal.code * bias
+      + signal.weight * gain
+      + state.step
+      + state.machine * 41_i64) % MODULUS
+  }
+}
+
+fn run_machine(
+  machine: i64,
+  steps: i32,
+  handler: StateHandler,
+  adjust: (MachineState, Signal, i64) -> i64
+) -> MachineReport {
+  state := MachineState {
+    machine,
+    step: 0_i64,
+    phase: (machine * 3_i64 + 1_i64) % 11_i64,
+    value: (machine * 97_i64 + 41_i64) % MODULUS,
+    checksum: (machine * 53_i64 + 17_i64) % MODULUS,
+    accepted: 0_i64,
+    redirected: 0_i64
+  }
+  loop {
+    if state.step >= (steps as i64) { break }
+    index := state.step
+    signal := Signal {
+      code: (index * 37_i64 + machine * 17_i64 + 11_i64) % 101_i64,
+      weight: ((index * 19_i64 + machine * 23_i64 + 7_i64) % 97_i64) + 1_i64,
+      active: ((index + machine * 3_i64) % 5_i64) != 0_i64
+    }
+    state = handler.apply(state, signal, adjust)
+  }
+  state.report()
+}
+
+fn step_count(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_STEPS
+  } else {
+    DEFAULT_STEPS
+  }
+}
+
+fn main() -> void {
+  steps := step_count(os.args())
+
+  first_handler: StateHandler = GateHandler { threshold: 5_i64, gain: 3_i64 }
+  second_handler: StateHandler = CycleHandler { period: 7_i64, offset: 11_i64 }
+  third_handler: StateHandler = GateHandler { threshold: 9_i64, gain: 5_i64 }
+  fourth_handler: StateHandler = CycleHandler { period: 9_i64, offset: 17_i64 }
+
+  first_adjust := make_adjuster(11_i64, 3_i64, 5_i64)
+  second_adjust := make_adjuster(17_i64, 5_i64, 7_i64)
+  third_adjust := make_adjuster(23_i64, 7_i64, 11_i64)
+  fourth_adjust := make_adjuster(29_i64, 11_i64, 13_i64)
+
+  first := spawn { run_machine(0_i64, steps, first_handler, first_adjust) }
+  second := spawn { run_machine(1_i64, steps, second_handler, second_adjust) }
+  third := spawn { run_machine(2_i64, steps, third_handler, third_adjust) }
+  fourth := spawn { run_machine(3_i64, steps, fourth_handler, fourth_adjust) }
+  future_flush()
+
+  first_report := first.value()!
+  second_report := second.value()!
+  third_report := third.value()!
+  fourth_report := fourth.value()!
+  completed := first_report.steps
+    + second_report.steps
+    + third_report.steps
+    + fourth_report.steps
+  accepted := first_report.accepted
+    + second_report.accepted
+    + third_report.accepted
+    + fourth_report.accepted
+  redirected := first_report.redirected
+    + second_report.redirected
+    + third_report.redirected
+    + fourth_report.redirected
+  total := (first_report.value
+    + second_report.value
+    + third_report.value
+    + fourth_report.value) % MODULUS
+  checksum := (first_report.checksum * 3_i64
+    + second_report.checksum * 5_i64
+    + third_report.checksum * 7_i64
+    + fourth_report.checksum * 11_i64) % MODULUS
+  expected := (steps as i64) * MACHINE_COUNT
+
+  print(`${expected}:${completed}:${accepted}:${redirected}:${first_report.value},${second_report.value},${third_report.value},${fourth_report.value}:${first_report.checksum},${second_report.checksum},${third_report.checksum},${fourth_report.checksum}:${total}:${checksum}`)
+}

@@ -50,7 +50,12 @@ func runRepl(args []string, execMode interpreterMode) int {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(entryPath, manifest, lock, modeRun, execMode, nil, false)
+	return executeEntry(entryPath, manifest, lock, modeRun, execMode, nil, entryRunOptions{})
+}
+
+type entryRunOptions struct {
+	withTests     bool
+	skipTypecheck bool
 }
 
 func runEntryWithMode(args []string, mode executionMode, execMode interpreterMode) int {
@@ -58,7 +63,11 @@ func runEntryWithMode(args []string, mode executionMode, execMode interpreterMod
 	var manifestErr error
 	programArgs := []string{}
 
-	withTests, filtered := parseWithTests(args)
+	runOptions, filtered, err := parseEntryRunOptions(args, mode)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
 	args = filtered
 
 	if len(args) > 1 {
@@ -106,7 +115,7 @@ func runEntryWithMode(args []string, mode executionMode, execMode interpreterMod
 			fmt.Fprintf(os.Stderr, "failed to resolve target entrypoint: %v\n", err)
 			return 1
 		}
-		return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs, withTests)
+		return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs, runOptions)
 	}
 
 	candidate := args[0]
@@ -123,7 +132,7 @@ func runEntryWithMode(args []string, mode executionMode, execMode interpreterMod
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				return 1
 			}
-			return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs, withTests)
+			return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs, runOptions)
 		}
 	}
 
@@ -150,10 +159,10 @@ func runEntryWithMode(args []string, mode executionMode, execMode interpreterMod
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(candidate, activeManifest, lock, mode, execMode, programArgs, withTests)
+	return executeEntry(candidate, activeManifest, lock, mode, execMode, programArgs, runOptions)
 }
 
-func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode, execMode interpreterMode, programArgs []string, withTests bool) int {
+func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode, execMode interpreterMode, programArgs []string, runOptions entryRunOptions) int {
 	entry = strings.TrimSpace(entry)
 	if entry == "" {
 		fmt.Fprintf(os.Stderr, "%s requires a source file\n", modeCommandLabel(mode))
@@ -186,7 +195,7 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 	}
 	defer loader.Close()
 
-	program, err := loader.LoadWithOptions(entryAbs, driver.LoadOptions{IncludeTests: withTests})
+	program, err := loader.LoadWithOptions(entryAbs, driver.LoadOptions{IncludeTests: runOptions.withTests})
 	if err != nil {
 		var parseErr *driver.ParserDiagnosticError
 		if errors.As(err, &parseErr) {
@@ -215,10 +224,15 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		fmt.Fprintf(os.Stderr, "failed to initialize interpreter: %v\n", err)
 		return 1
 	}
+	defer newBytecodeStatsOutput(interp)()
 	interp.SetArgs(programArgs)
 	registerPrint(interp)
 
-	_, entryEnv, check, err := interp.EvaluateProgram(program, interpreter.ProgramEvaluationOptions{})
+	evaluationOptions := interpreter.ProgramEvaluationOptions{}
+	if runOptions.skipTypecheck {
+		evaluationOptions.SkipTypecheck = true
+	}
+	_, entryEnv, check, err := interp.EvaluateProgram(program, evaluationOptions)
 	if err != nil {
 		if code, ok := interpreter.ExitCodeFromError(err); ok {
 			return code
@@ -226,7 +240,7 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		fmt.Fprintln(os.Stderr, interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err)))
 		return 1
 	}
-	if reportTypecheckDiagnostics(check) {
+	if !runOptions.skipTypecheck && reportTypecheckDiagnostics(check) {
 		return 1
 	}
 
@@ -235,7 +249,9 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		fmt.Fprintln(os.Stderr, "entry module does not define a main function")
 		return 1
 	}
-
+	if bytecodeStatsMainOnlyEnabled() {
+		interp.ResetBytecodeStats()
+	}
 	if _, err := interp.CallFunction(mainValue, nil); err != nil {
 		if code, ok := interpreter.ExitCodeFromError(err); ok {
 			return code
@@ -301,8 +317,8 @@ func reportTypecheckDiagnostics(result interpreter.ProgramCheckResult) bool {
 	return true
 }
 
-func parseWithTests(args []string) (bool, []string) {
-	withTests := false
+func parseEntryRunOptions(args []string, mode executionMode) (entryRunOptions, []string, error) {
+	options := entryRunOptions{}
 	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -311,10 +327,17 @@ func parseWithTests(args []string) (bool, []string) {
 			break
 		}
 		if arg == "--with-tests" {
-			withTests = true
+			options.withTests = true
+			continue
+		}
+		if arg == "--skip-typecheck" {
+			if mode != modeRun {
+				return entryRunOptions{}, nil, errors.New("able --skip-typecheck is available only for run; use able check to validate source")
+			}
+			options.skipTypecheck = true
 			continue
 		}
 		remaining = append(remaining, arg)
 	}
-	return withTests, remaining
+	return options, remaining, nil
 }

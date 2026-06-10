@@ -115,19 +115,8 @@ func requireLockedStdlibAndKernel(t *testing.T, pkgs []*driver.LockedPackage) (*
 
 func repoStdlibPath(t *testing.T) string {
 	t.Helper()
-	// Try the cache-based resolution first (same as runtime).
-	if path, err := ensureCachedStdlib(); err == nil {
-		return path
-	}
-	// Fall back to override check.
-	overrides := loadGlobalOverrides()
-	if stdlibPath, ok := overrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
-		src := resolvePackageSrcPath(stdlibPath)
-		if info, err := os.Stat(src); err == nil && info.IsDir() {
-			return src
-		}
-	}
-	// Fall back to sibling able-stdlib directory.
+	// Prefer the checked-out canonical source for tests. Cache discovery may
+	// bootstrap through git, which would make unrelated test runs network-bound.
 	_, current, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatalf("runtime.Caller failed")
@@ -140,6 +129,18 @@ func repoStdlibPath(t *testing.T) string {
 	} {
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 			return candidate
+		}
+	}
+	// A checkout is not always available (for example, downstream module
+	// consumers); retain the runtime-like cache and override fallbacks there.
+	if path, err := ensureCachedStdlib(); err == nil {
+		return path
+	}
+	overrides := loadGlobalOverrides()
+	if stdlibPath, ok := overrides[normalizeGitURL(defaultStdlibGitURL)]; ok {
+		src := resolvePackageSrcPath(stdlibPath)
+		if info, err := os.Stat(src); err == nil && info.IsDir() {
+			return src
 		}
 	}
 	t.Fatalf("stdlib path not found via cache, override, or sibling directory")
@@ -161,8 +162,38 @@ func repoKernelPath(t *testing.T) string {
 	return path
 }
 
+const compiledCLIIntegrationEnv = "ABLE_RUN_COMPILED_CLI_INTEGRATION"
+
+func compiledCLIExecutionRequiresIntegrationLane(args []string) bool {
+	if len(args) == 0 || args[0] != "test" {
+		return false
+	}
+	compiled := false
+	for _, arg := range args[1:] {
+		switch arg {
+		case "--compiled":
+			compiled = true
+		case "--dry-run":
+			return false
+		}
+	}
+	return compiled
+}
+
+func compiledCLIIntegrationEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(compiledCLIIntegrationEnv))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func captureCLI(t *testing.T, args []string) (int, string, string) {
 	t.Helper()
+	if compiledCLIExecutionRequiresIntegrationLane(args) && !compiledCLIIntegrationEnabled() {
+		t.Skipf("generated-Go CLI integration test; rerun with %s=1", compiledCLIIntegrationEnv)
+	}
 
 	stdout := os.Stdout
 	stderr := os.Stderr

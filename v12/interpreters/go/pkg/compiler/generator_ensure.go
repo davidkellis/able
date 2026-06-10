@@ -21,6 +21,10 @@ func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.Ensur
 	tryCtx := ctx.child()
 	tryCtx.controlCaptureVar = tryControlTemp
 	tryCtx.controlCaptureLabel = tryDoneLabel
+	// Ensure's generated labels mark ordinary statement boundaries so Go must
+	// jump to them. Do not inherit a surrounding lambda's loop-break capture,
+	// which would emit an invalid `break label` for nested checked operations.
+	tryCtx.controlCaptureBreak = false
 	tryLines, tryExpr, tryType, ok := g.compileTailExpression(tryCtx, expected, expr.TryExpression)
 	if !ok {
 		return nil, "", "", false
@@ -43,6 +47,7 @@ func (g *generator) compileEnsureExpression(ctx *compileContext, expr *ast.Ensur
 	ensureCtx := ctx.child()
 	ensureCtx.controlCaptureVar = ensureControlTemp
 	ensureCtx.controlCaptureLabel = ensureDoneLabel
+	ensureCtx.controlCaptureBreak = false
 	ensureLines, ok := g.compileBlockStatement(ensureCtx, expr.EnsureBlock)
 	if !ok {
 		return nil, "", "", false

@@ -1,0 +1,47 @@
+package bench_bit_set_small
+
+import able.collections.bit_set.{BitSet}
+
+fn build(limit: i32) -> BitSet {
+  values := BitSet.new()
+  i := 0
+  loop {
+    if i >= limit { break }
+    values.set(((i * 17) + 9) % (limit * 4))
+    i = i + 1
+  }
+  values
+}
+
+fn score(values: BitSet, ops: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= ops { break }
+    bit := ((i * 19) + 3) % (ops * 2)
+    if values.contains(bit) {
+      total = total + (bit as i64)
+      values.flip(bit)
+    } else {
+      values.set(bit)
+    }
+    if i % 11 == 0 {
+      values.reset(bit // 2)
+    }
+    i = i + 1
+  }
+  values.each({ bit => total = total + (bit as i64) })
+  total
+}
+
+fn main() -> void {
+  values := build(12_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 3 { break }
+    total = total + score(values, 15_000)
+    rounds = rounds + 1
+  }
+  print(total)
+}

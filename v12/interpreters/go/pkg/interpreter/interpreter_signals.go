@@ -42,6 +42,12 @@ func (r raiseSignal) Error() string {
 	return valueToString(r.value)
 }
 
+// RaisedValue exposes the payload to runtime boundaries without exporting the
+// interpreter's control-signal representation.
+func (r raiseSignal) RaisedValue() runtime.Value {
+	return r.value
+}
+
 type returnSignal struct {
 	value runtime.Value
 	node  ast.Node
@@ -71,7 +77,7 @@ func (i *Interpreter) makeErrorValue(val runtime.Value, env *runtime.Environment
 		"value": val,
 	}
 	if i != nil {
-		if ifaceVal, err := i.coerceToInterfaceValue("Error", val, nil); err == nil {
+		if ifaceVal, err := i.coerceToErrorInterfaceValue(val); err == nil {
 			callEnv := env
 			if callEnv == nil {
 				callEnv = i.global

@@ -1,0 +1,440 @@
+#!/usr/bin/env python3
+"""Build the checked compiled architecture and target-budget report."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-compiled-architecture-budget.json"
+
+
+def load(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be an object")
+    return value
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def resolve_source(record: dict[str, Any], label: str) -> Path:
+    path = record.get("path")
+    expected = record.get("sha256")
+    if not isinstance(path, str) or not isinstance(expected, str):
+        raise ValueError(f"{label} needs path and sha256")
+    resolved = (REPO_ROOT / path).resolve()
+    if digest(resolved) != expected:
+        raise ValueError(f"{label} fingerprint drifted")
+    return resolved
+
+
+def finite_positive(value: Any, label: str) -> float:
+    if not isinstance(value, (int, float)) or value <= 0:
+        raise ValueError(f"{label} must be positive")
+    return float(value)
+
+
+def indexed_apps(report: dict[str, Any], label: str) -> dict[str, dict[str, Any]]:
+    applications = report.get("applications")
+    if not isinstance(applications, list) or not applications:
+        raise ValueError(f"{label} needs applications")
+    result: dict[str, dict[str, Any]] = {}
+    for app in applications:
+        name = app.get("benchmark") if isinstance(app, dict) else None
+        if not isinstance(name, str) or not name or name in result:
+            raise ValueError(f"{label} has an invalid or duplicate application")
+        result[name] = app
+    return result
+
+
+def pooled_current_timing(
+    records: Any, benchmark: str, lane: str
+) -> tuple[float, int]:
+    if not isinstance(records, list) or not records:
+        raise ValueError(f"{benchmark} needs current {lane} timing sources")
+    samples: list[float] = []
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise ValueError(f"{benchmark} {lane} timing source must be an object")
+        path = resolve_source(record, f"{benchmark} {lane} timing source {index + 1}")
+        report = load(path, f"{benchmark} {lane} timing report")
+        rows = report.get("rows")
+        if not isinstance(rows, list):
+            raise ValueError(f"{benchmark} {lane} timing report needs rows")
+        matches = [row for row in rows if row.get("benchmark") == benchmark]
+        if len(matches) != 1:
+            raise ValueError(
+                f"{benchmark} {lane} timing report needs exactly one matching row"
+            )
+        row = matches[0].get("able") if lane == "able" else matches[0]
+        if not isinstance(row, dict):
+            raise ValueError(f"{benchmark} {lane} timing row is invalid")
+        if row.get("failures") != 0 or row.get("timeouts", 0) != 0:
+            raise ValueError(f"{benchmark} {lane} timing row has failures or timeouts")
+        raw_samples = row.get("samples")
+        if not isinstance(raw_samples, list) or not raw_samples:
+            raise ValueError(f"{benchmark} {lane} timing row needs samples")
+        successful = [item for item in raw_samples if item.get("status") == "ok"]
+        if len(successful) != row.get("ok_runs") or len(successful) != len(raw_samples):
+            raise ValueError(f"{benchmark} {lane} timing samples do not reconcile")
+        samples.extend(
+            finite_positive(item.get("real_seconds"), f"{benchmark} {lane} sample")
+            for item in successful
+        )
+    return sum(samples) / len(samples), len(samples)
+
+
+def mechanism_index(report: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    mechanisms = report.get("mechanisms")
+    if not isinstance(mechanisms, list):
+        raise ValueError("allocation report needs mechanisms")
+    result: dict[str, dict[str, Any]] = {}
+    for mechanism in mechanisms:
+        identifier = mechanism.get("id") if isinstance(mechanism, dict) else None
+        if not isinstance(identifier, str) or not identifier or identifier in result:
+            raise ValueError("allocation report has an invalid or duplicate mechanism")
+        result[identifier] = mechanism
+    return result
+
+
+def build_report(
+    evidence: dict[str, Any],
+    residual_override: Path | None = None,
+    allocation_override: Path | None = None,
+) -> dict[str, Any]:
+    if evidence.get("kind") != "able-compiled-architecture-budget-evidence":
+        raise ValueError("invalid evidence kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("schema_version must be 1")
+    minimum = evidence.get("minimum_unlike_families")
+    if type(minimum) is not int or minimum < 3:
+        raise ValueError("minimum_unlike_families must be at least 3")
+    target = finite_positive(
+        evidence.get("target_throughput_fraction"), "target_throughput_fraction"
+    )
+    if target > 1:
+        raise ValueError("target_throughput_fraction cannot exceed 1")
+
+    sources = evidence.get("sources")
+    if not isinstance(sources, dict):
+        raise ValueError("evidence needs sources")
+    resolved: dict[str, Path] = {}
+    for label, record in sources.items():
+        if not isinstance(record, dict):
+            raise ValueError(f"source {label} must be an object")
+        resolved[label] = resolve_source(record, label)
+
+    residual_path = residual_override or resolved["residual_report"]
+    allocation_path = allocation_override or resolved["allocation_report"]
+    residual = load(residual_path, "residual report")
+    allocation = load(allocation_path, "allocation report")
+    if residual.get("kind") != "able-cross-mode-residual-cost-model":
+        raise ValueError("invalid residual report kind")
+    if allocation.get("kind") != "able-compiled-allocation-shape-report":
+        raise ValueError("invalid allocation report kind")
+
+    residual_apps = indexed_apps(residual, "residual report")
+    allocation_apps = indexed_apps(allocation, "allocation report")
+    if set(residual_apps) != set(allocation_apps):
+        raise ValueError("residual and allocation application sets differ")
+    families = {app.get("family") for app in allocation_apps.values()}
+    if None in families or len(families) != len(allocation_apps):
+        raise ValueError("applications must represent unlike families")
+
+    mechanisms_by_id = mechanism_index(allocation)
+    owners = evidence.get("dominant_exact_owners")
+    if not isinstance(owners, dict) or set(owners) != set(residual_apps):
+        raise ValueError("dominant_exact_owners must cover every application")
+    timing_sources = evidence.get("current_timing_sources")
+    if not isinstance(timing_sources, dict) or set(timing_sources) != set(residual_apps):
+        raise ValueError("current_timing_sources must cover every application")
+
+    applications: list[dict[str, Any]] = []
+    for name in residual_apps:
+        residual_app = residual_apps[name]
+        allocation_app = allocation_apps[name]
+        compiled = residual_app.get("modes", {}).get("compiled")
+        if not isinstance(compiled, dict):
+            raise ValueError(f"{name} needs compiled timing")
+        if compiled.get("fastest_reference") != "go":
+            raise ValueError(f"{name} compiled reference must be Go")
+        current = timing_sources[name]
+        if not isinstance(current, dict):
+            raise ValueError(f"{name} current timing sources must be an object")
+        able, able_samples = pooled_current_timing(current.get("able"), name, "able")
+        go, go_samples = pooled_current_timing(current.get("go"), name, "go")
+        target_budget = go / target
+        required = able / target_budget
+
+        units = finite_positive(allocation_app.get("logical_units"), f"{name} units")
+        able_bytes = finite_positive(allocation_app.get("able_mean_bytes"), f"{name} bytes")
+        able_objects = finite_positive(
+            allocation_app.get("able_mean_objects"), f"{name} objects"
+        )
+        go_bytes = finite_positive(allocation_app.get("go_mean_bytes"), f"{name} Go bytes")
+        go_objects = finite_positive(
+            allocation_app.get("go_mean_objects"), f"{name} Go objects"
+        )
+
+        owner_id = owners[name]
+        owner_share = 0.0
+        owner_disposition = "no-material-exact-owner"
+        if owner_id is not None:
+            if owner_id not in mechanisms_by_id:
+                raise ValueError(f"{name} names unknown owner {owner_id}")
+            mechanism = mechanisms_by_id[owner_id]
+            names = mechanism.get("applications")
+            shares = mechanism.get("cpu_cumulative_percent")
+            if not isinstance(names, list) or not isinstance(shares, list):
+                raise ValueError(f"mechanism {owner_id} lacks CPU shares")
+            if name not in names or len(names) != len(shares):
+                raise ValueError(f"mechanism {owner_id} does not reconcile")
+            owner_share = float(shares[names.index(name)])
+            owner_disposition = str(mechanism.get("disposition"))
+        if owner_share < 0 or owner_share >= 100:
+            raise ValueError(f"{name} owner share must be in [0, 100)")
+        fraction_remaining = 1 - owner_share / 100
+        applications.append(
+            {
+                "benchmark": name,
+                "family": allocation_app["family"],
+                "logical_units": units,
+                "logical_unit": allocation_app["logical_unit"],
+                "able_seconds": able,
+                "go_seconds": go,
+                "able_samples": able_samples,
+                "go_samples": go_samples,
+                "target_budget_seconds": target_budget,
+                "required_speedup": required,
+                "able_bytes_per_unit": able_bytes / units,
+                "able_objects_per_unit": able_objects / units,
+                "go_bytes_per_unit": go_bytes / units,
+                "go_objects_per_unit": go_objects / units,
+                "byte_amplification": able_bytes / go_bytes,
+                "object_amplification": able_objects / go_objects,
+                "dominant_exact_owner": owner_id,
+                "dominant_exact_owner_cpu_percent": owner_share,
+                "dominant_exact_owner_disposition": owner_disposition,
+                "perfect_owner_removal_speedup": 1 / fraction_remaining,
+                "remaining_target_speedup_after_perfect_owner_removal": required
+                * fraction_remaining,
+            }
+        )
+
+    mechanisms: list[dict[str, Any]] = []
+    eligible: list[str] = []
+    for identifier, mechanism in mechanisms_by_id.items():
+        names = mechanism.get("applications")
+        shares = mechanism.get("cpu_cumulative_percent")
+        if not isinstance(names, list) or not isinstance(shares, list) or len(names) != len(shares):
+            raise ValueError(f"mechanism {identifier} does not reconcile")
+        material = [name for name, share in zip(names, shares) if float(share) >= 1]
+        family_count = len({allocation_apps[name]["family"] for name in material})
+        admitted = family_count >= minimum
+        if admitted:
+            eligible.append(identifier)
+        bounds = []
+        for name, raw_share in zip(names, shares):
+            share = float(raw_share)
+            app = next(item for item in applications if item["benchmark"] == name)
+            bounds.append(
+                {
+                    "benchmark": name,
+                    "cpu_percent": share,
+                    "perfect_removal_speedup": 1 / (1 - share / 100),
+                    "remaining_target_speedup": app["required_speedup"]
+                    * (1 - share / 100),
+                }
+            )
+        mechanisms.append(
+            {
+                "id": identifier,
+                "applications": names,
+                "material_applications": material,
+                "material_unlike_family_count": family_count,
+                "eligible": admitted,
+                "disposition": mechanism.get("disposition"),
+                "perfect_removal_bounds": bounds,
+            }
+        )
+
+    areas = evidence.get("architecture_areas")
+    if not isinstance(areas, list) or not areas:
+        raise ValueError("evidence needs architecture_areas")
+    for area in areas:
+        if not isinstance(area, dict) or not isinstance(area.get("material_families"), list):
+            raise ValueError("architecture areas need material_families")
+        area["material_family_count"] = len(set(area["material_families"]))
+
+    remaining = [
+        app["remaining_target_speedup_after_perfect_owner_removal"]
+        for app in applications
+    ]
+    decision = "candidate-eligible" if eligible else "no-go-current-compiled-architecture-mechanism"
+    return {
+        "kind": "able-compiled-architecture-budget",
+        "schema_version": 1,
+        "sources": sources,
+        "current_timing_sources": timing_sources,
+        "applications": applications,
+        "mechanisms": mechanisms,
+        "architecture_areas": areas,
+        "summary": {
+            "decision": decision,
+            "application_count": len(applications),
+            "unlike_family_count": len(families),
+            "minimum_unlike_families": minimum,
+            "target_throughput_fraction": target,
+            "eligible_mechanisms": eligible,
+            "minimum_required_speedup": min(app["required_speedup"] for app in applications),
+            "maximum_required_speedup": max(app["required_speedup"] for app in applications),
+            "minimum_remaining_speedup_after_perfect_local_owner_removal": min(remaining),
+            "maximum_remaining_speedup_after_perfect_local_owner_removal": max(remaining),
+        },
+        "recommendation": "Keep no compiler candidate from this evidence. Select future compiler work only from a newly measured concrete mechanism that is material in three unlike applications; do not treat aggregate allocation, direct generated bodies, or host-library ancestry as one optimization.",
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Compiled architecture and semantic-amplification target budget",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        report["recommendation"],
+        "",
+        "The model is intentionally favorable: it makes each attributed exact owner completely free and adds no replacement, conversion, code-size, or secondary cost. CPU-profile cumulative shares are used as wall-time-removal ceilings, not as timing claims.",
+        "",
+        "## Application target budgets",
+        "",
+        "| Application | Family | Able / Go s | Required speedup | Largest exact owner | Perfect owner gain | Remaining target speedup |",
+        "| --- | --- | ---: | ---: | --- | ---: | ---: |",
+    ]
+    for app in report["applications"]:
+        owner = app["dominant_exact_owner"] or "none"
+        lines.append(
+            f"| `{app['benchmark']}` | {app['family']} | {app['able_seconds']:.3f} / {app['go_seconds']:.6f} "
+            f"({app['able_samples']} / {app['go_samples']} samples) | "
+            f"{app['required_speedup']:.2f}x | `{owner}` ({app['dominant_exact_owner_cpu_percent']:.2f}%) | "
+            f"{app['perfect_owner_removal_speedup']:.2f}x | "
+            f"{app['remaining_target_speedup_after_perfect_owner_removal']:.2f}x |"
+        )
+    lines += [
+        "",
+        "Every row remains outside the 95%-of-Go budget even after perfect removal of its largest attributed exact owner. The exact remaining multipliers are retained in the table rather than copied from an older timing cohort.",
+        "",
+        "## Allocation amplification by logical work",
+        "",
+        "| Application | Able bytes / objects per unit | Go bytes / objects per unit | Amplification |",
+        "| --- | ---: | ---: | ---: |",
+    ]
+    for app in report["applications"]:
+        lines.append(
+            f"| `{app['benchmark']}` | {app['able_bytes_per_unit']:.3f} / {app['able_objects_per_unit']:.6f} | "
+            f"{app['go_bytes_per_unit']:.3f} / {app['go_objects_per_unit']:.6f} | "
+            f"{app['byte_amplification']:.2f}x / {app['object_amplification']:.2f}x |"
+        )
+    lines += [
+        "",
+        "Distance Field is the decisive counterexample to a universal allocation representation tax: its generated main allocates less than the Go reference in bytes and only two more objects, yet remains well over its target budget. The four amplified rows have different exact lifetimes and owners.",
+        "",
+        "## Shared exact-mechanism ceilings",
+        "",
+        "| Mechanism | Material families | Perfect-removal bounds | Disposition |",
+        "| --- | ---: | --- | --- |",
+    ]
+    for mechanism in report["mechanisms"]:
+        bounds = ", ".join(
+            f"{row['benchmark']} {row['perfect_removal_speedup']:.2f}x -> {row['remaining_target_speedup']:.2f}x remaining"
+            for row in mechanism["perfect_removal_bounds"]
+        )
+        lines.append(
+            f"| `{mechanism['id']}` | {mechanism['material_unlike_family_count']} | {bounds} | `{mechanism['disposition']}` |"
+        )
+    lines += [
+        "",
+        "String conversion and unsigned bridge conversion reach three applications by allocation, but are CPU-material in only K-Nucleotide and Policy. None of the five exact mechanisms clears the three-unlike-family admission gate.",
+        "",
+        "## Complete architectural partition",
+        "",
+        "| Area | Kind | Material families | Disposition |",
+        "| --- | --- | ---: | --- |",
+    ]
+    for area in report["architecture_areas"]:
+        lines.append(
+            f"| `{area['id']}` | {area['kind']} | {area['material_family_count']} | `{area['disposition']}` |"
+        )
+    lines += [
+        "",
+        "The aggregate parents are deliberately not candidates. Allocation/GC has four material families but four distinct semantic owners. Direct generated bodies cover all five because they contain the applications themselves. Host kernels combine unrelated required contracts. Primitive control, nominal representation, bridge conversion, and concurrency state each remain below the three-family gate as concrete mechanisms.",
+        "",
+        "## Evidence and measurement policy",
+        "",
+        "The timing rows pool every successful process from the current post-fix family closure artifacts. Allocation rows are two independent exact measured-main processes per application. CPU ownership comes from bounded main-only profiles. This report does not rerun unchanged binaries or use observer processes as timing evidence.",
+        "",
+        "The source contract checks SHA-256 identities for every current timing cohort plus the residual model, allocation report, architecture audit, exact-leaf audit, primitive range/effect closure, and concurrency audit. It also requires five unlike application families, reconciled application sets, positive logical units, Go references, and exact mechanism membership.",
+        "",
+        "## Next recommendation",
+        "",
+        "Refresh `compiled-sudoku-quotient`, the only remaining invalidated performance closure.",
+        "",
+        "Why: this checked budget and the current cross-family census close both broad architecture questions without admitting a candidate. Sudoku quotient is now the sole stale closure, and resolving it will make the full 21-closure ledger current without using one narrow application to justify a compiler rule.",
+        "",
+        "What it entails: reconcile current repeated compiled/Go Sudoku timing and exact quotient/corrected-path reach, add a second retained cohort only if the workstation result is volatile, and advance only that closure. Keep no quotient optimization unless the same concrete mechanism becomes material in at least three unlike applications. Do not begin WASM work.",
+        "",
+        "## Reproduction",
+        "",
+        "```sh",
+        "python3 v12/bench_compiled_architecture_budget_test.py",
+        "v12/bench_compiled_architecture_budget \\",
+        "  --json-out v12/docs/perf-baselines/2026-07-21-compiled-architecture-target-budget.json \\",
+        "  --markdown-out v12/docs/perf-baselines/2026-07-21-compiled-architecture-target-budget.md",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--residual-report", type=Path)
+    parser.add_argument("--allocation-report", type=Path)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    args = parser.parse_args()
+    try:
+        report = build_report(
+            load(args.evidence, "evidence"), args.residual_report, args.allocation_report
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        parser.error(str(error))
+    payload = json.dumps(report, indent=2) + "\n"
+    if args.json_out:
+        args.json_out.write_text(payload, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.write_text(markdown(report), encoding="utf-8")
+    if not args.json_out and not args.markdown_out:
+        print(payload, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,88 @@
+{
+  "date": "2026-07-27",
+  "decision": "runtime-treewalker-bytecode-boundary-reviewed",
+  "staging_authorized": false,
+  "commit_created": false,
+  "history_changed": false,
+  "production_changed_by_review": true,
+  "production_change": "serial-executor-flush-dequeue-active-handoff",
+  "performance_candidate_advanced": false,
+  "manifest": {
+    "path": "2026-07-27-runtime-treewalker-bytecode-release-boundary-manifest.tsv",
+    "sha256": "2b8b9a54db9487f54ca7d58a78a4c7ca4c36b2f338478a6df98fe4eb090404e0",
+    "lines": 667,
+    "bytes": 116528,
+    "paths": 666,
+    "tracked_modified": 277,
+    "untracked": 389,
+    "tracked_insertions": 34315,
+    "tracked_deletions": 7297,
+    "unclassified": 0
+  },
+  "dispositions": {
+    "reviewed": 658,
+    "hold_deferred_wasm": 8
+  },
+  "families": {
+    "bytecode_vm": 181,
+    "deferred_wasm_shim": 8,
+    "engine_guard_fixture": 208,
+    "execution_fixture": 78,
+    "execution_wrapper": 2,
+    "runtime_carrier": 57,
+    "runtime_support": 13,
+    "shared_engine": 65,
+    "tree_walker": 54
+  },
+  "scheduler_correction": {
+    "record": "2026-07-27-serial-executor-flush-handoff-retained.md",
+    "root_cause": "Flush could observe an empty queue after worker dequeue and before active publication.",
+    "retained_rule": "Count only the locked dequeue-to-active handoff as runnable work.",
+    "blocked_flush_semantics_changed": false
+  },
+  "focused_verification": {
+    "changed_go_gofmt_clean": true,
+    "reviewed_code_below_1000_lines": true,
+    "go_vet_runtime_interpreter_support": "pass",
+    "runtime_support_tests": "pass",
+    "bytecode_group": "pass",
+    "shared_treewalker_groups": "pass",
+    "box_reuse_build_tag": "pass",
+    "runtime_array_race": "pass",
+    "scheduler_race_lane": "pass",
+    "flush_handoff_repetitions": 50,
+    "blocked_mutex_fixture_repetitions": 10,
+    "short_interpreter_package_seconds": 75.624,
+    "treewalker_wrapper": "pass",
+    "bytecode_wrapper": "pass",
+    "git_diff_check": "pass"
+  },
+  "complete_handoff": {
+    "command": "./run_all_tests.sh",
+    "status": "pass",
+    "wall_seconds": 620.17,
+    "peak_rss_kb": 4742496,
+    "compiler_batches": 33,
+    "compiler_batch_19_seconds": 111.448,
+    "compiler_batch_29_seconds": 64.351,
+    "bytecode_fixture_seconds": 83.750
+  },
+  "canonical_stdlib": {
+    "command": "./run_stdlib_tests.sh",
+    "status": "pass",
+    "wall_seconds": 37.13,
+    "peak_rss_kb": 870304,
+    "treewalker_reported_seconds": 16,
+    "bytecode_reported_seconds": 15,
+    "stdlib_changed": false
+  },
+  "cleanup": {
+    "project_local_wrapper_cache_mib": 332,
+    "project_local_python_cache_kib": 140,
+    "tranche_inventory_scratch_kib": 288,
+    "project_cleanup_candidates_remaining": 0,
+    "reusable_disk_caches_retained": true
+  },
+  "next_boundary": "compiler-aot-semantic-abi-cli",
+  "wasm_work_started": false
+}

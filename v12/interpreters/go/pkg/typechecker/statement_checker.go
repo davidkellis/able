@@ -133,6 +133,10 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 			}
 		}
 		return nil
+	case *ast.ExportStatement:
+		// ProgramChecker validates package re-exports after the module's public
+		// surface and imported package summaries are available.
+		return nil
 	case *ast.FunctionDefinition:
 		return c.checkFunctionDefinition(env, s)
 	case *ast.ImplementationDefinition:

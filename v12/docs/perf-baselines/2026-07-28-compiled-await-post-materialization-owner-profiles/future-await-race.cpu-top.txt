@@ -1,0 +1,126 @@
+File: app
+Build ID: f906c4ccf52e15345417a664d59d14d907582292
+Type: cpu
+Time: 2026-07-28 06:36:06 CDT
+Duration: 225.35ms, Total samples = 320ms (142.00%)
+Showing nodes accounting for 320ms, 100% of 320ms total
+      flat  flat%   sum%        cum   cum%
+      40ms 12.50% 12.50%       70ms 21.88%  runtime.lock2
+      30ms  9.38% 21.88%       30ms  9.38%  runtime.findfunc
+      30ms  9.38% 31.25%       30ms  9.38%  runtime.unlock2
+      20ms  6.25% 37.50%       20ms  6.25%  main.__able_compiled_fn_wave_score_ctx
+      20ms  6.25% 43.75%       40ms 12.50%  runtime.gwrite
+      20ms  6.25% 50.00%       20ms  6.25%  runtime.procyieldAsm
+      20ms  6.25% 56.25%       20ms  6.25%  runtime.recordForPanic
+      20ms  6.25% 62.50%       20ms  6.25%  runtime.step
+      10ms  3.12% 65.62%       20ms  6.25%  internal/strconv.RuntimeFormatBase10 (inline)
+      10ms  3.12% 68.75%       10ms  3.12%  internal/strconv.formatBase10
+      10ms  3.12% 71.88%       10ms  3.12%  runtime.(*inlineUnwinder).next
+      10ms  3.12% 75.00%       10ms  3.12%  runtime.futex
+      10ms  3.12% 78.12%       10ms  3.12%  runtime.inlineFrame.valid (inline)
+      10ms  3.12% 81.25%       30ms  9.38%  runtime.mallocgcSmallScanNoHeader
+      10ms  3.12% 84.38%       30ms  9.38%  runtime.pcvalue
+      10ms  3.12% 87.50%       50ms 15.62%  runtime.printArgs
+      10ms  3.12% 90.62%       30ms  9.38%  runtime.printhexopts
+      10ms  3.12% 93.75%       80ms 25.00%  runtime.printlock
+      10ms  3.12% 96.88%       10ms  3.12%  runtime.releaseSudog
+      10ms  3.12%   100%       10ms  3.12%  runtime.runqgrab
+         0     0%   100%      130ms 40.62%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%       50ms 15.62%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%       50ms 15.62%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%       50ms 15.62%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      230ms 71.88%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%       10ms  3.12%  able/interpreter-go/pkg/runtime.(*Environment).SetRuntimeData
+         0     0%   100%       10ms  3.12%  able/interpreter-go/pkg/runtime.(*Environment).mutex
+         0     0%   100%       10ms  3.12%  main.(*__able_goroutine_executor).Flush
+         0     0%   100%       10ms  3.12%  main.(*__able_goroutine_executor).RunFuture
+         0     0%   100%      240ms 75.00%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%       60ms 18.75%  main.RunRegisteredMain
+         0     0%   100%       60ms 18.75%  main.RunRegisteredMain.func1
+         0     0%   100%       10ms  3.12%  main.__able_await_arm_is_default_ctx
+         0     0%   100%       10ms  3.12%  main.__able_await_ctx
+         0     0%   100%       10ms  3.12%  main.__able_await_value_ctx
+         0     0%   100%       10ms  3.12%  main.__able_builtin_future_value
+         0     0%   100%       80ms 25.00%  main.__able_builtin_named_future_yield
+         0     0%   100%      100ms 31.25%  main.__able_call_named
+         0     0%   100%       10ms  3.12%  main.__able_call_value
+         0     0%   100%       40ms 12.50%  main.__able_call_value_fast
+         0     0%   100%       10ms  3.12%  main.__able_collect_await_arms_ctx
+         0     0%   100%       60ms 18.75%  main.__able_compiled_entry_fn_main_ctx
+         0     0%   100%       60ms 18.75%  main.__able_compiled_fn_main_ctx
+         0     0%   100%       60ms 18.75%  main.__able_compiled_fn_main_ctx.func3
+         0     0%   100%       50ms 15.62%  main.__able_compiled_fn_main_ctx.func4
+         0     0%   100%       20ms  6.25%  main.__able_compiled_fn_main_ctx.func5
+         0     0%   100%       80ms 25.00%  main.__able_current_payload
+         0     0%   100%       10ms  3.12%  main.__able_future_value_with_payload
+         0     0%   100%       80ms 25.00%  main.__able_future_yield
+         0     0%   100%       10ms  3.12%  main.__able_initialize_await_state_ctx
+         0     0%   100%       10ms  3.12%  main.__able_invoke_awaitable_method_ctx
+         0     0%   100%       10ms  3.12%  main.__able_method_call_ctx
+         0     0%   100%       40ms 12.50%  main.__able_method_call_node
+         0     0%   100%      140ms 43.75%  main.__able_register_compiled_call.func1
+         0     0%   100%       10ms  3.12%  main.__able_register_compiled_method.func1
+         0     0%   100%      240ms 75.00%  main.__able_run_compiled_task
+         0     0%   100%       10ms  3.12%  main.__able_spawn_context
+         0     0%   100%      130ms 40.62%  main.__able_spawn_context.func1
+         0     0%   100%       10ms  3.12%  main.__able_struct_Array_to
+         0     0%   100%       60ms 18.75%  main.__able_wrap_fn_main
+         0     0%   100%       60ms 18.75%  main.main
+         0     0%   100%       60ms 18.75%  main.runMain
+         0     0%   100%       10ms  3.12%  runtime.(*gcControllerState).heapGoalInternal
+         0     0%   100%       10ms  3.12%  runtime.(*gcControllerState).trigger
+         0     0%   100%       20ms  6.25%  runtime.(*inlineUnwinder).fileLine (inline)
+         0     0%   100%       10ms  3.12%  runtime.(*mcache).nextFree
+         0     0%   100%       10ms  3.12%  runtime.(*mcache).refill
+         0     0%   100%       10ms  3.12%  runtime.(*mcentral).cacheSpan
+         0     0%   100%       30ms  9.38%  runtime.(*unwinder).next
+         0     0%   100%       10ms  3.12%  runtime.(*unwinder).resolveInternal
+         0     0%   100%      230ms 71.88%  runtime.Stack
+         0     0%   100%      230ms 71.88%  runtime.Stack.func1
+         0     0%   100%       10ms  3.12%  runtime.bgsweep
+         0     0%   100%       10ms  3.12%  runtime.convTstring
+         0     0%   100%       20ms  6.25%  runtime.copystack
+         0     0%   100%       10ms  3.12%  runtime.deductSweepCredit
+         0     0%   100%       10ms  3.12%  runtime.findRunnable
+         0     0%   100%       10ms  3.12%  runtime.freeSomeWbufs
+         0     0%   100%       20ms  6.25%  runtime.funcline1
+         0     0%   100%       10ms  3.12%  runtime.funcspdelta (inline)
+         0     0%   100%       10ms  3.12%  runtime.futexsleep
+         0     0%   100%       10ms  3.12%  runtime.gcStart
+         0     0%   100%       10ms  3.12%  runtime.gcTrigger.test
+         0     0%   100%       10ms  3.12%  runtime.goroutineheader
+         0     0%   100%       10ms  3.12%  runtime.isSystemGoroutine
+         0     0%   100%       70ms 21.88%  runtime.lock (inline)
+         0     0%   100%       70ms 21.88%  runtime.lockWithRank (inline)
+         0     0%   100%       60ms 18.75%  runtime.main
+         0     0%   100%       30ms  9.38%  runtime.mallocgc
+         0     0%   100%       10ms  3.12%  runtime.mcall
+         0     0%   100%       20ms  6.25%  runtime.newobject
+         0     0%   100%       10ms  3.12%  runtime.newproc
+         0     0%   100%       10ms  3.12%  runtime.newproc.func1
+         0     0%   100%       10ms  3.12%  runtime.newproc1
+         0     0%   100%       20ms  6.25%  runtime.newstack
+         0     0%   100%       10ms  3.12%  runtime.park_m
+         0     0%   100%       20ms  6.25%  runtime.printArgs.func2 (inline)
+         0     0%   100%       20ms  6.25%  runtime.printArgs.func3 (inline)
+         0     0%   100%       40ms 12.50%  runtime.printFuncName
+         0     0%   100%       10ms  3.12%  runtime.printcreatedby
+         0     0%   100%       10ms  3.12%  runtime.printcreatedby1
+         0     0%   100%       30ms  9.38%  runtime.printhex
+         0     0%   100%       20ms  6.25%  runtime.printint
+         0     0%   100%       20ms  6.25%  runtime.printstring
+         0     0%   100%       20ms  6.25%  runtime.printunlock
+         0     0%   100%       20ms  6.25%  runtime.procyield (inline)
+         0     0%   100%       10ms  3.12%  runtime.runqsteal
+         0     0%   100%       10ms  3.12%  runtime.schedule
+         0     0%   100%       10ms  3.12%  runtime.semasleep
+         0     0%   100%       10ms  3.12%  runtime.stealWork
+         0     0%   100%      240ms 75.00%  runtime.systemstack
+         0     0%   100%      220ms 68.75%  runtime.traceback (inline)
+         0     0%   100%      220ms 68.75%  runtime.traceback1
+         0     0%   100%      210ms 65.62%  runtime.traceback1.func1
+         0     0%   100%      210ms 65.62%  runtime.traceback2
+         0     0%   100%       30ms  9.38%  runtime.unlock (inline)
+         0     0%   100%       30ms  9.38%  runtime.unlockWithRank (inline)
+         0     0%   100%       10ms  3.12%  sync.(*Cond).Wait
+         0     0%   100%       10ms  3.12%  sync.runtime_notifyListWait

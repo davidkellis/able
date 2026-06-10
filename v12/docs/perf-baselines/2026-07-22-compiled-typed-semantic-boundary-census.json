@@ -1,0 +1,59 @@
+{
+  "generated_at": "2026-07-22T21:09:20.471859Z",
+  "decision": "no-production-candidate",
+  "retained_change": "opt-in-main-only-typed-boundary-telemetry",
+  "cohort": {
+    "applications": 5,
+    "target_excess_seconds": 6.213684210526316,
+    "rows": [
+      {"benchmark":"concurrent_event_routing","able_mean_seconds":2.914,"go_mean_seconds":0.0056,"ratio":520.3571428571429,"target_excess_seconds":2.908105263157895,"logical_cpu_budget":4},
+      {"benchmark":"fixed_width_128","able_mean_seconds":0.206,"go_mean_seconds":0.0058,"ratio":35.51724137931035,"target_excess_seconds":0.19989473684210526,"logical_cpu_budget":1},
+      {"benchmark":"k_nucleotide","able_mean_seconds":2.898,"go_mean_seconds":0.0809,"ratio":35.82200247218789,"target_excess_seconds":2.812842105263158,"logical_cpu_budget":1},
+      {"benchmark":"distance_field","able_mean_seconds":0.09,"go_mean_seconds":0.0133,"ratio":6.7669172932330826,"target_excess_seconds":0.076,"logical_cpu_budget":1},
+      {"benchmark":"policy_record_dispatch","able_mean_seconds":0.226,"go_mean_seconds":0.0087,"ratio":25.977011494252878,"target_excess_seconds":0.2168421052631579,"logical_cpu_budget":1}
+    ]
+  },
+  "typed_boundary": {
+    "processes": 5,
+    "verified": 5,
+    "failures": 0,
+    "timeouts": 0,
+    "artifact_sha256": "160bc2e2734267a7d315a7733c63fdc2f2512795e598ebb013226883e47f7d79",
+    "rows": [
+      {"benchmark":"concurrent_event_routing","any_to_runtime":22528,"integer_from_runtime":152591,"struct_from_runtime":27660,"struct_to_runtime":40968,"union_from_runtime":11269,"union_to_runtime":15364,"interface_from_runtime":0,"interface_to_runtime":0,"callable_from_runtime":0,"callable_to_runtime":8192,"control_from_error":170408,"control_to_error":0},
+      {"benchmark":"fixed_width_128","any_to_runtime":0,"integer_from_runtime":0,"struct_from_runtime":0,"struct_to_runtime":0,"union_from_runtime":0,"union_to_runtime":0,"interface_from_runtime":0,"interface_to_runtime":0,"callable_from_runtime":0,"callable_to_runtime":0,"control_from_error":0,"control_to_error":0},
+      {"benchmark":"k_nucleotide","any_to_runtime":0,"integer_from_runtime":24,"struct_from_runtime":0,"struct_to_runtime":0,"union_from_runtime":14,"union_to_runtime":0,"interface_from_runtime":0,"interface_to_runtime":0,"callable_from_runtime":0,"callable_to_runtime":2,"control_from_error":12333418,"control_to_error":0},
+      {"benchmark":"distance_field","any_to_runtime":0,"integer_from_runtime":0,"struct_from_runtime":0,"struct_to_runtime":0,"union_from_runtime":0,"union_to_runtime":0,"interface_from_runtime":0,"interface_to_runtime":0,"callable_from_runtime":0,"callable_to_runtime":0,"control_from_error":0,"control_to_error":0},
+      {"benchmark":"policy_record_dispatch","any_to_runtime":11264,"integer_from_runtime":114048,"struct_from_runtime":7680,"struct_to_runtime":14336,"union_from_runtime":3585,"union_to_runtime":5632,"interface_from_runtime":0,"interface_to_runtime":0,"callable_from_runtime":0,"callable_to_runtime":4096,"control_from_error":62988,"control_to_error":0}
+    ],
+    "totals": {"any_to_runtime":33792,"integer_from_runtime":266663,"struct_from_runtime":35340,"struct_to_runtime":55304,"union_from_runtime":14868,"union_to_runtime":20996,"interface_from_runtime":0,"interface_to_runtime":0,"callable_from_runtime":0,"callable_to_runtime":12290,"control_from_error":12566814,"control_to_error":0}
+  },
+  "existing_telemetry_refresh": {
+    "processes": 10,
+    "verified": 10,
+    "failures": 0,
+    "timeouts": 0,
+    "dynamic_boundary_artifact_sha256": "df3d6703daaa722d554a29f71c4c6239b335990e0ee1386fe6c31404b1edcd04",
+    "call_path_artifact_sha256": "bb5d51ce2a8eae3305b9739ca633d29c7d5c5f88fd9ad928f1c83af13bf19aab",
+    "dynamic_boundary_totals": {"explicit_dynamic_call":30,"residual_polymorphic_call":9259,"host_abi_call":26,"runtime_service_call":4},
+    "call_path_totals": {"fast_method_call":16896,"generic_union_method_call":16896,"generic_union_fallback":0},
+    "material_intersection": ["concurrent_event_routing", "policy_record_dispatch"]
+  },
+  "normal_cpu_gate": {
+    "processes": 10,
+    "verified": 10,
+    "failures": 0,
+    "timeouts": 0,
+    "rows": [
+      {"benchmark":"k_nucleotide","profile_processes":5,"pooled_samples_seconds":15.26,"control_from_error_flat_seconds":0.03,"control_from_error_flat_percent":0.2,"control_from_error_with_node_flat_seconds":0.01,"control_from_error_with_node_flat_percent":0.066,"merged_profile_sha256":"48b6151059e160dd6167c4a90e84271c9c3dbbd52eb0294786f2c7aaa32aa40e","binary_sha256":"f5a3f4e7ee9a89ec121f68bf03af53cd965e8d4ef68d8fa98ad4e9a5da4c145f"},
+      {"benchmark":"policy_record_dispatch","profile_processes":5,"pooled_samples_seconds":0.61,"control_from_error_flat_seconds":0,"control_from_error_flat_percent":0,"control_from_error_with_node_flat_seconds":0,"control_from_error_with_node_flat_percent":0,"merged_profile_sha256":"a12b89f3a9257b8c10785c025bd3ebd6357d976cfb908729ecf15d0d387c3627","binary_sha256":"eab6e74ddff24b3dc4408cb61ebf8f93b6bf2f59231cd169d05329d53efdef78"}
+    ]
+  },
+  "admission": {
+    "required_unlike_applications": 3,
+    "typed_value_boundary_material_applications": 2,
+    "control_from_error_count_reach_applications": 3,
+    "control_from_error_cpu_material_applications": 0,
+    "result": "failed"
+  }
+}

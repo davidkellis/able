@@ -23,9 +23,21 @@ func resolveCompilerExperimentalMonoArraysFromEnv() (bool, error) {
 	if !ok {
 		return true, nil
 	}
-	value, err := parseCompilerBoolEnv(raw)
+	_, err := parseCompilerBoolEnv(raw)
 	if err != nil {
 		return false, fmt.Errorf("invalid ABLE_EXPERIMENTAL_MONO_ARRAYS value %q (expected one of: 1,true,yes,on,0,false,no,off)", raw)
+	}
+	return true, nil
+}
+
+func resolveCompilerTypedBoundaryTelemetryFromEnv() (bool, error) {
+	raw, ok := os.LookupEnv("ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY")
+	if !ok {
+		return false, nil
+	}
+	value, err := parseCompilerBoolEnv(raw)
+	if err != nil {
+		return false, fmt.Errorf("invalid ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY value %q (expected one of: 1,true,yes,on,0,false,no,off)", raw)
 	}
 	return value, nil
 }

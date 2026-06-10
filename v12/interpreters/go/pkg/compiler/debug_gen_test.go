@@ -37,8 +37,7 @@ func TestDebugArrayBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load program: %v", err)
 	}
-	outDir := filepath.Join(repositoryRoot(), "v12", "interpreters", "go", "tmp", "able-debug")
-	os.MkdirAll(outDir, 0o755)
+	outDir := t.TempDir()
 
 	// Build generator directly so we can inspect it
 	checker := typechecker.NewProgramChecker()

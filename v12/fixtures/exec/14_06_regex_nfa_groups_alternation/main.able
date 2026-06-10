@@ -1,0 +1,39 @@
+package exec_14_06_regex_nfa_groups_alternation
+
+import able.text.regex.{Regex, Match}
+
+## Semantics: non-capturing groups and alternation bind before outer quantifiers.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("a(?:b|c)d") match {
+    case regex: Regex => show_match("group", regex.match("zacd")),
+    case _ => print("group compile error")
+  }
+
+  Regex.compile("ab|cd") match {
+    case regex: Regex => show_match("alternation", regex.match("xxcd")),
+    case _ => print("alternation compile error")
+  }
+
+  Regex.compile("(?:ab|c)+") match {
+    case regex: Regex => show_match("nested", regex.match("abcabz")),
+    case _ => print("nested compile error")
+  }
+
+  Regex.compile("(?=ab)") match {
+    case _: Regex => print("lookahead accepted"),
+    case _ => print("lookahead rejected")
+  }
+
+  Regex.compile("(?:ab") match {
+    case _: Regex => print("unterminated accepted"),
+    case _ => print("unterminated rejected")
+  }
+}

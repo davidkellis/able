@@ -131,6 +131,20 @@ func matchSimpleTypeWithoutInterpreter(name string, value runtime.Value) (runtim
 			return runtime.VoidValue{}, true
 		}
 		return nil, false
+	case "Iterator":
+		iterator, ok := value.(*runtime.IteratorValue)
+		return iterator, ok && iterator != nil
+	case "Future":
+		future, ok := value.(*runtime.FutureValue)
+		return future, ok && future != nil
+	case "IoHandle", "ProcHandle":
+		handle, ok := value.(*runtime.HostHandleValue)
+		return value, ok && handle != nil && handle.HandleType == name
+	case "Awaitable":
+		if !isRuntimeAwaitable(value) {
+			return nil, false
+		}
+		return value, true
 	case "f32":
 		v, err := AsFloat(value)
 		if err != nil {
@@ -183,8 +197,32 @@ func matchSimpleTypeWithoutInterpreter(name string, value runtime.Value) (runtim
 	return nil, false
 }
 
+// isRuntimeAwaitable recognizes the kernel Awaitable boundary emitted by
+// standalone compiled programs. Those values intentionally carry callable
+// fields instead of an interpreter-owned nominal definition.
+func isRuntimeAwaitable(value runtime.Value) bool {
+	value = unwrapStaticInterface(value)
+	if awaitable, ok := value.(runtime.NativeAwaitableValue); ok {
+		return awaitable != nil
+	}
+	inst, ok := value.(*runtime.StructInstanceValue)
+	if !ok || inst == nil || inst.Fields == nil {
+		return false
+	}
+	for _, name := range []string{"is_ready", "register", "commit", "is_default"} {
+		field, ok := structNamedFieldValue(inst, name)
+		if !ok || !isRuntimeCallableValue(field) {
+			return false
+		}
+	}
+	return true
+}
+
 func staticTypeExpressionFromValue(value runtime.Value) ast.TypeExpression {
-	value = unwrapInterface(value)
+	value = unwrapStaticInterface(value)
+	if awaitable, ok := value.(runtime.NativeAwaitableValue); ok && awaitable != nil {
+		return ast.Ty("Awaitable")
+	}
 	switch typed := value.(type) {
 	case runtime.StringValue, *runtime.StringValue:
 		return ast.Ty("String")
@@ -230,6 +268,11 @@ func staticTypeExpressionFromValue(value runtime.Value) ast.TypeExpression {
 		return ast.Gen(ast.Ty("Future"), ast.NewWildcardTypeExpression())
 	case *runtime.IteratorValue:
 		return ast.Gen(ast.Ty("Iterator"), ast.NewWildcardTypeExpression())
+	case *runtime.HostHandleValue:
+		if typed == nil || (typed.HandleType != "IoHandle" && typed.HandleType != "ProcHandle") {
+			return nil
+		}
+		return ast.Ty(typed.HandleType)
 	case runtime.ErrorValue, *runtime.ErrorValue:
 		return ast.Ty("Error")
 	case runtime.TypeRefValue:
@@ -247,6 +290,22 @@ func staticTypeExpressionFromValue(value runtime.Value) ast.TypeExpression {
 		return ast.Ty(name)
 	}
 	return nil
+}
+
+func unwrapStaticInterface(value runtime.Value) runtime.Value {
+	for {
+		switch typed := value.(type) {
+		case runtime.InterfaceValue:
+			value = typed.Underlying
+			continue
+		case *runtime.InterfaceValue:
+			if typed != nil {
+				value = typed.Underlying
+				continue
+			}
+		}
+		return value
+	}
 }
 
 func staticIntegerType(name string) (suffix runtime.IntegerType, bits int, signed bool, ok bool) {

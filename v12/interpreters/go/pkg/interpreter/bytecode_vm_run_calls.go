@@ -11,6 +11,10 @@ func (vm *bytecodeVM) execCallOpcode(instr *bytecodeInstruction, slotConstIntImm
 		return vm.execCallName(*instr, program)
 	case bytecodeOpCallMember:
 		return vm.execCallMember(*instr, program)
+	case bytecodeOpCallGenericUnionMember:
+		return vm.execCallGenericUnionMember(*instr, program)
+	case bytecodeOpCallStaticMember:
+		return vm.execCallStaticMember(*instr, program)
 	case bytecodeOpCallMemberArrayGet:
 		return vm.execCallMemberArrayGet(*instr, program)
 	case bytecodeOpCallMemberNext:
@@ -18,7 +22,7 @@ func (vm *bytecodeVM) execCallOpcode(instr *bytecodeInstruction, slotConstIntImm
 	case bytecodeOpCallMemberArrayNew:
 		return vm.execCallMemberArrayNew(*instr, program)
 	case bytecodeOpCallMemberArraySlot:
-		return vm.execCallMemberArraySlot(*instr, program)
+		return vm.execCallMemberArraySlot(instr, program)
 	case bytecodeOpCallSelf:
 		return vm.execCallSelf(*instr, program)
 	case bytecodeOpCallSelfIntSubSlotConst:

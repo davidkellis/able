@@ -8,9 +8,9 @@ func (i *Interpreter) noteIndexImplementation(interfaceName, typeName string, ge
 		return
 	}
 	switch interfaceName {
-	case "Index":
+	case "Index", "able.core.interfaces.Index":
 		i.arrayIndexImpls = true
-	case "IndexMut":
+	case "IndexMut", "able.core.interfaces.IndexMut":
 		i.arrayIndexMutImpls = true
 	}
 }

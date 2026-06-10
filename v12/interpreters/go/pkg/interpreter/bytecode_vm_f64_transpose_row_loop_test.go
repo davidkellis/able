@@ -8,7 +8,7 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func TestBytecodeVM_LoweringEmitsF64TransposeRowLoopPlan(t *testing.T) {
+func TestBytecodeVM_LoweringSkipsF64TransposeRowLoopPlan(t *testing.T) {
 	arrayF64 := ast.Gen(ast.Ty("Array"), ast.Ty("f64"))
 	arrayArrayF64 := ast.Gen(ast.Ty("Array"), arrayF64)
 	arg := ast.Prop(ast.CallExpr(
@@ -46,19 +46,8 @@ func TestBytecodeVM_LoweringEmitsF64TransposeRowLoopPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
-	if len(program.f64TransposeRowLoops) != 1 {
-		t.Fatalf("expected one f64 transpose-row loop plan, got %#v", program.f64TransposeRowLoops)
-	}
-	for ip, plan := range program.f64TransposeRowLoops {
-		if ip < 0 || ip >= len(program.instructions) || program.instructions[ip].op != bytecodeOpLoopEnter {
-			t.Fatalf("f64 transpose-row plan attached to non-loop-enter ip %d", ip)
-		}
-		if !plan.validForSlots(program.frameLayout.slotCount) || plan.successTarget <= ip || plan.resultPushIP <= ip {
-			t.Fatalf("unexpected f64 transpose-row plan: ip=%d plan=%#v", ip, plan)
-		}
-		if got := program.instructions[plan.resultPushIP]; got.op != bytecodeOpCallMemberArraySlot || got.name != "push" || got.argCount != 1 {
-			t.Fatalf("transpose-row result push ip points at %#v", got)
-		}
+	if len(program.f64TransposeRowLoops) != 0 {
+		t.Fatalf("matrix-only f64 transpose-row plans should stay empty, got %#v", program.f64TransposeRowLoops)
 	}
 }
 

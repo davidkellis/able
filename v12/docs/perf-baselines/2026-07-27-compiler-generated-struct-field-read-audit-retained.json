@@ -1,0 +1,52 @@
+{
+  "kind": "able-compiler-generated-struct-field-read-audit",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "retain-general-positional-aware-semantic-reads",
+  "initial_textual_fields_index_occurrences": 85,
+  "migrated_direct_semantic_reads": 14,
+  "migrated_functional_update_paths": 2,
+  "remaining_textual_fields_index_occurrences": 71,
+  "remaining_classification": {
+    "writes": 53,
+    "compile_time_ast_or_type_metadata_reads": 14,
+    "shared_accessor_implementations": 2,
+    "same_map_enumeration_reads": 2,
+    "unclassified_semantic_reads": 0
+  },
+  "migrated_families": [
+    "String bytes conversion",
+    "Array storage-handle conversion and member access",
+    "generic runtime member and callable-field access",
+    "generated-main Array shape and formatting",
+    "FutureError details",
+    "synthetic Awaitable callable fields",
+    "direct runtime functional updates",
+    "IR functional updates"
+  ],
+  "verification": {
+    "focused_positional_field_guards": "pass",
+    "compiler_bridge": "pass",
+    "compiler_core_batches": "32/32 pass",
+    "compiler_outliers": "3/3 pass",
+    "fallback_audit_shards": "24/24 pass",
+    "compiled_execution_shards": "24/24 pass",
+    "strict_dispatch_shards": "24/24 pass",
+    "interface_lookup_shards": "24/24 pass",
+    "boundary_marker_shards": "24/24 pass",
+    "cmd_ablec": "pass, 5.830s",
+    "git_diff_check": "pass",
+    "maximum_touched_production_file_lines": 992
+  },
+  "performance_evidence": {
+    "closure_count": 21,
+    "current_closures": 9,
+    "invalidated_closures": 12,
+    "invalidation_reason": "scope-content-drift:compiler-production",
+    "performance_claim": "none"
+  },
+  "cleanup": {
+    "removed_disk_backed_workspace_bytes_approx": 24696061952,
+    "ram_backed_able_tmp_directories_remaining": 0
+  }
+}

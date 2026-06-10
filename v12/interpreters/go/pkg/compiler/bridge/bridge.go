@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 
 	"able/interpreter-go/pkg/ast"
-	"able/interpreter-go/pkg/interpreter"
 	"able/interpreter-go/pkg/runtime"
 )
 
@@ -29,10 +28,11 @@ var (
 )
 
 type Runtime struct {
-	interp                      *interpreter.Interpreter
+	interp                      Interpreter
 	mu                          sync.RWMutex
 	originals                   map[string]runtime.Value
-	structs                     map[string]*runtime.StructDefinitionValue
+	structs                     map[structDefinitionCacheKey]*runtime.StructDefinitionValue
+	qualifiedStructs            map[string]*runtime.StructDefinitionValue
 	executorKind                string
 	env                         atomic.Pointer[runtime.Environment]
 	envByGID                    sync.Map
@@ -45,13 +45,31 @@ type Runtime struct {
 
 type QualifiedCallableResolver func(name string, env *runtime.Environment) (runtime.Value, bool, error)
 
-func New(interp *interpreter.Interpreter) *Runtime {
+func New(interp Interpreter) *Runtime {
 	return &Runtime{
 		interp:                      interp,
 		originals:                   make(map[string]runtime.Value),
-		structs:                     make(map[string]*runtime.StructDefinitionValue),
+		structs:                     make(map[structDefinitionCacheKey]*runtime.StructDefinitionValue),
+		qualifiedStructs:            make(map[string]*runtime.StructDefinitionValue),
 		globalLookupFallbackEnabled: true,
 	}
+}
+
+// RegisterQualifiedStructDefinition records a package-owned nominal struct for
+// standalone compiled binaries, which do not create an interpreter registry.
+func (r *Runtime) RegisterQualifiedStructDefinition(pkgName, name string, def *runtime.StructDefinitionValue) {
+	if r == nil || def == nil {
+		return
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	name = strings.TrimSpace(name)
+	if pkgName == "" || name == "" {
+		return
+	}
+	qualifiedName := pkgName + "." + name
+	r.mu.Lock()
+	r.qualifiedStructs[qualifiedName] = def
+	r.mu.Unlock()
 }
 
 func (r *Runtime) SetGlobalLookupFallbackEnabled(enabled bool) {
@@ -252,7 +270,9 @@ func (r *Runtime) CallOriginal(name string, args []runtime.Value) (runtime.Value
 		return nil, fmt.Errorf("compiler bridge: original function %s not found", name)
 	}
 	env := r.currentEnv()
-	return r.interp.CallFunctionIn(orig, args, env)
+	args = materializeBoundaryValues(args)
+	value, err := r.interp.CallFunctionIn(orig, args, env)
+	return materializeBoundaryValue(value), err
 }
 
 func (r *Runtime) Call(name string, args []runtime.Value) (runtime.Value, error) {
@@ -275,7 +295,9 @@ func (r *Runtime) Call(name string, args []runtime.Value) (runtime.Value, error)
 	if err != nil {
 		return nil, err
 	}
-	return r.interp.CallFunctionIn(value, args, env)
+	args = materializeBoundaryValues(args)
+	result, err := r.interp.CallFunctionIn(value, args, env)
+	return materializeBoundaryValue(result), err
 }
 
 func Get(rt *Runtime, name string) (runtime.Value, error) {
@@ -288,13 +310,13 @@ func Get(rt *Runtime, name string) (runtime.Value, error) {
 	}
 	value, err := env.Get(name)
 	if err == nil {
-		return value, nil
+		return materializeBoundaryValue(value), nil
 	}
 	if rt.interp != nil && env != rt.interp.GlobalEnvironment() && rt.globalLookupFallback() {
 		if fallback := rt.interp.GlobalEnvironment(); fallback != nil {
 			if value, err := fallback.Get(name); err == nil {
 				recordGlobalLookupFallback("get", name)
-				return value, nil
+				return materializeBoundaryValue(value), nil
 			}
 		}
 	}
@@ -309,6 +331,7 @@ func Assign(rt *Runtime, name string, value runtime.Value) error {
 	if env == nil {
 		return fmt.Errorf("compiler bridge: missing global environment")
 	}
+	value = materializeBoundaryValue(value)
 	if env.AssignExisting(name, value) {
 		return nil
 	}
@@ -316,172 +339,48 @@ func Assign(rt *Runtime, name string, value runtime.Value) error {
 	return nil
 }
 
-func (r *Runtime) StructDefinition(name string) (*runtime.StructDefinitionValue, error) {
-	if r == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	env := r.currentEnv()
-	if env == nil {
-		return nil, fmt.Errorf("compiler bridge: missing global environment")
-	}
-	cacheKey := structCacheKey(env, name)
-	r.mu.RLock()
-	if def, ok := r.structs[cacheKey]; ok {
-		r.mu.RUnlock()
-		return def, nil
-	}
-	r.mu.RUnlock()
-	aliases := []string{name}
-	if idx := strings.LastIndex(strings.TrimSpace(name), "."); idx >= 0 && idx+1 < len(name) {
-		if leaf := strings.TrimSpace(name[idx+1:]); leaf != "" && leaf != name {
-			aliases = append(aliases, leaf)
-		}
-	}
-	var aliasUsed string
-	def, ok := env.StructDefinition(name)
-	if !ok || def == nil {
-		for _, alias := range aliases[1:] {
-			if seeded, found := env.StructDefinition(alias); found && seeded != nil {
-				def, ok = seeded, true
-				aliasUsed = alias
-				break
-			}
-		}
-	}
-	if (!ok || def == nil) && r.interp != nil {
-		for _, alias := range aliases {
-			if seeded, found := r.interp.LookupStructDefinition(alias); found && seeded != nil {
-				def, ok = seeded, true
-				aliasUsed = alias
-				env.DefineStruct(name, seeded)
-				if alias != "" && alias != name {
-					env.DefineStruct(alias, seeded)
-				}
-				if seeded.Node != nil && seeded.Node.ID != nil {
-					if canonical := strings.TrimSpace(seeded.Node.ID.Name); canonical != "" {
-						if canonical != name {
-							env.DefineStruct(canonical, seeded)
-						}
-						if alias != "" && alias != canonical {
-							env.DefineStruct(alias, seeded)
-						}
-					}
-				}
-				break
-			}
-		}
-	}
-	if (!ok || def == nil) && r.interp != nil && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
-		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
-			for _, alias := range aliases {
-				if alt, found := fallback.StructDefinition(alias); found && alt != nil {
-					recordGlobalLookupFallback("struct_global", alias)
-					def, ok = alt, true
-					aliasUsed = alias
-					break
-				}
-			}
-		}
-	}
-	if (!ok || def == nil) && r.interp != nil && r.globalLookupFallback() {
-		for _, alias := range aliases {
-			if alt, found := r.interp.LookupStructDefinition(alias); found && alt != nil {
-				recordGlobalLookupFallback("struct_registry", alias)
-				def, ok = alt, true
-				aliasUsed = alias
-				break
-			}
-		}
-	}
-	if !ok || def == nil {
-		return nil, fmt.Errorf("compiler bridge: struct %s not found", name)
-	}
-	r.mu.Lock()
-	r.structs[cacheKey] = def
-	if aliasUsed != "" && aliasUsed != name {
-		r.structs[structCacheKey(env, aliasUsed)] = def
-	}
-	r.mu.Unlock()
-	return def, nil
-}
-
-func (r *Runtime) UnionDefinition(name string) (*runtime.UnionDefinitionValue, error) {
-	if r == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	env := r.currentEnv()
-	if env == nil {
-		return nil, fmt.Errorf("compiler bridge: missing global environment")
-	}
-	if val, err := env.Get(name); err == nil {
-		if def, conv := toUnionDefinitionValue(val, name); conv == nil && def != nil {
-			return def, nil
-		}
-	}
-	if r.interp != nil && env != r.interp.GlobalEnvironment() && r.globalLookupFallback() {
-		if fallback := r.interp.GlobalEnvironment(); fallback != nil {
-			if val, err := fallback.Get(name); err == nil {
-				if def, conv := toUnionDefinitionValue(val, name); conv == nil && def != nil {
-					recordGlobalLookupFallback("union_global", name)
-					return def, nil
-				}
-			}
-		}
-	}
-	if r.interp != nil {
-		def, ok := r.interp.LookupUnionDefinition(name)
-		if ok && def != nil {
-			return def, nil
-		}
-	}
-	return nil, fmt.Errorf("compiler bridge: union %s not found", name)
-}
-
-func structCacheKey(env *runtime.Environment, name string) string {
-	if env == nil {
-		return "<nil>:" + name
-	}
-	return fmt.Sprintf("%p:%s", env, name)
-}
-
-func toUnionDefinitionValue(val runtime.Value, name string) (*runtime.UnionDefinitionValue, error) {
-	switch typed := val.(type) {
-	case *runtime.UnionDefinitionValue:
-		if typed == nil {
-			return nil, fmt.Errorf("compiler bridge: %s is not a union definition", name)
-		}
-		return typed, nil
-	case runtime.UnionDefinitionValue:
-		copy := typed
-		return &copy, nil
-	default:
-		return nil, fmt.Errorf("compiler bridge: %s is not a union definition", name)
-	}
-}
-
 func Index(rt *Runtime, obj runtime.Value, idx runtime.Value) (runtime.Value, error) {
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	return rt.interp.IndexGet(obj, idx, nil)
+	value, err := rt.interp.IndexGet(materializeBoundaryValue(obj), materializeBoundaryValue(idx), nil)
+	return materializeBoundaryValue(value), err
 }
 
 func IndexAssign(rt *Runtime, obj runtime.Value, idx runtime.Value, value runtime.Value) (runtime.Value, error) {
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	return rt.interp.IndexAssign(obj, idx, value, nil)
+	result, err := rt.interp.IndexAssign(
+		materializeBoundaryValue(obj),
+		materializeBoundaryValue(idx),
+		materializeBoundaryValue(value),
+		nil,
+	)
+	return materializeBoundaryValue(result), err
 }
 
 func HashMapHashValue(rt *Runtime, val runtime.Value) (uint64, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
+		return 0, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		if hash, ok, err := primitiveHashMapHash(val); ok || err != nil {
+			return hash, err
+		}
 		return 0, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	return rt.interp.HashMapHashValue(val)
 }
 
 func HashMapKeysEqual(rt *Runtime, a runtime.Value, b runtime.Value) (bool, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
+		return false, fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		if equal, ok := primitiveHashMapKeyEqual(a, b); ok {
+			return equal, nil
+		}
 		return false, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	return rt.interp.HashMapKeysEqual(a, b)
@@ -491,7 +390,13 @@ func MemberAssign(rt *Runtime, obj runtime.Value, member runtime.Value, value ru
 	if rt == nil || rt.interp == nil {
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
-	return rt.interp.MemberAssign(obj, member, value, nil)
+	result, err := rt.interp.MemberAssign(
+		materializeBoundaryValue(obj),
+		materializeBoundaryValue(member),
+		materializeBoundaryValue(value),
+		nil,
+	)
+	return materializeBoundaryValue(result), err
 }
 
 func MemberGet(rt *Runtime, obj runtime.Value, member runtime.Value) (runtime.Value, error) {
@@ -499,7 +404,8 @@ func MemberGet(rt *Runtime, obj runtime.Value, member runtime.Value) (runtime.Va
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
-	return rt.interp.MemberGet(obj, member, env)
+	value, err := rt.interp.MemberGet(materializeBoundaryValue(obj), materializeBoundaryValue(member), env)
+	return materializeBoundaryValue(value), err
 }
 
 func MemberGetPreferMethods(rt *Runtime, obj runtime.Value, member runtime.Value) (runtime.Value, error) {
@@ -519,7 +425,81 @@ func MemberGetPreferMethods(rt *Runtime, obj runtime.Value, member runtime.Value
 		memberGetPreferMethodsMu.Unlock()
 	}
 	env := rt.currentEnv()
-	return rt.interp.MemberGetPreferMethods(obj, member, env)
+	value, err := rt.interp.MemberGetPreferMethods(materializeBoundaryValue(obj), materializeBoundaryValue(member), env)
+	return materializeBoundaryValue(value), err
+}
+
+// CallStaticGenericUnionMember preserves a checked static receiver type for
+// the interpreter-backed fallback of generic named-union dispatch. Standalone
+// compiled binaries use their generated method table first; all other calls
+// continue through generated fast dispatch.
+func CallStaticGenericUnionMember(rt *Runtime, obj runtime.Value, memberName string, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, bool, error) {
+	if rt == nil || rt.interp == nil {
+		// Standalone compiled binaries deliberately omit the interpreter
+		// bootstrap. Let their generated native-method table handle the call;
+		// the static interpreter path below is only needed when that table is
+		// not the active dispatch mechanism.
+		return nil, false, nil
+	}
+	materializedArgs := make([]runtime.Value, len(args))
+	for index, arg := range args {
+		materializedArgs[index] = materializeBoundaryValue(arg)
+	}
+	originals := rt.originalCallablesNamed(memberName)
+	var value runtime.Value
+	var handled bool
+	var err error
+	if len(originals) > 0 {
+		value, handled, err = rt.interp.CallStaticGenericUnionMemberFromCandidates(
+			originals,
+			materializeBoundaryValue(obj),
+			memberName,
+			materializedArgs,
+			call,
+			rt.currentEnv(),
+		)
+	} else {
+		value, handled, err = rt.interp.CallStaticGenericUnionMember(
+			materializeBoundaryValue(obj),
+			memberName,
+			materializedArgs,
+			call,
+			rt.currentEnv(),
+		)
+	}
+	return materializeBoundaryValue(value), handled, err
+}
+
+func (r *Runtime) originalCallablesNamed(name string) []runtime.Value {
+	if r == nil || name == "" {
+		return nil
+	}
+	suffix := "." + name
+	r.mu.RLock()
+	keys := make([]string, 0, len(r.originals))
+	for qualified := range r.originals {
+		if strings.HasSuffix(qualified, suffix) {
+			keys = append(keys, qualified)
+		}
+	}
+	sort.Strings(keys)
+	values := make([]runtime.Value, 0, len(keys))
+	for _, key := range keys {
+		if value := r.originals[key]; value != nil {
+			values = append(values, value)
+		}
+	}
+	r.mu.RUnlock()
+	return values
+}
+
+// RegisterStaticCallReceiverType associates a generated call node with the
+// checked receiver type that its source call had before Go lowering.
+func RegisterStaticCallReceiverType(rt *Runtime, call *ast.FunctionCall, receiverType ast.TypeExpression) {
+	if rt == nil || rt.interp == nil {
+		return
+	}
+	rt.interp.RegisterStaticCallReceiverType(call, receiverType)
 }
 
 func ResetMemberGetPreferMethodsCounters() {
@@ -728,11 +708,11 @@ func CallValueWithNode(rt *Runtime, fn runtime.Value, args []runtime.Value, call
 		return nil, fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
-	val, err := rt.interp.CallFunctionInWithCallNode(fn, args, env, call)
+	val, err := rt.interp.CallFunctionInWithCallNode(materializeBoundaryValue(fn), materializeBoundaryValues(args), env, call)
 	if err != nil && call != nil {
 		err = attachRuntimeContext(rt, err, call, env)
 	}
-	return val, err
+	return materializeBoundaryValue(val), err
 }
 
 func CallNamed(rt *Runtime, name string, args []runtime.Value) (runtime.Value, error) {
@@ -747,6 +727,7 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 	if env == nil {
 		return nil, fmt.Errorf("compiler bridge: missing global environment")
 	}
+	args = materializeBoundaryValues(args)
 	value, err := env.Get(name)
 	if err != nil && env != rt.interp.GlobalEnvironment() && rt.globalLookupFallback() {
 		if fallback := rt.interp.GlobalEnvironment(); fallback != nil {
@@ -761,7 +742,7 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		if callErr != nil && call != nil {
 			callErr = attachRuntimeContext(rt, callErr, call, env)
 		}
-		return val, callErr
+		return materializeBoundaryValue(val), callErr
 	}
 	if dot := strings.Index(name, "."); dot > 0 && dot < len(name)-1 {
 		if resolved, ok, resolveErr := rt.resolveQualifiedCallable(name, env); resolveErr != nil {
@@ -771,7 +752,7 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 			if callErr != nil && call != nil {
 				callErr = attachRuntimeContext(rt, callErr, call, env)
 			}
-			return val, callErr
+			return materializeBoundaryValue(val), callErr
 		}
 		head := name[:dot]
 		tail := name[dot+1:]
@@ -813,13 +794,19 @@ func CallNamedWithNode(rt *Runtime, name string, args []runtime.Value, call *ast
 		if callErr != nil && call != nil {
 			callErr = attachRuntimeContext(rt, callErr, call, env)
 		}
-		return val, callErr
+		return materializeBoundaryValue(val), callErr
 	}
 	return nil, err
 }
 
 func Stringify(rt *Runtime, value runtime.Value) (string, error) {
-	if rt == nil || rt.interp == nil {
+	if rt == nil {
+		return "", fmt.Errorf("compiler bridge: missing interpreter")
+	}
+	if rt.interp == nil {
+		if rendered, ok := stringifyPrimitive(value); ok {
+			return rendered, nil
+		}
 		return "", fmt.Errorf("compiler bridge: missing interpreter")
 	}
 	env := rt.currentEnv()
@@ -912,159 +899,4 @@ func ShiftOutOfRangeError(rt *Runtime, shift int64) runtime.Value {
 		return runtime.ErrorValue{Message: "shift out of range"}
 	}
 	return rt.interp.StandardShiftOutOfRangeErrorValue(shift)
-}
-
-func ApplyBinaryOperator(rt *Runtime, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	if rt == nil || rt.interp == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	return rt.interp.ApplyBinaryOperator(op, left, right)
-}
-
-func ApplyUnaryOperator(rt *Runtime, op string, operand runtime.Value) (runtime.Value, error) {
-	if rt == nil || rt.interp == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	return rt.interp.ApplyUnaryOperator(op, operand)
-}
-
-func Range(rt *Runtime, start runtime.Value, end runtime.Value, inclusive bool) (runtime.Value, error) {
-	if rt == nil || rt.interp == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	env := rt.currentEnv()
-	return rt.interp.EvaluateRangeValues(start, end, inclusive, env)
-}
-
-func ResolveIterator(rt *Runtime, iterable runtime.Value) (*runtime.IteratorValue, error) {
-	if rt == nil || rt.interp == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	env := rt.currentEnv()
-	return rt.interp.ResolveIteratorValue(iterable, env)
-}
-
-func Spawn(rt *Runtime, task func(*runtime.Environment) (runtime.Value, error)) (*runtime.FutureValue, error) {
-	if rt == nil || rt.interp == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	if task == nil {
-		return nil, fmt.Errorf("compiler bridge: missing task")
-	}
-	env := rt.currentEnv()
-	future := rt.interp.RunCompiledFuture(env, func(taskEnv *runtime.Environment) (runtime.Value, error) {
-		if prev, swapped := SwapEnvIfNeeded(rt, taskEnv); swapped {
-			defer RestoreEnvIfNeeded(rt, prev, swapped)
-		}
-		return task(taskEnv)
-	})
-	if future == nil {
-		return nil, fmt.Errorf("compiler bridge: spawn failed")
-	}
-	return future, nil
-}
-
-func Await(rt *Runtime, expr *ast.AwaitExpression, iterable runtime.Value) (runtime.Value, error) {
-	if rt == nil || rt.interp == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	if expr == nil {
-		return nil, fmt.Errorf("compiler bridge: missing await expression")
-	}
-	env := rt.currentEnv()
-	return rt.interp.AwaitIterable(expr, iterable, env)
-}
-
-func ArrayElements(rt *Runtime, arr *runtime.ArrayValue) ([]runtime.Value, error) {
-	if rt == nil || rt.interp == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	return rt.interp.ArrayElements(arr)
-}
-
-func Cast(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
-	if rt == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	if rt.interp == nil {
-		coerced, ok := matchTypeWithoutInterpreter(typeExpr, value)
-		if !ok {
-			return nil, fmt.Errorf("cannot cast value to requested type")
-		}
-		if coerced == nil {
-			return runtime.NilValue{}, nil
-		}
-		return coerced, nil
-	}
-	return rt.interp.CastValueToType(typeExpr, value)
-}
-
-// MatchType checks whether a value matches a type expression and returns the coerced value when it does.
-func MatchType(rt *Runtime, typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, bool, error) {
-	if rt == nil {
-		return nil, false, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	if rt.interp == nil {
-		coerced, ok := matchTypeWithoutInterpreter(typeExpr, value)
-		if !ok {
-			return nil, false, nil
-		}
-		if coerced == nil {
-			coerced = runtime.NilValue{}
-		}
-		return coerced, true, nil
-	}
-	if !rt.interp.MatchesType(typeExpr, value) {
-		return nil, false, nil
-	}
-	coerced, err := rt.interp.CoerceValueToType(typeExpr, value)
-	if err != nil {
-		return nil, false, err
-	}
-	if coerced == nil {
-		coerced = runtime.NilValue{}
-	}
-	return coerced, true, nil
-}
-
-// TypeExpressionFromValue exposes runtime type expression inference for compiler helpers.
-func TypeExpressionFromValue(rt *Runtime, value runtime.Value) (ast.TypeExpression, error) {
-	if rt == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	if rt.interp == nil {
-		return staticTypeExpressionFromValue(value), nil
-	}
-	return rt.interp.TypeExpressionFromValue(value), nil
-}
-
-// ExpandTypeAliases expands type aliases using the interpreter alias table.
-func ExpandTypeAliases(rt *Runtime, expr ast.TypeExpression) (ast.TypeExpression, error) {
-	if rt == nil {
-		return nil, fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	if rt.interp == nil {
-		return expr, nil
-	}
-	return rt.interp.ExpandTypeAliases(expr), nil
-}
-
-// EnsureTypeSatisfiesInterface checks interface constraints using the interpreter.
-func EnsureTypeSatisfiesInterface(rt *Runtime, subject ast.TypeExpression, iface ast.TypeExpression, context string) error {
-	if rt == nil {
-		return fmt.Errorf("compiler bridge: missing interpreter")
-	}
-	if rt.interp == nil {
-		// Static no-bootstrap mode cannot enforce dynamic interface constraints at runtime.
-		return nil
-	}
-	return rt.interp.EnsureTypeSatisfiesInterface(subject, iface, context)
-}
-
-// IsKnownConstraintTypeName reports if a type name is known for constraint enforcement.
-func IsKnownConstraintTypeName(rt *Runtime, name string) bool {
-	if rt == nil || rt.interp == nil {
-		return false
-	}
-	return rt.interp.IsKnownConstraintTypeName(name)
 }

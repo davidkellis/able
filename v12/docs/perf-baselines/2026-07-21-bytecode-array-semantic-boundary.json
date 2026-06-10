@@ -1,0 +1,223 @@
+{
+  "applications": [
+    {
+      "allocated_bytes": [
+        14186512,
+        14186496
+      ],
+      "allocated_bytes_mean": 14186504.0,
+      "allocations": [
+        422243,
+        422243
+      ],
+      "allocations_mean": 422243.0,
+      "array_slot": {
+        "cache_hits": 888257,
+        "fallbacks": 9,
+        "fast_hits": 888257,
+        "fast_path_misses": 0,
+        "len": 312002,
+        "lookups": 888266,
+        "push": 288259,
+        "read": 288004,
+        "write": 1
+      },
+      "array_slot_cumulative_percent": 15.79,
+      "benchmark": "array_slice_window",
+      "cache_hit_percent": 99.998987,
+      "dominant_push_descendant": "required independent slice backing, lease tracking, and Array size/read work",
+      "family": "array-iterator",
+      "merged_cpu_samples_seconds": 1.14,
+      "perfect_push_cpu_speedup": 1.045916,
+      "push_cumulative_percent": 4.39,
+      "push_share_of_operations_percent": 3.293922,
+      "runtime_mean_ns": 575390208.5,
+      "runtime_ns": [
+        567528315,
+        583252102
+      ],
+      "source": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "target_status": "miss",
+      "total_operations": 8751239
+    },
+    {
+      "allocated_bytes": [
+        308629896,
+        308624368
+      ],
+      "allocated_bytes_mean": 308627132.0,
+      "allocations": [
+        14032470,
+        14032467
+      ],
+      "allocations_mean": 14032468.5,
+      "array_slot": {
+        "cache_hits": 4003994,
+        "fallbacks": 7,
+        "fast_hits": 4003994,
+        "fast_path_misses": 0,
+        "len": 1,
+        "lookups": 4004001,
+        "push": 4004000,
+        "read": 0,
+        "write": 0
+      },
+      "array_slot_cumulative_percent": 28.85,
+      "benchmark": "matrixmultiply",
+      "cache_hit_percent": 99.999825,
+      "dominant_push_descendant": "monomorphic f64 ArrayStore size/write/synchronization; the separate dot-loop owns 26.26% cumulative",
+      "family": "float-matrix",
+      "merged_cpu_samples_seconds": 9.29,
+      "perfect_push_cpu_speedup": 1.364256,
+      "push_cumulative_percent": 26.7,
+      "push_share_of_operations_percent": 6.551353,
+      "runtime_mean_ns": 4664841160.5,
+      "runtime_ns": [
+        4617641248,
+        4712041073
+      ],
+      "source": "v12/examples/benchmarks/matrixmultiply.able",
+      "target_status": "meets",
+      "total_operations": 61117147
+    },
+    {
+      "allocated_bytes": [
+        213605504,
+        213605248
+      ],
+      "allocated_bytes_mean": 213605376.0,
+      "allocations": [
+        3542860,
+        3542848
+      ],
+      "allocations_mean": 3542854.0,
+      "array_slot": {
+        "cache_hits": 8066986,
+        "fallbacks": 14,
+        "fast_hits": 8066986,
+        "fast_path_misses": 0,
+        "len": 2033361,
+        "lookups": 8067000,
+        "push": 4033607,
+        "read": 2000000,
+        "write": 32
+      },
+      "array_slot_cumulative_percent": 28.26,
+      "benchmark": "reverse_complement",
+      "cache_hit_percent": 99.999826,
+      "dominant_push_descendant": "retained raw-u8 extraction and ArrayStoreAppendU8Promote",
+      "family": "byte-text",
+      "merged_cpu_samples_seconds": 5.98,
+      "perfect_push_cpu_speedup": 1.087311,
+      "push_cumulative_percent": 8.03,
+      "push_share_of_operations_percent": 6.655824,
+      "runtime_mean_ns": 2996422763.0,
+      "runtime_ns": [
+        2893576347,
+        3099269179
+      ],
+      "source": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+      "target_status": "miss",
+      "total_operations": 60602670
+    }
+  ],
+  "frozen_test_binary_sha256": "7da8b987dde05d2e7d986999192b1ca856cb32e6f63eb9f05f8f00cc0d3df459",
+  "guards": [
+    {
+      "array_slot": {
+        "cache_hits": 0,
+        "fallbacks": 0,
+        "fast_hits": 0,
+        "fast_path_misses": 0,
+        "len": 0,
+        "lookups": 0,
+        "push": 0,
+        "read": 0,
+        "write": 0
+      },
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "push_share_of_operations_percent": 0.0,
+      "source": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+      "total_operations": 60446436
+    },
+    {
+      "array_slot": {
+        "cache_hits": 140752,
+        "fallbacks": 9,
+        "fast_hits": 140752,
+        "fast_path_misses": 0,
+        "len": 9688,
+        "lookups": 140761,
+        "push": 131073,
+        "read": 0,
+        "write": 0
+      },
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "push_share_of_operations_percent": 0.745076,
+      "source": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+      "total_operations": 17591889
+    }
+  ],
+  "kind": "able-bytecode-array-semantic-boundary",
+  "prior_generic_candidate": {
+    "evidence": "v12/docs/perf-baselines/2026-07-17-bytecode-call-execution-reconciliation.md",
+    "id": "validated-array-push-shell",
+    "reason": "The general wrapper split regressed String Split/Join 13.49% and Iterator Collect 3.42% in repeated order-balanced processes.",
+    "result": "rejected"
+  },
+  "recommendation": "Return to the compiled residual frontier and select a shared generated-code semantic owner across at least three unlike applications.",
+  "schema_version": 1,
+  "sources": {
+    "array_slice_window": {
+      "path": "/home/david/sync/projects/able/v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "sha256": "64c65a525023e5fc7000f13b9d36875716b7d8b936060fede904381b58156b4e"
+    },
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-array-semantic-boundary.json",
+      "sha256": "392fc8300b39dfcacc9895c9e4d132bdeceeed54ee043649e73bb55d8582f922"
+    },
+    "fixed_width_128": {
+      "path": "/home/david/sync/projects/able/v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+      "sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e"
+    },
+    "matrixmultiply": {
+      "path": "/home/david/sync/projects/able/v12/examples/benchmarks/matrixmultiply.able",
+      "sha256": "f4e1ae5575094ab725db5ee0adb81eb6783221844aac9ef99b8f820f56c18246"
+    },
+    "prior_generic_candidate": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-17-bytecode-call-execution-reconciliation.md",
+      "sha256": "6a93c4c433487ad69fb3d0a992e24378f38220128fd25f44f155b38d7f5c60bc"
+    },
+    "reverse_complement": {
+      "path": "/home/david/sync/projects/able/v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+      "sha256": "4bd16d4b6c65362efc5b2515548f59686144553a91eadcc65a0cde6df537e5f9"
+    },
+    "target_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/external-scoreboard-current.json",
+      "sha256": "c3656a911c4a43b996f64f3cddad93bbed5a291f337fd69d0bd4834ae4a7c196"
+    },
+    "word_frequency": {
+      "path": "/home/david/sync/projects/able/v12/examples/benchmarks/word_frequency/word_frequency.able",
+      "sha256": "ad6e5d39c1685931dfb7b86fb7ce2afe783a1088ffc646a5482540606cd79a3f"
+    }
+  },
+  "summary": {
+    "application_count": 3,
+    "decision": "no-go-array-wrapper-or-storage-generalization",
+    "distinct_dominant_push_descendants": 3,
+    "guard_count": 2,
+    "prior_generic_candidate_rejected": true,
+    "total_array_slot_lookups": 12959267,
+    "total_fast_path_misses": 0,
+    "total_push_lookups": 8325866,
+    "unlike_family_count": 3
+  },
+  "target_budget_context": {
+    "array_slice_window_required_speedup": 20.94,
+    "evidence": "v12/docs/perf-baselines/external-scoreboard-current.json",
+    "matrixmultiply_status": "meets",
+    "reverse_complement_required_speedup": 117.5
+  }
+}

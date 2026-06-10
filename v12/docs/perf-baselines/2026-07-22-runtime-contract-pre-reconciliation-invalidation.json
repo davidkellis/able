@@ -1,0 +1,320 @@
+{
+  "kind": "able-performance-evidence-invalidation-report",
+  "schema_version": 1,
+  "closures": [
+    {
+      "id": "bytecode-byte-output",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-concurrency",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-float-numeric",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-iterator-control",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-regex",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-register-architecture",
+      "origin": "extra",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-target-guards",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "target-guard",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-text-map",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "bytecode-wide-numeric",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-architecture-target-budget",
+      "origin": "extra",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-byte-output",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-concurrency",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-current-control",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-float-numeric",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-iterator-control",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-regex",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-sudoku-quotient",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-insufficient-breadth",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-target-guards",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "target-guard",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-text-map",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "compiled-wide-numeric",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    },
+    {
+      "id": "cross-family-architecture-ownership",
+      "origin": "extra",
+      "modes": [
+        "bytecode",
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "invalidated",
+      "reasons": [
+        "scope-content-drift:runtime-production"
+      ]
+    }
+  ],
+  "summary": {
+    "decision": "invalidated-closures-selected",
+    "closure_count": 21,
+    "current_count": 0,
+    "invalidated_count": 21,
+    "selected_closures": [
+      "bytecode-byte-output",
+      "bytecode-concurrency",
+      "bytecode-float-numeric",
+      "bytecode-iterator-control",
+      "bytecode-regex",
+      "bytecode-register-architecture",
+      "bytecode-target-guards",
+      "bytecode-text-map",
+      "bytecode-wide-numeric",
+      "compiled-architecture-target-budget",
+      "compiled-byte-output",
+      "compiled-concurrency",
+      "compiled-current-control",
+      "compiled-float-numeric",
+      "compiled-iterator-control",
+      "compiled-regex",
+      "compiled-sudoku-quotient",
+      "compiled-target-guards",
+      "compiled-text-map",
+      "compiled-wide-numeric",
+      "cross-family-architecture-ownership"
+    ],
+    "selected_by_mode": {
+      "compiled": [
+        "compiled-architecture-target-budget",
+        "compiled-byte-output",
+        "compiled-concurrency",
+        "compiled-current-control",
+        "compiled-float-numeric",
+        "compiled-iterator-control",
+        "compiled-regex",
+        "compiled-sudoku-quotient",
+        "compiled-target-guards",
+        "compiled-text-map",
+        "compiled-wide-numeric",
+        "cross-family-architecture-ownership"
+      ],
+      "bytecode": [
+        "bytecode-byte-output",
+        "bytecode-concurrency",
+        "bytecode-float-numeric",
+        "bytecode-iterator-control",
+        "bytecode-regex",
+        "bytecode-register-architecture",
+        "bytecode-target-guards",
+        "bytecode-text-map",
+        "bytecode-wide-numeric",
+        "cross-family-architecture-ownership"
+      ]
+    },
+    "reason_counts": {
+      "scope-content-drift:runtime-production": 21
+    }
+  },
+  "recommendation": "Refresh only the selected closures before considering a candidate."
+}

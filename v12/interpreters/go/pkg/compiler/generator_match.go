@@ -728,31 +728,32 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 	if pattern.StructType != nil && pattern.StructType.Name != "" {
 		inner = append(inner, fmt.Sprintf("if %s.Definition == nil || %s.Definition.Node == nil || %s.Definition.Node.ID == nil || %s.Definition.Node.ID.Name != %q { break %s }", instTemp, instTemp, instTemp, instTemp, pattern.StructType.Name, condLabel))
 	}
-	positionalTemp := ctx.newTemp()
-	inner = append(inner, fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp))
-	inner = append(inner, fmt.Sprintf("if %s != nil {", positionalTemp))
-	inner = append(inner, fmt.Sprintf("\tif %s != %d { break %s }", g.staticSliceLenExpr(positionalTemp), len(pattern.Fields), condLabel))
-	for idx, field := range pattern.Fields {
-		fieldPattern, ok := positionalStructFieldPattern(field)
-		if !ok {
-			ctx.setReason("invalid struct pattern field")
-			return nil, "", false
+	if pattern.IsPositional {
+		positionalTemp := ctx.newTemp()
+		inner = append(inner, fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp))
+		inner = append(inner, fmt.Sprintf("if %s == nil || %s != %d { break %s }", positionalTemp, g.staticSliceLenExpr(positionalTemp), len(pattern.Fields), condLabel))
+		for idx, field := range pattern.Fields {
+			fieldPattern, ok := positionalStructFieldPattern(field)
+			if !ok {
+				ctx.setReason("invalid struct pattern field")
+				return nil, "", false
+			}
+			fieldExpr := fmt.Sprintf("%s[%d]", positionalTemp, idx)
+			fieldCondLines, fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldExpr, "runtime.Value")
+			if !ok {
+				return nil, "", false
+			}
+			inner = append(inner, fieldCondLines...)
+			if fieldCond != "true" {
+				inner = append(inner, fmt.Sprintf("if !(%s) { break %s }", fieldCond, condLabel))
+			}
 		}
-		fieldExpr := fmt.Sprintf("%s[%d]", positionalTemp, idx)
-		fieldCondLines, fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldExpr, "runtime.Value")
-		if !ok {
-			return nil, "", false
+		inner = append(inner, fmt.Sprintf("%s = true", condTemp))
+		lines := []string{
+			fmt.Sprintf("%s := false", condTemp),
+			fmt.Sprintf("%s: switch { default: %s }", condLabel, strings.Join(inner, "; ")),
 		}
-		if len(fieldCondLines) > 0 {
-			inner = append(inner, indentLines(fieldCondLines, 1)...)
-		}
-		if fieldCond != "true" {
-			inner = append(inner, fmt.Sprintf("\tif !(%s) { break %s }", fieldCond, condLabel))
-		}
-	}
-	inner = append(inner, fmt.Sprintf("\t%s = true; break %s", condTemp, condLabel), "}")
-	if len(pattern.Fields) > 0 {
-		inner = append(inner, fmt.Sprintf("if %s.Fields == nil { break %s }", instTemp, condLabel))
+		return lines, condTemp, true
 	}
 	for _, field := range pattern.Fields {
 		fieldPattern, ok := positionalStructFieldPattern(field)
@@ -765,27 +766,24 @@ func (g *generator) compileRuntimeStructPatternCondition(ctx *compileContext, pa
 			break
 		}
 		fieldOk := ctx.newTemp()
-		fieldExpr := fmt.Sprintf("%s.Fields[%q]", instTemp, field.FieldName.Name)
-		fieldCondLines, fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldExpr, "runtime.Value")
+		fieldTemp := ctx.newTemp()
+		fieldCondLines, fieldCond, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldTemp, "runtime.Value")
 		if !ok {
 			return nil, "", false
 		}
 		if fieldCond == "true" && len(fieldCondLines) == 0 {
-			inner = append(inner, fmt.Sprintf("_, %s := %s", fieldOk, fieldExpr))
+			inner = append(inner, fmt.Sprintf("_, %s := __able_struct_named_field_value(%s, %q)", fieldOk, instTemp, field.FieldName.Name))
 			inner = append(inner, fmt.Sprintf("if !%s { break %s }", fieldOk, condLabel))
 			continue
 		}
-		fieldTemp := ctx.newTemp()
-		inner = append(inner, fmt.Sprintf("%s, %s := %s", fieldTemp, fieldOk, fieldExpr))
+		inner = append(inner, fmt.Sprintf("%s, %s := __able_struct_named_field_value(%s, %q)", fieldTemp, fieldOk, instTemp, field.FieldName.Name))
 		inner = append(inner, fmt.Sprintf("if !%s { break %s }", fieldOk, condLabel))
-		fieldCondLines2, fieldCond2, ok := g.compileMatchPatternCondition(ctx, fieldPattern, fieldTemp, "runtime.Value")
-		if !ok {
-			return nil, "", false
+		if len(fieldCondLines) > 0 {
+			inner = append(inner, fieldCondLines...)
 		}
-		if len(fieldCondLines2) > 0 {
-			inner = append(inner, fieldCondLines2...)
+		if fieldCond != "true" {
+			inner = append(inner, fmt.Sprintf("if !(%s) { break %s }", fieldCond, condLabel))
 		}
-		inner = append(inner, fmt.Sprintf("if !(%s) { break %s }", fieldCond2, condLabel))
 	}
 	inner = append(inner, fmt.Sprintf("%s = true", condTemp))
 
@@ -809,11 +807,13 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 		fmt.Sprintf("%s := __able_struct_instance(%s)", instTemp, subjectTemp),
 	}
 	positionalTemp := ""
-	positionalTemp = ctx.newTemp()
-	lines = append(lines,
-		fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp),
-		fmt.Sprintf("_ = %s", positionalTemp),
-	)
+	if pattern.IsPositional {
+		positionalTemp = ctx.newTemp()
+		lines = append(lines,
+			fmt.Sprintf("%s := %s.Positional", positionalTemp, instTemp),
+			fmt.Sprintf("_ = %s", positionalTemp),
+		)
+	}
 	for idx, field := range pattern.Fields {
 		fieldPattern, ok := positionalStructFieldPattern(field)
 		if !ok {
@@ -821,12 +821,12 @@ func (g *generator) compileRuntimeStructPatternBindings(ctx *compileContext, pat
 			return nil, false
 		}
 		fieldTemp := ctx.newTemp()
-		if field.FieldName != nil && field.FieldName.Name != "" {
+		if !pattern.IsPositional && field.FieldName != nil && field.FieldName.Name != "" {
 			lines = append(lines, fmt.Sprintf("var %s runtime.Value", fieldTemp))
-			lines = append(lines, fmt.Sprintf("if %s != nil { %s = %s[%d] } else { %s = %s.Fields[%q] }", positionalTemp, fieldTemp, positionalTemp, idx, fieldTemp, instTemp, field.FieldName.Name))
+			lines = append(lines, fmt.Sprintf("%s, _ = __able_struct_named_field_value(%s, %q)", fieldTemp, instTemp, field.FieldName.Name))
 		} else {
 			lines = append(lines, fmt.Sprintf("var %s runtime.Value", fieldTemp))
-			lines = append(lines, fmt.Sprintf("if %s != nil { %s = %s[%d] } else { %s = runtime.NilValue{} }", positionalTemp, fieldTemp, positionalTemp, idx, fieldTemp))
+			lines = append(lines, fmt.Sprintf("%s = %s[%d]", fieldTemp, positionalTemp, idx))
 		}
 		lines = append(lines, fmt.Sprintf("_ = %s", fieldTemp))
 		fieldExpr := fieldTemp

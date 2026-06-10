@@ -108,10 +108,10 @@ func runCompilerNoBootstrapExecFixture(t *testing.T, dir string, rel string) {
 		}
 	})
 
-	comp := New(Options{
+	comp := New(compilerFixtureOptions(t, Options{
 		PackageName:        "main",
 		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
-	})
+	}))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

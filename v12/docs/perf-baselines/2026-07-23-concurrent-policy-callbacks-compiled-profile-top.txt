@@ -1,0 +1,88 @@
+File: run
+Build ID: bcb5075ba16e28a3c3ee530257413ed12f92155d
+Type: cpu
+Time: 2026-07-23 10:46:24 CDT
+Duration: 1.04s, Total samples = 1.07s (102.94%)
+Showing nodes accounting for 1.07s, 100% of 1.07s total
+Showing top 80 nodes out of 131
+      flat  flat%   sum%        cum   cum%
+     0.15s 14.02% 14.02%      0.22s 20.56%  runtime.recordForPanic
+     0.10s  9.35% 23.36%      0.25s 23.36%  runtime.pcvalue
+     0.10s  9.35% 32.71%      0.10s  9.35%  runtime.unlock2
+     0.09s  8.41% 41.12%      0.10s  9.35%  runtime.step
+     0.07s  6.54% 47.66%      0.07s  6.54%  runtime.lock2
+     0.07s  6.54% 54.21%      0.14s 13.08%  runtime.printlock
+     0.05s  4.67% 58.88%      0.27s 25.23%  runtime.gwrite
+     0.04s  3.74% 62.62%      0.04s  3.74%  runtime.findfunc
+     0.03s  2.80% 65.42%      0.03s  2.80%  indexbytebody
+     0.03s  2.80% 68.22%      0.03s  2.80%  runtime.(*moduledata).textAddr
+     0.03s  2.80% 71.03%      0.03s  2.80%  runtime.acquirem (inline)
+     0.03s  2.80% 73.83%      0.03s  2.80%  runtime.funcdata (inline)
+     0.03s  2.80% 76.64%      0.03s  2.80%  runtime.memmove
+     0.03s  2.80% 79.44%      0.08s  7.48%  runtime.printhexopts
+     0.03s  2.80% 82.24%      0.93s 86.92%  runtime.traceback2
+     0.02s  1.87% 84.11%      0.02s  1.87%  internal/strconv.formatBase10
+     0.02s  1.87% 85.98%      0.28s 26.17%  runtime.printArgs
+     0.02s  1.87% 87.85%      0.12s 11.21%  runtime.printunlock
+     0.02s  1.87% 89.72%      0.02s  1.87%  runtime.scanSpan
+     0.01s  0.93% 90.65%      0.01s  0.93%  aeshashbody
+     0.01s  0.93% 91.59%      0.01s  0.93%  internal/bytealg.IndexByteString
+     0.01s  0.93% 92.52%      0.07s  6.54%  runtime.(*unwinder).resolveInternal
+     0.01s  0.93% 93.46%      0.01s  0.93%  runtime.bytes (inline)
+     0.01s  0.93% 94.39%      0.01s  0.93%  runtime.goroutineheader
+     0.01s  0.93% 95.33%      0.01s  0.93%  runtime.isExportedRuntime
+     0.01s  0.93% 96.26%      0.01s  0.93%  runtime.nextFreeFast (inline)
+     0.01s  0.93% 97.20%      0.01s  0.93%  runtime.readvarint (inline)
+     0.01s  0.93% 98.13%      0.01s  0.93%  runtime.runqget
+     0.01s  0.93% 99.07%      0.02s  1.87%  runtime.showfuncinfo
+     0.01s  0.93%   100%      0.01s  0.93%  runtime.tryDeferToSpanScan
+         0     0%   100%      0.17s 15.89%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%      0.22s 20.56%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%      0.20s 18.69%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%      0.21s 19.63%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0%   100%      0.20s 18.69%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%      0.44s 41.12%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      1.01s 94.39%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%      0.02s  1.87%  internal/strconv.RuntimeFormatBase10 (inline)
+         0     0%   100%      0.01s  0.93%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0%   100%      0.01s  0.93%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0%   100%      0.01s  0.93%  internal/sync.(*entry[go.shape.interface {},go.shape.interface {}]).swap
+         0     0%   100%      0.01s  0.93%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+         0     0%   100%      0.76s 71.03%  main.(*__able_serial_executor).runSerialTask.func2
+         0     0%   100%      0.27s 25.23%  main.RunRegisteredMain
+         0     0%   100%      0.27s 25.23%  main.RunRegisteredMain.func1
+         0     0%   100%      0.07s  6.54%  main.__able_channel_receive_impl
+         0     0%   100%      0.10s  9.35%  main.__able_channel_send_impl
+         0     0%   100%      0.34s 31.78%  main.__able_compiled_entry_impl_DecisionPolicy_evaluate_0
+         0     0%   100%      0.29s 27.10%  main.__able_compiled_entry_impl_DecisionPolicy_evaluate_0_a
+         0     0%   100%      0.30s 28.04%  main.__able_compiled_entry_method_String_len_bytes
+         0     0%   100%      0.63s 58.88%  main.__able_compiled_fn_evaluate_task
+         0     0%   100%      0.27s 25.23%  main.__able_compiled_fn_main
+         0     0%   100%      0.75s 70.09%  main.__able_compiled_fn_main.func1
+         0     0%   100%      0.08s  7.48%  main.__able_compiled_fn_make_adjusters.func1
+         0     0%   100%      0.12s 11.21%  main.__able_compiled_fn_make_adjusters.func2
+         0     0%   100%      0.08s  7.48%  main.__able_compiled_fn_make_adjusters.func3
+         0     0%   100%      0.75s 70.09%  main.__able_compiled_fn_work
+         0     0%   100%      0.30s 28.04%  main.__able_compiled_impl_DecisionPolicy_evaluate_0
+         0     0%   100%      0.28s 26.17%  main.__able_compiled_impl_DecisionPolicy_evaluate_0_a
+         0     0%   100%      0.05s  4.67%  main.__able_compiled_method_Channel_receive_spec
+         0     0%   100%      0.02s  1.87%  main.__able_compiled_method_Channel_receive_spec_a
+         0     0%   100%      0.22s 20.56%  main.__able_compiled_method_Channel_send_spec
+         0     0%   100%      0.10s  9.35%  main.__able_compiled_method_Channel_send_spec_a
+         0     0%   100%      0.17s 15.89%  main.__able_current_payload
+         0     0%   100%      0.29s 27.10%  main.__able_iface_DecisionPolicy_adapter_ptr_MomentumPolicy.evaluate
+         0     0%   100%      0.34s 31.78%  main.__able_iface_DecisionPolicy_adapter_ptr_WeightedPolicy.evaluate
+         0     0%   100%      0.27s 25.23%  main.__able_register_compiled_call.func1
+         0     0%   100%      0.76s 71.03%  main.__able_run_compiled_task
+         0     0%   100%      0.07s  6.54%  main.__able_struct_PolicyRecord_to_seen
+         0     0%   100%      0.06s  5.61%  main.__able_struct_PolicyScore_to (inline)
+         0     0%   100%      0.06s  5.61%  main.__able_struct_PolicyScore_to_seen
+         0     0%   100%      0.16s 14.95%  main.__able_struct_PolicyTask_to (inline)
+         0     0%   100%      0.16s 14.95%  main.__able_struct_PolicyTask_to_seen
+         0     0%   100%      0.27s 25.23%  main.__able_wrap_fn_main
+         0     0%   100%      0.27s 25.23%  main.main
+         0     0%   100%      0.27s 25.23%  main.runMain
+         0     0%   100%      0.11s 10.28%  runtime.(*inlineUnwinder).fileLine (inline)
+         0     0%   100%      0.01s  0.93%  runtime.(*inlineUnwinder).resolveInternal (inline)
+         0     0%   100%      0.01s  0.93%  runtime.(*moduledata).funcName
+         0     0%   100%      0.11s 10.28%  runtime.(*unwinder).next

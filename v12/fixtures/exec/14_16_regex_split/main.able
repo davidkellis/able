@@ -1,0 +1,48 @@
+package exec_14_16_regex_split
+
+import able.kernel.{Array}
+import able.text.regex.{Regex}
+import able.text.string.{String}
+
+fn show_parts(label: String, values: Array String) -> void {
+  print(`${label} ${values.size()} [${String.join(values, "|")}]`)
+}
+
+fn main() -> void {
+  Regex.compile(":") match {
+    case regex: Regex => {
+      show_parts("basic", regex.split(":a::b:", nil))
+      show_parts("limit", regex.split("a:b:c:d", 2_u64))
+      show_parts("limit-zero", regex.split("a:b", 0_u64))
+    },
+    case _ => print("colon compile error")
+  }
+
+  Regex.compile("a*") match {
+    case regex: Regex => show_parts("zero", regex.split("é", nil)),
+    case _ => print("zero compile error")
+  }
+
+  Regex.compile("^") match {
+    case regex: Regex => show_parts("start", regex.split("é", nil)),
+    case _ => print("start compile error")
+  }
+
+  Regex.compile("$") match {
+    case regex: Regex => show_parts("end", regex.split("é", nil)),
+    case _ => print("end compile error")
+  }
+
+  Regex.compile("x") match {
+    case regex: Regex => {
+      show_parts("no-match", regex.split("é", nil))
+      show_parts("empty", regex.split("", nil))
+    },
+    case _ => print("no-match compile error")
+  }
+
+  Regex.compile("ab") match {
+    case regex: Regex => show_parts("whole", regex.split("ab", nil)),
+    case _ => print("whole compile error")
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "regex-set span iteration handles Unicode zero-width progression, multiline anchors, and empty pattern sets",
+  "expect": {
+    "stdout": [
+      "zero 0 0-0",
+      "zero 0 2-2",
+      "zero end",
+      "line 0 2-5",
+      "line 1 2-5",
+      "line end",
+      "empty end"
+    ]
+  }
+}

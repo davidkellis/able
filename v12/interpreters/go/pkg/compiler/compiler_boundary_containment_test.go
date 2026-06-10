@@ -44,8 +44,8 @@ func TestCompilerBoundaryExplicitHelperSetSourceAudit(t *testing.T) {
 			file:  "generator_render_functions.go",
 			lines: []string{`__able_mark_boundary_explicit(\"call_original\", %q)`},
 		},
-		"generator_render_runtime_calls.go": {
-			file:  "generator_render_runtime_calls.go",
+		"generator_render_runtime_call_value.go": {
+			file:  "generator_render_runtime_call_value.go",
 			lines: []string{`__able_mark_boundary_explicit(\"call_value\", __able_boundary_name)`},
 		},
 		"generator_render_runtime_calls_tail.go": {
@@ -143,10 +143,10 @@ func runCompilerNoBootstrapBoundaryAuditFixture(t *testing.T, root, rel string) 
 	}
 
 	moduleRoot, workDir := compilerTestWorkDir(t, "ablec-noboot-boundary")
-	comp := New(Options{
+	comp := New(compilerFixtureOptions(t, Options{
 		PackageName:        "main",
 		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
-	})
+	}))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

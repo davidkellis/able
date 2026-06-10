@@ -95,8 +95,8 @@ func TestCompilerGoExternMonoArrayReturnUsesNativeHostSlice(t *testing.T) {
 	if !ok {
 		t.Fatalf("compiled extern body not found")
 	}
-	if !strings.Contains(body, "return &__able_array_u8{Elements: append([]uint8(nil), __able_host_result...)}, nil") {
-		t.Fatalf("expected mono-array extern return to wrap host []uint8 directly:\n%s", body)
+	if !strings.Contains(body, "return &__able_array_u8{Elements: __able_host_result}, nil") {
+		t.Fatalf("expected mono-array extern return to transfer owned host []uint8 directly:\n%s", body)
 	}
 	if strings.Contains(body, "bridge.HostValueToRuntime") {
 		t.Fatalf("expected mono-array extern return to avoid generic host return bridge:\n%s", body)
@@ -162,6 +162,85 @@ func TestCompilerGoExternPrimitiveArgsAndReturnStayNative(t *testing.T) {
 	}
 }
 
+func TestCompilerGoExternBorrowedMonoArrayU8ArgUsesNativeCarrier(t *testing.T) {
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-go-extern-borrowed-u8-arg-", strings.Join([]string{
+		"package demo",
+		"",
+		"extern go fn borrowed_len(value: Array u8) -> i32 {",
+		"  value = able_borrowed_bytes(value)",
+		"  return int32(len(value))",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  bytes: Array u8 := [65_u8, 66_u8]",
+		"  print(borrowed_len(bytes))",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:              "main",
+		ExperimentalMonoArrays:   true,
+		RequireStaticNoFallbacks: true,
+	})
+
+	compiled := string(result.Files["compiled.go"])
+	if !strings.Contains(compiled, "func able_borrowed_bytes(data []byte) []byte { return data }") {
+		t.Fatalf("expected compiled host support to emit able_borrowed_bytes helper:\n%s", compiled)
+	}
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_borrowed_len")
+	if !ok {
+		t.Fatalf("compiled extern body not found")
+	}
+	if !strings.Contains(body, "return able_borrowed_bytes(value.Elements)") {
+		t.Fatalf("expected borrowed Array u8 arg to reuse mono-array carrier directly:\n%s", body)
+	}
+	if strings.Contains(body, "bridge.RuntimeValueToHost[[]uint8]") {
+		t.Fatalf("expected borrowed Array u8 arg to avoid generic host bridge:\n%s", body)
+	}
+}
+
+func TestCompilerGoExternArrayU8ArgCopyVsBorrowedSemantics(t *testing.T) {
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-go-extern-array-u8-copy-vs-borrowed-", strings.Join([]string{
+		"package demo",
+		"",
+		"extern go fn mutate_copied(value: Array u8) -> String {",
+		"  value[0] = uint8('z')",
+		"  return string(value)",
+		"}",
+		"",
+		"extern go fn mutate_borrowed(value: Array u8) -> String {",
+		"  value = able_borrowed_bytes(value)",
+		"  value[0] = uint8('z')",
+		"  return string(value)",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  copied: Array u8 := [97_u8, 98_u8, 99_u8]",
+		"  print(mutate_copied(copied))",
+		"  print(copied[0]! as i32)",
+		"  borrowed: Array u8 := [97_u8, 98_u8, 99_u8]",
+		"  print(mutate_borrowed(borrowed))",
+		"  print(borrowed[0]! as i32)",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:              "main",
+		EmitMain:                 true,
+		ExperimentalMonoArrays:   true,
+		RequireStaticNoFallbacks: true,
+	})
+
+	lines := strings.Fields(strings.TrimSpace(stdout))
+	expected := []string{"zbc", "97", "zbc", "122"}
+	if len(lines) != len(expected) {
+		t.Fatalf("expected %v output lines, got %q", expected, stdout)
+	}
+	for idx, want := range expected {
+		if lines[idx] != want {
+			t.Fatalf("stdout line %d: expected %q got %q (full stdout %q)", idx, want, lines[idx], stdout)
+		}
+	}
+}
+
 func TestCompilerGoExternUnionMonoArrayToRuntimeHelperUsesSpecializedArrayBridge(t *testing.T) {
 	result := compileNoFallbackExecSourceWithOptions(t, "ablec-go-extern-array-union-", strings.Join([]string{
 		"package demo",
@@ -201,8 +280,41 @@ func TestCompilerGoExternUnionMonoArrayToRuntimeHelperUsesSpecializedArrayBridge
 	if !strings.Contains(body, "if __able_host_slice, ok := __able_host_result.([]uint8); ok") {
 		t.Fatalf("expected union extern return to detect host []uint8 directly:\n%s", body)
 	}
-	if !strings.Contains(body, "&__able_array_u8{Elements: append([]uint8(nil), __able_host_slice...)}") {
-		t.Fatalf("expected union extern return to wrap native array member directly:\n%s", body)
+	if !strings.Contains(body, "&__able_array_u8{Elements: __able_host_slice}") {
+		t.Fatalf("expected union extern return to transfer native array member directly:\n%s", body)
+	}
+}
+
+func TestCompilerGoExternMonoArrayU8ReturnTransfersOwnedHostSlice(t *testing.T) {
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-go-extern-array-u8-owned-return-", strings.Join([]string{
+		"package demo",
+		"",
+		"prelude go {",
+		"var shared = []byte{'a', 'b', 'c'}",
+		"}",
+		"",
+		"extern go fn read_shared() -> Array u8 {",
+		"  return shared",
+		"}",
+		"",
+		"extern go fn peek_shared() -> i32 {",
+		"  return int32(shared[0])",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  bytes := read_shared()",
+		"  bytes[0] = 122_u8",
+		"  print(peek_shared())",
+		"}",
+		"",
+	}, "\n"), Options{
+		PackageName:              "main",
+		EmitMain:                 true,
+		ExperimentalMonoArrays:   true,
+		RequireStaticNoFallbacks: true,
+	})
+	if strings.TrimSpace(stdout) != "122" {
+		t.Fatalf("expected owned host []uint8 transfer to reuse slice backing, got %q", stdout)
 	}
 }
 
@@ -238,6 +350,116 @@ func TestCompilerGoExternStructBoundaryWithNamedUnionFieldExecutes(t *testing.T)
 	})
 	if strings.TrimSpace(stdout) != "missing" {
 		t.Fatalf("expected extern named-union field output missing, got %q", stdout)
+	}
+}
+
+func TestCompilerGoExternVoidUnionImplicitReturnPreservesFailure(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"struct NotFound {}",
+		"struct Other {}",
+		"",
+		"union IOErrorKind = NotFound | Other",
+		"",
+		"struct IOError {",
+		"  kind: IOErrorKind,",
+		"  message: String,",
+		"  path: ?String,",
+		"}",
+		"",
+		"extern go fn fail() -> IOError | void {",
+		`  return map[string]any{"kind": "NotFound", "message": "missing", "path": nil}`,
+		"}",
+		"",
+		"fn forward() -> IOError | void { fail() }",
+		"",
+		"fn main() -> void {",
+		"  forward() match {",
+		"    case err: IOError => print(err.message),",
+		"    case _ => print(\"ok\")",
+		"  }",
+		"}",
+		"",
+	}, "\n")
+
+	for _, tc := range []struct {
+		name string
+		opts Options
+	}{
+		{name: "default", opts: Options{PackageName: "main", EmitMain: true}},
+		{name: "execution_context", opts: Options{PackageName: "main", EmitMain: true, ExperimentalExecutionContext: true}},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			stdout := compileAndRunExecSourceWithOptions(t, "ablec-go-extern-void-union-implicit-return-"+tc.name+"-", source, tc.opts)
+			if strings.TrimSpace(stdout) != "missing" {
+				t.Fatalf("expected forwarded extern failure, got %q", stdout)
+			}
+		})
+	}
+}
+
+func TestCompilerGoExternResultVoidBuildsAndPropagatesHostFailure(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"prelude go {",
+		`import "fmt"`,
+		"}",
+		"",
+		"extern go fn mark(ok: bool) -> !void {",
+		"  if !ok {",
+		`    return nil, fmt.Errorf("host failure")`,
+		"  }",
+		"  return nil, nil",
+		"}",
+		"",
+		"extern go fn notify() -> void {}",
+		"",
+		"fn capture(ok: bool) -> String {",
+		"  do {",
+		"    mark(ok)",
+		`    "ok"`,
+		"  } rescue {",
+		"    case err: Error => err.message()",
+		"  }",
+		"}",
+		"",
+		"fn main() -> void {",
+		"  notify()",
+		"  print(capture(true))",
+		"  print(capture(false))",
+		"}",
+		"",
+	}, "\n")
+
+	result := compileNoFallbackExecSourceWithOptions(t, "ablec-go-extern-result-void-", source, Options{
+		PackageName:              "main",
+		RequireStaticNoFallbacks: true,
+	})
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_mark")
+	if !ok {
+		t.Fatalf("compiled result-void extern body not found")
+	}
+	if !strings.Contains(body, "if __able_host_err != nil {") || !strings.Contains(body, "__able_raise_control(nil, __able_runtime_result)") {
+		t.Fatalf("expected result extern to translate bridge Error values into Able control flow:\n%s", body)
+	}
+	voidBody, ok := findCompiledFunction(result, "__able_compiled_fn_notify")
+	if !ok {
+		t.Fatalf("compiled plain-void extern body not found")
+	}
+	if strings.Contains(voidBody, "bridge.HostValueToRuntime") || strings.Contains(voidBody, "__able_runtime_result") {
+		t.Fatalf("expected ordinary void extern to discard its host return without a runtime bridge:\n%s", voidBody)
+	}
+
+	stdout := compileAndRunExecSourceWithOptions(t, "ablec-go-extern-result-void-run-", source, Options{
+		PackageName:              "main",
+		EmitMain:                 true,
+		RequireStaticNoFallbacks: true,
+	})
+	if strings.TrimSpace(stdout) != "ok\nhost failure" {
+		t.Fatalf("expected host result-void extern to preserve success and catchable failure, got %q", stdout)
 	}
 }
 

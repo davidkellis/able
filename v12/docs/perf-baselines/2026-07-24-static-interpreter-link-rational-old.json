@@ -1,0 +1,166 @@
+{
+  "generated_at": "2026-07-24T21:21:11.931761Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+  "run_from": "/home/david/sync/projects/benchmarks/rational-series",
+  "runs": 10,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 60,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "0",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 10,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.12,
+      "avg_user_seconds": 0.094,
+      "avg_sys_seconds": 0.021,
+      "avg_gc": 3.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.12,
+          "user_seconds": 0.09,
+          "sys_seconds": 0.03,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.13,
+          "user_seconds": 0.09,
+          "sys_seconds": 0.03,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.12,
+          "user_seconds": 0.09,
+          "sys_seconds": 0.02,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.11,
+          "user_seconds": 0.09,
+          "sys_seconds": 0.01,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.11,
+          "user_seconds": 0.09,
+          "sys_seconds": 0.02,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 6,
+          "status": "ok",
+          "real_seconds": 0.11,
+          "user_seconds": 0.09,
+          "sys_seconds": 0.02,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 7,
+          "status": "ok",
+          "real_seconds": 0.13,
+          "user_seconds": 0.11,
+          "sys_seconds": 0.01,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 8,
+          "status": "ok",
+          "real_seconds": 0.13,
+          "user_seconds": 0.1,
+          "sys_seconds": 0.02,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 9,
+          "status": "ok",
+          "real_seconds": 0.12,
+          "user_seconds": 0.09,
+          "sys_seconds": 0.03,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        },
+        {
+          "run": 10,
+          "status": "ok",
+          "real_seconds": 0.12,
+          "user_seconds": 0.1,
+          "sys_seconds": 0.02,
+          "gc_count": 3.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/rational-series/verify.rb",
+        "verified_runs": 10,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c"
+        ]
+      }
+    }
+  ]
+}

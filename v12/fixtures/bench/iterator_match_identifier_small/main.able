@@ -1,0 +1,36 @@
+package bench_iterator_match_identifier_small
+
+import able.kernel.{Array}
+
+fn build(size: i32) -> Array u8 {
+  values: Array u8 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.push((((i * 29) + 13) % 251) as u8)
+    i = i + 1
+  }
+  values
+}
+
+fn sum_values(values: Array u8, rounds: i32) -> i64 {
+  total: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= rounds { break }
+    iter := values.iterator()
+    loop {
+      iter.next() match {
+        case IteratorEnd {} => { break },
+        case value => { total = total + (value as i64) }
+      }
+    }
+    round = round + 1
+  }
+  total
+}
+
+fn main() -> void {
+  values := build(2_000)
+  print(sum_values(values, 8))
+}

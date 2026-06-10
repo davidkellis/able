@@ -1,0 +1,29 @@
+{
+  "kind": "able-compiled-generated-helper-emission-gate",
+  "date": "2026-07-22",
+  "decision": "rejected-no-code-retained",
+  "scope": "compile-throughput-only",
+  "generation_runs": {
+    "default_per_variant": 3,
+    "word_frequency_per_variant": 6
+  },
+  "root_compile_runs_per_variant": 3,
+  "rows": [
+    {"application":"fib","generation_baseline_samples_s":[0.42,0.38,0.54],"generation_candidate_samples_s":[0.46,0.46,0.57],"compile_baseline_samples_s":[1.13,1.29,1.35],"compile_candidate_samples_s":[1.02,1.25,1.14],"generation_baseline_s":0.446667,"generation_candidate_s":0.496667,"compile_baseline_s":1.256667,"compile_candidate_s":1.136667,"combined_change_pct":-4.11,"baseline_go_bytes":1106734,"candidate_go_bytes":894795,"functions_omitted":414},
+    {"application":"option_result_config","generation_baseline_samples_s":[0.81,0.77,1.06],"generation_candidate_samples_s":[0.86,0.89,1.07],"compile_baseline_samples_s":[1.66,1.87,1.90],"compile_candidate_samples_s":[1.49,1.47,1.54],"generation_baseline_s":0.880000,"generation_candidate_s":0.940000,"compile_baseline_s":1.810000,"compile_candidate_s":1.500000,"combined_change_pct":-9.29,"baseline_go_bytes":1428238,"candidate_go_bytes":1248024,"functions_omitted":420},
+    {"application":"word_frequency","generation_baseline_samples_s":[33.42,41.66,35.45,33.34,33.05,31.36],"generation_candidate_samples_s":[34.73,40.07,39.92,39.35,32.98,33.43],"compile_baseline_samples_s":[5.71,5.64,5.66],"compile_candidate_samples_s":[5.43,5.23,4.90],"generation_baseline_s":34.713333,"generation_candidate_s":36.746667,"compile_baseline_s":5.670000,"compile_candidate_s":5.186667,"combined_change_pct":3.84,"baseline_go_bytes":5065981,"candidate_go_bytes":4591600,"functions_omitted":1127},
+    {"application":"future_pipeline","generation_baseline_samples_s":[0.58,0.63,0.66],"generation_candidate_samples_s":[0.67,0.71,0.69],"compile_baseline_samples_s":[1.42,1.36,1.36],"compile_candidate_samples_s":[1.27,1.18,1.13],"generation_baseline_s":0.623333,"generation_candidate_s":0.690000,"compile_baseline_s":1.380000,"compile_candidate_s":1.193333,"combined_change_pct":-5.99,"baseline_go_bytes":1176614,"candidate_go_bytes":1011189,"functions_omitted":377},
+    {"application":"concurrent_document_pipeline","generation_baseline_samples_s":[29.95,32.07,32.39],"generation_candidate_samples_s":[29.28,33.99,30.60],"compile_baseline_samples_s":[4.94,5.06,5.17],"compile_candidate_samples_s":[4.52,4.40,4.46],"generation_baseline_s":31.470000,"generation_candidate_s":31.290000,"compile_baseline_s":5.056667,"compile_candidate_s":4.460000,"combined_change_pct":-2.13,"baseline_go_bytes":4663210,"candidate_go_bytes":4212106,"functions_omitted":1059},
+    {"application":"mutex_ledger","generation_baseline_samples_s":[1.03,1.51,1.33],"generation_candidate_samples_s":[1.15,1.34,1.40],"compile_baseline_samples_s":[1.94,1.90,2.08],"compile_candidate_samples_s":[1.74,1.69,1.79],"generation_baseline_s":1.290000,"generation_candidate_s":1.296667,"compile_baseline_s":1.973333,"compile_candidate_s":1.740000,"combined_change_pct":-6.95,"baseline_go_bytes":1643312,"candidate_go_bytes":1438506,"functions_omitted":458}
+  ],
+  "verification": {
+    "binaries_built": 12,
+    "public_verifiers_passed": 12,
+    "filtered_linked_symbol_sets_identical": 6,
+    "interpreter_init_allocation_counts_identical": 6,
+    "interpreter_init_byte_counts_identical": 5,
+    "future_pipeline_init_byte_variance": 16,
+    "candidate_code_retained": false
+  },
+  "next": "generator-native declaration reach ledger with no post-render parse pass"
+}

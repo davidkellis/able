@@ -485,7 +485,7 @@ func structToHostValue(name string, value runtime.Value) (any, error) {
 		if field == nil || field.Name == nil {
 			continue
 		}
-		fieldVal, ok := inst.Fields[field.Name.Name]
+		fieldVal, ok := structNamedFieldValue(inst, field.Name.Name)
 		if !ok {
 			if field.FieldType != nil {
 				if _, nullable := field.FieldType.(*ast.NullableTypeExpression); nullable {

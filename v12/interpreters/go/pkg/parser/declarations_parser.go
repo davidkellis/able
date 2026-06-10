@@ -10,7 +10,7 @@ import (
 )
 
 func (ctx *parseContext) parseFunctionDefinition(node *sitter.Node) (*ast.FunctionDefinition, error) {
-	if node == nil || node.Kind() != "function_definition" {
+	if node == nil || nodeKind(node) != "function_definition" {
 		return nil, fmt.Errorf("parser: expected function_definition node")
 	}
 
@@ -36,17 +36,17 @@ func (ctx *parseContext) parseFunctionDefinition(node *sitter.Node) (*ast.Functi
 
 func (ctx *parseContext) parseFunctionCore(node *sitter.Node) (*ast.Identifier, []*ast.GenericParameter, []*ast.FunctionParameter, ast.TypeExpression, []*ast.WhereClauseConstraint, *ast.BlockExpression, bool, bool, error) {
 	source := ctx.source
-	name, err := parseIdentifier(node.ChildByFieldName("name"), source)
+	name, err := parseIdentifier(childByFieldName(node, "name"), source)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
-	params, err := ctx.parseParameterList(node.ChildByFieldName("parameters"))
+	params, err := ctx.parseParameterList(childByFieldName(node, "parameters"))
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
-	bodyNode := node.ChildByFieldName("body")
+	bodyNode := childByFieldName(node, "body")
 	fnBody, err := ctx.parseBlock(bodyNode)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, false, false, err
@@ -58,24 +58,24 @@ func (ctx *parseContext) parseFunctionCore(node *sitter.Node) (*ast.Identifier, 
 		if child == nil || isIgnorableNode(child) {
 			continue
 		}
-		if child.Kind() == "private" {
+		if nodeKind(child) == "private" {
 			isPrivate = true
 			break
 		}
 	}
 
-	returnType := ctx.parseReturnType(node.ChildByFieldName("return_type"))
-	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), source)
+	returnType := ctx.parseReturnType(childByFieldName(node, "return_type"))
+	generics, err := parseTypeParameters(childByFieldName(node, "type_parameters"), source)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
-	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), source)
+	whereClause, err := parseWhereClause(childByFieldName(node, "where_clause"), source)
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
-	methodShorthand := node.ChildByFieldName("method_shorthand") != nil
+	methodShorthand := childByFieldName(node, "method_shorthand") != nil
 
 	return name, generics, params, returnType, whereClause, fnBody, methodShorthand, isPrivate, nil
 }
@@ -99,23 +99,23 @@ func (ctx *parseContext) parseParameterList(node *sitter.Node) ([]*ast.FunctionP
 }
 
 func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "struct_definition" {
+	if node == nil || nodeKind(node) != "struct_definition" {
 		return nil, fmt.Errorf("parser: expected struct_definition node")
 	}
 
 	source := ctx.source
-	nameNode := node.ChildByFieldName("name")
+	nameNode := childByFieldName(node, "name")
 	id, err := parseIdentifier(nameNode, source)
 	if err != nil {
 		return nil, err
 	}
 
-	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), source)
+	generics, err := parseTypeParameters(childByFieldName(node, "type_parameters"), source)
 	if err != nil {
 		return nil, err
 	}
 
-	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), source)
+	whereClause, err := parseWhereClause(childByFieldName(node, "where_clause"), source)
 	if err != nil {
 		return nil, err
 	}
@@ -125,11 +125,11 @@ func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement
 	kind := ast.StructKindSingleton
 	fields := make([]*ast.StructFieldDefinition, 0)
 
-	if recordNode := node.ChildByFieldName("record"); recordNode != nil {
+	if recordNode := childByFieldName(node, "record"); recordNode != nil {
 		kind = ast.StructKindNamed
 		for i := uint(0); i < recordNode.NamedChildCount(); i++ {
 			fieldNode := recordNode.NamedChild(i)
-			if fieldNode == nil || isIgnorableNode(fieldNode) || fieldNode.Kind() != "struct_field" {
+			if fieldNode == nil || isIgnorableNode(fieldNode) || nodeKind(fieldNode) != "struct_field" {
 				continue
 			}
 			field, err := ctx.parseStructFieldDefinition(fieldNode)
@@ -138,14 +138,14 @@ func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement
 			}
 			fields = append(fields, field)
 		}
-	} else if tupleNode := node.ChildByFieldName("tuple"); tupleNode != nil {
+	} else if tupleNode := childByFieldName(node, "tuple"); tupleNode != nil {
 		kind = ast.StructKindPositional
 		for i := uint(0); i < tupleNode.NamedChildCount(); i++ {
 			child := tupleNode.NamedChild(i)
 			if child == nil || !child.IsNamed() || isIgnorableNode(child) {
 				continue
 			}
-			if child.Kind() == "ERROR" && strings.TrimSpace(sliceContent(child, ctx.source)) == "" {
+			if nodeKind(child) == "ERROR" && strings.TrimSpace(sliceContent(child, ctx.source)) == "" {
 				continue
 			}
 			fieldType := ctx.parseTypeExpression(child)
@@ -171,28 +171,28 @@ func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement
 }
 
 func (ctx *parseContext) parseTypeAliasDefinition(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "type_alias_definition" {
+	if node == nil || nodeKind(node) != "type_alias_definition" {
 		return nil, fmt.Errorf("parser: expected type_alias_definition node")
 	}
 
 	source := ctx.source
-	nameNode := node.ChildByFieldName("name")
+	nameNode := childByFieldName(node, "name")
 	id, err := parseIdentifier(nameNode, source)
 	if err != nil {
 		return nil, err
 	}
 
-	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), source)
+	generics, err := parseTypeParameters(childByFieldName(node, "type_parameters"), source)
 	if err != nil {
 		return nil, err
 	}
 
-	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), source)
+	whereClause, err := parseWhereClause(childByFieldName(node, "where_clause"), source)
 	if err != nil {
 		return nil, err
 	}
 
-	targetNode := node.ChildByFieldName("target")
+	targetNode := childByFieldName(node, "target")
 	targetType := ctx.parseTypeExpression(targetNode)
 	if targetType == nil {
 		return nil, fmt.Errorf("parser: type alias missing target type")
@@ -205,7 +205,7 @@ func (ctx *parseContext) parseTypeAliasDefinition(node *sitter.Node) (ast.Statem
 }
 
 func (ctx *parseContext) parseStructFieldDefinition(node *sitter.Node) (*ast.StructFieldDefinition, error) {
-	if node == nil || node.Kind() != "struct_field" {
+	if node == nil || nodeKind(node) != "struct_field" {
 		return nil, fmt.Errorf("parser: expected struct_field node")
 	}
 
@@ -217,7 +217,7 @@ func (ctx *parseContext) parseStructFieldDefinition(node *sitter.Node) (*ast.Str
 		if child == nil || isIgnorableNode(child) {
 			continue
 		}
-		switch child.Kind() {
+		switch nodeKind(child) {
 		case "identifier":
 			if name == nil {
 				id, err := parseIdentifier(child, ctx.source)
@@ -243,31 +243,31 @@ func (ctx *parseContext) parseStructFieldDefinition(node *sitter.Node) (*ast.Str
 }
 
 func (ctx *parseContext) parseMethodsDefinition(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "methods_definition" {
+	if node == nil || nodeKind(node) != "methods_definition" {
 		return nil, fmt.Errorf("parser: expected methods_definition node")
 	}
 
 	source := ctx.source
-	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), source)
+	generics, err := parseTypeParameters(childByFieldName(node, "type_parameters"), source)
 	if err != nil {
 		return nil, err
 	}
 
-	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), source)
+	whereClause, err := parseWhereClause(childByFieldName(node, "where_clause"), source)
 	if err != nil {
 		return nil, err
 	}
 
-	targetType := ctx.parseTypeExpression(node.ChildByFieldName("target"))
+	targetType := ctx.parseTypeExpression(childByFieldName(node, "target"))
 	if targetType == nil {
 		return nil, fmt.Errorf("parser: methods definition missing target type")
 	}
 
 	definitions := make([]*ast.FunctionDefinition, 0)
 
-	targetNode := node.ChildByFieldName("target")
-	typeParamsNode := node.ChildByFieldName("type_parameters")
-	whereNode := node.ChildByFieldName("where_clause")
+	targetNode := childByFieldName(node, "target")
+	typeParamsNode := childByFieldName(node, "type_parameters")
+	whereNode := childByFieldName(node, "where_clause")
 
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
@@ -275,13 +275,13 @@ func (ctx *parseContext) parseMethodsDefinition(node *sitter.Node) (ast.Statemen
 			continue
 		}
 		fieldName := node.FieldNameForChild(uint32(i))
-		if (fieldName == "target" || fieldName == "type_parameters" || fieldName == "where_clause") && child.Kind() != "function_definition" && child.Kind() != "method_member" {
+		if (fieldName == "target" || fieldName == "type_parameters" || fieldName == "where_clause") && nodeKind(child) != "function_definition" && nodeKind(child) != "method_member" {
 			continue
 		}
 		if sameNode(child, targetNode) || sameNode(child, typeParamsNode) || sameNode(child, whereNode) {
 			continue
 		}
-		switch child.Kind() {
+		switch nodeKind(child) {
 		case "function_definition":
 			fn, err := ctx.parseFunctionDefinition(child)
 			if err != nil {
@@ -291,7 +291,7 @@ func (ctx *parseContext) parseMethodsDefinition(node *sitter.Node) (ast.Statemen
 		case "method_member":
 			for j := uint(0); j < child.NamedChildCount(); j++ {
 				memberChild := child.NamedChild(j)
-				if memberChild == nil || memberChild.Kind() != "function_definition" {
+				if memberChild == nil || nodeKind(memberChild) != "function_definition" {
 					continue
 				}
 				fn, err := ctx.parseFunctionDefinition(memberChild)
@@ -309,44 +309,44 @@ func (ctx *parseContext) parseMethodsDefinition(node *sitter.Node) (ast.Statemen
 }
 
 func (ctx *parseContext) parseImplementationDefinitionNode(node *sitter.Node) (*ast.ImplementationDefinition, error) {
-	if node == nil || node.Kind() != "implementation_definition" {
+	if node == nil || nodeKind(node) != "implementation_definition" {
 		return nil, fmt.Errorf("parser: expected implementation_definition node")
 	}
 
 	source := ctx.source
-	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), source)
+	generics, err := parseTypeParameters(childByFieldName(node, "type_parameters"), source)
 	if err != nil {
 		return nil, err
 	}
 
-	interfaceNode := node.ChildByFieldName("interface")
+	interfaceNode := childByFieldName(node, "interface")
 	parts, err := ctx.parseQualifiedIdentifier(interfaceNode)
 	if err != nil || len(parts) == 0 {
 		return nil, fmt.Errorf("parser: invalid interface identifier")
 	}
 	interfaceName := collapseQualifiedIdentifier(parts)
 
-	interfaceArgs, err := ctx.parseInterfaceArguments(node.ChildByFieldName("interface_args"))
+	interfaceArgs, err := ctx.parseInterfaceArguments(childByFieldName(node, "interface_args"))
 	if err != nil {
 		return nil, err
 	}
 
-	targetType := ctx.parseTypeExpression(node.ChildByFieldName("target"))
+	targetType := ctx.parseTypeExpression(childByFieldName(node, "target"))
 	if targetType == nil {
 		return nil, fmt.Errorf("parser: implementation missing target type")
 	}
 
-	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), source)
+	whereClause, err := parseWhereClause(childByFieldName(node, "where_clause"), source)
 	if err != nil {
 		return nil, err
 	}
 
 	definitions := make([]*ast.FunctionDefinition, 0)
 
-	interfaceArgsNode := node.ChildByFieldName("interface_args")
-	targetNode := node.ChildByFieldName("target")
-	typeParamsNode := node.ChildByFieldName("type_parameters")
-	whereNode := node.ChildByFieldName("where_clause")
+	interfaceArgsNode := childByFieldName(node, "interface_args")
+	targetNode := childByFieldName(node, "target")
+	typeParamsNode := childByFieldName(node, "type_parameters")
+	whereNode := childByFieldName(node, "where_clause")
 
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
@@ -354,13 +354,13 @@ func (ctx *parseContext) parseImplementationDefinitionNode(node *sitter.Node) (*
 			continue
 		}
 		fieldName := node.FieldNameForChild(uint32(i))
-		if (fieldName == "interface" || fieldName == "interface_args" || fieldName == "target" || fieldName == "type_parameters" || fieldName == "where_clause") && child.Kind() != "function_definition" && child.Kind() != "method_member" {
+		if (fieldName == "interface" || fieldName == "interface_args" || fieldName == "target" || fieldName == "type_parameters" || fieldName == "where_clause") && nodeKind(child) != "function_definition" && nodeKind(child) != "method_member" {
 			continue
 		}
 		if sameNode(child, interfaceNode) || sameNode(child, interfaceArgsNode) || sameNode(child, targetNode) || sameNode(child, typeParamsNode) || sameNode(child, whereNode) {
 			continue
 		}
-		switch child.Kind() {
+		switch nodeKind(child) {
 		case "function_definition":
 			fn, err := ctx.parseFunctionDefinition(child)
 			if err != nil {
@@ -370,7 +370,7 @@ func (ctx *parseContext) parseImplementationDefinitionNode(node *sitter.Node) (*
 		case "method_member":
 			for j := uint(0); j < child.NamedChildCount(); j++ {
 				memberChild := child.NamedChild(j)
-				if memberChild == nil || memberChild.Kind() != "function_definition" {
+				if memberChild == nil || nodeKind(memberChild) != "function_definition" {
 					continue
 				}
 				fn, err := ctx.parseFunctionDefinition(memberChild)
@@ -392,11 +392,11 @@ func (ctx *parseContext) parseImplementationDefinition(node *sitter.Node) (ast.S
 }
 
 func (ctx *parseContext) parseNamedImplementationDefinition(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "named_implementation_definition" {
+	if node == nil || nodeKind(node) != "named_implementation_definition" {
 		return nil, fmt.Errorf("parser: expected named implementation node")
 	}
-	nameNode := node.ChildByFieldName("name")
-	implNode := node.ChildByFieldName("implementation")
+	nameNode := childByFieldName(node, "name")
+	implNode := childByFieldName(node, "implementation")
 	if implNode == nil {
 		return nil, fmt.Errorf("parser: named implementation missing implementation body")
 	}
@@ -436,7 +436,7 @@ func (ctx *parseContext) parseInterfaceArguments(node *sitter.Node) ([]ast.TypeE
 		}
 		expr := ctx.parseTypeExpression(child)
 		if expr == nil {
-			return nil, fmt.Errorf("parser: unsupported interface argument kind %q", child.Kind())
+			return nil, fmt.Errorf("parser: unsupported interface argument kind %q", nodeKind(child))
 		}
 		args = append(args, expr)
 	}
@@ -446,10 +446,10 @@ func (ctx *parseContext) parseInterfaceArguments(node *sitter.Node) ([]ast.TypeE
 func findTopLevelGenericApplication(node *sitter.Node) *sitter.Node {
 	current := node
 	for current != nil {
-		if current.Kind() == "type_generic_application" {
+		if nodeKind(current) == "type_generic_application" {
 			return current
 		}
-		if current.Kind() == "parenthesized_type" {
+		if nodeKind(current) == "parenthesized_type" {
 			return nil
 		}
 		if current.NamedChildCount() != 1 {
@@ -465,11 +465,11 @@ func findTopLevelGenericApplication(node *sitter.Node) *sitter.Node {
 }
 
 func (ctx *parseContext) parseParameter(node *sitter.Node) (*ast.FunctionParameter, error) {
-	if node == nil || node.Kind() != "parameter" {
+	if node == nil || nodeKind(node) != "parameter" {
 		return nil, fmt.Errorf("parser: expected parameter node")
 	}
 
-	patternNode := node.ChildByFieldName("pattern")
+	patternNode := childByFieldName(node, "pattern")
 	pattern, err := ctx.parsePattern(patternNode)
 	if err != nil {
 		return nil, err
@@ -487,18 +487,18 @@ func (ctx *parseContext) parseParameter(node *sitter.Node) (*ast.FunctionParamet
 }
 
 func (ctx *parseContext) parseUnionDefinition(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "union_definition" {
+	if node == nil || nodeKind(node) != "union_definition" {
 		return nil, fmt.Errorf("parser: expected union_definition node")
 	}
 
 	source := ctx.source
-	nameNode := node.ChildByFieldName("name")
+	nameNode := childByFieldName(node, "name")
 	name, err := parseIdentifier(nameNode, source)
 	if err != nil {
 		return nil, err
 	}
 
-	typeParamsNode := node.ChildByFieldName("type_parameters")
+	typeParamsNode := childByFieldName(node, "type_parameters")
 	typeParams, err := parseTypeParameters(typeParamsNode, source)
 	if err != nil {
 		return nil, err
@@ -530,32 +530,32 @@ func (ctx *parseContext) parseUnionDefinition(node *sitter.Node) (ast.Statement,
 }
 
 func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "interface_definition" {
+	if node == nil || nodeKind(node) != "interface_definition" {
 		return nil, fmt.Errorf("parser: expected interface_definition node")
 	}
 
 	source := ctx.source
-	nameNode := node.ChildByFieldName("name")
+	nameNode := childByFieldName(node, "name")
 	name, err := parseIdentifier(nameNode, source)
 	if err != nil {
 		return nil, err
 	}
 
-	typeParamsNode := node.ChildByFieldName("type_parameters")
+	typeParamsNode := childByFieldName(node, "type_parameters")
 	typeParams, err := parseTypeParameters(typeParamsNode, source)
 	if err != nil {
 		return nil, err
 	}
 
-	whereNode := node.ChildByFieldName("where_clause")
+	whereNode := childByFieldName(node, "where_clause")
 	whereClause, err := parseWhereClause(whereNode, source)
 	if err != nil {
 		return nil, err
 	}
 
-	selfNode := node.ChildByFieldName("self_type")
-	baseNode := node.ChildByFieldName("base_interfaces")
-	compositeNode := node.ChildByFieldName("composite")
+	selfNode := childByFieldName(node, "self_type")
+	baseNode := childByFieldName(node, "base_interfaces")
+	compositeNode := childByFieldName(node, "composite")
 	var recoveredSelfType ast.TypeExpression
 	if baseNode == nil && compositeNode == nil {
 		if recoveredType, recoveredBase, ok := recoverInterfaceBaseSelfType(node, source); ok {
@@ -576,10 +576,10 @@ func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statem
 		if sameNode(child, nameNode) || sameNode(child, typeParamsNode) || sameNode(child, selfNode) || sameNode(child, whereNode) || sameNode(child, baseNode) {
 			continue
 		}
-		if child.Kind() != "interface_member" {
+		if nodeKind(child) != "interface_member" {
 			continue
 		}
-		sigNode := child.ChildByFieldName("signature")
+		sigNode := childByFieldName(child, "signature")
 		if sigNode == nil {
 			return nil, fmt.Errorf("parser: interface member missing signature")
 		}
@@ -587,7 +587,7 @@ func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statem
 		if err != nil {
 			return nil, err
 		}
-		if defaultBody := child.ChildByFieldName("default_body"); defaultBody != nil {
+		if defaultBody := childByFieldName(child, "default_body"); defaultBody != nil {
 			body, err := ctx.parseBlock(defaultBody)
 			if err != nil {
 				return nil, err
@@ -619,24 +619,24 @@ func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statem
 }
 
 func (ctx *parseContext) parseFunctionSignature(node *sitter.Node) (*ast.FunctionSignature, error) {
-	if node == nil || node.Kind() != "function_signature" {
+	if node == nil || nodeKind(node) != "function_signature" {
 		return nil, fmt.Errorf("parser: expected function_signature node")
 	}
 
-	name, err := parseIdentifier(node.ChildByFieldName("name"), ctx.source)
+	name, err := parseIdentifier(childByFieldName(node, "name"), ctx.source)
 	if err != nil {
 		return nil, err
 	}
-	params, err := ctx.parseParameterList(node.ChildByFieldName("parameters"))
+	params, err := ctx.parseParameterList(childByFieldName(node, "parameters"))
 	if err != nil {
 		return nil, err
 	}
-	returnType := parseReturnType(node.ChildByFieldName("return_type"), ctx.source)
-	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), ctx.source)
+	returnType := parseReturnType(childByFieldName(node, "return_type"), ctx.source)
+	generics, err := parseTypeParameters(childByFieldName(node, "type_parameters"), ctx.source)
 	if err != nil {
 		return nil, err
 	}
-	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), ctx.source)
+	whereClause, err := parseWhereClause(childByFieldName(node, "where_clause"), ctx.source)
 	if err != nil {
 		return nil, err
 	}
@@ -647,16 +647,16 @@ func (ctx *parseContext) parseFunctionSignature(node *sitter.Node) (*ast.Functio
 }
 
 func (ctx *parseContext) parsePreludeStatement(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "prelude_statement" {
+	if node == nil || nodeKind(node) != "prelude_statement" {
 		return nil, fmt.Errorf("parser: expected prelude_statement node")
 	}
 
-	target, err := ctx.parseHostTarget(node.ChildByFieldName("target"))
+	target, err := ctx.parseHostTarget(childByFieldName(node, "target"))
 	if err != nil {
 		return nil, err
 	}
 
-	code, err := ctx.parseHostCodeBlock(node.ChildByFieldName("body"))
+	code, err := ctx.parseHostCodeBlock(childByFieldName(node, "body"))
 	if err != nil {
 		return nil, err
 	}
@@ -667,16 +667,16 @@ func (ctx *parseContext) parsePreludeStatement(node *sitter.Node) (ast.Statement
 }
 
 func (ctx *parseContext) parseExternFunction(node *sitter.Node) (ast.Statement, error) {
-	if node == nil || node.Kind() != "extern_function" {
+	if node == nil || nodeKind(node) != "extern_function" {
 		return nil, fmt.Errorf("parser: expected extern_function node")
 	}
 
-	target, err := ctx.parseHostTarget(node.ChildByFieldName("target"))
+	target, err := ctx.parseHostTarget(childByFieldName(node, "target"))
 	if err != nil {
 		return nil, err
 	}
 
-	signatureNode := node.ChildByFieldName("signature")
+	signatureNode := childByFieldName(node, "signature")
 	if signatureNode == nil {
 		return nil, fmt.Errorf("parser: extern function missing signature")
 	}
@@ -686,7 +686,7 @@ func (ctx *parseContext) parseExternFunction(node *sitter.Node) (ast.Statement, 
 		return nil, err
 	}
 
-	body, err := ctx.parseHostCodeBlock(node.ChildByFieldName("body"))
+	body, err := ctx.parseHostCodeBlock(childByFieldName(node, "body"))
 	if err != nil {
 		return nil, err
 	}
@@ -728,7 +728,7 @@ func (ctx *parseContext) parseHostTarget(node *sitter.Node) (ast.HostTarget, err
 }
 
 func (ctx *parseContext) parseHostCodeBlock(node *sitter.Node) (string, error) {
-	if node == nil || node.Kind() != "host_code_block" {
+	if node == nil || nodeKind(node) != "host_code_block" {
 		return "", fmt.Errorf("parser: expected host_code_block node")
 	}
 

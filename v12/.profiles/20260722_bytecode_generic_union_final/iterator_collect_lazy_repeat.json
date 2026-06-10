@@ -1,0 +1,103 @@
+{
+  "generated_at": "2026-07-22T13:05:08.521491Z",
+  "target": "/home/david/sync/projects/able/v12/fixtures/bench/linked_list_iterator_collect_i64_small/main.able",
+  "run_from": "/home/david/sync/projects/able",
+  "runs": 5,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode-runtime"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 20,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": null,
+  "results": [
+    {
+      "mode": "bytecode-runtime",
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 10.458,
+      "avg_user_seconds": 10.366,
+      "avg_sys_seconds": 0.068,
+      "avg_gc": 21.0,
+      "avg_ns_per_op": 441109927.0,
+      "avg_bytes_per_op": 8364779.0,
+      "avg_allocs_per_op": 192558.0,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 10.22,
+          "user_seconds": 10.13,
+          "sys_seconds": 0.07,
+          "gc_count": 21.0,
+          "ns_per_op": 431124444.0,
+          "bytes_per_op": 8364927.0,
+          "allocs_per_op": 192559.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 10.78,
+          "user_seconds": 10.68,
+          "sys_seconds": 0.07,
+          "gc_count": 21.0,
+          "ns_per_op": 455723702.0,
+          "bytes_per_op": 8364909.0,
+          "allocs_per_op": 192559.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 10.46,
+          "user_seconds": 10.37,
+          "sys_seconds": 0.07,
+          "gc_count": 21.0,
+          "ns_per_op": 441044605.0,
+          "bytes_per_op": 8364507.0,
+          "allocs_per_op": 192557.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 10.26,
+          "user_seconds": 10.18,
+          "sys_seconds": 0.06,
+          "gc_count": 21.0,
+          "ns_per_op": 431894045.0,
+          "bytes_per_op": 8364504.0,
+          "allocs_per_op": 192557.0,
+          "stdout_sha256": null
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 10.57,
+          "user_seconds": 10.47,
+          "sys_seconds": 0.07,
+          "gc_count": 21.0,
+          "ns_per_op": 445762838.0,
+          "bytes_per_op": 8365050.0,
+          "allocs_per_op": 192560.0,
+          "stdout_sha256": null
+        }
+      ],
+      "validation": {
+        "status": "unavailable",
+        "verifier": null,
+        "verified_runs": 0,
+        "failed_runs": 0,
+        "stdout_sha256": []
+      }
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 {
-  "description": "quicksort hot loop fixture for bytecode performance profiling",
+  "description": "recursive quicksort array/index/mutation semantic parity fixture",
   "expect": {
     "stdout": [
-      "9989335"
+      "1061286"
     ],
     "exit": 0
   }

@@ -1,0 +1,280 @@
+{
+  "kind": "able-cross-mode-residual-cost-evidence",
+  "schema_version": 1,
+  "minimum_unlike_applications": 3,
+  "selection_reason": "The five highest-excess unlike applications span text/map, wide numeric, float numeric, regex/interface dispatch, and concurrency and account for more than half of the current aggregate target excess.",
+  "applications": [
+    {
+      "benchmark": "k_nucleotide",
+      "family": "text-map",
+      "bytecode_static": {
+        "function_count": 17,
+        "instruction_count": 652,
+        "tracked_opcode_hits": {
+          "JumpIfNotTypedPattern": 1,
+          "LoadName": 19,
+          "LoadSlot": 79,
+          "LoadSlotStructField": 6
+        }
+      },
+      "bytecode_dynamic": {
+        "status": "guard-skipped",
+        "reason": "The normal measured main is about 45 seconds, so stats observer overhead cannot fit the repository's sub-minute process guard. Existing bounded opcode/profile evidence remains authoritative."
+      },
+      "bytecode_allocation": {
+        "bytes_per_main": 1245836872,
+        "allocations_per_main": 23947521
+      },
+      "compiled_telemetry": {
+        "fast_method_call": 0,
+        "generic_union_method_call": 0,
+        "generic_union_fallback": 0,
+        "explicit_dynamic_call": 22,
+        "host_abi_call": 21,
+        "residual_polymorphic_call": 36,
+        "runtime_service_call": 0
+      },
+      "owners": {
+        "bytecode": "integer metadata, boxed/raw integer transport, aliases and matches, call caches, and Array work",
+        "compiled": "unsigned keys crossing specialized map operations and dynamic-value conversion"
+      },
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-compiled-unsigned-dynamic-boundary-census.md"
+      ]
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "bytecode_static": {
+        "function_count": 5,
+        "instruction_count": 137,
+        "tracked_opcode_hits": {
+          "JumpIfNotTypedPattern": 0,
+          "LoadName": 0,
+          "LoadSlot": 19,
+          "LoadSlotStructField": 0
+        }
+      },
+      "bytecode_dynamic": {
+        "status": "measured",
+        "total_operations": 60446436,
+        "top_operations": [
+          {"name": "LoadSlot", "count": 8283481},
+          {"name": "LoadSlotStructField", "count": 6816906},
+          {"name": "Const", "count": 5875015},
+          {"name": "Pop", "count": 5062519},
+          {"name": "StoreSlotNew", "count": 4000006}
+        ],
+        "inline_call_misses": 0
+      },
+      "bytecode_allocation": {
+        "bytes_per_main": 1348450616,
+        "allocations_per_main": 31911044
+      },
+      "compiled_telemetry": {
+        "fast_method_call": 0,
+        "generic_union_method_call": 0,
+        "generic_union_fallback": 0,
+        "explicit_dynamic_call": 2,
+        "host_abi_call": 2,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 0
+      },
+      "owners": {
+        "bytecode": "wide integer values, checked member operations, and positional nominal results",
+        "compiled": "escaping loop-carried wide nominal construction and method entry"
+      },
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-compiled-cross-corpus-exact-leaf-selection.md"
+      ]
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "bytecode_static": {
+        "function_count": 1,
+        "instruction_count": 58,
+        "tracked_opcode_hits": {
+          "JumpIfNotTypedPattern": 0,
+          "LoadName": 0,
+          "LoadSlot": 7,
+          "LoadSlotStructField": 0
+        }
+      },
+      "bytecode_dynamic": {
+        "status": "measured",
+        "total_operations": 78000165,
+        "top_operations": [
+          {"name": "LoadSlot", "count": 22000024},
+          {"name": "Const", "count": 8000029},
+          {"name": "JumpIfBinaryCompareFalse", "count": 8000000},
+          {"name": "StoreSlotFloatRegion", "count": 6000000},
+          {"name": "BinaryIntAdd", "count": 4000008}
+        ],
+        "inline_call_misses": 0
+      },
+      "bytecode_allocation": {
+        "bytes_per_main": 368035900,
+        "allocations_per_main": 26000120
+      },
+      "compiled_telemetry": {
+        "fast_method_call": 0,
+        "generic_union_method_call": 0,
+        "generic_union_fallback": 0,
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 1,
+        "runtime_service_call": 0
+      },
+      "owners": {
+        "bytecode": "validated float-slot reads, retained raw-float arithmetic, loop branches, and calls",
+        "compiled": "native numeric loop; no material generic-union or residual polymorphic boundary"
+      },
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-compiled-cross-corpus-exact-leaf-selection.md"
+      ]
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "family": "regex-dispatch",
+      "bytecode_static": {
+        "function_count": 16,
+        "instruction_count": 623,
+        "tracked_opcode_hits": {
+          "JumpIfNotTypedPattern": 13,
+          "LoadName": 59,
+          "LoadSlot": 49,
+          "LoadSlotStructField": 16
+        }
+      },
+      "bytecode_dynamic": {
+        "status": "guard-capped",
+        "reason": "The stats-observed process did not complete inside 55 seconds and emitted no result. It was not extended or interpreted as zero."
+      },
+      "bytecode_allocation": {
+        "bytes_per_main": 139533024,
+        "allocations_per_main": 1453755
+      },
+      "compiled_telemetry": {
+        "fast_method_call": 5632,
+        "generic_union_method_call": 5632,
+        "generic_union_fallback": 0,
+        "explicit_dynamic_call": 2,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 3074,
+        "runtime_service_call": 0
+      },
+      "owners": {
+        "bytecode": "regex Array slots, calls and returns, typed patterns, and raw integer work",
+        "compiled": "regex execution plus fast generic-union dispatch without fallback"
+      },
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-feature-interaction-coverage-depth-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-policy-record-dispatch-bytecode-runtime-profile.json"
+      ]
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency",
+      "bytecode_static": {
+        "function_count": 15,
+        "instruction_count": 802,
+        "tracked_opcode_hits": {
+          "JumpIfNotTypedPattern": 10,
+          "LoadName": 95,
+          "LoadSlot": 30,
+          "LoadSlotStructField": 16
+        }
+      },
+      "bytecode_dynamic": {
+        "status": "measured",
+        "total_operations": 21367576,
+        "top_operations": [
+          {"name": "LoadSlot", "count": 4933960},
+          {"name": "Pop", "count": 3007698},
+          {"name": "StoreSlotNew", "count": 2206998},
+          {"name": "Const", "count": 1227323},
+          {"name": "Jump", "count": 1212825}
+        ],
+        "inline_call_misses": 0
+      },
+      "bytecode_allocation": {
+        "bytes_per_main": 289347356,
+        "allocations_per_main": 2820542
+      },
+      "compiled_telemetry": {
+        "fast_method_call": 11264,
+        "generic_union_method_call": 11264,
+        "generic_union_fallback": 0,
+        "explicit_dynamic_call": 3,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 6146,
+        "runtime_service_call": 4
+      },
+      "owners": {
+        "bytecode": "environment synchronization, lookup/revision hints, runtime data, and method/alias caches",
+        "compiled": "goroutine identity discovery through runtime.Stack in the generated concurrency bridge"
+      },
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md"
+      ]
+    }
+  ],
+  "mechanisms": [
+    {
+      "id": "bytecode-stack-slot-transport",
+      "label": "Bytecode stack/slot transport and dispatch",
+      "modes": ["bytecode"],
+      "applications": ["fixed_width_128", "distance_field", "concurrent_event_routing"],
+      "status": "closed-rejected",
+      "reason": "LoadSlot leads all three bounded dynamic censuses, but partial register frames, operand lanes, raw carriers, and slot/call/return descendants already failed broad application gates. Source-level LoadSlot reachability alone is not new evidence for another partial rewrite.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-register-admission-closure-census.md"
+      ]
+    },
+    {
+      "id": "compiled-generic-union-dispatch",
+      "label": "Generated generic-union fast method dispatch",
+      "modes": ["compiled"],
+      "applications": ["policy_record_dispatch", "concurrent_event_routing"],
+      "status": "insufficient-breadth",
+      "reason": "Only the two structurally related dispatch applications execute it, and every observed call uses the fast path with zero fallback.",
+      "evidence": ["v12/bench_compiled_boundary_audit"]
+    },
+    {
+      "id": "compiled-residual-polymorphic-boundary",
+      "label": "Material generated residual-polymorphic calls",
+      "modes": ["compiled"],
+      "applications": ["policy_record_dispatch", "concurrent_event_routing"],
+      "status": "insufficient-breadth",
+      "reason": "The material counts are 3,074 and 6,146. The other three unlike applications execute only 36, 2, and 1 calls, so this is not a three-family wall.",
+      "evidence": ["v12/bench_compiled_boundary_audit"]
+    },
+    {
+      "id": "allocation-pressure",
+      "label": "End-to-end allocation pressure",
+      "modes": ["bytecode", "compiled"],
+      "applications": ["k_nucleotide", "fixed_width_128", "distance_field", "policy_record_dispatch", "concurrent_event_routing"],
+      "status": "observational-only",
+      "reason": "Allocation is broad but is not one mechanism: integer metadata/maps, wide nominals, float values, regex state, and concurrency environments have different semantic owners.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md",
+        "v12/docs/perf-baselines/2026-07-21-compiled-cross-corpus-exact-leaf-selection.md"
+      ]
+    },
+    {
+      "id": "compiled-goroutine-identity",
+      "label": "Generated goroutine identity discovery",
+      "modes": ["compiled"],
+      "applications": ["concurrent_event_routing"],
+      "status": "closed-rejected",
+      "reason": "It is dominant only in concurrency programs, and the general execution-context candidate regressed Event Routing and Mutex Ledger despite removing much of this work.",
+      "evidence": ["v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md"]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "description": "byte histogram benchmark over generated UTF-8 text",
+  "expect": {
+    "exit": 0
+  }
+}

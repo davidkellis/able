@@ -49,8 +49,28 @@ func TestTestCommandCompiledRejectsInvalidRequireNoFallbacksEnv(t *testing.T) {
 
 	requireGoToolchain(t)
 	configureRepoCompiledEnv(t)
+	t.Setenv(compiledCLIIntegrationEnv, "1")
 	t.Setenv("ABLE_COMPILER_REQUIRE_NO_FALLBACKS", "sometimes")
 
 	_, stderr := runCLIExpectFailureCode(t, 2, "test", "--compiled", dir)
 	assertTextContainsAll(t, stderr, "invalid ABLE_COMPILER_REQUIRE_NO_FALLBACKS value")
+}
+
+func TestCompiledCLIExecutionRequiresIntegrationLane(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: "compiled execution", args: []string{"test", "--compiled", "."}, want: true},
+		{name: "compiled dry run", args: []string{"test", "--compiled", "--dry-run", "."}},
+		{name: "interpreter execution", args: []string{"test", "."}},
+		{name: "build command", args: []string{"build", "main.able"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := compiledCLIExecutionRequiresIntegrationLane(tc.args); got != tc.want {
+				t.Fatalf("compiledCLIExecutionRequiresIntegrationLane(%q) = %v, want %v", tc.args, got, tc.want)
+			}
+		})
+	}
 }

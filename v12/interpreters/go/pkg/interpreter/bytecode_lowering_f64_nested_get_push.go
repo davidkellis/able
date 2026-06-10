@@ -42,7 +42,7 @@ func bytecodeEmitTryArrayPushF64NestedGet(ctx *bytecodeLoweringContext, i *Inter
 	if err := emitExpression(ctx, i, call.Arguments[0]); err != nil {
 		return true, err
 	}
-	ctx.emit(bytecodeInstruction{op: bytecodeOpCallMemberArraySlot, name: "push", argCount: 1, node: call})
+	ctx.emit(bytecodeCallMemberInstructionForName("push", 1, call))
 	ctx.patchJump(fastIP, len(ctx.instructions))
 	return true, nil
 }

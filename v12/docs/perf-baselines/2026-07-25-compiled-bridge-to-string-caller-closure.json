@@ -1,0 +1,122 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "candidate": "shared bridge.ToString generic nominal/interface carrier crossing",
+  "source_record": "2026-07-25-compiled-string-utf8-validation-retained.json",
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "bridge_to_string_objects": 38274,
+      "direct_callers": [
+        {
+          "symbol": "__able_array_String_to",
+          "objects": 18816,
+          "classification": "successful native Array pattern-result materialization"
+        },
+        {
+          "symbol": "__able_struct_EventRecord_to_seen",
+          "objects": 15360,
+          "classification": "successful native struct pattern-result materialization"
+        },
+        {
+          "symbol": "__able_struct_EventTask_to_seen",
+          "objects": 4096,
+          "classification": "required runtime scheduler channel payload"
+        },
+        {
+          "symbol": "diagnostic_or_setup",
+          "objects": 2,
+          "classification": "non-material"
+        }
+      ],
+      "current_mean_nanoseconds": 104597864.6,
+      "go_mean_nanoseconds": 3077272.65,
+      "current_over_go": 33.9904,
+      "binary_sha256": "90a777b3256a0b0ea873076177df7b6a0a56eb6b7f27c9e7766de8cfa52991d7"
+    },
+    {
+      "name": "Word Frequency",
+      "bridge_to_string_objects": 35959,
+      "direct_callers": [
+        {
+          "symbol": "__able_compiled_method_HashMap_raw_get_spec",
+          "objects": 17979,
+          "classification": "runtime-backed generic Map key lookup"
+        },
+        {
+          "symbol": "__able_compiled_method_HashMap_raw_set_spec",
+          "objects": 17979,
+          "classification": "runtime-backed generic Map key insertion"
+        },
+        {
+          "symbol": "diagnostic_or_setup",
+          "objects": 1,
+          "classification": "non-material"
+        }
+      ],
+      "current_mean_nanoseconds": 18661026.85,
+      "go_mean_nanoseconds": 3764625.95,
+      "current_over_go": 4.9569,
+      "binary_sha256": "2f5a974fa37124f303d0c1836dbfebabe6f10312832007ada2e4597089aa5193"
+    },
+    {
+      "name": "Sensor Calibration",
+      "bridge_to_string_objects": 48898,
+      "direct_callers": [
+        {
+          "symbol": "__able_array_String_to",
+          "objects": 48896,
+          "classification": "successful native Array pattern-result materialization"
+        },
+        {
+          "symbol": "diagnostic_or_setup",
+          "objects": 2,
+          "classification": "non-material"
+        }
+      ],
+      "current_mean_nanoseconds": 25491463.85,
+      "go_mean_nanoseconds": 3259451.95,
+      "current_over_go": 7.8208,
+      "binary_sha256": "e6d0246657ab5da3cc59f202ac7a2d4a57615d95dc2906756f4bed259dd5b06b"
+    }
+  ],
+  "rejected_routes": [
+    {
+      "route": "liveness-aware successful pattern-result materialization",
+      "reason": "general and promising, but occurs only in Event and Sensor under this exact owner"
+    },
+    {
+      "route": "typed runtime Map key storage",
+      "reason": "occurs only in Word; a named HashMap/String compiler rule is prohibited and a general storage redesign lacks a shared owner"
+    },
+    {
+      "route": "typed scheduler channel payload",
+      "reason": "occurs only in Event and is a required runtime-service boundary under the current ABI"
+    },
+    {
+      "route": "change bridge.ToString representation globally",
+      "reason": "stored interface payloads require stable ownership; pointer wrapping preserves allocation, interning changes retention, and tagged runtime.Value is a broad ABI redesign"
+    }
+  ],
+  "verification": {
+    "public_verifiers_passed": 3,
+    "strict_dependency_graphs_without_interpreter": 3,
+    "binary_hashes_match_source_record": 3,
+    "ablec_package_passed": true,
+    "new_ab_measurements_required": false,
+    "new_ab_measurements_reason": "no candidate passed static three-application admission"
+  },
+  "next": {
+    "candidate": "guarded canonical primitive String.split native lowering",
+    "shared_slice_bytes_objects": {
+      "concurrent_event_routing": 33101,
+      "word_frequency": 33684,
+      "sensor_calibration": 63991
+    }
+  },
+  "compiler_changed": false,
+  "stdlib_changed": false,
+  "runtime_changed": false,
+  "interpreter_changed": false,
+  "wasm_changed": false
+}

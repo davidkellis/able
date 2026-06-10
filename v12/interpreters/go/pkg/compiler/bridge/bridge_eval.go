@@ -18,7 +18,8 @@ func EvaluateStatement(rt *Runtime, stmt ast.Statement, env *runtime.Environment
 	if env == nil {
 		env = rt.Env()
 	}
-	return rt.interp.EvaluateStatementIn(stmt, env)
+	value, err := rt.interp.EvaluateStatementIn(stmt, env)
+	return materializeBoundaryValue(value), err
 }
 
 // RegisterMethodsDefinition registers a methods definition through the interpreter in the provided environment.
@@ -32,7 +33,8 @@ func RegisterMethodsDefinition(rt *Runtime, def *ast.MethodsDefinition, env *run
 	if env == nil {
 		env = rt.Env()
 	}
-	return rt.interp.RegisterMethodsDefinitionIn(def, env)
+	value, err := rt.interp.RegisterMethodsDefinitionIn(def, env)
+	return materializeBoundaryValue(value), err
 }
 
 // RegisterImplementationDefinition registers an implementation definition through the interpreter in the provided environment.
@@ -46,5 +48,6 @@ func RegisterImplementationDefinition(rt *Runtime, def *ast.ImplementationDefini
 	if env == nil {
 		env = rt.Env()
 	}
-	return rt.interp.RegisterImplementationDefinitionIn(def, env)
+	value, err := rt.interp.RegisterImplementationDefinitionIn(def, env)
+	return materializeBoundaryValue(value), err
 }

@@ -1,0 +1,6 @@
+{
+  "description": "persistent-map string-key benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -86,6 +86,9 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 				return g.compileDynamicCall(ctx, call, expected, "", callNode)
 			}
 			if _, ok := g.runtimeHelperImpl(callee.Name); ok {
+				if lines, expr, retType, ok := g.compilePrimitiveRuntimeHelperCall(ctx, call, expected, callee.Name, callNode); ok {
+					return lines, expr, retType, true
+				}
 				return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 			}
 			if info, overload, ok := g.resolveStaticCallable(ctx, callee.Name); ok {
@@ -111,6 +114,9 @@ func (g *generator) compileFunctionCall(ctx *compileContext, call *ast.FunctionC
 				if lines, expr, retType, ok := g.compileStaticApplyCall(ctx, call, expected, binding.GoName, binding.GoType, callNode); ok {
 					return lines, expr, retType, true
 				}
+			}
+			if lines, expr, retType, ok := g.compilePrimitiveRuntimeHelperCall(ctx, call, expected, callee.Name, callNode); ok {
+				return lines, expr, retType, true
 			}
 			return g.compileDynamicCall(ctx, call, expected, callee.Name, callNode)
 		}
@@ -227,6 +233,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	args := make([]string, 0, len(call.Arguments))
 	calleeTemp := ""
 	fastMethodName := ""
+	staticGenericUnionMemberCall := false
 	writebackNeeded := false
 	writebackObjExpr := ""
 	writebackObjType := ""
@@ -266,6 +273,11 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 					if errorLines, expr, retType, ok := g.compileNativeErrorMethodCall(ctx, call, expected, objExpr, objType, ident.Name, callNode); ok {
 						lines = append(lines, errorLines...)
 						return lines, expr, retType, true
+					}
+					if method, ok := g.resolveGenericNamedUnionInstanceMethod(ctx, call, callee.Object, ident.Name, expected); ok {
+						methodLines, v, t, ok := g.lowerResolvedMethodDispatch(ctx, call, expected, method, objExpr, objType, callNode)
+						lines = append(lines, methodLines...)
+						return lines, v, t, ok
 					}
 					if method := g.methodForReceiver(objType, ident.Name); method != nil {
 						method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, objType, expected)
@@ -384,6 +396,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 				// avoiding bridge.ToString allocation and __able_call_value overhead.
 				if ident, ok := callee.Member.(*ast.Identifier); ok && ident != nil && ident.Name != "" {
 					fastMethodName = ident.Name
+					staticGenericUnionMemberCall = g.staticGenericUnionMemberCall(ctx, call, callee, ident.Name)
 					calleeTemp = objTemp
 				} else {
 					memberValue, ok := g.memberAssignmentRuntimeValue(ctx, callee.Member)
@@ -459,7 +472,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 	if calleeName != "" {
 		if helper, ok := g.runtimeHelperImpl(calleeName); ok {
 			var ok bool
-			lines, callExpr, ok = g.appendRuntimeHelperErrorLines(ctx, lines, fmt.Sprintf("%s(%s)", helper, argList), callNode)
+			lines, callExpr, ok = g.appendRuntimeHelperErrorLines(ctx, lines, g.runtimeHelperCallExpr(ctx, helper, argList), callNode)
 			if !ok {
 				return nil, "", "", false
 			}
@@ -471,18 +484,49 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			}
 		}
 	} else if fastMethodName != "" {
-		// Fast path: combined member lookup + call.
-		resultTemp := ctx.newTemp()
-		controlTemp := ctx.newTemp()
-		lines = append(lines,
-			fmt.Sprintf("%s, %s := __able_method_call_node(%s, %q, %s, %s)", resultTemp, controlTemp, calleeTemp, fastMethodName, argList, callNode),
-		)
-		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
-		if !ok {
-			return nil, "", "", false
+		if staticGenericUnionMemberCall {
+			genericUnionTarget := g.staticGenericUnionMethodTargets[call]
+			if genericUnionTarget == "" {
+				ctx.setReason("generic union method target missing")
+				return nil, "", "", false
+			}
+			resultTemp := ctx.newTemp()
+			handledTemp := ctx.newTemp()
+			controlTemp := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("%s, %s, %s := __able_static_generic_union_method_call(%s, %q, %q, %s, %s)", resultTemp, handledTemp, controlTemp, calleeTemp, genericUnionTarget, fastMethodName, argList, callNode))
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, controlLines...)
+			fallbackResult := ctx.newTemp()
+			fallbackControl := ctx.newTemp()
+			lines = append(lines, fmt.Sprintf("if !%s {", handledTemp))
+			lines = append(lines, fmt.Sprintf("\t%s, %s := __able_method_call_node(%s, %q, %s, %s)", fallbackResult, fallbackControl, calleeTemp, fastMethodName, argList, callNode))
+			fallbackControlLines, ok := g.lowerControlCheck(ctx, fallbackControl)
+			if !ok {
+				return nil, "", "", false
+			}
+			for _, line := range fallbackControlLines {
+				lines = append(lines, "\t"+line)
+			}
+			lines = append(lines, fmt.Sprintf("\t%s = %s", resultTemp, fallbackResult))
+			lines = append(lines, "}")
+			callExpr = resultTemp
+		} else {
+			// Fast path: combined member lookup + call.
+			resultTemp := ctx.newTemp()
+			controlTemp := ctx.newTemp()
+			lines = append(lines,
+				fmt.Sprintf("%s, %s := __able_method_call_node(%s, %q, %s, %s)", resultTemp, controlTemp, calleeTemp, fastMethodName, argList, callNode),
+			)
+			controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, controlLines...)
+			callExpr = resultTemp
 		}
-		lines = append(lines, controlLines...)
-		callExpr = resultTemp
 	} else {
 		var ok bool
 		lines, callExpr, ok = g.appendRuntimeCallControlLines(ctx, lines, fmt.Sprintf("__able_call_value(%s, %s, %s)", calleeTemp, argList, callNode))
@@ -513,7 +557,17 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 			return nil, "", "", false
 		}
 		lines = append(lines, controlLines...)
-		if strings.HasPrefix(writebackObjType, "*") {
+		if g.isArrayStructType(writebackObjType) {
+			targetExpr := writebackObjExpr
+			if !strings.HasPrefix(writebackObjType, "*") {
+				targetExpr = "&" + targetExpr
+			}
+			moveLines, ok := g.appendArrayCarrierMoveControlLines(ctx, targetExpr, convertedTemp)
+			if !ok {
+				return nil, "", "", false
+			}
+			lines = append(lines, moveLines...)
+		} else if strings.HasPrefix(writebackObjType, "*") {
 			lines = append(lines, fmt.Sprintf("*%s = *%s", writebackObjExpr, convertedTemp))
 		} else {
 			lines = append(lines, fmt.Sprintf("%s = *%s", writebackObjExpr, convertedTemp))
@@ -820,93 +874,6 @@ func (g *generator) canSpecializeImplicitReceiver(ctx *compileContext) bool {
 		return false
 	}
 	return canonicalGoType == ctx.implicitReceiver.GoType
-}
-
-func (g *generator) runtimeHelperImpl(name string) (string, bool) {
-	switch name {
-	case "__able_array_new":
-		return "__able_array_new_impl", true
-	case "__able_array_with_capacity":
-		return "__able_array_with_capacity_impl", true
-	case "__able_array_size":
-		return "__able_array_size_impl", true
-	case "__able_array_capacity":
-		return "__able_array_capacity_impl", true
-	case "__able_array_set_len":
-		return "__able_array_set_len_impl", true
-	case "__able_array_read":
-		return "__able_array_read_impl", true
-	case "__able_array_write":
-		return "__able_array_write_impl", true
-	case "__able_array_reserve":
-		return "__able_array_reserve_impl", true
-	case "__able_array_clone":
-		return "__able_array_clone_impl", true
-	case "__able_hash_map_new":
-		return "__able_hash_map_new_impl", true
-	case "__able_hash_map_with_capacity":
-		return "__able_hash_map_with_capacity_impl", true
-	case "__able_hash_map_get":
-		return "__able_hash_map_get_impl", true
-	case "__able_hash_map_set":
-		return "__able_hash_map_set_impl", true
-	case "__able_hash_map_remove":
-		return "__able_hash_map_remove_impl", true
-	case "__able_hash_map_contains":
-		return "__able_hash_map_contains_impl", true
-	case "__able_hash_map_size":
-		return "__able_hash_map_size_impl", true
-	case "__able_hash_map_clear":
-		return "__able_hash_map_clear_impl", true
-	case "__able_hash_map_for_each":
-		return "__able_hash_map_for_each_impl", true
-	case "__able_hash_map_clone":
-		return "__able_hash_map_clone_impl", true
-	case "__able_String_from_builtin":
-		return "__able_string_from_builtin_impl", true
-	case "__able_String_to_builtin":
-		return "__able_string_to_builtin_impl", true
-	case "__able_char_from_codepoint":
-		return "__able_char_from_codepoint_impl", true
-	case "__able_char_to_codepoint":
-		return "__able_char_to_codepoint_impl", true
-	case "__able_ratio_from_float":
-		return "__able_ratio_from_float_impl", true
-	case "__able_f32_bits":
-		return "__able_f32_bits_impl", true
-	case "__able_f64_bits":
-		return "__able_f64_bits_impl", true
-	case "__able_u64_mul":
-		return "__able_u64_mul_impl", true
-	case "__able_channel_new":
-		return "__able_channel_new_impl", true
-	case "__able_channel_send":
-		return "__able_channel_send_impl", true
-	case "__able_channel_receive":
-		return "__able_channel_receive_impl", true
-	case "__able_channel_try_send":
-		return "__able_channel_try_send_impl", true
-	case "__able_channel_try_receive":
-		return "__able_channel_try_receive_impl", true
-	case "__able_channel_await_try_recv":
-		return "__able_channel_await_try_recv_impl", true
-	case "__able_channel_await_try_send":
-		return "__able_channel_await_try_send_impl", true
-	case "__able_channel_close":
-		return "__able_channel_close_impl", true
-	case "__able_channel_is_closed":
-		return "__able_channel_is_closed_impl", true
-	case "__able_mutex_new":
-		return "__able_mutex_new_impl", true
-	case "__able_mutex_lock":
-		return "__able_mutex_lock_impl", true
-	case "__able_mutex_unlock":
-		return "__able_mutex_unlock_impl", true
-	case "__able_mutex_await_lock":
-		return "__able_mutex_await_lock_impl", true
-	default:
-		return "", false
-	}
 }
 
 func (g *generator) compileSafeMemberCall(ctx *compileContext, call *ast.FunctionCall, callee *ast.MemberAccessExpression, expected string, objExpr string, objType string, callNode string) ([]string, string, string, bool) {

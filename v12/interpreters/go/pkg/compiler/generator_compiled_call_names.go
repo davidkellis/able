@@ -16,6 +16,14 @@ func (g *generator) compiledEntryName(info *functionInfo) string {
 	return "__able_compiled_entry_" + info.GoName
 }
 
+func (g *generator) compiledContextBodyName(info *functionInfo) string {
+	return compiledContextName(g.compiledBodyName(info))
+}
+
+func (g *generator) compiledContextEntryName(info *functionInfo) string {
+	return compiledContextName(g.compiledEntryName(info))
+}
+
 func (g *generator) compiledCallTargetNameForPackage(callerPackage string, calleePackage string, goName string) string {
 	goName = strings.TrimSpace(goName)
 	if goName == "" {
@@ -23,15 +31,15 @@ func (g *generator) compiledCallTargetNameForPackage(callerPackage string, calle
 	}
 	callerPackage = strings.TrimSpace(callerPackage)
 	calleePackage = strings.TrimSpace(calleePackage)
-	if callerPackage != "" && callerPackage == calleePackage {
+	if (callerPackage != "" && callerPackage == calleePackage) || g.compiledFunctionEnvironmentIndependentByGoName(goName) {
 		return "__able_compiled_" + goName
 	}
 	return "__able_compiled_entry_" + goName
 }
 
 // compiledCallTargetName returns the function name that a compiled caller
-// should target directly. Same-package static calls can skip the env-swapping
-// entry wrapper and jump straight to the raw compiled body.
+// should target directly. Same-package calls and imported functions proven not
+// to consult package environment state can jump straight to the raw body.
 func (g *generator) compiledCallTargetName(callerPackage string, info *functionInfo) string {
 	if info == nil {
 		return ""

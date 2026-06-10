@@ -1,0 +1,60 @@
+File: compiled
+Build ID: 4fc52de29a6878f5af6352cc974f042d9bda41cd
+Type: alloc_space
+Time: 2026-07-27 22:14:32 CDT
+Showing nodes accounting for 9219.03kB, 100% of 9219.03kB total
+      flat  flat%   sum%        cum   cum%
+ 2560.52kB 27.77% 27.77%  2560.52kB 27.77%  main.__able_make_await_waker
+ 1538.05kB 16.68% 44.46%  1538.05kB 16.68%  runtime.mallocgc
+ 1024.17kB 11.11% 55.57%  1024.17kB 11.11%  main.(*__able_mutex_awaitable).toStruct
+ 1024.09kB 11.11% 66.68%  1024.09kB 11.11%  main.__able_make_await_registration_value
+ 1024.06kB 11.11% 77.78%  1024.06kB 11.11%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+ 1024.06kB 11.11% 88.89%  1024.06kB 11.11%  able/interpreter-go/pkg/compiler/bridge.currentGID
+  512.05kB  5.55% 94.45%   512.05kB  5.55%  main.(*__able_await_state).ensureWaitCh
+  512.02kB  5.55%   100%   512.02kB  5.55%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         0     0%   100%  1024.06kB 11.11%  able/interpreter-go/pkg/ast.Ty (inline)
+         0     0%   100%   512.03kB  5.55%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%   512.03kB  5.55%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%  7680.98kB 83.32%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%  1024.05kB 11.11%  main.(*__able_mutex_awaitable).commit
+         0     0%   100%  1024.09kB 11.11%  main.(*__able_mutex_awaitable).register
+         0     0%   100%  1024.09kB 11.11%  main.(*__able_mutex_awaitable).toStruct.func2
+         0     0%   100%  1024.05kB 11.11%  main.(*__able_mutex_awaitable).toStruct.func3
+         0     0%   100%  5632.74kB 61.10%  main.__able_await
+         0     0%   100%  5632.74kB 61.10%  main.__able_await_value
+         0     0%   100%  2560.17kB 27.77%  main.__able_await_with_state
+         0     0%   100%   512.03kB  5.55%  main.__able_call_native_function
+         0     0%   100%   512.03kB  5.55%  main.__able_call_native_function_value
+         0     0%   100%   512.03kB  5.55%  main.__able_call_value
+         0     0%   100%  2560.17kB 27.77%  main.__able_call_value_fast
+         0     0%   100%  2048.30kB 22.22%  main.__able_compiled_fn_main.func1
+         0     0%   100%  2560.28kB 27.77%  main.__able_compiled_fn_main.func2
+         0     0%   100%  1536.20kB 16.66%  main.__able_compiled_fn_main.func3
+         0     0%   100%  1536.20kB 16.66%  main.__able_compiled_fn_main.func4
+         0     0%   100%  7680.98kB 83.32%  main.__able_compiled_fn_run_lane
+         0     0%   100%  2048.23kB 22.22%  main.__able_compiled_method_Mutex_await_lock_spec
+         0     0%   100%  1024.05kB 11.11%  main.__able_complete_await
+         0     0%   100%   512.03kB  5.55%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0%   100%  1024.06kB 11.11%  main.__able_iface_Awaitable_i64_from_value
+         0     0%   100%  1024.06kB 11.11%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0%   100%  3072.57kB 33.33%  main.__able_initialize_await_state
+         0     0%   100%  2560.17kB 27.77%  main.__able_invoke_awaitable_method
+         0     0%   100%  2560.17kB 27.77%  main.__able_method_call
+         0     0%   100%  1024.17kB 11.11%  main.__able_mutex_await_lock_impl
+         0     0%   100%  1536.12kB 16.66%  main.__able_register_await_state
+         0     0%   100%  7680.98kB 83.32%  main.__able_run_compiled_task
+         0     0%   100%   512.05kB  5.55%  runtime.acquireSudog
+         0     0%   100%     1026kB 11.13%  runtime.allocm
+         0     0%   100%   512.05kB  5.55%  runtime.ensureSigM.func1
+         0     0%   100%      513kB  5.56%  runtime.mcall
+         0     0%   100%      513kB  5.56%  runtime.mstart
+         0     0%   100%      513kB  5.56%  runtime.mstart0
+         0     0%   100%      513kB  5.56%  runtime.mstart1
+         0     0%   100%     1026kB 11.13%  runtime.newm
+         0     0%   100%  1538.05kB 16.68%  runtime.newobject
+         0     0%   100%      513kB  5.56%  runtime.park_m
+         0     0%   100%     1026kB 11.13%  runtime.resetspinning
+         0     0%   100%     1026kB 11.13%  runtime.schedule
+         0     0%   100%   512.05kB  5.55%  runtime.selectgo
+         0     0%   100%     1026kB 11.13%  runtime.startm
+         0     0%   100%     1026kB 11.13%  runtime.wakep

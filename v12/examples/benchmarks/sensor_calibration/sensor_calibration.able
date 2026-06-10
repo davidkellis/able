@@ -1,0 +1,175 @@
+package sensor_calibration
+
+import able.core.interfaces.{Error}
+import able.core.options.*
+import able.fs
+import able.io
+import able.kernel.{Array}
+import able.os
+
+RECORD_LIMIT: i32 := 32
+DEFAULT_ROUNDS: i32 := 256
+
+struct CalibrationError { code: i32 }
+
+impl Error for CalibrationError {
+  fn message(self: Self) -> String { "invalid sensor reading" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct SensorReading {
+  sensor: String,
+  kind: String,
+  raw: i64,
+  offset: i64,
+  scale: i64,
+  quality: String
+}
+
+methods SensorReading {
+  fn valid(self: Self) -> bool {
+    if self.sensor.len_bytes() == 0 { return false }
+    if self.kind != "temp" && self.kind != "pressure" && self.kind != "humidity" { return false }
+    if self.raw < -5_000_i64 || self.raw > 20_000_i64 { return false }
+    if self.offset < -500_i64 || self.offset > 500_i64 { return false }
+    if self.scale < 1_i64 || self.scale > 9_i64 { return false }
+    self.quality == "ok" || self.quality == "warn" || self.quality == "drop"
+  }
+
+  fn accepted(self: Self) -> bool { self.quality != "drop" }
+
+  fn bucket(self: Self) -> i32 {
+    if self.kind == "temp" { 0 }
+    elsif self.kind == "pressure" { 1 }
+    else { 2 }
+  }
+
+  fn calibrated(self: Self, sequence: i64, salt: i64) -> i64 {
+    value := (self.raw + self.offset) * self.scale
+    if self.quality == "warn" { value = (value * 9_i64) // 10_i64 }
+    state := value + (self.sensor.len_bytes() as i64) * 31_i64 + sequence * 3_i64 + salt
+    step := 0_i64
+    loop {
+      if step >= 4_i64 { break }
+      if self.kind == "temp" {
+        state = (state * 67_i64 + salt + step) % 1_000_003_i64
+      } elsif self.kind == "pressure" {
+        state = (state * 79_i64 + sequence + step) % 1_000_003_i64
+      } else {
+        state = (state * 97_i64 + (self.scale * 5_i64) + step) % 1_000_003_i64
+      }
+      step = step + 1_i64
+    }
+    state
+  }
+
+  fn checksum(self: Self, value: i64, sequence: i64) -> i64 {
+    value * 7_i64 + (self.bucket() as i64) * 19_i64 + self.scale * 23_i64 + sequence * 3_i64
+  }
+}
+
+fn calibration_error(code: i32) -> Error {
+  error: Error = CalibrationError { code }
+  error
+}
+
+fn parse_i64(text: String) -> Result i64 {
+  bytes := io.string_to_bytes(text)
+  if bytes.len() == 0 { return calibration_error(1) }
+  negative := false
+  index := 0
+  if bytes.read_slot(0) == 45_u8 {
+    negative = true
+    index = 1
+  }
+  if index >= bytes.len() { return calibration_error(2) }
+  value := 0_i64
+  loop {
+    if index >= bytes.len() { break }
+    current := bytes.read_slot(index)
+    if current < 48_u8 || current > 57_u8 { return calibration_error(3) }
+    value = value * 10_i64 + ((current - 48_u8) as i64)
+    index = index + 1
+  }
+  if negative { -value } else { value }
+}
+
+fn parse_reading(line: String) -> Result SensorReading {
+  fields := line.split("|")
+  if fields.len() != 6 { return calibration_error(4) }
+  [sensor: String, kind: String, raw_text: String, offset_text: String, scale_text: String, quality: String] := fields
+  raw := parse_i64(raw_text) match {
+    case value: i64 => value,
+    case _: Error => { return calibration_error(5) }
+  }
+  offset := parse_i64(offset_text) match {
+    case value: i64 => value,
+    case _: Error => { return calibration_error(6) }
+  }
+  scale := parse_i64(scale_text) match {
+    case value: i64 => value,
+    case _: Error => { return calibration_error(7) }
+  }
+  reading := SensorReading { sensor, kind, raw, offset, scale, quality }
+  if !reading.valid() { return calibration_error(8) }
+  reading
+}
+
+fn calibration_rounds(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" { 1 } else { DEFAULT_ROUNDS }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "readings.txt" }
+  lines := fs.read_lines_prefix(path, RECORD_LIMIT)
+  rounds := calibration_rounds(args)
+  counts: Array i64 := Array.with_capacity(3)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  accepted := 0_i64
+  dropped := 0_i64
+  invalid := 0_i64
+  total := 0_i64
+  checksum := 0_i64
+  sequence := 0_i64
+  salt := 41_i64
+
+  round := 0
+  loop {
+    if round >= rounds { break }
+    index := 0
+    loop {
+      if index >= lines.len() { break }
+      parse_reading(lines.read_slot(index)) match {
+        case reading: SensorReading => {
+          if reading.accepted() {
+            accepted = accepted + 1_i64
+            bucket := reading.bucket()
+            counts.write_slot(bucket, counts.read_slot(bucket) + 1_i64)
+            value := reading.calibrated(sequence, salt)
+            total = total + value
+            checksum = (checksum + reading.checksum(value, sequence)) % 1_000_003_i64
+          } else {
+            dropped = dropped + 1_i64
+            fallback := 53_i64 + (sequence % 89_i64)
+            total = total + fallback
+            checksum = (checksum + fallback * 11_i64 + sequence * 5_i64) % 1_000_003_i64
+          }
+        },
+        case _: Error => {
+          invalid = invalid + 1_i64
+          fallback := 97_i64 + (sequence % 101_i64)
+          total = total + fallback
+          checksum = (checksum + fallback * 13_i64 + sequence * 7_i64) % 1_000_003_i64
+        }
+      }
+      sequence = sequence + 1_i64
+      index = index + 1
+    }
+    round = round + 1
+  }
+
+  print(`${sequence}:${accepted}:${dropped}:${invalid}:${counts.read_slot(0)},${counts.read_slot(1)},${counts.read_slot(2)}:${total}:${checksum}`)
+}

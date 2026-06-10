@@ -97,7 +97,6 @@ fn build() {
 }
 
 func TestParseStructLiteralIgnoresComments(t *testing.T) {
-	t.Skip("tree-sitter grammar currently rejects comments inside struct literals")
 	source := `struct Point {
 	x: i32,
 	y: i32,

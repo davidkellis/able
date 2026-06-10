@@ -1,0 +1,195 @@
+package sudoku_masks
+
+import able.kernel.{Array}
+import able.fs
+
+struct Position {
+  row: i32,
+  col: i32,
+  choices: i32
+}
+
+fn parse_board(line: String) -> Array (Array i32) {
+  board: Array (Array i32) := Array.new()
+  bytes := line.bytes()
+  row := 0
+  loop {
+    if row >= 9 { break }
+    r: Array i32 := Array.new()
+    col := 0
+    loop {
+      if col >= 9 { break }
+      b := bytes.next()
+      digit := b match {
+        case byte: u8 => if byte == 46_u8 { 0 } else { (byte as i32) - 48 },
+        case nil => 0
+      }
+      r.push(digit)
+      col = col + 1
+    }
+    board.push(r)
+    row = row + 1
+  }
+  board
+}
+
+fn new_masks() -> Array i32 {
+  masks: Array i32 := Array.new()
+  i := 0
+  loop {
+    if i >= 9 { break }
+    masks.push(0)
+    i = i + 1
+  }
+  masks
+}
+
+fn square_index(row: i32, col: i32) -> i32 {
+  (row // 3) * 3 + (col // 3)
+}
+
+fn bit_count(bits: i32) -> i32 {
+  count := 0
+  value := bits
+  loop {
+    if value == 0 { break }
+    count = count + 1
+    value = value .& (value - 1)
+  }
+  count
+}
+
+fn find_best_empty(
+  board: Array (Array i32),
+  row_masks: Array i32,
+  col_masks: Array i32,
+  square_masks: Array i32,
+  best: Position
+) -> bool {
+  found := false
+  best_count := 10
+  i := 0
+  loop {
+    if i >= 9 { break }
+    j := 0
+    loop {
+      if j >= 9 { break }
+      if board.get(i)!.get(j)! == 0 {
+        square := square_index(i, j)
+        used := row_masks.get(i)! .| col_masks.get(j)! .| square_masks.get(square)!
+        choices := 511_i32 .^ used
+        count := bit_count(choices)
+        if count < best_count {
+          best.row = i
+          best.col = j
+          best.choices = choices
+          best_count = count
+          found = true
+        }
+      }
+      j = j + 1
+    }
+    i = i + 1
+  }
+  found
+}
+
+fn solve_with_masks(
+  board: Array (Array i32),
+  row_masks: Array i32,
+  col_masks: Array i32,
+  square_masks: Array i32
+) -> bool {
+  pos := Position { row: 0, col: 0, choices: 0 }
+  if !find_best_empty(board, row_masks, col_masks, square_masks, pos) {
+    true
+  } else {
+    row := pos.row
+    col := pos.col
+    choices := pos.choices
+    square := square_index(row, col)
+    digit := 1
+    bit := 1_i32
+    solved := false
+    loop {
+      if digit > 9 || solved { break }
+      if (choices .& bit) != 0 {
+        board.get(row)!.set(col, digit)
+        row_masks.set(row, row_masks.get(row)! .| bit)
+        col_masks.set(col, col_masks.get(col)! .| bit)
+        square_masks.set(square, square_masks.get(square)! .| bit)
+        solved = solve_with_masks(board, row_masks, col_masks, square_masks)
+        if !solved {
+          board.get(row)!.set(col, 0)
+          row_masks.set(row, row_masks.get(row)! .^ bit)
+          col_masks.set(col, col_masks.get(col)! .^ bit)
+          square_masks.set(square, square_masks.get(square)! .^ bit)
+        }
+      }
+      digit = digit + 1
+      bit = bit .<< 1_i32
+    }
+    solved
+  }
+}
+
+fn solve(board: Array (Array i32)) -> bool {
+  row_masks := new_masks()
+  col_masks := new_masks()
+  square_masks := new_masks()
+  row := 0
+  loop {
+    if row >= 9 { break }
+    col := 0
+    loop {
+      if col >= 9 { break }
+      digit := board.get(row)!.get(col)!
+      if digit > 0 {
+        bit := 1_i32 .<< (digit - 1)
+        square := square_index(row, col)
+        row_masks.set(row, row_masks.get(row)! .| bit)
+        col_masks.set(col, col_masks.get(col)! .| bit)
+        square_masks.set(square, square_masks.get(square)! .| bit)
+      }
+      col = col + 1
+    }
+    row = row + 1
+  }
+  solve_with_masks(board, row_masks, col_masks, square_masks)
+}
+
+fn board_to_string(board: Array (Array i32)) -> String {
+  result := ""
+  i := 0
+  loop {
+    if i >= 9 { break }
+    j := 0
+    loop {
+      if j >= 9 { break }
+      result = `${result}${board.get(i)!.get(j)!}`
+      j = j + 1
+    }
+    i = i + 1
+  }
+  result
+}
+
+fn main() {
+  lines := fs.read_lines("sudoku/sudoku.txt")
+  iter := 0
+  loop {
+    if iter >= 10 { break }
+    i := 0
+    loop {
+      if i >= lines.len() || i >= 10 { break }
+      puzzle := lines.get(i)!
+      if puzzle.len_bytes() >= 81 {
+        board := parse_board(puzzle)
+        solve(board)
+        print(board_to_string(board))
+      }
+      i = i + 1
+    }
+    iter = iter + 1
+  }
+}

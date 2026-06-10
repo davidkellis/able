@@ -1,0 +1,81 @@
+package exec_14_10_regex_multiline_option
+
+import able.text.regex.{Regex, RegexOptions, Match}
+import able.kernel.{Array}
+import able.text.automata.{NFA}
+import able.text.automata_dsl.{AutomataDSL, AutomataExpr}
+import able.text.string.{String, StringBuilder}
+
+## Semantics: multiline anchors recognize boundaries around U+000A only.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn show_shared_line_nfa() -> void {
+  parts: Array AutomataExpr := Array.new()
+  parts.push(AutomataDSL.literal_char('a'))
+  parts.push(AutomataDSL.literal_char('\n'))
+  parts.push(AutomataDSL.line_start_anchor())
+  parts.push(AutomataDSL.literal_char('b'))
+  parts.push(AutomataDSL.line_end_anchor())
+  parts.push(AutomataDSL.literal_char('\n'))
+  parts.push(AutomataDSL.literal_char('c'))
+  nfa: NFA := AutomataDSL.seq(parts).to_nfa()
+
+  matching := StringBuilder.with_capacity(5)
+  matching.push_char('a')
+  matching.push_char('\n')
+  matching.push_char('b')
+  matching.push_char('\n')
+  matching.push_char('c')
+  failing := StringBuilder.with_capacity(5)
+  failing.push_char('a')
+  failing.push_char('\n')
+  failing.push_char('b')
+  failing.push_char('x')
+  failing.push_char('c')
+  matching.finish() match {
+    case text: String => failing.finish() match {
+      case invalid: String => print(`shared_line_nfa ${nfa.matches(text)} ${nfa.matches(invalid)}`),
+      case _ => print("shared_line_nfa build error")
+    },
+    case _ => print("shared_line_nfa build error")
+  }
+}
+
+fn main() -> void {
+  text := "dog\ncat\nbird"
+  Regex.compile("^cat$") match {
+    case regex: Regex => show_match("default", regex.match(text)),
+    case _ => print("default compile error")
+  }
+
+  options := RegexOptions.default()
+  options.multiline = true
+  Regex.compile_with_options("^cat$", options) match {
+    case regex: Regex => show_match("line", regex.match(text)),
+    case _ => print("line compile error")
+  }
+
+  Regex.compile_with_options("^.$", options) match {
+    case regex: Regex => show_match("unicode", regex.match("é\nx")),
+    case _ => print("unicode compile error")
+  }
+
+  Regex.compile_with_options("^$", options) match {
+    case regex: Regex => show_match("empty_line", regex.match("a\n\nb")),
+    case _ => print("empty_line compile error")
+  }
+
+  options.anchored = true
+  Regex.compile_with_options("cat", options) match {
+    case regex: Regex => show_match("anchored", regex.match(text)),
+    case _ => print("anchored compile error")
+  }
+
+  show_shared_line_nfa()
+}

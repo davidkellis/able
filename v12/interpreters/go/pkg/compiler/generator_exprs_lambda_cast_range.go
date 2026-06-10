@@ -153,6 +153,14 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		ctx.setReason("missing lambda context")
 		return "", "", false
 	}
+	if g.callableExecutionContextsEnabled() {
+		lambdaCtx.executionContextExpr = "__able_exec_ctx"
+	}
+	lambdaEffect := &compiledEnvironmentEffect{
+		localIndependent: true,
+		callees:          make(map[*functionInfo]struct{}),
+	}
+	lambdaCtx.environmentEffect = lambdaEffect
 	// The lambda body's expression context should not inherit the enclosing
 	// callable expectation wholesale. Parameter and return expectations are
 	// applied explicitly below; keeping the outer callable type here lets
@@ -259,6 +267,9 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		}
 		return "", "", false
 	}
+	if generatedBodyUsesPackageEnvironment(bodyLines, bodyExpr) {
+		lambdaEffect.localIndependent = false
+	}
 	if desiredReturn != "" && !g.typeMatches(desiredReturn, bodyType) {
 		ctx.setReason("lambda return type mismatch")
 		return "", "", false
@@ -297,7 +308,9 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 		return "", "", false
 	}
 	implLines := make([]string, 0, len(bodyLines)+len(params)*2+3)
-	implLines = append(implLines, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	if !g.compiledEnvironmentEffectIndependent(lambdaEffect) {
+		implLines = append(implLines, g.inlineExecutionContextEnvLinesForPackage(ctx.packageName, lambdaCtx.executionContextExpr)...)
+	}
 	implLines = append(implLines, fmt.Sprintf("var %s *__ableControl", controlTemp))
 	zeroExpr, zeroOK := g.zeroValueExpr(callableInfo.ReturnGoType)
 	if !zeroOK {
@@ -358,6 +371,12 @@ func (g *generator) compileLambdaExpression(ctx *compileContext, expr *ast.Lambd
 			lambdaExpr += ", "
 		}
 		lambdaExpr += fmt.Sprintf("%s %s", param.GoName, param.GoType)
+	}
+	if g.callableExecutionContextsEnabled() {
+		if len(params) > 0 {
+			lambdaExpr += ", "
+		}
+		lambdaExpr += "__able_exec_ctx " + executionContextType
 	}
 	lambdaExpr += fmt.Sprintf(") (%s, *__ableControl) { %s })", callableInfo.ReturnGoType, strings.Join(implLines, "; "))
 	return lambdaExpr, callableInfo.GoType, true

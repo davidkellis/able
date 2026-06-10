@@ -8,7 +8,7 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func TestBytecodeVM_LoweringEmitsF64AffineRowLoopPlan(t *testing.T) {
+func TestBytecodeVM_LoweringSkipsF64AffineRowLoopPlan(t *testing.T) {
 	arrayF64 := ast.Gen(ast.Ty("Array"), ast.Ty("f64"))
 	expr := ast.Bin("*",
 		ast.ID("t"),
@@ -45,19 +45,8 @@ func TestBytecodeVM_LoweringEmitsF64AffineRowLoopPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
-	if len(program.f64AffineRowLoops) != 1 {
-		t.Fatalf("expected one f64 affine-row loop plan, got %#v", program.f64AffineRowLoops)
-	}
-	for ip, plan := range program.f64AffineRowLoops {
-		if ip < 0 || ip >= len(program.instructions) || program.instructions[ip].op != bytecodeOpLoopEnter {
-			t.Fatalf("f64 affine-row plan attached to non-loop-enter ip %d", ip)
-		}
-		if !plan.validForSlots(program.frameLayout.slotCount) || plan.successTarget <= ip || plan.resultPushIP <= ip {
-			t.Fatalf("unexpected f64 affine-row plan: ip=%d plan=%#v", ip, plan)
-		}
-		if got := program.instructions[plan.resultPushIP]; got.op != bytecodeOpCallMemberArraySlot || got.name != "push" || got.argCount != 1 {
-			t.Fatalf("affine-row result push ip points at %#v", got)
-		}
+	if len(program.f64AffineRowLoops) != 0 {
+		t.Fatalf("matrix-only f64 affine-row plans should stay empty, got %#v", program.f64AffineRowLoops)
 	}
 }
 

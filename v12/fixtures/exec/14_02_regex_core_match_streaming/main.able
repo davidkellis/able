@@ -35,6 +35,7 @@ fn main() -> void {
       scanner := regex.scan("")
       scanner.feed("ca")
       scanner.feed("aad")
+      scanner.flush()
       print("scan")
       loop {
         next := scanner.next()

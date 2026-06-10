@@ -464,7 +464,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 		payloadTemp := ctx.newTemp()
 		messageControlTemp := ctx.newTemp()
 		lines = append(lines,
-			fmt.Sprintf("%s, %s := %s(%s)", messageTemp, messageControlTemp, g.compiledCallTargetName(ctx.packageName, messageInfo), expr),
+			fmt.Sprintf("%s, %s := %s(%s)", messageTemp, messageControlTemp, g.compiledContextCallTargetName(ctx, ctx.packageName, messageInfo), g.compiledCallArgs(ctx, []string{expr})),
 			fmt.Sprintf("%s := map[string]runtime.Value{\"value\": %s}", payloadTemp, runtimeExpr),
 		)
 		controlLines, ok := g.lowerControlCheck(ctx, messageControlTemp)
@@ -476,7 +476,7 @@ func (g *generator) nativeErrorValueLines(ctx *compileContext, actual string, ex
 			causeTemp := ctx.newTemp()
 			causeControlTemp := ctx.newTemp()
 			lines = append(lines,
-				fmt.Sprintf("%s, %s := %s(%s)", causeTemp, causeControlTemp, g.compiledCallTargetName(ctx.packageName, causeInfo), expr),
+				fmt.Sprintf("%s, %s := %s(%s)", causeTemp, causeControlTemp, g.compiledContextCallTargetName(ctx, ctx.packageName, causeInfo), g.compiledCallArgs(ctx, []string{expr})),
 				fmt.Sprintf("if %s != nil { %s[\"cause\"] = __able_nullable_error_to_value(%s) }", causeTemp, payloadTemp, causeTemp),
 			)
 			controlLines, ok = g.lowerControlCheck(ctx, causeControlTemp)
@@ -522,6 +522,8 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 	switch goType {
 	case "struct{}":
 		return "struct{}{}", true
+	case "runtime.NilValue":
+		return "runtime.NilValue{}", true
 	case "runtime.ErrorValue":
 		return "runtime.ErrorValue{}", true
 	case "runtime.Value":
@@ -558,6 +560,10 @@ func (g *generator) zeroValueExpr(goType string) (string, bool) {
 		return "uint32(0)", true
 	case "uint64":
 		return "uint64(0)", true
+	case "runtime.Int128":
+		return "runtime.Int128{}", true
+	case "runtime.Uint128":
+		return "runtime.Uint128{}", true
 	}
 	if g.typeCategory(goType) == "struct" {
 		base := strings.TrimPrefix(goType, "*")

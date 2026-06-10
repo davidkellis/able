@@ -1,0 +1,110 @@
+{
+  "date": "2026-07-24",
+  "decision": "retain",
+  "candidate": "localize package-environment dependencies at existing callee entry wrappers and treat statically lowered immutable module bindings as environment-independent",
+  "settings": {
+    "cpu_affinity": "9",
+    "quiet_host_preflight_passed": true,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "executor": "goroutine",
+    "pairs": 5,
+    "order_balanced": true,
+    "frozen_binaries": true,
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Concurrent Document Pipeline",
+      "baseline_seconds": [0.08, 0.09, 0.09, 0.08, 0.10],
+      "baseline_mean_seconds": 0.088,
+      "candidate_seconds": [0.06, 0.06, 0.06, 0.06, 0.06],
+      "candidate_mean_seconds": 0.060,
+      "change_percent": -31.82,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.004085760, 0.003718912, 0.003997440, 0.002718464, 0.003367680],
+      "go_mean_seconds": 0.003577651,
+      "candidate_over_go": 16.770780,
+      "profile": {
+        "baseline_total_seconds": 0.41,
+        "candidate_total_seconds": 0.37,
+        "baseline_hot_closure_seconds": 0.18,
+        "candidate_hot_closure_seconds": 0.0,
+        "candidate_call_value_seconds": 0.17,
+        "candidate_call_value_percent": 45.95
+      },
+      "sha256": {
+        "baseline": "23c5ac49b7655156ffb692be90be6f46a89937c09f86bc9b77dd71d3b7b66364",
+        "candidate": "6980f136817e02d0cafe437737322cdddd5cc40ddf088a5678538d8e3f36ee37",
+        "go": "a46a7558e9fbc14a7204a1e37c35f418aae900134d62433c029414772954aa34"
+      }
+    },
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_seconds": [0.52, 0.51, 0.55, 0.53, 0.59],
+      "baseline_mean_seconds": 0.540,
+      "candidate_seconds": [0.42, 0.42, 0.43, 0.42, 0.46],
+      "candidate_mean_seconds": 0.430,
+      "change_percent": -20.37,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.003978496, 0.004781568, 0.004755200, 0.004308992, 0.003966208],
+      "go_mean_seconds": 0.004358093,
+      "candidate_over_go": 98.667013,
+      "profile": {
+        "baseline_total_seconds": 2.27,
+        "candidate_total_seconds": 2.24,
+        "baseline_hot_closure_seconds": 0.44,
+        "candidate_hot_closure_body_seconds": 0.04,
+        "candidate_call_value_seconds": 0.40,
+        "candidate_call_value_percent": 17.86
+      },
+      "sha256": {
+        "baseline": "9aef17771985fa0fb01732fb00f97e67090de6a060e4f977b65b3b4a7bde1343",
+        "candidate": "32573925aa6a2fb6151dcd75b20b547e1b2945dea7809cb1c57fa1ddffb0c4a3",
+        "go": "e08c89e8f55ee0e09834e4c4498248dd61cfb5683c542b044151271d37ad16d7"
+      }
+    },
+    {
+      "name": "Concurrent Policy Callbacks",
+      "baseline_seconds": [0.24, 0.25, 0.25, 0.25, 0.25],
+      "baseline_mean_seconds": 0.248,
+      "candidate_seconds": [0.08, 0.08, 0.09, 0.09, 0.08],
+      "candidate_mean_seconds": 0.084,
+      "change_percent": -66.13,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.003788800, 0.004818176, 0.004016640, 0.003116032, 0.003614464],
+      "go_mean_seconds": 0.003870822,
+      "candidate_over_go": 21.700815,
+      "profile": {
+        "baseline_total_seconds": 1.11,
+        "candidate_total_seconds": 0.41,
+        "baseline_hot_closures_aggregate_seconds": 0.49,
+        "candidate_hot_closures_aggregate_seconds": 0.0,
+        "candidate_channel_current_gid_seconds": 0.39,
+        "candidate_channel_current_gid_percent": 95.12
+      },
+      "sha256": {
+        "baseline": "decdda95f28b33eb076771722b72f68ebce99f4adda981a13041b9fe05e4ddc1",
+        "candidate": "284b8719ba8751499bfae6b90feba2683748869c43de6f40006d22be2caf705e",
+        "go": "46bd01493be186dc8cd46230b9f8b503e9db86c2511433e18f679af46bc66585"
+      }
+    }
+  ],
+  "geometric_mean_change_percent": -43.13,
+  "temporary_evidence_root": "/tmp/able-aot-callable-carrier-20260724.170B6M",
+  "changed_surfaces": ["compiler"],
+  "unchanged_surfaces": [
+    "canonical_stdlib",
+    "runtime",
+    "interpreter",
+    "tree_walker",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

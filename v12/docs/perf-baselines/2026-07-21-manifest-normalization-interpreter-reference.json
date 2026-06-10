@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-07-22T03:44:56Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "suite": "custom",
+  "runs": 5,
+  "timeout_seconds": 50,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "runtimes": {
+    "python": {
+      "executable": "/home/david/.local/share/mise/installs/python/latest/bin/python3",
+      "variant": "python-3.14",
+      "version": "Python 3.14.5"
+    },
+    "ruby": {
+      "executable": "/home/david/.local/share/mise/installs/ruby/latest/bin/ruby",
+      "variant": "ruby-4.0",
+      "version": "ruby 4.0.5 (2026-05-20 revision 64336ffd0e) +PRISM [x86_64-linux]"
+    }
+  },
+  "rows": [
+    {
+      "benchmark": "manifest_normalization",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/manifest-normalization/python-3.14/run.py",
+      "source_sha256": "434dcae93591c107a540b74e7b9773d121b11e35d6574e1009498c08aa45e267",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0227,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.021451435,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.020374544,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.021618299,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.019623339,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.030316422,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/manifest-normalization/ruby-4.0/run.rb",
+      "source_sha256": "db78e02ae03d358429da3c7d8e2376d9be83526c58666ce7b88fe89af2dae409",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0536,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.058863347,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.055568829,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.055563564,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.04910023,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.049055948,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}

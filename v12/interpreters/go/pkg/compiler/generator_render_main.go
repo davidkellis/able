@@ -12,6 +12,7 @@ func (g *generator) renderMain() ([]byte, error) {
 	if g.opts.EntryPath == "" {
 		return nil, fmt.Errorf("compiler: EmitMain requires EntryPath")
 	}
+	requiresBootstrap := g.requiresBootstrapExecution()
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "package main\n\n")
 	fmt.Fprintf(&buf, "import (\n")
@@ -20,8 +21,11 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t%q\n", "path/filepath")
 	fmt.Fprintf(&buf, "\t%q\n", "sort")
 	fmt.Fprintf(&buf, "\t%q\n", "strings")
+	fmt.Fprintf(&buf, "\t%q\n", "able/interpreter-go/pkg/compiler/bridge")
 	fmt.Fprintf(&buf, "\t%q\n", "able/interpreter-go/pkg/driver")
-	fmt.Fprintf(&buf, "\t%q\n", "able/interpreter-go/pkg/interpreter")
+	if requiresBootstrap {
+		fmt.Fprintf(&buf, "\t%q\n", "able/interpreter-go/pkg/interpreter")
+	}
 	fmt.Fprintf(&buf, "\t%q\n", "able/interpreter-go/pkg/profilehook")
 	fmt.Fprintf(&buf, "\t%q\n", "able/interpreter-go/pkg/runtime")
 	fmt.Fprintf(&buf, "\t%q\n", "able/interpreter-go/pkg/stdlibpath")
@@ -179,7 +183,7 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t}\n")
 	fmt.Fprintf(&buf, "\treturn roots\n")
 	fmt.Fprintf(&buf, "}\n\n")
-	fmt.Fprintf(&buf, "func registerPrintInEnv(env *runtime.Environment, interp *interpreter.Interpreter) {\n")
+	fmt.Fprintf(&buf, "func registerPrintInEnv(env *runtime.Environment, interp bridge.Interpreter) {\n")
 	fmt.Fprintf(&buf, "\tif env == nil {\n")
 	fmt.Fprintf(&buf, "\t\treturn\n")
 	fmt.Fprintf(&buf, "\t}\n")
@@ -187,6 +191,7 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t\tName:  \"print\",\n")
 	fmt.Fprintf(&buf, "\t\tArity: 1,\n")
 	fmt.Fprintf(&buf, "\t\tImpl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n")
+	g.emitDynamicBoundaryTelemetry(&buf, "host")
 	fmt.Fprintf(&buf, "\t\t\tparts := make([]string, 0, len(args))\n")
 	fmt.Fprintf(&buf, "\t\t\tfor _, arg := range args {\n")
 	fmt.Fprintf(&buf, "\t\t\t\tparts = append(parts, formatRuntimeValue(interp, arg))\n")
@@ -197,7 +202,7 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t}\n")
 	fmt.Fprintf(&buf, "\tenv.Define(\"print\", printFn)\n")
 	fmt.Fprintf(&buf, "}\n\n")
-	fmt.Fprintf(&buf, "func registerPrint(interp *interpreter.Interpreter) {\n")
+	fmt.Fprintf(&buf, "func registerPrint(interp bridge.Interpreter) {\n")
 	fmt.Fprintf(&buf, "\tif interp == nil {\n")
 	fmt.Fprintf(&buf, "\t\treturn\n")
 	fmt.Fprintf(&buf, "\t}\n")
@@ -273,9 +278,9 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t\t\treturn true\n")
 	fmt.Fprintf(&buf, "\t\t}\n")
 	fmt.Fprintf(&buf, "\t}\n")
-	fmt.Fprintf(&buf, "\t_, hasHandle := v.Fields[\"storage_handle\"]\n")
-	fmt.Fprintf(&buf, "\t_, hasLength := v.Fields[\"length\"]\n")
-	fmt.Fprintf(&buf, "\t_, hasCapacity := v.Fields[\"capacity\"]\n")
+	fmt.Fprintf(&buf, "\t_, hasHandle := __able_struct_named_field_value(v, \"storage_handle\")\n")
+	fmt.Fprintf(&buf, "\t_, hasLength := __able_struct_named_field_value(v, \"length\")\n")
+	fmt.Fprintf(&buf, "\t_, hasCapacity := __able_struct_named_field_value(v, \"capacity\")\n")
 	fmt.Fprintf(&buf, "\treturn hasHandle && hasLength && hasCapacity\n")
 	fmt.Fprintf(&buf, "}\n\n")
 	fmt.Fprintf(&buf, "func isCallableRuntimeValue(val runtime.Value) bool {\n")
@@ -295,7 +300,7 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t\treturn false\n")
 	fmt.Fprintf(&buf, "\t}\n")
 	fmt.Fprintf(&buf, "}\n\n")
-	fmt.Fprintf(&buf, "func formatRuntimeValue(interp *interpreter.Interpreter, val runtime.Value) string {\n")
+	fmt.Fprintf(&buf, "func formatRuntimeValue(interp bridge.Interpreter, val runtime.Value) string {\n")
 	fmt.Fprintf(&buf, "\tif isCallableRuntimeValue(val) {\n")
 	fmt.Fprintf(&buf, "\t\treturn \"<function>\"\n")
 	fmt.Fprintf(&buf, "\t}\n")
@@ -323,7 +328,7 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t\treturn \"[\" + strings.Join(elems, \", \") + \"]\"\n")
 	fmt.Fprintf(&buf, "\tcase *runtime.StructInstanceValue:\n")
 	fmt.Fprintf(&buf, "\t\tif isArrayStructInstance(v) {\n")
-	fmt.Fprintf(&buf, "\t\t\tif h, ok := v.Fields[\"storage_handle\"]; ok {\n")
+	fmt.Fprintf(&buf, "\t\t\tif h, ok := __able_struct_named_field_value(v, \"storage_handle\"); ok {\n")
 	fmt.Fprintf(&buf, "\t\t\t\tif hv, ok := h.(runtime.IntegerValue); ok {\n")
 	fmt.Fprintf(&buf, "\t\t\t\t\tvar handle int64\n")
 	fmt.Fprintf(&buf, "\t\t\t\t\tif n, ok := hv.ToInt64(); ok {\n")
@@ -331,13 +336,15 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t\t\t\t\t} else {\n")
 	fmt.Fprintf(&buf, "\t\t\t\t\t\thandle = hv.BigInt().Int64()\n")
 	fmt.Fprintf(&buf, "\t\t\t\t\t}\n")
-	fmt.Fprintf(&buf, "\t\t\t\t\tstate, err := runtime.ArrayStoreState(handle)\n")
-	fmt.Fprintf(&buf, "\t\t\t\t\tif err == nil {\n")
-	fmt.Fprintf(&buf, "\t\t\t\t\t\telems := make([]string, len(state.Values))\n")
-	fmt.Fprintf(&buf, "\t\t\t\t\t\tfor i, el := range state.Values {\n")
-	fmt.Fprintf(&buf, "\t\t\t\t\t\t\telems[i] = formatRuntimeValue(interp, el)\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\tif err := runtime.ArrayStoreTrackStructInstanceLease(v, handle); err == nil {\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\t\tstate, err := runtime.ArrayStoreState(handle)\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\t\tif err == nil {\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\t\t\telems := make([]string, len(state.Values))\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\t\t\tfor i, el := range state.Values {\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\t\t\t\telems[i] = formatRuntimeValue(interp, el)\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\t\t\t}\n")
+	fmt.Fprintf(&buf, "\t\t\t\t\t\t\treturn \"[\" + strings.Join(elems, \", \") + \"]\"\n")
 	fmt.Fprintf(&buf, "\t\t\t\t\t\t}\n")
-	fmt.Fprintf(&buf, "\t\t\t\t\t\treturn \"[\" + strings.Join(elems, \", \") + \"]\"\n")
 	fmt.Fprintf(&buf, "\t\t\t\t\t}\n")
 	fmt.Fprintf(&buf, "\t\t\t\t}\n")
 	fmt.Fprintf(&buf, "\t\t\t}\n")
@@ -372,31 +379,33 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t\treturn fmt.Sprintf(\"<%%s>\", v.Kind())\n")
 	fmt.Fprintf(&buf, "\t}\n")
 	fmt.Fprintf(&buf, "}\n\n")
-	onlyCompiledFunctions := true
-	functionCount := 0
-	for _, byName := range g.functions {
-		for _, info := range byName {
-			if info == nil {
-				continue
-			}
-			functionCount++
-			if !info.Compileable {
-				onlyCompiledFunctions = false
-			}
-		}
-	}
-	if functionCount == 0 {
-		onlyCompiledFunctions = false
-	}
-	importsSeedable := g.noBootstrapImportsSeedable()
-	requiresBootstrap := g.hasDynamicFeature || len(g.collectFallbacks()) > 0 || !onlyCompiledFunctions || !importsSeedable
 	fmt.Fprintf(&buf, "func main() {\n")
+	fmt.Fprintf(&buf, "\tphaseProfiler, err := profilehook.NewPhaseProfilerFromEnv()\n")
+	fmt.Fprintf(&buf, "\tif err != nil {\n")
+	fmt.Fprintf(&buf, "\t\tfmt.Fprintln(os.Stderr, err)\n")
+	fmt.Fprintf(&buf, "\t\tos.Exit(1)\n")
+	fmt.Fprintf(&buf, "\t}\n")
 	fmt.Fprintf(&buf, "\tstopProfile, err := profilehook.StartFromEnv()\n")
 	fmt.Fprintf(&buf, "\tif err != nil {\n")
 	fmt.Fprintf(&buf, "\t\tfmt.Fprintln(os.Stderr, err)\n")
 	fmt.Fprintf(&buf, "\t\tos.Exit(1)\n")
 	fmt.Fprintf(&buf, "\t}\n")
-	fmt.Fprintf(&buf, "\texitCode := runMain()\n")
+	fmt.Fprintf(&buf, "\tif phaseProfiler != nil {\n")
+	fmt.Fprintf(&buf, "\t\tif err := phaseProfiler.StartBootstrap(); err != nil {\n")
+	fmt.Fprintf(&buf, "\t\t\tfmt.Fprintln(os.Stderr, err)\n")
+	fmt.Fprintf(&buf, "\t\t\tif stopProfile != nil { _ = stopProfile() }\n")
+	fmt.Fprintf(&buf, "\t\t\tos.Exit(1)\n")
+	fmt.Fprintf(&buf, "\t\t}\n")
+	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "\texitCode := runMain(phaseProfiler)\n")
+	fmt.Fprintf(&buf, "\tif phaseProfiler != nil {\n")
+	fmt.Fprintf(&buf, "\t\tif err := phaseProfiler.Stop(); err != nil {\n")
+	fmt.Fprintf(&buf, "\t\t\tfmt.Fprintln(os.Stderr, err)\n")
+	fmt.Fprintf(&buf, "\t\t\tif exitCode == 0 {\n")
+	fmt.Fprintf(&buf, "\t\t\t\texitCode = 1\n")
+	fmt.Fprintf(&buf, "\t\t\t}\n")
+	fmt.Fprintf(&buf, "\t\t}\n")
+	fmt.Fprintf(&buf, "\t}\n")
 	fmt.Fprintf(&buf, "\tif stopProfile != nil {\n")
 	fmt.Fprintf(&buf, "\t\tif err := stopProfile(); err != nil {\n")
 	fmt.Fprintf(&buf, "\t\t\tfmt.Fprintln(os.Stderr, err)\n")
@@ -405,9 +414,30 @@ func (g *generator) renderMain() ([]byte, error) {
 	fmt.Fprintf(&buf, "\t\t\t}\n")
 	fmt.Fprintf(&buf, "\t\t}\n")
 	fmt.Fprintf(&buf, "\t}\n")
+	if g.dynamicBoundaryTelemetryEnabled() {
+		fmt.Fprintf(&buf, "\tif os.Getenv(%q) != \"\" {\n", dynamicBoundaryTelemetryEnv)
+		fmt.Fprintf(&buf, "\t\tfmt.Fprintf(os.Stderr, \"__ABLE_DYNAMIC_BOUNDARY_TELEMETRY=%%s\\n\", __able_dynamic_boundary_telemetry_snapshot())\n")
+		fmt.Fprintf(&buf, "\t}\n")
+	}
+	if g.callPathTelemetryEnabled() {
+		fmt.Fprintf(&buf, "\tif os.Getenv(%q) != \"\" {\n", callPathTelemetryEnv)
+		fmt.Fprintf(&buf, "\t\tfmt.Fprintf(os.Stderr, \"__ABLE_COMPILED_CALL_PATH_TELEMETRY=%%s\\n\", __able_call_path_telemetry_snapshot())\n")
+		fmt.Fprintf(&buf, "\t}\n")
+	}
+	if g.typedBoundaryTelemetryEnabled() {
+		fmt.Fprintf(&buf, "\tif os.Getenv(%q) != \"\" {\n", typedBoundaryTelemetryEnv)
+		fmt.Fprintf(&buf, "\t\tfmt.Fprintf(os.Stderr, \"__ABLE_TYPED_BOUNDARY_TELEMETRY=%%s\\n\", __able_typed_boundary_telemetry_snapshot())\n")
+		fmt.Fprintf(&buf, "\t}\n")
+	}
 	fmt.Fprintf(&buf, "\tos.Exit(exitCode)\n")
 	fmt.Fprintf(&buf, "}\n\n")
-	fmt.Fprintf(&buf, "func runMain() int {\n")
+	fmt.Fprintf(&buf, "func startMainProfilePhase(phaseProfiler *profilehook.PhaseProfiler) error {\n")
+	fmt.Fprintf(&buf, "\tif phaseProfiler == nil {\n")
+	fmt.Fprintf(&buf, "\t\treturn nil\n")
+	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "\treturn phaseProfiler.StartMain()\n")
+	fmt.Fprintf(&buf, "}\n\n")
+	fmt.Fprintf(&buf, "func runMain(phaseProfiler *profilehook.PhaseProfiler) int {\n")
 	if requiresBootstrap {
 		fmt.Fprintf(&buf, "\texec, err := interpreter.NewExecutorFromEnvironment()\n")
 		fmt.Fprintf(&buf, "\tif err != nil {\n")
@@ -452,6 +482,13 @@ func (g *generator) renderMain() ([]byte, error) {
 		fmt.Fprintf(&buf, "\tif entryEnv == nil {\n")
 		fmt.Fprintf(&buf, "\t\tentryEnv = interp.GlobalEnvironment()\n")
 		fmt.Fprintf(&buf, "\t}\n")
+		if g.typedBoundaryTelemetryEnabled() {
+			fmt.Fprintf(&buf, "\t__able_typed_boundary_telemetry_reset()\n")
+		}
+		fmt.Fprintf(&buf, "\tif err := startMainProfilePhase(phaseProfiler); err != nil {\n")
+		fmt.Fprintf(&buf, "\t\tfmt.Fprintln(os.Stderr, err)\n")
+		fmt.Fprintf(&buf, "\t\treturn 1\n")
+		fmt.Fprintf(&buf, "\t}\n")
 		fmt.Fprintf(&buf, "\tif err := RunRegisteredMain(rt, interp, entryEnv); err != nil {\n")
 		fmt.Fprintf(&buf, "\t\tif err.Error() == \"entry module does not define a main function\" {\n")
 		fmt.Fprintf(&buf, "\t\t\tfmt.Fprintln(os.Stderr, err.Error())\n")
@@ -464,7 +501,7 @@ func (g *generator) renderMain() ([]byte, error) {
 		fmt.Fprintf(&buf, "\t\treturn 1\n")
 		fmt.Fprintf(&buf, "\t}\n")
 	} else {
-		fmt.Fprintf(&buf, "\texecutorKind, err := interpreter.ExecutorKindFromEnvironment()\n")
+		fmt.Fprintf(&buf, "\texecutorKind, err := bridge.ExecutorKindFromEnvironment()\n")
 		fmt.Fprintf(&buf, "\tif err != nil {\n")
 		fmt.Fprintf(&buf, "\t\tfmt.Fprintln(os.Stderr, err)\n")
 		fmt.Fprintf(&buf, "\t\treturn 1\n")
@@ -478,13 +515,17 @@ func (g *generator) renderMain() ([]byte, error) {
 		fmt.Fprintf(&buf, "\t\treturn 1\n")
 		fmt.Fprintf(&buf, "\t}\n")
 		fmt.Fprintf(&buf, "\trt.SetExecutorKind(executorKind)\n")
+		if g.typedBoundaryTelemetryEnabled() {
+			fmt.Fprintf(&buf, "\t__able_typed_boundary_telemetry_reset()\n")
+		}
+		fmt.Fprintf(&buf, "\tif err := startMainProfilePhase(phaseProfiler); err != nil {\n")
+		fmt.Fprintf(&buf, "\t\tfmt.Fprintln(os.Stderr, err)\n")
+		fmt.Fprintf(&buf, "\t\treturn 1\n")
+		fmt.Fprintf(&buf, "\t}\n")
 		fmt.Fprintf(&buf, "\tif err := RunRegisteredMain(rt, nil, entryEnv); err != nil {\n")
 		fmt.Fprintf(&buf, "\t\tif err.Error() == \"entry module does not define a main function\" {\n")
 		fmt.Fprintf(&buf, "\t\t\tfmt.Fprintln(os.Stderr, err.Error())\n")
 		fmt.Fprintf(&buf, "\t\t\treturn 1\n")
-		fmt.Fprintf(&buf, "\t\t}\n")
-		fmt.Fprintf(&buf, "\t\tif code, ok := interpreter.ExitCodeFromError(err); ok {\n")
-		fmt.Fprintf(&buf, "\t\t\treturn code\n")
 		fmt.Fprintf(&buf, "\t\t}\n")
 		fmt.Fprintf(&buf, "\t\tfmt.Fprintln(os.Stderr, err)\n")
 		fmt.Fprintf(&buf, "\t\treturn 1\n")

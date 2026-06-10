@@ -34,6 +34,41 @@ func (g *generator) renderStringFromByteArrayHelper(buf *bytes.Buffer) {
 
 func (g *generator) renderRuntimeStringHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "func __able_int64_from_value(val runtime.Value, label string) (int64, error) {\n")
+	g.emitTypedBoundaryTelemetryDiscriminated(buf, "integer_from_runtime", "label", []typedBoundaryDiscriminatedShape{
+		{
+			Value: "channel handle",
+			Shape: typedBoundaryShape{
+				Category:          "integer_from_runtime",
+				GeneratedFunction: "__able_int64_from_value",
+				AbleSource:        "<compiler-runtime>::channel-handle",
+				Carrier:           "runtime.Value",
+				ImmediateConsumer: "int64 channel handle",
+				Reason:            "recover an opaque channel-service handle at its runtime ABI",
+			},
+		},
+		{
+			Value: "channel capacity",
+			Shape: typedBoundaryShape{
+				Category:          "integer_from_runtime",
+				GeneratedFunction: "__able_int64_from_value",
+				AbleSource:        "<compiler-runtime>::channel-capacity",
+				Carrier:           "runtime.Value",
+				ImmediateConsumer: "int64 channel capacity",
+				Reason:            "validate channel capacity at the runtime channel-construction ABI",
+			},
+		},
+		{
+			Value: "mutex handle",
+			Shape: typedBoundaryShape{
+				Category:          "integer_from_runtime",
+				GeneratedFunction: "__able_int64_from_value",
+				AbleSource:        "<compiler-runtime>::mutex-handle",
+				Carrier:           "runtime.Value",
+				ImmediateConsumer: "int64 mutex handle",
+				Reason:            "recover an opaque mutex-service handle at its runtime ABI",
+			},
+		},
+	}, "\t")
 	fmt.Fprintf(buf, "\tcurrent := __able_unwrap_interface(val)\n")
 	fmt.Fprintf(buf, "\tif v, ok, nilPtr := __able_runtime_integer_value(current); ok || nilPtr {\n")
 	fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
@@ -66,15 +101,7 @@ func (g *generator) renderRuntimeStringHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tif inst.Definition.Node.ID.Name != \"String\" {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"argument must be a string\")\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tvar bytesVal runtime.Value\n")
-	fmt.Fprintf(buf, "\tif inst.Fields != nil {\n")
-	fmt.Fprintf(buf, "\t\tif field, ok := inst.Fields[\"bytes\"]; ok {\n")
-	fmt.Fprintf(buf, "\t\t\tbytesVal = field\n")
-	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tif bytesVal == nil && len(inst.Positional) > 0 {\n")
-	fmt.Fprintf(buf, "\t\tbytesVal = inst.Positional[0]\n")
-	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tbytesVal, _ := __able_struct_named_field_value(inst, \"bytes\")\n")
 	fmt.Fprintf(buf, "\tif bytesVal == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"string bytes are missing\")\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -118,6 +145,18 @@ func (g *generator) renderRuntimeStringHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tcloned := make([]runtime.Value, len(values))\n")
 	fmt.Fprintf(buf, "\tcopy(cloned, values)\n")
 	fmt.Fprintf(buf, "\treturn __able_new_array_from_values(cloned)\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_string_from_builtin_native(value string) *__able_array_u8 {\n")
+	fmt.Fprintf(buf, "\treturn &__able_array_u8{Elements: []uint8(value)}\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_string_to_builtin_native(value *__able_array_u8) (string, error) {\n")
+	fmt.Fprintf(buf, "\tif value == nil {\n")
+	fmt.Fprintf(buf, "\t\treturn \"\", fmt.Errorf(\"argument must be an array\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tif !utf8.Valid(value.Elements) {\n")
+	fmt.Fprintf(buf, "\t\treturn \"\", fmt.Errorf(\"invalid UTF-8 byte sequence\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn string(value.Elements), nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_string_from_builtin_impl(args []runtime.Value) (runtime.Value, error) {\n")
 	fmt.Fprintf(buf, "\tif len(args) != 1 {\n")
@@ -167,6 +206,18 @@ func (g *generator) renderRuntimeStringHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn runtime.StringValue{Val: string(bytes)}, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_char_from_codepoint_native(codepoint int32) (rune, error) {\n")
+	fmt.Fprintf(buf, "\tif codepoint < 0 || codepoint > utf8.MaxRune {\n")
+	fmt.Fprintf(buf, "\t\treturn 0, fmt.Errorf(\"codepoint must be within Unicode range 0..0x10FFFF\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tr := rune(codepoint)\n")
+	fmt.Fprintf(buf, "\tif !utf8.ValidRune(r) {\n")
+	fmt.Fprintf(buf, "\t\treturn 0, fmt.Errorf(\"invalid Unicode codepoint %%d\", codepoint)\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn r, nil\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_char_to_codepoint_native(value rune) int32 { return int32(value) }\n\n")
+	fmt.Fprintf(buf, "func __able_char_simple_fold_next_native(value rune) rune { return unicode.SimpleFold(value) }\n\n")
 	fmt.Fprintf(buf, "func __able_char_from_codepoint_impl(args []runtime.Value) (runtime.Value, error) {\n")
 	fmt.Fprintf(buf, "\tif len(args) != 1 {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"__able_char_from_codepoint expects one argument\")\n")
@@ -178,10 +229,8 @@ func (g *generator) renderRuntimeStringHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\tif codepoint < 0 || codepoint > utf8.MaxRune {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"codepoint must be within Unicode range 0..0x10FFFF\")\n")
 	fmt.Fprintf(buf, "\t}\n")
-	fmt.Fprintf(buf, "\tr := rune(codepoint)\n")
-	fmt.Fprintf(buf, "\tif !utf8.ValidRune(r) {\n")
-	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"invalid Unicode codepoint %%d\", codepoint)\n")
-	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tr, err := __able_char_from_codepoint_native(int32(codepoint))\n")
+	fmt.Fprintf(buf, "\tif err != nil { return nil, err }\n")
 	fmt.Fprintf(buf, "\treturn runtime.CharValue{Val: r}, nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_char_to_codepoint_impl(args []runtime.Value) (runtime.Value, error) {\n")
@@ -193,7 +242,20 @@ func (g *generator) renderRuntimeStringHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
 	fmt.Fprintf(buf, "\t\t\treturn nil, fmt.Errorf(\"char argument is nil\")\n")
 	fmt.Fprintf(buf, "\t\t}\n")
-	fmt.Fprintf(buf, "\t\treturn runtime.NewSmallInt(int64(ch.Val), runtime.IntegerI32), nil\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.NewSmallInt(int64(__able_char_to_codepoint_native(ch.Val)), runtime.IntegerI32), nil\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\treturn nil, fmt.Errorf(\"argument must be a char\")\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_char_simple_fold_next_impl(args []runtime.Value) (runtime.Value, error) {\n")
+	fmt.Fprintf(buf, "\tif len(args) != 1 {\n")
+	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"__able_char_simple_fold_next expects one argument\")\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "\tval := __able_unwrap_interface(args[0])\n")
+	fmt.Fprintf(buf, "\tif ch, ok, nilPtr := __able_runtime_char_value(val); ok || nilPtr {\n")
+	fmt.Fprintf(buf, "\t\tif !ok || nilPtr {\n")
+	fmt.Fprintf(buf, "\t\t\treturn nil, fmt.Errorf(\"char argument is nil\")\n")
+	fmt.Fprintf(buf, "\t\t}\n")
+	fmt.Fprintf(buf, "\t\treturn runtime.CharValue{Val: __able_char_simple_fold_next_native(ch.Val)}, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn nil, fmt.Errorf(\"argument must be a char\")\n")
 	fmt.Fprintf(buf, "}\n\n")
@@ -208,5 +270,8 @@ func (g *generator) renderRuntimeStringHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_extern_char_to_codepoint(args []runtime.Value, node ast.Node) runtime.Value {\n")
 	fmt.Fprintf(buf, "\treturn __able_extern_call(args, node, __able_char_to_codepoint_impl)\n")
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_extern_char_simple_fold_next(args []runtime.Value, node ast.Node) runtime.Value {\n")
+	fmt.Fprintf(buf, "\treturn __able_extern_call(args, node, __able_char_simple_fold_next_impl)\n")
 	fmt.Fprintf(buf, "}\n\n")
 }

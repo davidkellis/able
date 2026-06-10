@@ -1,0 +1,38 @@
+File: compiled
+Build ID: 2ae1457afd44dbb6623ef52238f1c888c4899229
+Type: cpu
+Time: 2026-07-27 22:20:24 CDT
+Duration: 265.46ms, Total samples = 440ms (165.75%)
+Showing nodes accounting for 440ms, 100% of 440ms total
+      flat  flat%   sum%        cum   cum%
+      90ms 20.45% 20.45%       90ms 20.45%  main.jobScore (inline)
+      80ms 18.18% 38.64%      100ms 22.73%  internal/sync.(*Mutex).Unlock (inline)
+      80ms 18.18% 56.82%       80ms 18.18%  runtime.procyieldAsm
+      60ms 13.64% 70.45%      160ms 36.36%  internal/sync.(*Mutex).lockSlow
+      30ms  6.82% 77.27%      420ms 95.45%  main.runWorker
+      20ms  4.55% 81.82%      180ms 40.91%  internal/sync.(*Mutex).Lock (inline)
+      20ms  4.55% 86.36%       20ms  4.55%  internal/sync.(*Mutex).unlockSlow
+      10ms  2.27% 88.64%      110ms 25.00%  main.claimJob
+      10ms  2.27% 90.91%      190ms 43.18%  main.commitJob
+      10ms  2.27% 93.18%       10ms  2.27%  runtime.futex
+      10ms  2.27% 95.45%       10ms  2.27%  runtime.lock2
+      10ms  2.27% 97.73%       10ms  2.27%  runtime.nanotime (inline)
+      10ms  2.27%   100%       10ms  2.27%  runtime.stealWork
+         0     0%   100%       10ms  2.27%  internal/sync.runtime_SemacquireMutex
+         0     0%   100%       80ms 18.18%  internal/sync.runtime_doSpin
+         0     0%   100%       10ms  2.27%  internal/sync.runtime_nanotime
+         0     0%   100%       10ms  2.27%  runtime.findRunnable
+         0     0%   100%       10ms  2.27%  runtime.futexwakeup
+         0     0%   100%       10ms  2.27%  runtime.goexit0
+         0     0%   100%       10ms  2.27%  runtime.lockWithRank (inline)
+         0     0%   100%       20ms  4.55%  runtime.mcall
+         0     0%   100%       10ms  2.27%  runtime.notewakeup
+         0     0%   100%       10ms  2.27%  runtime.park_m
+         0     0%   100%       80ms 18.18%  runtime.procyield (inline)
+         0     0%   100%       10ms  2.27%  runtime.resetspinning
+         0     0%   100%       20ms  4.55%  runtime.schedule
+         0     0%   100%       10ms  2.27%  runtime.semacquire1
+         0     0%   100%       10ms  2.27%  runtime.startm
+         0     0%   100%       10ms  2.27%  runtime.wakep
+         0     0%   100%      180ms 40.91%  sync.(*Mutex).Lock (inline)
+         0     0%   100%      100ms 22.73%  sync.(*Mutex).Unlock

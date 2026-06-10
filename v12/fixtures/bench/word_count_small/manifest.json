@@ -1,0 +1,6 @@
+{
+  "description": "word counting benchmark over repeated generated vocabulary",
+  "expect": {
+    "exit": 0
+  }
+}

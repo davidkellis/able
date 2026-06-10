@@ -5,12 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 GO_DIR="$SCRIPT_DIR/interpreters/go"
 GO_CACHE="$GO_DIR/.gocache"
+source "$SCRIPT_DIR/bench_fixture_catalog.sh"
 
 DEFAULT_BENCHMARKS="fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e"
 BYTECODE_CORE_BENCHMARKS="quicksort,future_yield_i32_small,sum_u32_small"
 DEFAULT_MODES="compiled,treewalker,bytecode"
 
-runs=1
+runs=5
 timeout_seconds=60
 build_timeout_seconds=300
 modes_csv="$DEFAULT_MODES"
@@ -23,6 +24,7 @@ show_output=false
 skip_setup=false
 suite_name=""
 benchmarks_override=false
+experimental_execution_context=false
 
 usage() {
   cat <<'EOF'
@@ -31,17 +33,27 @@ Usage:
 
 Examples:
   v12/bench_suite
-  v12/bench_suite --runs 3 --timeout 45
+  v12/bench_suite --list-suites
+  v12/bench_suite --runs 5 --timeout 45
   v12/bench_suite --modes compiled,bytecode --benchmarks fib,binarytrees
   v12/bench_suite --suite bytecode-core --runs 1 --timeout 60
+  v12/bench_suite --suite fixture-full --modes compiled,bytecode --runs 1 --timeout 30
+  v12/bench_suite --suite fixture-generality --modes compiled --experimental-execution-context
   v12/bench_suite --output-json v12/docs/perf-baselines/2026-03-03-baseline.json
 
 Options:
-  -r, --runs N            Number of runs per benchmark/mode (default: 1)
+  -r, --runs N            Number of runs per benchmark/mode (default: 5)
   -t, --timeout SEC       Timeout per run in seconds (default: 60)
       --build-timeout SEC Build timeout per benchmark for compiled mode (default: 300)
   -m, --modes CSV         Modes: compiled,treewalker,bytecode (default: all)
-      --suite NAME        Benchmark suite preset: full,bytecode-core
+      --suite NAME        Benchmark suite preset: full,bytecode-core,
+                          fixture-core,fixture-full,fixture-generality,fixture-collections,
+                          fixture-text,fixture-algorithms,fixture-concurrency,
+                          fixture-numeric,fixture-external-small
+      --list-suites       Print available suite names and benchmark members
+      --experimental-execution-context
+                          Compile with the opt-in generated-call execution-context
+                          ABI prototype. This affects compiled mode only.
   -b, --benchmarks CSV    Benchmarks (default: fib,binarytrees,matrixmultiply,quicksort,sudoku,i_before_e)
       --output-json PATH  JSON output path (default: v12/tmp/perf/bench-suite-<timestamp>.json)
       --output-md PATH    Markdown summary path (optional)
@@ -54,6 +66,8 @@ Options:
 Notes:
   - This harness is report-only and does not enforce pass/fail performance thresholds.
   - Results include per-run status (ok/timeout/error), timing, and GC count.
+    The five-run default is for workstation averages; use an explicit lower
+    --runs value only for a smoke check, not a performance decision.
 EOF
 }
 
@@ -96,8 +110,8 @@ resolve_output_json() {
 }
 
 benchmark_dir() {
-  if [[ -d "$SCRIPT_DIR/fixtures/bench/$1" ]]; then
-    printf '%s\n' "$SCRIPT_DIR/fixtures/bench/$1"
+  if fixture_dir="$(bench_fixture_dir "$SCRIPT_DIR" "$1" 2>/dev/null)"; then
+    printf '%s\n' "$fixture_dir"
     return
   fi
   case "$1" in
@@ -120,8 +134,8 @@ benchmark_dir() {
 }
 
 benchmark_entry() {
-  if [[ -d "$SCRIPT_DIR/fixtures/bench/$1" ]]; then
-    printf '%s\n' "main.able"
+  if fixture_entry="$(bench_fixture_entry "$SCRIPT_DIR" "$1" 2>/dev/null)"; then
+    printf '%s\n' "$fixture_entry"
     return
   fi
   case "$1" in
@@ -169,7 +183,17 @@ collect_git_metadata() {
   GO_VERSION="$(go version 2>/dev/null || echo unknown)"
 }
 
+list_suites() {
+  printf '%s\t%s\n' "full" "$DEFAULT_BENCHMARKS"
+  printf '%s\t%s\n' "bytecode-core" "$BYTECODE_CORE_BENCHMARKS"
+  local suite
+  for suite in $(bench_fixture_suite_names); do
+    printf '%s\t%s\n' "$suite" "$(bench_fixture_suite_csv "$SCRIPT_DIR" "$suite")"
+  done
+}
+
 apply_suite_preset() {
+  local fixture_csv
   case "$1" in
     ""|full)
       suite_name="full"
@@ -180,7 +204,9 @@ apply_suite_preset() {
       benchmarks_csv="$BYTECODE_CORE_BENCHMARKS"
       ;;
     *)
-      die "unknown suite: $1"
+      fixture_csv="$(bench_fixture_suite_csv "$SCRIPT_DIR" "$1" 2>/dev/null)" || die "unknown suite: $1"
+      suite_name="$1"
+      benchmarks_csv="$fixture_csv"
       ;;
   esac
 }
@@ -343,6 +369,7 @@ write_results_json() {
     printf '    "runs": %d,\n' "$runs"
     printf '    "timeout_seconds": %d,\n' "$timeout_seconds"
     printf '    "build_timeout_seconds": %d,\n' "$build_timeout_seconds"
+    printf '    "experimental_execution_context": %s,\n' "$experimental_execution_context"
     printf '    "modes": ['
     json_array "${MODES[@]}"
     printf '],\n'
@@ -457,6 +484,7 @@ write_results_markdown() {
     printf -- '- Runs per row: `%d`\n' "$runs"
     printf -- '- Timeout: `%ds`\n' "$timeout_seconds"
     printf -- '- Build timeout: `%ds`\n\n' "$build_timeout_seconds"
+    printf -- '- Experimental execution context: `%s` (compiled mode only)\n\n' "$experimental_execution_context"
     printf '| Benchmark | Mode | OK/Runs | Timeouts | Errors | Real Avg (s) | GC Avg |\n'
     printf '| --- | --- | --- | --- | --- | --- | --- |\n'
     local bench mode key ok timeouts errors avg_real avg_gc
@@ -517,6 +545,13 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || die "missing value for --suite"
       suite_name="$1"
       ;;
+    --list-suites)
+      list_suites
+      exit 0
+      ;;
+    --experimental-execution-context)
+      experimental_execution_context=true
+      ;;
     --output-json)
       shift
       [[ $# -gt 0 ]] || die "missing value for --output-json"
@@ -565,6 +600,10 @@ fi
 
 IFS=',' read -r -a MODES <<<"$modes_csv"
 IFS=',' read -r -a BENCHMARKS <<<"$benchmarks_csv"
+compiled_build_args=()
+if [[ "$experimental_execution_context" == true ]]; then
+  compiled_build_args=(--experimental-execution-context)
+fi
 
 for mode in "${MODES[@]}"; do
   case "$mode" in
@@ -642,7 +681,7 @@ for bench in "${BENCHMARKS[@]}"; do
           ABLE_HOME="$ABLE_HOME_DIR" \
           ABLE_PATH="" \
           ABLE_MODULE_PATHS="" \
-          timeout "$build_timeout_seconds" "$ABLE_BIN" build --bin "$compiled_bin" "$entry_abs"
+          timeout "$build_timeout_seconds" "$ABLE_BIN" build "${compiled_build_args[@]}" --bin "$compiled_bin" "$entry_abs"
       ) >/dev/null 2>"$WORK_TMP/${bench}.compiled.build.stderr"
       build_rc=$?
     else
@@ -652,7 +691,7 @@ for bench in "${BENCHMARKS[@]}"; do
           ABLE_HOME="$ABLE_HOME_DIR" \
           ABLE_PATH="" \
           ABLE_MODULE_PATHS="" \
-          "$ABLE_BIN" build --bin "$compiled_bin" "$entry_abs"
+          "$ABLE_BIN" build "${compiled_build_args[@]}" --bin "$compiled_bin" "$entry_abs"
       ) >/dev/null 2>"$WORK_TMP/${bench}.compiled.build.stderr"
       build_rc=$?
     fi

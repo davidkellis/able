@@ -1,0 +1,50 @@
+File: compiled
+Build ID: 9fdeaa5403f794e4a542e68e79d832e17abd2daf
+Type: alloc_objects
+Time: 2026-07-28 09:45:15 CDT
+Showing nodes accounting for 221945, 98.04% of 226375 total
+Dropped 201 nodes (cum <= 1131)
+      flat  flat%   sum%        cum   cum%
+     57936 25.59% 25.59%      57936 25.59%  runtime/pprof.allFrames
+     43008 19.00% 44.59%      43008 19.00%  main.__able_compiled_fn_regex_nfa_threads_new_ctx
+     35376 15.63% 60.22%      35376 15.63%  main.__able_compiled_fn_regex_nfa_clone_captures_ctx
+     22161  9.79% 70.01%      36296 16.03%  main.__able_compiled_fn_regex_codepoints_ctx
+     17088  7.55% 77.56%      51264 22.65%  main.__able_compiled_fn_regex_nfa_capture_start_ctx
+     15455  6.83% 84.38%      15481  6.84%  runtime/pprof.(*profileBuilder).emitLocation
+      8542  3.77% 88.16%      82060 36.25%  runtime/pprof.writeHeapProto
+      8485  3.75% 91.91%       8485  3.75%  main.__able_compiled_fn_utf8_decode_ctx
+      6144  2.71% 94.62%       6144  2.71%  main.__able_compiled_fn_regex_nfa_new_captures_ctx
+      5650  2.50% 97.12%       5650  2.50%  main.__able_compiled_method_String_chars_ctx
+      1140   0.5% 97.62%       1487  0.66%  main.__able_compiled_fn_build_capture_groups_ctx
+       456   0.2% 97.82%       5191  2.29%  main.__able_compiled_fn_build_match_ctx
+       338  0.15% 97.97%     138697 61.27%  main.__able_compiled_fn_find_nfa_span_ctx
+       155 0.068% 98.04%       2678  1.18%  main.__able_compiled_fn_build_named_capture_groups_ctx
+         6 0.0027% 98.04%      73430 32.44%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         2 0.00088% 98.04%     144307 63.75%  main.__able_compiled_fn_main_ctx
+         1 0.00044% 98.04%      82066 36.25%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00044% 98.04%     144309 63.75%  main.RunRegisteredMain
+         1 0.00044% 98.04%      82061 36.25%  runtime/pprof.writeHeapInternal
+         0     0% 98.04%      82066 36.25%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 98.04%      82066 36.25%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 98.04%     144308 63.75%  main.RunRegisteredMain.func1
+         0     0% 98.04%       8485  3.75%  main.__able_compiled_entry_impl_Iterator_next_0_c_spec_ctx
+         0     0% 98.04%       5650  2.50%  main.__able_compiled_entry_method_String_chars_ctx
+         0     0% 98.04%     138697 61.27%  main.__able_compiled_fn_find_token_match_ctx
+         0     0% 98.04%     144308 63.75%  main.__able_compiled_fn_main
+         0     0% 98.04%      52380 23.14%  main.__able_compiled_fn_regex_nfa_add_closure_ctx
+         0     0% 98.04%      52380 23.14%  main.__able_compiled_fn_regex_nfa_move_ctx
+         0     0% 98.04%       8485  3.75%  main.__able_compiled_impl_Iterator_next_0_c_spec_ctx
+         0     0% 98.04%       2052  0.91%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0% 98.04%       2052  0.91%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0% 98.04%     143888 63.56%  main.__able_compiled_method_Regex_match_ctx
+         0     0% 98.04%       8485  3.75%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.__able_ctx_next
+         0     0% 98.04%     144308 63.75%  main.__able_register_compiled_call.func1
+         0     0% 98.04%       1368   0.6%  main.__able_struct_Group_to (inline)
+         0     0% 98.04%       1368   0.6%  main.__able_struct_Group_to_seen
+         0     0% 98.04%     144308 63.75%  main.__able_wrap_fn_main
+         0     0% 98.04%     226375   100%  main.main
+         0     0% 98.04%     226375   100%  main.runMain
+         0     0% 98.04%      82066 36.25%  main.startMainProfilePhase (inline)
+         0     0% 98.04%     226375   100%  runtime.main
+         0     0% 98.04%      82061 36.25%  runtime/pprof.(*Profile).WriteTo
+         0     0% 98.04%      82061 36.25%  runtime/pprof.writeAlloc

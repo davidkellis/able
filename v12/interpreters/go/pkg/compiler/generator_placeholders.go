@@ -506,6 +506,9 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 
 	lambdaCtx := ctx.closureChild()
 	lambdaCtx.inPlaceholder = true
+	if g.callableExecutionContextsEnabled() {
+		lambdaCtx.executionContextExpr = "__able_exec_ctx"
+	}
 	lambdaCtx.placeholderParams = make(map[int]paramInfo, plan.paramCount)
 	lambdaCtx.controlMode = ""
 	controlTemp := lambdaCtx.newTemp()
@@ -613,7 +616,7 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		return "", "", false
 	}
 	implLines := make([]string, 0, len(paramLines)+3)
-	implLines = append(implLines, g.inlineRuntimeEnvSwapLinesForPackage(ctx.packageName)...)
+	implLines = append(implLines, g.inlineExecutionContextEnvLinesForPackage(ctx.packageName, lambdaCtx.executionContextExpr)...)
 	implLines = append(implLines, fmt.Sprintf("var %s *__ableControl", controlTemp))
 	implLines = append(implLines, paramLines...)
 	zeroExpr, zeroOK := g.zeroValueExpr(callableInfo.ReturnGoType)
@@ -649,6 +652,12 @@ func (g *generator) compilePlaceholderLambda(ctx *compileContext, expr ast.Expre
 		}
 		param := lambdaCtx.placeholderParams[i]
 		lambdaExpr += fmt.Sprintf("arg%d %s", i-1, param.GoType)
+	}
+	if g.callableExecutionContextsEnabled() {
+		if plan.paramCount > 0 {
+			lambdaExpr += ", "
+		}
+		lambdaExpr += "__able_exec_ctx " + executionContextType
 	}
 	lambdaExpr += fmt.Sprintf(") (%s, *__ableControl) { %s })", callableInfo.ReturnGoType, strings.Join(implLines, "; "))
 	return lambdaExpr, callableInfo.GoType, true

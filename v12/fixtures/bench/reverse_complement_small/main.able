@@ -1,0 +1,124 @@
+package bench_reverse_complement_small
+
+import able.fs
+import able.io.{stdout, write_all}
+import able.kernel.{Array}
+import able.os
+
+fn default_input_path() -> String {
+  "reverse-complement-input.fasta"
+}
+
+fn set_complement(table: Array u8, source: u8, target: u8) -> void {
+  table.write_slot(source as i32, target)
+}
+
+fn build_complement_table() -> Array u8 {
+  table: Array u8 := Array.with_capacity(256)
+  i := 0
+  loop {
+    if i >= 256 { break }
+    table.push(i as u8)
+    i = i + 1
+  }
+
+  set_complement(table, 65_u8, 84_u8)
+  set_complement(table, 67_u8, 71_u8)
+  set_complement(table, 71_u8, 67_u8)
+  set_complement(table, 84_u8, 65_u8)
+  set_complement(table, 85_u8, 65_u8)
+  set_complement(table, 77_u8, 75_u8)
+  set_complement(table, 82_u8, 89_u8)
+  set_complement(table, 87_u8, 87_u8)
+  set_complement(table, 83_u8, 83_u8)
+  set_complement(table, 89_u8, 82_u8)
+  set_complement(table, 75_u8, 77_u8)
+  set_complement(table, 86_u8, 66_u8)
+  set_complement(table, 72_u8, 68_u8)
+  set_complement(table, 68_u8, 72_u8)
+  set_complement(table, 66_u8, 86_u8)
+  set_complement(table, 78_u8, 78_u8)
+
+  set_complement(table, 97_u8, 116_u8)
+  set_complement(table, 99_u8, 103_u8)
+  set_complement(table, 103_u8, 99_u8)
+  set_complement(table, 116_u8, 97_u8)
+  set_complement(table, 117_u8, 97_u8)
+  set_complement(table, 109_u8, 107_u8)
+  set_complement(table, 114_u8, 121_u8)
+  set_complement(table, 119_u8, 119_u8)
+  set_complement(table, 115_u8, 115_u8)
+  set_complement(table, 121_u8, 114_u8)
+  set_complement(table, 107_u8, 109_u8)
+  set_complement(table, 118_u8, 98_u8)
+  set_complement(table, 104_u8, 100_u8)
+  set_complement(table, 100_u8, 104_u8)
+  set_complement(table, 98_u8, 118_u8)
+  set_complement(table, 110_u8, 110_u8)
+
+  table
+}
+
+fn append_wrapped_reverse_complement(sequence: Array u8, table: Array u8, out: Array u8) -> void {
+  line_width := 0
+  idx := sequence.len() - 1
+  loop {
+    if idx < 0 { break }
+    base := sequence.read_slot(idx)
+    out.push(table.read_slot(base as i32))
+    line_width = line_width + 1
+    if line_width == 60 {
+      out.push(10_u8)
+      line_width = 0
+    }
+    idx = idx - 1
+  }
+  if line_width > 0 {
+    out.push(10_u8)
+  }
+}
+
+fn reverse_complement_fasta(data: Array u8) -> Array u8 {
+  table := build_complement_table()
+  out: Array u8 := Array.with_capacity(data.len() + 128_i32)
+  sequence: Array u8 := Array.with_capacity(4096)
+
+  idx := 0
+  in_record := false
+  loop {
+    if idx >= data.len() { break }
+    byte := data.read_slot(idx)
+    if byte == 62_u8 {
+      if in_record {
+        append_wrapped_reverse_complement(sequence, table, out)
+        sequence.clear()
+      }
+      in_record = true
+      loop {
+        if idx >= data.len() { break }
+        header_byte := data.read_slot(idx)
+        out.push(header_byte)
+        idx = idx + 1
+        if header_byte == 10_u8 { break }
+      }
+      continue
+    }
+    if byte != 10_u8 && byte != 13_u8 {
+      sequence.push(byte)
+    }
+    idx = idx + 1
+  }
+
+  if in_record {
+    append_wrapped_reverse_complement(sequence, table, out)
+  }
+
+  out
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { default_input_path() }
+  data := fs.read_bytes(path)
+  write_all(stdout(), reverse_complement_fasta(data))
+}

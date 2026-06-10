@@ -130,12 +130,26 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			}
 			args = append(args, zeroExpr)
 		}
-		callExpr := fmt.Sprintf("%s(%s)", g.compiledCallTargetName(ctx.packageName, info), strings.Join(args, ", "))
+		callTarget := g.compiledContextCallTargetName(ctx, ctx.packageName, info)
+		if resultInfo := g.callerOwnedResultInfo(info); resultInfo != nil && !ctx.analysisOnly {
+			resultSlot := ""
+			if ctx.callerOwnedResultSlot != "" && ctx.callerOwnedTailExpr == call {
+				resultSlot = ctx.callerOwnedResultSlot
+			} else {
+				slotTemp := ctx.newTemp()
+				preLines = append(preLines, fmt.Sprintf("var %s %s", slotTemp, resultInfo.GoName))
+				resultSlot = "&" + slotTemp
+			}
+			args = append(args, resultSlot)
+			callTarget = callerOwnedResultVariantName(callTarget)
+		}
+		callExpr := fmt.Sprintf("%s(%s)", callTarget, g.compiledCallArgs(ctx, args))
 		resultTemp := ctx.newTemp()
 		controlTemp := ctx.newTemp()
 		lines := make([]string, 0, len(preLines)+len(postLines)+4)
 		lines = append(lines, preLines...)
 		lines = append(lines, fmt.Sprintf("%s, %s := %s", resultTemp, controlTemp, callExpr))
+		ctx.recordResultSource(resultTemp, info)
 		controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNode)
 		if !ok {
 			return nil, "", "", false

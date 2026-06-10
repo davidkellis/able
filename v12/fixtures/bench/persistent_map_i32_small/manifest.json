@@ -1,0 +1,6 @@
+{
+  "description": "persistent-map integer key/value benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

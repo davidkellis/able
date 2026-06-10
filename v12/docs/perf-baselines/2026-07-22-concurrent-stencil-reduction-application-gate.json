@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "gate": "portable-concurrent-numeric-application-frontier",
+  "application": "concurrent_stencil_reduction",
+  "decision": "retain-application-no-performance-candidate",
+  "normal_output": "2048:2048:2048:514,476,518,540:1033771877:837288448:356086",
+  "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b",
+  "timed_processes": {
+    "compiled": 10,
+    "go": 10,
+    "bytecode": 10,
+    "python": 10,
+    "ruby": 10,
+    "verified": 50,
+    "failures": 0,
+    "timeouts": 0
+  },
+  "pooled_means_seconds": {
+    "compiled": 0.232,
+    "go": 0.0048618713,
+    "bytecode": 1.832,
+    "python": 0.1184340345,
+    "ruby": 0.1145069083
+  },
+  "pooled_ratios": {
+    "compiled_over_go": 47.718250061,
+    "bytecode_over_python": 15.46852649,
+    "bytecode_over_ruby": 15.999034706
+  },
+  "profile_evidence": {
+    "compiled": {
+      "processes": 3,
+      "merged_cpu_samples_seconds": 0.8,
+      "current_gid_cumulative_percent": 88.75,
+      "disposition": "closed-rejected-fixed-context-candidate",
+      "merged_profile_sha256": "7371949ffbebd6708373baa2727544661b79e2fc1cf7b188e86af206c4c90383"
+    },
+    "bytecode": {
+      "processes": 3,
+      "mean_ns_per_op": 1620495041.3333333,
+      "mean_bytes_per_op": 114861512,
+      "mean_allocs_per_op": 2837823.6666666665,
+      "merged_cpu_samples_seconds": 4.84,
+      "array_read_slot_cumulative_percent": 37.81,
+      "raw_integer_value_info_flat_percent": 3.1,
+      "disposition": "closed-existing-array-and-raw-integer-families",
+      "merged_profile_sha256": "f4ab0a8e58b6b41a75baab694e8a98faf4a8f3246da00b7565abb27f241b2957"
+    }
+  },
+  "interaction_frontier": {
+    "portable_applications": 51,
+    "family_count": 11,
+    "triple_count": 165,
+    "baseline_min_depth": 1,
+    "current_min_depth": 3,
+    "baseline_depth_one_triples": 8,
+    "current_depth_one_triples": 0,
+    "improved_triples": 160,
+    "performance_frontier_total_excess_seconds": 162.312737
+  },
+  "source_sha256": {
+    "canonical_able": "db33fbbe0624cda3958b64f1fb51a07e950a023ca480b3469f1b09215f22501a",
+    "external_able": "0e99464649fde3ac090d760229a2567d331bfaa6cf49bd27a80c31d547c1d8be",
+    "input": "6f5bdbc0b457472a8fd1445ad65791b70ca2ec07a19efd0f09e75f1e406729fd",
+    "verifier": "0c32e339994eaa93eec1ac74d1af754a08aced1d36047bac38aa558cdd42427d",
+    "go": "ac0b3b8210a6c956b2fd4b97bdd0e477a6063dfc451e62d05efc72b82107cc20",
+    "python": "d2d4a770e1993dab7f02e3848e21e421cf4a2b682333debf361e8702e43be893",
+    "ruby": "ea14ad82fa5c6026c70a3edf369f4b945d87a926a019f478a0f024c7fd4eb9ec"
+  },
+  "constraints": {
+    "compiler_or_runtime_change": false,
+    "canonical_stdlib_change": false,
+    "wasm_change": false,
+    "benchmark_specific_optimization": false,
+    "non_primitive_nominal_special_case": false
+  },
+  "next": "portable-concurrent-interface-data-application-frontier"
+}

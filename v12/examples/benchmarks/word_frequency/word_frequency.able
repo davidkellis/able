@@ -1,0 +1,31 @@
+package word_frequency
+
+import able.collections.hash_map.*
+import able.collections.map.*
+import able.fs
+import able.os
+
+fn lookup(counts: Map String i32, word: String) -> i32 {
+  counts.get(word) match { case value: i32 => value, case nil => 0 }
+}
+
+fn main() {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "corpus.md" }
+  lines := fs.read_lines(path)
+  counts: HashMap String i32 = HashMap.with_capacity(1024)
+  checksum: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= lines.len() { break }
+    for word in lines.get(i)!.split(" ") {
+      if word.len_bytes() > 0 {
+        next := lookup(counts, word) + 1
+        counts.set(word, next)
+        checksum = checksum + ((next as i64) * ((word.len_bytes() as i64) + 17_i64))
+      }
+    }
+    i = i + 1
+  }
+  print(`${lines.len()}:${checksum}`)
+}

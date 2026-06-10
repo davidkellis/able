@@ -31,6 +31,9 @@ type Checker struct {
 	publicDeclarations   []exportRecord
 	localTypeNames       map[string]struct{}
 	functionDecls        map[*ast.FunctionDefinition]FunctionType
+	methodSelections     MethodSelectionMap
+	activeMemberAccess   *ast.MemberAccessExpression
+	lastMethodSelection  MethodSelection
 
 	builtinImplementations []ImplementationSpec
 	pendingDiagnostics     []Diagnostic
@@ -80,11 +83,12 @@ type ExportedSymbol struct {
 // New returns a checker instance.
 func New() *Checker {
 	c := &Checker{
-		infer:           make(InferenceMap),
-		global:          NewEnvironment(nil),
-		nodeOrigins:     nil,
-		returnTypeStack: nil,
-		rescueDepth:     0,
+		infer:            make(InferenceMap),
+		methodSelections: make(MethodSelectionMap),
+		global:           NewEnvironment(nil),
+		nodeOrigins:      nil,
+		returnTypeStack:  nil,
+		rescueDepth:      0,
 	}
 	c.initBuiltinInterfaces()
 	return c
@@ -115,6 +119,15 @@ func (c *Checker) Inference() InferenceMap {
 	return c.infer.Clone()
 }
 
+// MethodSelections exposes the exact declarations selected for member access
+// during the last checked module.
+func (c *Checker) MethodSelections() MethodSelectionMap {
+	if c == nil {
+		return nil
+	}
+	return c.methodSelections.Clone()
+}
+
 // CheckModule performs typechecking on a module AST and returns diagnostics.
 func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	if module == nil {
@@ -122,6 +135,9 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	}
 	// Reset inference map between runs.
 	c.infer = make(InferenceMap)
+	c.methodSelections = make(MethodSelectionMap)
+	c.activeMemberAccess = nil
+	c.lastMethodSelection = MethodSelection{}
 	c.returnTypeStack = nil
 	c.functionGenericStack = nil
 	c.rescueDepth = 0

@@ -1,0 +1,99 @@
+package fasta_generation
+
+import able.io.{stdout, string_to_bytes, write_all}
+import able.kernel.{Array}
+
+N: i32 := 100000
+IM: i32 := 139968
+IA: i32 := 3877
+IC: i32 := 29573
+LINE_WIDTH: i32 := 60
+
+fn append_ascii(out: Array u8, value: String) -> void {
+  out.push_all(string_to_bytes(value))
+}
+
+fn append_repeated(out: Array u8, source: Array u8, count: i32) -> void {
+  source_len := source.len()
+  idx := 0
+  line_pos := 0
+  loop {
+    if idx >= count { break }
+    out.push(source.read_slot(idx % source_len))
+    line_pos = line_pos + 1
+    if line_pos == LINE_WIDTH {
+      out.push(10_u8)
+      line_pos = 0
+    }
+    idx = idx + 1
+  }
+  if line_pos > 0 { out.push(10_u8) }
+}
+
+fn next_seed(seed: i32) -> i32 {
+  (seed * IA + IC) % IM
+}
+
+fn iub_base(value: i32) -> u8 {
+  if value < 37792 { 97_u8 }
+  elsif value < 54588 { 99_u8 }
+  elsif value < 71384 { 103_u8 }
+  elsif value < 109176 { 116_u8 }
+  elsif value < 111975 { 66_u8 }
+  elsif value < 114774 { 68_u8 }
+  elsif value < 117574 { 72_u8 }
+  elsif value < 120373 { 75_u8 }
+  elsif value < 123172 { 77_u8 }
+  elsif value < 125972 { 78_u8 }
+  elsif value < 128771 { 82_u8 }
+  elsif value < 131570 { 83_u8 }
+  elsif value < 134370 { 86_u8 }
+  elsif value < 137169 { 87_u8 }
+  else { 89_u8 }
+}
+
+fn homo_sapiens_base(value: i32) -> u8 {
+  if value < 42404 { 97_u8 }
+  elsif value < 70117 { 99_u8 }
+  elsif value < 97767 { 103_u8 }
+  else { 116_u8 }
+}
+
+fn append_random(out: Array u8, count: i32, seed: i32, iub: bool) -> i32 {
+  current := seed
+  idx := 0
+  line_pos := 0
+  loop {
+    if idx >= count { break }
+    current = next_seed(current)
+    out.push(if iub { iub_base(current) } else { homo_sapiens_base(current) })
+    line_pos = line_pos + 1
+    if line_pos == LINE_WIDTH {
+      out.push(10_u8)
+      line_pos = 0
+    }
+    idx = idx + 1
+  }
+  if line_pos > 0 { out.push(10_u8) }
+  current
+}
+
+fn generate_fasta() -> Array u8 {
+  out: Array u8 := Array.with_capacity(10 * N + 20000)
+  alu := string_to_bytes("GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA")
+
+  append_ascii(out, ">ONE Homo sapiens alu\n")
+  append_repeated(out, alu, 2 * N)
+
+  append_ascii(out, ">TWO IUB ambiguity codes\n")
+  seed := append_random(out, 3 * N, 42, true)
+
+  append_ascii(out, ">THREE Homo sapiens frequency\n")
+  append_random(out, 5 * N, seed, false)
+
+  out
+}
+
+fn main() -> void {
+  write_all(stdout(), generate_fasta())
+}

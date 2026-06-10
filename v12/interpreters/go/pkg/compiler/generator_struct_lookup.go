@@ -5,21 +5,40 @@ import (
 	"strings"
 )
 
+type structInfoByNameCacheEntry struct {
+	Info   *structInfo
+	Unique bool
+}
+
 func (g *generator) structInfoByNameUnique(name string) (*structInfo, bool) {
-	if g == nil || strings.TrimSpace(name) == "" {
+	if g == nil {
 		return nil, false
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, false
+	}
+	if g.structInfoByNameCache == nil || g.structInfoByNameCacheCount != len(g.structs) {
+		g.structInfoByNameCache = make(map[string]structInfoByNameCacheEntry)
+		g.structInfoByNameCacheCount = len(g.structs)
+	}
+	if cached, ok := g.structInfoByNameCache[name]; ok {
+		return cached.Info, cached.Unique
 	}
 	var found *structInfo
 	for _, info := range g.structs {
-		if info == nil || strings.TrimSpace(info.Name) != strings.TrimSpace(name) {
+		if info == nil || strings.TrimSpace(info.Name) != name {
 			continue
 		}
 		if found != nil && found != info {
+			g.structInfoByNameCache[name] = structInfoByNameCacheEntry{}
 			return nil, false
 		}
 		found = info
 	}
-	return found, found != nil
+	entry := structInfoByNameCacheEntry{Info: found, Unique: found != nil}
+	g.structInfoByNameCache[name] = entry
+	return entry.Info, entry.Unique
 }
 
 func (g *generator) structInfoForTypeName(pkgName string, typeName string) (*structInfo, bool) {
@@ -78,6 +97,11 @@ func (g *generator) structInfoForTypeName(pkgName string, typeName string) (*str
 		}
 		if wildcardMatch != nil {
 			return wildcardMatch, true
+		}
+		if sourcePkg, sourceName, ok := g.sourceReexportSourceForName(pkgName, typeName); ok {
+			if info := g.structs[qualifiedName(sourcePkg, sourceName)]; info != nil {
+				return info, true
+			}
 		}
 	}
 	return g.structInfoByNameUnique(typeName)

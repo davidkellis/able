@@ -520,6 +520,9 @@ func resolveIntegerBinaryTypeConcrete(left, right Type) (Type, string) {
 	if !ok {
 		return UnknownType{}, fmt.Sprintf("requires integer operands (got %s and %s)", typeName(left), typeName(right))
 	}
+	if suffix, ok := preserveIntegerLiteralResult(left, right, leftSuffix, rightSuffix); ok {
+		return IntegerType{Suffix: suffix}, ""
+	}
 	resultSuffix, errMsg := promoteIntegerSuffixes(leftSuffix, rightSuffix)
 	if errMsg != "" {
 		return UnknownType{}, errMsg
@@ -570,6 +573,34 @@ func integerSuffixForType(t Type) (string, bool) {
 	return "", false
 }
 
+func preserveIntegerLiteralResult(left, right Type, leftSuffix, rightSuffix string) (string, bool) {
+	if integerLiteralFitsTarget(right, leftSuffix) {
+		return leftSuffix, true
+	}
+	if integerLiteralFitsTarget(left, rightSuffix) {
+		return rightSuffix, true
+	}
+	return "", false
+}
+
+func integerLiteralFitsTarget(t Type, target string) bool {
+	lit, ok := t.(IntegerType)
+	if !ok || lit.Explicit || lit.Literal == nil {
+		return false
+	}
+	info, ok := integerInfo(target)
+	if !ok {
+		return false
+	}
+	if info.signed {
+		return lit.Literal.Cmp(info.min) >= 0 && lit.Literal.Cmp(info.max) <= 0
+	}
+	if lit.Literal.Sign() < 0 {
+		return false
+	}
+	return lit.Literal.Cmp(info.max) <= 0
+}
+
 func promoteIntegerSuffixes(left, right string) (string, string) {
 	leftInfo, ok := integerInfo(left)
 	if !ok {
@@ -583,6 +614,12 @@ func promoteIntegerSuffixes(left, right string) (string, string) {
 		targetBits := leftInfo.bits
 		if rightInfo.bits > targetBits {
 			targetBits = rightInfo.bits
+		}
+		if leftInfo.signed && targetBits == 64 && (left == "isize" || right == "isize") {
+			return "isize", ""
+		}
+		if !leftInfo.signed && targetBits == 64 && (left == "usize" || right == "usize") {
+			return "usize", ""
 		}
 		if leftInfo.signed {
 			if suffix, ok := smallestSignedFor(targetBits); ok {

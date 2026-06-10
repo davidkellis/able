@@ -1,0 +1,86 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "candidate": "read-only non-escaping nominal parameter effects and runtime-origin writeback suppression",
+  "reason": "the exact generated boundary is material in only two current applications, below the required three-unlike-application admission gate",
+  "artifacts": "/tmp/able-nominal-param-effects-20260725.ACWCNo",
+  "survey": {
+    "benchmark_application_sources": 51,
+    "generic_callback_sites": 19,
+    "closest_nominal_result_callback_applications": 4,
+    "qualifying_applications": 2
+  },
+  "applications": [
+    {
+      "name": "Manifest Normalization",
+      "slug": "manifest-normalization",
+      "source_sha256": "518c9a692dddea837201c064a353dd1d10af968631f460553d59e3b48f62f078",
+      "verifier_sha256": "9aa52ef7fd9d6750a99d6ba4b1546ea8edf87f3be15c0e1bdd62776c62cdef39",
+      "binary_sha256": "b2401d429cbd9c3e0e01bddff36698e05dcbd2347b4bed2eb697b01a79f72f04",
+      "callable_carrier": "__able_fn_runtime.Value_runtime.Value_to__NormalizedManifest",
+      "runtime_origin_application_writebacks": 1,
+      "writeback_nominal": "ManifestRecord",
+      "normal_successful_calls": 3072,
+      "qualifies": true,
+      "verified_output": "4096:3072:1024:1024,1024,1024:1577539338:803938",
+      "dependency_count": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "Binary Event Log",
+      "slug": "binary-event-log",
+      "source_sha256": "e4ca203e32038d569c0d2040e4b3ef71da73cfc5a54649bf7fbe4dfd2012da35",
+      "verifier_sha256": "aa1146cc5702cdc8fc0695960c84883a91d2c42fcdd6790f1115e4408366cfe6",
+      "binary_sha256": "5d6d7c4153c525450530f5ed54ef982f7768e5980b656b56d56b461e266a12b5",
+      "callable_carrier": "__able_fn_runtime.Value_runtime.Value_to_int64",
+      "runtime_origin_application_writebacks": 1,
+      "writeback_nominal": "EventRecord",
+      "normal_successful_calls": 53248,
+      "qualifies": true,
+      "verified_output": "65536:53248:12288:22:13312,14336,12288,13312:648192:26622961321:945064",
+      "dependency_count": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "Concurrent Event Routing",
+      "slug": "concurrent-event-routing",
+      "source_sha256": "23d12e189b92ee44f83917df8a8fa8a84f2ab77242f9785474df345fbe5e274b",
+      "verifier_sha256": "9002ac45510f4c7962475abc25d2507103f3a319a8db11a12554ad6551def6e1",
+      "binary_sha256": "218a190f077ed31f605d42080c0b420c21b36aef3529fa4f7ce9cab87171178b",
+      "callable_carrier": "__able_fn__EventRecord_int64_to__AcceptedRoute",
+      "runtime_origin_application_writebacks": 0,
+      "qualifies": false,
+      "verified_output": "4096:4096:3072:1024:768,768,768,768:1538066199:499321",
+      "dependency_count": 96,
+      "interpreter_dependency": false
+    },
+    {
+      "name": "Policy Record Dispatch",
+      "slug": "policy-record-dispatch",
+      "source_sha256": "cd6089f205ff542c9c9c07c5526d47b9fc4287f9fd9c7081947d363610ec5263",
+      "verifier_sha256": "bdadd6235ab65152d46da27ca9d005456cf36835463505e0ac65c527f890f002",
+      "binary_sha256": "440ceec0a9f5561430aa59c511cbae8d554040105cfdf74aef45c15c9c0e121f",
+      "callable_carrier": "__able_fn__PolicyRecord_int64_to__AcceptedDecision",
+      "runtime_origin_application_writebacks": 0,
+      "qualifies": false,
+      "verified_output": "2048:1536:512:384,384,384,384:769419123:611618",
+      "dependency_count": 96,
+      "interpreter_dependency": false
+    }
+  ],
+  "verification": {
+    "strict_builds": 4,
+    "public_verifier_passes": 4,
+    "all_dependency_graphs_omit_interpreter": true,
+    "ablec_test_seconds": 5.515,
+    "compiler_or_runtime_code_changed": false,
+    "stdlib_changed": false,
+    "wasm_changed": false,
+    "compiler_sha256": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e"
+  },
+  "next": {
+    "candidate": "refresh the current strict compiled external scorecard and select a shared owner from at least three unlike material target misses",
+    "why": "the checked-in scoreboard predates the retained 2026-07-25 compiler improvements and this two-application boundary route is closed",
+    "constraint": "advance only a general cross-program lowering or runtime rule proven by exact profiles and repeated Able/Go measurements"
+  }
+}

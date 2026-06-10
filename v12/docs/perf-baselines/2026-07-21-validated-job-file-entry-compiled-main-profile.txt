@@ -1,0 +1,59 @@
+File: compiled
+Build ID: 8dd5695bc4f1a7d293d3d18e6a0835da9535e1c2
+Type: cpu
+Time: 2026-07-21 23:52:40 CDT
+Duration: 3.04s, Total samples = 3.08s (101.37%)
+Showing nodes accounting for 2.97s, 96.43% of 3.08s total
+Dropped 46 nodes (cum <= 0.02s)
+Showing top 50 nodes out of 133
+      flat  flat%   sum%        cum   cum%
+     0.33s 10.71% 10.71%      0.96s 31.17%  runtime.pcvalue
+     0.32s 10.39% 21.10%      0.32s 10.39%  runtime.lock2
+     0.30s  9.74% 30.84%      0.34s 11.04%  runtime.unlock2
+     0.29s  9.42% 40.26%      0.37s 12.01%  runtime.step
+     0.20s  6.49% 46.75%      0.44s 14.29%  runtime.recordForPanic
+     0.19s  6.17% 52.92%      0.66s 21.43%  runtime.gwrite
+     0.15s  4.87% 57.79%      0.15s  4.87%  runtime.memmove
+     0.13s  4.22% 62.01%      0.46s 14.94%  runtime.printlock
+     0.10s  3.25% 65.26%      0.10s  3.25%  indexbytebody
+     0.10s  3.25% 68.51%      0.18s  5.84%  runtime.funcInfo.entry (inline)
+     0.09s  2.92% 71.43%      0.43s 13.96%  runtime.printunlock (partial-inline)
+     0.08s  2.60% 74.03%      0.08s  2.60%  runtime.(*moduledata).textAddr
+     0.08s  2.60% 76.62%      0.08s  2.60%  runtime.readvarint (inline)
+     0.07s  2.27% 78.90%      0.93s 30.19%  runtime.printArgs
+     0.07s  2.27% 81.17%      0.21s  6.82%  runtime.printhexopts
+     0.04s  1.30% 82.47%      0.04s  1.30%  runtime.cheaprand (inline)
+     0.03s  0.97% 83.44%      0.03s  0.97%  internal/strconv.formatBase10
+     0.03s  0.97% 84.42%      0.03s  0.97%  runtime.acquirem (inline)
+     0.03s  0.97% 85.39%      0.03s  0.97%  runtime.findfunc
+     0.03s  0.97% 86.36%      2.60s 84.42%  runtime.traceback2
+     0.03s  0.97% 87.34%      0.03s  0.97%  runtime.tryDeferToSpanScan
+     0.02s  0.65% 87.99%      0.02s  0.65%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+     0.02s  0.65% 88.64%      0.02s  0.65%  runtime.(*mLockProfile).store (inline)
+     0.02s  0.65% 89.29%      0.06s  1.95%  runtime.cheaprandn (inline)
+     0.02s  0.65% 89.94%      0.09s  2.92%  runtime.findnull
+     0.02s  0.65% 90.58%      0.02s  0.65%  runtime.funcdata (inline)
+     0.02s  0.65% 91.23%      0.02s  0.65%  runtime.mutexSampleContention (inline)
+     0.02s  0.65% 91.88%      0.02s  0.65%  runtime.typePointers.next
+     0.01s  0.32% 92.21%      0.05s  1.62%  able/interpreter-go/pkg/interpreter.ApplyBinaryOperatorFast
+     0.01s  0.32% 92.53%      0.03s  0.97%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+     0.01s  0.32% 92.86%      0.14s  4.55%  runtime.(*inlineUnwinder).resolveInternal (inline)
+     0.01s  0.32% 93.18%      0.22s  7.14%  runtime.(*unwinder).next
+     0.01s  0.32% 93.51%      0.21s  6.82%  runtime.funcspdelta (inline)
+     0.01s  0.32% 93.83%      0.04s  1.30%  runtime.goroutineheader
+     0.01s  0.32% 94.16%      0.33s 10.71%  runtime.lock (inline)
+     0.01s  0.32% 94.48%      0.02s  0.65%  runtime.mallocgc
+     0.01s  0.32% 94.81%      0.15s  4.87%  runtime.newInlineUnwinder
+     0.01s  0.32% 95.13%      0.13s  4.22%  runtime.pcdatavalue1
+     0.01s  0.32% 95.45%      0.23s  7.47%  runtime.printArgs.func3 (inline)
+     0.01s  0.32% 95.78%      0.50s 16.23%  runtime.printstring
+     0.01s  0.32% 96.10%      0.05s  1.62%  runtime.showframe
+     0.01s  0.32% 96.43%      0.04s  1.30%  runtime.showfuncinfo
+         0     0% 96.43%      0.46s 14.94%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0% 96.43%      0.13s  4.22%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0% 96.43%      0.98s 31.82%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 96.43%      0.13s  4.22%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).currentEnv
+         0     0% 96.43%      0.98s 31.82%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 96.43%      1.37s 44.48%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0% 96.43%      2.90s 94.16%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0% 96.43%      0.03s  0.97%  internal/strconv.RuntimeFormatBase10 (inline)

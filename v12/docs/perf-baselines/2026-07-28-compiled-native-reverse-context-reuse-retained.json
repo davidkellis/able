@@ -1,0 +1,132 @@
+{
+  "kind": "able-compiled-native-reverse-context-reuse-retained",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "cpu_affinity": "0-3",
+  "executor": "goroutine",
+  "gomaxprocs": 4,
+  "instrument_sha256": "8614683636f9f0af940d0e235465271077f72f52ca12b2e3be719e9c6c9e7f99",
+  "runs": {
+    "construction_counter_per_side_per_application": 5,
+    "allocation_per_side_per_application": 5,
+    "timing_cohorts_per_application": 15,
+    "main_delta_allocation_profiles_per_side_per_application": 1
+  },
+  "benchmarks": [
+    {
+      "benchmark": "await_channel_mux",
+      "source_sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+      "baseline_binary_sha256": "2f6faae5331924a2db3fb3e1c6d90b6f5176c096bd472d1f01e27b41a57226c6",
+      "retained_binary_sha256": "0b05ebbd8bfe6dd763e708619b47bcc152e00b9f921dbb77625e70d62226b159",
+      "stdout_sha256": "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693",
+      "interpreter_free": true,
+      "construction": {
+        "baseline_task_contexts": [1536, 1536, 1536, 1536, 1536],
+        "baseline_reverse_contexts": [3073, 3073, 3073, 3073, 3073],
+        "retained_reused_contexts": [3072, 3072, 3072, 3072, 3072],
+        "retained_reverse_fallbacks": [1, 1, 1, 1, 1]
+      },
+      "allocation": {
+        "baseline_bytes": [5552112, 5552528, 5558512, 5552496, 5556688],
+        "retained_bytes": [5412000, 5406736, 5409664, 5409072, 5405920],
+        "baseline_objects": [101889, 101892, 101927, 101903, 101914],
+        "retained_objects": [98858, 98829, 98851, 98846, 98826],
+        "bytes_change_percent": -2.62,
+        "objects_change_percent": -3.01
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.067604718,
+        "retained_mean_seconds": 0.068110713,
+        "raw_change_percent": 0.75,
+        "paired_change_percent": 0.85,
+        "paired_ci95_percent": [-1.25, 2.95],
+        "go_mean_seconds": 0.003034131,
+        "retained_go_time_ratio": 22.45
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "source_sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696",
+      "baseline_binary_sha256": "baebf93a7be037a5c8ef8998a694edac2f25199e5e875d2c4fe6b93541d7ba6e",
+      "retained_binary_sha256": "f211e574f5176de6d827d556721ba4882da62c58a2ee4a2609a443f7464da6c8",
+      "stdout_sha256": "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e",
+      "interpreter_free": true,
+      "construction": {
+        "baseline_task_contexts": [4, 4, 4, 4, 4],
+        "baseline_reverse_contexts": [6310, 6222, 6250, 6388, 6411],
+        "retained_reused_contexts": [6510, 6441, 6480, 6493, 6427],
+        "retained_reverse_fallbacks": [1, 1, 1, 1, 1]
+      },
+      "allocation": {
+        "baseline_bytes": [1799704, 1803680, 1804392, 1796616, 1798928],
+        "retained_bytes": [1487008, 1482200, 1488424, 1493392, 1491472],
+        "baseline_objects": [37646, 37606, 37631, 37594, 37621],
+        "retained_objects": [31159, 31047, 31173, 31168, 31146],
+        "bytes_change_percent": -17.34,
+        "objects_change_percent": -17.23
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.007494728,
+        "retained_mean_seconds": 0.006851977,
+        "raw_change_percent": -8.58,
+        "paired_change_percent": -7.72,
+        "paired_ci95_percent": [-13.21, -2.22],
+        "go_mean_seconds": 0.002335248,
+        "retained_go_time_ratio": 2.93
+      }
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "source_sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113",
+      "baseline_binary_sha256": "525b799fed3c8605df6dcafe001395910a2dec9af603c8297f25f10ef2cafbec",
+      "retained_binary_sha256": "9774a00d42572cd15533702fa16d4e6ff2425f810046f69e5265bda594425930",
+      "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58",
+      "interpreter_free": true,
+      "construction": {
+        "baseline_task_contexts": [4, 4, 4, 4, 4],
+        "baseline_reverse_contexts": [12756, 12803, 12629, 12816, 12815],
+        "retained_reused_contexts": [12794, 12845, 12914, 12934, 12823],
+        "retained_reverse_fallbacks": [1, 1, 1, 1, 1]
+      },
+      "allocation": {
+        "baseline_bytes": [3827560, 3801632, 3803216, 3806568, 3826688],
+        "retained_bytes": [3170976, 3173976, 3179992, 3180664, 3161328],
+        "baseline_objects": [79943, 79469, 79562, 79652, 79943],
+        "retained_objects": [66575, 66641, 66760, 66661, 66251],
+        "bytes_change_percent": -16.78,
+        "objects_change_percent": -16.48
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.015218530,
+        "retained_mean_seconds": 0.013906146,
+        "raw_change_percent": -8.62,
+        "paired_change_percent": -8.10,
+        "paired_ci95_percent": [-16.91, 0.71],
+        "go_mean_seconds": 0.002979331,
+        "retained_go_time_ratio": 4.67
+      }
+    }
+  ],
+  "identity": {
+    "default_await_channel_mux": "byte-identical",
+    "default_mutex_await_journal": "byte-identical",
+    "default_mutex_work_queue": "byte-identical",
+    "experimental_await_free_nbody": "byte-identical"
+  },
+  "verification": {
+    "public_verifier_failures": 0,
+    "strict_interpreter_dependencies": 0,
+    "race_enabled_applications": 3,
+    "execution_context_fixture_parity_seconds": 46.132,
+    "cross_package_and_capture": "pass",
+    "dynamic_boundaries": "pass",
+    "bridge": "pass",
+    "runtime": "pass",
+    "compiled_cli": "pass",
+    "performance_ledger_current_closures": 21,
+    "performance_ledger_invalidations": 0
+  },
+  "next": "Count generated Await-state wait-channel construction, signals, and rearm cycles; prototype task-owned reuse only if overlapping waits are proven absent and all cancellation, synchronous-wake, serial-executor, race, allocation, and Go timing gates pass."
+}

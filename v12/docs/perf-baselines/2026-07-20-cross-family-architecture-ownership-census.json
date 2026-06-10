@@ -1,0 +1,146 @@
+{
+  "kind": "able-cross-family-architecture-ownership-census",
+  "schema_version": 1,
+  "date": "2026-07-20",
+  "scorecard": {
+    "selected_rows": 75,
+    "target_meets": 8,
+    "target_misses": 67,
+    "established_guards": 6,
+    "total_excess_seconds": 121.96936842105264
+  },
+  "admission_rule": "Admit an implementation candidate only when the same concrete non-nominal architectural cost is material in at least three unlike verifier-backed applications and a causal mechanism has not already failed broad guards.",
+  "summary": {
+    "boundaries_audited": 8,
+    "boundaries_with_cross_family_recurrence": 6,
+    "new_candidates_admitted": 0,
+    "frontier_dispositions_changed": 0
+  },
+  "boundaries": [
+    {
+      "id": "compiled-generated-runtime",
+      "mode": "compiled",
+      "boundary": "generated runtime helpers and boxed/dynamic fallback",
+      "breadth": "35 selected applications counted; 32 completed generated-Go diagnostics",
+      "exact_result": "Boxed binary, boxed unary, generic interface dispatch, checked generic Array indexing, String conversion, and generic-union fallback executed zero times. The only broad new helper, integer conversion, was below 1% flat in three unlike profiles and absent in a fourth.",
+      "reference_comparison": "Current hot compiled paths execute direct generated Go bodies rather than a shared boxed interpreter/runtime envelope.",
+      "disposition": "closed-no-shared-material-leaf",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-18-compiled-generated-helper-execution-census.md",
+        "v12/docs/perf-baselines/2026-07-18-compiled-generated-go-diagnostics-census.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md"
+      ]
+    },
+    {
+      "id": "compiled-allocation-and-nominal-results",
+      "mode": "compiled",
+      "boundary": "escape, nullable scalar, and small nominal/union result representation",
+      "breadth": "broad static emission; exact dynamic attribution in text, graph, and regex applications",
+      "exact_result": "Static escape breadth collapses dynamically to one nullable primitive consumer and one material nominal definition, Utf8DecodeResult. Required allocation owners otherwise divide among nodes, arrays, maps, regex values, and application results.",
+      "reference_comparison": "Go escape analysis already removes broad emitted shapes when their identity does not escape; the remaining material values do not share one structural lifetime across unlike applications.",
+      "disposition": "closed-insufficient-dynamic-definition-breadth",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-18-compiled-nullable-scalar-allocation-attribution.md",
+        "v12/docs/perf-baselines/2026-07-18-compiled-small-union-payload-census.md",
+        "v12/docs/perf-baselines/2026-07-16-compiled-caller-owned-nominal-results.md"
+      ]
+    },
+    {
+      "id": "compiled-runtime-initialization-and-context",
+      "mode": "compiled",
+      "boundary": "runtime package reachability, process initialization, and execution-context publication",
+      "breadth": "selected compiled launchers plus concurrency, N-Body, Binary Trees, and text/map guards",
+      "exact_result": "Removing unused interpreter/runtime roots materially reduced binaries and startup, while fixed-context and package-boundary variants exchanged wins for regressions in Binary Trees, N-Body, or K-Nucleotide. Concurrency currentGID remains exact and broad but its replacement failed the unlike guard.",
+      "reference_comparison": "The residual startup/context work is not a universal generated-main tax: its material descendants are scheduler identity, package publication, GC pacing, or absent roots depending on the application.",
+      "disposition": "closed-rejected-candidate",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-17-compiled-primitive-runtime-boundary-rejected.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-unused-operator-helper-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md"
+      ]
+    },
+    {
+      "id": "bytecode-primary-dispatch",
+      "mode": "bytecode",
+      "boundary": "runResumable primary opcode dispatch and instruction layout",
+      "breadth": "material flat dispatcher cost across at least six unlike applications",
+      "exact_result": "The dispatcher is a real shared architectural wall, but a direct opcode, layout-stabilized existing-opcode design, typed loop-block executor, restricted register IR, and cross-suite Go PGO either regressed unlike applications, lacked dynamic reach, or created an undeployable plugin/profile dependency.",
+      "reference_comparison": "References execute comparable source operations through their mature native interpreter/runtime paths; Able's residual dispatch cannot be removed by merely rearranging the current Go switch or adding a second dispatcher.",
+      "disposition": "closed-rejected-mechanisms",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-18-bytecode-dispatcher-layout-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-bytecode-typed-loop-block-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-operand-register-ir-admission-census.md",
+        "v12/docs/perf-baselines/2026-07-18-bytecode-cross-suite-go-pgo-rejection.md"
+      ]
+    },
+    {
+      "id": "bytecode-scalar-encoding",
+      "mode": "bytecode",
+      "boundary": "raw integer/float extraction, normalization, boxing, and slot/stack transport",
+      "breadth": "raw integer CPU recurrence across text, iterator, numeric, and wide workloads; normalized raw-float allocation across three unlike numeric applications",
+      "exact_result": "The exact leaves are broad and material, but unified extraction beats hot/cold splitting, integer carrier and sidecar changes regress guards, and raw-float lane/carrier variants cut allocations while regressing wall time by 12.7%-23.6%.",
+      "reference_comparison": "Able's general Value contract pays representation transitions that reference runtimes often keep inside specialized native loops, but the tested general carrier alternatives add more Go-side work than they remove.",
+      "disposition": "closed-rejected-candidate",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-16-bytecode-cross-family-raw-integer-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-clean-four-workload-bytecode-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-call-return-continuation",
+      "mode": "bytecode",
+      "boundary": "call lookup/dispatch, inline frame construction, return restoration, and coercion",
+      "breadth": "call/return parents recur across text, iterator, numeric, map, regex, and control workloads",
+      "exact_result": "Concrete descendants divide by native/direct/member/Array/static call route and by return coercion. The only shared frame ABI candidate, a caller-owned result structure, regressed three unlike workloads; raw-cell preservation and return-guard reorder were neutral or regressive.",
+      "reference_comparison": "The VM must preserve Able exceptions, loop signals, scheduler yields, dynamic resolution, and coercion at this boundary; no single redundant step repeats materially beneath that contract across three unlike current profiles.",
+      "disposition": "closed-rejected-or-no-shared-child",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-16-bytecode-shared-vm-wall-rejection.md",
+        "v12/docs/perf-baselines/2026-07-17-bytecode-call-execution-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-quickening-top-miss-bytecode-profile-reconciliation.md"
+      ]
+    },
+    {
+      "id": "bytecode-nominal-construction",
+      "mode": "bytecode",
+      "boundary": "fresh positional nominal construction and returned value lifetime",
+      "breadth": "allocator material in four applications; returned-shape selection extended across JSON, Document Audit, and Reverse Complement",
+      "exact_result": "The four-program allocator aggregate splits into Utf8DecodeResult in two text consumers and RegexNFAThread in two related regex consumers. Values cross returns, calls, collections, mutation, or identity boundaries; no hot definition/lifetime repeats in three unlike applications.",
+      "reference_comparison": "Scalar replacement or pooling would change observable nominal identity/alias behavior unless a static non-escape proof exists; the current corpus does not supply that proof broadly.",
+      "disposition": "closed-insufficient-lifetime-breadth",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-16-bytecode-positional-struct-lifetime-gate.md",
+        "v12/docs/perf-baselines/2026-07-16-bytecode-returned-nominal-selection-gate.md"
+      ]
+    },
+    {
+      "id": "cross-mode-map-and-allocation-parents",
+      "mode": "cross-mode",
+      "boundary": "Go map access, malloc/GC, and broad collection parents",
+      "breadth": "aggregate symbols recur across text/map, iterator, numeric, regex, and output profiles",
+      "exact_result": "Caller attribution separates environment bindings, type/member caches, Able HashMap operations, String parsing, required result growth, nominal construction, and host conversion. The retained generic HashMap index removed the one shared linear search; residual leaves have different semantic owners.",
+      "reference_comparison": "Go runtime aggregation symbols are implementation envelopes rather than one Able operation, so their recurrence alone cannot justify a compiler, VM, or stdlib rule.",
+      "disposition": "closed-no-shared-leaf",
+      "candidate_admitted": false,
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-17-clean-four-workload-bytecode-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    }
+  ],
+  "decision": {
+    "candidate": null,
+    "reason": "No untested concrete architecture boundary satisfies both the three-unlike-application materiality rule and the broad causal-wall requirement. The current frontier remains zero-actionable.",
+    "required_invalidation": "A new portable real-world application family, changed language/runtime semantics, or new exact evidence must expose a concrete shared child not covered by the recorded retained/rejected mechanisms."
+  }
+}

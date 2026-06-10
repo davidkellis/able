@@ -1,0 +1,66 @@
+{
+  "schema": "able.semanticabi.heap-contract-reconciliation.v1",
+  "decision": "admit-bounded-production-shared-value-pilot",
+  "manifest_identity": "79e60c725176e314b2d0840fc99b667531f6f5866c5285de695e96b7144b9c7e",
+  "runtime_kinds": 31,
+  "exact_kinds": 27,
+  "conditional_kinds": 0,
+  "opaque_host_kinds": 4,
+  "blocked_kinds": 0,
+  "package_layout_reconciled": true,
+  "two_phase_graph_construction": true,
+  "owned_wide_scalars": true,
+  "inspectable_hasher_state": true,
+  "explicit_iterator_host_driver": true,
+  "vectors": [
+    {
+      "name": "array-cycle-alias",
+      "detail": "shared child and self-cycle preserve identity"
+    },
+    {
+      "name": "treewalker-alias",
+      "detail": "ordinary execution graph round-trips with alias identity"
+    },
+    {
+      "name": "treewalker-recursive-closure",
+      "detail": "captured binding and self-cycle restore; call returns 41"
+    },
+    {
+      "name": "bytecode-alias",
+      "detail": "ordinary execution graph round-trips with alias identity"
+    },
+    {
+      "name": "bytecode-recursive-closure",
+      "detail": "captured binding and self-cycle restore; call returns 41"
+    },
+    {
+      "name": "nominal-error-future",
+      "detail": "package, Error, and Future retain one StructInstance identity"
+    },
+    {
+      "name": "owned-wide-integer",
+      "detail": "negative i128 magnitude and suffix survive an owned immutable scalar"
+    },
+    {
+      "name": "hasher-state",
+      "detail": "complete evolving semantic state restores exactly"
+    },
+    {
+      "name": "iterator-host-driver",
+      "detail": "driver resumes, finalizer survives, and retained semantic roots preserve identity and lifetime"
+    }
+  ],
+  "blockers": [],
+  "production_migration_admitted": true,
+  "next_lane": "runtime-contract-performance-evidence-reconciliation",
+  "exclusions": [
+    "production runtime migration",
+    "foreign heap",
+    "cgo runtime",
+    "JIT or backend",
+    "executable memory",
+    "benchmark branch",
+    "named-container or non-primitive nominal special case",
+    "WASM"
+  ]
+}

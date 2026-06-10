@@ -27,7 +27,7 @@ func (vm *bytecodeVM) execPlaceholderLambda(instr *bytecodeInstruction) error {
 		if val == nil {
 			val = runtime.NilValue{}
 		}
-		vm.stack = append(vm.stack, val)
+		vm.appendStackValue(val)
 		vm.ip++
 		return nil
 	}
@@ -48,7 +48,7 @@ func (vm *bytecodeVM) execPlaceholderLambda(instr *bytecodeInstruction) error {
 			return closure.invoke(args)
 		},
 	}
-	vm.stack = append(vm.stack, fn)
+	vm.appendStackValue(fn)
 	vm.ip++
 	return nil
 }
@@ -65,7 +65,7 @@ func (vm *bytecodeVM) execPlaceholderValue(instr *bytecodeInstruction) error {
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }

@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+"""Fast static check for the reviewed external scorecard selection manifest."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+from bench_scorecard_selection import load_manifest, manifest_keys, semantic_sha256
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_MANIFEST = SCRIPT_DIR / "bench-selection-manifest.json"
+CATALOG = SCRIPT_DIR / "bench_external_catalog.sh"
+
+
+def coverage() -> set[str]:
+    result = subprocess.run(
+        ["bash", "-c", f"source {CATALOG!s}; bench_external_suite_csv coverage"],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ValueError(result.stderr.strip() or "cannot read coverage catalog")
+    return {value for value in result.stdout.strip().split(",") if value}
+
+
+def load_scoreboard(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"status scorecard not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid status scorecard JSON in {path}: {error}") from None
+    if not isinstance(value, dict) or value.get("kind") != "external-benchmark-scoreboard":
+        raise ValueError("status scorecard has an invalid kind")
+    if not isinstance(value.get("rows"), list):
+        raise ValueError("status scorecard needs rows")
+    return value
+
+
+def row_status(row: dict[str, Any]) -> str:
+    able = row.get("able")
+    if not isinstance(able, dict):
+        return "invalid"
+    status = able.get("status")
+    if isinstance(status, str):
+        return status
+    if able.get("ok_runs") and not able.get("timeouts") and not able.get("failures"):
+        return "verified"
+    if able.get("timeouts"):
+        return "timeout"
+    if able.get("failures"):
+        return "failure"
+    return "unavailable"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST), metavar="PATH")
+    parser.add_argument("--status-scorecard", metavar="PATH")
+    parser.add_argument(
+        "--print-selected",
+        choices=("compiled", "bytecode"),
+        metavar="MODE",
+        help="print the validated selected benchmark CSV for one mode",
+    )
+    args = parser.parse_args()
+    try:
+        manifest_path = Path(args.manifest)
+        manifest = load_manifest(manifest_path)
+        keys = manifest_keys(manifest)
+        candidates = coverage()
+        unexpected = sorted({benchmark for benchmark, _ in keys} - candidates)
+        if unexpected:
+            raise ValueError(
+                "selection manifest contains non-coverage benchmarks: " + ", ".join(unexpected)
+            )
+        compiled = {benchmark for benchmark, mode in keys if mode == "compiled"}
+        if compiled != candidates:
+            missing = sorted(candidates - compiled)
+            extra = sorted(compiled - candidates)
+            detail = []
+            if missing:
+                detail.append("missing " + ", ".join(missing))
+            if extra:
+                detail.append("extra " + ", ".join(extra))
+            raise ValueError("compiled selection must equal coverage (" + "; ".join(detail) + ")")
+
+        selected_status: dict[str, int] = {}
+        re_admission: list[str] = []
+        if args.status_scorecard:
+            scoreboard = load_scoreboard(Path(args.status_scorecard))
+            rows: dict[tuple[str, str], dict[str, Any]] = {}
+            for raw_row in scoreboard["rows"]:
+                if not isinstance(raw_row, dict):
+                    raise ValueError("status scorecard contains an invalid row")
+                key = (raw_row.get("benchmark"), raw_row.get("mode"))
+                if not all(isinstance(value, str) and value for value in key):
+                    raise ValueError("status scorecard contains a row without benchmark/mode")
+                if key in rows:
+                    raise ValueError(f"status scorecard repeats {key[0]}/{key[1]}")
+                rows[key] = raw_row
+            missing_rows = sorted(keys - set(rows))
+            if missing_rows:
+                raise ValueError(
+                    "status scorecard is missing selected rows: "
+                    + ", ".join(f"{benchmark}/{mode}" for benchmark, mode in missing_rows[:5])
+                )
+            for key in sorted(keys):
+                status = row_status(rows[key])
+                selected_status[status] = selected_status.get(status, 0) + 1
+            for key in sorted(set(rows) - keys):
+                if key[0] in candidates and key[1] in {"compiled", "bytecode"} and row_status(rows[key]) == "verified":
+                    re_admission.append(f"{key[0]}/{key[1]}")
+
+        if args.print_selected:
+            print(",".join(manifest["modes"][args.print_selected]))
+            return 0
+
+        print(
+            "selection manifest ok: {} rows ({} compiled, {} bytecode), SHA-256 {}".format(
+                len(keys),
+                len(manifest["modes"]["compiled"]),
+                len(manifest["modes"]["bytecode"]),
+                semantic_sha256(manifest),
+            )
+        )
+        if selected_status:
+            print(
+                "selected status: "
+                + ", ".join(f"{status}={count}" for status, count in sorted(selected_status.items()))
+            )
+        if re_admission:
+            print("review for re-admission: " + ", ".join(re_admission))
+        return 0
+    except ValueError as error:
+        print(f"bench_selection_manifest_check: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,48 @@
+package bench_deque_i32_small
+
+import able.collections.deque.{Deque}
+
+fn build(size: i32) -> Deque i32 {
+  values: Deque i32 = Deque.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    if i % 2 == 0 {
+      values.push_back(i)
+    } else {
+      values.push_front(0 - i)
+    }
+    i = i + 1
+  }
+  values
+}
+
+fn cycle(values: Deque i32, steps: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= steps { break }
+    popped := if i % 2 == 0 { values.pop_front() } else { values.pop_back() }
+    value: i32 := popped or { 0 }
+    total = total + (value as i64)
+    if i % 3 == 0 {
+      values.push_front(value + i + 5)
+    } else {
+      values.push_back(value - i - 7)
+    }
+    i = i + 1
+  }
+  total
+}
+
+fn main() -> void {
+  values := build(6_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 4 { break }
+    total = total + cycle(values, 9_000)
+    rounds = rounds + 1
+  }
+  print(total)
+}

@@ -1,0 +1,6 @@
+{
+  "description": "string builder construction benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "runs_per_side": 10,
+  "rows": [
+    {
+      "benchmark": "word_frequency",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/word_frequency/word_frequency.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/word-frequency",
+        "verifier": "/home/david/sync/projects/benchmarks/word-frequency/verify.rb",
+        "args": [
+          "corpus.md"
+        ],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": false
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 1.6853656109888107,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 1.5885987569927238,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 1.5587709070241544,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 3,
+            "order": 1
+          },
+          {
+            "seconds": 1.4945929030072875,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 4,
+            "order": 2
+          },
+          {
+            "seconds": 1.5590595650137402,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 5,
+            "order": 1
+          },
+          {
+            "seconds": 1.557436734001385,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 6,
+            "order": 2
+          },
+          {
+            "seconds": 1.5072466320125386,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 7,
+            "order": 1
+          },
+          {
+            "seconds": 1.710074144997634,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 8,
+            "order": 2
+          },
+          {
+            "seconds": 1.714286392001668,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 9,
+            "order": 1
+          },
+          {
+            "seconds": 1.5401994849962648,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 10,
+            "order": 2
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 1.5978638129890896,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 1.7460413959925063,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 1.5568558250088245,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 3,
+            "order": 2
+          },
+          {
+            "seconds": 1.5218142720113974,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 4,
+            "order": 1
+          },
+          {
+            "seconds": 1.5865998360095546,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 5,
+            "order": 2
+          },
+          {
+            "seconds": 1.6921674740151502,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 6,
+            "order": 1
+          },
+          {
+            "seconds": 1.5692968259972986,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 7,
+            "order": 2
+          },
+          {
+            "seconds": 1.607249372988008,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 8,
+            "order": 1
+          },
+          {
+            "seconds": 1.528762009984348,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 9,
+            "order": 2
+          },
+          {
+            "seconds": 1.636445657000877,
+            "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+            "pair": 10,
+            "order": 1
+          }
+        ]
+      },
+      "baseline_mean_seconds": 1.5915631131036208,
+      "candidate_mean_seconds": 1.6043096481997055,
+      "change_percent": 0.8008815353371945
+    }
+  ]
+}

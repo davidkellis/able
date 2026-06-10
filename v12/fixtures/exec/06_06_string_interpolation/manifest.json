@@ -5,6 +5,8 @@
       "cost $3",
       "back ` tick",
       "raw ${price}",
+      "control bytes 10",
+      "slash bytes 1",
       "point P(1,2)",
       "lens 11 9"
     ],

@@ -11,6 +11,9 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 	if expected == "any" {
 		return valueExpr, true
 	}
+	if expected == "runtime.NilValue" {
+		return fmt.Sprintf("func() runtime.NilValue { v, ok, nilPtr := __able_runtime_nil_value(%s); if !ok && !nilPtr { panic(fmt.Errorf(\"type mismatch: expected nil\")) }; return v }()", valueExpr), true
+	}
 	if spec, ok := g.monoArraySpecForGoType(expected); ok && spec != nil {
 		return fmt.Sprintf("func() %s { v, err := %s(%s); if err != nil { panic(err) }; return v }()", expected, spec.FromRuntimeHelper, valueExpr), true
 	}
@@ -50,6 +53,10 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 	case "uint8", "uint16", "uint32", "uint64":
 		bits := g.intBits(expected)
 		return fmt.Sprintf("func() %s { val := %s; v, err := bridge.AsUint(val, %d); if err != nil { panic(err) }; return %s(v) }()", expected, valueExpr, bits, expected), true
+	case "int128":
+		return fmt.Sprintf("func() runtime.Int128 { v, ok := runtime.Int128FromValue(%s); if !ok { panic(fmt.Errorf(\"type mismatch: expected i128\")) }; return v }()", valueExpr), true
+	case "uint128":
+		return fmt.Sprintf("func() runtime.Uint128 { v, ok := runtime.Uint128FromValue(%s); if !ok { panic(fmt.Errorf(\"type mismatch: expected u128\")) }; return v }()", valueExpr), true
 	case "struct":
 		if g.isArrayStructType(expected) {
 			return g.runtimeValueToGenericArrayPanicExpr(valueExpr, true), true
@@ -66,6 +73,23 @@ func (g *generator) expectRuntimeValueExpr(valueExpr string, expected string) (s
 func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr string, expected string) ([]string, string, bool) {
 	if expected == "any" {
 		return nil, valueExpr, true
+	}
+	if expected == "runtime.NilValue" {
+		valueTemp := ctx.newTemp()
+		okTemp := ctx.newTemp()
+		nilPtrTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		lines := []string{
+			fmt.Sprintf("%s, %s, %s := __able_runtime_nil_value(%s)", valueTemp, okTemp, nilPtrTemp, valueExpr),
+			fmt.Sprintf("var %s *__ableControl", controlTemp),
+			fmt.Sprintf("if !%s && !%s { %s = __able_raise_return_type_mismatch(nil, \"nil\", \"runtime value\") }", okTemp, nilPtrTemp, controlTemp),
+		}
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, valueTemp, true
 	}
 	if spec, ok := g.monoArraySpecForGoType(expected); ok && spec != nil {
 		valTemp := ctx.newTemp()
@@ -287,6 +311,27 @@ func (g *generator) expectRuntimeValueExprLines(ctx *compileContext, valueExpr s
 		}
 		lines = append(lines, controlLines...)
 		return lines, fmt.Sprintf("%s(%s)", expected, vTemp), true
+	case "int128", "uint128":
+		wideTemp := ctx.newTemp()
+		okTemp := ctx.newTemp()
+		controlTemp := ctx.newTemp()
+		helper := "runtime.Int128FromValue"
+		typeName := "i128"
+		if expected == "runtime.Uint128" {
+			helper = "runtime.Uint128FromValue"
+			typeName = "u128"
+		}
+		lines := []string{
+			fmt.Sprintf("%s, %s := %s(%s)", wideTemp, okTemp, helper, valueExpr),
+			fmt.Sprintf("var %s *__ableControl", controlTemp),
+			fmt.Sprintf("if !%s { %s = __able_raise_return_type_mismatch(nil, %q, \"runtime value\") }", okTemp, controlTemp, typeName),
+		}
+		controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+		if !ok {
+			return nil, "", false
+		}
+		lines = append(lines, controlLines...)
+		return lines, wideTemp, true
 	case "struct":
 		if g.isArrayStructType(expected) {
 			controlTemp := ctx.newTemp()
@@ -429,6 +474,8 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 	switch g.typeCategory(goType) {
 	case "runtime":
 		return expr, true
+	case "nil":
+		return expr, true
 	case "any":
 		return fmt.Sprintf("__able_any_to_value(%s)", expr), true
 	case "void":
@@ -454,7 +501,7 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 	case "int32":
 		return fmt.Sprintf("bridge.ToInt(int64(%s), runtime.IntegerType(\"i32\"))", expr), true
 	case "int64":
-		return fmt.Sprintf("bridge.ToInt(int64(%s), runtime.IntegerType(\"i64\"))", expr), true
+		return fmt.Sprintf("bridge.ToDynamicI64(int64(%s))", expr), true
 	case "uint8":
 		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u8\"))", expr), true
 	case "uint16":
@@ -463,6 +510,8 @@ func (g *generator) runtimeValueExpr(expr string, goType string) (string, bool) 
 		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u32\"))", expr), true
 	case "uint64":
 		return fmt.Sprintf("bridge.ToUint(uint64(%s), runtime.IntegerType(\"u64\"))", expr), true
+	case "int128", "uint128":
+		return fmt.Sprintf("(%s).IntegerValue()", expr), true
 	case "struct":
 		baseName, ok := g.structHelperName(goType)
 		if !ok {
@@ -549,6 +598,8 @@ func (g *generator) runtimeValueLines(ctx *compileContext, expr string, goType s
 		return lines, convTemp, true
 	}
 	switch g.typeCategory(goType) {
+	case "nil":
+		return nil, expr, true
 	case "void":
 		return []string{fmt.Sprintf("_ = %s", expr)}, "runtime.VoidValue{}", true
 	case "struct":

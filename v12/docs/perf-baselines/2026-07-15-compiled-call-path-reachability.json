@@ -1,0 +1,408 @@
+{
+  "generated_at": "2026-07-15T18:12:57.345569Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "fib",
+    "binarytrees",
+    "matrixmultiply",
+    "quicksort",
+    "sudoku",
+    "sudoku_masks",
+    "i_before_e",
+    "base64",
+    "json",
+    "monte_carlo_pi",
+    "pidigits",
+    "mandelbrot",
+    "reverse_complement",
+    "k_nucleotide",
+    "nbody",
+    "tapelang_alphabet",
+    "fixed_width_128",
+    "rational_series",
+    "word_frequency",
+    "document_audit",
+    "lexical_rollup",
+    "channel_rollup",
+    "future_pipeline",
+    "future_await_race",
+    "await_channel_mux",
+    "mutex_ledger",
+    "mutex_await_journal",
+    "regex_suffix_audit",
+    "regex_set_audit",
+    "regex_stream_audit",
+    "array_slice_window",
+    "dependency_plan",
+    "option_result_config"
+  ],
+  "timeout_seconds": 45,
+  "telemetry_build": true,
+  "telemetry_mode": "call-path",
+  "rows": [
+    {
+      "benchmark": "fib",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "binarytrees",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 9,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "quicksort",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "sudoku",
+      "command_exit": 0,
+      "status": "timeout",
+      "telemetry": null,
+      "verification": "not-run"
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "i_before_e",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "base64",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "json",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "pidigits",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "mandelbrot",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "reverse_complement",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "nbody",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "rational_series",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "word_frequency",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "document_audit",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "channel_rollup",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "future_pipeline",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 8,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "future_await_race",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 1059,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 10752,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 4,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 6196,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "array_slice_window",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "dependency_plan",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 0,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "option_result_config",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "fast_method_call": 147456,
+        "generic_union_fallback": 0,
+        "generic_union_method_call": 147456
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "fast_method_call": 165484,
+    "generic_union_method_call": 147456,
+    "generic_union_fallback": 0
+  }
+}

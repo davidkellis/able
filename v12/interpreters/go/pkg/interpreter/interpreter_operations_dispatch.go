@@ -90,7 +90,10 @@ func normalizeOperator(op string) (string, bool) {
 }
 
 func isIntegerValue(val runtime.Value) bool {
-	_, ok := val.(runtime.IntegerValue)
+	if _, ok := val.(runtime.IntegerValue); ok {
+		return true
+	}
+	_, _, ok := bytecodeRawIntegerValueInfo(val)
 	return ok
 }
 
@@ -132,6 +135,10 @@ func (i *Interpreter) resolveComparisonMethod(receiver runtime.Value, dispatch o
 	if !ok {
 		return nil, nil
 	}
+	return i.resolveComparisonMethodForInfo(receiver, info, dispatch)
+}
+
+func (i *Interpreter) resolveComparisonMethodForInfo(receiver runtime.Value, info typeInfo, dispatch operatorDispatch) (runtime.Value, error) {
 	method, err := i.findMethodCached(info, dispatch.methodName, dispatch.interfaceName)
 	if method != nil || err != nil {
 		return method, err
@@ -144,16 +151,68 @@ func (i *Interpreter) resolveComparisonMethod(receiver runtime.Value, dispatch o
 	return nil, nil
 }
 
+func (i *Interpreter) resolveEqualityMethod(receiver runtime.Value, dispatch operatorDispatch) (runtime.Value, error) {
+	if _, primitive := primitiveReceiverTypeName(receiver); primitive {
+		callable, found, err := i.resolvePrimitiveInterfaceMethodCallable(receiver, dispatch.methodName, dispatch.interfaceName)
+		if err != nil || !found {
+			return nil, err
+		}
+		return unboundPrimitiveInterfaceMethodCallable(callable), nil
+	}
+	return i.resolveInterfaceMethod(receiver, dispatch.interfaceName, dispatch.methodName)
+}
+
 func (i *Interpreter) applyEqualityInterface(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
+	info, ok := i.getTypeInfoForValue(left)
+	if !ok {
+		return nil, false, nil
+	}
+	typeName := i.cachedTypeInfoName(info)
+	if entry, ok := i.lookupEqualityDispatchCache(typeName); ok {
+		return i.applyCachedEqualityDispatch(op, left, right, entry)
+	}
 	for _, dispatch := range equalityInterfaces {
-		method, err := i.resolveComparisonMethod(left, dispatch)
+		method, err := i.resolveEqualityMethod(left, dispatch)
 		if err != nil {
+			i.storeEqualityDispatchCache(typeName, equalityDispatchCacheEntry{
+				kind:     equalityDispatchCacheError,
+				dispatch: dispatch,
+				err:      err,
+			})
 			return nil, true, err
 		}
 		if method == nil {
 			continue
 		}
-		result, err := i.CallFunction(method, []runtime.Value{unwrapInterfaceValue(left), unwrapInterfaceValue(right)})
+		entry := equalityDispatchCacheEntry{
+			kind:     equalityDispatchCacheMethod,
+			dispatch: dispatch,
+			method:   method,
+		}
+		_, entry.primitive = primitiveReceiverTypeName(left)
+		i.storeEqualityDispatchCache(typeName, entry)
+		return i.applyCachedEqualityDispatch(op, left, right, entry)
+	}
+	i.storeEqualityDispatchCache(typeName, equalityDispatchCacheEntry{
+		kind: equalityDispatchCacheNoMethod,
+	})
+	return nil, false, nil
+}
+
+func (i *Interpreter) applyCachedEqualityDispatch(op string, left runtime.Value, right runtime.Value, entry equalityDispatchCacheEntry) (runtime.Value, bool, error) {
+	switch entry.kind {
+	case equalityDispatchCacheNoMethod:
+		return nil, false, nil
+	case equalityDispatchCacheError:
+		return nil, true, entry.err
+	case equalityDispatchCacheMethod:
+		if entry.primitive {
+			return i.applyCachedPrimitiveEquality(op, left, right)
+		}
+		if entry.method == nil {
+			return nil, false, nil
+		}
+		result, err := i.callCallableValue2Mutable(entry.method, unwrapInterfaceValue(left), unwrapInterfaceValue(right), nil, nil)
 		if err != nil {
 			return nil, true, err
 		}
@@ -165,14 +224,32 @@ func (i *Interpreter) applyEqualityInterface(op string, left runtime.Value, righ
 			}
 		}
 		if !ok {
-			return nil, true, fmt.Errorf("comparison '%s' requires bool result from %s.%s", op, dispatch.interfaceName, dispatch.methodName)
+			return nil, true, fmt.Errorf("comparison '%s' requires bool result from %s.%s", op, entry.dispatch.interfaceName, entry.dispatch.methodName)
 		}
 		if op == "!=" {
 			boolVal.Val = !boolVal.Val
 		}
 		return boolVal, true, nil
+	default:
+		return nil, false, nil
 	}
-	return nil, false, nil
+}
+
+func (i *Interpreter) applyCachedPrimitiveEquality(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
+	left = primitiveCanonicalValue(unwrapInterfaceValue(left))
+	right = primitiveCanonicalValue(unwrapInterfaceValue(right))
+	coercedRight, err := i.coerceCanonicalPrimitiveInterfaceArg(left, right)
+	if err != nil {
+		return nil, true, err
+	}
+	equal, err := primitiveEqualCanonicalValues(left, coercedRight)
+	if err != nil {
+		return nil, true, err
+	}
+	if op == "!=" {
+		equal = !equal
+	}
+	return runtime.BoolValue{Val: equal}, true, nil
 }
 
 func orderingName(value runtime.Value) string {

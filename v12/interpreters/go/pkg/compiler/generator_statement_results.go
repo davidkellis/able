@@ -1,6 +1,33 @@
 package compiler
 
-import "fmt"
+import (
+	"fmt"
+
+	"able/interpreter-go/pkg/ast"
+)
+
+func (g *generator) compileDiscardedTailExpression(ctx *compileContext, expr ast.Expression) ([]string, string, string, bool) {
+	if ctx == nil {
+		return nil, "", "", false
+	}
+	switch discarded := expr.(type) {
+	case *ast.IfExpression:
+		lines, compiled := g.compileIfStatement(ctx, discarded)
+		return lines, "", "struct{}", compiled
+	case *ast.MatchExpression:
+		lines, compiled := g.compileMatchStatement(ctx, discarded)
+		return lines, "", "struct{}", compiled
+	case *ast.BlockExpression:
+		lines, compiled := g.compileBlockStatement(ctx, discarded)
+		return lines, "", "struct{}", compiled
+	}
+	previous := ctx.discardResult
+	ctx.discardResult = true
+	defer func() {
+		ctx.discardResult = previous
+	}()
+	return g.compileTailExpression(ctx, "", expr)
+}
 
 func (g *generator) discardStatementResult(ctx *compileContext, lines []string, expr string, exprType string) ([]string, bool) {
 	if g == nil || ctx == nil || expr == "" {

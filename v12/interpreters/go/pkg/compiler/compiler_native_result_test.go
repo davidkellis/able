@@ -258,9 +258,34 @@ fn main() {
   if handled == -1 {
     __able_os_exit(0)
   }
-  __able_os_exit(1)
+	__able_os_exit(1)
 }
 `)
+}
+
+func TestCompilerNilPropagationNonNullableReturnStaysNative(t *testing.T) {
+	result := compileNoFallbackSourceWithCanonicalStdlibPaths(t, strings.Join([]string{
+		"package demo",
+		"",
+		"import able.collections.array",
+		"",
+		"fn main() -> i64 {",
+		"  arr := [1, 2, 3]",
+		"  arr.get(9)! as i64",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if !strings.Contains(body, `__able_raise_return_type_mismatch(nil, "i64", "nil")`) {
+		t.Fatalf("expected incompatible nil propagation to lower as a native return-type mismatch control:\n%s", body)
+	}
+	if strings.Contains(body, "__able_method_call_node(") || strings.Contains(body, "__able_call_value(") {
+		t.Fatalf("expected incompatible nil propagation to stay on the native static path:\n%s", body)
+	}
 }
 
 func TestCompilerResultVoidReturnUsesNativeCarrier(t *testing.T) {

@@ -1,0 +1,33 @@
+{
+  "kind": "able-performance-threshold-reconciliation",
+  "schema_version": 1,
+  "target_max_able_to_go_ratio": 1.0526315789473684,
+  "selection_sha256": "1ad518fdb927dde805960ec549673016f669830d47a4f033e4830d4970bad66f",
+  "canonical_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+  "cohorts": [
+    "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-compiled-frontier-comparison.json",
+    "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-cohort-b-comparison.json"
+  ],
+  "rows": [
+    {
+      "benchmark": "fib",
+      "snapshot_ratio": 1.2104617127749977,
+      "snapshot_status": "miss",
+      "prior_snapshot_status": "meets",
+      "disposition": "removed-from-snapshot-meet-guards",
+      "able_samples": 5,
+      "go_samples": 5
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "cohort_ratios": [
+        1.0498154981549814,
+        1.268090971743625
+      ],
+      "pooled_ratio": 1.1554031528313566,
+      "classification": "variance-sensitive-miss",
+      "able_samples": 10,
+      "go_samples": 10
+    }
+  ]
+}

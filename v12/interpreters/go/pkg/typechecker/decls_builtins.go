@@ -202,6 +202,10 @@ func registerBuiltins(env *Environment) {
 		Params: []Type{charType},
 		Return: i32Type,
 	})
+	env.Define("__able_char_simple_fold_next", FunctionType{
+		Params: []Type{charType},
+		Return: charType,
+	})
 	env.Define("__able_ratio_from_float", FunctionType{
 		Params: []Type{FloatType{Suffix: "f64"}},
 		Return: StructType{StructName: "Ratio"},
@@ -213,6 +217,10 @@ func registerBuiltins(env *Environment) {
 	env.Define("__able_f64_bits", FunctionType{
 		Params: []Type{FloatType{Suffix: "f64"}},
 		Return: IntegerType{Suffix: "u64"},
+	})
+	env.Define("__able_f64_sqrt", FunctionType{
+		Params: []Type{FloatType{Suffix: "f64"}},
+		Return: FloatType{Suffix: "f64"},
 	})
 	env.Define("__able_u64_mul", FunctionType{
 		Params: []Type{IntegerType{Suffix: "u64"}, IntegerType{Suffix: "u64"}},

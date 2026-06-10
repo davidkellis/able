@@ -1,0 +1,62 @@
+package bench_lazy_seq_cache_i32_small
+
+import able.collections.array
+import able.collections.lazy_seq.{LazySeq, lazy_seq_from_array}
+import able.kernel.{Array}
+
+fn build(size: i32) -> Array i32 {
+  values: Array i32 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    values.push(((i * 37) + 23) % 32_749)
+    i = i + 1
+  }
+  values
+}
+
+fn probes() -> Array i32 {
+  [0, 1, 2, 7, 15, 31, 63]
+}
+
+fn value_or_zero(seq: LazySeq i32, index: i32) -> i32 {
+  seq.get(index) match {
+    case nil => 0,
+    case value: i32 => value
+  }
+}
+
+fn score(values: Array i32) -> i64 {
+  seq := lazy_seq_from_array(values)
+  points := probes()
+  total: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= 4 { break }
+    idx := 0
+    loop {
+      if idx >= points.len() { break }
+      probe := points[idx]!
+      total = total + (value_or_zero(seq, probe) as i64)
+      total = total + (value_or_zero(seq, probe) as i64)
+      idx = idx + 1
+    }
+    round = round + 1
+  }
+  seq.tail().head() match {
+    case nil => total,
+    case value: i32 => total + (value as i64)
+  }
+}
+
+fn main() -> void {
+  values := build(128)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 2 { break }
+    total = total + score(values)
+    rounds = rounds + 1
+  }
+  print(total)
+}

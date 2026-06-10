@@ -1,0 +1,41 @@
+File: interpreter.test
+Build ID: c62550f30c94d35a6be7735a4f061281f0754c0a
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_scene_tiles/bytecode_runtime_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_scene_tiles/bytecode_runtime_merged.cpu.pprof
+Duration: 1.09s, Total samples = 1.13s (104.10%)
+
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      1.03s 91.15%  able/interpreter-go/pkg/interpreter.(*GoroutineExecutor).runTask
+         0     0%     0%      1.03s 91.15%  able/interpreter-go/pkg/interpreter.(*Interpreter).runAsyncBytecodeProgram
+         0     0%     0%      1.03s 91.15%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execSpawn.func1
+     0.09s  7.96%  7.96%      1.03s 91.15%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%  7.96%      0.43s 38.05%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+     0.01s  0.88%  8.85%      0.27s 23.89%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallName
+     0.01s  0.88%  9.73%      0.16s 14.16%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+         0     0%  9.73%      0.15s 13.27%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).bytecodeCalleeEnv
+     0.01s  0.88% 10.62%      0.14s 12.39%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMember
+     0.03s  2.65% 13.27%      0.13s 11.50%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishInlineReturn
+         0     0% 13.27%      0.12s 10.62%  runtime.mallocgc
+         0     0% 13.27%      0.11s  9.73%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedCallName
+         0     0% 13.27%      0.11s  9.73%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineCachedCallNameDirectFromStack
+     0.01s  0.88% 14.16%      0.10s  8.85%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineResolvedCallFromStack
+         0     0% 14.16%      0.09s  7.96%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedResolvedMemberCall
+         0     0% 14.16%      0.09s  7.96%  runtime.newobject
+         0     0% 14.16%      0.08s  7.08%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotOpcode
+         0     0% 14.16%      0.08s  7.08%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotStructField
+     0.04s  3.54% 17.70%      0.08s  7.08%  able/interpreter-go/pkg/interpreter.bytecodeNamedStructMemberPlanForInstruction
+
+Three runtime measurements are 351926588, 399444994, and 385212337 ns/op,
+averaging 378861306 ns/op. They average 64543432 B/op and 744133
+allocations/op.
+
+The dispatch trace records 215064 calls. All dominant application calls
+already use generic fast paths: 12288 `record` calls, 24576 `signature`
+calls, and 12284 `sample` calls are inline; only the first four interface
+`sample` calls are generic. The numerous `abs_i64`, `max_i64`, and `min_i64`
+calls are also inline.
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_scene_tiles/bytecode_runtime_merged.cpu.pprof

@@ -262,8 +262,12 @@ func TestBytecodeVM_ArrayReadSlotMemberFastPathReadsMonoU8Handle(t *testing.T) {
 	if mode != "array_read_slot_mono_u8_fast" {
 		t.Fatalf("mono u8 read_slot mode = %q, want array_read_slot_mono_u8_fast", mode)
 	}
-	if !valuesEqual(got, runtime.NewSmallInt(122, runtime.IntegerU8)) {
-		t.Fatalf("mono u8 read_slot value = %#v, want u8 122", got)
+	kind, raw, ok := bytecodeRawIntegerValueInfo(got)
+	if !ok || kind != runtime.IntegerU8 || raw != 122 {
+		t.Fatalf("mono u8 read_slot value = %#v, want raw u8 122", got)
+	}
+	if _, rawCarrier := got.(bytecodeRawU8ResultValue); !rawCarrier {
+		t.Fatalf("mono u8 read_slot value = %T, want raw u8 carrier", got)
 	}
 }
 
@@ -276,12 +280,31 @@ func TestBytecodeVM_CanonicalArraySlotCallCacheFeedsArraySlotOpcode(t *testing.T
 		runtime.StringValue{Val: "one"},
 	}, 0)
 
+	lenInstr := bytecodeInstruction{op: bytecodeOpCallMemberArraySlot, name: "len", argCount: 0}
+	vm.storeCachedCanonicalArraySlotCall(program, 1, lenInstr, arr, bytecodeMemberMethodFastPathArrayLen)
+	vm.arraySlotCallCache = nil
+	vm.ip = 1
+	vm.stack = []runtime.Value{arr}
+	newProg, err := vm.execCallMemberArraySlot(&lenInstr, program)
+	if err != nil {
+		t.Fatalf("execCallMemberArraySlot cached len failed: %v", err)
+	}
+	if newProg != nil {
+		t.Fatalf("expected cached len to stay in current program")
+	}
+	if vm.ip != 2 {
+		t.Fatalf("ip after cached len = %d, want 2", vm.ip)
+	}
+	if kind, raw, ok := bytecodeRawIntegerValueInfo(vm.stack[0]); !ok || kind != runtime.IntegerI32 || raw != 2 {
+		t.Fatalf("cached len result = %#v, want i32 2", vm.stack[0])
+	}
+
 	readInstr := bytecodeInstruction{op: bytecodeOpCallMemberArraySlot, name: "read_slot", argCount: 1}
 	vm.storeCachedCanonicalArraySlotCall(program, 3, readInstr, arr, bytecodeMemberMethodFastPathArrayReadSlot)
 	vm.arraySlotCallCache = nil
 	vm.ip = 3
 	vm.stack = []runtime.Value{arr, runtime.NewSmallInt(1, runtime.IntegerI32)}
-	newProg, err := vm.execCallMemberArraySlot(readInstr, program)
+	newProg, err = vm.execCallMemberArraySlot(&readInstr, program)
 	if err != nil {
 		t.Fatalf("execCallMemberArraySlot cached read_slot failed: %v", err)
 	}
@@ -304,7 +327,7 @@ func TestBytecodeVM_CanonicalArraySlotCallCacheFeedsArraySlotOpcode(t *testing.T
 		runtime.NewSmallInt(0, runtime.IntegerI32),
 		runtime.StringValue{Val: "updated"},
 	}
-	newProg, err = vm.execCallMemberArraySlot(writeInstr, program)
+	newProg, err = vm.execCallMemberArraySlot(&writeInstr, program)
 	if err != nil {
 		t.Fatalf("execCallMemberArraySlot cached write_slot failed: %v", err)
 	}
@@ -327,7 +350,7 @@ func TestBytecodeVM_CanonicalArraySlotCallCacheFeedsArraySlotOpcode(t *testing.T
 	vm.arraySlotCallCache = nil
 	vm.ip = 11
 	vm.stack = []runtime.Value{arr, runtime.StringValue{Val: "tail"}}
-	newProg, err = vm.execCallMemberArraySlot(pushInstr, program)
+	newProg, err = vm.execCallMemberArraySlot(&pushInstr, program)
 	if err != nil {
 		t.Fatalf("execCallMemberArraySlot cached push failed: %v", err)
 	}
@@ -342,6 +365,108 @@ func TestBytecodeVM_CanonicalArraySlotCallCacheFeedsArraySlotOpcode(t *testing.T
 	}
 	if want := (runtime.StringValue{Val: "tail"}); !valuesEqual(state.Values[len(state.Values)-1], want) {
 		t.Fatalf("cached push value = %#v, want %#v", state.Values[len(state.Values)-1], want)
+	}
+}
+
+func TestBytecodeVM_ArraySlotOpcodeUsesMemberCacheWithNonImplRuntimeData(t *testing.T) {
+	runArraySlotOpcodeUsesMemberCacheWithRuntimeData(t, "non-impl", "generator-payload")
+}
+
+func TestBytecodeVM_ArraySlotOpcodeUsesMemberCacheWithImplRuntimeData(t *testing.T) {
+	runArraySlotOpcodeUsesMemberCacheWithRuntimeData(t, "impl", &implMethodContext{
+		implName:      "ArrayExtendImpl",
+		interfaceName: "Extend",
+		target:        ast.Gen(ast.Ty("Array"), ast.Ty("T")),
+		methods:       map[string]runtime.Value{},
+	})
+}
+
+func runArraySlotOpcodeUsesMemberCacheWithRuntimeData(t *testing.T, label string, runtimeData any) {
+	t.Helper()
+
+	interp := NewBytecode()
+	env := runtime.NewEnvironmentWithValueCapacity(interp.GlobalEnvironment(), 0)
+	env.SetRuntimeData(runtimeData)
+	vm := newBytecodeVM(interp, env)
+	program := &bytecodeProgram{
+		instructions: []bytecodeInstruction{
+			{op: bytecodeOpCallMemberArraySlot, name: "push", argCount: 1},
+		},
+	}
+	arr := interp.newArrayValue([]runtime.Value{}, 1)
+	pushDef := ast.Fn(
+		"push",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+			ast.Param("value", ast.Ty("T")),
+		},
+		[]ast.Statement{ast.Nil()},
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	interp.SetNodeOrigins(map[ast.Node]string{
+		pushDef: "/tmp/able/v12/kernel/src/kernel.able",
+	})
+	pushFn := &runtime.FunctionValue{Declaration: pushDef, Closure: env}
+	instr := program.instructions[0]
+
+	if _, ok := vm.storeCachedMemberMethod(
+		program,
+		0,
+		"push",
+		true,
+		arr,
+		runtime.BoundMethodValue{Receiver: arr, Method: pushFn},
+	); !ok {
+		t.Fatalf("expected member-method cache store with %s runtime data", label)
+	}
+	if vm.lookupCachedCanonicalArraySlotCallForArrayValidated(program, 0, bytecodeMemberMethodFastPathArrayPush) {
+		t.Fatalf("canonical array slot cache should be disabled by runtime data")
+	}
+
+	interp.bytecodeStatsEnabled = true
+	interp.ResetBytecodeStats()
+	vm.currentProgram = program
+	vm.ip = 0
+	vm.stack = []runtime.Value{arr, runtime.StringValue{Val: "tail"}}
+	newProg, err := vm.execCallMemberArraySlot(&instr, program)
+	if err != nil {
+		t.Fatalf("execCallMemberArraySlot member-cache push failed: %v", err)
+	}
+	if newProg != nil {
+		t.Fatalf("expected member-cache push to stay in current program")
+	}
+	if vm.ip != 1 {
+		t.Fatalf("ip after member-cache push = %d, want 1", vm.ip)
+	}
+	if _, ok := vm.stack[0].(runtime.VoidValue); !ok {
+		t.Fatalf("member-cache push result = %#v, want void", vm.stack[0])
+	}
+	state, err := interp.ensureArrayState(arr, 0)
+	if err != nil {
+		t.Fatalf("ensure array state after member-cache push: %v", err)
+	}
+	if len(state.Values) != 1 || !valuesEqual(state.Values[0], runtime.StringValue{Val: "tail"}) {
+		t.Fatalf("member-cache push values = %#v, want [tail]", state.Values)
+	}
+	stats := interp.BytecodeStats()
+	if stats.ArrayMemberSlotLookups != 1 || stats.ArrayMemberSlotFastHits != 1 || stats.ArrayMemberSlotFallbacks != 0 {
+		t.Fatalf("array slot member-cache stats = lookups %d fast %d fallbacks %d, want 1/1/0",
+			stats.ArrayMemberSlotLookups,
+			stats.ArrayMemberSlotFastHits,
+			stats.ArrayMemberSlotFallbacks,
+		)
+	}
+	if stats.ArrayMemberSlotPushLookups != 1 || stats.ArrayMemberSlotLenLookups != 0 || stats.ArrayMemberSlotReadLookups != 0 || stats.ArrayMemberSlotWriteLookups != 0 {
+		t.Fatalf("array member slot lookup kinds = len %d read %d write %d push %d, want only one push", stats.ArrayMemberSlotLenLookups, stats.ArrayMemberSlotReadLookups, stats.ArrayMemberSlotWriteLookups, stats.ArrayMemberSlotPushLookups)
+	}
+	interp.ResetBytecodeStats()
+	stats = interp.BytecodeStats()
+	if stats.ArrayMemberSlotLookups != 0 || stats.ArrayMemberSlotPushLookups != 0 {
+		t.Fatalf("reset array member slot lookups = total %d push %d, want 0/0", stats.ArrayMemberSlotLookups, stats.ArrayMemberSlotPushLookups)
 	}
 }
 
@@ -360,9 +485,19 @@ func TestBytecodeVM_CanonicalArraySlotDirectCacheInvalidates(t *testing.T) {
 		t.Fatalf("expected direct canonical array-slot cache hit after hot/map caches are cleared")
 	}
 
+	childEnv := runtime.NewEnvironment(env)
+	childEnv.Define("child_marker", runtime.NewSmallInt(9, runtime.IntegerI32))
+	childVM := newBytecodeVM(interp, childEnv)
+	childVM.arraySlotCallCache = vm.arraySlotCallCache
+	childVM.arraySlotCallDirect = vm.arraySlotCallDirect
+	childVM.arraySlotCallHot = vm.arraySlotCallHot
+	if !childVM.lookupCachedCanonicalArraySlotCallForArray(program, 3, bytecodeMemberMethodFastPathArrayReadSlot) {
+		t.Fatalf("expected child lexical env to reuse canonical array-slot cache")
+	}
+
 	env.Define("marker", runtime.NewSmallInt(1, runtime.IntegerI32))
 	if vm.lookupCachedCanonicalArraySlotCallForArray(program, 3, bytecodeMemberMethodFastPathArrayReadSlot) {
-		t.Fatalf("expected env revision change to invalidate direct canonical array-slot cache")
+		t.Fatalf("expected global env revision change to invalidate direct canonical array-slot cache")
 	}
 
 	vm.storeCachedCanonicalArraySlotCall(program, 3, instr, arr, bytecodeMemberMethodFastPathArrayReadSlot)
@@ -381,9 +516,14 @@ func TestBytecodeVM_CanonicalArraySlotDirectCacheInvalidates(t *testing.T) {
 		t.Fatalf("expected combined read/write direct canonical array-slot cache hit")
 	}
 
-	env.Define("marker_after_combined", runtime.NewSmallInt(2, runtime.IntegerI32))
-	if vm.lookupCachedCanonicalArraySlotCallForArray(program, 5, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
-		t.Fatalf("expected env revision change to invalidate combined direct canonical array-slot cache")
+	combinedChildEnv := runtime.NewEnvironment(env)
+	combinedChildEnv.Define("marker_after_combined", runtime.NewSmallInt(2, runtime.IntegerI32))
+	combinedChildVM := newBytecodeVM(interp, combinedChildEnv)
+	combinedChildVM.arraySlotCallCache = vm.arraySlotCallCache
+	combinedChildVM.arraySlotCallDirect = vm.arraySlotCallDirect
+	combinedChildVM.arraySlotCallHot = vm.arraySlotCallHot
+	if !combinedChildVM.lookupCachedCanonicalArraySlotCallForArray(program, 5, bytecodeMemberMethodFastPathArrayReadWriteSlot) {
+		t.Fatalf("expected child lexical env to reuse combined direct canonical array-slot cache")
 	}
 }
 
@@ -391,6 +531,7 @@ func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
 	safeRead := ast.Member(ast.ID("maybe_arr"), "read_slot")
 	safeRead.Safe = true
 	module := ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("arr"), "len")),
 		ast.CallExpr(ast.Member(ast.ID("arr"), "read_slot"), ast.Int(0)),
 		ast.CallExpr(ast.Member(ast.ID("arr"), "write_slot"), ast.Int(0), ast.Int(1)),
 		ast.CallExpr(ast.Member(ast.ID("arr"), "push"), ast.Int(2)),
@@ -405,7 +546,7 @@ func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
 	var slotCalls int
 	var safeRegularCalls int
 	for _, instr := range program.instructions {
-		if instr.name != "read_slot" && instr.name != "write_slot" && instr.name != "push" {
+		if instr.name != "len" && instr.name != "read_slot" && instr.name != "write_slot" && instr.name != "push" {
 			continue
 		}
 		switch instr.op {
@@ -420,8 +561,8 @@ func TestBytecodeVM_LoweringEmitsArraySlotCallMemberOpcode(t *testing.T) {
 			}
 		}
 	}
-	if slotCalls != 3 {
-		t.Fatalf("array slot opcode count = %d, want 3", slotCalls)
+	if slotCalls != 4 {
+		t.Fatalf("array slot opcode count = %d, want 4", slotCalls)
 	}
 	if safeRegularCalls != 1 {
 		t.Fatalf("safe regular read_slot call count = %d, want 1", safeRegularCalls)
@@ -445,7 +586,7 @@ func TestBytecodeVM_ArrayPushFastPathSkipsAdjacentPop(t *testing.T) {
 	vm.currentProgram = program
 	vm.ip = 0
 	vm.stack = []runtime.Value{arr, runtime.StringValue{Val: "tail"}}
-	newProg, err := vm.execCallMemberArraySlot(instr, program)
+	newProg, err := vm.execCallMemberArraySlot(&instr, program)
 	if err != nil {
 		t.Fatalf("execCallMemberArraySlot push fast path failed: %v", err)
 	}
@@ -507,6 +648,9 @@ func TestBytecodeVM_LoweringKeepsI32RegisterFrameForArraySlotReadWrite(t *testin
 	for _, instr := range program.instructions {
 		if instr.op == bytecodeOpCallMemberArraySlot && instr.name == "write_slot" && instr.argCount == 2 {
 			sawWriteSlot = true
+			if instr.memberFastPath != bytecodeMemberMethodFastPathArrayWriteSlot {
+				t.Fatalf("write_slot member fast path = %v, want ArrayWriteSlot", instr.memberFastPath)
+			}
 		}
 		if instr.op == bytecodeOpCallMember && instr.name == "write_slot" {
 			t.Fatalf("expected canonical write_slot helper to avoid generic call-member opcode")

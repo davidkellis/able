@@ -1,0 +1,54 @@
+File: compiled
+Build ID: fdee98027b840eba7fc76a87f018acc637a5786a
+Type: alloc_space
+Time: 2026-07-28 09:43:19 CDT
+Showing nodes accounting for 23648.81kB, 99.20% of 23838.84kB total
+Dropped 88 nodes (cum <= 119.19kB)
+      flat  flat%   sum%        cum   cum%
+   12672kB 53.16% 53.16%    12864kB 53.96%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+ 3621.41kB 15.19% 68.35%  3621.41kB 15.19%  runtime/pprof.allFrames
+ 2112.06kB  8.86% 77.21%  2112.11kB  8.86%  main.__able_nullable_i64_from_value
+ 1715.53kB  7.20% 84.40%  2945.13kB 12.35%  runtime/pprof.(*profileBuilder).emitLocation
+ 1339.45kB  5.62% 90.02%  1339.45kB  5.62%  able/interpreter-go/pkg/runtime.(*HashMapValue).AppendEntry (inline)
+     648kB  2.72% 92.74%  1171.88kB  4.92%  compress/flate.NewWriter (inline)
+  320.19kB  1.34% 94.08%   320.23kB  1.34%  able/interpreter-go/pkg/runtime.HashMapStoreNew (inline)
+     320kB  1.34% 95.43%   523.88kB  2.20%  compress/flate.(*compressor).init
+     288kB  1.21% 96.63%  7200.66kB 30.21%  runtime/pprof.writeHeapInternal
+  219.56kB  0.92% 97.56%  6912.66kB 29.00%  runtime/pprof.writeHeapProto
+     200kB  0.84% 98.39%      200kB  0.84%  compress/flate.newDeflateFast (inline)
+     192kB  0.81% 99.20%      192kB  0.81%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64.func1
+    0.50kB 0.0021% 99.20%  6568.51kB 27.55%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.05kB 0.0002% 99.20% 16637.76kB 69.79%  main.__able_compiled_fn_main_ctx
+    0.02kB 9.8e-05% 99.20%  7201.04kB 30.21%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 9.8e-05% 99.20% 16637.80kB 69.79%  main.RunRegisteredMain
+    0.02kB 6.6e-05% 99.20%  2045.13kB  8.58%  main.__able_compiled_fn_build_inventory_ctx
+         0     0% 99.20%  7201.04kB 30.21%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.20%  7201.04kB 30.21%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.20%   320.23kB  1.34%  able/interpreter-go/pkg/runtime.HashMapStoreNewWithCapacity (inline)
+         0     0% 99.20%  1178.62kB  4.94%  compress/gzip.(*Writer).Write
+         0     0% 99.20% 16637.78kB 69.79%  main.RunRegisteredMain.func1
+         0     0% 99.20% 14336.11kB 60.14%  main.__able_compiled_fn_apply_updates_ctx
+         0     0% 99.20%      256kB  1.07%  main.__able_compiled_fn_inventory_checksum_ctx
+         0     0% 99.20%  8448.11kB 35.44%  main.__able_compiled_fn_lookup_ctx
+         0     0% 99.20% 16637.78kB 69.79%  main.__able_compiled_fn_main
+         0     0% 99.20%  8448.11kB 35.44%  main.__able_compiled_impl_Map_get_0_spec_ctx
+         0     0% 99.20%  8448.11kB 35.44%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0% 99.20%  7868.79kB 33.01%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0% 99.20%  7868.79kB 33.01%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0% 99.20%   320.33kB  1.34%  main.__able_compiled_method_HashMap_with_capacity_spec_ctx_into
+         0     0% 99.20%  1340.79kB  5.62%  main.__able_hash_map_set_ctx (inline)
+         0     0% 99.20%  1340.79kB  5.62%  main.__able_hash_map_set_impl
+         0     0% 99.20%   320.28kB  1.34%  main.__able_hash_map_with_capacity_ctx (inline)
+         0     0% 99.20%   320.28kB  1.34%  main.__able_hash_map_with_capacity_impl
+         0     0% 99.20%  8448.11kB 35.44%  main.__able_iface_Map_i64_i64_adapter_ptr_HashMap_i64_i64.__able_ctx_get
+         0     0% 99.20% 16637.78kB 69.79%  main.__able_register_compiled_call.func1
+         0     0% 99.20% 16637.78kB 69.79%  main.__able_wrap_fn_main
+         0     0% 99.20% 23838.84kB   100%  main.main
+         0     0% 99.20% 23838.84kB   100%  main.runMain
+         0     0% 99.20%  7201.04kB 30.21%  main.startMainProfilePhase (inline)
+         0     0% 99.20% 23838.84kB   100%  runtime.main
+         0     0% 99.20%  7200.66kB 30.21%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.20%  1178.62kB  4.94%  runtime/pprof.(*profileBuilder).flush
+         0     0% 99.20%  7200.66kB 30.21%  runtime/pprof.writeAlloc
+         0     0% 99.20%      192kB  0.81%  sync.(*Once).Do (inline)
+         0     0% 99.20%      192kB  0.81%  sync.(*Once).doSlow

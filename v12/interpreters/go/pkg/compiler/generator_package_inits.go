@@ -57,6 +57,7 @@ func (g *generator) isModuleInitStatement(pkgName string, stmt ast.Statement) bo
 		*ast.ExternFunctionBody,
 		*ast.PreludeStatement,
 		*ast.ImportStatement,
+		*ast.ExportStatement,
 		*ast.DynImportStatement,
 		*ast.PackageStatement:
 		return false

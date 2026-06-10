@@ -56,8 +56,10 @@ func collectSearchPaths(base string, opts searchPathOptions, extra ...driver.Sea
 		add(base, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 
-	if cwd, err := os.Getwd(); err == nil {
-		add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
+	if !sourceRootOnlySearchPaths() {
+		if cwd, err := os.Getwd(); err == nil {
+			add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
+		}
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
@@ -82,6 +84,19 @@ func collectSearchPaths(base string, opts searchPathOptions, extra ...driver.Sea
 	}
 
 	return paths
+}
+
+// sourceRootOnlySearchPaths lets a caller execute an explicit entry while its
+// process working directory is purely an input-data directory. It keeps the
+// entry root and explicit module paths, but prevents unrelated CWD sources
+// from becoming a second user module root.
+func sourceRootOnlySearchPaths() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ABLE_SOURCE_ROOT_ONLY"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func finalizeSearchPaths(searchPaths []driver.SearchPath, manifestBased bool) ([]driver.SearchPath, error) {

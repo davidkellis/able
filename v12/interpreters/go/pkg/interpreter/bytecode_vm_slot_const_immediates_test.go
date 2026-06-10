@@ -55,6 +55,47 @@ func TestBytecodeVM_SlotConstImmediateCacheBuildsAndRefreshes(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_SlotConstImmediateTableUsesDirectCache(t *testing.T) {
+	vm := &bytecodeVM{}
+	firstProgram := &bytecodeProgram{instructions: []bytecodeInstruction{{
+		op:              bytecodeOpBinaryIntLessEqualSlotConst,
+		intImmediate:    runtime.NewSmallInt(3, runtime.IntegerI32),
+		hasIntImmediate: true,
+	}}}
+	secondProgram := &bytecodeProgram{instructions: []bytecodeInstruction{{
+		op:              bytecodeOpBinaryIntAddSlotConst,
+		intImmediate:    runtime.NewSmallInt(4, runtime.IntegerI32),
+		hasIntImmediate: true,
+	}}}
+
+	first := vm.slotConstImmediateTable(firstProgram)
+	second := vm.slotConstImmediateTable(secondProgram)
+	if first == nil || second == nil {
+		t.Fatalf("expected immediate tables")
+	}
+	delete(vm.slotConstIntImm, firstProgram)
+
+	got := vm.slotConstImmediateTable(firstProgram)
+	if got != first {
+		t.Fatalf("expected direct cache to preserve first immediate table after backing map removal")
+	}
+	if !slotConstImmediateDirectCacheContains(vm, firstProgram) || !slotConstImmediateDirectCacheContains(vm, secondProgram) {
+		t.Fatalf("expected direct cache to retain both warmed programs")
+	}
+}
+
+func slotConstImmediateDirectCacheContains(vm *bytecodeVM, program *bytecodeProgram) bool {
+	if vm == nil || program == nil {
+		return false
+	}
+	for _, entry := range vm.slotConstIntImmDirect {
+		if entry.program == program {
+			return true
+		}
+	}
+	return false
+}
+
 func TestBytecodeVM_BoxedSmallIntValueCache(t *testing.T) {
 	first, ok := bytecodeBoxedSmallIntValue(runtime.IntegerI32, 12)
 	if !ok {
@@ -144,20 +185,43 @@ func TestBytecodeVM_BoxedIntegerI32ValueExtendedStaticCache(t *testing.T) {
 	}
 }
 
-func TestBytecodeVM_BoxedIntegerI32ValueDynamicCache(t *testing.T) {
+func TestBytecodeVM_BoxedIntegerI32ValueBeyondExtendedRangeStaysAllocationFree(t *testing.T) {
 	value := bytecodeI32ExtendedBoxMax + 1
 	first := bytecodeBoxedIntegerI32Value(value)
 	second := bytecodeBoxedIntegerI32Value(value)
 	if first != second {
-		t.Fatalf("expected stable boxed value for direct i32 dynamic cache lookup")
+		t.Fatalf("expected stable boxed value for direct i32 boxing beyond extended range")
 	}
 	allocs := testing.AllocsPerRun(1000, func() {
 		if got := bytecodeBoxedIntegerI32Value(value); got != first {
-			t.Fatalf("expected cached direct i32 boxed value")
+			t.Fatalf("expected stable direct i32 boxed value")
 		}
 	})
 	if allocs != 0 {
-		t.Fatalf("expected zero allocations for cached direct i32 boxed value, got %.2f", allocs)
+		t.Fatalf("expected zero allocations for direct i32 boxed value, got %.2f", allocs)
+	}
+}
+
+func TestBytecodeVM_BoxedIntegerI64ValueBypassesDynamicCache(t *testing.T) {
+	value := bytecodeSmallIntBoxMax + 100000
+	bytecodeIntBoxDynamicMu.Lock()
+	bytecodeDynamicBoxedI64 = nil
+	bytecodeIntBoxDynamicMu.Unlock()
+	first, ok := bytecodeBoxedIntegerValue(runtime.IntegerI64, value)
+	if !ok {
+		t.Fatalf("expected boxed i64 value")
+	}
+	second, ok := bytecodeBoxedIntegerValue(runtime.IntegerI64, value)
+	if !ok {
+		t.Fatalf("expected boxed i64 value on second lookup")
+	}
+	if first != second {
+		t.Fatalf("expected stable direct boxed i64 value")
+	}
+	bytecodeIntBoxDynamicMu.RLock()
+	defer bytecodeIntBoxDynamicMu.RUnlock()
+	if bytecodeDynamicBoxedI64 != nil {
+		t.Fatalf("expected large i64 boxing to bypass dynamic cache population")
 	}
 }
 

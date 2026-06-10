@@ -1,0 +1,107 @@
+{
+  "generated_at": "2026-07-22T11:44:22.229460Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/manifest_normalization/manifest_normalization.able",
+  "run_from": "/home/david/sync/projects/benchmarks/manifest-normalization",
+  "runs": 5,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [
+    "manifests.txt"
+  ],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": null,
+  "results": [
+    {
+      "mode": "bytecode",
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 1.706,
+      "avg_user_seconds": 1.624,
+      "avg_sys_seconds": 0.066,
+      "avg_gc": 11.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 1.83,
+          "user_seconds": 1.72,
+          "sys_seconds": 0.08,
+          "gc_count": 11.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 1.67,
+          "user_seconds": 1.62,
+          "sys_seconds": 0.05,
+          "gc_count": 11.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 1.81,
+          "user_seconds": 1.67,
+          "sys_seconds": 0.1,
+          "gc_count": 11.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 1.53,
+          "user_seconds": 1.48,
+          "sys_seconds": 0.05,
+          "gc_count": 11.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 1.69,
+          "user_seconds": 1.63,
+          "sys_seconds": 0.05,
+          "gc_count": 11.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/manifest-normalization/verify.rb",
+        "verified_runs": 5,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        ]
+      }
+    }
+  ]
+}

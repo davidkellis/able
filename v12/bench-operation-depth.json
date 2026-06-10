@@ -1,0 +1,379 @@
+{
+  "kind": "able-performance-operation-depth",
+  "schema_version": 1,
+  "unlike_workload_threshold": 3,
+  "operations": [
+    {
+      "id": "recursive_user_function_calls",
+      "feature_family": "control_flow",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "fib", "workload": "numeric_recursion", "source_markers": ["fn fib(n: i32)", "fib(n - 1)"]},
+        {"benchmark": "binarytrees", "workload": "tree_construction", "source_markers": ["fn make_tree(depth: i32)", "make_tree(depth - 1)"]},
+        {"benchmark": "quicksort", "workload": "array_sort", "source_markers": ["fn quicksort(arr: Array i32", "quicksort(arr, lo, j)"]},
+        {"benchmark": "sudoku_masks", "workload": "constraint_search", "source_markers": ["fn solve_with_masks(", "solved = solve_with_masks("]}
+      ],
+      "local_fixtures": [],
+      "frontier_groups": ["compiled-sudoku-quotient", "compiled-target-guards"],
+      "rationale": "Direct recursion has four unlike application shapes, but current profiles split them into different generated bodies rather than one shared compiler leaf."
+    },
+    {
+      "id": "primitive_array_read_write",
+      "feature_family": "expressions_arrays_text_files",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "matrixmultiply", "workload": "matrix_kernel", "source_markers": ["ci.push(b.get(j)!.get(i)!)", "di.push(s)"]},
+        {"benchmark": "quicksort", "workload": "array_sort", "source_markers": ["arr.read_slot(a)", "arr.write_slot(a"]},
+        {"benchmark": "sudoku_masks", "workload": "constraint_search", "source_markers": ["row_masks.set(row", "row_masks.get(row)!"]},
+        {"benchmark": "binary_event_log", "workload": "binary_record_decode", "source_markers": ["bytes.read_slot(payload_start + index)", "buckets.write_slot(bucket"]},
+        {"benchmark": "backup_dedup", "workload": "content_defined_chunking", "source_markers": ["bytes.read_slot(index)", "current := bytes.read_slot(index) as i64"]},
+        {"benchmark": "discrete_event_simulation", "workload": "array_backed_event_heap", "source_markers": ["self.items.get(position)!", "self.items.write_slot(position, parent_value)"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "shared_numeric_stencil", "source_markers": ["current := values.read_slot(slot)", "counts.write_slot(score.bucket"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "interface_selected_numeric_windows", "source_markers": ["current := values.read_slot(slot)", "counts.write_slot(score.bucket"]},
+        {"benchmark": "concurrent_transform_chain", "workload": "callable_transformed_numeric_windows", "source_markers": ["current := values.read_slot(slot)", "transform := transforms.read_slot("]},
+        {"benchmark": "concurrent_packet_codecs", "workload": "immutable_fixed_width_packet_streams", "source_markers": ["bytes.get(cursor.offset)!", "bytes.push(actual_count as u8)!"]}
+      ],
+      "local_fixtures": [],
+      "frontier_groups": ["compiled-current-control", "compiled-sudoku-quotient", "compiled-target-guards"],
+      "rationale": "Primitive Array access is broad, while retained and rejected carrier/capacity work already closes the known common parents."
+    },
+    {
+      "id": "primitive_float_arithmetic",
+      "feature_family": "types_nominals_generics_unions",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "distance_field", "workload": "geometry_recurrence", "source_markers": ["math.hypot(dx, dy)", "x = x * 1.000000119"]},
+        {"benchmark": "mandelbrot", "workload": "fractal_render", "source_markers": ["y as f64", "x as f64"]},
+        {"benchmark": "nbody", "workload": "particle_simulation", "source_markers": ["math.sqrt(d_squared)", "fn advance("]}
+      ],
+      "local_fixtures": [],
+      "frontier_groups": ["compiled-float-numeric", "bytecode-float-numeric"],
+      "rationale": "Float work reaches three unlike programs, but typed-lane and scalar-carrier candidates have already failed broad wall-time guards."
+    },
+    {
+      "id": "nominal_construction_and_field_access",
+      "feature_family": "types_nominals_generics_unions",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "binarytrees", "workload": "tree_construction", "source_markers": ["struct Node", "Node {"]},
+        {"benchmark": "k_nucleotide", "workload": "sequence_counting", "source_markers": ["struct CountEntry", "CountEntry { key, count }"]},
+        {"benchmark": "mutex_ledger", "workload": "shared_ledger", "source_markers": ["struct Ledger", "ledger.total ="]},
+        {"benchmark": "option_result_config", "workload": "configuration_resolution", "source_markers": ["struct ConfigError", "ConfigError { code"]},
+        {"benchmark": "binary_event_log", "workload": "binary_record_decode", "source_markers": ["struct EventRecord", "EventRecord { timestamp"]},
+        {"benchmark": "backup_dedup", "workload": "chunk_and_tally_records", "source_markers": ["struct Chunk", "Chunk { signature, length: chunk_length }"]},
+        {"benchmark": "discrete_event_simulation", "workload": "generic_scheduled_event_storage", "source_markers": ["struct EventQueue T", "struct Scheduled T"]},
+        {"benchmark": "sensor_calibration", "workload": "measurement_calibration", "source_markers": ["struct SensorReading", "SensorReading { sensor"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "numeric_window_tasks", "source_markers": ["struct WindowTask", "WindowScore {"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "interface_selected_signal_tasks", "source_markers": ["struct SignalTask", "SignalScore {"]},
+        {"benchmark": "concurrent_graph_visitors", "workload": "immutable_graph_traversal_states", "source_markers": ["struct GraphNode", "struct VisitState"]},
+        {"benchmark": "concurrent_tree_folds", "workload": "flat_complete_tree_fold_states", "source_markers": ["struct TreeNode", "struct FoldState"]},
+        {"benchmark": "concurrent_audio_voices", "workload": "fixed_point_phase_and_mix_accumulators", "source_markers": ["struct PhaseState", "struct MixState"]},
+        {"benchmark": "concurrent_packet_codecs", "workload": "packet_cursor_and_statistics_states", "source_markers": ["struct CursorState", "struct PacketStats"]},
+        {"benchmark": "concurrent_scene_tiles", "workload": "fixed_point_scene_points_and_accumulators", "source_markers": ["struct Point", "struct TileState"]},
+        {"benchmark": "concurrent_state_machines", "workload": "immutable_automaton_states", "source_markers": ["struct MachineState", "MachineState {"]}
+      ],
+      "local_fixtures": ["fixtures/exec/04_05_04_struct_literal_generic_inference"],
+      "frontier_groups": ["compiled-target-guards", "compiled-text-map", "compiled-concurrency", "compiled-iterator-control"],
+      "rationale": "Nominal values are independently broad; current construction, returned-result, and allocation candidates do not expose one remaining shared leaf."
+    },
+    {
+      "id": "wide_numeric_nominal_methods",
+      "feature_family": "types_nominals_generics_unions",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "fixed_width_128", "workload": "checked_wide_integer", "source_markers": ["UInt128.new(", "value.add(delta)"]},
+        {"benchmark": "rational_series", "workload": "rational_arithmetic", "source_markers": ["Rational.new(", "left.add(right).mul(left).div(half)"]},
+        {"benchmark": "wide_integer_records", "workload": "decimal_record_audit", "source_markers": ["fn parse_unsigned(text: String)", "fn parse_signed(text: String)", "unsigned_value.rem(unsigned_modulus)"]}
+      ],
+      "local_fixtures": [],
+      "frontier_groups": ["compiled-wide-numeric", "bytecode-wide-numeric"],
+      "rationale": "Wide numeric behavior now spans checked modular arithmetic, rational normalization, and signed/unsigned decimal record parsing; any candidate still must be primitive-wide or use the shared nominal pipeline rather than naming a nominal type."
+    },
+    {
+      "id": "higher_order_closure_callbacks",
+      "feature_family": "functions_closures_callables",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "document_audit", "workload": "text_pipeline", "source_markers": [".filter({ line =>", ".reduce<i64>(0_i64, { acc, value =>"]},
+        {"benchmark": "option_result_config", "workload": "configuration_resolution", "source_markers": [".or_else({ =>", ".and_then<i32>({ capacity =>"]},
+        {"benchmark": "await_channel_mux", "workload": "channel_selection", "source_markers": ["left.await_receive({ value =>", "Await.default({ =>"]},
+        {"benchmark": "binary_event_log", "workload": "captured_record_scoring", "source_markers": ["scorer := { record, current =>", "scorer(current, sequence)"]},
+        {"benchmark": "concurrent_transform_chain", "workload": "captured_callable_array", "source_markers": ["fn make_transforms(", "transformed = transform("]},
+        {"benchmark": "concurrent_policy_callbacks", "workload": "interface_crossing_captured_callback", "source_markers": ["fn make_adjusters(", "selected.evaluate(task.record, task, adjust)"]},
+        {"benchmark": "concurrent_stateful_pipeline", "workload": "ordered_stage_state_reducer", "source_markers": ["fn make_reducer(", "stage.apply(state, frame, reduce)"]},
+        {"benchmark": "concurrent_graph_visitors", "workload": "interface_crossing_graph_scorer", "source_markers": ["fn make_scorer(", "visitor.inspect(node, state, item.depth, lane, score)"]},
+        {"benchmark": "concurrent_tree_folds", "workload": "captured_tree_weight_and_prune_callbacks", "source_markers": ["fn make_weight(", "fn make_pruner("]},
+        {"benchmark": "concurrent_audio_voices", "workload": "captured_attack_decay_envelopes", "source_markers": ["fn make_envelope(", "envelope(sample_index, phase.phase, lane)"]},
+        {"benchmark": "concurrent_packet_codecs", "workload": "interface_crossing_packet_validators", "source_markers": ["fn make_validator(", "validate(value, field_index, lane)"]},
+        {"benchmark": "concurrent_scene_tiles", "workload": "captured_fixed_point_shading_callbacks", "source_markers": ["fn make_shader(", "shader(point, distance, lane)"]},
+        {"benchmark": "concurrent_state_machines", "workload": "independent_automaton_adjusters", "source_markers": ["fn make_adjuster(", "handler.apply(state, signal, adjust)"]}
+      ],
+      "local_fixtures": ["fixtures/exec/07_05_partial_application", "fixtures/exec/07_06_shorthand_member_placeholder_lambdas"],
+      "frontier_groups": ["compiled-iterator-control", "compiled-concurrency", "bytecode-iterator-control", "bytecode-concurrency"],
+      "rationale": "Closure syntax is broad; Concurrent Transform Chain adds captured functions selected from an Array, Concurrent Policy Callbacks passes the selected captured function through a user-defined interface boundary inside worker hot loops, and Concurrent Stateful Pipeline threads explicit state through reducers in three ordered stages. Partial-call, iterator callback, and await callback implementations remain distinct beneath the family label."
+    },
+    {
+      "id": "pattern_and_union_matching",
+      "feature_family": "lexical_blocks_bindings_patterns",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "binarytrees", "workload": "tree_traversal", "source_markers": ["node.left match", "case left: Node"]},
+        {"benchmark": "dependency_plan", "workload": "graph_scheduling", "source_markers": ["ready.dequeue() match", "case service: i32"]},
+        {"benchmark": "base64", "workload": "codec_validation", "source_markers": ["base64.decode_bytes(value) match", "case err: Error"]},
+        {"benchmark": "binary_event_log", "workload": "map_result_matching", "source_markers": ["counts.raw_get(key) match", "case value: i64"]},
+        {"benchmark": "backup_dedup", "workload": "chunk_signature_lookup", "source_markers": ["counts.raw_get(key) match", "case count: i64"]},
+        {"benchmark": "sensor_calibration", "workload": "validated_measurement_matching", "source_markers": ["parse_reading(lines.read_slot(index)) match", "case reading: SensorReading"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "channel_task_matching", "source_markers": ["jobs.receive() match", "case task: WindowTask"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "signal_task_matching", "source_markers": ["jobs.receive() match", "case task: SignalTask"]},
+        {"benchmark": "concurrent_graph_visitors", "workload": "queue_visit_matching", "source_markers": ["pending.dequeue() match", "case item: VisitItem"]}
+      ],
+      "local_fixtures": ["fixtures/exec/05_02_array_nested_patterns"],
+      "frontier_groups": ["compiled-target-guards", "compiled-iterator-control", "bytecode-byte-output", "bytecode-iterator-control"],
+      "rationale": "Match semantics occur in unlike programs, but nullable, nominal, Error, and queue-result matches have different residual owners."
+    },
+    {
+      "id": "inherent_nominal_method_calls",
+      "feature_family": "inherent_methods",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "fixed_width_128", "workload": "checked_wide_integer", "source_markers": ["value.add(delta)", "sum.sub(modulus)"]},
+        {"benchmark": "rational_series", "workload": "rational_arithmetic", "source_markers": ["left.add(right).mul(left).div(half)"]},
+        {"benchmark": "regex_suffix_audit", "workload": "regex_construction", "source_markers": [".alternate(RegexBuilder.literal", ".one_or_more()"]},
+        {"benchmark": "backup_dedup", "workload": "chunk_key_and_score_methods", "source_markers": ["methods Chunk", "chunk.score(tally.total_chunks"]},
+        {"benchmark": "discrete_event_simulation", "workload": "generic_event_queue_methods", "source_markers": ["methods EventQueue T", "queue.push(Scheduled {"]},
+        {"benchmark": "sensor_calibration", "workload": "measurement_calibration", "source_markers": ["reading.accepted()", "reading.calibrated(sequence, salt)"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "window_checksum", "source_markers": ["methods WindowScore", "score.checksum()"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "signal_checksum", "source_markers": ["methods SignalScore", "score.checksum()"]},
+        {"benchmark": "concurrent_graph_visitors", "workload": "graph_node_and_state_methods", "source_markers": ["methods GraphNode", "state.record(node, adjusted, accepted, depth, lane)"]},
+        {"benchmark": "concurrent_tree_folds", "workload": "tree_node_and_fold_state_methods", "source_markers": ["methods TreeNode", "state.record(node, value, pruned_node, lane)"]},
+        {"benchmark": "concurrent_audio_voices", "workload": "phase_advance_and_mix_state_methods", "source_markers": ["methods PhaseState", "state.record(phase, sample, index_i64, lane)"]},
+        {"benchmark": "concurrent_packet_codecs", "workload": "cursor_advance_and_packet_statistics_methods", "source_markers": ["methods CursorState", "stats.record(step, index_i64, lane)"]},
+        {"benchmark": "concurrent_scene_tiles", "workload": "point_signature_and_tile_state_methods", "source_markers": ["methods Point", "state.record(point, sample, lane)"]},
+        {"benchmark": "concurrent_state_machines", "workload": "immutable_state_transition", "source_markers": ["methods MachineState", "state.advance(signal, delta, accepted)"]}
+      ],
+      "local_fixtures": ["fixtures/exec/09_04_methods_ufcs_basics"],
+      "frontier_groups": ["compiled-wide-numeric", "bytecode-wide-numeric", "compiled-regex", "bytecode-regex"],
+      "rationale": "Method invocation is broad only at the language-operation level; these nominal implementations do not justify a shared type-specific fast path."
+    },
+    {
+      "id": "interface_typed_protocol_calls",
+      "feature_family": "interfaces_implementations_dispatch",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "word_frequency", "workload": "hash_aggregation", "source_markers": ["fn lookup(counts: Map String i32", "counts.get(word) match"]},
+        {"benchmark": "document_audit", "workload": "text_pipeline", "source_markers": ["import able.collections.enumerable", ".filter({ line =>"]},
+        {"benchmark": "option_result_config", "workload": "configuration_resolution", "source_markers": ["impl Error for ConfigError", "fn config_error(code: i32) -> Error"]},
+        {"benchmark": "binary_event_log", "workload": "decode_error_dispatch", "source_markers": ["impl Error for EventDecodeError", "fn event_error(code: i32) -> Error"]},
+        {"benchmark": "sensor_calibration", "workload": "calibration_error_dispatch", "source_markers": ["impl Error for CalibrationError", "fn calibration_error(code: i32) -> Error"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "worker_selected_kernel_dispatch", "source_markers": ["interface SignalKernel", "selected.evaluate(values, task)"]},
+        {"benchmark": "concurrent_policy_callbacks", "workload": "worker_selected_policy_callback_dispatch", "source_markers": ["interface DecisionPolicy", "selected.evaluate(task.record, task, adjust)"]},
+        {"benchmark": "concurrent_stateful_pipeline", "workload": "stateful_stage_callback_dispatch", "source_markers": ["interface StatefulStage", "stage.apply(state, frame, reduce)"]},
+        {"benchmark": "concurrent_graph_visitors", "workload": "graph_visitor_callback_dispatch", "source_markers": ["interface GraphVisitor", "visitor.inspect(node, state, item.depth, lane, score)"]},
+        {"benchmark": "concurrent_tree_folds", "workload": "tree_algebra_callback_dispatch", "source_markers": ["interface FoldAlgebra", "algebra.combine(node, left, right, state, lane, weight, prune)"]},
+        {"benchmark": "concurrent_audio_voices", "workload": "oscillator_dispatch_with_envelope_callback", "source_markers": ["interface Oscillator", "oscillator.emit(phase, index_i64, lane, envelope)"]},
+        {"benchmark": "concurrent_packet_codecs", "workload": "packet_codec_dispatch_with_validator_callback", "source_markers": ["interface PacketCodec", "codec.decode(bytes, cursor, index_i64, lane, validate)"]},
+        {"benchmark": "concurrent_scene_tiles", "workload": "distance_field_dispatch_with_shader_callback", "source_markers": ["interface DistanceField", "field.sample(point, lane, shader)"]},
+        {"benchmark": "concurrent_state_machines", "workload": "automaton_handler_callback_dispatch", "source_markers": ["interface StateHandler", "handler.apply(state, signal, adjust)"]}
+      ],
+      "local_fixtures": ["fixtures/exec/10_03_interface_type_dynamic_dispatch"],
+      "frontier_groups": ["compiled-text-map", "compiled-iterator-control", "bytecode-text-map", "bytecode-iterator-control"],
+      "rationale": "Interface-typed calls span map, Enumerable, Error, numeric-kernel, nominal-policy, and ordered-stage application contexts. Concurrent Policy Callbacks makes a first-class callback an explicit argument of a worker-selected interface method, while Concurrent Stateful Pipeline passes a state-carrying reducer through three interface-typed components without introducing a type-specific lowering rule."
+    },
+    {
+      "id": "option_result_error_flow",
+      "feature_family": "option_result_exceptions",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "base64", "workload": "codec_validation", "source_markers": ["case err: Error", "raise err"]},
+        {"benchmark": "json", "workload": "json_decoding", "source_markers": ["case means: Array f64", "case err: Error"]},
+        {"benchmark": "option_result_config", "workload": "configuration_resolution", "source_markers": ["fn validate_capacity(capacity: i32) -> Result i32", ".ok_or_else({ =>"]},
+        {"benchmark": "binary_event_log", "workload": "record_validation", "source_markers": [") -> Result EventRecord", "resolved.map<i64>({ current =>"]},
+        {"benchmark": "backup_dedup", "workload": "nullable_chunk_count", "source_markers": ["counts.raw_get(key) match", "case nil => 0_i64"]},
+        {"benchmark": "sensor_calibration", "workload": "measurement_validation", "source_markers": ["fn parse_reading(line: String) -> Result SensorReading", "case _: Error"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "closed_channel_option", "source_markers": ["jobs.receive() match", "case nil"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "closed_signal_channel_option", "source_markers": ["jobs.receive() match", "case nil"]}
+      ],
+      "local_fixtures": ["fixtures/exec/11_02_option_result_propagation", "fixtures/exec/11_03_rescue_ensure"],
+      "frontier_groups": ["compiled-target-guards", "compiled-iterator-control", "bytecode-target-guards", "bytecode-byte-output", "bytecode-iterator-control"],
+      "rationale": "Portable success/error unions are broad; exception timing remains local and the three applications delegate to different codec/configuration work."
+    },
+    {
+      "id": "spawn_future_lifecycle",
+      "feature_family": "concurrency",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "binarytrees", "workload": "parallel_tree_batches", "source_markers": ["handles.push(spawn", ".value()!"]},
+        {"benchmark": "future_pipeline", "workload": "producer_worker_pipeline", "source_markers": ["cancelled := spawn", "cancelled.status() match"]},
+        {"benchmark": "mutex_ledger", "workload": "shared_ledger", "source_markers": ["first := spawn", "first.value()!"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "numeric_worker_futures", "source_markers": ["first := spawn { work(values, jobs, results) }", "first.value()! as i64"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "interface_worker_futures", "source_markers": ["first := spawn { work(values, jobs, results) }", "first.value()! as i64"]},
+        {"benchmark": "concurrent_stateful_pipeline", "workload": "ordered_stage_futures", "source_markers": ["first := spawn { run_stage(", "first_state := first.value()!"]},
+        {"benchmark": "concurrent_graph_visitors", "workload": "independent_graph_traversal_futures", "source_markers": ["first := spawn { traverse(", "first_report := first.value()!"]},
+        {"benchmark": "concurrent_tree_folds", "workload": "independent_tree_fold_futures", "source_markers": ["first := spawn { fold_tree(", "first_report := first.value()!"]},
+        {"benchmark": "concurrent_audio_voices", "workload": "independent_fixed_point_voice_futures", "source_markers": ["first := spawn {", "first_report := first.value()!"]},
+        {"benchmark": "concurrent_packet_codecs", "workload": "independent_packet_decoder_futures", "source_markers": ["first := spawn {", "first_report := first.value()!"]},
+        {"benchmark": "concurrent_scene_tiles", "workload": "independent_scene_tile_futures", "source_markers": ["first := spawn {", "first_report := first.value()!"]},
+        {"benchmark": "concurrent_state_machines", "workload": "independent_automaton_futures", "source_markers": ["first := spawn { run_machine(", "first_report := first.value()!"]}
+      ],
+      "local_fixtures": ["fixtures/exec/12_02_future_fairness_cancellation"],
+      "frontier_groups": ["compiled-target-guards", "compiled-concurrency", "bytecode-concurrency"],
+      "rationale": "Future lifecycle work is broad; retained lazy environment state removed its shared allocation wall and residual synchronization paths diverge."
+    },
+    {
+      "id": "channel_send_receive",
+      "feature_family": "concurrency",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "channel_rollup", "workload": "stream_filter", "source_markers": ["source.send(", "source.receive() match"]},
+        {"benchmark": "future_pipeline", "workload": "producer_worker_pipeline", "source_markers": ["jobs.send(index)", "jobs.receive() match"]},
+        {"benchmark": "await_channel_mux", "workload": "channel_selection", "source_markers": ["left.send(", "left.await_receive("]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "numeric_task_channels", "source_markers": ["jobs.send(WindowTask", "results.send(score_window(values, task))"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "interface_task_channels", "source_markers": ["jobs.send(SignalTask", "results.send(evaluate_task(values, task))"]}
+      ],
+      "local_fixtures": [],
+      "frontier_groups": ["compiled-concurrency", "bytecode-concurrency"],
+      "rationale": "Channel traffic has three unlike coordination shapes, but current profiles close shared environment and identity candidates and leave API-specific owners."
+    },
+    {
+      "id": "mutex_locking_and_ensure",
+      "feature_family": "concurrency",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "mutex_ledger", "workload": "shared_ledger", "source_markers": ["with_lock(mutex", "Mutex.new()"]},
+        {"benchmark": "mutex_await_journal", "workload": "awaited_journal", "source_markers": ["mutex.await_lock(", "} ensure {"]},
+        {"benchmark": "mutex_work_queue", "workload": "dynamic_work_queue", "source_markers": ["claim_job(queue, mutex", "commit_job(queue, mutex", "mutex.await_lock("]}
+      ],
+      "local_fixtures": ["fixtures/exec/12_06_await_fairness_cancellation"],
+      "frontier_groups": ["compiled-concurrency", "bytecode-concurrency"],
+      "rationale": "Three unlike portable applications now exercise fixed worker updates, awaited journal commits, and dynamic claim/commit locking; cancellation and scheduler policy remain focused local guards."
+    },
+    {
+      "id": "iterator_protocol_advancement",
+      "feature_family": "stdlib_protocols_regex",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "unicode_scalar_pipeline", "workload": "unicode_scalar_transform", "source_markers": ["iter.next() match", "IteratorEnd"]},
+        {"benchmark": "document_audit", "workload": "text_pipeline", "source_markers": [".filter({ line =>", ".map<i64>({ line =>"]},
+        {"benchmark": "k_nucleotide", "workload": "sequence_counting", "source_markers": ["for target in target_sequences()", "counts.raw_for_each(fn("]}
+      ],
+      "local_fixtures": ["fixtures/exec/14_01_language_interfaces_index_apply_iterable"],
+      "frontier_groups": ["compiled-text-map", "compiled-iterator-control", "bytecode-text-map", "bytecode-iterator-control"],
+      "rationale": "Iterator/protocol use is broad, while explicit scalar iteration, Enumerable callbacks, and HashMap traversal retain different exact descendants."
+    },
+    {
+      "id": "hash_map_lookup_and_update",
+      "feature_family": "stdlib_protocols_regex",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "k_nucleotide", "workload": "sequence_counting", "source_markers": ["HashMap.with_capacity(1024)", "counts.raw_get(key) match"]},
+        {"benchmark": "word_frequency", "workload": "word_aggregation", "source_markers": ["HashMap.with_capacity(1024)", "counts.set(word, next)"]},
+        {"benchmark": "inventory_reconciliation", "workload": "inventory_updates", "source_markers": ["HashMap.with_capacity(ITEM_COUNT)", "inventory.get(key) match", "inventory.set(key, updated)"]},
+        {"benchmark": "binary_event_log", "workload": "source_aggregation", "source_markers": ["HashMap.with_capacity(32)", "source_counts.raw_set(record.source"]},
+        {"benchmark": "backup_dedup", "workload": "chunk_signature_deduplication", "source_markers": ["HashMap.with_capacity(4_096)", "counts.raw_set(key, occurrence)"]}
+      ],
+      "local_fixtures": [],
+      "frontier_groups": ["compiled-text-map", "bytecode-text-map"],
+      "rationale": "A numeric-key reconciliation workload supplies the third unlike consumer and distinguishes generic map storage/protocol work from UTF-8 conversion."
+    },
+    {
+      "id": "regex_nfa_matching",
+      "feature_family": "stdlib_protocols_regex",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "regex_suffix_audit", "workload": "regex_audit", "source_markers": ["regex.match(word) match", "RegexBuilder.start_anchor()"]},
+        {"benchmark": "regex_set_audit", "workload": "regex_audit", "source_markers": ["RegexSet.compile(", "set.matches(word)"]},
+        {"benchmark": "regex_stream_audit", "workload": "regex_audit", "source_markers": ["Regex.compile_with_options(", "scanner.feed("]},
+        {"benchmark": "log_routing_redaction", "workload": "log_routing_and_privacy_redaction", "source_markers": ["routes.matches(line)", "regex.replace(text", "token=[TOKEN]"]},
+        {"benchmark": "config_validation_extraction", "workload": "deployment_configuration_validation", "source_markers": ["schema.match(line) match", "found.groups.read_slot(index)", "region.is_match("]}
+      ],
+      "local_fixtures": ["fixtures/exec/14_25_regex_builder_program"],
+      "frontier_groups": ["compiled-regex", "bytecode-regex"],
+      "rationale": "Regex API audits, log routing/privacy redaction, and deployment configuration validation/extraction provide three unlike workload families; any new regex candidate must now be material across all three and survive unrelated guards."
+    },
+    {
+      "id": "static_import_and_package_initialization",
+      "feature_family": "packages_modules_imports",
+      "coverage_kind": "portable",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "base64", "workload": "codec_validation", "source_markers": ["import able.crypto.md5", "import able.encoding.base64"]},
+        {"benchmark": "dependency_plan", "workload": "graph_scheduling", "source_markers": ["import able.collections.queue", "import able.kernel"]},
+        {"benchmark": "future_pipeline", "workload": "producer_worker_pipeline", "source_markers": ["import able.kernel.{Channel}"]},
+        {"benchmark": "binary_event_log", "workload": "binary_file_decode", "source_markers": ["import able.fs", "import able.kernel.{Array, HashMap}"]},
+        {"benchmark": "backup_dedup", "workload": "backup_chunking_imports", "source_markers": ["import able.fs", "import able.kernel.{Array, HashMap}"]},
+        {"benchmark": "discrete_event_simulation", "workload": "event_queue_imports", "source_markers": ["import able.collections.array", "import able.kernel.{Array}"]},
+        {"benchmark": "sensor_calibration", "workload": "measurement_file_transform", "source_markers": ["import able.fs", "import able.io"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "numeric_file_workers", "source_markers": ["import able.fs", "import able.kernel.{Array, Channel}"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "interface_numeric_file_workers", "source_markers": ["import able.fs", "import able.kernel.{Array, Channel}"]}
+      ],
+      "local_fixtures": [],
+      "frontier_groups": ["compiled-byte-output", "compiled-iterator-control", "compiled-concurrency", "bytecode-byte-output", "bytecode-iterator-control", "bytecode-concurrency"],
+      "rationale": "Static package loading spans unlike applications, but current AOT and VM ownership evidence has no shared actionable initialization descendant."
+    },
+    {
+      "id": "program_arguments_and_file_io",
+      "feature_family": "program_entry",
+      "coverage_kind": "mixed",
+      "breadth_status": "sufficient",
+      "portable_evidence": [
+        {"benchmark": "document_audit", "workload": "source_audit", "source_markers": ["args := os.args()", "fs.read_lines(path)"]},
+        {"benchmark": "reverse_complement", "workload": "sequence_transform", "source_markers": ["args := os.args()", "fs.read_bytes(path)"]},
+        {"benchmark": "word_frequency", "workload": "word_aggregation", "source_markers": ["args := os.args()", "fs.read_lines(path)"]},
+        {"benchmark": "binary_event_log", "workload": "binary_file_decode", "source_markers": ["args := os.args()", "fs.read_bytes(path)"]},
+        {"benchmark": "backup_dedup", "workload": "backup_corpus_input", "source_markers": ["args := os.args()", "fs.read_bytes(path)"]},
+        {"benchmark": "sensor_calibration", "workload": "measurement_file_transform", "source_markers": ["args := os.args()", "fs.read_lines_prefix(path, RECORD_LIMIT)"]},
+        {"benchmark": "concurrent_stencil_reduction", "workload": "numeric_file_reduction", "source_markers": ["args := os.args()", "fs.read_lines_prefix(path, VALUE_LIMIT)"]},
+        {"benchmark": "concurrent_signal_dispatch", "workload": "interface_numeric_file_reduction", "source_markers": ["args := os.args()", "fs.read_lines_prefix(path, VALUE_LIMIT)"]}
+      ],
+      "local_fixtures": ["fixtures/exec/15_02_entry_args_signature"],
+      "frontier_groups": ["compiled-byte-output", "compiled-text-map", "compiled-iterator-control", "bytecode-byte-output", "bytecode-text-map", "bytecode-iterator-control"],
+      "rationale": "Real entry and file paths are broad, but byte transforms, line aggregation, and callback pipelines have different residual owners."
+    },
+    {
+      "id": "dynamic_package_evaluation",
+      "feature_family": "dynamic_metaprogramming",
+      "coverage_kind": "local_only",
+      "breadth_status": "local_only",
+      "portable_evidence": [],
+      "local_fixtures": ["fixtures/exec/06_10_dynamic_metaprogramming_package_object", "fixtures/exec/13_05_dynimport_interface_dispatch"],
+      "frontier_groups": [],
+      "rationale": "Dynamic Able package/eval behavior has no honest like-for-like Go, Python, and Ruby application contract."
+    },
+    {
+      "id": "user_authored_host_interop",
+      "feature_family": "host_interop",
+      "coverage_kind": "local_only",
+      "breadth_status": "local_only",
+      "portable_evidence": [],
+      "local_fixtures": ["fixtures/exec/16_01_host_interop_inline_extern"],
+      "frontier_groups": [],
+      "rationale": "User-authored target-language bodies are target-specific and remain semantic boundary guards rather than portable timing rows."
+    },
+    {
+      "id": "test_reporter_lifecycle",
+      "feature_family": "testing_framework",
+      "coverage_kind": "local_only",
+      "breadth_status": "local_only",
+      "portable_evidence": [],
+      "local_fixtures": ["fixtures/exec/06_12_26_stdlib_test_harness_reporters"],
+      "frontier_groups": [],
+      "rationale": "The testing framework validates applications but is not itself a comparable application-runtime workload."
+    }
+  ]
+}

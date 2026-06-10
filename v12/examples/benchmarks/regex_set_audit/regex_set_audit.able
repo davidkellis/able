@@ -1,0 +1,54 @@
+package regex_set_audit
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.kernel.{Array}
+import able.os
+import able.text.regex.{RegexSet}
+
+fn audit_patterns() -> Array String {
+  patterns: Array String := Array.with_capacity(4)
+  patterns.push("^[a-m]+ing$")
+  patterns.push("^[n-z]+ing$")
+  patterns.push("^[a-z]+tion$")
+  patterns.push("^[a-z]+ment$")
+  patterns
+}
+
+fn audit_word_limit(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" { return 128 }
+  512
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "wordlist.txt" }
+  words := fs.read_lines_prefix(path, audit_word_limit(args))
+  set := RegexSet.compile(audit_patterns()) match {
+    case compiled: RegexSet => compiled,
+    case err: Error => { raise err }
+  }
+  rounds := 0
+  classified: i64 = 0_i64
+  checksum: i64 = 0_i64
+  loop {
+    if rounds >= 4 { break }
+    word_idx := 0
+    loop {
+      if word_idx >= words.len() { break }
+      word := words.read_slot(word_idx)
+      matches := set.matches(word)
+      match_idx := 0
+      loop {
+        if match_idx >= matches.len() { break }
+        pattern_index := matches.read_slot(match_idx)
+        classified = classified + 1_i64
+        checksum = checksum + ((word.len_bytes() as i64) * 19_i64) + (((pattern_index as i64) + 1_i64) * 7_i64)
+        match_idx = match_idx + 1
+      }
+      word_idx = word_idx + 1
+    }
+    rounds = rounds + 1
+  }
+  print(`${(words.len() as i64) * 4_i64}:${classified}:${checksum}`)
+}

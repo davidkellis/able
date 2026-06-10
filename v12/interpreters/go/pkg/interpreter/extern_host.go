@@ -1,3 +1,5 @@
+//go:build !(js && wasm)
+
 package interpreter
 
 import (
@@ -7,6 +9,7 @@ import (
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/driver"
 	"able/interpreter-go/pkg/runtime"
 )
 
@@ -15,7 +18,7 @@ type externTargetState struct {
 	externs    []*ast.ExternFunctionBody
 	externByID map[string]int
 	cachedHash string
-	hashSalt   string
+	hashScope  string
 	hashValid  bool
 }
 
@@ -25,15 +28,16 @@ type externHostPackage struct {
 }
 
 type externHostModule struct {
-	hash     string
-	plugin   *plugin.Plugin
-	symbols  map[string]reflect.Value
-	invokers map[string]externHostInvoker
+	hash            string
+	plugin          *plugin.Plugin
+	symbols         map[string]reflect.Value
+	invokers        map[string]externHostInvoker
+	imagePackageKey string
 }
 
 type externHostInvoker func(i *Interpreter, args []runtime.Value) (runtime.Value, error)
 
-const externCacheVersion = "v2"
+const externCacheVersion = "v4"
 
 func (i *Interpreter) isKernelExtern(name string) bool {
 	return strings.HasPrefix(name, "__able_")
@@ -67,8 +71,10 @@ func (i *Interpreter) registerExternStatements(module *ast.Module) {
 				continue
 			}
 			state := ensureExternTarget(pkg, s.Target)
-			state.preludes = append(state.preludes, s.Code)
-			state.hashValid = false
+			if !externTargetHasPrelude(state, s.Code) {
+				state.preludes = append(state.preludes, s.Code)
+				state.hashValid = false
+			}
 		case *ast.ExternFunctionBody:
 			if s == nil || s.Signature == nil || s.Signature.ID == nil {
 				continue
@@ -87,6 +93,18 @@ func (i *Interpreter) registerExternStatements(module *ast.Module) {
 			state.hashValid = false
 		}
 	}
+}
+
+func externTargetHasPrelude(state *externTargetState, code string) bool {
+	if state == nil {
+		return false
+	}
+	for _, existing := range state.preludes {
+		if existing == code {
+			return true
+		}
+	}
+	return false
 }
 
 func ensureExternTarget(pkg *externHostPackage, target ast.HostTarget) *externTargetState {
@@ -165,7 +183,7 @@ func (i *Interpreter) invokeExternHostFunction(pkgName string, def *ast.ExternFu
 }
 
 func (i *Interpreter) ensureExternHostModule(pkgName string, target ast.HostTarget, state *externTargetState, pkg *externHostPackage) (*externHostModule, error) {
-	hash := cachedExternStateHash(target, state, i.externSession)
+	hash := cachedExternStateHash(target, state, externHostCacheScope())
 	if existing := pkg.modules[target]; existing != nil && existing.hash == hash && existing.plugin != nil {
 		return existing, nil
 	}
@@ -175,4 +193,43 @@ func (i *Interpreter) ensureExternHostModule(pkgName string, target ast.HostTarg
 	}
 	pkg.modules[target] = module
 	return module, nil
+}
+
+// ExternHostPrewarmResult reports the Go extern host images compiled by
+// PrewarmExternHostModules. A complete program normally produces one image.
+type ExternHostPrewarmResult struct {
+	Modules int
+}
+
+// PrewarmExternHostModules compiles Go extern host modules registered by a
+// loaded program without evaluating its declarations or invoking host code.
+// It is intended for installation and image-build cache warmup paths.
+func (i *Interpreter) PrewarmExternHostModules(program *driver.Program) (ExternHostPrewarmResult, error) {
+	if i == nil {
+		return ExternHostPrewarmResult{}, fmt.Errorf("interpreter: nil extern prewarm receiver")
+	}
+	if program == nil {
+		return ExternHostPrewarmResult{}, fmt.Errorf("interpreter: nil extern prewarm program")
+	}
+
+	modules, err := i.prepareExternHostImageForProgram(program)
+	if err != nil {
+		return ExternHostPrewarmResult{}, fmt.Errorf("prewarm Go extern image: %w", err)
+	}
+	return ExternHostPrewarmResult{Modules: modules}, nil
+}
+
+func hasPrewarmableGoExtern(i *Interpreter, state *externTargetState) bool {
+	if state == nil {
+		return false
+	}
+	for _, extern := range state.externs {
+		if extern == nil || extern.Signature == nil || extern.Signature.ID == nil {
+			continue
+		}
+		if !i.isKernelExtern(extern.Signature.ID.Name) {
+			return true
+		}
+	}
+	return false
 }

@@ -24,7 +24,8 @@ func (g *generator) finishNativeCallableCall(ctx *compileContext, lines []string
 	lines = append(lines, fmt.Sprintf("if %s == nil {", callableTemp))
 	lines = append(lines, fmt.Sprintf("\t%s = %s", controlTemp, g.runtimeErrorControlExpr(callNodeExpr, `fmt.Errorf("missing callable value")`)))
 	lines = append(lines, "} else {")
-	lines = append(lines, fmt.Sprintf("\t%s, %s = %s(%s)", resultTemp, controlTemp, callableTemp, strings.Join(argExprs, ", ")))
+	callArgs := g.nativeCallableInvokeArgs(ctx, argExprs)
+	lines = append(lines, fmt.Sprintf("\t%s, %s = %s(%s)", resultTemp, controlTemp, callableTemp, strings.Join(callArgs, ", ")))
 	lines = append(lines, "}")
 	controlLines, ok := g.compiledControlCheckWithCallFrameLines(ctx, controlTemp, callNodeExpr)
 	if !ok {

@@ -1,0 +1,20 @@
+package bench_bigint_add_mul_small
+
+import able.numbers.bigint.{BigInt}
+
+fn main() -> void {
+  acc := BigInt.zero()
+  left := BigInt.from_u64(123_456_789_u64)
+  right := BigInt.from_u64(987_654_321_u64)
+  step_left := BigInt.from_i64(97_i64)
+  step_right := BigInt.from_i64(31_i64)
+  i := 0
+  loop {
+    if i >= 400 { break }
+    acc = acc.add(left.mul(right))
+    left = left.add(step_left)
+    right = right.add(step_right)
+    i = i + 1
+  }
+  print(acc.to_string())
+}

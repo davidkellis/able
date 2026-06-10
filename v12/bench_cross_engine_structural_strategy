@@ -1,0 +1,574 @@
+#!/usr/bin/env python3
+"""Reconcile the remaining cross-engine structural performance strategies."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import subprocess
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-cross-engine-structural-strategy.json"
+CHECKED_JSON = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json"
+)
+CHECKED_MARKDOWN = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.md"
+)
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def resolve_source(record: Any, label: str) -> Path:
+    if not isinstance(record, dict):
+        raise ValueError(f"{label} source must be an object")
+    raw_path = record.get("path")
+    expected = record.get("sha256")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"{label} source needs a path")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ValueError(f"{label} source needs a SHA-256 fingerprint")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except FileNotFoundError:
+        raise ValueError(f"{label} source not found: {path}") from None
+    if actual != expected:
+        raise ValueError(
+            f"{label} source fingerprint drifted: expected {expected}, got {actual}"
+        )
+    return path
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def require_number(value: Any, label: str) -> float:
+    if not isinstance(value, (int, float)) or value < 0:
+        raise ValueError(f"{label} must be a non-negative number")
+    return float(value)
+
+
+def indexed_rows(rows: Any, label: str) -> dict[str, dict[str, Any]]:
+    if not isinstance(rows, list):
+        raise ValueError(f"{label} must be an array")
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError(f"{label} contains a non-object row")
+        benchmark = row.get("benchmark")
+        if not isinstance(benchmark, str) or not benchmark:
+            raise ValueError(f"{label} row needs a benchmark")
+        if benchmark in result:
+            raise ValueError(f"{label} repeats benchmark {benchmark}")
+        result[benchmark] = row
+    return result
+
+
+def reduction_percent(current_excess: float, modeled_excess: float) -> float:
+    if current_excess <= 0:
+        return 0.0
+    return round(100.0 * (current_excess - modeled_excess) / current_excess, 6)
+
+
+def evaluate_closure_ledger() -> dict[str, Any]:
+    command = SCRIPT_DIR / "bench_performance_evidence_ledger"
+    result = subprocess.run(
+        [str(command)],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise ValueError(f"closure ledger evaluation failed: {detail}")
+    try:
+        value = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"closure ledger emitted invalid JSON: {error}") from None
+    summary = value.get("summary") if isinstance(value, dict) else None
+    if not isinstance(summary, dict):
+        raise ValueError("closure ledger evaluation needs a summary")
+    return summary
+
+
+def validate_evidence(evidence: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if evidence.get("kind") != "able-cross-engine-structural-strategy-evidence":
+        raise ValueError("structural-strategy evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("structural-strategy evidence needs schema_version 1")
+    admission = evidence.get("admission")
+    if not isinstance(admission, dict):
+        raise ValueError("structural-strategy evidence needs admission rules")
+    apps = evidence.get("governing_applications")
+    if not isinstance(apps, list):
+        raise ValueError("structural-strategy evidence needs governing applications")
+    benchmarks: set[str] = set()
+    families: set[str] = set()
+    for app in apps:
+        if not isinstance(app, dict):
+            raise ValueError("governing application must be an object")
+        benchmark = app.get("benchmark")
+        family = app.get("family")
+        if not isinstance(benchmark, str) or not isinstance(family, str):
+            raise ValueError("governing application needs benchmark and family")
+        if benchmark in benchmarks or family in families:
+            raise ValueError("governing applications must have unique benchmarks and families")
+        benchmarks.add(benchmark)
+        families.add(family)
+    minimum = int(require_number(admission.get("minimum_unlike_families"), "minimum families"))
+    if len(families) < minimum:
+        raise ValueError("governing applications do not meet the unlike-family minimum")
+    return apps, admission
+
+
+def typed_specialization_rows(
+    apps: list[dict[str, Any]], native: dict[str, Any], threshold: float
+) -> list[dict[str, Any]]:
+    proof_by_name = indexed_rows(native.get("scalar_proof_gap_census"), "proof census")
+    proxy_by_name = indexed_rows(native.get("native_proxy_rows"), "native proxy rows")
+    result = []
+    for app in apps:
+        benchmark = app["benchmark"]
+        proof = proof_by_name.get(benchmark)
+        proxy = proxy_by_name.get(benchmark)
+        if proof is None or proxy is None:
+            raise ValueError(f"missing typed-specialization evidence for {benchmark}")
+        dynamic = require_number(proof.get("dynamic_instructions"), f"{benchmark} dynamic")
+        proof_rows = proof.get("proof_rows")
+        if not isinstance(proof_rows, list) or not proof_rows:
+            raise ValueError(f"{benchmark} needs proof rows")
+        proved = sum(
+            require_number(row.get("dynamic_instructions"), f"{benchmark} proof count")
+            for row in proof_rows
+        )
+        share = proved / dynamic
+        if share > 1:
+            raise ValueError(f"{benchmark} proof counts exceed dynamic instructions")
+        current_seconds = require_number(proxy.get("bytecode_seconds"), f"{benchmark} bytecode")
+        target = require_number(proxy.get("target_budget_seconds"), f"{benchmark} target")
+        current_excess = require_number(
+            proxy.get("current_target_excess_seconds"), f"{benchmark} excess"
+        )
+        modeled_seconds = current_seconds * (1.0 - share)
+        modeled_excess = max(0.0, modeled_seconds - target)
+        reduction = reduction_percent(current_excess, modeled_excess)
+        result.append(
+            {
+                "benchmark": benchmark,
+                "family": app["family"],
+                "proved_instruction_share_percent": round(100.0 * share, 6),
+                "current_seconds": current_seconds,
+                "modeled_seconds": round(modeled_seconds, 9),
+                "current_target_excess_seconds": current_excess,
+                "modeled_target_excess_seconds": round(modeled_excess, 9),
+                "target_excess_reduction_percent": reduction,
+                "passes_materiality_gate": reduction >= threshold,
+            }
+        )
+    return result
+
+
+def portable_backend_rows(
+    apps: list[dict[str, Any]], native: dict[str, Any], threshold: float
+) -> list[dict[str, Any]]:
+    proxy_by_name = indexed_rows(native.get("native_proxy_rows"), "native proxy rows")
+    result = []
+    for app in apps:
+        benchmark = app["benchmark"]
+        proxy = proxy_by_name.get(benchmark)
+        if proxy is None:
+            raise ValueError(f"missing portable-backend proxy evidence for {benchmark}")
+        current_excess = require_number(
+            proxy.get("current_target_excess_seconds"), f"{benchmark} excess"
+        )
+        modeled_excess = require_number(
+            proxy.get("compiled_proxy_target_excess_seconds"), f"{benchmark} proxy excess"
+        )
+        reduction = reduction_percent(current_excess, modeled_excess)
+        result.append(
+            {
+                "benchmark": benchmark,
+                "family": app["family"],
+                "phase_one_governing": app.get("phase_one_portable_backend") is True,
+                "current_seconds": require_number(
+                    proxy.get("bytecode_seconds"), f"{benchmark} bytecode"
+                ),
+                "modeled_seconds": require_number(
+                    proxy.get("compiled_native_proxy_seconds"), f"{benchmark} proxy"
+                ),
+                "target_budget_seconds": require_number(
+                    proxy.get("target_budget_seconds"), f"{benchmark} target"
+                ),
+                "current_target_excess_seconds": current_excess,
+                "modeled_target_excess_seconds": modeled_excess,
+                "target_excess_reduction_percent": reduction,
+                "passes_materiality_gate": reduction >= threshold,
+            }
+        )
+    return result
+
+
+def compiled_route_summary(
+    compiled: dict[str, Any], boundary: dict[str, Any], minimum: int
+) -> dict[str, Any]:
+    mechanisms = compiled.get("mechanisms")
+    if not isinstance(mechanisms, list):
+        raise ValueError("compiled budget needs mechanisms")
+    rows = []
+    for mechanism in mechanisms:
+        breadth = int(
+            require_number(
+                mechanism.get("material_unlike_family_count"), "compiled mechanism breadth"
+            )
+        )
+        rows.append(
+            {
+                "id": mechanism.get("id"),
+                "material_unlike_family_count": breadth,
+                "eligible": mechanism.get("eligible") is True,
+                "disposition": mechanism.get("disposition"),
+            }
+        )
+    profile_gate = boundary.get("profile_gate")
+    if not isinstance(profile_gate, list):
+        raise ValueError("compiled boundary census needs a profile gate")
+    return {
+        "mechanisms": rows,
+        "maximum_material_unlike_family_count": max(
+            (row["material_unlike_family_count"] for row in rows), default=0
+        ),
+        "eligible_mechanism_count": sum(row["eligible"] for row in rows),
+        "typed_boundary_intersection_application_count": len(profile_gate),
+        "typed_boundary_profile_dispositions": [
+            {"benchmark": row.get("benchmark"), "disposition": row.get("disposition")}
+            for row in profile_gate
+        ],
+        "passes_breadth_gate": any(
+            row["eligible"] and row["material_unlike_family_count"] >= minimum
+            for row in rows
+        ),
+    }
+
+
+def build_report(evidence_path: Path) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "structural-strategy evidence")
+    apps, admission = validate_evidence(evidence)
+    sources = evidence.get("sources")
+    if not isinstance(sources, dict):
+        raise ValueError("structural-strategy evidence needs sources")
+    paths = {
+        label: resolve_source(sources.get(key), label)
+        for key, label in (
+            ("frontier", "frontier"),
+            ("native_tier_budget", "native tier budget"),
+            ("compiled_budget", "compiled budget"),
+            ("compiled_boundary_census", "compiled boundary census"),
+            ("closure_ledger", "closure ledger"),
+        )
+    }
+    frontier = load_json(paths["frontier"], "frontier")
+    native = load_json(paths["native tier budget"], "native tier budget")
+    compiled = load_json(paths["compiled budget"], "compiled budget")
+    boundary = load_json(paths["compiled boundary census"], "compiled boundary census")
+    if frontier.get("kind") != "able-performance-frontier":
+        raise ValueError("frontier has an invalid kind")
+    if native.get("kind") != "able-bytecode-native-hot-tier-design-budget":
+        raise ValueError("native tier budget has an invalid kind")
+    if compiled.get("kind") != "able-compiled-architecture-budget":
+        raise ValueError("compiled budget has an invalid kind")
+    if boundary.get("kind") != "compiled-full-typed-semantic-boundary-census":
+        raise ValueError("compiled boundary census has an invalid kind")
+    threshold = require_number(
+        admission.get("minimum_target_excess_reduction_percent"), "materiality threshold"
+    )
+    minimum = int(require_number(admission.get("minimum_unlike_families"), "minimum families"))
+    typed_rows = typed_specialization_rows(apps, native, threshold)
+    portable_rows = portable_backend_rows(apps, native, threshold)
+    phase_one = [row for row in portable_rows if row["phase_one_governing"]]
+    typed_passes = sum(row["passes_materiality_gate"] for row in typed_rows)
+    portable_passes = sum(row["passes_materiality_gate"] for row in portable_rows)
+    phase_one_passes = sum(row["passes_materiality_gate"] for row in phase_one)
+    compiled_summary = compiled_route_summary(compiled, boundary, minimum)
+    closure_summary = evaluate_closure_ledger()
+    if closure_summary.get("invalidated_count") != 0:
+        raise ValueError("structural reconciliation requires zero invalidated closures")
+    frontier_summary = frontier.get("summary")
+    if not isinstance(frontier_summary, dict):
+        raise ValueError("frontier needs a summary")
+    routes = evidence.get("routes")
+    if not isinstance(routes, list) or len(routes) != 3:
+        raise ValueError("structural-strategy evidence needs exactly three routes")
+    route_by_id = {route.get("id"): route for route in routes if isinstance(route, dict)}
+    portable_config = route_by_id.get("portable-lower-level-vm-backend")
+    if not isinstance(portable_config, dict):
+        raise ValueError("portable backend route is missing")
+    performance_capable = len(phase_one) >= minimum and phase_one_passes == len(phase_one)
+    concrete = isinstance(portable_config.get("concrete_mechanism"), str)
+    prototype_admitted = performance_capable and concrete
+    guard_names = {"json", "pidigits"}
+    proxy_rows = indexed_rows(native.get("native_proxy_rows"), "native proxy rows")
+    guards = []
+    for name in sorted(guard_names):
+        row = proxy_rows.get(name)
+        if row is None:
+            raise ValueError(f"missing target guard {name}")
+        guards.append(
+            {
+                "benchmark": name,
+                "current_target_excess_seconds": require_number(
+                    row.get("current_target_excess_seconds"), f"{name} excess"
+                ),
+                "proxy_reaches_target": row.get("compiled_proxy_reaches_target") is True,
+                "required_strategy": "exact-ordinary-vm-fallback-until-profitable",
+            }
+        )
+    return {
+        "kind": "able-cross-engine-structural-strategy-reconciliation",
+        "schema_version": 1,
+        "sources": {"evidence": source_record(evidence_path)}
+        | {label.replace(" ", "_"): source_record(path) for label, path in paths.items()},
+        "summary": {
+            "decision": "portable-backend-performance-capable-but-no-concrete-mechanism",
+            "prototype_admitted": prototype_admitted,
+            "performance_capable_route_count": 1 if performance_capable else 0,
+            "concrete_admitted_route_count": 1 if prototype_admitted else 0,
+            "selected_rows": frontier_summary.get("selected_rows"),
+            "target_misses": frontier_summary.get("target_misses"),
+            "total_target_excess_seconds": frontier_summary.get("total_excess_seconds"),
+            "bytecode_target_excess_seconds": native.get("summary", {}).get(
+                "current_target_excess_seconds"
+            ),
+            "closure_count": closure_summary.get("closure_count"),
+            "invalidated_closure_count": closure_summary.get("invalidated_count"),
+            "minimum_unlike_families": minimum,
+            "minimum_target_excess_reduction_percent": threshold,
+        },
+        "routes": {
+            "typed_bytecode_semantic_specialization": {
+                "decision": "reject-current-route",
+                "reason": "the optimistic free-proof model fails materiality in governing rows and overlaps completed Go-level specialization rejections",
+                "material_row_count": typed_passes,
+                "governing_row_count": len(typed_rows),
+                "passes_every_governing_row": typed_passes == len(typed_rows),
+                "rows": typed_rows,
+                "cost": route_by_id["typed-bytecode-semantic-specialization"],
+            },
+            "portable_lower_level_vm_backend": {
+                "decision": "performance-capable-design-only",
+                "reason": "the whole-engine proxy clears the phase-one breadth and materiality gates, but no backend, ABI, ownership model, or distribution policy is concrete",
+                "full_corpus_material_row_count": portable_passes,
+                "full_corpus_row_count": len(portable_rows),
+                "phase_one_material_row_count": phase_one_passes,
+                "phase_one_governing_row_count": len(phase_one),
+                "passes_phase_one_performance_gate": performance_capable,
+                "concrete_mechanism": concrete,
+                "prototype_admitted": prototype_admitted,
+                "rows": portable_rows,
+                "cost": portable_config,
+            },
+            "compiled_general_nominal_abi_simplification": {
+                "decision": "reject-current-route",
+                "reason": "shared typed-boundary counters descend into divergent owners and no exact mechanism is material in three unlike families",
+                **compiled_summary,
+                "cost": route_by_id["compiled-general-nominal-abi-simplification"],
+            },
+        },
+        "semantic_obligations": evidence.get("semantic_obligations"),
+        "target_guards": guards,
+        "closure_ledger": closure_summary,
+        "next_lane": evidence.get("next_lane"),
+    }
+
+
+def route_table_rows(report: dict[str, Any]) -> list[str]:
+    routes = report["routes"]
+    typed = routes["typed_bytecode_semantic_specialization"]
+    portable = routes["portable_lower_level_vm_backend"]
+    compiled = routes["compiled_general_nominal_abi_simplification"]
+    return [
+        f"| Typed bytecode specialization | {typed['material_row_count']}/{typed['governing_row_count']} | high / low | medium | `{typed['decision']}` |",
+        f"| Portable lower-level backend | {portable['phase_one_material_row_count']}/{portable['phase_one_governing_row_count']} phase-one; {portable['full_corpus_material_row_count']}/{portable['full_corpus_row_count']} full | very high / high | very high | `{portable['decision']}` |",
+        f"| Compiled nominal ABI | max breadth {compiled['maximum_material_unlike_family_count']} | high / low | medium | `{compiled['decision']}` |",
+    ]
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    routes = report["routes"]
+    portable = routes["portable_lower_level_vm_backend"]
+    lines = [
+        "# Cross-engine structural-strategy reconciliation",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        "No implementation prototype is admitted. The portable lower-level backend is",
+        "the only route with enough optimistic end-to-end reach, but it is still a route",
+        "class rather than a concrete mechanism. Timing reach does not answer who owns",
+        "boxed values and GC roots, how effects and suspension cross the boundary, or how",
+        "the backend is built and distributed.",
+        "",
+        f"The governing frontier has {summary['selected_rows']} selected rows,",
+        f"{summary['target_misses']} misses, and {summary['total_target_excess_seconds']:.6f}",
+        f"seconds of target excess. Bytecode contributes {summary['bytecode_target_excess_seconds']:.6f}",
+        "seconds. All 21 completed performance closures remain current.",
+        "",
+        "## Route comparison",
+        "",
+        "| Route | Optimistic material rows | Implementation / deployment cost | Semantic risk | Decision |",
+        "| --- | ---: | --- | --- | --- |",
+        *route_table_rows(report),
+        "",
+        "### Typed bytecode semantic specialization",
+        "",
+        "This deliberately favorable model makes every dynamically observed instruction",
+        "with a checked primitive proof free at uniform instruction cost. It is not a",
+        "wall-time claim. Failing this model is strong evidence that another proof flag,",
+        "slot hint, or Go-level specialized dispatch loop is too small.",
+        "",
+        "| Application | Family | Proven instruction share | Excess reduction | Gate |",
+        "| --- | --- | ---: | ---: | --- |",
+    ]
+    for row in routes["typed_bytecode_semantic_specialization"]["rows"]:
+        lines.append(
+            f"| `{row['benchmark']}` | {row['family']} | "
+            f"{row['proved_instruction_share_percent']:.2f}% | "
+            f"{row['target_excess_reduction_percent']:.2f}% | "
+            f"{'pass' if row['passes_materiality_gate'] else 'fail'} |"
+        )
+    lines += [
+        "",
+        "Only three of six rows clear 25%, so the route fails the every-governing-row",
+        "gate. It also substantially overlaps the rejected typed-region, register-loop,",
+        "integer-slot-hint, and carrier-specialization experiments.",
+        "",
+        "### Portable lower-level VM backend",
+        "",
+        "The proxy substitutes the current semantics-preserving compiled application time",
+        "for bytecode time. This is optimistic: it charges no translation, boundary,",
+        "compile-latency, code-cache, or foreign-runtime cost. The phase-one scope excludes",
+        "concurrency execution because the current compiled proxy is itself dominated by",
+        "the closed goroutine-identity wall there; the ordinary VM must remain the exact",
+        "fallback for unsupported activations.",
+        "",
+        "| Application | Family | Phase one | Excess reduction | Gate |",
+        "| --- | --- | --- | ---: | --- |",
+    ]
+    for row in portable["rows"]:
+        lines.append(
+            f"| `{row['benchmark']}` | {row['family']} | "
+            f"{'yes' if row['phase_one_governing'] else 'fallback'} | "
+            f"{row['target_excess_reduction_percent']:.2f}% | "
+            f"{'pass' if row['passes_materiality_gate'] else 'fail'} |"
+        )
+    lines += [
+        "",
+        f"All {portable['phase_one_governing_row_count']} unlike phase-one rows clear the",
+        "materiality bar, and five of six full-corpus rows do. This makes the route worth",
+        "an architecture decision, not yet an implementation. A per-opcode foreign",
+        "callback would merely exchange Go dispatch for ABI overhead, while a full",
+        "foreign runtime risks semantic duplication. The next decision must resolve that",
+        "ownership boundary explicitly.",
+        "",
+        "### Further compiled general nominal-ABI simplification",
+        "",
+        "The current five-application compiled budget has no eligible mechanism. Its best",
+        f"shared exact mechanism is material in only {routes['compiled_general_nominal_abi_simplification']['maximum_material_unlike_family_count']} unlike families.",
+        "The apparent three-application typed-boundary intersection is composed of",
+        "allocation/type-match work in the serial row and the already-closed goroutine",
+        "identity wall in both concurrent rows. A shared counter name is not a shared",
+        "optimization mechanism, so no nominal ABI candidate is admitted.",
+        "",
+        "## Semantic and deployment obligations",
+        "",
+    ]
+    for obligation in report["semantic_obligations"]:
+        lines.append(f"- **{obligation['id']}**: {obligation['requirement']}")
+    lane = report["next_lane"]
+    lines += [
+        "",
+        "## Next recommendation",
+        "",
+        f"Complete **{lane['id']}**.",
+        "",
+        lane["scope"],
+        "",
+        "Why: this reconciliation shows that local specialization and another nominal ABI",
+        "refinement cannot be large enough across the governing programs, while a whole-",
+        "engine route can. The remaining uncertainty is architectural feasibility, not",
+        "another profile sample or helper-level hotspot.",
+        "",
+        f"Prototype admission: {lane['admission']}",
+        "",
+        f"Exclusions: {lane['exclusions']}",
+        "",
+        "## Reproduction",
+        "",
+        "```sh",
+        "python3 v12/bench_cross_engine_structural_strategy_test.py",
+        "v12/bench_cross_engine_structural_strategy --check",
+        "just bench-evidence-ledger --check",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        report = build_report(args.evidence)
+    except ValueError as error:
+        parser.error(str(error))
+    rendered_json = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    rendered_markdown = markdown(report)
+    if args.json_out:
+        args.json_out.write_text(rendered_json, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.write_text(rendered_markdown, encoding="utf-8")
+    if args.check:
+        if report["summary"]["prototype_admitted"]:
+            raise SystemExit("structural strategy prototype requires review")
+        if args.evidence == DEFAULT_EVIDENCE:
+            if CHECKED_JSON.read_text(encoding="utf-8") != rendered_json:
+                raise SystemExit("checked structural-strategy JSON artifact is stale")
+            if CHECKED_MARKDOWN.read_text(encoding="utf-8") != rendered_markdown:
+                raise SystemExit("checked structural-strategy Markdown artifact is stale")
+    if not args.json_out and not args.markdown_out and not args.check:
+        print(rendered_json, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

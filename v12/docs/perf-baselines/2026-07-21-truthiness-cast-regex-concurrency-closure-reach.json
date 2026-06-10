@@ -1,0 +1,39 @@
+{
+  "kind": "truthiness-cast-regex-concurrency-closure-reach",
+  "date": "2026-07-21",
+  "diagnostic_only": true,
+  "production_instrumentation_retained": false,
+  "compiled": {
+    "processes_per_application": 1,
+    "verified_processes": 6,
+    "rows": [
+      {"benchmark": "config_validation_extraction", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "log_routing_redaction", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "policy_record_dispatch", "semantic_truthy_checks": 2048, "semantic_truthy_error_fallbacks": 2048, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "regex_set_audit", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "regex_stream_audit", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "regex_suffix_audit", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0}
+    ]
+  },
+  "bytecode": {
+    "processes_per_application": 2,
+    "verified_processes": 22,
+    "rows": [
+      {"benchmark": "await_channel_mux", "semantic_truthy_checks_per_process": [6144, 6144], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "channel_rollup", "semantic_truthy_checks_per_process": [78367, 78367], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "concurrent_event_routing", "semantic_truthy_checks_per_process": [541058, 541058], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "concurrent_text_index", "semantic_truthy_checks_per_process": [108990, 108990], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "dependency_wave_validation", "semantic_truthy_checks_per_process": [25836, 25836], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "future_await_race", "semantic_truthy_checks_per_process": [577, 577], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "future_pipeline", "semantic_truthy_checks_per_process": [2, 2], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "mutex_await_journal", "semantic_truthy_checks_per_process": [4096, 4096], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "mutex_ledger", "semantic_truthy_checks_per_process": [0, 0], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "mutex_work_queue", "semantic_truthy_checks_per_process": [8197, 8197], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "validated_job_pipeline", "semantic_truthy_checks_per_process": [32768, 32768], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]}
+    ]
+  },
+  "profile_gate": {
+    "profiles_collected": 0,
+    "reason": "The compiled changed path occurs in only one application, below the three-application breadth rule; no bytecode changed path is reached."
+  }
+}

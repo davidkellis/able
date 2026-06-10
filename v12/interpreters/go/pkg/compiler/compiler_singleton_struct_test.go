@@ -79,11 +79,11 @@ func compileAndRunSource(t *testing.T, tempPrefix string, source string) {
 	}
 
 	outputDir := filepath.Join(workDir, "out")
-	comp := New(Options{
+	comp := New(compilerFixtureOptions(t, Options{
 		PackageName: "main",
 		EmitMain:    true,
 		EntryPath:   entryPath,
-	})
+	}))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

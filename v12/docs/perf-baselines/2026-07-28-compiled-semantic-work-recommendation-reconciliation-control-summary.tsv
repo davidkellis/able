@@ -1,0 +1,6 @@
+application	control_functions	direct_compiled_functions	control_free_direct	potentially_fallible_direct	call_site_specializable_direct	reachable_relational_checks	reachable_relational_safe
+tapelang_alphabet	2717	575	122	453	0	13	0
+sudoku_masks	2701	567	116	451	1	32	4
+nbody	1971	384	95	289	0	52	32
+matrixmultiply	1041	120	21	99	0	8	0
+pidigits	2409	454	147	307	0	2	0

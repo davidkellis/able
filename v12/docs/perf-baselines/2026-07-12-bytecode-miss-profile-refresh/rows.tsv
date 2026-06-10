@@ -1,0 +1,7 @@
+benchmark	normal_status	normal_real_s	verified	warm_ns_per_op	warm_bytes_per_op	warm_allocs_per_op
+reverse_complement	ok	7.23	verified	6946474650	705448536	10894379
+k_nucleotide	ok	44.47	verified	n/a	n/a	n/a
+i_before_e	ok	0.60	verified	257590728	9061905	1923
+mandelbrot	ok	7.03	verified	6554238713	618885824	76303083
+base64	ok	3.85	verified	3442237972	2201666200	651
+pidigits	ok	2.77	verified	2660835977	335058352	940451

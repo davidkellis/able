@@ -20,6 +20,12 @@ fn main() -> void {
   raw := `raw \${price}`
   print(raw)
 
+  controls := `\n\r\t\b\f\u{1F642}\u0041`
+  print(`control bytes ${controls.len_bytes()}`)
+
+  slash := `\\`
+  print(`slash bytes ${slash.len_bytes()}`)
+
   point := Point { x: 1, y: 2 }
   print(`point ${point}`)
 

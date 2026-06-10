@@ -1,0 +1,37 @@
+File: interpreter.test
+Build ID: 61226e58d79e68f17ad9d1d4c9b65a83b0cca6f7
+Type: inuse_space
+Time: 2026-07-11 23:45:10 CDT
+Showing nodes accounting for 31659.51kB, 100% of 31659.51kB total
+Showing top 30 nodes out of 59
+      flat  flat%   sum%        cum   cum%
+   26350kB 83.23% 83.23%    26350kB 83.23%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+ 2048.03kB  6.47% 89.70%  2048.03kB  6.47%  able/interpreter-go/pkg/interpreter.init.func1
+ 1152.67kB  3.64% 93.34%  1152.67kB  3.64%  able/interpreter-go/pkg/runtime.ArrayStorePromoteHandleToMonoTypeIfPossible
+ 1064.52kB  3.36% 96.70%  1064.52kB  3.36%  able/interpreter-go/pkg/ast.annotateOrigins
+  532.26kB  1.68% 98.38%   532.26kB  1.68%  able/interpreter-go/pkg/interpreter.(*bytecodeLoweringContext).emit (inline)
+  512.03kB  1.62%   100%   512.03kB  1.62%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+         0     0%   100%  1064.52kB  3.36%  able/interpreter-go/pkg/ast.AnnotateOrigins
+         0     0%   100%   512.03kB  1.62%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0%   100%  1064.52kB  3.36%  able/interpreter-go/pkg/ast.annotateValue
+         0     0%   100%  1576.55kB  4.98%  able/interpreter-go/pkg/driver.(*Loader).Load
+         0     0%   100%  1576.55kB  4.98%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions
+         0     0%   100%  1576.55kB  4.98%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions.func1
+         0     0%   100%   512.03kB  1.62%  able/interpreter-go/pkg/driver.(*Loader).parseFile
+         0     0%   100%  1064.52kB  3.36%  able/interpreter-go/pkg/driver.combinePackage
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%   100%   532.26kB  1.68%  able/interpreter-go/pkg/interpreter.(*Interpreter).EvaluateProgram
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).coerceValueToType
+         0     0%   100%   532.26kB  1.68%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateLoadedProgramModule
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%   100%   532.26kB  1.68%  able/interpreter-go/pkg/interpreter.(*Interpreter).lowerModuleToBytecode
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*Interpreter).tryFastArrayTypeCoercion
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlot
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlotOpcode
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runDetached
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%   100%  1152.67kB  3.64%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).typedSlotAssignmentValues

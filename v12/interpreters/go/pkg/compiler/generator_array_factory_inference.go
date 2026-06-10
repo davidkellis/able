@@ -154,6 +154,13 @@ func (g *generator) forwardArrayFactoryElementTypeFromStatement(ctx *compileCont
 				return elemExpr, true, false
 			}
 		}
+		if identExprNamed(s.Right, name) {
+			if typeExpr, ok := g.forwardArrayAssignmentTargetTypeExpr(ctx, s.Left); ok {
+				if elemExpr, ok := g.concreteArrayTypeElementExpr(ctx, typeExpr); ok {
+					return elemExpr, true, false
+				}
+			}
+		}
 		if typeExpr := assignmentTypeAnnotation(s.Left); typeExpr != nil && identExprNamed(s.Right, name) {
 			if elemExpr, ok := g.concreteArrayTypeElementExpr(ctx, typeExpr); ok {
 				return elemExpr, true, false
@@ -180,8 +187,37 @@ func (g *generator) forwardArrayFactoryElementTypeFromStatement(ctx *compileCont
 				return elemExpr, true, false
 			}
 		}
+	case ast.Expression:
+		if identExprNamed(s, name) {
+			if elemExpr, ok := g.concreteArrayTypeElementExpr(ctx, ctx.returnTypeExpr); ok {
+				return elemExpr, true, true
+			}
+			return nil, false, true
+		}
 	}
 	return nil, false, false
+}
+
+func (g *generator) forwardArrayAssignmentTargetTypeExpr(ctx *compileContext, target ast.AssignmentTarget) (ast.TypeExpression, bool) {
+	if g == nil || ctx == nil || target == nil {
+		return nil, false
+	}
+	if typeExpr := assignmentTypeAnnotation(target); typeExpr != nil {
+		return g.lowerNormalizedTypeExpr(ctx, typeExpr), true
+	}
+	if name, _, ok := g.assignmentTargetName(target); ok && name != "" {
+		if binding, ok := ctx.lookup(name); ok {
+			if inferred := g.inferBindingTypeExpr(ctx, binding); inferred != nil {
+				return g.lowerNormalizedTypeExpr(ctx, inferred), true
+			}
+		}
+	}
+	if member, ok := target.(*ast.MemberAccessExpression); ok && member != nil {
+		if inferred, ok := g.inferMemberAccessTypeExpr(ctx, member); ok && inferred != nil {
+			return g.lowerNormalizedTypeExpr(ctx, inferred), true
+		}
+	}
+	return nil, false
 }
 
 func (g *generator) forwardArrayFactoryElementTypeFromCall(ctx *compileContext, name string, call *ast.FunctionCall) (ast.TypeExpression, bool) {

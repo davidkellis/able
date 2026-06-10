@@ -1,0 +1,32 @@
+{
+  "kind": "truthiness-cast-byte-regex-closure-reach",
+  "date": "2026-07-21",
+  "diagnostic_only": true,
+  "production_instrumentation_retained": false,
+  "compiled": {
+    "processes_per_application": 1,
+    "verified_processes": 4,
+    "rows": [
+      {"benchmark": "base64", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "fasta_generation", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "pidigits", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0},
+      {"benchmark": "reverse_complement", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0, "explicit_cast_failures": 0}
+    ]
+  },
+  "bytecode": {
+    "processes_per_application": 2,
+    "verified_processes": 12,
+    "rows": [
+      {"benchmark": "config_validation_extraction", "semantic_truthy_checks_per_process": [208060, 208060], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "log_routing_redaction", "semantic_truthy_checks_per_process": [733267, 733267], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "policy_record_dispatch", "semantic_truthy_checks_per_process": [1565212, 1565212], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "regex_set_audit", "semantic_truthy_checks_per_process": [939980, 939980], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "regex_stream_audit", "semantic_truthy_checks_per_process": [560897, 560897], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "regex_suffix_audit", "semantic_truthy_checks_per_process": [634199, 634199], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]}
+    ]
+  },
+  "profile_gate": {
+    "profiles_collected": 0,
+    "reason": "No changed Error-truthiness fallback or explicit-cast path was reached in either closure."
+  }
+}

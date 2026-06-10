@@ -1,0 +1,48 @@
+{
+  "date": "2026-07-22",
+  "decision": "no_new_exact_non_closed_cpu_leaf",
+  "retained_change": false,
+  "profile_build_id": "3fc961f5f7986c29154bc4349c8bef659d60b78d",
+  "guardrails": {
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "gomaxprocs": 1,
+    "timeout_seconds": 55,
+    "warmup_calls": 1,
+    "measured_calls": 1,
+    "normal_typechecking": true,
+    "source_root_only": true,
+    "canonical_external_stdlib": true
+  },
+  "materiality_rule": "same exact non-dispatch interpreter flat leaf at or above 1 percent CPU in at least three unlike applications, excluding previously closed families",
+  "runs": [
+    {"family":"collection_array","workload":"array_slice_window","ns_per_op":550384947,"bytes_per_op":14199952,"allocs_per_op":422312,"cpu_samples_ms":540,"profile_sha256":"0b665a423ab77898cbc1dc45b7a828c0fe4050f01b13d0c1ad15692c3a3d8107"},
+    {"family":"concurrency","workload":"concurrent_event_routing","ns_per_op":2824151561,"bytes_per_op":285049280,"allocs_per_op":2808344,"cpu_samples_ms":2810,"profile_sha256":"88c211bdb26062721d2d880d72346305d30f96f62ad26008c100af8cb0856b51"},
+    {"family":"float_numeric","workload":"distance_field","ns_per_op":5873810729,"bytes_per_op":368086688,"allocs_per_op":26000184,"cpu_samples_ms":5860,"profile_sha256":"82dcdf9d03b2c9bd8f43bd05139078eab4ed5408e3c4551e7238c9a32b8c6840"},
+    {"family":"wide_numeric","workload":"fixed_width_128","ns_per_op":7883800811,"bytes_per_op":1242277912,"allocs_per_op":30858407,"cpu_samples_ms":7860,"profile_sha256":"d3f0e08543814f5a89c895576f6bad328c54fe1e004c7c591b1c50fb864b92ef"},
+    {"family":"text_byte_array","workload":"reverse_complement","ns_per_op":3195202773,"bytes_per_op":213618088,"allocs_per_op":3543007,"cpu_samples_ms":3180,"profile_sha256":"5783b04c414a75679c06960a9c3767b02c8fc49e461ec10e4b71c1ba39878da5"},
+    {"family":"text_map","workload":"word_frequency","ns_per_op":1205092608,"bytes_per_op":48520960,"allocs_per_op":637342,"cpu_samples_ms":1200,"profile_sha256":"55b86b5936f92f67d0a9b95fc50c41ac9077c976a696b5c012790f53500d7c59"}
+  ],
+  "flat_percent": {
+    "bytecodeVM.runResumable": [11.11,5.34,5.63,4.71,9.43,3.33],
+    "bytecodeVM.appendSlotStackValueChecked": [1.85,0.36,1.19,1.27,2.83,2.50],
+    "bytecodeRawIntegerValueInfo": [1.85,0.36,0.0,3.05,1.26,0.83],
+    "bytecodeStackSnapshotValue": [1.85,0.71,2.05,0.13,0.63,1.67],
+    "bytecodeVM.popCallFrameFields": [0.0,0.71,1.54,0.64,0.0,2.50],
+    "runtime_maps.ctrlGroup.matchH2": [5.56,4.27,1.37,4.71,6.92,2.50],
+    "runtime.tryDeferToSpanScan": [0.0,5.69,2.73,7.00,2.83,2.50]
+  },
+  "cumulative_percent": {
+    "bytecodeVM.appendSlotStackValueChecked": [3.70,0.36,2.39,4.07,15.09,4.17],
+    "bytecodeVM.finishInlineReturn": [0.0,0.0,9.56,6.49,0.0,12.50],
+    "bytecodeVM.popCallFrameFields": [0.0,3.56,2.56,2.16,0.0,3.33],
+    "bytecodeVM.lookupCachedMemberMethodEntry": [0.0,13.17,0.0,2.16,0.0,3.33]
+  },
+  "exact_flat_intersection": [
+    {"symbol":"bytecodeVM.runResumable","applications_at_or_above_one_percent":6,"disposition":"aggregate_dispatch_loop"},
+    {"symbol":"bytecodeVM.appendSlotStackValueChecked","applications_at_or_above_one_percent":5,"disposition":"closed_stack_carrier_family"},
+    {"symbol":"bytecodeRawIntegerValueInfo","applications_at_or_above_one_percent":3,"disposition":"closed_raw_integer_family"},
+    {"symbol":"bytecodeStackSnapshotValue","applications_at_or_above_one_percent":3,"disposition":"closed_split_carrier_family"}
+  ],
+  "next": "sampled allocation-owner matrix for the same six applications, admitting only one removable semantic allocation material in at least three unlike families"
+}

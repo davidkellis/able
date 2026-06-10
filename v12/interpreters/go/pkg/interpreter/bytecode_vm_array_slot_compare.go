@@ -17,9 +17,6 @@ func (vm *bytecodeVM) execJumpIfArrayReadSlotCompareSlotFalse(instr *bytecodeIns
 		rightSlot < 0 || rightSlot >= len(vm.slots) {
 		return fmt.Errorf("bytecode array-slot compare slot out of range")
 	}
-	receiver := vm.slots[receiverSlot]
-	index := vm.slots[indexSlot]
-	right := vm.slots[rightSlot]
 	if cond, handled, err := vm.compareArrayReadSlotTrackedI32Condition(instr, program, receiverSlot, indexSlot, rightSlot); handled || err != nil {
 		if err != nil {
 			return err
@@ -31,6 +28,9 @@ func (vm *bytecodeVM) execJumpIfArrayReadSlotCompareSlotFalse(instr *bytecodeIns
 		vm.ip++
 		return nil
 	}
+	receiver := vm.slots[receiverSlot]
+	index := vm.slotMaterializedValue(indexSlot)
+	right := vm.slotMaterializedValue(rightSlot)
 	left, err := vm.arrayReadSlotCompareValue(instr, program, receiver, index)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func (vm *bytecodeVM) compareArrayReadSlotTrackedI32Condition(instr *bytecodeIns
 	if vm == nil || instr == nil || program == nil {
 		return false, false, nil
 	}
-	rightRaw, ok := vm.slotDirectSmallI32Value(rightSlot)
+	rightRaw, ok := vm.slotDirectTrackedCompareI32Raw(rightSlot)
 	if !ok {
 		return false, false, nil
 	}
@@ -59,21 +59,80 @@ func (vm *bytecodeVM) compareArrayReadSlotTrackedI32Condition(instr *bytecodeIns
 	if !ok || arr == nil || !vm.canUseCanonicalArraySlotCallCacheForArray(arr) {
 		return false, false, nil
 	}
-	if !vm.lookupCachedCanonicalArraySlotCallForArray(program, vm.ip, bytecodeMemberMethodFastPathArrayReadSlot) {
+	if !vm.lookupCachedCanonicalArraySlotCallForArrayValidated(program, vm.ip, bytecodeMemberMethodFastPathArrayReadSlot) {
 		return false, false, nil
 	}
 	leftRaw, handled, err := vm.arrayReadSlotTrackedI32RawAtSlot(arr, indexSlot)
 	if err != nil || !handled {
 		return false, handled, err
 	}
-	cond, ok := bytecodeCompareInt64(instr.operator, leftRaw, rightRaw)
+	cond, ok := bytecodeCompareI32(instr.operator, leftRaw, rightRaw)
 	if !ok {
 		return false, false, nil
 	}
 	return cond, true, nil
 }
 
-func (vm *bytecodeVM) arrayReadSlotTrackedI32RawAtSlot(arr *runtime.ArrayValue, indexSlot int) (int64, bool, error) {
+func (vm *bytecodeVM) slotDirectTrackedCompareI32Raw(slot int) (int32, bool) {
+	if vm == nil || slot < 0 || slot >= len(vm.slots) {
+		return 0, false
+	}
+	if value := vm.slots[slot]; value != nil {
+		return trackedArrayCompareDirectSmallI32Raw(value)
+	}
+	if raw, ok := vm.i32RegisterRaw(slot); ok {
+		return raw, true
+	}
+	if raw, ok := vm.activeValueSlotI32Raw(slot); ok {
+		return raw, true
+	}
+	return 0, false
+}
+
+func (vm *bytecodeVM) trackedArrayCompareSlotIndexSmall(slot int) (int, bool) {
+	return vm.slotArraySlotIndexSmall(slot)
+}
+
+func (vm *bytecodeVM) trackedArrayCompareI32RawAtSlot(state *runtime.ArrayState, indexSlot int) (int32, bool, error) {
+	if vm == nil || state == nil {
+		return 0, false, nil
+	}
+	idx, ok := vm.trackedArrayCompareSlotIndexSmall(indexSlot)
+	if !ok || idx < 0 || idx >= len(state.Values) {
+		return 0, false, nil
+	}
+	if raw, ok := trackedArrayCachedI32RawAt(state, idx); ok {
+		return int32(raw), true, nil
+	}
+	value := state.Values[idx]
+	if value == nil {
+		return 0, false, nil
+	}
+	raw, ok := trackedArrayCompareDirectSmallI32Raw(value)
+	if !ok {
+		return 0, false, nil
+	}
+	return raw, true, nil
+}
+
+func trackedArrayCompareDirectSmallI32Raw(value runtime.Value) (int32, bool) {
+	switch iv := value.(type) {
+	case bytecodeRawI32SlotValue:
+		return int32(iv), true
+	case runtime.IntegerValue:
+		ivRef := &iv
+		if iv.TypeSuffix == runtime.IntegerI32 && ivRef.IsSmallRef() {
+			return int32(ivRef.Int64FastRef()), true
+		}
+	case *runtime.IntegerValue:
+		if iv != nil && iv.TypeSuffix == runtime.IntegerI32 && iv.IsSmallRef() {
+			return int32(iv.Int64FastRef()), true
+		}
+	}
+	return 0, false
+}
+
+func (vm *bytecodeVM) arrayReadSlotTrackedI32RawAtSlot(arr *runtime.ArrayValue, indexSlot int) (int32, bool, error) {
 	if vm == nil || arr == nil {
 		return 0, false, nil
 	}
@@ -81,19 +140,26 @@ func (vm *bytecodeVM) arrayReadSlotTrackedI32RawAtSlot(arr *runtime.ArrayValue, 
 	if !tracked {
 		return 0, false, nil
 	}
-	idx, ok := vm.slotArraySlotIndexSmall(indexSlot)
-	if !ok || idx < 0 || idx >= len(state.Values) {
-		return 0, false, nil
+	return vm.trackedArrayCompareI32RawAtSlot(state, indexSlot)
+}
+
+func bytecodeCompareI32(op string, left int32, right int32) (bool, bool) {
+	switch op {
+	case "==":
+		return left == right, true
+	case "!=":
+		return left != right, true
+	case "<":
+		return left < right, true
+	case "<=":
+		return left <= right, true
+	case ">":
+		return left > right, true
+	case ">=":
+		return left >= right, true
+	default:
+		return false, false
 	}
-	value := state.Values[idx]
-	if value == nil {
-		return 0, false, nil
-	}
-	raw, ok := bytecodeDirectSmallI32Value(value)
-	if !ok {
-		return 0, false, nil
-	}
-	return raw, true, nil
 }
 
 func (vm *bytecodeVM) execJumpIfArrayIndexSlotCompareSlotFalse(instr *bytecodeInstruction) error {
@@ -106,11 +172,8 @@ func (vm *bytecodeVM) execJumpIfArrayIndexSlotCompareSlotFalse(instr *bytecodeIn
 		rightSlot < 0 || rightSlot >= len(vm.slots) {
 		return fmt.Errorf("bytecode array-index compare slot out of range")
 	}
-	receiver := vm.slots[receiverSlot]
-	index := vm.slots[indexSlot]
-	right := vm.slots[rightSlot]
 	if instr.name == "i32" {
-		if cond, handled, err := vm.compareArrayIndexSlotI32Condition(instr, receiver, index, right); handled || err != nil {
+		if cond, handled, err := vm.compareArrayIndexSlotI32ConditionAtSlots(instr, receiverSlot, indexSlot, rightSlot); handled || err != nil {
 			if err != nil {
 				return err
 			}
@@ -122,6 +185,9 @@ func (vm *bytecodeVM) execJumpIfArrayIndexSlotCompareSlotFalse(instr *bytecodeIn
 			return nil
 		}
 	}
+	receiver := vm.slots[receiverSlot]
+	index := vm.slotMaterializedValue(indexSlot)
+	right := vm.slotMaterializedValue(rightSlot)
 	left, err := vm.arrayIndexSlotCompareValue(instr, receiver, index)
 	if err != nil {
 		return err
@@ -192,6 +258,26 @@ func (vm *bytecodeVM) compareArrayIndexSlotI32Condition(instr *bytecodeInstructi
 	return cond, true, nil
 }
 
+func (vm *bytecodeVM) compareArrayIndexSlotI32ConditionAtSlots(instr *bytecodeInstruction, receiverSlot int, indexSlot int, rightSlot int) (bool, bool, error) {
+	if vm == nil || instr == nil {
+		return false, false, nil
+	}
+	rightVal, ok := vm.slotDirectSmallI32Value(rightSlot)
+	if !ok {
+		return false, false, nil
+	}
+	receiver := vm.slots[receiverSlot]
+	leftVal, handled, err := vm.arrayIndexSlotCompareI32RawAtSlot(receiver, indexSlot)
+	if err != nil || !handled {
+		return false, handled, err
+	}
+	cond, ok := bytecodeCompareInt64(instr.operator, leftVal, rightVal)
+	if !ok {
+		return false, false, nil
+	}
+	return cond, true, nil
+}
+
 func (vm *bytecodeVM) arrayIndexSlotCompareI32RawValue(receiver runtime.Value, index runtime.Value) (int64, bool, error) {
 	if vm == nil || vm.interp == nil || !vm.interp.canUseDirectArrayIndexGetFastPath() {
 		return 0, false, nil
@@ -204,6 +290,9 @@ func (vm *bytecodeVM) arrayIndexSlotCompareI32RawValue(receiver runtime.Value, i
 		if state, tracked := bytecodeTrackedArrayState(arr); tracked {
 			if idx < 0 || idx >= len(state.Values) {
 				return 0, false, nil
+			}
+			if raw, ok := trackedArrayCachedI32RawAt(state, idx); ok {
+				return raw, true, nil
 			}
 			if val := state.Values[idx]; val != nil {
 				raw, ok := bytecodeArrayIndexCastSmallI32Raw(val)
@@ -226,6 +315,47 @@ func (vm *bytecodeVM) arrayIndexSlotCompareI32RawValue(receiver runtime.Value, i
 	return raw, ok, nil
 }
 
+func (vm *bytecodeVM) arrayIndexSlotCompareI32RawAtSlot(receiver runtime.Value, indexSlot int) (int64, bool, error) {
+	if vm == nil || vm.interp == nil || !vm.interp.canUseDirectArrayIndexGetFastPath() {
+		return 0, false, nil
+	}
+	arr, ok := bytecodeArrayReceiverForIndexCache(receiver)
+	if !ok {
+		return 0, false, nil
+	}
+	if idx, small := vm.slotDirectSmallArrayIndex(indexSlot); small {
+		if state, tracked := bytecodeTrackedArrayState(arr); tracked {
+			if idx < 0 || idx >= len(state.Values) {
+				return 0, false, nil
+			}
+			if raw, ok := trackedArrayCachedI32RawAt(state, idx); ok {
+				return raw, true, nil
+			}
+			if val := state.Values[idx]; val != nil {
+				raw, ok := bytecodeArrayIndexCastSmallI32Raw(val)
+				return raw, ok, nil
+			}
+			return 0, false, nil
+		}
+		value, err := vm.resolveDirectArrayIndexGetAt(arr, idx)
+		if err != nil {
+			return 0, true, err
+		}
+		raw, ok := bytecodeArrayIndexCastSmallI32Raw(value)
+		return raw, ok, nil
+	}
+	index := vm.slotMaterializedValue(indexSlot)
+	if index == nil {
+		return 0, false, nil
+	}
+	value, handled, err := vm.resolveDirectArrayIndexGet(arr, index)
+	if err != nil || !handled {
+		return 0, handled, err
+	}
+	raw, ok := bytecodeArrayIndexCastSmallI32Raw(value)
+	return raw, ok, nil
+}
+
 func (vm *bytecodeVM) arrayIndexSlotCompareMaybeCast(instr *bytecodeInstruction, value runtime.Value) (runtime.Value, error) {
 	if instr == nil || instr.typeExpr == nil {
 		if value == nil {
@@ -236,7 +366,7 @@ func (vm *bytecodeVM) arrayIndexSlotCompareMaybeCast(instr *bytecodeInstruction,
 	if instr.name == "i32" && bytecodeValueIsI32(value) {
 		return value, nil
 	}
-	casted, err := vm.interp.castValueToType(instr.typeExpr, value)
+	casted, err := vm.interp.castValueToType(vm.canonicalRuntimeTypeExpression(instr.typeExpr), value)
 	if err != nil {
 		return nil, err
 	}
@@ -278,8 +408,8 @@ func bytecodeValueIsI32(value runtime.Value) bool {
 
 func (vm *bytecodeVM) arrayReadSlotValue(instr *bytecodeInstruction, program *bytecodeProgram, receiver runtime.Value, index runtime.Value) (runtime.Value, error) {
 	if arr, ok := receiver.(*runtime.ArrayValue); ok && arr != nil && vm.canUseCanonicalArraySlotCallCacheForArray(arr) {
-		if vm.lookupCachedCanonicalArraySlotCallForArray(program, vm.ip, bytecodeMemberMethodFastPathArrayReadSlot) {
-			if value, mode, handled, err := vm.readArraySlotValueFast(arr, index); handled || err != nil {
+		if vm.lookupCachedCanonicalArraySlotCallForArrayValidated(program, vm.ip, bytecodeMemberMethodFastPathArrayReadSlot) {
+			if value, mode, handled, err := vm.readArraySlotValueFastChecked(arr, index); handled || err != nil {
 				if err == nil && vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 					vm.interp.recordBytecodeCallTrace("call_member", "read_slot", "resolved_method", mode, instr.node)
 				}
@@ -288,7 +418,7 @@ func (vm *bytecodeVM) arrayReadSlotValue(instr *bytecodeInstruction, program *by
 		} else if ok, err := vm.proveCanonicalArrayReadSlotCall(program, vm.ip, instr, receiver); err != nil {
 			return nil, err
 		} else if ok {
-			if value, mode, handled, err := vm.readArraySlotValueFast(arr, index); handled || err != nil {
+			if value, mode, handled, err := vm.readArraySlotValueFastChecked(arr, index); handled || err != nil {
 				if err == nil && vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 					vm.interp.recordBytecodeCallTrace("call_member", "read_slot", "resolved_method", mode, instr.node)
 				}
@@ -309,7 +439,7 @@ func (vm *bytecodeVM) execArrayReadSlot(instr *bytecodeInstruction, program *byt
 		return nil, fmt.Errorf("bytecode array read_slot slot out of range")
 	}
 	index := vm.slots[indexSlot]
-	if index == nil && vm.hasI32RegisterFrame() {
+	if index == nil {
 		index = vm.slotMaterializedValue(indexSlot)
 	}
 	result, err := vm.arrayReadSlotValue(instr, program, vm.slots[receiverSlot], index)
@@ -354,7 +484,7 @@ func (vm *bytecodeVM) genericArrayReadSlotCompareValue(receiver runtime.Value, i
 		return nil, err
 	}
 	args := [1]runtime.Value{index}
-	value, err := vm.interp.callCallableValueMutable(callee, args[:], vm.env, nil)
+	value, err := vm.callCallableValueMutable(callee, args[:], nil)
 	if err != nil {
 		return nil, err
 	}

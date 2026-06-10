@@ -339,11 +339,11 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			}
 			if externIsArrayU8Type(t) {
 				if bytes, ok := externReflectU8SliceBytes(value); ok {
-					return i.newU8ArrayValueFromBytes(bytes), nil
+					return i.newOwnedU8ArrayValueFromBytes(bytes), nil
 				}
 			}
 			if externIsArrayStringType(t) {
-				if result, ok := externReflectStringSliceResult(value); ok {
+				if result, ok := externReflectStringSliceResult(i, value); ok {
 					return result, nil
 				}
 			}
@@ -722,16 +722,13 @@ func (i *Interpreter) structToHostValue(def *runtime.StructDefinitionValue, valu
 		}
 		return out, nil
 	}
-	if inst.Fields == nil {
-		return nil, fmt.Errorf("expected %s struct fields", def.Node.ID.Name)
-	}
 	out := make(map[string]any)
 	for _, field := range def.Node.Fields {
 		if field == nil || field.Name == nil {
 			continue
 		}
 		fieldName := field.Name.Name
-		fieldVal, ok := inst.Fields[fieldName]
+		fieldVal, ok := structNamedFieldValue(inst, fieldName)
 		if !ok {
 			if field.FieldType != nil {
 				if _, ok := field.FieldType.(*ast.NullableTypeExpression); ok {

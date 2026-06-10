@@ -1,0 +1,6 @@
+{
+  "description": "bit-set dense membership and iteration benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

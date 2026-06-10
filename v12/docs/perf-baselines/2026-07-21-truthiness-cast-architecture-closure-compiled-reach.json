@@ -1,0 +1,164 @@
+{
+  "kind": "truthiness-cast-architecture-closure-compiled-reach",
+  "date": "2026-07-21",
+  "diagnostic_only": true,
+  "production_instrumentation_retained": false,
+  "processes_per_application": 1,
+  "verified_processes": 11,
+  "rows": [
+    {
+      "benchmark": "await_channel_mux",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 1538,
+        "residual_polymorphic_call": 1025,
+        "host_abi_call": 1,
+        "runtime_service_call": 2560,
+        "semantic_truthy_check": 5632,
+        "semantic_truthy_error_fallback": 5632,
+        "explicit_cast_check": 512
+      }
+    },
+    {
+      "benchmark": "channel_rollup",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 3,
+        "residual_polymorphic_call": 2,
+        "host_abi_call": 1,
+        "runtime_service_call": 2,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0,
+        "explicit_cast_check": 0
+      }
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 3,
+        "residual_polymorphic_call": 6146,
+        "host_abi_call": 1,
+        "runtime_service_call": 4,
+        "semantic_truthy_check": 4096,
+        "semantic_truthy_error_fallback": 4096,
+        "explicit_cast_check": 0
+      }
+    },
+    {
+      "benchmark": "concurrent_text_index",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 3,
+        "residual_polymorphic_call": 2,
+        "host_abi_call": 1,
+        "runtime_service_call": 5,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0,
+        "explicit_cast_check": 5
+      }
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 2,
+        "residual_polymorphic_call": 4055,
+        "host_abi_call": 1,
+        "runtime_service_call": 4,
+        "semantic_truthy_check": 4096,
+        "semantic_truthy_error_fallback": 4096,
+        "explicit_cast_check": 0
+      }
+    },
+    {
+      "benchmark": "future_await_race",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 200,
+        "residual_polymorphic_call": 1,
+        "host_abi_call": 1,
+        "runtime_service_call": 482,
+        "semantic_truthy_check": 481,
+        "semantic_truthy_error_fallback": 481,
+        "explicit_cast_check": 96
+      }
+    },
+    {
+      "benchmark": "future_pipeline",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 113,
+        "residual_polymorphic_call": 1,
+        "host_abi_call": 1,
+        "runtime_service_call": 7,
+        "semantic_truthy_check": 56,
+        "semantic_truthy_error_fallback": 56,
+        "explicit_cast_check": 5
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "residual_polymorphic_call": 2049,
+        "host_abi_call": 1,
+        "runtime_service_call": 2052,
+        "semantic_truthy_check": 5505,
+        "semantic_truthy_error_fallback": 5505,
+        "explicit_cast_check": 4
+      }
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 2,
+        "residual_polymorphic_call": 1,
+        "host_abi_call": 1,
+        "runtime_service_call": 4,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0,
+        "explicit_cast_check": 0
+      }
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "residual_polymorphic_call": 4097,
+        "host_abi_call": 1,
+        "runtime_service_call": 4100,
+        "semantic_truthy_check": 9862,
+        "semantic_truthy_error_fallback": 9862,
+        "explicit_cast_check": 0
+      }
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "status": "ok",
+      "verification": "verified",
+      "telemetry": {
+        "explicit_dynamic_call": 2,
+        "residual_polymorphic_call": 16385,
+        "host_abi_call": 1,
+        "runtime_service_call": 5,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0,
+        "explicit_cast_check": 5
+      }
+    }
+  ]
+}

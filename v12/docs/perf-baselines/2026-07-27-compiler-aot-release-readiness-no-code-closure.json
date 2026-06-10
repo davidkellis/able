@@ -1,0 +1,64 @@
+{
+  "date": "2026-07-27",
+  "decision": "no-code",
+  "scope": "compiler-aot-release-readiness",
+  "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+  "gates": {
+    "go_vet_all": {
+      "status": "pass",
+      "elapsed_seconds": 1.62,
+      "peak_rss_kb": 238944
+    },
+    "go_build_all": {
+      "status": "pass",
+      "elapsed_seconds": 2.81,
+      "peak_rss_kb": 383456
+    },
+    "compiled_cli": {
+      "status": "pass",
+      "elapsed_seconds": 181.72,
+      "peak_rss_kb": 2736252,
+      "cache_hits": 32,
+      "cache_misses": 10
+    },
+    "full_suite": {
+      "status": "pass",
+      "elapsed_seconds": 637.05,
+      "peak_rss_kb": 4655052,
+      "compiler_batches": 33,
+      "bytecode_fixture_seconds": 88.039
+    },
+    "canonical_stdlib": {
+      "status": "pass",
+      "elapsed_seconds": 31.26,
+      "peak_rss_kb": 853928,
+      "treewalker_reported_seconds": 15,
+      "bytecode_reported_seconds": 15
+    }
+  },
+  "individual_test_timing": {
+    "batch_19": {
+      "full_suite_package_seconds": 132.8,
+      "isolated_package_seconds": 129.1,
+      "longest_test": "TestCompilerTypedArrayDefaultMethodsKeepConcreteReceivers",
+      "longest_test_seconds": 33.35
+    },
+    "batch_29": {
+      "full_suite_package_seconds": 68.617,
+      "isolated_package_seconds": 67.32,
+      "longest_test": "TestCompilerNoFallbacksStringBuilderUsesNativeArrayPushAll",
+      "longest_test_seconds": 10.58
+    }
+  },
+  "compiled_test_cache": {
+    "pre_prune_bytes": 1878328432,
+    "removed_entries": 10,
+    "removed_bytes": 297620408,
+    "retained_valid_entries": 42,
+    "retained_valid_bytes": 1580708024,
+    "max_bytes": 1610612736
+  },
+  "production_changes": false,
+  "stdlib_changes": false,
+  "wasm_changes": false
+}

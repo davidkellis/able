@@ -1,0 +1,96 @@
+{
+  "kind": "able-performance-closure-extras",
+  "schema_version": 1,
+  "closures": [
+    {
+      "id": "cross-family-architecture-ownership",
+      "modes": ["compiled", "bytecode"],
+      "disposition": "closed-no-shared-leaf",
+      "owner": "The escaping 64-byte NativeBoundMethodValue in statically resolved generic-union dispatch remains eliminated. The shared-value contract adds only a nil retained-root slice header to legacy iterator wrappers in ordinary execution. The later compiler/full-suite reconciliation repairs generated fallback, error-carrier, Array-write, dynamic-import, type-flow, and shared cancellation contracts without introducing a benchmark-selected fast path.",
+      "rationale": "The retained direct-known-method change remains closed on its prior evidence. The shared-runtime hash change was separately reviewed over six direct iterator/control applications. The compiler/full-suite reconciliation then passed a final-code 24-batch whole-fixture audit and two verifier-backed five-process cohorts for each affected ranked row. The descriptive cohorts admit neither a speedup nor a causal regression, but they support rebasing the reviewed compiler and shared-semantics scopes without changing any prior closure disposition.",
+      "benchmarks": [
+        "array_slice_window",
+        "binary_event_log",
+        "dependency_plan",
+        "document_audit",
+        "lexical_rollup",
+        "option_result_config",
+        "quicksort",
+        "sudoku_masks",
+        "nbody",
+        "future_pipeline",
+        "await_channel_mux",
+        "concurrent_stencil_reduction"
+      ],
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-23-compiler-full-suite-contract-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-23-compiler-full-suite-contract-reconciliation.json",
+        "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-compiled-final-a.json",
+        "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-compiled-final-b.json",
+        "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-bytecode.json",
+        "v12/docs/perf-baselines/2026-07-23-compiler-contract-reconciliation-bytecode-b.json",
+        "v12/docs/perf-baselines/2026-07-22-runtime-contract-performance-evidence-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-22-runtime-contract-performance-evidence-reconciliation.json",
+        "v12/docs/perf-baselines/2026-07-22-runtime-contract-reconciliation-preserved-compiled-iterator.json",
+        "v12/docs/perf-baselines/2026-07-22-runtime-contract-reconciliation-bytecode-iterator.json",
+        "v12/docs/perf-baselines/2026-07-22-runtime-contract-reconciliation-bytecode-iterator-reverse.json",
+        "v12/docs/perf-baselines/2026-07-22-compiled-generic-union-direct-known-method-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-compiled-generic-union-direct-known-method-gate.json",
+        "v12/docs/perf-baselines/2026-07-22-compiled-nominal-result-allocation-shape-census.md",
+        "v12/docs/perf-baselines/2026-07-22-compiled-nominal-result-allocation-shape-census.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-audit.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",
+        "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-register-architecture",
+      "modes": ["bytecode"],
+      "disposition": "closed-rejected-candidate",
+      "owner": "Stack transport, register representation, semantic amplification, direct Array descendants, and the secondary architecture leaf remain quantitatively or empirically closed after the truthiness/cast correction.",
+      "rationale": "Fresh ten-sample means leave the six unlike rows 15.276x-113.154x their faster reference. None reaches the corrected Error fallback or a cast leaf. Making all modeled transport free still leaves every application far outside target, and three executable register gates plus downstream semantic candidates failed broad guards.",
+      "benchmarks": [
+        "fixed_width_128",
+        "distance_field",
+        "concurrent_event_routing",
+        "word_frequency",
+        "array_slice_window",
+        "reverse_complement"
+      ],
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-architecture-target-budget.json",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-architecture-target-budget.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-architecture-target-budget-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-semantic-work-amplification.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-array-semantic-boundary.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md"
+      ]
+    },
+    {
+      "id": "compiled-architecture-target-budget",
+      "modes": ["compiled"],
+      "disposition": "closed-rejected-candidate",
+      "owner": "Primitive control, nominal results, bridge conversion, regex storage, concurrency identity, allocation, and direct generated-body parents remain split; indexed String byte conversion is the only newly three-application leaf.",
+      "rationale": "Manifest Normalization is 40.00x Go in the promoted row. Deferring indexed error formatting improved K-Nucleotide about 1.5% but regressed Policy about 2.9% and Manifest about 1%, so the generic candidate is reverted and target leverage remains insufficient.",
+      "benchmarks": [
+        "k_nucleotide",
+        "fixed_width_128",
+        "distance_field",
+        "policy_record_dispatch",
+        "concurrent_event_routing",
+        "manifest_normalization"
+      ],
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-architecture-target-budget.json",
+        "v12/docs/perf-baselines/2026-07-21-compiled-architecture-target-budget.md",
+        "v12/docs/perf-baselines/2026-07-21-compiled-generated-allocation-shape.json",
+        "v12/docs/perf-baselines/2026-07-21-compiled-primitive-range-effect-closure-census.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-audit.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md"
+      ]
+    }
+  ]
+}

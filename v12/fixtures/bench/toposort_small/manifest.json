@@ -1,0 +1,6 @@
+{
+  "description": "topological sort benchmark over a generated DAG",
+  "expect": {
+    "exit": 0
+  }
+}

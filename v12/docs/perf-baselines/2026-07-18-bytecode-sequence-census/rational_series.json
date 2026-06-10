@@ -1,0 +1,2480 @@
+{
+  "Enabled": true,
+  "OpCounts": [
+    2350017,
+    6000020,
+    150001,
+    900003,
+    600002,
+    0,
+    0,
+    600002,
+    7853155,
+    4901054,
+    550000,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    300000,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1900004,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    300001,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1800010,
+    400000,
+    150001,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1751048,
+    2150007,
+    0,
+    0,
+    2951052,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    300003,
+    300003,
+    600002,
+    600002,
+    0,
+    0,
+    0,
+    0,
+    0,
+    50000,
+    0,
+    0,
+    2300010,
+    7654190,
+    0,
+    0,
+    950000,
+    2902090,
+    2551054,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    100000,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "OpCountsByName": {
+    "ArrayIndexGetSlot": 0,
+    "ArrayIndexSetSlot": 0,
+    "ArrayIndexSwapSlot": 0,
+    "ArrayLiteral": 0,
+    "ArrayReadSlot": 0,
+    "ArrayReadSlotI32": 0,
+    "ArraySlotSwapSlot": 0,
+    "AssignName": 600002,
+    "AssignNameCompound": 0,
+    "AssignPattern": 0,
+    "Await": 0,
+    "Binary": 4901054,
+    "BinaryCastSlotFloatConstDiv": 0,
+    "BinaryFloatMulSlotConst": 0,
+    "BinaryI32Add": 0,
+    "BinaryI32Sub": 0,
+    "BinaryIntAdd": 550000,
+    "BinaryIntAddSlotConst": 0,
+    "BinaryIntCompareSlotConst": 0,
+    "BinaryIntDivCast": 0,
+    "BinaryIntLessEqual": 0,
+    "BinaryIntLessEqualSlotConst": 0,
+    "BinaryIntModSlotConst": 0,
+    "BinaryIntMulSlotConst": 300000,
+    "BinaryIntSub": 0,
+    "BinaryIntSubSlotConst": 0,
+    "BindPattern": 0,
+    "BoxI32": 0,
+    "BreakLabel": 0,
+    "BreakSignal": 0,
+    "Breakpoint": 0,
+    "Call": 0,
+    "CallMember": 400000,
+    "CallMemberArrayGet": 0,
+    "CallMemberArrayNew": 0,
+    "CallMemberArraySlot": 0,
+    "CallMemberNext": 0,
+    "CallName": 1800010,
+    "CallSelf": 0,
+    "CallSelfIntSubSlotConst": 0,
+    "CallStaticMember": 150001,
+    "Cast": 1900004,
+    "CompoundAssignImplicitSlot": 0,
+    "CompoundAssignSlot": 0,
+    "CompoundAssignSlotI32": 0,
+    "Const": 2350017,
+    "ConstI32": 0,
+    "ContinueSignal": 0,
+    "DeclareName": 900003,
+    "DefineExtern": 0,
+    "DefineFunction": 0,
+    "DefineImplementation": 0,
+    "DefineInterface": 0,
+    "DefineMethods": 0,
+    "DefineStruct": 0,
+    "DefineTypeAlias": 0,
+    "DefineUnion": 0,
+    "Dup": 600002,
+    "DynImport": 0,
+    "Ensure": 0,
+    "EnsureEnd": 0,
+    "EnterScope": 600002,
+    "ExitScope": 600002,
+    "ForLoop": 0,
+    "ImplicitMember": 0,
+    "ImplicitMemberSet": 0,
+    "Import": 0,
+    "IndexGet": 0,
+    "IndexSet": 0,
+    "IterClose": 0,
+    "IterInit": 0,
+    "IterNext": 0,
+    "IteratorLiteral": 0,
+    "Jump": 1751048,
+    "JumpIfArrayIndexSlotCompareSlotFalse": 0,
+    "JumpIfArrayReadSlotCompareSlotFalse": 0,
+    "JumpIfBoolSlotFalse": 0,
+    "JumpIfFalse": 2150007,
+    "JumpIfFloatAddCompareConstFalse": 0,
+    "JumpIfFloatMulAddMulCompareConstFalse": 0,
+    "JumpIfIntCompareSlotConstFalse": 2951052,
+    "JumpIfIntCompareSlotFalse": 0,
+    "JumpIfIntLessEqualSlotConstFalse": 0,
+    "JumpIfNil": 0,
+    "JumpIfNotNil": 0,
+    "JumpIfNotTypedPattern": 0,
+    "LoadImplicitSlot": 0,
+    "LoadName": 6000020,
+    "LoadSlot": 7654190,
+    "LoadSlotI32": 0,
+    "LoadSlotStructField": 950000,
+    "LoadStaticReceiver": 150001,
+    "LoopEnter": 300003,
+    "LoopExit": 300003,
+    "MakeFunction": 0,
+    "MapLiteral": 0,
+    "Match": 0,
+    "MatchNoClause": 0,
+    "MemberAccess": 0,
+    "MemberSet": 0,
+    "OrElse": 0,
+    "Pipe": 0,
+    "PlaceholderLambda": 0,
+    "PlaceholderValue": 0,
+    "Pop": 7853155,
+    "Propagation": 0,
+    "Raise": 0,
+    "Range": 0,
+    "Rescue": 0,
+    "Rethrow": 0,
+    "Return": 2300010,
+    "ReturnBinary": 50000,
+    "ReturnBinaryIntAdd": 0,
+    "ReturnBinaryIntAddI32": 0,
+    "ReturnConstIfIntLessEqualSlotConst": 0,
+    "ReturnIfIntLessEqualSlotConst": 0,
+    "Spawn": 0,
+    "StoreImplicitSlot": 0,
+    "StoreSlot": 2902090,
+    "StoreSlotBinaryIntSlotConst": 100000,
+    "StoreSlotCastSlotFloatConstDiv": 0,
+    "StoreSlotFloatAddMul": 0,
+    "StoreSlotFloatAddMulArrayGet": 0,
+    "StoreSlotFloatAddMulSlot": 0,
+    "StoreSlotFloatAddSub": 0,
+    "StoreSlotFloatAffine": 0,
+    "StoreSlotFloatBinary": 0,
+    "StoreSlotFloatRegion": 0,
+    "StoreSlotI32": 0,
+    "StoreSlotIntMulConstAdd": 0,
+    "StoreSlotIntMulConstAddFromSlot": 0,
+    "StoreSlotIntMulConstModConst": 0,
+    "StoreSlotNew": 2551054,
+    "StringInterpolation": 2,
+    "StructLiteral": 0,
+    "StructLiteralNamedFast": 300001,
+    "TryArrayPushF64AffineProduct": 0,
+    "TryArrayPushF64NestedGet": 0,
+    "TryFloatUpdatePair": 0,
+    "Unary": 0,
+    "UnboxI32": 0,
+    "Yield": 0
+  },
+  "TopOps": [
+    {
+      "op": 8,
+      "name": "Pop",
+      "count": 7853155
+    },
+    {
+      "op": 117,
+      "name": "LoadSlot",
+      "count": 7654190
+    },
+    {
+      "op": 1,
+      "name": "LoadName",
+      "count": 6000020
+    },
+    {
+      "op": 9,
+      "name": "Binary",
+      "count": 4901054
+    },
+    {
+      "op": 92,
+      "name": "JumpIfIntCompareSlotConstFalse",
+      "count": 2951052
+    },
+    {
+      "op": 121,
+      "name": "StoreSlot",
+      "count": 2902090
+    },
+    {
+      "op": 122,
+      "name": "StoreSlotNew",
+      "count": 2551054
+    },
+    {
+      "op": 0,
+      "name": "Const",
+      "count": 2350017
+    },
+    {
+      "op": 116,
+      "name": "Return",
+      "count": 2300010
+    },
+    {
+      "op": 89,
+      "name": "JumpIfFalse",
+      "count": 2150007
+    },
+    {
+      "op": 24,
+      "name": "Cast",
+      "count": 1900004
+    },
+    {
+      "op": 66,
+      "name": "CallName",
+      "count": 1800010
+    },
+    {
+      "op": 88,
+      "name": "Jump",
+      "count": 1751048
+    },
+    {
+      "op": 120,
+      "name": "LoadSlotStructField",
+      "count": 950000
+    },
+    {
+      "op": 3,
+      "name": "DeclareName",
+      "count": 900003
+    },
+    {
+      "op": 4,
+      "name": "AssignName",
+      "count": 600002
+    },
+    {
+      "op": 7,
+      "name": "Dup",
+      "count": 600002
+    },
+    {
+      "op": 106,
+      "name": "EnterScope",
+      "count": 600002
+    },
+    {
+      "op": 107,
+      "name": "ExitScope",
+      "count": 600002
+    },
+    {
+      "op": 10,
+      "name": "BinaryIntAdd",
+      "count": 550000
+    },
+    {
+      "op": 67,
+      "name": "CallMember",
+      "count": 400000
+    },
+    {
+      "op": 104,
+      "name": "LoopEnter",
+      "count": 300003
+    },
+    {
+      "op": 105,
+      "name": "LoopExit",
+      "count": 300003
+    },
+    {
+      "op": 53,
+      "name": "StructLiteralNamedFast",
+      "count": 300001
+    },
+    {
+      "op": 18,
+      "name": "BinaryIntMulSlotConst",
+      "count": 300000
+    },
+    {
+      "op": 68,
+      "name": "CallStaticMember",
+      "count": 150001
+    },
+    {
+      "op": 2,
+      "name": "LoadStaticReceiver",
+      "count": 150001
+    },
+    {
+      "op": 129,
+      "name": "StoreSlotBinaryIntSlotConst",
+      "count": 100000
+    },
+    {
+      "op": 113,
+      "name": "ReturnBinary",
+      "count": 50000
+    },
+    {
+      "op": 25,
+      "name": "StringInterpolation",
+      "count": 2
+    }
+  ],
+  "TopOpPairs": [
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 2952092
+    },
+    {
+      "first": 121,
+      "first_name": "StoreSlot",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 2902090
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 121,
+      "second_name": "StoreSlot",
+      "count": 2702090
+    },
+    {
+      "first": 122,
+      "first_name": "StoreSlotNew",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 2551054
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 1,
+      "second_name": "LoadName",
+      "count": 2100007
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 1700004
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 1651045
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 1601045
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 89,
+      "second_name": "JumpIfFalse",
+      "count": 1500005
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 1500005
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 1,
+      "second_name": "LoadName",
+      "count": 1500005
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 1351045
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 88,
+      "second_name": "Jump",
+      "count": 1351045
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 0,
+      "second_name": "Const",
+      "count": 1200004
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 116,
+      "second_name": "Return",
+      "count": 1200004
+    },
+    {
+      "first": 3,
+      "first_name": "DeclareName",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 900003
+    },
+    {
+      "first": 120,
+      "first_name": "LoadSlotStructField",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 700000
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 4,
+      "second_name": "AssignName",
+      "count": 600002
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 7,
+      "second_name": "Dup",
+      "count": 600002
+    },
+    {
+      "first": 7,
+      "first_name": "Dup",
+      "second": 89,
+      "second_name": "JumpIfFalse",
+      "count": 600002
+    },
+    {
+      "first": 106,
+      "first_name": "EnterScope",
+      "second": 1,
+      "second_name": "LoadName",
+      "count": 600002
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 66,
+      "second_name": "CallName",
+      "count": 600002
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 600002
+    },
+    {
+      "first": 1,
+      "first_name": "LoadName",
+      "second": 3,
+      "second_name": "DeclareName",
+      "count": 600002
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 66,
+      "second_name": "CallName",
+      "count": 450002
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 67,
+      "second_name": "CallMember",
+      "count": 400000
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 9,
+      "second_name": "Binary",
+      "count": 350000
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 120,
+      "second_name": "LoadSlotStructField",
+      "count": 350000
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 88,
+      "second_name": "Jump",
+      "count": 300003
+    },
+    {
+      "first": 92,
+      "first_name": "JumpIfIntCompareSlotConstFalse",
+      "second": 0,
+      "second_name": "Const",
+      "count": 300003
+    },
+    {
+      "first": 104,
+      "first_name": "LoopEnter",
+      "second": 92,
+      "second_name": "JumpIfIntCompareSlotConstFalse",
+      "count": 300003
+    },
+    {
+      "first": 105,
+      "first_name": "LoopExit",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 300003
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 104,
+      "second_name": "LoopEnter",
+      "count": 300003
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 300002
+    },
+    {
+      "first": 4,
+      "first_name": "AssignName",
+      "second": 107,
+      "second_name": "ExitScope",
+      "count": 300001
+    },
+    {
+      "first": 4,
+      "first_name": "AssignName",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 300001
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 1,
+      "second_name": "LoadName",
+      "count": 300001
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 53,
+      "second_name": "StructLiteralNamedFast",
+      "count": 300001
+    },
+    {
+      "first": 107,
+      "first_name": "ExitScope",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 300001
+    },
+    {
+      "first": 107,
+      "first_name": "ExitScope",
+      "second": 116,
+      "second_name": "Return",
+      "count": 300001
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 92,
+      "second_name": "JumpIfIntCompareSlotConstFalse",
+      "count": 300001
+    },
+    {
+      "first": 53,
+      "first_name": "StructLiteralNamedFast",
+      "second": 107,
+      "second_name": "ExitScope",
+      "count": 300001
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 0,
+      "second_name": "Const",
+      "count": 300000
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 24,
+      "second_name": "Cast",
+      "count": 300000
+    },
+    {
+      "first": 18,
+      "first_name": "BinaryIntMulSlotConst",
+      "second": 0,
+      "second_name": "Const",
+      "count": 300000
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 10,
+      "second_name": "BinaryIntAdd",
+      "count": 300000
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 121,
+      "second_name": "StoreSlot",
+      "count": 200000
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 0,
+      "second_name": "Const",
+      "count": 200000
+    },
+    {
+      "first": 120,
+      "first_name": "LoadSlotStructField",
+      "second": 116,
+      "second_name": "Return",
+      "count": 200000
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 66,
+      "second_name": "CallName",
+      "count": 150001
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 150001
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 120,
+      "second_name": "LoadSlotStructField",
+      "count": 150000
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 18,
+      "second_name": "BinaryIntMulSlotConst",
+      "count": 100000
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 68,
+      "second_name": "CallStaticMember",
+      "count": 100000
+    },
+    {
+      "first": 24,
+      "first_name": "Cast",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 100000
+    },
+    {
+      "first": 2,
+      "first_name": "LoadStaticReceiver",
+      "second": 18,
+      "second_name": "BinaryIntMulSlotConst",
+      "count": 100000
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 2,
+      "second_name": "LoadStaticReceiver",
+      "count": 100000
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 129,
+      "second_name": "StoreSlotBinaryIntSlotConst",
+      "count": 100000
+    },
+    {
+      "first": 129,
+      "first_name": "StoreSlotBinaryIntSlotConst",
+      "second": 88,
+      "second_name": "Jump",
+      "count": 100000
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 10,
+      "second_name": "BinaryIntAdd",
+      "count": 50000
+    },
+    {
+      "first": 9,
+      "first_name": "Binary",
+      "second": 120,
+      "second_name": "LoadSlotStructField",
+      "count": 50000
+    },
+    {
+      "first": 10,
+      "first_name": "BinaryIntAdd",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 50000
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 113,
+      "second_name": "ReturnBinary",
+      "count": 50000
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 68,
+      "second_name": "CallStaticMember",
+      "count": 50000
+    },
+    {
+      "first": 120,
+      "first_name": "LoadSlotStructField",
+      "second": 0,
+      "second_name": "Const",
+      "count": 50000
+    },
+    {
+      "first": 2,
+      "first_name": "LoadStaticReceiver",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 50000
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 18,
+      "second_name": "BinaryIntMulSlotConst",
+      "count": 50000
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 122,
+      "second_name": "StoreSlotNew",
+      "count": 6
+    },
+    {
+      "first": 8,
+      "first_name": "Pop",
+      "second": 0,
+      "second_name": "Const",
+      "count": 5
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 117,
+      "second_name": "LoadSlot",
+      "count": 2
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 0,
+      "second_name": "Const",
+      "count": 2
+    },
+    {
+      "first": 117,
+      "first_name": "LoadSlot",
+      "second": 25,
+      "second_name": "StringInterpolation",
+      "count": 2
+    },
+    {
+      "first": 25,
+      "first_name": "StringInterpolation",
+      "second": 116,
+      "second_name": "Return",
+      "count": 2
+    },
+    {
+      "first": 66,
+      "first_name": "CallName",
+      "second": 8,
+      "second_name": "Pop",
+      "count": 1
+    },
+    {
+      "first": 66,
+      "first_name": "CallName",
+      "second": 116,
+      "second_name": "Return",
+      "count": 1
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 68,
+      "second_name": "CallStaticMember",
+      "count": 1
+    },
+    {
+      "first": 0,
+      "first_name": "Const",
+      "second": 0,
+      "second_name": "Const",
+      "count": 1
+    },
+    {
+      "first": 2,
+      "first_name": "LoadStaticReceiver",
+      "second": 0,
+      "second_name": "Const",
+      "count": 1
+    }
+  ],
+  "ValueStackDeltas": [
+    2350017,
+    6000020,
+    150001,
+    0,
+    0,
+    0,
+    0,
+    600002,
+    -7853155,
+    -4901054,
+    -550000,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    300000,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -4,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -300001,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -1200005,
+    -550000,
+    -450003,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -2150007,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    -50000,
+    0,
+    0,
+    -1,
+    7654190,
+    0,
+    0,
+    950000,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "ValueStackDeltasByName": {
+    "ArrayIndexGetSlot": 0,
+    "ArrayIndexSetSlot": 0,
+    "ArrayIndexSwapSlot": 0,
+    "ArrayLiteral": 0,
+    "ArrayReadSlot": 0,
+    "ArrayReadSlotI32": 0,
+    "ArraySlotSwapSlot": 0,
+    "AssignName": 0,
+    "AssignNameCompound": 0,
+    "AssignPattern": 0,
+    "Await": 0,
+    "Binary": -4901054,
+    "BinaryCastSlotFloatConstDiv": 0,
+    "BinaryFloatMulSlotConst": 0,
+    "BinaryI32Add": 0,
+    "BinaryI32Sub": 0,
+    "BinaryIntAdd": -550000,
+    "BinaryIntAddSlotConst": 0,
+    "BinaryIntCompareSlotConst": 0,
+    "BinaryIntDivCast": 0,
+    "BinaryIntLessEqual": 0,
+    "BinaryIntLessEqualSlotConst": 0,
+    "BinaryIntModSlotConst": 0,
+    "BinaryIntMulSlotConst": 300000,
+    "BinaryIntSub": 0,
+    "BinaryIntSubSlotConst": 0,
+    "BindPattern": 0,
+    "BoxI32": 0,
+    "BreakLabel": 0,
+    "BreakSignal": 0,
+    "Breakpoint": 0,
+    "Call": 0,
+    "CallMember": -550000,
+    "CallMemberArrayGet": 0,
+    "CallMemberArrayNew": 0,
+    "CallMemberArraySlot": 0,
+    "CallMemberNext": 0,
+    "CallName": -1200005,
+    "CallSelf": 0,
+    "CallSelfIntSubSlotConst": 0,
+    "CallStaticMember": -450003,
+    "Cast": 0,
+    "CompoundAssignImplicitSlot": 0,
+    "CompoundAssignSlot": 0,
+    "CompoundAssignSlotI32": 0,
+    "Const": 2350017,
+    "ConstI32": 0,
+    "ContinueSignal": 0,
+    "DeclareName": 0,
+    "DefineExtern": 0,
+    "DefineFunction": 0,
+    "DefineImplementation": 0,
+    "DefineInterface": 0,
+    "DefineMethods": 0,
+    "DefineStruct": 0,
+    "DefineTypeAlias": 0,
+    "DefineUnion": 0,
+    "Dup": 600002,
+    "DynImport": 0,
+    "Ensure": 0,
+    "EnsureEnd": 0,
+    "EnterScope": 0,
+    "ExitScope": 0,
+    "ForLoop": 0,
+    "ImplicitMember": 0,
+    "ImplicitMemberSet": 0,
+    "Import": 0,
+    "IndexGet": 0,
+    "IndexSet": 0,
+    "IterClose": 0,
+    "IterInit": 0,
+    "IterNext": 0,
+    "IteratorLiteral": 0,
+    "Jump": 0,
+    "JumpIfArrayIndexSlotCompareSlotFalse": 0,
+    "JumpIfArrayReadSlotCompareSlotFalse": 0,
+    "JumpIfBoolSlotFalse": 0,
+    "JumpIfFalse": -2150007,
+    "JumpIfFloatAddCompareConstFalse": 0,
+    "JumpIfFloatMulAddMulCompareConstFalse": 0,
+    "JumpIfIntCompareSlotConstFalse": 0,
+    "JumpIfIntCompareSlotFalse": 0,
+    "JumpIfIntLessEqualSlotConstFalse": 0,
+    "JumpIfNil": 0,
+    "JumpIfNotNil": 0,
+    "JumpIfNotTypedPattern": 0,
+    "LoadImplicitSlot": 0,
+    "LoadName": 6000020,
+    "LoadSlot": 7654190,
+    "LoadSlotI32": 0,
+    "LoadSlotStructField": 950000,
+    "LoadStaticReceiver": 150001,
+    "LoopEnter": 0,
+    "LoopExit": 0,
+    "MakeFunction": 0,
+    "MapLiteral": 0,
+    "Match": 0,
+    "MatchNoClause": 0,
+    "MemberAccess": 0,
+    "MemberSet": 0,
+    "OrElse": 0,
+    "Pipe": 0,
+    "PlaceholderLambda": 0,
+    "PlaceholderValue": 0,
+    "Pop": -7853155,
+    "Propagation": 0,
+    "Raise": 0,
+    "Range": 0,
+    "Rescue": 0,
+    "Rethrow": 0,
+    "Return": -1,
+    "ReturnBinary": -50000,
+    "ReturnBinaryIntAdd": 0,
+    "ReturnBinaryIntAddI32": 0,
+    "ReturnConstIfIntLessEqualSlotConst": 0,
+    "ReturnIfIntLessEqualSlotConst": 0,
+    "Spawn": 0,
+    "StoreImplicitSlot": 0,
+    "StoreSlot": 0,
+    "StoreSlotBinaryIntSlotConst": 0,
+    "StoreSlotCastSlotFloatConstDiv": 0,
+    "StoreSlotFloatAddMul": 0,
+    "StoreSlotFloatAddMulArrayGet": 0,
+    "StoreSlotFloatAddMulSlot": 0,
+    "StoreSlotFloatAddSub": 0,
+    "StoreSlotFloatAffine": 0,
+    "StoreSlotFloatBinary": 0,
+    "StoreSlotFloatRegion": 0,
+    "StoreSlotI32": 0,
+    "StoreSlotIntMulConstAdd": 0,
+    "StoreSlotIntMulConstAddFromSlot": 0,
+    "StoreSlotIntMulConstModConst": 0,
+    "StoreSlotNew": 0,
+    "StringInterpolation": -4,
+    "StructLiteral": 0,
+    "StructLiteralNamedFast": -300001,
+    "TryArrayPushF64AffineProduct": 0,
+    "TryArrayPushF64NestedGet": 0,
+    "TryFloatUpdatePair": 0,
+    "Unary": 0,
+    "UnboxI32": 0,
+    "Yield": 0
+  },
+  "TopValueStackDeltas": [
+    {
+      "op": 117,
+      "name": "LoadSlot",
+      "delta": 7654190
+    },
+    {
+      "op": 1,
+      "name": "LoadName",
+      "delta": 6000020
+    },
+    {
+      "op": 0,
+      "name": "Const",
+      "delta": 2350017
+    },
+    {
+      "op": 120,
+      "name": "LoadSlotStructField",
+      "delta": 950000
+    },
+    {
+      "op": 7,
+      "name": "Dup",
+      "delta": 600002
+    },
+    {
+      "op": 18,
+      "name": "BinaryIntMulSlotConst",
+      "delta": 300000
+    },
+    {
+      "op": 2,
+      "name": "LoadStaticReceiver",
+      "delta": 150001
+    },
+    {
+      "op": 116,
+      "name": "Return",
+      "delta": -1
+    },
+    {
+      "op": 25,
+      "name": "StringInterpolation",
+      "delta": -4
+    },
+    {
+      "op": 113,
+      "name": "ReturnBinary",
+      "delta": -50000
+    },
+    {
+      "op": 53,
+      "name": "StructLiteralNamedFast",
+      "delta": -300001
+    },
+    {
+      "op": 68,
+      "name": "CallStaticMember",
+      "delta": -450003
+    },
+    {
+      "op": 10,
+      "name": "BinaryIntAdd",
+      "delta": -550000
+    },
+    {
+      "op": 67,
+      "name": "CallMember",
+      "delta": -550000
+    },
+    {
+      "op": 66,
+      "name": "CallName",
+      "delta": -1200005
+    },
+    {
+      "op": 89,
+      "name": "JumpIfFalse",
+      "delta": -2150007
+    },
+    {
+      "op": 9,
+      "name": "Binary",
+      "delta": -4901054
+    },
+    {
+      "op": 8,
+      "name": "Pop",
+      "delta": -7853155
+    }
+  ],
+  "TopValueStackPeakSites": [
+    {
+      "op": 0,
+      "ip": 0,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 6,
+      "column": 22,
+      "growth": 1
+    },
+    {
+      "op": 0,
+      "ip": 16,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 11,
+      "column": 30,
+      "growth": 1
+    },
+    {
+      "op": 117,
+      "ip": 33,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 13,
+      "column": 38,
+      "growth": 1
+    },
+    {
+      "op": 0,
+      "ip": 29,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 64,
+      "growth": 1
+    }
+  ],
+  "TopValueStackDeltaSites": [
+    {
+      "op": 117,
+      "ip": 12,
+      "name": "x",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 32,
+      "column": 13,
+      "delta": 1351045
+    },
+    {
+      "op": 117,
+      "ip": 13,
+      "name": "y",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 32,
+      "column": 17,
+      "delta": 1351045
+    },
+    {
+      "op": 117,
+      "ip": 17,
+      "name": "y",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 33,
+      "column": 9,
+      "delta": 1351045
+    },
+    {
+      "op": 117,
+      "ip": 20,
+      "name": "temp",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 34,
+      "column": 9,
+      "delta": 1351045
+    },
+    {
+      "op": 117,
+      "ip": 4,
+      "name": "value",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 24,
+      "column": 39,
+      "delta": 900003
+    },
+    {
+      "op": 0,
+      "ip": 8,
+      "name": "",
+      "delta": 300001
+    },
+    {
+      "op": 7,
+      "ip": 57,
+      "name": "",
+      "delta": 300001
+    },
+    {
+      "op": 7,
+      "ip": 73,
+      "name": "",
+      "delta": 300001
+    },
+    {
+      "op": 117,
+      "ip": 29,
+      "name": "x",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 36,
+      "column": 36,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 1,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 40,
+      "column": 6,
+      "delta": 300001
+    },
+    {
+      "op": 0,
+      "ip": 2,
+      "name": "",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 40,
+      "column": 21,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 9,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 42,
+      "column": 10,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 12,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 43,
+      "column": 10,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 15,
+      "name": "den",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 45,
+      "column": 6,
+      "delta": 300001
+    },
+    {
+      "op": 0,
+      "ip": 16,
+      "name": "",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 45,
+      "column": 12,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 28,
+      "name": "num",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 50,
+      "column": 6,
+      "delta": 300001
+    },
+    {
+      "op": 0,
+      "ip": 29,
+      "name": "",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 50,
+      "column": 13,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 37,
+      "name": "num",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 53,
+      "column": 52,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 39,
+      "name": "den",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 53,
+      "column": 58,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 43,
+      "name": "num",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 54,
+      "column": 11,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 44,
+      "name": "divisor",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 54,
+      "column": 18,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 48,
+      "name": "den",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 55,
+      "column": 11,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 49,
+      "name": "divisor",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 55,
+      "column": 18,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 54,
+      "name": "num",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 58,
+      "column": 6,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 55,
+      "name": "I64_MIN_I128",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 58,
+      "column": 12,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 61,
+      "name": "num",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 58,
+      "column": 28,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 62,
+      "name": "I64_MAX_I128",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 58,
+      "column": 34,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 70,
+      "name": "den",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 61,
+      "column": 6,
+      "delta": 300001
+    },
+    {
+      "op": 0,
+      "ip": 71,
+      "name": "",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 61,
+      "column": 12,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 77,
+      "name": "den",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 61,
+      "column": 22,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 78,
+      "name": "I64_MAX_I128",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 61,
+      "column": 28,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 86,
+      "name": "num",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 65,
+      "column": 25,
+      "delta": 300001
+    },
+    {
+      "op": 1,
+      "ip": 88,
+      "name": "den",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 65,
+      "column": 50,
+      "delta": 300001
+    },
+    {
+      "op": 117,
+      "ip": 0,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 69,
+      "column": 18,
+      "delta": 150001
+    },
+    {
+      "op": 117,
+      "ip": 2,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 69,
+      "column": 37,
+      "delta": 150001
+    },
+    {
+      "op": 120,
+      "ip": 0,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 96,
+      "column": 37,
+      "delta": 100000
+    },
+    {
+      "op": 120,
+      "ip": 0,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 97,
+      "column": 39,
+      "delta": 100000
+    },
+    {
+      "op": 120,
+      "ip": 0,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 99,
+      "column": 36,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 1,
+      "name": "",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 99,
+      "column": 54,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 0,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 113,
+      "column": 19,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 2,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 113,
+      "column": 46,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 5,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 114,
+      "column": 8,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 7,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 114,
+      "column": 36,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 13,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 115,
+      "column": 21,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 15,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 115,
+      "column": 50,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 0,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 124,
+      "column": 19,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 2,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 124,
+      "column": 46,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 7,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 125,
+      "column": 21,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 9,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 125,
+      "column": 50,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 0,
+      "name": "other",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 130,
+      "column": 8,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 7,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 131,
+      "column": 19,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 9,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 131,
+      "column": 46,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 14,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 132,
+      "column": 21,
+      "delta": 50000
+    },
+    {
+      "op": 120,
+      "ip": 16,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able-stdlib/src/numbers/rational.able",
+      "line": 132,
+      "column": 50,
+      "delta": 50000
+    },
+    {
+      "op": 18,
+      "ip": 15,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 11,
+      "column": 19,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 16,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 11,
+      "column": 30,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 18,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 11,
+      "column": 35,
+      "delta": 50000
+    },
+    {
+      "op": 18,
+      "ip": 23,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 12,
+      "column": 21,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 24,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 12,
+      "column": 32,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 26,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 12,
+      "column": 37,
+      "delta": 50000
+    },
+    {
+      "op": 2,
+      "ip": 31,
+      "name": "Rational",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 13,
+      "column": 14,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 32,
+      "name": "numerator",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 13,
+      "column": 27,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 33,
+      "name": "denominator",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 13,
+      "column": 38,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 37,
+      "name": "numerator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 14,
+      "column": 24,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 38,
+      "name": "value",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 14,
+      "column": 42,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 41,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 14,
+      "column": 63,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 45,
+      "name": "denominator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 15,
+      "column": 26,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 46,
+      "name": "value",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 15,
+      "column": 46,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 49,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 15,
+      "column": 69,
+      "delta": 50000
+    },
+    {
+      "op": 2,
+      "ip": 21,
+      "name": "Rational",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 13,
+      "delta": 50000
+    },
+    {
+      "op": 18,
+      "ip": 22,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 27,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 23,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 37,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 25,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 42,
+      "delta": 50000
+    },
+    {
+      "op": 18,
+      "ip": 28,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 54,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 29,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 64,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 31,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 28,
+      "column": 69,
+      "delta": 50000
+    },
+    {
+      "op": 2,
+      "ip": 37,
+      "name": "Rational",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 29,
+      "column": 14,
+      "delta": 50000
+    },
+    {
+      "op": 18,
+      "ip": 38,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 29,
+      "column": 28,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 39,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 29,
+      "column": 39,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 41,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 29,
+      "column": 44,
+      "delta": 50000
+    },
+    {
+      "op": 18,
+      "ip": 44,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 29,
+      "column": 56,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 45,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 29,
+      "column": 67,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 47,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 29,
+      "column": 72,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 53,
+      "name": "left",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 30,
+      "column": 14,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 54,
+      "name": "right",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 30,
+      "column": 23,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 56,
+      "name": "left",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 30,
+      "column": 34,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 58,
+      "name": "half",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 30,
+      "column": 44,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 62,
+      "name": "numerator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 31,
+      "column": 24,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 63,
+      "name": "value",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 31,
+      "column": 42,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 66,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 31,
+      "column": 63,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 70,
+      "name": "denominator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 32,
+      "column": 26,
+      "delta": 50000
+    },
+    {
+      "op": 117,
+      "ip": 71,
+      "name": "value",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 32,
+      "column": 46,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 74,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 32,
+      "column": 69,
+      "delta": 50000
+    },
+    {
+      "op": 0,
+      "ip": 11,
+      "name": "",
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 17,
+      "name": "",
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 58,
+      "name": "",
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 83,
+      "name": "",
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 0,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 6,
+      "column": 22,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 3,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 7,
+      "column": 24,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 6,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 8,
+      "column": 8,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 57,
+      "name": "numerator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 18,
+      "column": 6,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 59,
+      "name": "denominator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 18,
+      "column": 25,
+      "delta": 1
+    },
+    {
+      "op": 2,
+      "ip": 0,
+      "name": "Rational",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 22,
+      "column": 11,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 1,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 22,
+      "column": 24,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 2,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 22,
+      "column": 31,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 6,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 23,
+      "column": 22,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 9,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 24,
+      "column": 24,
+      "delta": 1
+    },
+    {
+      "op": 0,
+      "ip": 12,
+      "name": "",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 25,
+      "column": 8,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 82,
+      "name": "numerator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 35,
+      "column": 6,
+      "delta": 1
+    },
+    {
+      "op": 117,
+      "ip": 84,
+      "name": "denominator_total",
+      "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/rational_series/rational_series.able",
+      "line": 35,
+      "column": 25,
+      "delta": 1
+    }
+  ],
+  "TopCallOperandBalances": null,
+  "TopLoopBackedgeBalances": [],
+  "TopInlineFrameBalances": null,
+  "ValueStackMaxDepth": 4,
+  "ValueStackMaxCapacity": 8,
+  "ValueStackCapacityGrowths": 0,
+  "CallFrameMaxDepth": 6,
+  "LoadNameLookups": 6000020,
+  "LoadNameLookupsByName": {
+    "I64_MAX_I128": 600002,
+    "I64_MIN_I128": 300001,
+    "den": 1800006,
+    "denominator": 600002,
+    "divisor": 600002,
+    "num": 1800006,
+    "numerator": 300001
+  },
+  "TopLoadNames": [
+    {
+      "name": "den",
+      "count": 1800006
+    },
+    {
+      "name": "num",
+      "count": 1800006
+    },
+    {
+      "name": "I64_MAX_I128",
+      "count": 600002
+    },
+    {
+      "name": "denominator",
+      "count": 600002
+    },
+    {
+      "name": "divisor",
+      "count": 600002
+    },
+    {
+      "name": "I64_MIN_I128",
+      "count": 300001
+    },
+    {
+      "name": "numerator",
+      "count": 300001
+    }
+  ],
+  "LoadNameHotHits": 0,
+  "LoadNameScopeHits": 30,
+  "LoadNameGlobalHits": 0,
+  "LoadNameDirectCurrent": 2999980,
+  "LoadNameDirectOuter": 3000010,
+  "LoadNameScopeStores": 5999990,
+  "LoadNameGlobalStores": 0,
+  "CallNameLookups": 1800010,
+  "CallNameDotFallback": 0,
+  "CallNameExactNativeHits": 2,
+  "CallNameInlineDirectSlotHits": 900003,
+  "CallNameInlineDirectStackHits": 600004,
+  "CallNameInlineResolvedHits": 300001,
+  "CallNameInlineGenericHits": 0,
+  "CallNameResolvedFunctionHits": 0,
+  "CallNameGenericFallbacks": 0,
+  "InlineCallHits": 2350009,
+  "InlineCallMisses": 0,
+  "DirectFunctionStackHits": 0,
+  "InlineResolvedMissNoBytecode": 0,
+  "InlineResolvedMissArity": 0,
+  "InlineResolvedMissTypeArgs": 0,
+  "InlineResolvedMissGenericLambda": 0,
+  "MemberMethodCacheHits": 199996,
+  "MemberMethodCacheMiss": 200004,
+  "CallMemberResolvedExactNativeHits": 0,
+  "CallMemberResolvedInlineHits": 400000,
+  "CallMemberResolvedGenericHits": 0,
+  "CallMemberResolvedFallbacks": 0,
+  "CallMemberStaticCacheHits": 149997,
+  "CallMemberStaticCacheMisses": 4,
+  "CallMemberStaticExactNativeHits": 0,
+  "CallMemberStaticInlineHits": 150001,
+  "CallMemberStaticGenericHits": 0,
+  "ExprCacheHits": 0,
+  "ExprCacheMisses": 0,
+  "ArrayIndexSlotLookups": 0,
+  "ArrayIndexSlotTrackedHits": 0,
+  "ArrayIndexSlotMonoUnsignedHits": 0,
+  "ArrayIndexSlotDirectHits": 0,
+  "ArrayIndexSlotFallbacks": 0,
+  "ArrayIndexSlotFastDisabledMiss": 0,
+  "ArrayIndexSlotReceiverMiss": 0,
+  "ArrayIndexSlotIndexMiss": 0,
+  "ArrayIndexSlotHandleMiss": 0,
+  "ArrayIndexSlotDirectMiss": 0,
+  "ArrayMemberSlotLookups": 0,
+  "ArrayMemberSlotCacheHits": 0,
+  "ArrayMemberSlotFastHits": 0,
+  "ArrayMemberSlotFallbacks": 0,
+  "ArrayMemberSlotReceiverMiss": 0,
+  "ArrayMemberSlotCacheMiss": 0,
+  "ArrayMemberSlotFastPathMiss": 0
+}

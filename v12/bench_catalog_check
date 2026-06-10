@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Validate that the benchmark catalogs still describe runnable, comparable
+# programs. This is intentionally static: it never builds or times an
+# application, so it is safe in ordinary verification lanes.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+source "$SCRIPT_DIR/bench_fixture_catalog.sh"
+
+suite="corpus-full"
+benchmark_repo="$REPO_ROOT/../benchmarks"
+
+usage() {
+  cat <<'EOF'
+Usage: v12/bench_catalog_check [options]
+
+Statically validate the active portable benchmark catalog and, for the default
+corpus-full mode, every local bounded fixture. The check requires the same
+default foreign source lanes used by the refreshers: Go 1.26 or top-level Go,
+Python 3.14, Ruby 4.0, and each suite verifier.
+
+Options:
+      --suite NAME          Any named portable suite, or corpus-full
+                            (default: corpus-full)
+      --benchmark-repo DIR  Sibling external benchmark repository (default: ../benchmarks)
+  -h, --help                Show this help
+EOF
+}
+
+die() {
+  echo "bench_catalog_check: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --suite)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --suite"
+      suite="$1"
+      ;;
+    --benchmark-repo)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"
+      benchmark_repo="$1"
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+external_suite="$suite"
+if [[ "$suite" == corpus-full ]]; then
+  external_suite="coverage"
+else
+  bench_external_suite_csv "$external_suite" >/dev/null || \
+    die "unknown portable suite: $suite"
+fi
+
+benchmark_repo="$(realpath "$benchmark_repo")"
+[[ -d "$benchmark_repo" ]] || die "benchmark repository not found: $benchmark_repo"
+canonical_root="$(realpath "$SCRIPT_DIR/examples/benchmarks")"
+[[ -d "$canonical_root" ]] || die "canonical Able benchmark root not found: $canonical_root"
+
+check_unique_csv() {
+  local label="$1"
+  local csv="$2"
+  local -A seen=()
+  local -a values=()
+  local value
+  IFS=',' read -r -a values <<<"$csv"
+  for value in "${values[@]}"; do
+    [[ -n "$value" ]] || die "$label contains an empty name"
+    [[ -z "${seen[$value]:-}" ]] || die "$label repeats $value"
+    seen["$value"]=1
+  done
+  printf '%s\n' "${#values[@]}"
+}
+
+coverage_csv="$(bench_external_suite_csv coverage)"
+check_unique_csv "external coverage catalog" "$coverage_csv" >/dev/null
+declare -A coverage_members=()
+IFS=',' read -r -a coverage_benchmarks <<<"$coverage_csv"
+for benchmark in "${coverage_benchmarks[@]}"; do
+  coverage_members["$benchmark"]=1
+done
+
+# `coverage` is the complete candidate-selection application population. Every
+# ordinary comparison subset must stay inside it, or a focused suite could
+# silently bypass corpus validation and later be mistaken for broad evidence.
+# Explicit diagnostic suites remain statically validated below but cannot be
+# mistaken for selection coverage.
+while IFS= read -r declared_suite; do
+  declared_csv="$(bench_external_suite_csv "$declared_suite")" || \
+    die "named suite has no catalog entry: $declared_suite"
+  check_unique_csv "portable $declared_suite catalog" "$declared_csv" >/dev/null
+  IFS=',' read -r -a declared_benchmarks <<<"$declared_csv"
+  if bench_external_suite_is_diagnostic "$declared_suite"; then
+    continue
+  fi
+  for benchmark in "${declared_benchmarks[@]}"; do
+    [[ -n "${coverage_members[$benchmark]:-}" ]] || \
+      die "$declared_suite: $benchmark is missing from coverage"
+  done
+done < <(bench_external_suite_names)
+
+declare -A diagnostic_members=()
+diagnostic_count=0
+while IFS= read -r diagnostic_suite; do
+  diagnostic_csv="$(bench_external_suite_csv "$diagnostic_suite")" || \
+    die "diagnostic suite has no catalog entry: $diagnostic_suite"
+  check_unique_csv "diagnostic $diagnostic_suite catalog" "$diagnostic_csv" >/dev/null
+  IFS=',' read -r -a diagnostic_benchmarks <<<"$diagnostic_csv"
+  for benchmark in "${diagnostic_benchmarks[@]}"; do
+    [[ -z "${coverage_members[$benchmark]:-}" ]] || \
+      die "$diagnostic_suite: $benchmark is also candidate-selection coverage"
+    [[ -z "${diagnostic_members[$benchmark]:-}" ]] || \
+      die "$diagnostic_suite: repeats diagnostic benchmark $benchmark"
+    diagnostic_members["$benchmark"]=1
+    ((diagnostic_count += 1))
+  done
+done < <(bench_external_diagnostic_suite_names)
+
+external_csv="$(bench_external_suite_csv "$external_suite")"
+external_count="$(check_unique_csv "portable $suite catalog" "$external_csv")"
+IFS=',' read -r -a external_benchmarks <<<"$external_csv"
+declare -A catalog_targets=()
+
+for benchmark in "${external_benchmarks[@]}"; do
+  target="$(bench_external_target "$SCRIPT_DIR" "$benchmark")" || die "no Able target for $benchmark"
+  target="$(realpath "$target")"
+  suite_dir="$(bench_external_suite_dir "$benchmark_repo" "$benchmark")"
+  run_dir="$(bench_external_run_dir "$benchmark_repo" "$benchmark")"
+  [[ -f "$target" ]] || die "$benchmark: missing Able target $target"
+  case "$target" in
+    "$canonical_root"/*.able)
+      ;;
+    *)
+      die "$benchmark: Able target escapes canonical source root $canonical_root"
+      ;;
+  esac
+  [[ -z "${catalog_targets[$target]:-}" ]] || \
+    die "$benchmark: shares canonical Able target with ${catalog_targets[$target]}: $target"
+  catalog_targets["$target"]="$benchmark"
+  [[ -d "$suite_dir" ]] || die "$benchmark: missing sibling suite $suite_dir"
+  [[ -d "$run_dir" ]] || die "$benchmark: missing sibling run directory $run_dir"
+  [[ -f "$suite_dir/verify.rb" ]] || die "$benchmark: missing verifier"
+  if [[ ! -f "$suite_dir/go-1.26/app.go" && ! -f "$suite_dir/app.go" ]]; then
+    die "$benchmark: missing default Go reference source"
+  fi
+  [[ -f "$suite_dir/python-3.14/run.py" ]] || die "$benchmark: missing Python 3.14 reference source"
+  [[ -f "$suite_dir/ruby-4.0/run.rb" ]] || die "$benchmark: missing Ruby 4.0 reference source"
+done
+
+# The catalog is the complete portable population, and all entries must be
+# canonical sources in this repository. Ignore generated compiler output under
+# benchmark-local target directories: it is execution residue, never source.
+canonical_count=0
+if [[ "$external_suite" == coverage ]]; then
+  declare -A diagnostic_targets=()
+  for benchmark in "${!diagnostic_members[@]}"; do
+    target="$(bench_external_target "$SCRIPT_DIR" "$benchmark")" || \
+      die "no Able target for diagnostic $benchmark"
+    target="$(realpath "$target")"
+    [[ -f "$target" ]] || die "$benchmark: missing diagnostic Able target $target"
+    diagnostic_targets["$target"]="$benchmark"
+  done
+  while IFS= read -r -d '' canonical_target; do
+    canonical_target="$(realpath "$canonical_target")"
+    [[ -n "${catalog_targets[$canonical_target]:-}" || -n "${diagnostic_targets[$canonical_target]:-}" ]] || \
+      die "canonical Able source is not represented in coverage: ${canonical_target#"$canonical_root"/}"
+    ((canonical_count += 1))
+  done < <(find "$canonical_root" -type d -name target -prune -o -type f -name '*.able' -print0)
+  [[ "$canonical_count" -eq "$((external_count + diagnostic_count))" ]] || \
+    die "coverage plus diagnostics have $((external_count + diagnostic_count)) entries but canonical source root has $canonical_count Able sources"
+fi
+
+fixture_count=0
+if [[ "$suite" == corpus-full ]]; then
+  fixture_csv="$(bench_fixture_suite_csv "$SCRIPT_DIR" fixture-full)"
+  fixture_count="$(check_unique_csv "local fixture catalog" "$fixture_csv")"
+  IFS=',' read -r -a fixtures <<<"$fixture_csv"
+  for fixture in "${fixtures[@]}"; do
+    fixture_dir="$(bench_fixture_dir "$SCRIPT_DIR" "$fixture")" || die "missing fixture directory $fixture"
+    entry="$(bench_fixture_entry "$SCRIPT_DIR" "$fixture")" || die "missing fixture entry $fixture"
+    [[ -f "$fixture_dir/$entry" ]] || die "$fixture: missing entry $entry"
+  done
+fi
+
+printf 'portable %s applications: %s\n' "$suite" "$external_count"
+if [[ "$suite" == corpus-full ]]; then
+  printf 'canonical Able benchmark sources: %s\n' "$canonical_count"
+  printf 'diagnostic benchmark sources: %s\n' "$diagnostic_count"
+  printf 'bounded local fixtures: %s\n' "$fixture_count"
+  printf 'combined corpus programs: %s\n' "$((external_count + fixture_count))"
+  "$SCRIPT_DIR/bench_feature_coverage_check"
+  "$SCRIPT_DIR/bench_operation_depth_check"
+fi
+printf 'bench_catalog_check: %s catalog is complete\n' "$suite"

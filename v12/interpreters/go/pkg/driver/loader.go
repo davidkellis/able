@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/parser"
@@ -73,8 +74,9 @@ type rootInfo struct {
 
 // Loader wires Able source files into aggregated modules.
 type Loader struct {
-	parser      *parser.ModuleParser
-	searchPaths []SearchPath
+	parser        *parser.ModuleParser
+	searchPaths   []SearchPath
+	phaseObserver LoaderPhaseObserver
 }
 
 // NewLoader constructs a loader with optional extra search paths (reserved for future use).
@@ -217,7 +219,7 @@ func (l *Loader) LoadWithOptions(entry string, options LoadOptions) (*Program, e
 			fileMods = append(fileMods, fm)
 		}
 
-		mod, err := combinePackage(name, fileMods)
+		mod, err := combinePackageWithObserver(name, fileMods, l.phaseObserver)
 		if err != nil {
 			return nil, err
 		}
@@ -280,6 +282,7 @@ type fileModule struct {
 	path        string
 	packageName string
 	ast         *ast.Module
+	origins     map[ast.Node]string
 	imports     []string
 	dynImports  []string
 }
@@ -481,7 +484,31 @@ func (l *Loader) parseFile(path, rootDir, rootPackage string, kind RootKind) (*f
 		}
 		importSet[name] = struct{}{}
 	}
-	collectDynImports(moduleAST, dynImportSet, make(map[uintptr]struct{}))
+	for _, export := range moduleAST.Exports {
+		if export == nil || !export.IsWildcard {
+			continue
+		}
+		if name := joinIdentifiers(export.PackagePath); name != "" {
+			importSet[name] = struct{}{}
+		}
+	}
+	origins := make(map[ast.Node]string)
+	originStart := time.Time{}
+	if l.phaseObserver != nil {
+		originStart = time.Now()
+	}
+	ast.Walk(moduleAST, func(node ast.Node) bool {
+		origins[node] = path
+		if dyn, ok := node.(*ast.DynImportStatement); ok && dyn != nil {
+			if name := joinIdentifiers(dyn.PackagePath); name != "" {
+				dynImportSet[name] = struct{}{}
+			}
+		}
+		return true
+	})
+	if l.phaseObserver != nil {
+		l.phaseObserver(LoaderPhaseSample{Phase: LoaderPhaseOriginAnnotation, Duration: time.Since(originStart)})
+	}
 	imports := make([]string, 0, len(importSet))
 	for name := range importSet {
 		imports = append(imports, name)
@@ -497,6 +524,7 @@ func (l *Loader) parseFile(path, rootDir, rootPackage string, kind RootKind) (*f
 		path:        path,
 		packageName: pkgName,
 		ast:         moduleAST,
+		origins:     origins,
 		imports:     imports,
 		dynImports:  dynImports,
 	}, nil
@@ -762,6 +790,10 @@ func findManifestName(start string) (string, error) {
 }
 
 func combinePackage(packageName string, files []*fileModule) (*Module, error) {
+	return combinePackageWithObserver(packageName, files, nil)
+}
+
+func combinePackageWithObserver(packageName string, files []*fileModule, observer LoaderPhaseObserver) (*Module, error) {
 	if len(files) == 0 {
 		return nil, errors.New("loader: combinePackage called with no files")
 	}
@@ -773,16 +805,34 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 	importSeen := make(map[string]struct{})
 	importNodeSeen := make(map[string]struct{})
 	var importNodes []*ast.ImportStatement
+	var exportNodes []*ast.ExportStatement
 	var importNames []string
 	dynImportSeen := make(map[string]struct{})
 	var dynImportNames []string
 	var body []ast.Statement
 	filePaths := make([]string, 0, len(files))
-	origins := make(map[ast.Node]string)
+	var origins map[ast.Node]string
 
 	for _, fm := range files {
 		filePaths = append(filePaths, fm.path)
-		ast.AnnotateOrigins(fm.ast, fm.path, origins)
+		fileOrigins := fm.origins
+		if fileOrigins == nil {
+			fileOrigins = make(map[ast.Node]string)
+			ast.AnnotateOrigins(fm.ast, fm.path, fileOrigins)
+		}
+		if origins == nil {
+			origins = fileOrigins
+		} else if observer == nil {
+			for node, path := range fileOrigins {
+				origins[node] = path
+			}
+		} else {
+			start := time.Now()
+			for node, path := range fileOrigins {
+				origins[node] = path
+			}
+			observer(LoaderPhaseSample{Phase: LoaderPhaseOriginAnnotation, Duration: time.Since(start)})
+		}
 		if fm.ast.Package != nil && pkgStmt == nil {
 			pkgStmt = ast.NewPackageStatement(copyIdentifiers(fm.ast.Package.NamePath), fm.ast.Package.IsPrivate)
 		}
@@ -797,6 +847,7 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 			importNodeSeen[key] = struct{}{}
 			importNodes = append(importNodes, imp)
 		}
+		exportNodes = append(exportNodes, fm.ast.Exports...)
 		for _, name := range fm.imports {
 			if name == packageName {
 				continue
@@ -825,13 +876,22 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 	if pkgStmt == nil {
 		pkgStmt = ast.NewPackageStatement(buildIdentifiers(strings.Split(packageName, ".")), false)
 	}
+	if origins == nil {
+		origins = make(map[ast.Node]string)
+	}
 
-	module := ast.NewModule(body, importNodes, pkgStmt)
+	module := ast.NewModuleWithExports(body, importNodes, exportNodes, pkgStmt)
 	primaryPath := ""
 	if len(filePaths) > 0 {
 		primaryPath = filePaths[0]
 	}
-	ast.AnnotateOrigins(module, primaryPath, origins)
+	if observer == nil {
+		ast.AnnotateOriginsSkippingKnown(module, primaryPath, origins)
+	} else {
+		start := time.Now()
+		ast.AnnotateOriginsSkippingKnown(module, primaryPath, origins)
+		observer(LoaderPhaseSample{Phase: LoaderPhaseOriginAnnotation, Duration: time.Since(start)})
+	}
 	return &Module{
 		Package:     packageName,
 		AST:         module,

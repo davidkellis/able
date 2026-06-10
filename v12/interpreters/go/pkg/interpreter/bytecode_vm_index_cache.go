@@ -9,291 +9,82 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-type bytecodeIndexMethodCacheEntry struct {
-	globalRevision     uint64
-	receiverKind       bytecodeMemberReceiverKind
-	arrayElemType      uint16
-	methodCacheVersion uint64
-	method             runtime.Value
-	hasMethod          bool
-}
-
-type bytecodeIndexMethodCacheTable struct {
-	get []bytecodeIndexMethodCacheEntry
-	set []bytecodeIndexMethodCacheEntry
-}
-
-type bytecodeInlineIndexMethodCacheEntry struct {
-	valid              bool
-	program            *bytecodeProgram
-	ip                 int
-	method             string
-	globalRevision     uint64
-	receiverKind       bytecodeMemberReceiverKind
-	arrayElemType      uint16
-	methodCacheVersion uint64
-	resolvedMethod     runtime.Value
-	hasMethod          bool
-}
-
-func bytecodeArrayReceiverForIndexCache(value runtime.Value) (*runtime.ArrayValue, bool) {
-	switch v := value.(type) {
-	case *runtime.ArrayValue:
-		return v, v != nil
-	case runtime.InterfaceValue:
-		if arr, ok := v.Underlying.(*runtime.ArrayValue); ok && arr != nil {
-			return arr, true
-		}
-	case *runtime.InterfaceValue:
-		if v != nil {
-			if arr, ok := v.Underlying.(*runtime.ArrayValue); ok && arr != nil {
-				return arr, true
-			}
-		}
-	}
-	return nil, false
-}
-
-func bytecodeArrayIndexGetSlotInstruction(ctx *bytecodeLoweringContext, expr *ast.IndexExpression) (bytecodeInstruction, bool) {
-	if ctx == nil || ctx.frameLayout == nil || expr == nil {
-		return bytecodeInstruction{}, false
-	}
-	objIdent, ok := expr.Object.(*ast.Identifier)
-	if !ok || objIdent == nil {
-		return bytecodeInstruction{}, false
-	}
-	idxIdent, ok := expr.Index.(*ast.Identifier)
-	if !ok || idxIdent == nil {
-		return bytecodeInstruction{}, false
-	}
-	objSlot, ok := ctx.lookupSlot(objIdent.Name)
-	if !ok {
-		return bytecodeInstruction{}, false
-	}
-	idxSlot, ok := ctx.lookupSlot(idxIdent.Name)
-	if !ok {
-		return bytecodeInstruction{}, false
-	}
-	return bytecodeInstruction{
-		op:        bytecodeOpArrayIndexGetSlot,
-		argCount:  objSlot,
-		loopBreak: idxSlot,
-		node:      expr,
-	}, true
-}
-
-func bytecodeArrayIndexSetSlotInstruction(ctx *bytecodeLoweringContext, expr *ast.AssignmentExpression, indexExpr *ast.IndexExpression) (bytecodeInstruction, bool) {
-	if ctx == nil || ctx.frameLayout == nil || expr == nil || indexExpr == nil {
-		return bytecodeInstruction{}, false
-	}
-	if expr.Operator != ast.AssignmentAssign {
-		return bytecodeInstruction{}, false
-	}
-	objIdent, ok := indexExpr.Object.(*ast.Identifier)
-	if !ok || objIdent == nil {
-		return bytecodeInstruction{}, false
-	}
-	idxIdent, ok := indexExpr.Index.(*ast.Identifier)
-	if !ok || idxIdent == nil {
-		return bytecodeInstruction{}, false
-	}
-	objSlot, ok := ctx.lookupSlot(objIdent.Name)
-	if !ok {
-		return bytecodeInstruction{}, false
-	}
-	idxSlot, ok := ctx.lookupSlot(idxIdent.Name)
-	if !ok {
-		return bytecodeInstruction{}, false
-	}
-	return bytecodeInstruction{
-		op:        bytecodeOpArrayIndexSetSlot,
-		argCount:  objSlot,
-		loopBreak: idxSlot,
-		node:      expr,
-	}, true
-}
-
-const (
-	bytecodeIndexTypeUnknown uint16 = iota
-	bytecodeIndexTypeI8
-	bytecodeIndexTypeI16
-	bytecodeIndexTypeI32
-	bytecodeIndexTypeI64
-	bytecodeIndexTypeI128
-	bytecodeIndexTypeU8
-	bytecodeIndexTypeU16
-	bytecodeIndexTypeU32
-	bytecodeIndexTypeU64
-	bytecodeIndexTypeU128
-	bytecodeIndexTypeIsize
-	bytecodeIndexTypeUsize
-	bytecodeIndexTypeF32
-	bytecodeIndexTypeF64
-	bytecodeIndexTypeString
-	bytecodeIndexTypeBool
-	bytecodeIndexTypeChar
-	bytecodeIndexTypeNil
-	bytecodeIndexTypeVoid
-)
-
-func bytecodeIntegerTypeToken(suffix runtime.IntegerType) uint16 {
-	switch suffix {
-	case runtime.IntegerI8:
-		return bytecodeIndexTypeI8
-	case runtime.IntegerI16:
-		return bytecodeIndexTypeI16
-	case runtime.IntegerI32:
-		return bytecodeIndexTypeI32
-	case runtime.IntegerI64:
-		return bytecodeIndexTypeI64
-	case runtime.IntegerI128:
-		return bytecodeIndexTypeI128
-	case runtime.IntegerU8:
-		return bytecodeIndexTypeU8
-	case runtime.IntegerU16:
-		return bytecodeIndexTypeU16
-	case runtime.IntegerU32:
-		return bytecodeIndexTypeU32
-	case runtime.IntegerU64:
-		return bytecodeIndexTypeU64
-	case runtime.IntegerU128:
-		return bytecodeIndexTypeU128
-	case runtime.IntegerIsize:
-		return bytecodeIndexTypeIsize
-	case runtime.IntegerUsize:
-		return bytecodeIndexTypeUsize
-	default:
-		return bytecodeIndexTypeUnknown
-	}
-}
-
-func bytecodeFloatTypeToken(suffix runtime.FloatType) uint16 {
-	switch suffix {
-	case runtime.FloatF32:
-		return bytecodeIndexTypeF32
-	case runtime.FloatF64:
-		return bytecodeIndexTypeF64
-	default:
-		return bytecodeIndexTypeUnknown
-	}
-}
-
-func bytecodeIndexValueTypeToken(value runtime.Value) (uint16, bool) {
-	normalized := unwrapInterfaceValue(value)
-	switch v := normalized.(type) {
-	case runtime.IntegerValue:
-		token := bytecodeIntegerTypeToken(v.TypeSuffix)
-		return token, token != bytecodeIndexTypeUnknown
-	case *runtime.IntegerValue:
-		if v == nil {
-			return bytecodeIndexTypeUnknown, false
-		}
-		token := bytecodeIntegerTypeToken(v.TypeSuffix)
-		return token, token != bytecodeIndexTypeUnknown
-	case runtime.FloatValue:
-		token := bytecodeFloatTypeToken(v.TypeSuffix)
-		return token, token != bytecodeIndexTypeUnknown
-	case *runtime.FloatValue:
-		if v == nil {
-			return bytecodeIndexTypeUnknown, false
-		}
-		token := bytecodeFloatTypeToken(v.TypeSuffix)
-		return token, token != bytecodeIndexTypeUnknown
-	case runtime.StringValue, *runtime.StringValue:
-		return bytecodeIndexTypeString, true
-	case runtime.BoolValue, *runtime.BoolValue:
-		return bytecodeIndexTypeBool, true
-	case runtime.CharValue, *runtime.CharValue:
-		return bytecodeIndexTypeChar, true
-	case runtime.NilValue:
-		return bytecodeIndexTypeNil, true
-	case runtime.VoidValue:
-		return bytecodeIndexTypeVoid, true
-	default:
-		return bytecodeIndexTypeUnknown, false
-	}
-}
-
-func bytecodeArrayElementTypeTokenFromValues(values []runtime.Value) (uint16, bool) {
-	if len(values) == 0 {
-		return bytecodeIndexTypeUnknown, true
-	}
-	return bytecodeIndexValueTypeToken(values[0])
-}
-
-func bytecodeArrayElementTypeToken(arr *runtime.ArrayValue) (uint16, bool) {
-	if arr == nil {
-		return bytecodeIndexTypeUnknown, false
-	}
-	if arr.State != nil && arr.State.ElementTypeTokenKnown {
-		return arr.State.ElementTypeToken, true
-	}
-	if arr.Handle != 0 {
-		if _, ok, err := runtime.ArrayStoreMonoF64ValuesIfAvailable(arr.Handle); err == nil && ok {
-			return bytecodeIndexTypeF64, true
-		}
-	}
-	return bytecodeArrayElementTypeTokenFromValues(arr.Elements)
-}
-
-func (vm *bytecodeVM) indexMethodCacheIdentity(receiver runtime.Value) (bytecodeMemberReceiverKind, uint16, bool) {
+func (vm *bytecodeVM) indexMethodCacheIdentity(receiver runtime.Value) (bytecodeMemberReceiverKind, uint16, string, bool) {
 	if vm == nil || vm.interp == nil || vm.interp.global == nil {
-		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, false
+		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, "", false
 	}
 	arr, ok := bytecodeArrayReceiverForIndexCache(receiver)
 	if !ok {
-		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, false
+		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, "", false
 	}
-	elemType, ok := bytecodeArrayElementTypeToken(arr)
+	elemType, typeKey, ok := vm.arrayIndexReceiverIdentity(arr)
 	if !ok {
-		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, false
+		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, "", false
 	}
-	return bytecodeMemberReceiverArray, elemType, true
+	return bytecodeMemberReceiverArray, elemType, typeKey, true
 }
 
-func (vm *bytecodeVM) indexMethodCacheIdentityKey(receiver runtime.Value) (bytecodeMemberReceiverKind, uint16, uint64, uint64, bool) {
+func (vm *bytecodeVM) indexMethodCacheIdentityKey(receiver runtime.Value) (bytecodeMemberReceiverKind, uint16, string, uint64, uint64, bool) {
 	if vm == nil || vm.interp == nil || vm.interp.global == nil {
-		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, 0, 0, false
+		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, "", 0, 0, false
 	}
-	receiverKind, elemType, ok := vm.indexMethodCacheIdentity(receiver)
+	receiverKind, elemType, typeKey, ok := vm.indexMethodCacheIdentity(receiver)
 	if !ok {
-		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, 0, 0, false
+		return bytecodeMemberReceiverUnknown, bytecodeIndexTypeUnknown, "", 0, 0, false
 	}
-	globalRevision := vm.bytecodeGlobalRevision()
-	methodCacheVersion := vm.bytecodeMethodCacheVersion()
-	return receiverKind, elemType, globalRevision, methodCacheVersion, true
+	globalRevision, methodCacheVersion := vm.bytecodeGlobalAndMethodVersions()
+	return receiverKind, elemType, typeKey, globalRevision, methodCacheVersion, true
 }
 
 func (vm *bytecodeVM) indexMethodCacheEntry(program *bytecodeProgram, ip int, methodName string, create bool) (*bytecodeIndexMethodCacheEntry, bool) {
+	return vm.indexMethodCacheEntryForKind(program, ip, bytecodeIndexMethodCacheKindFor(methodName), create)
+}
+
+func (vm *bytecodeVM) indexMethodCacheEntryForKind(program *bytecodeProgram, ip int, methodKind bytecodeIndexMethodCacheKind, create bool) (*bytecodeIndexMethodCacheEntry, bool) {
 	if vm == nil || program == nil || ip < 0 || ip >= len(program.instructions) {
 		return nil, false
 	}
-	table, ok := vm.indexMethodCache[program]
-	if !ok {
-		if !create {
-			return nil, false
+	table := vm.activeLookup.indexMethodTable
+	if vm.activeLookup.program != program || table == nil {
+		var ok bool
+		table, ok = vm.indexMethodCache[program]
+		if !ok {
+			if !create {
+				return nil, false
+			}
+			table = &bytecodeIndexMethodCacheTable{}
+			if vm.indexMethodCache == nil {
+				vm.indexMethodCache = make(map[*bytecodeProgram]*bytecodeIndexMethodCacheTable, 8)
+			}
+			vm.indexMethodCache[program] = table
 		}
-		table = &bytecodeIndexMethodCacheTable{}
-		if vm.indexMethodCache == nil {
-			vm.indexMethodCache = make(map[*bytecodeProgram]*bytecodeIndexMethodCacheTable, 8)
+		if vm.activeLookup.program == program {
+			vm.activeLookup.indexMethodTable = table
+			vm.activeLookup.indexMethodGetEntries = table.get
+			vm.activeLookup.indexMethodSetEntries = table.set
 		}
-		vm.indexMethodCache[program] = table
 	}
-	switch methodName {
-	case "get":
+	switch methodKind {
+	case bytecodeIndexMethodCacheGet:
 		if table.get == nil {
 			if !create {
 				return nil, false
 			}
 			table.get = make([]bytecodeIndexMethodCacheEntry, len(program.instructions))
+			if vm.activeLookup.program == program {
+				vm.activeLookup.indexMethodGetEntries = table.get
+			}
 		}
 		return &table.get[ip], true
-	case "set":
+	case bytecodeIndexMethodCacheSet:
 		if table.set == nil {
 			if !create {
 				return nil, false
 			}
 			table.set = make([]bytecodeIndexMethodCacheEntry, len(program.instructions))
+			if vm.activeLookup.program == program {
+				vm.activeLookup.indexMethodSetEntries = table.set
+			}
 		}
 		return &table.set[ip], true
 	default:
@@ -301,232 +92,176 @@ func (vm *bytecodeVM) indexMethodCacheEntry(program *bytecodeProgram, ip int, me
 	}
 }
 
-func (vm *bytecodeVM) lookupCachedIndexMethod(program *bytecodeProgram, ip int, methodName string, receiverKind bytecodeMemberReceiverKind, elemType uint16, globalRevision uint64, methodCacheVersion uint64) (runtime.Value, bool, bool) {
+func (vm *bytecodeVM) lookupCachedIndexMethod(program *bytecodeProgram, ip int, methodName string, receiverKind bytecodeMemberReceiverKind, elemType uint16, receiverTypeKey string, globalRevision uint64, methodCacheVersion uint64) (runtime.Value, bytecodeIndexMethodFastPathKind, bool, bool) {
 	if vm == nil || vm.interp == nil || vm.interp.global == nil {
-		return nil, false, false
+		return nil, bytecodeIndexMethodFastPathNone, false, false
 	}
-	if hot := vm.indexMethodHot; hot.valid &&
+	methodKind := bytecodeIndexMethodCacheKindFor(methodName)
+	if methodKind == bytecodeIndexMethodCacheUnknown {
+		return nil, bytecodeIndexMethodFastPathNone, false, false
+	}
+	if hot := &vm.indexMethodHot; hot.valid &&
 		hot.program == program &&
 		hot.ip == ip &&
-		hot.method == methodName &&
+		hot.methodKind == methodKind &&
 		hot.globalRevision == globalRevision &&
 		hot.receiverKind == receiverKind &&
 		hot.arrayElemType == elemType &&
+		hot.receiverTypeKey == receiverTypeKey &&
 		hot.methodCacheVersion == methodCacheVersion {
-		return hot.resolvedMethod, true, hot.hasMethod
+		return hot.resolvedMethod, hot.fastPath, true, hot.hasMethod
 	}
-	entry, ok := vm.indexMethodCacheEntry(program, ip, methodName, false)
+	entry, ok := vm.indexMethodCacheEntryForKind(program, ip, methodKind, false)
 	if !ok {
-		return nil, false, false
+		return nil, bytecodeIndexMethodFastPathNone, false, false
 	}
 	if entry.globalRevision != globalRevision {
-		return nil, false, false
+		return nil, bytecodeIndexMethodFastPathNone, false, false
 	}
 	if entry.methodCacheVersion != methodCacheVersion {
-		return nil, false, false
+		return nil, bytecodeIndexMethodFastPathNone, false, false
 	}
-	if entry.receiverKind != receiverKind || entry.arrayElemType != elemType {
-		return nil, false, false
+	if entry.receiverKind != receiverKind || entry.arrayElemType != elemType || entry.receiverTypeKey != receiverTypeKey {
+		return nil, bytecodeIndexMethodFastPathNone, false, false
 	}
-	vm.indexMethodHot = bytecodeInlineIndexMethodCacheEntry{
-		valid:              true,
-		program:            program,
-		ip:                 ip,
-		method:             methodName,
-		globalRevision:     entry.globalRevision,
-		receiverKind:       receiverKind,
-		arrayElemType:      elemType,
-		methodCacheVersion: entry.methodCacheVersion,
-		resolvedMethod:     entry.method,
-		hasMethod:          entry.hasMethod,
-	}
-	return entry.method, true, entry.hasMethod
+	hot := &vm.indexMethodHot
+	hot.valid = true
+	hot.program = program
+	hot.ip = ip
+	hot.methodKind = methodKind
+	hot.globalRevision = entry.globalRevision
+	hot.receiverKind = receiverKind
+	hot.arrayElemType = elemType
+	hot.receiverTypeKey = receiverTypeKey
+	hot.receiverArrayHandle = entry.receiverArrayHandle
+	hot.receiverArrayRev = entry.receiverArrayRev
+	hot.receiverArrayRevOK = entry.receiverArrayRevOK
+	hot.receiverArrayCursor = entry.receiverArrayCursor
+	hot.methodCacheVersion = entry.methodCacheVersion
+	hot.resolvedMethod = entry.method
+	hot.hasMethod = entry.hasMethod
+	hot.fastPath = entry.fastPath
+	vm.storeIndexMethodDirect(*hot)
+	return entry.method, entry.fastPath, true, entry.hasMethod
 }
 
-func (vm *bytecodeVM) storeCachedIndexMethod(program *bytecodeProgram, ip int, methodName string, receiverKind bytecodeMemberReceiverKind, elemType uint16, globalRevision uint64, methodCacheVersion uint64, method runtime.Value, hasMethod bool) {
+func (vm *bytecodeVM) storeCachedIndexMethod(program *bytecodeProgram, ip int, methodName string, receiver runtime.Value, receiverKind bytecodeMemberReceiverKind, elemType uint16, receiverTypeKey string, globalRevision uint64, methodCacheVersion uint64, method runtime.Value, hasMethod bool) {
 	if vm == nil || vm.interp == nil || vm.interp.global == nil {
 		return
 	}
 	if hasMethod && method == nil {
 		return
 	}
-	entry, ok := vm.indexMethodCacheEntry(program, ip, methodName, true)
+	methodKind := bytecodeIndexMethodCacheKindFor(methodName)
+	if methodKind == bytecodeIndexMethodCacheUnknown {
+		return
+	}
+	entry, ok := vm.indexMethodCacheEntryForKind(program, ip, methodKind, true)
 	if !ok {
 		return
 	}
+	fastPath := bytecodeIndexMethodFastPathNone
+	if hasMethod {
+		fastPath = vm.indexMethodFastPathFor(methodName, method)
+	}
+	receiverArrayHandle, receiverArrayRev, receiverArrayCursor, receiverArrayRevOK := vm.indexMethodReceiverRevisionWithCursor(receiver)
 	*entry = bytecodeIndexMethodCacheEntry{
-		globalRevision:     globalRevision,
-		receiverKind:       receiverKind,
-		arrayElemType:      elemType,
-		methodCacheVersion: methodCacheVersion,
-		method:             method,
-		hasMethod:          hasMethod,
+		globalRevision:      globalRevision,
+		receiverKind:        receiverKind,
+		arrayElemType:       elemType,
+		receiverTypeKey:     receiverTypeKey,
+		receiverArrayHandle: receiverArrayHandle,
+		receiverArrayRev:    receiverArrayRev,
+		receiverArrayRevOK:  receiverArrayRevOK,
+		receiverArrayCursor: receiverArrayCursor,
+		methodCacheVersion:  methodCacheVersion,
+		method:              method,
+		hasMethod:           hasMethod,
+		fastPath:            fastPath,
 	}
-	vm.indexMethodHot = bytecodeInlineIndexMethodCacheEntry{
-		valid:              true,
-		program:            program,
-		ip:                 ip,
-		method:             methodName,
-		globalRevision:     globalRevision,
-		receiverKind:       receiverKind,
-		arrayElemType:      elemType,
-		methodCacheVersion: methodCacheVersion,
-		resolvedMethod:     method,
-		hasMethod:          hasMethod,
-	}
-}
-
-func (vm *bytecodeVM) lookupHotDirectArrayIndexSite(methodName string, receiver runtime.Value) (*runtime.ArrayValue, bool) {
-	if vm == nil || vm.interp == nil || vm.interp.global == nil {
-		return nil, false
-	}
-	hot := vm.indexMethodHot
-	if !hot.valid ||
-		hot.program != vm.currentProgram ||
-		hot.ip != vm.ip ||
-		hot.method != methodName ||
-		hot.hasMethod ||
-		hot.receiverKind != bytecodeMemberReceiverArray {
-		return nil, false
-	}
-	if hot.globalRevision != vm.bytecodeGlobalRevision() || hot.methodCacheVersion != vm.bytecodeMethodCacheVersion() {
-		return nil, false
-	}
-	arr, ok := bytecodeArrayReceiverForIndexCache(receiver)
-	if !ok {
-		return nil, false
-	}
-	elemType, ok := bytecodeArrayElementTypeToken(arr)
-	if !ok || elemType != hot.arrayElemType {
-		return nil, false
-	}
-	return arr, true
+	hot := &vm.indexMethodHot
+	hot.valid = true
+	hot.program = program
+	hot.ip = ip
+	hot.methodKind = methodKind
+	hot.globalRevision = globalRevision
+	hot.receiverKind = receiverKind
+	hot.arrayElemType = elemType
+	hot.receiverTypeKey = receiverTypeKey
+	hot.receiverArrayHandle = receiverArrayHandle
+	hot.receiverArrayRev = receiverArrayRev
+	hot.receiverArrayRevOK = receiverArrayRevOK
+	hot.receiverArrayCursor = receiverArrayCursor
+	hot.methodCacheVersion = methodCacheVersion
+	hot.resolvedMethod = method
+	hot.hasMethod = hasMethod
+	hot.fastPath = fastPath
+	vm.storeIndexMethodDirect(*hot)
 }
 
 func (vm *bytecodeVM) resolveIndexGet(obj runtime.Value, idxVal runtime.Value) (runtime.Value, error) {
-	if vm != nil && vm.interp != nil && vm.interp.canUseDirectArrayIndexGetFastPath() {
-		if arr, ok := bytecodeArrayReceiverForIndexCache(obj); ok {
-			if result, handled, err := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
-				return result, err
+	result, _, _, err := vm.resolveIndexGetWithToken(obj, idxVal)
+	return result, err
+}
+
+func (vm *bytecodeVM) resolveIndexGetWithToken(obj runtime.Value, idxVal runtime.Value) (runtime.Value, uint16, bool, error) {
+	var (
+		arr   *runtime.ArrayValue
+		arrOK bool
+	)
+	if vm != nil && vm.interp != nil {
+		arr, arrOK = bytecodeArrayReceiverForIndexCache(obj)
+		if arrOK && vm.interp.canUseDirectArrayIndexGetFastPath() {
+			if result, token, tokenKnown, handled, err := vm.resolveDirectArrayIndexGetWithHandleAndToken(arr, idxVal, 0); handled {
+				return result, token, tokenKnown, err
 			}
 		}
 	}
-	if arr, ok := vm.lookupHotDirectArrayIndexSite("get", obj); ok {
-		result, _, err := vm.resolveDirectArrayIndexGet(arr, idxVal)
-		return result, err
+	globalRevision, methodCacheVersion := vm.bytecodeGlobalAndMethodVersions()
+	if arrOK {
+		if arr, handle, ok := vm.lookupDirectCompatibleHotArrayIndexSiteForArrayWithVersions(bytecodeIndexMethodCacheGet, arr, bytecodeIndexMethodFastPathCanonicalArrayGet, globalRevision, methodCacheVersion); ok {
+			result, token, tokenKnown, _, err := vm.resolveDirectArrayIndexGetWithValidatedHandleAndToken(arr, idxVal, handle)
+			return result, token, tokenKnown, err
+		}
+	} else if arr, handle, ok := vm.lookupDirectCompatibleHotArrayIndexSiteWithVersions(bytecodeIndexMethodCacheGet, obj, bytecodeIndexMethodFastPathCanonicalArrayGet, globalRevision, methodCacheVersion); ok {
+		result, token, tokenKnown, _, err := vm.resolveDirectArrayIndexGetWithValidatedHandleAndToken(arr, idxVal, handle)
+		return result, token, tokenKnown, err
 	}
-	method, hasMethod, cacheable, err := vm.resolveCachedIndexMethod(vm.currentProgram, vm.ip, obj, "get", "Index")
+	var (
+		method    runtime.Value
+		fastPath  bytecodeIndexMethodFastPathKind
+		hasMethod bool
+		cacheable bool
+		err       error
+	)
+	if arrOK {
+		method, fastPath, hasMethod, cacheable, err = vm.resolveCachedArrayIndexMethodWithVersions(vm.currentProgram, vm.ip, obj, arr, "get", "Index", globalRevision, methodCacheVersion)
+	} else {
+		method, fastPath, hasMethod, cacheable, err = vm.resolveCachedIndexMethodWithVersions(vm.currentProgram, vm.ip, obj, "get", "Index", globalRevision, methodCacheVersion)
+	}
 	if err != nil {
-		return nil, err
+		return nil, bytecodeIndexTypeUnknown, false, err
 	}
 	if cacheable {
 		if hasMethod {
-			return vm.interp.CallFunction(method, []runtime.Value{obj, idxVal})
+			if arrOK && fastPath == bytecodeIndexMethodFastPathCanonicalArrayGet {
+				if result, token, tokenKnown, handled, err := vm.resolveDirectArrayIndexGetWithHandleAndToken(arr, idxVal, 0); handled {
+					return result, token, tokenKnown, err
+				}
+			}
+			result, err := vm.interp.CallFunction(method, []runtime.Value{obj, idxVal})
+			return result, bytecodeIndexTypeUnknown, false, err
 		}
 		if arr, ok := obj.(*runtime.ArrayValue); ok {
-			if result, handled, err := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
-				return result, err
+			if result, token, tokenKnown, handled, err := vm.resolveDirectArrayIndexGetWithHandleAndToken(arr, idxVal, 0); handled {
+				return result, token, tokenKnown, err
 			}
 		}
-		return vm.interp.indexGetWithoutMethod(obj, idxVal)
+		result, err := vm.interp.indexGetWithoutMethod(obj, idxVal)
+		return result, bytecodeIndexTypeUnknown, false, err
 	}
-	return vm.interp.indexGet(obj, idxVal)
-}
-
-func (vm *bytecodeVM) execArrayIndexGetSlot(instr *bytecodeInstruction) error {
-	if vm == nil || vm.interp == nil || instr == nil {
-		return fmt.Errorf("bytecode array index slot missing VM or instruction")
-	}
-	objSlot, idxSlot := instr.argCount, instr.loopBreak
-	if objSlot < 0 || objSlot >= len(vm.slots) || idxSlot < 0 || idxSlot >= len(vm.slots) {
-		return fmt.Errorf("bytecode array index slot out of range")
-	}
-	obj := vm.slots[objSlot]
-	if !vm.hasI32RegisterFrame() {
-		idxVal := vm.slots[idxSlot]
-		var (
-			result runtime.Value
-			err    error
-		)
-		if vm.interp.canUseDirectArrayIndexGetFastPath() {
-			if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
-				if idx, small := bytecodeDirectSmallArrayIndex(idxVal); small {
-					if state, tracked := bytecodeTrackedArrayState(arr); tracked {
-						if idx < 0 || idx >= len(state.Values) {
-							result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
-						} else if val := state.Values[idx]; val != nil {
-							result = val
-						} else {
-							result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
-						}
-						vm.stack = append(vm.stack, result)
-						vm.ip++
-						return nil
-					}
-					result, err = vm.resolveDirectArrayIndexGetAt(arr, idx)
-				} else if value, handled, directErr := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
-					result, err = value, directErr
-				}
-			}
-		}
-		if result == nil && err == nil {
-			result, err = vm.resolveIndexGet(obj, idxVal)
-		}
-		if err != nil {
-			err = vm.interp.wrapStandardRuntimeError(err)
-			if instr.node != nil {
-				err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
-			}
-			return err
-		}
-		vm.stack = append(vm.stack, result)
-		vm.ip++
-		return nil
-	}
-	var (
-		result runtime.Value
-		err    error
-		idxVal runtime.Value
-	)
-	if vm.interp.canUseDirectArrayIndexGetFastPath() {
-		if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
-			if idx, small := vm.slotDirectSmallArrayIndex(idxSlot); small {
-				if state, tracked := bytecodeTrackedArrayState(arr); tracked {
-					if idx < 0 || idx >= len(state.Values) {
-						result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
-					} else if val := state.Values[idx]; val != nil {
-						result = val
-					} else {
-						result = vm.interp.makeIndexErrorValue(idx, len(state.Values))
-					}
-					vm.stack = append(vm.stack, result)
-					vm.ip++
-					return nil
-				}
-				result, err = vm.resolveDirectArrayIndexGetAt(arr, idx)
-			} else if idxVal = vm.slotMaterializedValue(idxSlot); idxVal != nil {
-				if value, handled, directErr := vm.resolveDirectArrayIndexGet(arr, idxVal); handled {
-					result, err = value, directErr
-				}
-			}
-		}
-	}
-	if result == nil && err == nil {
-		if idxVal == nil {
-			idxVal = vm.slotMaterializedValue(idxSlot)
-		}
-		result, err = vm.resolveIndexGet(obj, idxVal)
-	}
-	if err != nil {
-		err = vm.interp.wrapStandardRuntimeError(err)
-		if instr.node != nil {
-			err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))
-		}
-		return err
-	}
-	vm.stack = append(vm.stack, result)
-	vm.ip++
-	return nil
+	result, err := vm.interp.indexGet(obj, idxVal)
+	return result, bytecodeIndexTypeUnknown, false, err
 }
 
 func (vm *bytecodeVM) execArrayIndexSetSlot(instr *bytecodeInstruction) error {
@@ -537,11 +272,11 @@ func (vm *bytecodeVM) execArrayIndexSetSlot(instr *bytecodeInstruction) error {
 	if objSlot < 0 || objSlot >= len(vm.slots) || idxSlot < 0 || idxSlot >= len(vm.slots) {
 		return fmt.Errorf("bytecode array index set slot out of range")
 	}
-	if len(vm.stack) == 0 {
+	if vm.stackDepth() == 0 {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	valueIdx := len(vm.stack) - 1
-	value := vm.stack[valueIdx]
+	valueIdx := vm.stackDepth() - 1
+	value := vm.materializePrimitiveValue(bytecodeMaterializationCandidateStatic, bytecodeMaterializationReasonCollection, vm.stackValue(valueIdx))
 	obj := vm.slots[objSlot]
 	if !vm.hasI32RegisterFrame() {
 		idxVal := vm.slots[idxSlot]
@@ -571,7 +306,7 @@ func (vm *bytecodeVM) execArrayIndexSetSlot(instr *bytecodeInstruction) error {
 			}
 			return err
 		}
-		vm.stack[valueIdx] = bytecodeStackResultValue(result)
+		vm.setStackValue(valueIdx, bytecodeStackResultValue(result))
 		vm.ip++
 		return nil
 	}
@@ -583,7 +318,7 @@ func (vm *bytecodeVM) execArrayIndexSetSlot(instr *bytecodeInstruction) error {
 	)
 	if vm.interp.canUseDirectArrayIndexSetFastPath() {
 		if arr, ok := obj.(*runtime.ArrayValue); ok && arr != nil {
-			if idx, small := vm.slotDirectSmallArrayIndex(idxSlot); small {
+			if idx, small := vm.slotDirectSmallArrayIndexValidated(idxSlot); small {
 				result, err = vm.resolveDirectArrayIndexSetAt(arr, idx, value)
 				handled = true
 			} else if idxVal = vm.slotMaterializedValue(idxSlot); idxVal != nil {
@@ -607,7 +342,7 @@ func (vm *bytecodeVM) execArrayIndexSetSlot(instr *bytecodeInstruction) error {
 		}
 		return err
 	}
-	vm.stack[valueIdx] = bytecodeStackResultValue(result)
+	vm.setStackValue(valueIdx, bytecodeStackResultValue(result))
 	vm.ip++
 	return nil
 }
@@ -620,11 +355,12 @@ func (vm *bytecodeVM) resolveIndexSet(obj runtime.Value, idxVal runtime.Value, v
 			}
 		}
 	}
-	if arr, ok := vm.lookupHotDirectArrayIndexSite("set", obj); ok {
+	globalRevision, methodCacheVersion := vm.bytecodeGlobalAndMethodVersions()
+	if arr, _, ok := vm.lookupDirectCompatibleHotArrayIndexSiteWithVersions(bytecodeIndexMethodCacheSet, obj, bytecodeIndexMethodFastPathCanonicalArraySet, globalRevision, methodCacheVersion); ok {
 		result, _, err := vm.resolveDirectArrayIndexSet(arr, idxVal, value, op, binaryOp, isCompound)
 		return result, err
 	}
-	setMethod, hasSetMethod, cacheable, err := vm.resolveCachedIndexMethod(vm.currentProgram, vm.ip, obj, "set", "IndexMut")
+	setMethod, setFastPath, hasSetMethod, cacheable, err := vm.resolveCachedIndexMethodWithVersions(vm.currentProgram, vm.ip, obj, "set", "IndexMut", globalRevision, methodCacheVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -638,6 +374,11 @@ func (vm *bytecodeVM) resolveIndexSet(obj runtime.Value, idxVal runtime.Value, v
 			}
 		}
 		return vm.interp.assignIndexWithoutMethods(obj, idxVal, value, op, binaryOp, isCompound)
+	}
+	if arr, ok := bytecodeArrayReceiverForIndexCache(obj); ok && setFastPath == bytecodeIndexMethodFastPathCanonicalArraySet {
+		if result, handled, err := vm.resolveDirectArrayIndexSet(arr, idxVal, value, op, binaryOp, isCompound); handled {
+			return result, err
+		}
 	}
 	if op == ast.AssignmentDeclare {
 		return nil, fmt.Errorf("Cannot use := on index assignment")
@@ -655,7 +396,7 @@ func (vm *bytecodeVM) resolveIndexSet(obj runtime.Value, idxVal runtime.Value, v
 	if !isCompound {
 		return nil, fmt.Errorf("unsupported assignment operator %s", op)
 	}
-	getMethod, hasGetMethod, _, err := vm.resolveCachedIndexMethod(vm.currentProgram, vm.ip, obj, "get", "Index")
+	getMethod, _, hasGetMethod, _, err := vm.resolveCachedIndexMethodWithVersions(vm.currentProgram, vm.ip, obj, "get", "Index", globalRevision, methodCacheVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -680,24 +421,87 @@ func (vm *bytecodeVM) resolveIndexSet(obj runtime.Value, idxVal runtime.Value, v
 	return computed, nil
 }
 
-func (vm *bytecodeVM) resolveCachedIndexMethod(program *bytecodeProgram, ip int, receiver runtime.Value, methodName string, iface string) (runtime.Value, bool, bool, error) {
-	receiverKind, elemType, globalRevision, methodCacheVersion, cacheable := vm.indexMethodCacheIdentityKey(receiver)
+func (vm *bytecodeVM) resolveCachedIndexMethod(program *bytecodeProgram, ip int, receiver runtime.Value, methodName string, iface string) (runtime.Value, bytecodeIndexMethodFastPathKind, bool, bool, error) {
+	receiverKind, elemType, receiverTypeKey, globalRevision, methodCacheVersion, cacheable := vm.indexMethodCacheIdentityKey(receiver)
 	if !cacheable {
-		return nil, false, false, nil
+		return nil, bytecodeIndexMethodFastPathNone, false, false, nil
 	}
-	if method, cached, hasMethod := vm.lookupCachedIndexMethod(program, ip, methodName, receiverKind, elemType, globalRevision, methodCacheVersion); cached {
-		return method, hasMethod, true, nil
+	return vm.resolveCachedIndexMethodForIdentity(program, ip, receiver, methodName, iface, receiverKind, elemType, receiverTypeKey, globalRevision, methodCacheVersion)
+}
+
+func (vm *bytecodeVM) resolveCachedIndexMethodWithVersions(program *bytecodeProgram, ip int, receiver runtime.Value, methodName string, iface string, globalRevision uint64, methodCacheVersion uint64) (runtime.Value, bytecodeIndexMethodFastPathKind, bool, bool, error) {
+	receiverKind, elemType, receiverTypeKey, cacheable := vm.indexMethodCacheIdentity(receiver)
+	if !cacheable {
+		return nil, bytecodeIndexMethodFastPathNone, false, false, nil
+	}
+	return vm.resolveCachedIndexMethodForIdentity(program, ip, receiver, methodName, iface, receiverKind, elemType, receiverTypeKey, globalRevision, methodCacheVersion)
+}
+
+func (vm *bytecodeVM) resolveCachedArrayIndexMethodWithVersions(program *bytecodeProgram, ip int, receiver runtime.Value, arr *runtime.ArrayValue, methodName string, iface string, globalRevision uint64, methodCacheVersion uint64) (runtime.Value, bytecodeIndexMethodFastPathKind, bool, bool, error) {
+	elemType, receiverTypeKey, cacheable := vm.arrayIndexReceiverIdentity(arr)
+	if !cacheable {
+		return nil, bytecodeIndexMethodFastPathNone, false, false, nil
+	}
+	return vm.resolveCachedIndexMethodForIdentity(program, ip, receiver, methodName, iface, bytecodeMemberReceiverArray, elemType, receiverTypeKey, globalRevision, methodCacheVersion)
+}
+
+func (vm *bytecodeVM) resolveCachedIndexMethodForIdentity(program *bytecodeProgram, ip int, receiver runtime.Value, methodName string, iface string, receiverKind bytecodeMemberReceiverKind, elemType uint16, receiverTypeKey string, globalRevision uint64, methodCacheVersion uint64) (runtime.Value, bytecodeIndexMethodFastPathKind, bool, bool, error) {
+	if method, fastPath, cached, hasMethod := vm.lookupCachedIndexMethod(program, ip, methodName, receiverKind, elemType, receiverTypeKey, globalRevision, methodCacheVersion); cached {
+		return method, fastPath, hasMethod, true, nil
 	}
 	method, err := vm.interp.findIndexMethod(receiver, methodName, iface)
 	if err != nil {
-		return nil, false, true, err
+		return nil, bytecodeIndexMethodFastPathNone, false, true, err
 	}
 	if method != nil {
-		vm.storeCachedIndexMethod(program, ip, methodName, receiverKind, elemType, globalRevision, methodCacheVersion, method, true)
-		return method, true, true, nil
+		vm.storeCachedIndexMethod(program, ip, methodName, receiver, receiverKind, elemType, receiverTypeKey, globalRevision, methodCacheVersion, method, true)
+		return method, vm.indexMethodFastPathFor(methodName, method), true, true, nil
 	}
-	vm.storeCachedIndexMethod(program, ip, methodName, receiverKind, elemType, globalRevision, methodCacheVersion, nil, false)
-	return nil, false, true, nil
+	vm.storeCachedIndexMethod(program, ip, methodName, receiver, receiverKind, elemType, receiverTypeKey, globalRevision, methodCacheVersion, nil, false)
+	return nil, bytecodeIndexMethodFastPathNone, false, true, nil
+}
+
+func (vm *bytecodeVM) indexMethodFastPathFor(methodName string, method runtime.Value) bytecodeIndexMethodFastPathKind {
+	switch value := method.(type) {
+	case runtime.BoundMethodValue:
+		method = value.Method
+	case *runtime.BoundMethodValue:
+		if value == nil {
+			return bytecodeIndexMethodFastPathNone
+		}
+		method = value.Method
+	}
+	fn, ok := bytecodeSingleFunction(method)
+	if !ok || fn == nil {
+		return bytecodeIndexMethodFastPathNone
+	}
+	def, ok := fn.Declaration.(*ast.FunctionDefinition)
+	if !ok || def == nil || def.ID == nil || def.ID.Name != methodName || vm == nil || vm.interp == nil {
+		return bytecodeIndexMethodFastPathNone
+	}
+	origin := vm.interp.nodeOrigins[def]
+	if !isCanonicalAbleStdlibOrigin(origin, "collections/array.able") {
+		return bytecodeIndexMethodFastPathNone
+	}
+	switch methodName {
+	case "get":
+		if len(def.Params) == 2 &&
+			typeExpressionToString(def.Params[1].ParamType) == "i32" {
+			if _, ok := def.ReturnType.(*ast.ResultTypeExpression); ok && fn.MethodPriority < 0 {
+				return bytecodeIndexMethodFastPathCanonicalArrayGet
+			}
+		}
+	case "set":
+		if len(def.Params) == 3 &&
+			typeExpressionToString(def.Params[1].ParamType) == "i32" &&
+			fn.MethodPriority < 0 {
+			if resultType, ok := def.ReturnType.(*ast.ResultTypeExpression); ok &&
+				typeExpressionToString(resultType.InnerType) == "void" {
+				return bytecodeIndexMethodFastPathCanonicalArraySet
+			}
+		}
+	}
+	return bytecodeIndexMethodFastPathNone
 }
 
 func bytecodeInt64ToArrayIndex(raw int64) (int, error) {
@@ -726,8 +530,44 @@ func bytecodeDirectArrayIndexFromInteger(idx runtime.IntegerValue) (int, bool, e
 	return value, true, err
 }
 
+func bytecodeDirectArrayIndexFromRaw(raw int64) (int, bool, error) {
+	value, err := bytecodeInt64ToArrayIndex(raw)
+	return value, true, err
+}
+
 func bytecodeDirectArrayIndex(idxVal runtime.Value) (int, bool, error) {
 	switch idx := idxVal.(type) {
+	case bytecodeRawI32SlotValue:
+		return bytecodeDirectArrayIndexFromRaw(int64(idx))
+	case *bytecodeRawI32StackCell:
+		if idx == nil {
+			return 0, false, nil
+		}
+		return bytecodeDirectArrayIndexFromRaw(int64(idx.Val))
+	case bytecodeRawU8ResultValue:
+		return bytecodeDirectArrayIndexFromRaw(int64(idx))
+	case bytecodeRawU16ResultValue:
+		return bytecodeDirectArrayIndexFromRaw(int64(idx))
+	case bytecodeRawU32ResultValue:
+		return bytecodeDirectArrayIndexFromRaw(int64(idx))
+	case bytecodeRawU64ResultValue:
+		return bytecodeDirectArrayIndexFromRaw(int64(idx))
+	case bytecodeRawUsizeResultValue:
+		return bytecodeDirectArrayIndexFromRaw(int64(idx))
+	case bytecodeRawI64ResultValue:
+		return bytecodeDirectArrayIndexFromRaw(int64(idx))
+	case bytecodeRawIntegerValue:
+		return bytecodeDirectArrayIndexFromRaw(idx.Raw)
+	case *bytecodeRawIntegerSlotCell:
+		if idx == nil {
+			return 0, false, nil
+		}
+		return bytecodeDirectArrayIndexFromRaw(idx.Raw)
+	case *bytecodeRawI64SlotCell:
+		if idx == nil {
+			return 0, false, nil
+		}
+		return bytecodeDirectArrayIndexFromRaw(idx.Val)
 	case runtime.IntegerValue:
 		if idx.IsSmall() && strconv.IntSize == 64 {
 			return int(idx.Int64Fast()), true, nil
@@ -742,11 +582,16 @@ func bytecodeDirectArrayIndex(idxVal runtime.Value) (int, bool, error) {
 		}
 		return bytecodeDirectArrayIndexFromInteger(*idx)
 	}
-	idxInt, ok := bytecodeIntegerValue(idxVal)
-	if !ok {
-		return 0, false, nil
+	raw := unwrapScalarValue(unwrapInterfaceValue(idxVal))
+	switch idx := raw.(type) {
+	case runtime.IntegerValue:
+		return bytecodeDirectArrayIndexFromInteger(idx)
+	case *runtime.IntegerValue:
+		if idx != nil {
+			return bytecodeDirectArrayIndexFromInteger(*idx)
+		}
 	}
-	return bytecodeDirectArrayIndexFromInteger(idxInt)
+	return 0, false, nil
 }
 
 func bytecodeDirectSmallArrayIndex(idxVal runtime.Value) (int, bool) {
@@ -756,10 +601,35 @@ func bytecodeDirectSmallArrayIndex(idxVal runtime.Value) (int, bool) {
 	switch idx := idxVal.(type) {
 	case bytecodeRawI32SlotValue:
 		return int(idx), true
+	case *bytecodeRawI32StackCell:
+		if idx != nil {
+			return int(idx.Val), true
+		}
+	case bytecodeRawU8ResultValue:
+		return int(idx), true
+	case bytecodeRawU16ResultValue:
+		return int(idx), true
+	case bytecodeRawU32ResultValue:
+		return int(idx), true
+	case bytecodeRawU64ResultValue:
+		return int(int64(idx)), true
+	case bytecodeRawUsizeResultValue:
+		return int(int64(idx)), true
+	case bytecodeRawI64ResultValue:
+		return int(idx), true
+	case bytecodeRawIntegerValue:
+		return int(idx.Raw), true
+	case *bytecodeRawIntegerSlotCell:
+		if idx != nil {
+			return int(idx.Raw), true
+		}
+	case *bytecodeRawI64SlotCell:
+		if idx != nil {
+			return int(idx.Val), true
+		}
 	case runtime.IntegerValue:
-		idxRef := &idx
-		if idxRef.IsSmallRef() {
-			return int(idxRef.Int64FastRef()), true
+		if idx.IsSmall() {
+			return int(idx.Int64Fast()), true
 		}
 	case *runtime.IntegerValue:
 		if idx != nil && idx.IsSmallRef() {
@@ -781,43 +651,10 @@ func bytecodeSyncUnaliasedTrackedArrayWrite(arr *runtime.ArrayValue, state *runt
 		return false
 	}
 	updateArrayElementTypeTokenForWrite(state, idx, value)
+	arrayStateWriteKeepsMaterializedValues(state, value)
 	arr.State = state
 	arr.Elements = state.Values
 	return true
-}
-
-func (vm *bytecodeVM) resolveDirectArrayIndexGetAt(arr *runtime.ArrayValue, idx int) (runtime.Value, error) {
-	if vm == nil || vm.interp == nil || arr == nil {
-		return nil, nil
-	}
-	state, tracked := bytecodeTrackedArrayState(arr)
-	if !tracked {
-		var err error
-		state, err = vm.interp.ensureArrayState(arr, 0)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if idx < 0 || idx >= len(state.Values) {
-		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), nil
-	}
-	val := state.Values[idx]
-	if val == nil {
-		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), nil
-	}
-	return val, nil
-}
-
-func (vm *bytecodeVM) resolveDirectArrayIndexGet(arr *runtime.ArrayValue, idxVal runtime.Value) (runtime.Value, bool, error) {
-	if vm == nil || vm.interp == nil || arr == nil {
-		return nil, false, nil
-	}
-	idx, ok, err := bytecodeDirectArrayIndex(idxVal)
-	if err != nil || !ok {
-		return nil, ok, err
-	}
-	value, err := vm.resolveDirectArrayIndexGetAt(arr, idx)
-	return value, true, err
 }
 
 func (vm *bytecodeVM) resolveDirectArrayIndexSet(arr *runtime.ArrayValue, idxVal runtime.Value, value runtime.Value, op ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, bool, error) {
@@ -847,7 +684,7 @@ func (vm *bytecodeVM) resolveDirectArrayIndexSet(arr *runtime.ArrayValue, idxVal
 		}
 	}
 	if idx < 0 || idx >= len(state.Values) {
-		return nil, true, fmt.Errorf("Array index out of bounds")
+		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), true, nil
 	}
 	current := state.Values[idx]
 	computed, err := applyBinaryOperator(vm.interp, binaryOp, current, value)
@@ -865,16 +702,46 @@ func (vm *bytecodeVM) resolveDirectArrayIndexSetAt(arr *runtime.ArrayValue, idx 
 	if vm == nil || vm.interp == nil || arr == nil {
 		return nil, nil
 	}
+	value = vm.materializePrimitiveValue(bytecodeMaterializationCandidateStatic, bytecodeMaterializationReasonCollection, value)
 	state, tracked := bytecodeTrackedArrayState(arr)
-	if !tracked {
-		var err error
-		state, err = vm.interp.ensureArrayState(arr, 0)
+	if tracked {
+		if idx < 0 || idx >= len(state.Values) {
+			return vm.interp.makeIndexErrorValue(idx, len(state.Values)), nil
+		}
+		state.Values[idx] = value
+		if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, value) {
+			vm.interp.syncTrackedArrayWrite(arr, state, idx, value)
+		}
+		return value, nil
+	}
+	if arr.State == nil {
+		handle, ok, err := vm.arrayHandleFast(arr)
 		if err != nil {
 			return nil, err
 		}
+		if !ok {
+			return nil, nil
+		}
+		size, err := runtime.ArrayStoreSize(handle)
+		if err != nil {
+			return nil, err
+		}
+		if idx < 0 || idx >= size {
+			return vm.interp.makeIndexErrorValue(idx, size), nil
+		}
+		storedValue := vm.materializePrimitiveValue(bytecodeMaterializationCandidateStatic, bytecodeMaterializationReasonCollection, value)
+		if err := runtime.ArrayStoreWrite(handle, idx, storedValue); err != nil {
+			return nil, err
+		}
+		vm.interp.syncArrayHandleWriteAfterStore(handle, idx, storedValue)
+		return storedValue, nil
+	}
+	state, err := vm.interp.ensureArrayState(arr, 0)
+	if err != nil {
+		return nil, err
 	}
 	if idx < 0 || idx >= len(state.Values) {
-		return nil, fmt.Errorf("Array index out of bounds")
+		return vm.interp.makeIndexErrorValue(idx, len(state.Values)), nil
 	}
 	state.Values[idx] = value
 	if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, idx, value) {

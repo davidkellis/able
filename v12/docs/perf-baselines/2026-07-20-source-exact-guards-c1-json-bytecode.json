@@ -1,0 +1,233 @@
+{
+  "generated_at": "2026-07-21T02:03:24.657931Z",
+  "suite": "custom",
+  "benchmarks": [
+    "json"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-current-product-scorecard-generality-interpreter-reference-selected.json",
+  "go_reference_json": null,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "json",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "json",
+        "mode": "bytecode",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.816,
+        "avg_user_seconds": 0.72,
+        "avg_sys_seconds": 0.084,
+        "avg_gc": 7.8,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 1.0,
+            "user_seconds": 0.9,
+            "sys_seconds": 0.09,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 0.74,
+            "user_seconds": 0.64,
+            "sys_seconds": 0.08,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 0.86,
+            "user_seconds": 0.76,
+            "sys_seconds": 0.09,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 0.71,
+            "user_seconds": 0.62,
+            "sys_seconds": 0.08,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 0.77,
+            "user_seconds": 0.68,
+            "sys_seconds": 0.08,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/json/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/json/json.able",
+          "sha256": "84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a"
+        },
+        "execution_contract": {
+          "mode": "bytecode",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "serial"
+        }
+      },
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [],
+        "provenance": "measured",
+        "sha256": "4e9aec6970e69501ecf969f63ea30ba7691b19580cf24268865f5cbfb5d24b9b",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/json/verify.rb",
+          "sha256": "184816f9854b731a6315dbb62d458c47e5830f38b4ad96546ab0d67d25a56fac"
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 2.6975,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.3025023169601483,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/json/python-3.14/run.py",
+            "sha256": "1368eca8a57392ec4397ad755449848fef914b155ad0541a58fb9205b7a0605b",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 2.627662897,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 2.67761106,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 2.738689196,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 2.813797672,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 2.629719424,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "serial"
+          }
+        },
+        "ruby": {
+          "reference_real_seconds": 1.7209,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.4741704921843221,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/json/ruby-4.0/run.rb",
+            "sha256": "6d72bd6d7656ff81ceb481cd621eb2eef60e12d6ad602433c30a223dbbd6420c",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 1.810220205,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 1.734380944,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 1.663597717,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 1.799211134,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 1.597175454,
+              "stdout_sha256": "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "serial"
+          }
+        }
+      }
+    }
+  ]
+}

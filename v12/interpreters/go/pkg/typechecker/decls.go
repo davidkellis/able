@@ -8,35 +8,40 @@ import (
 
 // declarationCollector walks statements to populate the global environment.
 type declarationCollector struct {
-	env            *Environment
-	origins        map[ast.Node]string
-	declNodes      map[string]ast.Node
-	diags          []Diagnostic
-	impls          []ImplementationSpec
-	methodSets     []MethodSetSpec
-	obligations    []ConstraintObligation
-	exports        []exportRecord
-	duplicates     map[*ast.FunctionDefinition]struct{}
-	functionDecls  map[*ast.FunctionDefinition]FunctionType
-	localTypeNames map[string]struct{}
+	env              *Environment
+	origins          map[ast.Node]string
+	declNodes        map[string]ast.Node
+	diags            []Diagnostic
+	impls            []ImplementationSpec
+	methodSets       []MethodSetSpec
+	obligations      []ConstraintObligation
+	exports          []exportRecord
+	duplicates       map[*ast.FunctionDefinition]struct{}
+	functionDecls    map[*ast.FunctionDefinition]FunctionType
+	localTypeNames   map[string]struct{}
+	importedBindings map[string]Type
+	refreshingTypes  bool
 }
 
 func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	builtinEnv := NewEnvironment(nil)
 	registerBuiltins(builtinEnv)
 	rootEnv := NewEnvironment(builtinEnv)
+	importedBindings := make(map[string]Type)
 	if c.preludeEnv != nil {
 		c.preludeEnv.ForEach(func(name string, typ Type) {
 			rootEnv.Define(name, typ)
+			importedBindings[name] = typ
 		})
 	}
 	collector := &declarationCollector{
-		env:            rootEnv,
-		origins:        c.nodeOrigins,
-		declNodes:      make(map[string]ast.Node),
-		duplicates:     make(map[*ast.FunctionDefinition]struct{}),
-		functionDecls:  make(map[*ast.FunctionDefinition]FunctionType),
-		localTypeNames: make(map[string]struct{}),
+		env:              rootEnv,
+		origins:          c.nodeOrigins,
+		declNodes:        make(map[string]ast.Node),
+		duplicates:       make(map[*ast.FunctionDefinition]struct{}),
+		functionDecls:    make(map[*ast.FunctionDefinition]FunctionType),
+		localTypeNames:   make(map[string]struct{}),
+		importedBindings: importedBindings,
 	}
 	// Register built-in primitives in the global scope for convenience.
 	collector.env.Define("true", PrimitiveType{Kind: PrimitiveBool})
@@ -46,6 +51,7 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	for _, stmt := range module.Body {
 		collector.registerTypeDeclaration(stmt)
 	}
+	collector.refreshTypeDeclarations(module.Body)
 	for _, stmt := range module.Body {
 		collector.visitStatement(stmt)
 	}
@@ -60,6 +66,25 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	c.functionDecls = collector.functionDecls
 	c.localTypeNames = collector.localTypeNames
 	return collector.diags
+}
+
+// refreshTypeDeclarations resolves fields and variants once every local type
+// has a complete declaration. The initial pass intentionally predeclares type
+// names for recursion, but a forward field such as `first: Later` would
+// otherwise retain the predeclaration's empty StructType when exported.
+func (c *declarationCollector) refreshTypeDeclarations(stmts []ast.Statement) {
+	if c == nil || c.env == nil {
+		return
+	}
+	diagnosticCount := len(c.diags)
+	c.refreshingTypes = true
+	for _, stmt := range stmts {
+		c.registerTypeDeclaration(stmt)
+	}
+	c.refreshingTypes = false
+	// The first pass already reports declaration diagnostics. Refreshing only
+	// hydrates type references, so it must not duplicate those diagnostics.
+	c.diags = c.diags[:diagnosticCount]
 }
 
 func (c *declarationCollector) predeclareTypeNames(stmts []ast.Statement) {
@@ -267,6 +292,17 @@ func (c *declarationCollector) declare(name string, typ Type, node ast.Node) {
 	if name == "" || node == nil {
 		return
 	}
+	if c.refreshingTypes {
+		if c.importedNamedImplementationBindingConflicts(name, typ) {
+			return
+		}
+		c.env.Define(name, typ)
+		return
+	}
+	if c.importedNamedImplementationBindingConflicts(name, typ) {
+		c.diags = append(c.diags, namedImplementationBindingCollisionDiagnostic(name, "an imported binding", node))
+		return
+	}
 	if prev, exists := c.declNodes[name]; exists {
 		if fn, ok := typ.(FunctionType); ok {
 			switch prev.(type) {
@@ -304,6 +340,21 @@ func (c *declarationCollector) declare(name string, typ Type, node ast.Node) {
 	c.declNodes[name] = node
 	if shouldExportTopLevel(node) {
 		c.exports = append(c.exports, exportRecord{name: name, node: node})
+	}
+}
+
+func (c *declarationCollector) importedNamedImplementationBindingConflicts(name string, typ Type) bool {
+	if c == nil || name == "" || c.importedBindings == nil {
+		return false
+	}
+	imported, ok := c.importedBindings[name]
+	return ok && (isNamedImplementationNamespaceType(imported) || isNamedImplementationNamespaceType(typ))
+}
+
+func namedImplementationBindingCollisionDiagnostic(name, other string, node ast.Node) Diagnostic {
+	return Diagnostic{
+		Message: fmt.Sprintf("typechecker: named implementation binding '%s' conflicts with %s; use a selector alias", name, other),
+		Node:    node,
 	}
 }
 

@@ -3,10 +3,10 @@ package interpreter
 import "fmt"
 
 func (vm *bytecodeVM) execDup() error {
-	if len(vm.stack) == 0 {
+	if vm.stackDepth() == 0 {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	vm.stack = append(vm.stack, vm.stack[len(vm.stack)-1])
+	vm.appendStackValue(vm.stackValue(vm.stackDepth() - 1))
 	vm.ip++
 	return nil
 }

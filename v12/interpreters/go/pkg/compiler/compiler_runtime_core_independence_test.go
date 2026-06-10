@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestCompilerStaticKernelHelpersUseDirectImplCalls(t *testing.T) {
+func TestCompilerStaticKernelHelpersUseDirectCalls(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",
 		"",
@@ -39,10 +39,10 @@ func TestCompilerStaticKernelHelpersUseDirectImplCalls(t *testing.T) {
 		"__able_array_new_impl(",
 		"__able_array_set_len_impl(",
 		"__able_array_write_impl(",
-		"__able_string_from_builtin_impl(",
-		"__able_string_to_builtin_impl(",
-		"__able_char_from_codepoint_impl(",
-		"__able_char_to_codepoint_impl(",
+		"__able_string_from_builtin_native(",
+		"__able_string_to_builtin_native(",
+		"__able_char_from_codepoint_native(",
+		"__able_char_to_codepoint_native(",
 		"__able_hash_map_new_impl(",
 		"__able_hash_map_set_impl(",
 		"__able_hash_map_get_impl(",
@@ -142,7 +142,7 @@ func TestCompilerStringFromBuiltinKeepsArrayByteAccessStatic(t *testing.T) {
 		t.Fatalf("main body not found")
 	}
 	for _, fragment := range []string{
-		"__able_string_from_builtin_impl(",
+		"__able_string_from_builtin_native(",
 		"uint8(97)",
 	} {
 		if !strings.Contains(body, fragment) {

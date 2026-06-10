@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-07-15T06:34:24.940379Z",
+  "suite": "custom",
+  "benchmarks": [
+    "reverse_complement",
+    "k_nucleotide"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-15-post-extern-source-selection-generality-interpreter-reference.json",
+  "go_reference_json": null,
+  "cpu_affinity": "14",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "reverse_complement",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "reverse_complement",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 5.96,
+        "avg_user_seconds": 5.83,
+        "avg_sys_seconds": 0.11,
+        "avg_gc": 24.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/reverse-complement/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7"
+          ]
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 0.027,
+          "reference_implementation": "python-3.14",
+          "ratio": 220.74074074074073
+        },
+        "ruby": {
+          "reference_real_seconds": 0.0766,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 77.80678851174935
+        }
+      }
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "k_nucleotide",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 36.18,
+        "avg_user_seconds": 35.98,
+        "avg_sys_seconds": 0.13,
+        "avg_gc": 37.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/k-nucleotide/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "d628623daa677c00673df8d4961d14eb271b4112cdcb65b8233f07b69d7b49b8"
+          ]
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 1.1866,
+          "reference_implementation": "python-3.14",
+          "ratio": 30.490476993089498
+        },
+        "ruby": {
+          "reference_real_seconds": 1.1236,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 32.200071199715204
+        }
+      }
+    }
+  ]
+}

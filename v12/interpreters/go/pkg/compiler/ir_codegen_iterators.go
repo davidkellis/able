@@ -71,7 +71,7 @@ func (e *irGoEmitter) emitIteratorHelpers() {
 	fmt.Fprintf(&e.buf, "\tdone bool\n")
 	fmt.Fprintf(&e.buf, "}\n\n")
 	fmt.Fprintf(&e.buf, "func __able_new_iterator(rt *bridge.Runtime, run func(gen *__able_generator) error) *runtime.IteratorValue {\n")
-	fmt.Fprintf(&e.buf, "\tgen := &__able_generator{rt: rt, requests: make(chan struct{}), results: make(chan __able_generator_result)}\n")
+	fmt.Fprintf(&e.buf, "\tgen := &__able_generator{rt: rt, requests: make(chan struct{}), results: make(chan __able_generator_result, 1)}\n")
 	fmt.Fprintf(&e.buf, "\tgo gen.run(run)\n")
 	fmt.Fprintf(&e.buf, "\treturn runtime.NewIteratorValue(gen.next, gen.close)\n")
 	fmt.Fprintf(&e.buf, "}\n\n")

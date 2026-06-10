@@ -1,0 +1,51 @@
+package bench_channel_pipeline_i32_small
+
+import able.kernel.{Channel}
+
+fn round(count: i32) -> i64 {
+  stage1: Channel i32 = Channel.new(count)
+  stage2: Channel i32 = Channel.new(count)
+
+  spawn {
+    i := 0
+    loop {
+      if i >= count { break }
+      stage1.send(((i * 19) + 11) % 65_519)
+      i = i + 1
+    }
+    stage1.close()
+    0
+  }
+
+  spawn {
+    loop {
+      stage1.receive() match {
+        case nil => { break },
+        case value: i32 => { stage2.send(((value * 3) + 7) % 32_749) }
+      }
+    }
+    stage2.close()
+    0
+  }
+
+  future_flush()
+  total: i64 = 0_i64
+  loop {
+    stage2.receive() match {
+      case nil => { break },
+      case value: i32 => { total = total + (value as i64) }
+    }
+  }
+  total
+}
+
+fn main() -> void {
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 6 { break }
+    total = total + round(12_000)
+    rounds = rounds + 1
+  }
+  print(total)
+}

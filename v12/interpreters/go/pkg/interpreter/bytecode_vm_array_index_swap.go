@@ -30,7 +30,7 @@ func (vm *bytecodeVM) execArrayIndexSwapSlot(instr *bytecodeInstruction) error {
 		if err != nil {
 			return vm.attachArrayIndexSwapSlotError(err, instr)
 		}
-		vm.stack = append(vm.stack, bytecodeStackResultValue(result))
+		vm.appendStackValue(bytecodeStackResultValue(result))
 		vm.ip++
 		return nil
 	}
@@ -51,7 +51,7 @@ func (vm *bytecodeVM) execArrayIndexSwapSlot(instr *bytecodeInstruction) error {
 	if err != nil {
 		return vm.attachArrayIndexSwapSlotError(err, instr)
 	}
-	vm.stack = append(vm.stack, bytecodeStackResultValue(result))
+	vm.appendStackValue(bytecodeStackResultValue(result))
 	vm.ip++
 	return nil
 }
@@ -170,7 +170,7 @@ func (vm *bytecodeVM) resolveTrackedSmallArrayIndexSwapSlot(instr *bytecodeInstr
 	}
 	state.Values[first] = right
 	state.Values[second] = left
-	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, right, second, left)
+	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, second)
 	return left, nil
 }
 
@@ -196,7 +196,7 @@ func (vm *bytecodeVM) resolveTrackedSmallArrayIndexSwapSlotI32Fast(instr *byteco
 	}
 	state.Values[first] = right
 	state.Values[second] = left
-	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, right, second, left)
+	vm.syncTrackedArrayIndexSwapSlot(arr, state, first, second)
 	return left, true
 }
 
@@ -230,16 +230,12 @@ func (vm *bytecodeVM) trackedArrayIndexSwapSlotValue(state *runtime.ArrayState, 
 	return value
 }
 
-func (vm *bytecodeVM) syncTrackedArrayIndexSwapSlot(arr *runtime.ArrayValue, state *runtime.ArrayState, first int, firstValue runtime.Value, second int, secondValue runtime.Value) {
+func (vm *bytecodeVM) syncTrackedArrayIndexSwapSlot(arr *runtime.ArrayValue, state *runtime.ArrayState, first int, second int) {
 	if vm == nil || vm.interp == nil || arr == nil || state == nil {
 		return
 	}
-	if bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, first, firstValue) {
-		bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, second, secondValue)
-		return
-	}
-	vm.interp.syncTrackedArrayWrite(arr, state, first, firstValue)
-	vm.interp.syncTrackedArrayWrite(arr, state, second, secondValue)
+	updateTrackedArrayMetadataForSwap(state, first, second)
+	vm.interp.syncTrackedArrayState(arr, state)
 }
 
 func (vm *bytecodeVM) resolveGenericArrayIndexSwapSlot(instr *bytecodeInstruction, obj runtime.Value, firstIdx runtime.Value, secondIdx runtime.Value) (runtime.Value, error) {
@@ -273,7 +269,7 @@ func (vm *bytecodeVM) castArrayIndexSwapSlotValue(instr *bytecodeInstruction, va
 	if instr == nil || instr.typeExpr == nil {
 		return value, nil
 	}
-	return vm.interp.castValueToType(instr.typeExpr, value)
+	return vm.interp.castValueToType(vm.canonicalRuntimeTypeExpression(instr.typeExpr), value)
 }
 
 func (vm *bytecodeVM) attachArrayIndexSwapSlotError(err error, instr *bytecodeInstruction) error {

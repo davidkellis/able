@@ -84,6 +84,38 @@ func TestIREmitFunctionLiterals(t *testing.T) {
 	}
 }
 
+func TestIREmitFunctionalUpdateReadsPositionalNamedFields(t *testing.T) {
+	root := t.TempDir()
+	writeTestPackage(t, root, "demo")
+	entryPath := filepath.Join(root, "main.able")
+	source := "package demo\n\nstruct Point { x: i32, y: i32 }\n\nfn update(point: Point) -> Point {\n  Point { ...point, y: 2 }\n}\n"
+	if err := os.WriteFile(entryPath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write main.able: %v", err)
+	}
+	program := loadTestProgram(t, entryPath)
+	def := findFunction(t, program.Entry.AST, "update")
+
+	fn, err := LowerFunction(def, program.Entry.Package, nil)
+	if err != nil {
+		t.Fatalf("lower function: %v", err)
+	}
+	src, err := EmitIRFunction(fn, IRGoOptions{PackageName: "main"})
+	if err != nil {
+		t.Fatalf("emit IR: %v", err)
+	}
+	generated := string(src)
+	if !strings.Contains(generated, "__able_struct_named_field_value(") {
+		t.Fatalf("IR functional update should use the shared named-field accessor:\n%s", generated)
+	}
+	if strings.Contains(generated, ".Fields == nil") {
+		t.Fatalf("IR functional update should accept positional-backed named structs:\n%s", generated)
+	}
+	fset := token.NewFileSet()
+	if _, err := parser.ParseFile(fset, "ir_generated.go", src, parser.AllErrors); err != nil {
+		t.Fatalf("parse generated source: %v", err)
+	}
+}
+
 func TestIREmitFunctionCast(t *testing.T) {
 	root := t.TempDir()
 	writeTestPackage(t, root, "demo")

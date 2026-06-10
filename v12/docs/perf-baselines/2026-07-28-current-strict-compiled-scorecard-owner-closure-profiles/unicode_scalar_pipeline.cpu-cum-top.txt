@@ -1,0 +1,94 @@
+File: compiled
+Build ID: bf029b0d414b0c080640c544b861a4677ad20f8b
+Type: cpu
+Time: 2026-07-28 09:43:25 CDT
+Duration: 926.37ms, Total samples = 1.18s (127.38%)
+Showing nodes accounting for 1.18s, 100% of 1.18s total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      1.18s   100%  main.RunRegisteredMain
+         0     0%     0%      1.18s   100%  main.RunRegisteredMain.func1
+         0     0%     0%      1.18s   100%  main.__able_compiled_fn_main
+         0     0%     0%      1.18s   100%  main.__able_compiled_fn_main_ctx
+         0     0%     0%      1.18s   100%  main.__able_register_compiled_call.func1
+         0     0%     0%      1.18s   100%  main.__able_wrap_fn_main
+         0     0%     0%      1.18s   100%  main.main
+         0     0%     0%      1.18s   100%  main.runMain
+         0     0%     0%      1.18s   100%  runtime.main
+     0.12s 10.17% 10.17%      1.17s 99.15%  main.__able_compiled_fn_scalar_checksum_ctx
+     0.01s  0.85% 11.02%      0.78s 66.10%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.__able_ctx_next
+     0.04s  3.39% 14.41%      0.77s 65.25%  main.__able_compiled_impl_Iterator_next_0_c_spec_ctx
+     0.05s  4.24% 18.64%      0.56s 47.46%  main.__able_compiled_fn_utf8_decode_ctx
+     0.06s  5.08% 23.73%      0.51s 43.22%  runtime.mallocgc
+     0.02s  1.69% 25.42%      0.38s 32.20%  runtime.newobject
+     0.10s  8.47% 33.90%      0.34s 28.81%  runtime.mallocgcTiny
+         0     0% 33.90%      0.15s 12.71%  main.__able_union__IteratorEnd_or_rune_wrap_rune (inline)
+     0.01s  0.85% 34.75%      0.15s 12.71%  runtime.convT32
+         0     0% 34.75%      0.13s 11.02%  runtime.systemstack
+     0.04s  3.39% 38.14%      0.13s 11.02%  unicode/utf8.DecodeRune (inline)
+     0.10s  8.47% 46.61%      0.10s  8.47%  main.__able_divmod_signed
+         0     0% 46.61%      0.10s  8.47%  runtime.deductAssistCredit
+         0     0% 46.61%      0.10s  8.47%  runtime.gcAssistAlloc
+         0     0% 46.61%      0.10s  8.47%  runtime.gcAssistAlloc.func2
+         0     0% 46.61%      0.10s  8.47%  runtime.gcAssistAlloc1
+         0     0% 46.61%      0.10s  8.47%  runtime.gcDrainN
+     0.09s  7.63% 54.24%      0.09s  7.63%  unicode/utf8.decodeRuneSlow
+     0.04s  3.39% 57.63%      0.06s  5.08%  runtime.gcmarknewobject
+     0.05s  4.24% 61.86%      0.05s  4.24%  main.__able_checked_add_signed
+     0.05s  4.24% 66.10%      0.05s  4.24%  main.__able_checked_mul_signed
+     0.05s  4.24% 70.34%      0.05s  4.24%  runtime.getMCache (inline)
+     0.04s  3.39% 73.73%      0.04s  3.39%  runtime.acquirem (inline)
+     0.04s  3.39% 77.12%      0.04s  3.39%  runtime.nextFreeFast (inline)
+         0     0% 77.12%      0.04s  3.39%  runtime.scanObject
+     0.03s  2.54% 79.66%      0.04s  3.39%  runtime.tryDeferToSpanScan
+     0.03s  2.54% 82.20%      0.03s  2.54%  main.__able_control_from_error_with_node
+         0     0% 82.20%      0.03s  2.54%  runtime.markroot
+     0.01s  0.85% 83.05%      0.03s  2.54%  runtime.scanSpan
+         0     0% 83.05%      0.02s  1.69%  main.__able_compiled_method_String_chars_ctx
+         0     0% 83.05%      0.02s  1.69%  runtime.(*mcache).nextFree
+         0     0% 83.05%      0.02s  1.69%  runtime.(*mcache).refill
+         0     0% 83.05%      0.02s  1.69%  runtime.(*mcentral).cacheSpan
+     0.02s  1.69% 84.75%      0.02s  1.69%  runtime.(*mspan).base (inline)
+         0     0% 84.75%      0.02s  1.69%  runtime.markrootBlock
+     0.02s  1.69% 86.44%      0.02s  1.69%  runtime.publicationBarrier
+         0     0% 86.44%      0.02s  1.69%  runtime.scanblock
+     0.02s  1.69% 88.14%      0.02s  1.69%  unicode/utf8.ValidString
+         0     0% 88.14%      0.01s  0.85%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 88.14%      0.01s  0.85%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+     0.01s  0.85% 88.98%      0.01s  0.85%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.01s  0.85% 89.83%      0.01s  0.85%  main.__able_char_from_codepoint_native
+         0     0% 89.83%      0.01s  0.85%  main.__able_compiled_fn_build_text_ctx
+         0     0% 89.83%      0.01s  0.85%  main.__able_compiled_fn_validated_bytes_ctx
+         0     0% 89.83%      0.01s  0.85%  main.__able_compiled_method_StringBuilder_push_string_ctx
+         0     0% 89.83%      0.01s  0.85%  main.__able_string_from_builtin_native (inline)
+     0.01s  0.85% 90.68%      0.01s  0.85%  main.__able_union__IteratorEnd_or_rune_as_ptr_IteratorEnd (inline)
+     0.01s  0.85% 91.53%      0.01s  0.85%  main.__able_union__StringEncodingError_or__Utf8DecodeResult_as_ptr_StringEncodingError (inline)
+     0.01s  0.85% 92.37%      0.01s  0.85%  main.__able_union__StringEncodingError_or__Utf8DecodeResult_as_ptr_Utf8DecodeResult (inline)
+     0.01s  0.85% 93.22%      0.01s  0.85%  runtime.(*mSpanStateBox).set (inline)
+         0     0% 93.22%      0.01s  0.85%  runtime.(*mcentral).grow
+         0     0% 93.22%      0.01s  0.85%  runtime.(*mheap).alloc
+         0     0% 93.22%      0.01s  0.85%  runtime.(*mheap).alloc.func1
+         0     0% 93.22%      0.01s  0.85%  runtime.(*mheap).allocSpan
+         0     0% 93.22%      0.01s  0.85%  runtime.(*mheap).freeSpan (inline)
+         0     0% 93.22%      0.01s  0.85%  runtime.(*mheap).freeSpanLocked
+         0     0% 93.22%      0.01s  0.85%  runtime.(*mheap).initSpan
+     0.01s  0.85% 94.07%      0.01s  0.85%  runtime.(*pageAlloc).free
+         0     0% 94.07%      0.01s  0.85%  runtime.(*sweepLocked).sweep
+         0     0% 94.07%      0.01s  0.85%  runtime.(*sweepLocked).sweep.(*mheap).freeSpan.func2
+         0     0% 94.07%      0.01s  0.85%  runtime.deductSweepCredit
+         0     0% 94.07%      0.01s  0.85%  runtime.findObject
+     0.01s  0.85% 94.92%      0.01s  0.85%  runtime.gcResetMarkState
+         0     0% 94.92%      0.01s  0.85%  runtime.gcStart
+     0.01s  0.85% 95.76%      0.01s  0.85%  runtime.getpid
+     0.01s  0.85% 96.61%      0.01s  0.85%  runtime.heapArenaOf (inline)
+         0     0% 96.61%      0.01s  0.85%  runtime.mallocgcSmallNoscan
+         0     0% 96.61%      0.01s  0.85%  runtime.markroot.func1
+         0     0% 96.61%      0.01s  0.85%  runtime.preemptM (inline)
+         0     0% 96.61%      0.01s  0.85%  runtime.rawbyteslice
+     0.01s  0.85% 97.46%      0.01s  0.85%  runtime.releasem (inline)
+         0     0% 97.46%      0.01s  0.85%  runtime.signalM
+     0.01s  0.85% 98.31%      0.01s  0.85%  runtime.spanOf (inline)
+         0     0% 98.31%      0.01s  0.85%  runtime.stringtoslicebyte
+         0     0% 98.31%      0.01s  0.85%  runtime.suspendG
+         0     0% 98.31%      0.01s  0.85%  runtime.sweepone
+     0.01s  0.85% 99.15%      0.01s  0.85%  runtime.typePointers.next
+     0.01s  0.85%   100%      0.01s  0.85%  runtime.typePointers.nextFast (inline)

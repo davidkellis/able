@@ -1,0 +1,4602 @@
+{
+  "target_path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-stateful-pipeline",
+  "stats": {
+    "Enabled": true,
+    "ProgramReach": [
+      {
+        "kind": "function",
+        "name": "\u003canonymous-function\u003e",
+        "entries": 12288,
+        "dynamic_instructions": 724992,
+        "dynamic_primitive_eligible": 258048,
+        "dynamic_effect_boundaries": 466944,
+        "dynamic_backedges": 0,
+        "static_instructions": 59,
+        "static_primitive_eligible": 21,
+        "static_effect_boundaries": 38,
+        "static_backedges": 0,
+        "max_static_primitive_span": 4,
+        "param_count": 4,
+        "boxed_param_count": 4,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 12,
+            "dynamic_instructions": 147456
+          },
+          {
+            "opcode": "StoreSlotNew",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 4,
+            "dynamic_instructions": 49152
+          },
+          {
+            "opcode": "Cast",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 12288
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "apply",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 54,
+        "column": 3,
+        "entries": 8192,
+        "dynamic_instructions": 458752,
+        "dynamic_primitive_eligible": 155648,
+        "dynamic_effect_boundaries": 303104,
+        "dynamic_backedges": 0,
+        "static_instructions": 56,
+        "static_primitive_eligible": 19,
+        "static_effect_boundaries": 37,
+        "static_backedges": 0,
+        "max_static_primitive_span": 3,
+        "param_count": 4,
+        "boxed_param_count": 4,
+        "boxed_return": true,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 9,
+            "dynamic_instructions": 73728
+          },
+          {
+            "opcode": "StoreSlotNew",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 2,
+            "dynamic_instructions": 16384
+          },
+          {
+            "opcode": "LoadSlotStructField",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 4,
+            "dynamic_instructions": 32768
+          },
+          {
+            "opcode": "LoadSlotStructField",
+            "proof": "primitive-field-integer",
+            "static_instructions": 6,
+            "dynamic_instructions": 49152
+          },
+          {
+            "opcode": "Cast",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 2,
+            "dynamic_instructions": 16384
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "run_stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 144,
+        "column": 1,
+        "entries": 3,
+        "dynamic_instructions": 344130,
+        "dynamic_primitive_eligible": 86040,
+        "dynamic_effect_boundaries": 258090,
+        "dynamic_backedges": 12288,
+        "static_instructions": 46,
+        "static_primitive_eligible": 15,
+        "static_effect_boundaries": 31,
+        "static_backedges": 1,
+        "max_static_primitive_span": 3,
+        "param_count": 4,
+        "boxed_param_count": 4,
+        "boxed_return": true,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 12,
+            "dynamic_instructions": 122892
+          },
+          {
+            "opcode": "StoreSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 12288
+          },
+          {
+            "opcode": "StoreSlotNew",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 4,
+            "dynamic_instructions": 36870
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "main",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 175,
+        "column": 1,
+        "entries": 1,
+        "dynamic_instructions": 311482,
+        "dynamic_primitive_eligible": 110642,
+        "dynamic_effect_boundaries": 200840,
+        "dynamic_backedges": 4096,
+        "static_instructions": 266,
+        "static_primitive_eligible": 82,
+        "static_effect_boundaries": 184,
+        "static_backedges": 1,
+        "max_static_primitive_span": 3,
+        "param_count": 0,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": true,
+        "scalar_proofs": [
+          {
+            "opcode": "Cast",
+            "proof": "primitive-numeric-cast",
+            "static_instructions": 2,
+            "dynamic_instructions": 4097
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "apply",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 77,
+        "column": 3,
+        "entries": 4096,
+        "dynamic_instructions": 262144,
+        "dynamic_primitive_eligible": 104448,
+        "dynamic_effect_boundaries": 157696,
+        "dynamic_backedges": 0,
+        "static_instructions": 76,
+        "static_primitive_eligible": 30,
+        "static_effect_boundaries": 46,
+        "static_backedges": 0,
+        "max_static_primitive_span": 3,
+        "param_count": 4,
+        "boxed_param_count": 4,
+        "boxed_return": true,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 10,
+            "dynamic_instructions": 36864
+          },
+          {
+            "opcode": "StoreSlotNew",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 3,
+            "dynamic_instructions": 12288
+          },
+          {
+            "opcode": "LoadSlotStructField",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 5,
+            "dynamic_instructions": 16384
+          },
+          {
+            "opcode": "LoadSlotStructField",
+            "proof": "primitive-field-integer",
+            "static_instructions": 9,
+            "dynamic_instructions": 32768
+          },
+          {
+            "opcode": "Cast",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 2048
+          },
+          {
+            "opcode": "JumpIfBinaryCompareFalse",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 4096
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "produce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 122,
+        "column": 1,
+        "entries": 1,
+        "dynamic_instructions": 176143,
+        "dynamic_primitive_eligible": 122889,
+        "dynamic_effect_boundaries": 53254,
+        "dynamic_backedges": 4096,
+        "static_instructions": 59,
+        "static_primitive_eligible": 40,
+        "static_effect_boundaries": 19,
+        "static_backedges": 1,
+        "max_static_primitive_span": 11,
+        "param_count": 2,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 2,
+            "dynamic_instructions": 4097
+          },
+          {
+            "opcode": "LoadSlot",
+            "proof": "existing-scalar-lane",
+            "static_instructions": 1,
+            "dynamic_instructions": 1
+          },
+          {
+            "opcode": "LoadSlot",
+            "proof": "primitive-slot-integer",
+            "static_instructions": 5,
+            "dynamic_instructions": 20480
+          },
+          {
+            "opcode": "StoreSlotNew",
+            "proof": "primitive-slot-integer",
+            "static_instructions": 3,
+            "dynamic_instructions": 8193
+          },
+          {
+            "opcode": "Cast",
+            "proof": "primitive-numeric-cast",
+            "static_instructions": 2,
+            "dynamic_instructions": 4097
+          }
+        ],
+        "integer_load_shapes": [
+          {
+            "carrier": "raw-i32-slot-value",
+            "consumer": "arithmetic",
+            "consumer_opcode": "Binary",
+            "dynamic_instructions": 8192
+          },
+          {
+            "carrier": "raw-i64-slot-cell",
+            "consumer": "other",
+            "consumer_opcode": "StructLiteralNamedFast",
+            "dynamic_instructions": 8192
+          },
+          {
+            "carrier": "raw-i32-slot-value",
+            "consumer": "cast",
+            "consumer_opcode": "Cast",
+            "dynamic_instructions": 4096
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "send",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 677,
+        "column": 3,
+        "entries": 16384,
+        "dynamic_instructions": 81920,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 81920,
+        "dynamic_backedges": 0,
+        "static_instructions": 5,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 5,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 2,
+        "boxed_param_count": 2,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 2,
+            "dynamic_instructions": 32768
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "receive",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 681,
+        "column": 3,
+        "entries": 16388,
+        "dynamic_instructions": 65552,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 65552,
+        "dynamic_backedges": 0,
+        "static_instructions": 4,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 4,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 1,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 16388
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "new",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 672,
+        "column": 3,
+        "entries": 4,
+        "dynamic_instructions": 28,
+        "dynamic_primitive_eligible": 8,
+        "dynamic_effect_boundaries": 20,
+        "dynamic_backedges": 0,
+        "static_instructions": 7,
+        "static_primitive_eligible": 2,
+        "static_effect_boundaries": 5,
+        "static_backedges": 0,
+        "max_static_primitive_span": 2,
+        "param_count": 1,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 4
+          },
+          {
+            "opcode": "LoadSlot",
+            "proof": "existing-scalar-lane",
+            "static_instructions": 1,
+            "dynamic_instructions": 4
+          },
+          {
+            "opcode": "StoreSlotNew",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 4
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "close",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 701,
+        "column": 3,
+        "entries": 4,
+        "dynamic_instructions": 16,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 16,
+        "dynamic_backedges": 0,
+        "static_instructions": 4,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 4,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 1,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 4
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "item_count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 167,
+        "column": 1,
+        "entries": 1,
+        "dynamic_instructions": 9,
+        "dynamic_primitive_eligible": 3,
+        "dynamic_effect_boundaries": 6,
+        "dynamic_backedges": 0,
+        "static_instructions": 18,
+        "static_primitive_eligible": 6,
+        "static_effect_boundaries": 12,
+        "static_backedges": 0,
+        "max_static_primitive_span": 3,
+        "param_count": 1,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 2,
+            "dynamic_instructions": 1
+          },
+          {
+            "opcode": "Binary",
+            "proof": "primitive-integer-compare",
+            "static_instructions": 1,
+            "dynamic_instructions": 1
+          },
+          {
+            "opcode": "JumpIfBinaryCompareFalse",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 0
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "with_capacity",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 513,
+        "column": 3,
+        "entries": 1,
+        "dynamic_instructions": 8,
+        "dynamic_primitive_eligible": 3,
+        "dynamic_effect_boundaries": 5,
+        "dynamic_backedges": 0,
+        "static_instructions": 8,
+        "static_primitive_eligible": 3,
+        "static_effect_boundaries": 5,
+        "static_backedges": 0,
+        "max_static_primitive_span": 3,
+        "param_count": 1,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false,
+        "scalar_proofs": [
+          {
+            "opcode": "LoadSlot",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 1
+          },
+          {
+            "opcode": "LoadSlot",
+            "proof": "existing-scalar-lane",
+            "static_instructions": 1,
+            "dynamic_instructions": 1
+          },
+          {
+            "opcode": "StoreSlotNew",
+            "proof": "unproven-or-boxed",
+            "static_instructions": 1,
+            "dynamic_instructions": 1
+          }
+        ]
+      },
+      {
+        "kind": "function",
+        "name": "make_reducer",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 104,
+        "column": 1,
+        "entries": 3,
+        "dynamic_instructions": 6,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 6,
+        "dynamic_backedges": 0,
+        "static_instructions": 2,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 2,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 0,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": true
+      },
+      {
+        "kind": "expression",
+        "name": "\u003cexpression\u003e",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 18,
+        "entries": 1,
+        "dynamic_instructions": 6,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 6,
+        "dynamic_backedges": 0,
+        "static_instructions": 6,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 6,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 0,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false
+      },
+      {
+        "kind": "expression",
+        "name": "\u003cexpression\u003e",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 19,
+        "entries": 1,
+        "dynamic_instructions": 6,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 6,
+        "dynamic_backedges": 0,
+        "static_instructions": 6,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 6,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 0,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false
+      },
+      {
+        "kind": "expression",
+        "name": "\u003cexpression\u003e",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 18,
+        "entries": 1,
+        "dynamic_instructions": 6,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 6,
+        "dynamic_backedges": 0,
+        "static_instructions": 6,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 6,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 0,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false
+      },
+      {
+        "kind": "expression",
+        "name": "\u003cexpression\u003e",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 189,
+        "column": 21,
+        "entries": 1,
+        "dynamic_instructions": 4,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 4,
+        "dynamic_backedges": 0,
+        "static_instructions": 4,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 4,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 0,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false
+      },
+      {
+        "kind": "function",
+        "name": "args",
+        "origin": "/home/david/sync/projects/able-stdlib/src/os.able",
+        "line": 83,
+        "column": 1,
+        "entries": 1,
+        "dynamic_instructions": 2,
+        "dynamic_primitive_eligible": 0,
+        "dynamic_effect_boundaries": 2,
+        "dynamic_backedges": 0,
+        "static_instructions": 2,
+        "static_primitive_eligible": 0,
+        "static_effect_boundaries": 2,
+        "static_backedges": 0,
+        "max_static_primitive_span": 0,
+        "param_count": 0,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false
+      }
+    ],
+    "ProgramReachDropped": 0,
+    "OpCounts": [
+      159799,
+      176171,
+      4107,
+      8208,
+      16384,
+      8,
+      0,
+      8194,
+      184367,
+      217089,
+      278528,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      28672,
+      12288,
+      0,
+      0,
+      0,
+      0,
+      38914,
+      1,
+      4,
+      0,
+      4,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      45067,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      12288,
+      32792,
+      40967,
+      0,
+      4107,
+      0,
+      0,
+      0,
+      8201,
+      0,
+      0,
+      0,
+      270353,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38917,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      4097,
+      0,
+      0,
+      0,
+      16388,
+      16384,
+      0,
+      5,
+      5,
+      8194,
+      8194,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      57371,
+      454689,
+      0,
+      0,
+      131072,
+      12288,
+      122892,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      4096,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      4096
+    ],
+    "OpCountsByName": {
+      "ArrayIndexGetSlot": 0,
+      "ArrayIndexSetSlot": 0,
+      "ArrayIndexSwapSlot": 0,
+      "ArrayLiteral": 0,
+      "ArrayReadSlot": 0,
+      "ArrayReadSlotI32": 0,
+      "ArraySlotSwapSlot": 0,
+      "AssignName": 16384,
+      "AssignNameCompound": 0,
+      "AssignPattern": 8,
+      "Await": 0,
+      "Binary": 217089,
+      "BinaryCastSlotFloatConstDiv": 0,
+      "BinaryFloatMulSlotConst": 0,
+      "BinaryI32Add": 0,
+      "BinaryI32Sub": 0,
+      "BinaryIntAdd": 278528,
+      "BinaryIntAddSlotConst": 0,
+      "BinaryIntCompareSlotConst": 0,
+      "BinaryIntDivCast": 0,
+      "BinaryIntLessEqual": 0,
+      "BinaryIntLessEqualSlotConst": 0,
+      "BinaryIntModSlotConst": 12288,
+      "BinaryIntMulSlotConst": 28672,
+      "BinaryIntSub": 0,
+      "BinaryIntSubSlotConst": 0,
+      "BindPattern": 0,
+      "BoxI32": 0,
+      "BreakLabel": 0,
+      "BreakSignal": 0,
+      "Breakpoint": 0,
+      "Call": 12288,
+      "CallGenericUnionMember": 0,
+      "CallMember": 40967,
+      "CallMemberArrayGet": 0,
+      "CallMemberArrayNew": 0,
+      "CallMemberArraySlot": 8201,
+      "CallMemberNext": 0,
+      "CallName": 32792,
+      "CallSelf": 0,
+      "CallSelfIntSubSlotConst": 0,
+      "CallStaticMember": 4107,
+      "Cast": 38914,
+      "CompoundAssignImplicitSlot": 0,
+      "CompoundAssignSlot": 0,
+      "CompoundAssignSlotI32": 0,
+      "Const": 159799,
+      "ConstI32": 0,
+      "ContinueSignal": 0,
+      "DeclareName": 8208,
+      "DefineExtern": 0,
+      "DefineFunction": 0,
+      "DefineImplementation": 0,
+      "DefineInterface": 0,
+      "DefineMethods": 0,
+      "DefineStruct": 0,
+      "DefineTypeAlias": 0,
+      "DefineUnion": 0,
+      "Dup": 8194,
+      "DynImport": 0,
+      "Ensure": 0,
+      "EnsureEnd": 0,
+      "EnterScope": 8194,
+      "ExitScope": 8194,
+      "ForLoop": 0,
+      "ImplicitMember": 0,
+      "ImplicitMemberSet": 0,
+      "Import": 0,
+      "IndexGet": 0,
+      "IndexSet": 0,
+      "IterClose": 0,
+      "IterInit": 0,
+      "IterNext": 0,
+      "IteratorLiteral": 0,
+      "Jump": 38917,
+      "JumpIfArrayIndexSlotCompareSlotFalse": 0,
+      "JumpIfArrayReadSlotCompareSlotFalse": 0,
+      "JumpIfBinaryCompareFalse": 4096,
+      "JumpIfBoolSlotFalse": 0,
+      "JumpIfFalse": 2,
+      "JumpIfFloatAddCompareConstFalse": 0,
+      "JumpIfFloatMulAddMulCompareConstFalse": 0,
+      "JumpIfIntCompareSlotConstFalse": 0,
+      "JumpIfIntCompareSlotFalse": 4097,
+      "JumpIfIntLessEqualSlotConstFalse": 0,
+      "JumpIfNil": 0,
+      "JumpIfNotNil": 16388,
+      "JumpIfNotTypedPattern": 16384,
+      "LoadImplicitSlot": 0,
+      "LoadName": 176171,
+      "LoadSlot": 454689,
+      "LoadSlotI32": 0,
+      "LoadSlotStructField": 131072,
+      "LoadStaticReceiver": 4107,
+      "LoopEnter": 5,
+      "LoopExit": 5,
+      "MakeFunction": 3,
+      "MapLiteral": 0,
+      "Match": 0,
+      "MatchNoClause": 0,
+      "MemberAccess": 270353,
+      "MemberSet": 0,
+      "OrElse": 0,
+      "Pipe": 0,
+      "PlaceholderLambda": 0,
+      "PlaceholderValue": 0,
+      "Pop": 184367,
+      "Propagation": 4,
+      "Raise": 0,
+      "Range": 0,
+      "Rescue": 0,
+      "Rethrow": 0,
+      "Return": 57371,
+      "ReturnBinary": 0,
+      "ReturnBinaryIntAdd": 0,
+      "ReturnBinaryIntAddI32": 0,
+      "ReturnConstIfIntLessEqualSlotConst": 0,
+      "ReturnIfIntLessEqualSlotConst": 0,
+      "Spawn": 4,
+      "StoreImplicitSlot": 0,
+      "StoreSlot": 12288,
+      "StoreSlotBinaryIntSlotConst": 4096,
+      "StoreSlotCastSlotFloatConstDiv": 0,
+      "StoreSlotFloatAddMul": 0,
+      "StoreSlotFloatAddMulArrayGet": 0,
+      "StoreSlotFloatAddMulSlot": 0,
+      "StoreSlotFloatAddSub": 0,
+      "StoreSlotFloatAffine": 0,
+      "StoreSlotFloatBinary": 0,
+      "StoreSlotFloatRegion": 0,
+      "StoreSlotI32": 0,
+      "StoreSlotIntMulConstAdd": 0,
+      "StoreSlotIntMulConstAddFromSlot": 0,
+      "StoreSlotIntMulConstModConst": 0,
+      "StoreSlotNew": 122892,
+      "StringInterpolation": 1,
+      "StructLiteral": 0,
+      "StructLiteralNamedFast": 45067,
+      "TryArrayPushF64AffineProduct": 0,
+      "TryArrayPushF64NestedGet": 0,
+      "TryFloatUpdatePair": 0,
+      "Unary": 0,
+      "UnboxI32": 0,
+      "Yield": 0
+    },
+    "TopOps": [
+      {
+        "op": 118,
+        "name": "LoadSlot",
+        "count": 454689
+      },
+      {
+        "op": 10,
+        "name": "BinaryIntAdd",
+        "count": 278528
+      },
+      {
+        "op": 77,
+        "name": "MemberAccess",
+        "count": 270353
+      },
+      {
+        "op": 9,
+        "name": "Binary",
+        "count": 217089
+      },
+      {
+        "op": 8,
+        "name": "Pop",
+        "count": 184367
+      },
+      {
+        "op": 1,
+        "name": "LoadName",
+        "count": 176171
+      },
+      {
+        "op": 0,
+        "name": "Const",
+        "count": 159799
+      },
+      {
+        "op": 121,
+        "name": "LoadSlotStructField",
+        "count": 131072
+      },
+      {
+        "op": 123,
+        "name": "StoreSlotNew",
+        "count": 122892
+      },
+      {
+        "op": 117,
+        "name": "Return",
+        "count": 57371
+      },
+      {
+        "op": 53,
+        "name": "StructLiteralNamedFast",
+        "count": 45067
+      },
+      {
+        "op": 67,
+        "name": "CallMember",
+        "count": 40967
+      },
+      {
+        "op": 89,
+        "name": "Jump",
+        "count": 38917
+      },
+      {
+        "op": 24,
+        "name": "Cast",
+        "count": 38914
+      },
+      {
+        "op": 66,
+        "name": "CallName",
+        "count": 32792
+      },
+      {
+        "op": 18,
+        "name": "BinaryIntMulSlotConst",
+        "count": 28672
+      },
+      {
+        "op": 102,
+        "name": "JumpIfNotNil",
+        "count": 16388
+      },
+      {
+        "op": 4,
+        "name": "AssignName",
+        "count": 16384
+      },
+      {
+        "op": 103,
+        "name": "JumpIfNotTypedPattern",
+        "count": 16384
+      },
+      {
+        "op": 19,
+        "name": "BinaryIntModSlotConst",
+        "count": 12288
+      },
+      {
+        "op": 65,
+        "name": "Call",
+        "count": 12288
+      },
+      {
+        "op": 122,
+        "name": "StoreSlot",
+        "count": 12288
+      },
+      {
+        "op": 3,
+        "name": "DeclareName",
+        "count": 8208
+      },
+      {
+        "op": 73,
+        "name": "CallMemberArraySlot",
+        "count": 8201
+      },
+      {
+        "op": 7,
+        "name": "Dup",
+        "count": 8194
+      },
+      {
+        "op": 107,
+        "name": "EnterScope",
+        "count": 8194
+      },
+      {
+        "op": 108,
+        "name": "ExitScope",
+        "count": 8194
+      },
+      {
+        "op": 69,
+        "name": "CallStaticMember",
+        "count": 4107
+      },
+      {
+        "op": 2,
+        "name": "LoadStaticReceiver",
+        "count": 4107
+      },
+      {
+        "op": 98,
+        "name": "JumpIfIntCompareSlotFalse",
+        "count": 4097
+      },
+      {
+        "op": 143,
+        "name": "JumpIfBinaryCompareFalse",
+        "count": 4096
+      },
+      {
+        "op": 130,
+        "name": "StoreSlotBinaryIntSlotConst",
+        "count": 4096
+      },
+      {
+        "op": 5,
+        "name": "AssignPattern",
+        "count": 8
+      },
+      {
+        "op": 105,
+        "name": "LoopEnter",
+        "count": 5
+      },
+      {
+        "op": 106,
+        "name": "LoopExit",
+        "count": 5
+      },
+      {
+        "op": 26,
+        "name": "Propagation",
+        "count": 4
+      },
+      {
+        "op": 28,
+        "name": "Spawn",
+        "count": 4
+      },
+      {
+        "op": 41,
+        "name": "MakeFunction",
+        "count": 3
+      },
+      {
+        "op": 90,
+        "name": "JumpIfFalse",
+        "count": 2
+      },
+      {
+        "op": 25,
+        "name": "StringInterpolation",
+        "count": 1
+      }
+    ],
+    "ValueStackDeltas": [
+      159799,
+      176171,
+      4107,
+      0,
+      0,
+      0,
+      0,
+      8194,
+      -184367,
+      -217089,
+      -278528,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      28672,
+      12288,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -36,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -81934,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -61440,
+      -16395,
+      -94212,
+      0,
+      -4108,
+      0,
+      0,
+      0,
+      -12300,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -16388,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -8,
+      454689,
+      0,
+      0,
+      131072,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -8192
+    ],
+    "ValueStackDeltasByName": {
+      "ArrayIndexGetSlot": 0,
+      "ArrayIndexSetSlot": 0,
+      "ArrayIndexSwapSlot": 0,
+      "ArrayLiteral": 0,
+      "ArrayReadSlot": 0,
+      "ArrayReadSlotI32": 0,
+      "ArraySlotSwapSlot": 0,
+      "AssignName": 0,
+      "AssignNameCompound": 0,
+      "AssignPattern": 0,
+      "Await": 0,
+      "Binary": -217089,
+      "BinaryCastSlotFloatConstDiv": 0,
+      "BinaryFloatMulSlotConst": 0,
+      "BinaryI32Add": 0,
+      "BinaryI32Sub": 0,
+      "BinaryIntAdd": -278528,
+      "BinaryIntAddSlotConst": 0,
+      "BinaryIntCompareSlotConst": 0,
+      "BinaryIntDivCast": 0,
+      "BinaryIntLessEqual": 0,
+      "BinaryIntLessEqualSlotConst": 0,
+      "BinaryIntModSlotConst": 12288,
+      "BinaryIntMulSlotConst": 28672,
+      "BinaryIntSub": 0,
+      "BinaryIntSubSlotConst": 0,
+      "BindPattern": 0,
+      "BoxI32": 0,
+      "BreakLabel": 0,
+      "BreakSignal": 0,
+      "Breakpoint": 0,
+      "Call": -61440,
+      "CallGenericUnionMember": 0,
+      "CallMember": -94212,
+      "CallMemberArrayGet": 0,
+      "CallMemberArrayNew": 0,
+      "CallMemberArraySlot": -12300,
+      "CallMemberNext": 0,
+      "CallName": -16395,
+      "CallSelf": 0,
+      "CallSelfIntSubSlotConst": 0,
+      "CallStaticMember": -4108,
+      "Cast": 0,
+      "CompoundAssignImplicitSlot": 0,
+      "CompoundAssignSlot": 0,
+      "CompoundAssignSlotI32": 0,
+      "Const": 159799,
+      "ConstI32": 0,
+      "ContinueSignal": 0,
+      "DeclareName": 0,
+      "DefineExtern": 0,
+      "DefineFunction": 0,
+      "DefineImplementation": 0,
+      "DefineInterface": 0,
+      "DefineMethods": 0,
+      "DefineStruct": 0,
+      "DefineTypeAlias": 0,
+      "DefineUnion": 0,
+      "Dup": 8194,
+      "DynImport": 0,
+      "Ensure": 0,
+      "EnsureEnd": 0,
+      "EnterScope": 0,
+      "ExitScope": 0,
+      "ForLoop": 0,
+      "ImplicitMember": 0,
+      "ImplicitMemberSet": 0,
+      "Import": 0,
+      "IndexGet": 0,
+      "IndexSet": 0,
+      "IterClose": 0,
+      "IterInit": 0,
+      "IterNext": 0,
+      "IteratorLiteral": 0,
+      "Jump": 0,
+      "JumpIfArrayIndexSlotCompareSlotFalse": 0,
+      "JumpIfArrayReadSlotCompareSlotFalse": 0,
+      "JumpIfBinaryCompareFalse": -8192,
+      "JumpIfBoolSlotFalse": 0,
+      "JumpIfFalse": -2,
+      "JumpIfFloatAddCompareConstFalse": 0,
+      "JumpIfFloatMulAddMulCompareConstFalse": 0,
+      "JumpIfIntCompareSlotConstFalse": 0,
+      "JumpIfIntCompareSlotFalse": 0,
+      "JumpIfIntLessEqualSlotConstFalse": 0,
+      "JumpIfNil": 0,
+      "JumpIfNotNil": -16388,
+      "JumpIfNotTypedPattern": 0,
+      "LoadImplicitSlot": 0,
+      "LoadName": 176171,
+      "LoadSlot": 454689,
+      "LoadSlotI32": 0,
+      "LoadSlotStructField": 131072,
+      "LoadStaticReceiver": 4107,
+      "LoopEnter": 0,
+      "LoopExit": 0,
+      "MakeFunction": 3,
+      "MapLiteral": 0,
+      "Match": 0,
+      "MatchNoClause": 0,
+      "MemberAccess": 0,
+      "MemberSet": 0,
+      "OrElse": 0,
+      "Pipe": 0,
+      "PlaceholderLambda": 0,
+      "PlaceholderValue": 0,
+      "Pop": -184367,
+      "Propagation": 0,
+      "Raise": 0,
+      "Range": 0,
+      "Rescue": 0,
+      "Rethrow": 0,
+      "Return": -8,
+      "ReturnBinary": 0,
+      "ReturnBinaryIntAdd": 0,
+      "ReturnBinaryIntAddI32": 0,
+      "ReturnConstIfIntLessEqualSlotConst": 0,
+      "ReturnIfIntLessEqualSlotConst": 0,
+      "Spawn": 4,
+      "StoreImplicitSlot": 0,
+      "StoreSlot": 0,
+      "StoreSlotBinaryIntSlotConst": 0,
+      "StoreSlotCastSlotFloatConstDiv": 0,
+      "StoreSlotFloatAddMul": 0,
+      "StoreSlotFloatAddMulArrayGet": 0,
+      "StoreSlotFloatAddMulSlot": 0,
+      "StoreSlotFloatAddSub": 0,
+      "StoreSlotFloatAffine": 0,
+      "StoreSlotFloatBinary": 0,
+      "StoreSlotFloatRegion": 0,
+      "StoreSlotI32": 0,
+      "StoreSlotIntMulConstAdd": 0,
+      "StoreSlotIntMulConstAddFromSlot": 0,
+      "StoreSlotIntMulConstModConst": 0,
+      "StoreSlotNew": 0,
+      "StringInterpolation": -36,
+      "StructLiteral": 0,
+      "StructLiteralNamedFast": -81934,
+      "TryArrayPushF64AffineProduct": 0,
+      "TryArrayPushF64NestedGet": 0,
+      "TryFloatUpdatePair": 0,
+      "Unary": 0,
+      "UnboxI32": 0,
+      "Yield": 0
+    },
+    "TopValueStackDeltas": [
+      {
+        "op": 118,
+        "name": "LoadSlot",
+        "delta": 454689
+      },
+      {
+        "op": 1,
+        "name": "LoadName",
+        "delta": 176171
+      },
+      {
+        "op": 0,
+        "name": "Const",
+        "delta": 159799
+      },
+      {
+        "op": 121,
+        "name": "LoadSlotStructField",
+        "delta": 131072
+      },
+      {
+        "op": 18,
+        "name": "BinaryIntMulSlotConst",
+        "delta": 28672
+      },
+      {
+        "op": 19,
+        "name": "BinaryIntModSlotConst",
+        "delta": 12288
+      },
+      {
+        "op": 7,
+        "name": "Dup",
+        "delta": 8194
+      },
+      {
+        "op": 2,
+        "name": "LoadStaticReceiver",
+        "delta": 4107
+      },
+      {
+        "op": 28,
+        "name": "Spawn",
+        "delta": 4
+      },
+      {
+        "op": 41,
+        "name": "MakeFunction",
+        "delta": 3
+      },
+      {
+        "op": 90,
+        "name": "JumpIfFalse",
+        "delta": -2
+      },
+      {
+        "op": 117,
+        "name": "Return",
+        "delta": -8
+      },
+      {
+        "op": 25,
+        "name": "StringInterpolation",
+        "delta": -36
+      },
+      {
+        "op": 69,
+        "name": "CallStaticMember",
+        "delta": -4108
+      },
+      {
+        "op": 143,
+        "name": "JumpIfBinaryCompareFalse",
+        "delta": -8192
+      },
+      {
+        "op": 73,
+        "name": "CallMemberArraySlot",
+        "delta": -12300
+      },
+      {
+        "op": 102,
+        "name": "JumpIfNotNil",
+        "delta": -16388
+      },
+      {
+        "op": 66,
+        "name": "CallName",
+        "delta": -16395
+      },
+      {
+        "op": 65,
+        "name": "Call",
+        "delta": -61440
+      },
+      {
+        "op": 53,
+        "name": "StructLiteralNamedFast",
+        "delta": -81934
+      },
+      {
+        "op": 67,
+        "name": "CallMember",
+        "delta": -94212
+      },
+      {
+        "op": 8,
+        "name": "Pop",
+        "delta": -184367
+      },
+      {
+        "op": 9,
+        "name": "Binary",
+        "delta": -217089
+      },
+      {
+        "op": 10,
+        "name": "BinaryIntAdd",
+        "delta": -278528
+      }
+    ],
+    "TopValueStackPeakSites": [
+      {
+        "op": 121,
+        "ip": 28,
+        "name": "factor",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 64,
+        "column": 45,
+        "growth": 4
+      },
+      {
+        "op": 121,
+        "ip": 0,
+        "name": "value",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 60,
+        "column": 19,
+        "growth": 2
+      },
+      {
+        "op": 121,
+        "ip": 1,
+        "name": "factor",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 60,
+        "column": 33,
+        "growth": 2
+      },
+      {
+        "op": 121,
+        "ip": 5,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 61,
+        "column": 35,
+        "growth": 2
+      },
+      {
+        "op": 0,
+        "ip": 8,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 61,
+        "column": 63,
+        "growth": 2
+      },
+      {
+        "op": 121,
+        "ip": 48,
+        "name": "offset",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 92,
+        "column": 45,
+        "growth": 2
+      },
+      {
+        "op": 0,
+        "ip": 213,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 216,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 219,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 222,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 240,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 242,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 244,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 247,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 250,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 253,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 256,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 259,
+        "name": "",
+        "growth": 1
+      },
+      {
+        "op": 121,
+        "ip": 0,
+        "name": "total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 83,
+        "column": 16,
+        "growth": 1
+      },
+      {
+        "op": 121,
+        "ip": 1,
+        "name": "checksum",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 84,
+        "column": 9,
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 5,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 85,
+        "column": 32,
+        "growth": 1
+      },
+      {
+        "op": 118,
+        "ip": 47,
+        "name": "candidate",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 92,
+        "column": 34,
+        "growth": 1
+      },
+      {
+        "op": 118,
+        "ip": 24,
+        "name": "index",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 131,
+        "column": 15,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 25,
+        "name": "LANE_COUNT",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 131,
+        "column": 23,
+        "growth": 1
+      },
+      {
+        "op": 118,
+        "ip": 28,
+        "name": "index",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 133,
+        "column": 17,
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 29,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 133,
+        "column": 26,
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 2,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 168,
+        "column": 19,
+        "growth": 1
+      },
+      {
+        "op": 2,
+        "ip": 1,
+        "name": "os",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 176,
+        "column": 23,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 189,
+        "column": 31,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "incoming",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 189,
+        "column": 38,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "first_stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 30,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "first_reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 43,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 2,
+        "name": "incoming",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 57,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 3,
+        "name": "middle",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 67,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "second_stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 31,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "second_reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 45,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 2,
+        "name": "middle",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 60,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 3,
+        "name": "outgoing",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 68,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "third_stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 30,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "third_reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 43,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 2,
+        "name": "outgoing",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 57,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 3,
+        "name": "completed",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 67,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 126,
+        "name": "lane",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 209,
+        "column": 48,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 212,
+        "name": "received",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 33,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 214,
+        "name": "first_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 45,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 217,
+        "name": "second_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 66,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 220,
+        "name": "third_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 88,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 223,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 109,
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 224,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 125,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 227,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 131,
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 228,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 147,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 231,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 153,
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 232,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 169,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 235,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 175,
+        "growth": 1
+      },
+      {
+        "op": 0,
+        "ip": 236,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 191,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 239,
+        "name": "value_total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 197,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 241,
+        "name": "trail_total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 212,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 243,
+        "name": "checksum",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 227,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 245,
+        "name": "first_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 239,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 248,
+        "name": "first_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 260,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 251,
+        "name": "second_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 284,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 254,
+        "name": "second_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 306,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 257,
+        "name": "third_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 331,
+        "growth": 1
+      },
+      {
+        "op": 1,
+        "ip": 260,
+        "name": "third_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 352,
+        "growth": 1
+      },
+      {
+        "op": 118,
+        "ip": 5,
+        "name": "handle",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 515,
+        "column": 60,
+        "growth": 1
+      }
+    ],
+    "TopValueStackDeltaSites": [
+      {
+        "op": 118,
+        "ip": 0,
+        "name": "self",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 682,
+        "column": 28,
+        "delta": 16388
+      },
+      {
+        "op": 118,
+        "ip": 0,
+        "name": "self",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 678,
+        "column": 25,
+        "delta": 16384
+      },
+      {
+        "op": 118,
+        "ip": 2,
+        "name": "value",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 678,
+        "column": 38,
+        "delta": 16384
+      },
+      {
+        "op": 118,
+        "ip": 7,
+        "name": "input",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 152,
+        "column": 5,
+        "delta": 12291
+      },
+      {
+        "op": 118,
+        "ip": 11,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 153,
+        "column": 7,
+        "delta": 12291
+      },
+      {
+        "op": 118,
+        "ip": 0,
+        "name": "state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 106,
+        "column": 14,
+        "delta": 12288
+      },
+      {
+        "op": 0,
+        "ip": 2,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 106,
+        "column": 28,
+        "delta": 12288
+      },
+      {
+        "op": 19,
+        "ip": 6,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 107,
+        "column": 15,
+        "delta": 12288
+      },
+      {
+        "op": 0,
+        "ip": 7,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 107,
+        "column": 33,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 11,
+        "name": "state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 108,
+        "column": 15,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 13,
+        "name": "candidate",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 109,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 15,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 110,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 18,
+        "name": "weight",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 110,
+        "column": 33,
+        "delta": 12288
+      },
+      {
+        "op": 1,
+        "ip": 21,
+        "name": "salt",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 111,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 1,
+        "ip": 23,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 111,
+        "column": 17,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 27,
+        "name": "state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 112,
+        "column": 18,
+        "delta": 12288
+      },
+      {
+        "op": 0,
+        "ip": 29,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 112,
+        "column": 35,
+        "delta": 12288
+      },
+      {
+        "op": 18,
+        "ip": 31,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 113,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 33,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 114,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 0,
+        "ip": 36,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 114,
+        "column": 32,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 39,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 115,
+        "column": 10,
+        "delta": 12288
+      },
+      {
+        "op": 0,
+        "ip": 43,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 115,
+        "column": 37,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 46,
+        "name": "marker",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 116,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 1,
+        "ip": 48,
+        "name": "salt",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 117,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 1,
+        "ip": 50,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 117,
+        "column": 17,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 54,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 118,
+        "column": 18,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 55,
+        "name": "total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 118,
+        "column": 25,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 56,
+        "name": "checksum",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 118,
+        "column": 32,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 19,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 157,
+        "column": 7,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 23,
+        "name": "stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 158,
+        "column": 17,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 24,
+        "name": "state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 158,
+        "column": 29,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 25,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 158,
+        "column": 36,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 26,
+        "name": "reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 158,
+        "column": 43,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 30,
+        "name": "step",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 159,
+        "column": 17,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 34,
+        "name": "output",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 160,
+        "column": 9,
+        "delta": 12288
+      },
+      {
+        "op": 118,
+        "ip": 35,
+        "name": "step",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 160,
+        "column": 21,
+        "delta": 12288
+      },
+      {
+        "op": 121,
+        "ip": 0,
+        "name": "value",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 60,
+        "column": 19,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 1,
+        "name": "factor",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 60,
+        "column": 33,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 3,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 61,
+        "column": 9,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 5,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 61,
+        "column": 35,
+        "delta": 8192
+      },
+      {
+        "op": 0,
+        "ip": 8,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 61,
+        "column": 63,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 12,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 62,
+        "column": 10,
+        "delta": 8192
+      },
+      {
+        "op": 0,
+        "ip": 15,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 62,
+        "column": 37,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 18,
+        "name": "bias",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 63,
+        "column": 9,
+        "delta": 8192
+      },
+      {
+        "op": 1,
+        "ip": 20,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 63,
+        "column": 22,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 24,
+        "name": "reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 64,
+        "column": 13,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 25,
+        "name": "state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 64,
+        "column": 20,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 26,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 64,
+        "column": 27,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 27,
+        "name": "candidate",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 64,
+        "column": 34,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 28,
+        "name": "factor",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 64,
+        "column": 45,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 32,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 67,
+        "column": 16,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 33,
+        "name": "candidate",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 68,
+        "column": 17,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 34,
+        "name": "next",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 68,
+        "column": 29,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 37,
+        "name": "next",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 68,
+        "column": 42,
+        "delta": 8192
+      },
+      {
+        "op": 1,
+        "ip": 40,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 68,
+        "column": 56,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 42,
+        "name": "trail",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 69,
+        "column": 17,
+        "delta": 8192
+      },
+      {
+        "op": 0,
+        "ip": 43,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 69,
+        "column": 31,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 45,
+        "name": "next",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 69,
+        "column": 40,
+        "delta": 8192
+      },
+      {
+        "op": 121,
+        "ip": 48,
+        "name": "bias",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 69,
+        "column": 56,
+        "delta": 8192
+      },
+      {
+        "op": 1,
+        "ip": 50,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 69,
+        "column": 69,
+        "delta": 8192
+      },
+      {
+        "op": 118,
+        "ip": 53,
+        "name": "next",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 71,
+        "column": 14,
+        "delta": 8192
+      },
+      {
+        "op": 2,
+        "ip": 100,
+        "name": "completed",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 205,
+        "column": 5,
+        "delta": 4097
+      },
+      {
+        "op": 7,
+        "ip": 102,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 206,
+        "column": 7,
+        "delta": 4097
+      },
+      {
+        "op": 121,
+        "ip": 0,
+        "name": "total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 83,
+        "column": 16,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 1,
+        "name": "checksum",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 84,
+        "column": 9,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 3,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 85,
+        "column": 9,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 5,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 85,
+        "column": 32,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 8,
+        "name": "offset",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 86,
+        "column": 9,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 10,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 86,
+        "column": 24,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 14,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 87,
+        "column": 22,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 15,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 87,
+        "column": 36,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 17,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 87,
+        "column": 46,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 44,
+        "name": "reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 92,
+        "column": 13,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 45,
+        "name": "state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 92,
+        "column": 20,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 46,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 92,
+        "column": 27,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 47,
+        "name": "candidate",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 92,
+        "column": 34,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 48,
+        "name": "offset",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 92,
+        "column": 45,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 52,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 95,
+        "column": 16,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 53,
+        "name": "candidate",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 96,
+        "column": 17,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 54,
+        "name": "next",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 96,
+        "column": 29,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 57,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 96,
+        "column": 45,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 60,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 96,
+        "column": 69,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 62,
+        "name": "trail",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 97,
+        "column": 17,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 63,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 97,
+        "column": 31,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 65,
+        "name": "next",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 97,
+        "column": 40,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 68,
+        "name": "offset",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 97,
+        "column": 53,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 70,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 97,
+        "column": 68,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 73,
+        "name": "next",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 99,
+        "column": 14,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 9,
+        "name": "index",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 126,
+        "column": 17,
+        "delta": 4096
+      },
+      {
+        "op": 18,
+        "ip": 13,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 127,
+        "column": 20,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 14,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 127,
+        "column": 40,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 16,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 127,
+        "column": 50,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 18,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 127,
+        "column": 63,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 22,
+        "name": "output",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 128,
+        "column": 5,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 23,
+        "name": "sequence",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 130,
+        "column": 9,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 24,
+        "name": "index",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 131,
+        "column": 15,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 25,
+        "name": "LANE_COUNT",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 131,
+        "column": 23,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 27,
+        "name": "magnitude",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 132,
+        "column": 9,
+        "delta": 4096
+      },
+      {
+        "op": 118,
+        "ip": 28,
+        "name": "index",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 133,
+        "column": 17,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 29,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 133,
+        "column": 26,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 31,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 133,
+        "column": 31,
+        "delta": 4096
+      },
+      {
+        "op": 18,
+        "ip": 34,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 135,
+        "column": 15,
+        "delta": 4096
+      },
+      {
+        "op": 18,
+        "ip": 35,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 135,
+        "column": 35,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 37,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 135,
+        "column": 55,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 39,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 135,
+        "column": 66,
+        "delta": 4096
+      },
+      {
+        "op": 18,
+        "ip": 41,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 136,
+        "column": 15,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 42,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 136,
+        "column": 35,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 44,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 136,
+        "column": 46,
+        "delta": 4096
+      },
+      {
+        "op": 7,
+        "ip": 111,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 207,
+        "column": 7,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 118,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 208,
+        "column": 17,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 123,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 209,
+        "column": 9,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 124,
+        "name": "lane",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 209,
+        "column": 26,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 125,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 209,
+        "column": 32,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 126,
+        "name": "lane",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 209,
+        "column": 48,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 128,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 209,
+        "column": 56,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 132,
+        "name": "received",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 210,
+        "column": 20,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 133,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 210,
+        "column": 31,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 137,
+        "name": "value_total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 211,
+        "column": 24,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 138,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 211,
+        "column": 38,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 141,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 211,
+        "column": 53,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 145,
+        "name": "trail_total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 212,
+        "column": 24,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 146,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 212,
+        "column": 38,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 149,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 212,
+        "column": 53,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 153,
+        "name": "checksum",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 213,
+        "column": 21,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 154,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 214,
+        "column": 13,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 156,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 214,
+        "column": 27,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 159,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 215,
+        "column": 13,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 161,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 215,
+        "column": 27,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 164,
+        "name": "frame",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 216,
+        "column": 13,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 167,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 216,
+        "column": 36,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 170,
+        "name": "lane",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 217,
+        "column": 14,
+        "delta": 4096
+      },
+      {
+        "op": 0,
+        "ip": 172,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 217,
+        "column": 29,
+        "delta": 4096
+      },
+      {
+        "op": 1,
+        "ip": 175,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 217,
+        "column": 39,
+        "delta": 4096
+      },
+      {
+        "op": 121,
+        "ip": 20,
+        "name": "value",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 88,
+        "column": 8,
+        "delta": 2048
+      },
+      {
+        "op": 118,
+        "ip": 21,
+        "name": "window",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 88,
+        "column": 22,
+        "delta": 2048
+      },
+      {
+        "op": 121,
+        "ip": 23,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 88,
+        "column": 31,
+        "delta": 2048
+      },
+      {
+        "op": 0,
+        "ip": 25,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 88,
+        "column": 55,
+        "delta": 2048
+      },
+      {
+        "op": 1,
+        "ip": 28,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 88,
+        "column": 64,
+        "delta": 2048
+      },
+      {
+        "op": 121,
+        "ip": 31,
+        "name": "value",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 90,
+        "column": 8,
+        "delta": 2048
+      },
+      {
+        "op": 0,
+        "ip": 32,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 90,
+        "column": 22,
+        "delta": 2048
+      },
+      {
+        "op": 118,
+        "ip": 34,
+        "name": "window",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 90,
+        "column": 30,
+        "delta": 2048
+      },
+      {
+        "op": 121,
+        "ip": 36,
+        "name": "pulse",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 90,
+        "column": 40,
+        "delta": 2048
+      },
+      {
+        "op": 1,
+        "ip": 40,
+        "name": "MODULUS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 90,
+        "column": 69,
+        "delta": 2048
+      },
+      {
+        "op": 66,
+        "ip": 0,
+        "name": "__able_channel_new",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 673,
+        "column": 15,
+        "delta": 4
+      },
+      {
+        "op": 118,
+        "ip": 3,
+        "name": "capacity",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 674,
+        "column": 25,
+        "delta": 4
+      },
+      {
+        "op": 118,
+        "ip": 4,
+        "name": "handle",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 674,
+        "column": 43,
+        "delta": 4
+      },
+      {
+        "op": 118,
+        "ip": 0,
+        "name": "self",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 702,
+        "column": 26,
+        "delta": 4
+      },
+      {
+        "op": 0,
+        "ip": 16,
+        "name": "",
+        "delta": 3
+      },
+      {
+        "op": 41,
+        "ip": 0,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 105,
+        "column": 3,
+        "delta": 3
+      },
+      {
+        "op": 0,
+        "ip": 0,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 150,
+        "column": 32,
+        "delta": 3
+      },
+      {
+        "op": 0,
+        "ip": 1,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 150,
+        "column": 46,
+        "delta": 3
+      },
+      {
+        "op": 0,
+        "ip": 2,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 150,
+        "column": 63,
+        "delta": 3
+      },
+      {
+        "op": 118,
+        "ip": 13,
+        "name": "output",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 154,
+        "column": 9,
+        "delta": 3
+      },
+      {
+        "op": 118,
+        "ip": 44,
+        "name": "state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 164,
+        "column": 3,
+        "delta": 3
+      },
+      {
+        "op": 0,
+        "ip": 5,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 106,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 209,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 211,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 213,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 216,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 219,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 222,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 226,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 230,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 234,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 238,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 240,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 242,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 244,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 247,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 250,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 253,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 256,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 259,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 7,
+        "ip": 4,
+        "name": "",
+        "delta": 1
+      },
+      {
+        "op": 66,
+        "ip": 0,
+        "name": "__able_os_args",
+        "origin": "/home/david/sync/projects/able-stdlib/src/os.able",
+        "line": 84,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 0,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 123,
+        "column": 12,
+        "delta": 1
+      },
+      {
+        "op": 118,
+        "ip": 53,
+        "name": "output",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 140,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 118,
+        "ip": 56,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 141,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 118,
+        "ip": 0,
+        "name": "args",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 168,
+        "column": 6,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 2,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 168,
+        "column": 19,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 16,
+        "name": "DEFAULT_ITEMS",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 171,
+        "column": 5,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 1,
+        "name": "os",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 176,
+        "column": 23,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 6,
+        "name": "Channel",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 177,
+        "column": 29,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 7,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 177,
+        "column": 41,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 11,
+        "name": "Channel",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 178,
+        "column": 27,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 12,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 178,
+        "column": 39,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 16,
+        "name": "Channel",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 179,
+        "column": 29,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 17,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 179,
+        "column": 41,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 21,
+        "name": "Channel",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 180,
+        "column": 30,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 22,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 180,
+        "column": 42,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 26,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 182,
+        "column": 54,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 27,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 182,
+        "column": 67,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 31,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 183,
+        "column": 55,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 35,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 184,
+        "column": 54,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 36,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 184,
+        "column": 67,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 40,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 185,
+        "column": 32,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 44,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 186,
+        "column": 33,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 48,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 187,
+        "column": 32,
+        "delta": 1
+      },
+      {
+        "op": 28,
+        "ip": 52,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 189,
+        "column": 15,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 189,
+        "column": 31,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "incoming",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 189,
+        "column": 38,
+        "delta": 1
+      },
+      {
+        "op": 28,
+        "ip": 55,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 12,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "first_stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 30,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "first_reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 43,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 2,
+        "name": "incoming",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 57,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 3,
+        "name": "middle",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 190,
+        "column": 67,
+        "delta": 1
+      },
+      {
+        "op": 28,
+        "ip": 58,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 13,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "second_stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 31,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "second_reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 45,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 2,
+        "name": "middle",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 60,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 3,
+        "name": "outgoing",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 191,
+        "column": 68,
+        "delta": 1
+      },
+      {
+        "op": 28,
+        "ip": 61,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 12,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 0,
+        "name": "third_stage",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 30,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 1,
+        "name": "third_reduce",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 43,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 2,
+        "name": "outgoing",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 57,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 3,
+        "name": "completed",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 192,
+        "column": 67,
+        "delta": 1
+      },
+      {
+        "op": 66,
+        "ip": 64,
+        "name": "future_flush",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 193,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 66,
+        "name": "Array",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 195,
+        "column": 23,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 67,
+        "name": "LANE_COUNT",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 195,
+        "column": 43,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 71,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 196,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 72,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 196,
+        "column": 14,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 75,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 197,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 76,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 197,
+        "column": 14,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 79,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 198,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 80,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 198,
+        "column": 14,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 83,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 199,
+        "column": 3,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 84,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 199,
+        "column": 14,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 87,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 200,
+        "column": 15,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 90,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 201,
+        "column": 18,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 93,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 202,
+        "column": 18,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 96,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 203,
+        "column": 15,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 187,
+        "name": "producer",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 222,
+        "column": 15,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 193,
+        "name": "first",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 223,
+        "column": 18,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 198,
+        "name": "second",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 224,
+        "column": 19,
+        "delta": 1
+      },
+      {
+        "op": 2,
+        "ip": 203,
+        "name": "third",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 225,
+        "column": 18,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 208,
+        "name": "count",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 12,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 210,
+        "name": "produced",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 21,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 212,
+        "name": "received",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 33,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 214,
+        "name": "first_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 45,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 217,
+        "name": "second_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 66,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 220,
+        "name": "third_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 88,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 223,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 109,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 224,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 125,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 227,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 131,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 228,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 147,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 231,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 153,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 232,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 169,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 235,
+        "name": "lanes",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 175,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 236,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 191,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 239,
+        "name": "value_total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 197,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 241,
+        "name": "trail_total",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 212,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 243,
+        "name": "checksum",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 227,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 245,
+        "name": "first_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 239,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 248,
+        "name": "first_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 260,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 251,
+        "name": "second_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 284,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 254,
+        "name": "second_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 306,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 257,
+        "name": "third_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 331,
+        "delta": 1
+      },
+      {
+        "op": 1,
+        "ip": 260,
+        "name": "third_state",
+        "origin": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "line": 226,
+        "column": 352,
+        "delta": 1
+      },
+      {
+        "op": 66,
+        "ip": 0,
+        "name": "__able_array_with_capacity",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 514,
+        "column": 15,
+        "delta": 1
+      },
+      {
+        "op": 0,
+        "ip": 3,
+        "name": "",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 515,
+        "column": 21,
+        "delta": 1
+      },
+      {
+        "op": 118,
+        "ip": 4,
+        "name": "capacity",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 515,
+        "column": 34,
+        "delta": 1
+      },
+      {
+        "op": 118,
+        "ip": 5,
+        "name": "handle",
+        "origin": "/home/david/sync/projects/able/v12/kernel/src/kernel.able",
+        "line": 515,
+        "column": 60,
+        "delta": 1
+      }
+    ],
+    "TopCallOperandBalances": null,
+    "TopLoopBackedgeBalances": [],
+    "TopInlineFrameBalances": null,
+    "ValueStackMaxDepth": 37,
+    "ValueStackMaxCapacity": 71,
+    "ValueStackCapacityGrowths": 3,
+    "CallFrameMaxDepth": 3,
+    "LoadNameLookups": 176171,
+    "LoadNameLookupsByName": {
+      "DEFAULT_ITEMS": 1,
+      "LANE_COUNT": 4097,
+      "MODULUS": 86016,
+      "checksum": 4097,
+      "completed": 1,
+      "count": 6,
+      "first_reduce": 1,
+      "first_stage": 1,
+      "first_state": 3,
+      "frame": 24576,
+      "incoming": 2,
+      "lane": 12288,
+      "lanes": 8200,
+      "middle": 2,
+      "outgoing": 2,
+      "produced": 1,
+      "received": 4097,
+      "salt": 24576,
+      "second_reduce": 1,
+      "second_stage": 1,
+      "second_state": 3,
+      "third_reduce": 1,
+      "third_stage": 1,
+      "third_state": 3,
+      "trail_total": 4097,
+      "value_total": 4097
+    },
+    "TopLoadNames": [
+      {
+        "name": "MODULUS",
+        "count": 86016
+      },
+      {
+        "name": "frame",
+        "count": 24576
+      },
+      {
+        "name": "salt",
+        "count": 24576
+      },
+      {
+        "name": "lane",
+        "count": 12288
+      },
+      {
+        "name": "lanes",
+        "count": 8200
+      },
+      {
+        "name": "LANE_COUNT",
+        "count": 4097
+      },
+      {
+        "name": "checksum",
+        "count": 4097
+      },
+      {
+        "name": "received",
+        "count": 4097
+      },
+      {
+        "name": "trail_total",
+        "count": 4097
+      },
+      {
+        "name": "value_total",
+        "count": 4097
+      },
+      {
+        "name": "count",
+        "count": 6
+      },
+      {
+        "name": "first_state",
+        "count": 3
+      },
+      {
+        "name": "second_state",
+        "count": 3
+      },
+      {
+        "name": "third_state",
+        "count": 3
+      },
+      {
+        "name": "incoming",
+        "count": 2
+      },
+      {
+        "name": "middle",
+        "count": 2
+      },
+      {
+        "name": "outgoing",
+        "count": 2
+      },
+      {
+        "name": "DEFAULT_ITEMS",
+        "count": 1
+      },
+      {
+        "name": "completed",
+        "count": 1
+      },
+      {
+        "name": "first_reduce",
+        "count": 1
+      },
+      {
+        "name": "first_stage",
+        "count": 1
+      },
+      {
+        "name": "produced",
+        "count": 1
+      },
+      {
+        "name": "second_reduce",
+        "count": 1
+      },
+      {
+        "name": "second_stage",
+        "count": 1
+      },
+      {
+        "name": "third_reduce",
+        "count": 1
+      },
+      {
+        "name": "third_stage",
+        "count": 1
+      }
+    ],
+    "LoadNameHotHits": 0,
+    "LoadNameScopeHits": 36849,
+    "LoadNameGlobalHits": 0,
+    "LoadNameDirectCurrent": 12316,
+    "LoadNameDirectOuter": 127006,
+    "LoadNameScopeStores": 139322,
+    "LoadNameGlobalStores": 0,
+    "CallNameLookups": 32792,
+    "CallNameDotFallback": 0,
+    "CallNameExactNativeHits": 32784,
+    "CallNameInlineDirectSlotHits": 0,
+    "CallNameInlineDirectStackHits": 5,
+    "CallNameInlineResolvedHits": 3,
+    "CallNameInlineGenericHits": 0,
+    "CallNameResolvedFunctionHits": 0,
+    "CallNameGenericFallbacks": 0,
+    "InlineCallHits": 57363,
+    "InlineCallMisses": 0,
+    "DirectFunctionStackHits": 0,
+    "InlineResolvedMissNoBytecode": 0,
+    "InlineResolvedMissArity": 0,
+    "InlineResolvedMissTypeArgs": 0,
+    "InlineResolvedMissGenericLambda": 0,
+    "MemberMethodCacheHits": 45049,
+    "MemberMethodCacheMiss": 37,
+    "CallMemberResolvedExactNativeHits": 0,
+    "CallMemberResolvedInlineHits": 45061,
+    "CallMemberResolvedGenericHits": 0,
+    "CallMemberResolvedFallbacks": 3,
+    "GenericUnionCallCacheHits": 0,
+    "GenericUnionCallCacheMisses": 0,
+    "CallMemberStaticCacheHits": 0,
+    "CallMemberStaticCacheMisses": 6,
+    "CallMemberStaticExactNativeHits": 0,
+    "CallMemberStaticInlineHits": 6,
+    "CallMemberStaticGenericHits": 0,
+    "ExprCacheHits": 0,
+    "ExprCacheMisses": 0,
+    "ArrayIndexSlotLookups": 0,
+    "ArrayIndexSlotTrackedHits": 0,
+    "ArrayIndexSlotMonoUnsignedHits": 0,
+    "ArrayIndexSlotDirectHits": 0,
+    "ArrayIndexSlotFallbacks": 0,
+    "ArrayIndexSlotFastDisabledMiss": 0,
+    "ArrayIndexSlotReceiverMiss": 0,
+    "ArrayIndexSlotIndexMiss": 0,
+    "ArrayIndexSlotHandleMiss": 0,
+    "ArrayIndexSlotDirectMiss": 0,
+    "ArrayMemberSlotLookups": 8201,
+    "ArrayMemberSlotLenLookups": 1,
+    "ArrayMemberSlotReadLookups": 4100,
+    "ArrayMemberSlotWriteLookups": 4096,
+    "ArrayMemberSlotPushLookups": 4,
+    "ArrayMemberSlotCacheHits": 8190,
+    "ArrayMemberSlotFastHits": 8190,
+    "ArrayMemberSlotFallbacks": 11,
+    "ArrayMemberSlotReceiverMiss": 0,
+    "ArrayMemberSlotCacheMiss": 11,
+    "ArrayMemberSlotFastPathMiss": 0
+  }
+}

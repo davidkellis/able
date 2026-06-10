@@ -281,6 +281,8 @@ func (g *generator) typeCategory(goType string) string {
 	switch goType {
 	case "runtime.Value":
 		return "runtime"
+	case "runtime.NilValue":
+		return "nil"
 	case "runtime.ErrorValue":
 		return "runtime_error"
 	case "any":
@@ -305,6 +307,10 @@ func (g *generator) typeCategory(goType string) string {
 		return "int" + goType[3:]
 	case "uint8", "uint16", "uint32", "uint64":
 		return "uint" + goType[4:]
+	case "runtime.Int128":
+		return "int128"
+	case "runtime.Uint128":
+		return "uint128"
 	}
 	if strings.HasPrefix(goType, "[]") {
 		return "slice"

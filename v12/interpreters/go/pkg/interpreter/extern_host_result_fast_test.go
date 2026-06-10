@@ -10,7 +10,8 @@ import (
 )
 
 func TestExternReflectStringSliceResult(t *testing.T) {
-	got, ok := externReflectStringSliceResult(reflect.ValueOf([]string{"a", "b"}))
+	interp := New()
+	got, ok := externReflectStringSliceResult(interp, reflect.ValueOf([]string{"a", "b"}))
 	if !ok {
 		t.Fatalf("expected fast string-slice conversion")
 	}
@@ -20,6 +21,9 @@ func TestExternReflectStringSliceResult(t *testing.T) {
 	}
 	if len(arr.Elements) != 2 {
 		t.Fatalf("expected two elements, got %d", len(arr.Elements))
+	}
+	if arr.Handle == 0 {
+		t.Fatalf("expected interpreter-owned array result to have a storage handle")
 	}
 	first, ok := arr.Elements[0].(runtime.StringValue)
 	if !ok || first.Val != "a" {
@@ -32,17 +36,21 @@ func TestExternReflectStringSliceResult(t *testing.T) {
 }
 
 func TestExternStringSliceCacheClonesCachedTemplate(t *testing.T) {
+	interp := New()
 	var cache externStringSliceCache
 	source := []string{"alpha", "beta"}
 
-	first := cache.result(source)
+	first := cache.result(interp, source)
 	firstArr, ok := first.(*runtime.ArrayValue)
 	if !ok {
 		t.Fatalf("expected first array result, got %T", first)
 	}
+	if firstArr.Handle == 0 {
+		t.Fatalf("expected cached interpreter-owned array to have a storage handle")
+	}
 	firstArr.Elements[0] = runtime.StringValue{Val: "changed"}
 
-	second := cache.result(source)
+	second := cache.result(interp, source)
 	secondArr, ok := second.(*runtime.ArrayValue)
 	if !ok {
 		t.Fatalf("expected second array result, got %T", second)
@@ -53,7 +61,7 @@ func TestExternStringSliceCacheClonesCachedTemplate(t *testing.T) {
 	}
 
 	source[0] = "gamma"
-	third := cache.result(source)
+	third := cache.result(interp, source)
 	thirdArr, ok := third.(*runtime.ArrayValue)
 	if !ok {
 		t.Fatalf("expected third array result, got %T", third)
@@ -95,6 +103,18 @@ func TestExternUnionPreferredMemberForU8Slice(t *testing.T) {
 	}
 	if !externIsArrayU8Type(member) {
 		t.Fatalf("expected Array u8 member, got %T", member)
+	}
+}
+
+func TestExternUnionHasStringMember(t *testing.T) {
+	union := &ast.UnionTypeExpression{
+		Members: []ast.TypeExpression{
+			ast.Ty("IOError"),
+			ast.Ty("String"),
+		},
+	}
+	if !externUnionHasStringMember(union) {
+		t.Fatalf("expected union to report String member")
 	}
 }
 
@@ -186,7 +206,7 @@ func TestFromHostValueUnionArrayU8FastPath(t *testing.T) {
 	}
 }
 
-func TestExternModuleBuildsFastInvokerForHotI32Signature(t *testing.T) {
+func TestBuildExternFastInvokerForHotI32Signature(t *testing.T) {
 	interp := New()
 	lenSig := ast.Fn(
 		"len_like",
@@ -199,29 +219,7 @@ func TestExternModuleBuildsFastInvokerForHotI32Signature(t *testing.T) {
 		false,
 	)
 	lenExtern := ast.Extern(ast.HostTargetGo, lenSig, `return int32(len(value))`)
-	mod := ast.Mod([]ast.Statement{lenExtern}, nil, ast.Pkg([]interface{}{"host"}, false))
-
-	if _, _, err := interp.EvaluateModule(mod); err != nil {
-		t.Fatalf("evaluate module: %v", err)
-	}
-
-	pkg := interp.externHostPackages["host"]
-	if pkg == nil {
-		t.Fatalf("expected extern host package")
-	}
-	state := pkg.targets[ast.HostTargetGo]
-	if state == nil {
-		t.Fatalf("expected go extern target state")
-	}
-	module, err := interp.ensureExternHostModule("host", ast.HostTargetGo, state, pkg)
-	if err != nil {
-		t.Fatalf("ensure extern host module: %v", err)
-	}
-
-	invoker, err := module.lookupInvoker(lenExtern)
-	if err != nil {
-		t.Fatalf("lookup len invoker: %v", err)
-	}
+	invoker := buildExternFastInvoker(lenExtern, func(value string) int32 { return int32(len(value)) })
 	if invoker == nil {
 		t.Fatalf("expected fast invoker for len_like")
 	}
@@ -238,7 +236,7 @@ func TestExternModuleBuildsFastInvokerForHotI32Signature(t *testing.T) {
 	}
 }
 
-func TestExternModuleBuildsFastInvokerForUnionArrayStringSignature(t *testing.T) {
+func TestBuildExternFastInvokerForUnionArrayStringSignature(t *testing.T) {
 	interp := New()
 	linesSig := ast.Fn(
 		"lines_like",
@@ -256,29 +254,9 @@ func TestExternModuleBuildsFastInvokerForUnionArrayStringSignature(t *testing.T)
 		false,
 	)
 	linesExtern := ast.Extern(ast.HostTargetGo, linesSig, `return []string{path, path}`)
-	mod := ast.Mod([]ast.Statement{linesExtern}, nil, ast.Pkg([]interface{}{"host"}, false))
-
-	if _, _, err := interp.EvaluateModule(mod); err != nil {
-		t.Fatalf("evaluate module: %v", err)
-	}
-
-	pkg := interp.externHostPackages["host"]
-	if pkg == nil {
-		t.Fatalf("expected extern host package")
-	}
-	state := pkg.targets[ast.HostTargetGo]
-	if state == nil {
-		t.Fatalf("expected go extern target state")
-	}
-	module, err := interp.ensureExternHostModule("host", ast.HostTargetGo, state, pkg)
-	if err != nil {
-		t.Fatalf("ensure extern host module: %v", err)
-	}
-
-	invoker, err := module.lookupInvoker(linesExtern)
-	if err != nil {
-		t.Fatalf("lookup union lines invoker: %v", err)
-	}
+	invoker := buildExternFastInvoker(linesExtern, func(path string) interface{} {
+		return []string{path, path}
+	})
 	if invoker == nil {
 		t.Fatalf("expected fast invoker for lines_like")
 	}
@@ -299,7 +277,7 @@ func TestExternModuleBuildsFastInvokerForUnionArrayStringSignature(t *testing.T)
 	}
 }
 
-func TestExternModuleBuildsFastInvokerForUnionArrayU8Signature(t *testing.T) {
+func TestBuildExternFastInvokerForUnionArrayU8Signature(t *testing.T) {
 	interp := New()
 	bytesSig := ast.Fn(
 		"bytes_like",
@@ -317,29 +295,7 @@ func TestExternModuleBuildsFastInvokerForUnionArrayU8Signature(t *testing.T) {
 		false,
 	)
 	bytesExtern := ast.Extern(ast.HostTargetGo, bytesSig, `return []byte(path)`)
-	mod := ast.Mod([]ast.Statement{bytesExtern}, nil, ast.Pkg([]interface{}{"host"}, false))
-
-	if _, _, err := interp.EvaluateModule(mod); err != nil {
-		t.Fatalf("evaluate module: %v", err)
-	}
-
-	pkg := interp.externHostPackages["host"]
-	if pkg == nil {
-		t.Fatalf("expected extern host package")
-	}
-	state := pkg.targets[ast.HostTargetGo]
-	if state == nil {
-		t.Fatalf("expected go extern target state")
-	}
-	module, err := interp.ensureExternHostModule("host", ast.HostTargetGo, state, pkg)
-	if err != nil {
-		t.Fatalf("ensure extern host module: %v", err)
-	}
-
-	invoker, err := module.lookupInvoker(bytesExtern)
-	if err != nil {
-		t.Fatalf("lookup union bytes invoker: %v", err)
-	}
+	invoker := buildExternFastInvoker(bytesExtern, func(path string) interface{} { return []byte(path) })
 	if invoker == nil {
 		t.Fatalf("expected fast invoker for bytes_like")
 	}

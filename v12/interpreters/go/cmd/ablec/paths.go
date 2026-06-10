@@ -50,8 +50,10 @@ func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 		add(base, driver.RootUser, driver.StdlibSourceWorkspace)
 	}
 
-	if cwd, err := os.Getwd(); err == nil {
-		add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
+	if !sourceRootOnlySearchPaths() {
+		if cwd, err := os.Getwd(); err == nil {
+			add(cwd, driver.RootUser, driver.StdlibSourceWorkspace)
+		}
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
@@ -77,6 +79,18 @@ func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 	}
 
 	return paths
+}
+
+// sourceRootOnlySearchPaths lets tools execute an explicit entry while their
+// working directory supplies only input data, avoiding an unrelated duplicate
+// user package from that directory.
+func sourceRootOnlySearchPaths() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ABLE_SOURCE_ROOT_ONLY"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func finalizeSearchPaths(searchPaths []driver.SearchPath) ([]driver.SearchPath, error) {

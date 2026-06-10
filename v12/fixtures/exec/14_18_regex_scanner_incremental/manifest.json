@@ -1,0 +1,14 @@
+{
+  "description": "regex scanners retain NFA state across chunks, wait for flush-dependent matches, and emit only finalized non-overlapping spans",
+  "expect": {
+    "stdout": [
+      "greedy-one none",
+      "greedy-two none",
+      "greedy-final aa 0-2",
+      "greedy-end none",
+      "early-one ab 0-2",
+      "early-two ab 3-5",
+      "early-end none"
+    ]
+  }
+}

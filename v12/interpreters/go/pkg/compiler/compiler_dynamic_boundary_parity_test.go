@@ -779,7 +779,7 @@ func runCompiledFixtureBoundaryOutcomeWithOptions(t *testing.T, dir string, mani
 	if !opts.RequireNoFallbacks {
 		opts.RequireNoFallbacks = requireNoFallbacksForFixtureGates(t)
 	}
-	comp := New(opts)
+	comp := New(compilerFixtureOptions(t, opts))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

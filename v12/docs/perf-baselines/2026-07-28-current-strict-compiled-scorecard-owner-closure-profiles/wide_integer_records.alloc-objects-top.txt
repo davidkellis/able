@@ -1,0 +1,31 @@
+File: compiled
+Build ID: d7c04c263dc89a6e78690b1ccf8730b8deace654
+Type: alloc_objects
+Time: 2026-07-28 09:44:13 CDT
+Showing nodes accounting for 681792, 100% of 681963 total
+Dropped 108 nodes (cum <= 3409)
+      flat  flat%   sum%        cum   cum%
+    308000 45.16% 45.16%     343001 50.30%  main.__able_compiled_fn_parse_unsigned_ctx
+    254000 37.25% 82.41%     288001 42.23%  main.__able_compiled_fn_parse_signed_ctx
+     69002 10.12% 92.53%      69002 10.12%  main.__able_compiled_method_String_bytes_ctx
+     32009  4.69% 97.22%      32009  4.69%  runtime/pprof.allFrames
+      8515  1.25% 98.47%       8558  1.25%  runtime/pprof.(*profileBuilder).emitLocation
+      6000  0.88% 99.35%       6000  0.88%  main.__able_compiled_method_Int128_abs_ctx
+      4251  0.62%   100%      44903  6.58%  runtime/pprof.writeHeapProto
+         6 0.00088%   100%     637052 93.41%  main.__able_compiled_fn_main_ctx
+         6 0.00088%   100%      40580  5.95%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         1 0.00015%   100%      44909  6.59%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00015%   100%     637054 93.41%  main.RunRegisteredMain
+         1 0.00015%   100%      44904  6.58%  runtime/pprof.writeHeapInternal
+         0     0%   100%      44909  6.59%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0%   100%      44909  6.59%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0%   100%     637053 93.41%  main.RunRegisteredMain.func1
+         0     0%   100%     637053 93.41%  main.__able_compiled_fn_main
+         0     0%   100%     637053 93.41%  main.__able_register_compiled_call.func1
+         0     0%   100%     637053 93.41%  main.__able_wrap_fn_main
+         0     0%   100%     681963   100%  main.main
+         0     0%   100%     681963   100%  main.runMain
+         0     0%   100%      44909  6.59%  main.startMainProfilePhase (inline)
+         0     0%   100%     681963   100%  runtime.main
+         0     0%   100%      44904  6.58%  runtime/pprof.(*Profile).WriteTo
+         0     0%   100%      44904  6.58%  runtime/pprof.writeAlloc

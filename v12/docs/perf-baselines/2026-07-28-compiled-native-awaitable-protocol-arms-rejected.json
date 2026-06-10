@@ -1,0 +1,99 @@
+{
+  "date": "2026-07-28",
+  "decision": "rejected",
+  "candidate": "general typed native Awaitable protocol arms with dynamic Iterable fallback",
+  "applications": {
+    "await_channel_mux": {
+      "protocol": {
+        "baseline_runtime_array_conversions": 1024,
+        "candidate_runtime_array_conversions": 0,
+        "baseline_interface_to_runtime": 2560,
+        "candidate_interface_to_runtime": 0,
+        "baseline_dynamic_protocol_calls": [7680, 7680],
+        "candidate_dynamic_protocol_calls": 0
+      },
+      "allocation": {
+        "baseline_bytes_mean": 6616540.8,
+        "candidate_bytes_mean": 6462302.4,
+        "bytes_change_percent": -2.331,
+        "baseline_objects_mean": 112707.6,
+        "candidate_objects_mean": 107056.6,
+        "objects_change_percent": -5.014
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0797391254,
+        "candidate_mean_seconds": 0.0793800144,
+        "go_mean_seconds": 0.0029552251,
+        "raw_change_percent": -0.450,
+        "paired_change_percent": -0.420,
+        "paired_ci95_percent": [-3.039, 2.199],
+        "candidate_to_go_ratio": 26.861
+      }
+    },
+    "mutex_await_journal": {
+      "protocol": {
+        "baseline_runtime_array_conversions": 2048,
+        "candidate_runtime_array_conversions": 0,
+        "baseline_interface_to_runtime": 2048,
+        "candidate_interface_to_runtime": 0,
+        "baseline_dynamic_protocol_calls": [6214, 6348],
+        "candidate_dynamic_protocol_calls": 0
+      },
+      "allocation": {
+        "baseline_bytes_mean": 2810977.6,
+        "candidate_bytes_mean": 2593929.6,
+        "bytes_change_percent": -7.721,
+        "baseline_objects_mean": 45929.8,
+        "candidate_objects_mean": 39685.0,
+        "objects_change_percent": -13.596
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0081700789,
+        "candidate_mean_seconds": 0.0075514035,
+        "go_mean_seconds": 0.0021379187,
+        "raw_change_percent": -7.572,
+        "paired_change_percent": -5.932,
+        "paired_ci95_percent": [-14.369, 2.506],
+        "candidate_to_go_ratio": 3.532
+      }
+    },
+    "mutex_work_queue": {
+      "protocol": {
+        "baseline_runtime_array_conversions": 4096,
+        "candidate_runtime_array_conversions": 0,
+        "baseline_interface_to_runtime": 4096,
+        "candidate_interface_to_runtime": 0,
+        "baseline_dynamic_protocol_calls": [12578, 12732],
+        "candidate_dynamic_protocol_calls": 0
+      },
+      "allocation": {
+        "baseline_bytes_mean": 5889142.4,
+        "candidate_bytes_mean": 5488580.8,
+        "bytes_change_percent": -6.802,
+        "baseline_objects_mean": 97023.2,
+        "candidate_objects_mean": 84935.4,
+        "objects_change_percent": -12.459
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0136702164,
+        "candidate_mean_seconds": 0.0138448752,
+        "go_mean_seconds": 0.0026241251,
+        "raw_change_percent": 1.278,
+        "paired_change_percent": 1.635,
+        "paired_ci95_percent": [-6.185, 9.455],
+        "candidate_to_go_ratio": 5.276
+      }
+    }
+  },
+  "verification": {
+    "protocol_runs_per_side_per_application": 3,
+    "allocation_runs_per_side_per_application": 5,
+    "timing_cohorts_per_application": 15,
+    "all_public_verifiers_passed": true,
+    "candidate_interpreter_free": true,
+    "restored_interpreter_free": true,
+    "restored_generated_source_exact_baseline": true
+  },
+  "production_change_retained": false,
+  "wasm_change": false
+}

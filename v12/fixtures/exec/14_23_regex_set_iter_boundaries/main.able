@@ -1,0 +1,52 @@
+package exec_14_23_regex_set_iter_boundaries
+
+import able.kernel.{Array}
+import able.text.regex.{RegexOptions, RegexSet, RegexSetIter, RegexSetMatch}
+import able.text.string.{String}
+
+fn patterns2(first: String, second: String) -> Array String {
+  result: Array String := Array.with_capacity(2)
+  result.push(first)
+  result.push(second)
+  result
+}
+
+fn patterns3(first: String, second: String, third: String) -> Array String {
+  result: Array String := Array.with_capacity(3)
+  result.push(first)
+  result.push(second)
+  result.push(third)
+  result
+}
+
+fn show_iter(label: String, iter: RegexSetIter) -> void {
+  loop {
+    iter.next() match {
+      case found: RegexSetMatch => print(`${label} ${found.pattern_index} ${found.span.start}-${found.span.end}`),
+      case _ => {
+        print(`${label} end`)
+        break
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  RegexSet.compile(patterns2("a*", "x")) match {
+    case set: RegexSet => show_iter("zero", set.iter("é")),
+    case _ => print("zero compile error")
+  }
+
+  options := RegexOptions.default()
+  options.multiline = true
+  RegexSet.compile_with_options(patterns3("^cat$", "cat", "dog"), options) match {
+    case set: RegexSet => show_iter("line", set.iter("x\ncat\ny")),
+    case _ => print("line compile error")
+  }
+
+  empty: Array String := Array.new()
+  RegexSet.compile(empty) match {
+    case set: RegexSet => show_iter("empty", set.iter("anything")),
+    case _ => print("empty compile error")
+  }
+}

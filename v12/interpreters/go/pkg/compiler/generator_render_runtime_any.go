@@ -8,6 +8,14 @@ import (
 
 func (g *generator) renderRuntimeAnyHelpers(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "func __able_any_to_value(v any) runtime.Value {\n")
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "any_to_runtime",
+		GeneratedFunction: "__able_any_to_value",
+		AbleSource:        "<compiler-runtime>::dynamic-value",
+		Carrier:           "any",
+		ImmediateConsumer: "runtime.Value",
+		Reason:            "encode an unresolved host carrier for runtime semantics",
+	}, "\t")
 	fmt.Fprintf(buf, "\treturn __able_any_to_value_seen(v, nil)\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func __able_any_to_value_seen(v any, seen map[any]runtime.Value) runtime.Value {\n")

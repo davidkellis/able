@@ -1,3 +1,5 @@
+//go:build !(js && wasm)
+
 package interpreter
 
 import (
@@ -30,11 +32,11 @@ func (i *Interpreter) DisableTypechecker() {
 }
 
 // TypecheckDiagnostics returns the diagnostics produced by the last typechecker run.
-func (i *Interpreter) TypecheckDiagnostics() []typechecker.Diagnostic {
+func (i *Interpreter) TypecheckDiagnostics() []interpreterTypecheckDiagnostic {
 	if !i.typecheckerEnabled || len(i.typecheckDiagnostics) == 0 {
 		return nil
 	}
-	out := make([]typechecker.Diagnostic, len(i.typecheckDiagnostics))
+	out := make([]interpreterTypecheckDiagnostic, len(i.typecheckDiagnostics))
 	copy(out, i.typecheckDiagnostics)
 	return out
 }

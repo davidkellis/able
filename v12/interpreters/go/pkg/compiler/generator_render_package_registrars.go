@@ -32,7 +32,6 @@ func (g *generator) renderCompiledPackageRegistrarFile(pkgName string, idx int) 
 	fmt.Fprintf(&buf, "package %s\n\n", g.opts.PackageName)
 	imports := []string{
 		"able/interpreter-go/pkg/compiler/bridge",
-		"able/interpreter-go/pkg/interpreter",
 		"able/interpreter-go/pkg/runtime",
 	}
 	sort.Strings(imports)

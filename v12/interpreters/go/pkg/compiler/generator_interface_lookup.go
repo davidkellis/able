@@ -17,6 +17,35 @@ func (g *generator) interfaceDefinitionForPackage(pkgName string, name string) (
 				return def, pkgName, true
 			}
 		}
+		var importedDef *ast.InterfaceDefinition
+		importedPkg := ""
+		for _, binding := range g.staticImportBindingsForName(pkgName, name) {
+			sourcePkg := strings.TrimSpace(binding.SourcePackage)
+			sourceName := strings.TrimSpace(binding.SourceName)
+			if sourcePkg == "" || sourceName == "" {
+				continue
+			}
+			defs := g.interfacesByPackage[sourcePkg]
+			def := defs[sourceName]
+			if def == nil {
+				continue
+			}
+			if importedDef != nil && (importedDef != def || importedPkg != sourcePkg) {
+				return nil, "", false
+			}
+			importedDef = def
+			importedPkg = sourcePkg
+		}
+		if importedDef != nil {
+			return importedDef, importedPkg, true
+		}
+		if sourcePkg, sourceName, ok := g.sourceReexportSourceForName(pkgName, name); ok {
+			if defs := g.interfacesByPackage[sourcePkg]; defs != nil {
+				if def := defs[sourceName]; def != nil {
+					return def, sourcePkg, true
+				}
+			}
+		}
 	}
 	if def := g.interfaces[name]; def != nil {
 		resolvedPkg := strings.TrimSpace(g.interfacePackages[name])
@@ -41,6 +70,15 @@ func (g *generator) interfacePackageForName(pkgName string, name string) string 
 		return resolvedPkg
 	}
 	return strings.TrimSpace(pkgName)
+}
+
+func runtimeInterfaceIdentity(pkgName string, name string) string {
+	pkgName = strings.TrimSpace(pkgName)
+	name = strings.TrimSpace(name)
+	if pkgName == "" || name == "" {
+		return name
+	}
+	return pkgName + "." + name
 }
 
 func (g *generator) interfaceDefinitionForImpl(impl *implMethodInfo) (*ast.InterfaceDefinition, string, bool) {

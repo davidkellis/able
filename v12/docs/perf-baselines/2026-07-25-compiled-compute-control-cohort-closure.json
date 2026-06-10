@@ -1,0 +1,232 @@
+{
+  "kind": "compiled-compute-control-cohort-closure",
+  "date": "2026-07-25",
+  "decision": "retain-no-code",
+  "reason": "Tapelang Alphabet, Matrix Multiply, and Fib do not share one material semantic primitive-arithmetic, Array-access, or control-flow owner. The required three-unlike-application admission gate failed before implementation.",
+  "compiler": {
+    "sha256": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e",
+    "build_flags": [
+      "-build",
+      "-no-fallbacks"
+    ]
+  },
+  "execution_contract": {
+    "cpu_affinity": "5",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "allocation_runs_per_application": 3,
+    "cpu_profile_runs_per_application": 10,
+    "workspace": "/var/tmp/able-compute-control-20260725"
+  },
+  "applications": [
+    {
+      "benchmark": "tapelang_alphabet",
+      "source_sha256": "426a40e33840f3a0e9e62d5f9b9519a6840edd2733b8031df6a280e4b782fdb8",
+      "binary_sha256": "5baf0bc718836377c50092ae2f8fd814ceb9db3139d4f7b7f4b40504ec9d168d",
+      "generated_compiled_go_sha256": "a950094a7257d2c072f8e5becd45df88f57372f114855f05f7685d1dc95e0e91",
+      "merged_cpu_profile_sha256": "ea6e7dc86befb822830a7b18257f4c796abdc8ab7262432a380f9a263a1b7e82",
+      "stdout_sha256": "a8ac3a1054c1aa7ac25f9b1e652a96a7ac86a1c1130687fc53b90e20c766d149",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "scorecard": {
+        "able_mean_seconds": 3.818,
+        "go_mean_seconds": 2.0027,
+        "able_over_go_ratio": 1.9064263244619763,
+        "absolute_excess_seconds": 1.8153,
+        "able_main_gc_mean": 0
+      },
+      "main_phase_allocation_runs": {
+        "allocated_bytes": [
+          282984,
+          282984,
+          282984
+        ],
+        "allocations": [
+          4277,
+          4277,
+          4277
+        ],
+        "gc_count": [
+          0,
+          0,
+          1
+        ]
+      },
+      "merged_cpu_samples_seconds": 37.06,
+      "cpu_owners": [
+        {
+          "function": "__able_compiled_fn_execute",
+          "flat_seconds": 23.47,
+          "flat_percent": 63.33,
+          "semantic_owner": "flattened instruction dispatch and native Array reads"
+        },
+        {
+          "function": "__able_compiled_method_Tape_inc",
+          "flat_seconds": 10.29,
+          "flat_percent": 27.77,
+          "semantic_owner": "native Array read/write plus checked i32 addition"
+        },
+        {
+          "function": "__able_compiled_method_Tape_get",
+          "flat_seconds": 2.61,
+          "flat_percent": 7.04,
+          "semantic_owner": "inlined native Array read"
+        }
+      ],
+      "control_census": {
+        "direct_compiled_functions": 291,
+        "control_free_direct": 62,
+        "closed_direct_reachable": 13,
+        "closed_direct_range_control_free": 4,
+        "call_site_specializable_direct": 0,
+        "execute_control_free": false,
+        "tape_inc_control_free": false,
+        "tape_get_control_free": true
+      }
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "source_sha256": "f4e1ae5575094ab725db5ee0adb81eb6783221844aac9ef99b8f820f56c18246",
+      "binary_sha256": "d0d5e7a74f2352f91998b8877f3b263f6b15b736a74f2724d0559924398a75e9",
+      "generated_compiled_go_sha256": "21ae097934336dbfcc4dccfcf00c90cc2d69bfc37017c9324bc190739af12d5f",
+      "merged_cpu_profile_sha256": "bbfcf16bb40c81f8a997e8c1466fff6d86744a7da822c749dd77c6c7bcd5871f",
+      "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "scorecard": {
+        "able_mean_seconds": 1.182,
+        "go_mean_seconds": 0.9801,
+        "able_over_go_ratio": 1.2059993878175697,
+        "absolute_excess_seconds": 0.2019,
+        "able_main_gc_mean": 8
+      },
+      "main_phase_allocation_runs": {
+        "allocated_bytes": [
+          32897352,
+          32897352,
+          32897352
+        ],
+        "allocations": [
+          8018,
+          8018,
+          8018
+        ],
+        "gc_count": [
+          8,
+          8,
+          8
+        ]
+      },
+      "merged_cpu_samples_seconds": 11.23,
+      "cpu_owners": [
+        {
+          "function": "__able_compiled_fn_matmul",
+          "flat_seconds": 11.11,
+          "flat_percent": 98.93,
+          "semantic_owner": "native f64 multiply-add loop with explicit Able Array range guards"
+        }
+      ],
+      "sampling_note": "The 6.97 seconds concentrated on the two-byte k increment are not evidence of a distinct increment lowering cost; disassembly locates the complete native loop, including its loads, multiply-add, Array guards, increment, and branch, around that sample.",
+      "control_census": {
+        "direct_compiled_functions": 63,
+        "control_free_direct": 11,
+        "closed_direct_reachable": 3,
+        "closed_direct_range_control_free": 0,
+        "call_site_specializable_direct": 0,
+        "matmul_control_free": false
+      }
+    },
+    {
+      "benchmark": "fib",
+      "source_sha256": "1613bf12ba84db9d59c04eb8a2d9b9912d27f51696b22210743e1e499f52ae02",
+      "binary_sha256": "0204de5ed0624b7398d172db52b8f149a9e73e4181a5717465aa08505eb1397a",
+      "generated_compiled_go_sha256": "518ce277cdf7207354d89b753b3f3632a699ec9b4d303ec64b7d6dd0801da458",
+      "merged_cpu_profile_sha256": "1351f238623d1e8eba0357973b62a0872c118ed223de0de43d48b718388fe7b7",
+      "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "scorecard": {
+        "able_mean_seconds": 3.634,
+        "go_mean_seconds": 3.351,
+        "able_over_go_ratio": 1.0844524022679798,
+        "absolute_excess_seconds": 0.283,
+        "able_main_gc_mean": 0
+      },
+      "main_phase_allocation_runs": {
+        "allocated_bytes": [
+          504,
+          504,
+          504
+        ],
+        "allocations": [
+          10,
+          10,
+          10
+        ],
+        "gc_count": [
+          0,
+          0,
+          0
+        ]
+      },
+      "merged_cpu_samples_seconds": 38.2,
+      "cpu_owners": [
+        {
+          "function": "__able_compiled_fn_fib",
+          "flat_seconds": 38.06,
+          "flat_percent": 99.63,
+          "semantic_owner": "direct native i32 recursion with value-plus-control returns and nil-control checks"
+        }
+      ],
+      "control_census": {
+        "direct_compiled_functions": 53,
+        "control_free_direct": 10,
+        "closed_direct_reachable": 2,
+        "closed_direct_range_control_free": 1,
+        "call_site_specializable_direct": 0,
+        "fib_control_free": true
+      }
+    }
+  ],
+  "candidate_reconciliation": [
+    {
+      "candidate": "value-only control ABI",
+      "result": "rejected",
+      "reason": "Material only in Fib. Matrix matmul and Tapelang execute/Tape.inc are semantically fallible, and the conservative census finds no call-site-specializable function in any row."
+    },
+    {
+      "candidate": "native Array range-guard elimination",
+      "result": "insufficient-evidence-and-breadth",
+      "reason": "Hot Array-access machinery and explicit guards appear in Tapelang and Matrix, while Fib performs no Array access. The profiles do not yet isolate guard-only materiality in Matrix."
+    },
+    {
+      "candidate": "checked i32 arithmetic removal",
+      "result": "insufficient-breadth",
+      "reason": "Tapelang Tape.inc retains material checked addition. Fib arithmetic is already direct under retained range proof, and Matrix's hot loop is f64 arithmetic with native counted-loop increments."
+    },
+    {
+      "candidate": "counted-loop increment lowering",
+      "result": "closed",
+      "reason": "Matrix and Tapelang already emit native increments where proven; Matrix source attribution to k++ is a sampling artifact."
+    }
+  ],
+  "verification": {
+    "strict_builds": 3,
+    "verified_smoke_runs": 3,
+    "verified_allocation_runs": 9,
+    "verified_cpu_profile_runs": 30,
+    "dependency_graphs_interpreter_free": 3,
+    "control_census_reports": 3,
+    "tests": [
+      "go test ./cmd/compiled-control-census -count=1 -timeout=60s",
+      "go test ./cmd/ablec -count=1 -timeout=60s"
+    ]
+  },
+  "next": {
+    "tranche": "coverage-wide native Array range-proof admission census",
+    "why": "The fresh profiles establish hot native Array-access machinery and explicit guards in two unlike applications, but neither guard-only materiality nor the required third application is yet proven.",
+    "entails": "Inventory generated native Array guards across current strict target misses, intersect exact sites with repeated CPU profiles, and select at least three unlike applications sharing one locally or interprocedurally provable index/length relation. Prototype only a syntax- and fact-based rule, preserve IndexError and mutation semantics, and require twenty order-balanced baseline/candidate/Go cohorts if admitted.",
+    "importance": "Native Go Array carriers cannot converge on equivalent Go performance if the compiler retains redundant semantic guards after a general proof can establish the same safety."
+  }
+}

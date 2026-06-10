@@ -488,6 +488,9 @@ func (g *generator) fillSpecializedFunctionInfo(info *functionInfo, mapper *Type
 	retExpr := g.functionDeclaredOrInferredReturnTypeExpr(info)
 	retExpr = normalizeTypeExprForPackage(g, info.Package, substituteTypeParams(retExpr, info.TypeBindings))
 	retType, ok := mapper.Map(retExpr)
+	if info.Definition.ReturnType == nil && isNilTypeExpression(retExpr) {
+		retType, ok = "runtime.NilValue", true
+	}
 	retType, ok = g.recoverRepresentableCarrierType(info.Package, retExpr, retType)
 	if !ok || retType == "" {
 		supported = false

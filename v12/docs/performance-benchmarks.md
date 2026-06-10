@@ -24,9 +24,154 @@ benchmarks that read relative input files, repeated `--program-arg ARG` flags
 for workload-specific entry arguments like `wordlist.txt`, `--executor
 serial|goroutine` for concurrency-sensitive workloads, and `--output-json
 PATH` for machine-readable summaries. When benchmarking against external suite
-directories it also pins the selected stdlib root from `ABLE_STDLIB_ROOT` or
-the installed cache so the run does not accidentally collide with a sibling
-`able-stdlib` checkout. Both the main `able` CLI and generated compiled
+directories it now resolves the stdlib root in this order:
+
+1. `ABLE_STDLIB_ROOT`
+2. the sibling workspace checkout `../able-stdlib/src`
+3. the installed `$ABLE_HOME` cache
+
+That keeps newly added local benchmarks from silently running against a stale
+cached stdlib when a current sibling checkout is available. It now also
+accepts `--cpu-affinity CPUSET` (or
+`ABLE_BENCH_CPU_AFFINITY`) to run the measured process under `taskset`, which
+is useful when unrelated workstation load makes micro-deltas untrustworthy;
+choose a quiet CPU subset that is still wide enough for the benchmark's
+intended parallelism. For new single-CPU evidence, pass
+`--cpu-affinity CPU --require-quiet-cpu`; it rejects a run before artifacts
+are created unless that CPU stays under the generic busy/I/O-wait limits.
+`just bench-host-check --rank-cpus` ranks candidates from common samples;
+then `just bench-host-check --cpu CPU` can provide a stricter direct preflight
+when a quiet core is available. It is a precision aid, not a reason to discard
+all workstation evidence: when normal workstation load prevents that gate,
+run enough independent verifier-backed processes, report mean, median, and
+spread, and use the merged CPU profile only for attribution.
+The active measurement commands now default to five independent processes:
+`bench_perf`, `bench_suite`, `bench_compare_external`, both foreign-reference
+refreshers, and the full scorecard refresher. Their reported summary remains
+the arithmetic mean for compatibility with the scorecard schema; retain the
+individual samples and calculate median/spread with `just bench-variance-report
+--input <comparison.json>` when timing variability affects a decision. One
+modern five-run comparison report is sufficient for Able and reference timing
+spread; ratio spread still requires multiple source reports because independent
+Able and reference runs must not be arbitrarily paired. An explicit smaller
+`--runs` value is appropriate only for a smoke check, never for candidate
+selection or a performance claim.
+
+For a full-suite ratio comparison, pass two or more fresh complete
+`external-benchmark-scoreboard` artifacts with `--scorecard` instead of
+assembling individual files manually. The reporter expands each scorecard's
+cited comparison reports and rejects a cohort unless those reports reproduce
+its rows exactly; it also rejects cohorts with different benchmark/mode
+coverage or any reused comparison source. Thus two copied or partially
+refreshed scorecards cannot manufacture independent ratio evidence. For
+example: `just bench-variance-report --scorecard <first-scorecard.json>
+--scorecard <second-scorecard.json> --output-json <variance.json> --output-md
+<variance.md>`.
+For evidence that may select a candidate, add `--require-runs 5`. This rejects
+historical aggregates and any row without exactly five successful,
+verifier-backed Able runs and five fresh measured-reference runs for every
+language requested by its comparison report. The current retained scorecard
+passes this gate: it embeds the canonical stdlib source state and cites exactly
+five retained samples for all 67 reviewed rows. Older scorecards that predate
+those fields remain useful historical evidence but cannot select a new change.
+
+The cross-mode performance frontier is a separate selection artifact, not a
+timing harness. `just bench-frontier` joins every row in the reviewed selection
+manifest to the promoted exact-source scorecard, source identity,
+profile/binary freshness,
+exact CPU/allocation owner, unlike-application breadth, and the disposition of
+earlier candidates. It rejects missing, duplicate, or extra evidence rows and
+ranks only groups marked `open-candidate` or `refresh-required`; closed parents
+remain visible but cannot silently become the next optimization. `just
+bench-frontier-check` runs the fast protocol tests and verifies that both
+generated reports still match their hashed inputs. Update
+`v12/bench-performance-frontier-evidence.json` when a profile refresh or
+candidate gate changes a disposition.
+
+The performance-evidence invalidation ledger sits above that frontier. `just
+bench-evidence-ledger-check` verifies 18 frontier groups plus the cross-family,
+bytecode-register, and compiled-target-budget architecture closures without
+running a benchmark. Each closure pins its semantic group definition, evidence
+documents, applicable benchmark sources, and mode-aware production scopes for
+the v12 spec, compiler or bytecode VM, shared runtime, and canonical external
+stdlib. Tests, caches, generated artifacts, and unrelated documentation are
+outside those scopes. `just bench-scoreboard-check` also runs the non-mutating
+artifact comparison so a stale handoff cannot silently reopen a current group.
+
+When an intentional source or semantic change makes the selector print one or
+more closure ids, refresh only those groups. Update their verifier-backed
+profiles and frontier evidence, preserve repeated arithmetic-mean timing, then
+review a new `v12/bench_performance_evidence_ledger --bootstrap` baseline and
+regenerate the dated JSON/Markdown report. Invalidation authorizes evidence
+collection only; it does not admit a candidate until the ordinary concrete
+three-unlike-family and established-guard gates pass.
+
+The frontier also reads `v12/bench-performance-stability.json`. This small,
+versioned manifest must classify every selected row that meets the promoted
+snapshot target. An `established-meet` requires at least two verifier-backed
+cohorts and a pooled ratio plus every cohort ratio within the product budget;
+mixed classifications remain `volatile-crossing` or
+`variance-sensitive-miss`. The validator pins the selection, promoted
+canonical-stdlib tree, Able source, every applicable reference source, sample
+counts, and evidence files. A new snapshot meet, changed source fingerprint,
+or stale stdlib identity therefore makes `bench-frontier-check` fail until the
+cross-cohort evidence is explicitly reviewed. Snapshot status remains the raw
+scorecard result; established status only controls which rows are durable
+candidate-admission regression guards.
+
+Every new full-scorecard refresh also records one canonical stdlib source-state
+artifact before it launches timed processes. It deterministically hashes every
+`src/**/*.able` file in the external `able-stdlib` checkout and records the
+relative root, file count, Git head when available, and whether that checkout
+is dirty. The dated aggregate and any promoted scoreboard retain the same
+state. A dirty checkout is recorded rather than rejected: it may contain the
+actual source being evaluated. Strict cohort evidence additionally requires
+this state, so a reviewer can see whether two candidate cohorts ran against
+the same library input. Historical scorecards without the field remain
+replayable but are not eligible for a new strict claim.
+
+To collect two independent full-suite candidate cohorts without changing the
+promoted baseline, use distinct tags and `--no-promote`, then compare the two
+dated aggregate artifacts. For example:
+
+```sh
+just bench-scorecard-refresh --tag candidate-a --no-promote
+just bench-scorecard-refresh --tag candidate-b --no-promote
+just bench-variance-report \
+  --scorecard v12/docs/perf-baselines/candidate-a-refresh.json \
+  --scorecard v12/docs/perf-baselines/candidate-b-refresh.json \
+  --require-runs 5 --output-json /tmp/candidate-variance.json
+```
+
+The refresher refuses to overwrite a tagged artifact. If reviewed evidence
+should become the baseline, promote its exact recorded source cohort without a
+new measurement: `just bench-scoreboard --cohort
+v12/docs/perf-baselines/candidate-b-refresh.json`. The current scoreboard is
+unchanged until that explicit promotion command succeeds. The refresher also
+rejects any non-five-run promotion; use `--no-promote` for an explicit lower-
+run smoke check.
+For a bounded warm profile, `--bytecode-runtime-calls N` typechecks, loads,
+lowers, and warms the program once, then runs `main()` exactly `N` times per
+`bytecode-runtime` benchmark run. Typechecking stays outside the measured
+loop, but preserves checked receiver facts needed for ordinary generic-union
+method dispatch. `bench_compare_external` forwards the same option, retaining the external
+catalog's canonical run directory, input arguments, source-root policy, and
+verifier wiring instead of requiring a hand-built benchmark command.
+The regular `bytecode` mode remains a full CLI process measurement: it loads,
+lowers, typechecks, bootstraps, and executes the entry program. For a separate
+trusted execution-only measurement after an explicit successful `able check`,
+the CLI supports `able run --skip-typecheck <target-or-file>`. That flag is
+never the default and is not part of the promoted external scorecard; it must
+be reported as a distinct prechecked lane rather than compared as though it
+were a normal application launch.
+`bench_perf --modes bytecode,bytecode-prechecked` and
+`bench_compare_external --modes bytecode,bytecode-prechecked` provide that
+paired lane: the latter mode performs its one required `able check` outside
+the timed processes and labels every result `bytecode-prechecked`. The
+scoreboard validator intentionally rejects that mode as input, preventing a
+trusted execution-only result from replacing the full-process baseline.
+Both
+the main `able` CLI and generated compiled
 launchers now also honor:
 
 - `ABLE_GO_CPU_PROFILE=/tmp/cpu.pprof`
@@ -35,6 +180,76 @@ launchers now also honor:
 for reusable Go `pprof` capture during focused benchmark runs. `v12/bench_perf`
 now sends `SIGINT` before `SIGKILL` on timeout, so timed-out profiled runs
 still flush CPU/heap profiles when possible.
+
+`v12/bench_suite` now also supports `--list-suites` plus fixture-breadth
+presets sourced from `v12/fixtures/bench/`, including `fixture-core`,
+`fixture-full`, `fixture-generality`, `fixture-collections`, `fixture-text`,
+`fixture-algorithms`, `fixture-concurrency`, `fixture-numeric`, and
+`fixture-external-small`. The historical June expansion reached 75 fixtures;
+the current catalog has 79. Verify the current count and every fixture entry
+with `just bench-catalog-check` rather than carrying a prose count forward.
+
+`v12/bench_fixture_validate` is the bounded parity checker for that local
+fixture corpus. It runs one benchmark at a time under explicit `GOMEMLIMIT`
+and `GOGC` settings, builds the Go interpreter once per validation pass for
+treewalker/bytecode reuse, normalizes wrapper stdout, records per-mode peak
+RSS via `/usr/bin/time`, supports suite presets from
+`v12/bench_fixture_catalog.sh`, and now enforces hard build/run limits with
+`timeout -k` so a single bad benchmark cannot wedge a validation pass or push
+the session back into OOM territory. It also threads catalog-declared
+program arguments into file-backed benchmarks so validation does not depend on
+the caller's working directory.
+
+Current bounded-validator snapshot on the expanded corpus:
+
+- `fixture-external-small`: `12/13` match; only `sudoku_file_small` remains a
+  treewalker timeout at the bounded `30s` guard
+- `fixture-numeric`: the last full bounded sweep was `9/13` match with
+  `1` mismatch (`biguint_add_mul_small`) plus `3` treewalker partials
+  (`fib_i32_small`, `matrixmultiply_f64_small`, `sum_u32_small`); a follow-on
+  targeted validation on `2026-06-24` closed that lone mismatch after
+  stdlib `String` values were unified through the shared interpreter
+  stringification / CLI print path instead of printing raw
+  `String { bytes: [...], len_bytes: ... }` structs in interpreted modes, and
+  the broader stdlib exec regression behind
+  `06_12_05_stdlib_numbers_biguint` was then closed by making impl-body member
+  access prefer inherent same-name methods over recursive impl forwarders on
+  the concrete receiver; the remaining known numeric gaps in that bounded lane
+  are the `3` treewalker partials
+- collections hotspots after the validator hard-timeout fix and the bytecode
+  `%` raw-i32 fix: `deque_i32_small` now matches across compiled/treewalker/
+  bytecode, leaving `6` partial collection cases clustered around compiled
+  `HashMap` / iterator-helper generation and runtime `Enumerable` / `Iterable`
+  conformance gaps
+- follow-on narrowed revalidation on `2026-06-24` shows that older
+  compiled/bytecode collection-gap bucket is now mostly stale:
+  `hashmap_i32_small`, `hash_set_i32_small`, `linked_list_for_i32_small`,
+  `linked_list_enumerable_i32_small`,
+  `linked_list_iterator_filter_map_i64_small`, and
+  `linked_list_iterator_pipeline_i64_small` all match under the same bounded
+  validator settings; the sampled remaining collection partials there are
+  treewalker timeouts only (`heap_i32_small`,
+  `linked_list_iterator_collect_i64_small`)
+- ordered/persistent collection tranche added on 2026-06-24:
+  `tree_map_i32_small`, `tree_set_i32_small`, `persistent_map_i32_small`,
+  `persistent_set_i32_small`, `persistent_sorted_set_i32_small`, and
+  `persistent_map_string_small` now all match across compiled/treewalker/
+  bytecode after three general compiler fixes:
+  fresh `Array.new()` locals now recover concrete element carriers from typed
+  assignment/return context, void-return bodies compile their final form in
+  statement mode instead of discarded implicit-return mode, and equality on
+  concrete native union carriers (including singleton `Ord` variants like
+  `Less` / `Equal`) now stays on native comparisons instead of boxing through
+  `runtime.Value`; `persistent_sorted_set_i32_small` was also resized from
+  `1800` to `900` elements so the `_small` compiled validation lane fits the
+  routine bounded timeout budget
+- broader workload-shape tranche added on 2026-06-24:
+  `byte_histogram_small`, `word_count_small`, `levenshtein_small`,
+  `knapsack_i32_small`, `dijkstra_heap_small`, and `toposort_small` now all
+  match across compiled/treewalker/bytecode under the same bounded validator
+  settings. This tranche filled underrepresented byte-scanning, string-keyed
+  hashing, dynamic-programming, weighted-graph, and DAG-processing shapes
+  without requiring any benchmark-specific stdlib/compiler/runtime surface.
 
 `v12/bench_guardrail` is the report-only comparer for suite JSON outputs. It
 compares the checked-in baseline against a fresh run and reports status,
@@ -54,17 +269,181 @@ goroutine executor so it matches the external Go workload instead of silently
 serializing all spawned work. Its default mode set is now `compiled`,
 `bytecode`, and `treewalker`; pre-summary Able failures are recorded as
 machine-readable per-mode failure rows instead of aborting the whole external
-comparison.
+comparison. It also forwards `--cpu-affinity CPUSET` (or
+`ABLE_BENCH_CPU_AFFINITY`) into the underlying `bench_perf` runs and records
+that lane in the emitted JSON/Markdown metadata. It also accepts
+`--require-quiet-cpu` for a new single-CPU timing lane. When a suite provides
+`verify.rb`, every successful compiled/treewalker/bytecode stdout capture is
+verified after timing and its SHA-256 is recorded. A verifier failure marks
+the mode invalid and suppresses its comparison ratios; suites without a
+verifier are explicitly `unavailable` rather than silently treated as
+verified. The JSON exposes this as `rows[].able.validation`, and the Markdown
+report includes validation and stdout-hash columns.
+
+`v12/bench_refresh_interpreter_refs` (also
+`just bench-interpreter-reference`) refreshes local Python and Ruby source
+references in the same pinned, verifier-backed process lane. It records source
+or verifier absence explicitly and stops a row after its first timed-out
+process, reporting both requested and attempted runs. Pass its JSON report to
+`v12/bench_compare_external --reference-json PATH` to replace stored
+Python/Ruby rows. `v12/bench_refresh_go_refs` produces the matching Go report;
+pass it with `--go-reference-json PATH` to replace stored Go rows. The inputs
+may be combined in one comparison, while language families without a supplied
+fresh report retain their stored reference rows. The shared catalog also
+declares a benchmark run directory, so applications that deliberately reuse
+inputs from sibling suites run from the repository root while ordinary suites
+continue to run beside their inputs.
+
+## Current selection and catalog contract — 2026-07-20
+
+The active `coverage` catalog has 36 portable applications; `fixture-full` has
+79 bounded local programs; and `corpus-full` therefore validates 115 programs.
+`just bench-catalog-check` verifies the portable Able/source/verifier lanes
+and all local entries without timing work.
+
+The current timing selection contains all 36 compiled applications and 29
+bytecode applications. Seven excluded bytecode rows remain visible as bounded
+status probes. Every selected row has five successful verifier-backed Able and
+required Go/Python/Ruby samples under a 55-second per-process cap. The promoted
+snapshot reports four established compiled target meets out of 36 and two
+bytecode target meets out of 29. Regex Suffix is now a verified selected
+bytecode miss rather than a timeout after its four implementations were
+uniformly bounded to the same 512-word default as Regex Set and Regex Stream.
+See
+`docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md`.
+
+The follow-up cross-mode Array capacity/backing-growth gate found no eligible
+candidate. Generated geometric growth is material only in Reverse Complement
+and Lexical Rollup; Base64 and FASTA use exact outputs, while Array Slice
+Window's exact independent result backing is required by the language. The
+bytecode capacity leaf likewise fails the three-unlike-application materiality
+rule. See
+`docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md`.
+
+The subsequent multi-argument primitive-byte extern gate also closes without
+a change. Mandelbrot reaches the same host-coercion and mono-`u8`
+deoptimization chain as Reverse Complement and FASTA, but the complete chain
+is only 0.85% of its sampled allocation space and has no material CPU sample.
+Only `io_write` currently combines multiple arguments with the explicit byte
+borrow marker, so the required third material unlike consumer is absent. See
+`docs/perf-baselines/2026-07-18-bytecode-multi-argument-u8-extern-admission.md`.
+
+The current cross-mode exact-leaf pass also retains no change. K-Nucleotide,
+Fixed Width, Distance Field, Regex Set, and Future Pipeline share only broad
+bytecode dispatcher/load/call/return parents; their concrete VM children and
+generated compiled owners diverge. Every narrower repeated carrier or frame
+design is already closed by broad causal timing. Fresh verifier-backed Regex
+Set and Future bytecode profiles complete the missing lanes and match the
+retained post-quickening executable fingerprint. See
+`docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md`.
+
+Pass `--suite NAME` to validate any named portable suite by itself (for
+example, `just bench-catalog-check --suite dependency-plan`); `corpus-full`
+continues to add every local fixture to the `coverage` application catalog.
+The checker also proves that every named portable suite is a subset of
+`coverage`, so no focused timing lane can silently escape the broad catalog.
+
+Those counts establish breadth, not an optimization authorization. Do not run
+an unchanged scorecard or add a synthetic workload merely to create a new
+performance tranche. Reopen timing only after a material cross-cutting
+semantic/compiler change or a genuinely needed portable application. Use
+repeated verifier-backed compiled/bytecode comparisons and retain their mean,
+median, and spread; prefer a quiet-host preflight when available, but do not
+make a workstation-wide profile impossible when it is not. Retain only a
+concrete hotspot repeated across unlike programs.
+`sudoku-masks` is one such shared-input suite in the external `full` /
+`generality` selection: it keeps the committed `sudoku` benchmark stable while
+exercising a separate bit-mask and most-constrained-cell solver over a fixed
+corpus prefix.
+
+The `regex-text` external suite now contains three verifier-backed applications
+over the existing ENABLE word-list corpus. `regex-suffix-audit` uses public
+`RegexBuilder` construction, anchored capture matching, and aggregation. Its
+default is 512 words (2,048 classifications), matching the bounded Set and
+Stream discriminators so all three are rankable in bytecode mode;
+`regex-set-audit` uses the public combined-NFA `RegexSet` API to classify four
+anchored character-class patterns. Go, Python, and Ruby use equivalent
+multi-pattern classification. Its fresh three-run reference lane recorded Go
+`0.0042s`, Python `0.0183s`, and Ruby `0.0437s`, all verifier validated.
+`regex-set-audit` is deliberately bounded to 512 words (2,048 classifications)
+so its bytecode application run remains below the normal one-minute guard. It
+remains a dedicated suite instead of silently changing the established
+`generality` scorecard.
+
+`regex-stream-audit` closes the public streaming surface gap. It feeds each
+word and its newline as separate chunks to `RegexScanner`, drains decidable
+matches, and calls `flush()` once per stream. Its Go, Python, and Ruby
+counterparts implement the same buffered-record boundary with their standard
+regex libraries. It belongs to `coverage` and `regex-text`, not the stable
+`generality` scorecard, and must never justify a scanner- or chunk-shape-
+specific fast path.
+
+The first two generated-main profiles kept no compiler or bridge change:
+both regex programs are dominated by tagged-NFA movement/closure and
+allocation, while split/join is dominated by String conversion and joining.
+The third independent `RegexSet` profile confirmed that NFA movement and
+closure are reusable canonical-stdlib work. The kept immutable outgoing-edge
+index removes unrelated transition scans from every compiled regex execution
+plan, improving all three warmed bytecode lanes and the suffix/set generated
+lanes while leaving independent matching neutral-to-slightly-better. Its full
+record is `docs/perf-baselines/2026-07-12-nfa-outgoing-transition-index.md`.
+The follow-up allocation gate found shared tagged-closure and thread-record
+allocation in all three applications, while keeping profiler instrumentation
+separate from normal measurements; see
+`docs/perf-baselines/2026-07-12-regex-allocation-profile-gate.md`. The
+matcher-local closure stack is now kept: it remains private to one normal
+match/set operation or scanner stream, and improves all three warmed bytecode
+applications without a material generated-binary regression. The refreshed
+exact allocation profiles showed that successful tagged-thread insertion
+created an active record and an identical closure record in every application.
+That candidate is now kept: upsert returns the newly accepted private record
+directly to closure traversal. It improved every warmed bytecode lane by
+16--19% and reduced allocations by 20--27%, without pooling or adding a
+compiler or `RegexSet` special case. The next evidence gate is independent
+character-processing applications. That first gate is now complete: the
+`zigzag_char_small`, `ascii_lower_small`, and `reverse_complement_small`
+profiles do not execute a material `__able_char_to_codepoint` leaf. One moves
+chars without scalar conversion and the other two process bytes, so no kernel
+or compiler change is justified. The next gate must use non-regex workloads
+that actually compare scalar chars before reconsidering that primitive.
 
 The checked-in current external scoreboard lives in:
 
 - `v12/docs/perf-baselines/external-scoreboard-current.json`
 - `v12/docs/perf-baselines/external-scoreboard-current.md`
 
-That artifact joins current kept Able measurements for every implemented
-external benchmark family with the best Go/Ruby/Python rows from
-`../benchmarks/results.json`, including timeout rows for modes that still do
-not complete at the external scale.
+That artifact records the explicitly promoted verifier-backed source cohort,
+including timeout rows for modes that still do not complete at the external
+scale. The current July 15 cohort is a fresh 32-portable-application screen.
+Every `unranked` row now includes a machine-readable `unranked_reason` in JSON
+and a matching Markdown explanation: it distinguishes the Able launch status
+from an unavailable required comparison ratio without guessing why a foreign
+reference produced no valid ratio. `just bench-scoreboard-check` validates the
+generated reports without rerunning performance workloads.
+
+The same static catalog check now guarantees that all selected programs come
+from the canonical `v12/examples/benchmarks` population rather than sibling
+harness copies or generated build output. This keeps verifier-backed timing
+evidence tied to reviewed Able source; see
+`docs/perf-baselines/2026-07-15-canonical-benchmark-source-contract.md`.
+Fresh comparison reports additionally record the canonical source SHA-256, and
+the generated scorecard refuses to silently relabel old results after source
+content changes. The retained July cohort labels its newly added hashes as
+current-source legacy fingerprints rather than claiming historical measurement
+identity; see
+`docs/perf-baselines/2026-07-15-scorecard-source-fingerprints.md`.
+The same contract now fingerprints matched fresh Go/Python/Ruby reference
+sources. Reference edits therefore invalidate the relevant promoted ratio;
+stored external result rows remain un-fingerprinted only when no local source
+identity exists. See
+`docs/perf-baselines/2026-07-15-scorecard-reference-source-fingerprints.md`.
+Fresh comparison reports also capture a verifier/declared-input contract
+before timing: the verifier script, every catalog-declared argument, and any
+declared argument that resolves to a regular input file. The legacy cohort is
+reconstructed from the same catalog as current-contract provenance, so a
+verifier, input, or argument change invalidates the report. This deliberately
+does not claim to fingerprint arbitrary implicit files a program might open;
+see `docs/perf-baselines/2026-07-15-scorecard-verifier-input-fingerprints.md`.
 
 As of April 29, 2026, the aligned compiled core and closed text/sort
 benchmarks are in the same approximate range as Go:
@@ -81,6 +460,1195 @@ further `matrixmultiply` work should be limited to general row-length /
 bounds-proof machinery rather than benchmark source tweaks. The remaining
 bytecode work is still a larger VM architecture problem, not one-time
 CLI/bootstrap/lowering noise.
+
+The historical figures above are not a substitute for a fresh source-aligned
+scorecard. On 2026-07-12, the retained scan-based `sudoku` source was corrected
+to parse `.` blanks in the canonical corpus and then reached the compiled
+45-second external guard. The separate bounded `sudoku_masks` lane records
+that feature shape without hiding the legacy-core timeout; see
+`docs/perf-baselines/2026-07-12-sudoku-masks-benchmark-lane.md`.
+
+## 2026-06-23 — Bytecode speculative post-guard float update pair
+
+The next kept `mandelbrot` bytecode tranche stayed on the same structural
+strategy and removed the remaining statement boundary between the two discarded
+post-guard float updates.
+
+The landed change:
+
+- lowering now emits `bytecodeOpTryFloatUpdatePair` before the exact discarded
+  pair
+  - `zi = 2.0 * zr * zi + ci`
+  - `zr = zr2 - zi2 + cr`
+- the generic `StoreSlotFloatAddMulSlot` and `StoreSlotFloatAddSub` statements
+  still follow as fallback
+- the fast path only fires when the first statement lowers to the existing
+  slot-backed fused float add-mul update with a slot-const multiply operand,
+  the second lowers to the existing fused float add-sub update, and the second
+  RHS does not read the first target slot
+- on success the VM reads every source slot first, computes both raw float
+  results, writes both discarded slot updates directly, and jumps over the
+  fallback pair
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsTryFloatUpdatePair|LoweringSkipsTryFloatUpdatePairWhenSecondUpdateReadsFirstTarget|TryFloatUpdatePairFastPath|TryFloatUpdatePairParity|LoweringEmitsFloatMulAddMulCompareConstJumpWithTempStores|FloatMulAddMulCompareConstJumpTempStoreParity|FloatAddSubSlotUpdateParity|StoreSlotFloatAddMulSlotFastPath)$'`
+- `./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 60 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+- repeated external confirmation with the same pinned settings
+
+Kept measurements:
+
+- pinned runtime `mandelbrot`: `4475508943 ns/op`, `330949352 B/op`,
+  `34613552 allocs/op`
+- first cached-stdlib external confirmation: `mandelbrot` `4.7633s`,
+  `matrixmultiply` `0.5367s`
+- repeated cached-stdlib external confirmation: `mandelbrot` `4.4233s`,
+  `matrixmultiply` `0.5433s`
+
+The kept post-tranche profile now leaves the temp-square compare/store path,
+the new update-pair path itself, discarded raw-float slot stores, and the
+discarded `iter += 1` path as the main residual inner-loop work. The next
+productive tranche should stay on that remaining compare/store + integer
+discard traffic rather than reopening broader helper rewrites.
+
+## 2026-06-23 — Benchmark-specific fusion rejected
+
+A follow-on experiment fused the full six-statement non-escape Mandelbrot
+recurrence into one speculative VM opcode. That experiment improved the
+benchmark, but it was rejected and removed because it encoded a single
+workload-shaped stencil rather than a generally reusable mechanism.
+
+The policy change from that review is straightforward:
+
+- do not add bespoke long-stencil opcodes for one benchmark recurrence
+- use a broader benchmark set to identify patterns that recur across
+  workloads
+- prefer improvements to generic opcode families, slot/value representation,
+  dispatch, lowering infrastructure, or peephole frameworks
+
+## 2026-06-23 — Bytecode temp-square compare/store fusion
+
+The next kept `mandelbrot` bytecode tranche stopped shaving generic float
+helpers and instead absorbed the exact local control-flow shape the benchmark
+actually uses.
+
+The landed change:
+
+- block-local lowering now reuses
+  `bytecodeOpJumpIfFloatMulAddMulCompareConstFalse` for the exact three-step
+  sequence:
+  - `zr2 := zr * zr`
+  - `zi2 := zi * zi`
+  - `if zr2 + zi2 > 4.0 { ... }`
+- the match is conservative: no `else` / `elsif`, the `if` body must
+  terminate, the body cannot reference `zr2` / `zi2`, and later statements in
+  the block must still use those temp names
+- the VM computes both products once, evaluates the compare, and only writes
+  `zr2` / `zi2` into their temp slots on the false path where the loop
+  continues
+- that removes the two standalone square-store statements from the steady
+  Mandelbrot path without widening the rejected broader `f64` helper lane
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsFloatMulAddMulCompareConstJump|LoweringEmitsFloatMulAddMulCompareConstJumpWithTempStores|LoweringKeepsFloatBinaryStoresWhenIfBodyUsesTempSquares|FloatMulAddMulCompareConstJumpParity|FloatMulAddMulCompareConstJumpTempStoreParity|FloatMulAddMulCompareConstJumpFastPathWithOwnedFloatSlots|FloatMulAddMulCompareConstJumpStoresTempSquaresOnFalsePath|FloatAddSubSlotUpdateParity|StoreSlotFloatAddMulSlotFastPath|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics)$'`
+- `./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 60 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements:
+
+- pinned runtime `mandelbrot`: `4947703038 ns/op`, `450787976 B/op`,
+  `49593354 allocs/op`
+- first cached-stdlib external confirmation: `mandelbrot` `5.5533s`,
+  `matrixmultiply` `0.5700s`
+- repeated cached-stdlib external confirmation: `mandelbrot` `5.1000s`,
+  `matrixmultiply` `0.5233s`
+
+The next productive tranche should stay on the same structural lowering
+strategy and target the remaining post-guard Mandelbrot recurrence update
+chain, because that is where the still-visible slot load/store traffic is now
+concentrated.
+
+## 2026-06-20 — Bytecode fused float add-sub slot update
+
+The next kept `mandelbrot` bytecode tranche stayed deliberately narrow after
+the bounded owned-float reuse keep.
+
+The landed change:
+
+- lowering now emits `bytecodeOpStoreSlotFloatAddSub` for slot-backed
+  `a - b + c` update shapes such as `zr = zr2 - zi2 + cr`
+- the VM reads the three operands from the stack, evaluates the subtraction
+  plus addition through the raw-float fast path, and stores the final raw
+  float result directly
+- this removes the transient generic `zr2 - zi2` result from the hot
+  `mandelbrot` loop without widening raw-float representation work elsewhere
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsFloatAddSubSlotUpdate|StoreSlotFloatAddSubFastPath|FloatAddSubSlotUpdateParity|DirectFloatArithmeticFastPath|DirectFloatCompareFastPath|LoadRawFloatSlotAvoidsSnapshotAllocation|StoreRawFloatSlotReusesCarrierWithoutAllocation|FloatBinaryStoreParity|FloatAddMulSlotUpdateParity|FloatAddMulArrayGetSlotUpdateFastPath)' -count=1`
+- `./v12/bench_perf --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements:
+
+- runtime `mandelbrot`: `7832102713 ns/op`, `1046766888 B/op`,
+  `85808195 allocs/op`
+- cached-stdlib external bytecode `mandelbrot`: `7.9300s` over `3/3`
+  (from `8.1100s`)
+- cached-stdlib external bytecode `matrixmultiply`: `0.5333s` over `3/3`
+  (from `0.5467s`)
+
+The next productive float tranche should stay on the remaining generic result
+creation in `zi = 2.0 * zr * zi + ci`, especially the inner `2.0 * zr`
+multiply, instead of reopening broader raw-float carrier or owned-float slot
+reuse experiments.
+
+## 2026-06-20 — Bytecode float slot-const multiply
+
+The next kept `mandelbrot` bytecode tranche targeted that remaining inner
+multiply directly.
+
+The landed change:
+
+- lowering now emits `bytecodeOpBinaryFloatMulSlotConst` for slot-backed
+  `identifier * float_literal` / `float_literal * identifier`
+- the VM evaluates that opcode from the source slot plus embedded float
+  immediate and returns a raw float carrier when the source slot is already in
+  the raw-float fast lane
+- the `mandelbrot` `zi = 2.0 * zr * zi + ci` update now uses that opcode for
+  the inner `2.0 * zr` multiply before feeding the existing fused
+  `StoreSlotFloatAddMul` path
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsBinaryFloatMulSlotConst|LoweringUsesBinaryFloatMulSlotConstInsideFloatAddMulUpdate|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity|LoweringEmitsFloatAddSubSlotUpdate|StoreSlotFloatAddSubFastPath|FloatAddSubSlotUpdateParity|DirectFloatArithmeticFastPath|DirectFloatCompareFastPath|LoadRawFloatSlotAvoidsSnapshotAllocation|StoreRawFloatSlotReusesCarrierWithoutAllocation|FloatBinaryStoreParity|FloatAddMulSlotUpdateParity|FloatAddMulArrayGetSlotUpdateFastPath)' -count=1`
+- `./v12/bench_perf --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements:
+
+- runtime `mandelbrot`: `6452646901 ns/op`, `671869432 B/op`,
+  `70187489 allocs/op`
+- cached-stdlib external bytecode `mandelbrot`: `6.6767s` over `3/3`
+  (from `7.9300s`)
+- cached-stdlib external bytecode `matrixmultiply`: `0.5433s` over `3/3`
+  (same general band as the prior `0.5333s`)
+
+The next productive float tranche should re-profile and likely target the
+remaining coordinate affine expressions such as
+`((2.0 * (x as f64)) / (SIZE as f64)) - 1.5` and the analogous `y` path,
+instead of widening raw-float representation experiments again.
+
+## 2026-06-20 — Bytecode fused coordinate affine store
+
+The next kept `mandelbrot` bytecode tranche took that exact remaining
+coordinate-affine advice and fused the whole slot-backed store shape instead
+of adding another intermediate binary opcode.
+
+The landed change:
+
+- lowering now emits `bytecodeOpStoreSlotFloatAffine` for
+  `((scale * (slot as f64)) / (name as f64)) - offset` assignment shapes such
+  as:
+  - `ci := ((2.0 * (y as f64)) / (SIZE as f64)) - 1.0`
+  - `cr := ((2.0 * (x as f64)) / (SIZE as f64)) - 1.5`
+- the VM carries an IP-keyed affine plan with the source slot, divisor slot or
+  name, target float kind, scale, and offset, then evaluates the full
+  multiply/divide/subtract chain through the raw-float fast path before the
+  final store
+- the failed isolated `cast-slot-float-const mul` probe was removed; it was
+  not a keep on `mandelbrot` by itself
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsStoreSlotFloatAffine|StoreSlotFloatAffineParity|StoreSlotFloatAffineFastPathUsesI32RegisterLaneAndGlobalDivisor|LoweringEmitsBinaryCastSlotFloatConstDivOpcode|BinaryCastSlotFloatConstDivParity|BinaryCastSlotFloatConstDivFastPathUsesI32RegisterLane|LoweringEmitsStoreSlotCastSlotFloatConstDivOpcode|StoreSlotCastSlotFloatConstDivParity|StoreSlotCastSlotFloatConstDivFastPathUsesI32RegisterLane|StoreSlotCastSlotFloatConstDivDiscardFastPathStoresRawFloatWithoutOwnedCell|StoreSlotCastSlotFloatConstDivDiscardFastPathUpdatesExistingOwnedSlotCellWithoutMap|StoreSlotCastSlotFloatConstDivDiscardFastPathUsesRawI64SourceAndExistingOwnedTarget|LoweringEmitsBinaryFloatMulSlotConst|LoweringUsesBinaryFloatMulSlotConstInsideFloatAddMulUpdate|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity|LoweringEmitsFloatBinaryStore|FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|LoweringEmitsFloatAddSubStore|FloatAddSubParity|LoweringEmitsFloatAddMulSlotUpdateWithNonTargetBase|FloatAddMulNonTargetBaseParity)' -count=1`
+- `./v12/bench_perf --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+- `./v12/bench_compare_external --benchmarks mandelbrot --modes bytecode --runs 5 --timeout 60`
+
+Kept measurements:
+
+- runtime `mandelbrot`: `6279413279 ns/op`, `596996648 B/op`,
+  `66588389 allocs/op`
+- cached-stdlib external bytecode `mandelbrot`: `6.4040s` over `5/5`
+  (first `3/3` sample was `6.6967s`; the longer rerun is the keep)
+- cached-stdlib external bytecode `matrixmultiply`: `0.5167s` over `3/3`
+
+The next productive float tranche should re-profile from this new baseline and
+likely target the remaining hot slot-load / name-lookup / float-store
+boundaries inside `pixel_byte`, rather than reopening isolated cast-slot
+multiply probes or broader raw-float representation experiments.
+
+## 2026-06-22 — Bytecode `LoadSlot` keep after reused-cell raw-slot reject
+
+Follow-on profiling from the later `BinaryFloatMulSlotConst` raw-immediate keep
+showed the live branch had drifted onto a new control and that the remaining
+`mandelbrot` wall was still the `pixel_byte` slot-load / write boundary rather
+than the old stack-carrier multiply work.
+
+Rejected probe:
+
+- rewired `storeReusableFloatSlotRaw(...)` so a reused owned float cell would
+  still be updated for future writes while the visible slot value switched to a
+  raw float carrier
+- focused tests passed on the narrowed form, but the result was not a keep:
+  - runtime `mandelbrot`: `7561635668 ns/op`, `721955320 B/op`,
+    `82208185 allocs/op`
+  - cached-stdlib external bytecode `mandelbrot`: `9.0900s` over `1/1`
+  - cached-stdlib external bytecode `matrixmultiply`: `0.6100s` over `1/1`
+- the helper and temporary focused test were removed
+
+Kept probe:
+
+- `slotStackValue(...)` now inlines the common raw-float, raw-i32,
+  raw-i64-cell, and owned integer/float snapshot cases directly instead of
+  always routing non-nil slot loads through `bytecodeStackSnapshotValue(...)`
+- visible semantics stay unchanged:
+  - raw float loads remain raw
+  - raw i32 loads still materialize visible integer values
+  - owned float loads still snapshot away from the slot cell
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoadRawFloatSlotAvoidsSnapshotAllocation|StoreRawFloatSlotReusesCarrierWithoutAllocation|StoreSlotI32DiscardResultStoresRawSlot|I32RegisterFrameStoresDiscardedSlotOffValueFrame|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies|StoreSlotFloatReusesOwnedCellAcrossReinitialization|F64DotLoopFastPath)' -count=1`
+
+Kept measurements:
+
+- runtime `mandelbrot`: `6906198808 ns/op`, `831862744 B/op`,
+  `65985221 allocs/op`
+- cached-stdlib external bytecode `mandelbrot`: `7.3433s` over `3/3`, then
+  `7.3480s` over `5/5`
+- cached-stdlib external bytecode `matrixmultiply`: `0.5267s` over `3/3`
+
+The next productive tranche should re-profile from this load-side keep and
+likely return to the remaining `storeReusableFloatSlotRaw(...)` /
+`bytecodeSetNormalizedRawFloatValue(...)` write-side wall, not reopen the
+rejected reused-cell raw-slot rewrite.
+
+## 2026-06-22 — Bytecode normalized raw-float store helper keep
+
+The next kept `mandelbrot` follow-up stayed entirely on the remaining
+write-side boundary that the load-slot keep had exposed.
+
+The landed change:
+
+- raw-result stores now route through
+  `storeReusableNormalizedFloatSlotRaw(...)`, a helper that assumes the
+  arithmetic/cast fast paths already handed it a normalized raw float result
+- the general `storeReusableFloatSlotRaw(...)` wrapper still exists for
+  non-hot callers, but the hot path now skips one redundant
+  `normalizeFloat(...)` pass, the extra bounds recheck, and the separate
+  `reusableOwnedFloatSlot(...)` helper call
+- visible semantics stay unchanged: reused owned float cells still remain
+  visible as owned cells, raw slot results still stay raw, and f32 fast-path
+  results still store normalized raw f32 carriers
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(StoreSlotFloatAddSubFastPath|StoreSlotFloatAddSubFastPathNormalizesF32Result|FloatAddSubSlotUpdateParity|LoadRawFloatSlotAvoidsSnapshotAllocation|StoreRawFloatSlotReusesCarrierWithoutAllocation|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotCastSlotFloatConstDivDiscardFastPathStoresRawFloatWithoutOwnedCell|StoreSlotCastSlotFloatConstDivDiscardFastPathUpdatesExistingOwnedSlotCellWithoutMap|StoreSlotCastSlotFloatConstDivDiscardFastPathUsesRawI64SourceAndExistingOwnedTarget|FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies|StoreSlotFloatReusesOwnedCellAcrossReinitialization|F64DotLoopFastPath)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-next-tranche-after.cpu.pprof ./v12/bench_perf --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements:
+
+- runtime `mandelbrot`: `6850196443 ns/op`, `831898392 B/op`,
+  `65985299 allocs/op`
+- cached-stdlib external bytecode `mandelbrot`: `7.2433s` over `3/3`
+- cached-stdlib external bytecode `matrixmultiply`: `0.5233s` over `3/3`
+
+Profile note:
+
+- the raw float store boundary dropped from about `1.40s` cumulative in the
+  pre-change profile (`storeReusableFloatSlotRaw(...)`) to about `0.97s`
+  cumulative in the post-change profile
+- `slotStackValue(...)` and `execLoadSlotOpcode(...)` remain in the hot tier,
+  so the next win is still likely to come from the remaining raw-float setter
+  / slot-load traffic rather than from broader float representation rewrites
+
+The next productive tranche should stay on the remaining
+`bytecodeSetNormalizedRawFloatValue(...)` / `slotStackValue(...)` cost rather
+than reopen the rejected reused-cell raw-slot rewrite.
+
+Immediate follow-up note:
+
+- four narrower probes on that same exact boundary were then rejected:
+  - owned-float `LoadSlot` raw snapshots:
+    runtime `7161034314 ns/op`, external `mandelbrot` `9.6400s` over `3/3`,
+    external `matrixmultiply` `0.6800s` over `3/3`
+  - direct stack append for `LoadSlot`:
+    runtime `8752117788 ns/op`
+  - dedicated `f64` store helper:
+    runtime `7235153050 ns/op`
+  - redundant-`TypeSuffix` guard on owned float-cell reuse:
+    runtime `8203646890 ns/op`
+- the restored kept code state sanity-checks back into the prior external
+  band (`mandelbrot` `7.4500s`, `matrixmultiply` `0.5500s`, both `1/1`)
+- the next productive tranche should now move away from this exact slot
+  load/store micro-boundary and re-profile the remaining lexical-name /
+  cached-lookup path or another structural hotspot instead
+- that lexical-name / cached-call follow-up was tried next as an
+  owner-equality cache-validation shortcut and rejected too:
+  - runtime-only `mandelbrot`: `7363954948 ns/op`, `831899032 B/op`,
+    `65985309 allocs/op`
+  - external bytecode `mandelbrot`: `7.7567s` over `3/3`
+  - external bytecode `matrixmultiply`: `0.5367s` over `3/3`
+  - restored external sanity after backing it out:
+    `mandelbrot` `7.5200s` over `1/1`, `matrixmultiply` `0.5200s` over `1/1`
+- that next structural-looking follow-up was tried as instruction-indexed
+  quickened plan tables for the hot fused float affine / float compare ops and
+  rejected too:
+  - runtime-only `mandelbrot`: `8061916921 ns/op`, `831893584 B/op`,
+    `65985302 allocs/op`
+  - external bytecode `mandelbrot`: `8.0233s` over `3/3`
+  - external bytecode `matrixmultiply`: `0.5900s` over `3/3`
+  - restored external sanity after backing it out:
+    `mandelbrot` `7.1100s` over `1/1`, `matrixmultiply` `0.5100s` over `1/1`
+- that larger recurring float-control follow-up was tried next as a guarded
+  monolithic `LoopEnter` escape kernel for the exact seven-statement inner
+  Mandelbrot recurrence and rejected too:
+  - runtime-only `mandelbrot`: `7354926662 ns/op`, `831898936 B/op`,
+    `65985301 allocs/op`
+  - external bytecode `mandelbrot`: `7.5633s` over `3/3`
+  - external bytecode `matrixmultiply`: `0.5267s` over `3/3`
+  - restored external sanity after backing it out:
+    `mandelbrot` `7.2600s` over `1/1`, `matrixmultiply` `0.5100s` over `1/1`
+- the next productive tranche should re-profile the restored kept baseline and
+  target a narrower remaining float-slot hotspot instead of another monolithic
+  `LoopEnter` replacement
+- that next narrow float-slot helper follow-up was attempted as a direct
+  inline of the common raw/owned cases in `slotDirectFloatValue(...)` and
+  `slotDirectF64Value(...)`, but it was measured while unrelated
+  `nats-server` / `outbox-worker` processes were heavily saturating CPU:
+  - focused tests passed
+  - runtime-only `mandelbrot` during the contended run:
+    `9896391197 ns/op`, `831904480 B/op`, `65985307 allocs/op`
+  - external bytecode during the same contended run:
+    `mandelbrot` `11.1700s` over `3/3`, `matrixmultiply` `0.6833s` over `3/3`
+  - repeated restored-baseline sanity runs on that host still varied widely
+    (`mandelbrot` `10.9100-17.7700s`, `matrixmultiply` `0.7900-1.2500s` over
+    `1/1`), so the code was backed out and the numbers were not adopted as a
+    real baseline
+- the next productive tranche should first get back to a quieter benchmark
+  environment before trusting any more micro-deltas on this float-slot path
+
+## 2026-06-22 — Benchmark harness CPU-affinity control and restored pinned control
+
+The next tranche closed that measurement problem before taking another VM cut.
+
+The landed harness change:
+
+- `v12/bench_perf` and `v12/bench_compare_external` now accept
+  `--cpu-affinity CPUSET`
+- the same setting can also come from `ABLE_BENCH_CPU_AFFINITY`
+- when set, the measured benchmark process runs through `taskset` and the
+  selected CPU set is recorded in the emitted JSON / Markdown metadata
+
+Local procedure note:
+
+- sample host load first and pick a quieter subset that still matches the
+  workload's intended parallelism
+- for the current bytecode `mandelbrot` / `matrixmultiply` lane, pinned
+  `2-3` was materially steadier than the default all-core scheduler spread on
+  this workstation because the largest unrelated load was sitting on other
+  cores
+- do not compare runs collected while multiple benchmark suites are executing
+  in parallel; that self-contention invalidates the lane
+
+Restored pinned control:
+
+- runtime-only `mandelbrot` (`3` serial `1/1` confirmations on pinned `2-3`):
+  - `6873489810 ns/op`, `831854024 B/op`, `65985225 allocs/op`
+  - `6817485950 ns/op`, `831854816 B/op`, `65985241 allocs/op`
+  - `6778528755 ns/op`, `831854328 B/op`, `65985234 allocs/op`
+- cached-stdlib external bytecode (`3/3`, pinned `2-3`):
+  - `mandelbrot`: `7.0633s`
+  - `matrixmultiply`: `0.5367s`
+
+This is a measurement-control keep, not a VM keep. The next productive tranche
+should resume a narrow remaining float-slot/store hotspot probe against this
+pinned control rather than against the noisy all-core workstation lane.
+
+## 2026-06-22 — Pinned helper-inline float-slot probe held
+
+With the pinned lane restored, the next tranche retried the same helper-local
+`slotDirectFloatValue(...)` / `slotDirectF64Value(...)` probe that had been
+contaminated by host contention earlier in the day.
+
+The landed change:
+
+- inlined the common raw-float and boxed/owned float cases directly into
+  `slotDirectFloatValue(...)`
+- inlined the common `f64`-only cases directly into `slotDirectF64Value(...)`
+- left the active float-frame fallback unchanged
+- added focused coverage for raw, owned, and active-frame direct float slot
+  reads
+
+Focused verification:
+
+- `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(SlotDirectFloatValueCoversRawOwnedAndActiveFrame|SlotDirectF64ValueRejectsNonF64|LoadRawFloatSlotAvoidsSnapshotAllocation|StoreRawFloatSlotReusesCarrierWithoutAllocation|StoreSlotFloatAddSubFastPath|StoreSlotFloatAddSubFastPathNormalizesF32Result|FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies|StoreSlotFloatReusesOwnedCellAcrossReinitialization|F64DotLoopFastPath|LoweringEmitsFloatAddCompareConstJump|FloatAddCompareConstJumpFastPathWithRawFloatSlots)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-slot-direct-inline-pinned.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements:
+
+- runtime `mandelbrot` on pinned `2-3`:
+  - `6470759545 ns/op`, `831881360 B/op`, `65985299 allocs/op`
+- cached-stdlib external bytecode on pinned `2-3` (`3/3`):
+  - `mandelbrot`: `6.7733s` (from the pinned control `7.0633s`)
+  - `matrixmultiply`: `0.5267s` (from the pinned control `0.5367s`)
+
+Profile note:
+
+- the pinned pre-change profile had `slotDirectFloatValue(...)` at about
+  `0.33s` cumulative and `bytecodeDirectFloatValue(...)` at about `0.23s`
+- the pinned post-change profile moved `slotDirectFloatValue(...)` to about
+  `0.24s` cumulative and dropped `bytecodeDirectFloatValue(...)` out of the
+  top tier
+- the remaining wall is still the raw-float store/load boundary around
+  `storeReusableNormalizedFloatSlotRaw(...)`,
+  `finishStoreSlotFloatRawResult(...)`, `slotStackValue(...)`, and
+  `execLoadSlotOpcode(...)`
+
+The next productive tranche should stay on that remaining raw-float
+store/load boundary rather than reopening broader representation experiments
+or the already-rejected monolithic `LoopEnter` replacement.
+
+## 2026-06-22 — Raw visible slot stores now skip cached owned-cell lookup
+
+The next pinned tranche stayed on the same raw-float store/load wall, but
+kept the scope tighter than the earlier rejected owned-cell visibility probe.
+
+The landed change:
+
+- `storeReusableNormalizedFloatSlotRaw(...)` now skips the
+  `ownedFloatSlots` map lookup when the current slot is already visibly raw
+  (`bytecodeRawF32SlotValue` / `bytecodeRawF64SlotValue`)
+- live owned float cells still remain visible as owned cells
+- only the already-raw visible slot case bypasses the cached owned-cell map
+  lookup
+- added focused coverage for the exact stale-cached-cell case so a visible raw
+  slot stays raw even if an old owned float cell still exists in
+  `ownedFloatSlots`
+
+Focused verification:
+
+- `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(StoreReusableNormalizedFloatSlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|SlotDirectFloatValueCoversRawOwnedAndActiveFrame|SlotDirectF64ValueRejectsNonF64|LoadRawFloatSlotAvoidsSnapshotAllocation|StoreRawFloatSlotReusesCarrierWithoutAllocation|StoreSlotFloatAddSubFastPath|StoreSlotFloatAddSubFastPathNormalizesF32Result|FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies|StoreSlotFloatReusesOwnedCellAcrossReinitialization|StoreSlotCastSlotFloatConstDivDiscardFastPathStoresRawFloatWithoutOwnedCell|StoreSlotCastSlotFloatConstDivDiscardFastPathUpdatesExistingOwnedSlotCellWithoutMap|StoreSlotCastSlotFloatConstDivDiscardFastPathUsesRawI64SourceAndExistingOwnedTarget|F64DotLoopFastPath|LoweringEmitsFloatAddCompareConstJump|FloatAddCompareConstJumpFastPathWithRawFloatSlots)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-raw-store-visible-raw.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements:
+
+- runtime `mandelbrot` on pinned `2-3`:
+  - `6228372668 ns/op`, `831875616 B/op`, `65985294 allocs/op`
+- cached-stdlib external bytecode on pinned `2-3` (`3/3`):
+  - `mandelbrot`: `6.4300s` (from the prior keep `6.7733s`)
+  - `matrixmultiply`: `0.5367s` (same general pinned band)
+
+Profile note:
+
+- the post-helper-inline pinned profile had
+  `storeReusableNormalizedFloatSlotRaw(...)` at about `1.03s` cumulative
+- after this keep it moved to about `0.97s` cumulative, and the
+  `ownedFloatSlots` fallback path drops out of the listed hot lines for that
+  helper
+- the remaining pinned wall is now still shared between the raw-float store
+  helper and `slotStackValue(...)`, especially the owned float snapshot path
+  plus the raw setter/interface conversion cost in
+  `bytecodeSetNormalizedRawFloatValue(...)`
+
+The next productive tranche should stay on that remaining store/load boundary,
+most likely `slotStackValue(...)` owned-float snapshots or the remaining raw
+setter overhead, rather than reopening broader representation rewrites.
+
+## 2026-06-22 — Raw float store fast paths now push raw stack results directly
+
+The next pinned tranche stayed on the same raw-float store/load wall, but it
+stayed narrower than the already-rejected broader `LoadSlot` raw-snapshot
+probes.
+
+The landed change:
+
+- added `bytecodeNormalizedRawFloatSlotValue(...)` so normalized raw float
+  carriers can be produced directly
+- `finishStoreSlotFloatRawResult(...)` now pushes a raw float carrier when the
+  slot write reused a visible owned `*runtime.FloatValue` cell, instead of
+  snapshotting that mutable cell back into an immutable `runtime.FloatValue`
+- visible slot semantics stay unchanged: owned float slots remain owned cells,
+  visible raw slots remain raw, and only the transient stack result changes
+  representation
+- added focused coverage proving the slot still reuses the owned cell while
+  the pushed result stays raw
+
+Focused verification:
+
+- `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(FinishStoreSlotFloatRawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|StoreReusableNormalizedFloatSlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|SlotDirectFloatValueCoversRawOwnedAndActiveFrame|SlotDirectF64ValueRejectsNonF64|LoadRawFloatSlotAvoidsSnapshotAllocation|StoreRawFloatSlotReusesCarrierWithoutAllocation|StoreSlotFloatAddSubFastPath|StoreSlotFloatAddSubFastPathNormalizesF32Result|FloatAddMulArrayGetSlotUpdateRawAccumulatorLoadCopies|StoreSlotFloatReusesOwnedCellAcrossReinitialization|StoreSlotCastSlotFloatConstDivDiscardFastPathStoresRawFloatWithoutOwnedCell|StoreSlotCastSlotFloatConstDivDiscardFastPathUpdatesExistingOwnedSlotCellWithoutMap|StoreSlotCastSlotFloatConstDivDiscardFastPathUsesRawI64SourceAndExistingOwnedTarget|F64DotLoopFastPath|LoweringEmitsFloatAddCompareConstJump|FloatAddCompareConstJumpFastPathWithRawFloatSlots)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-float-store-raw-push.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements:
+
+- runtime `mandelbrot` on pinned `2-3`:
+  - `6008031466 ns/op`, `831881176 B/op`, `65985301 allocs/op`
+- cached-stdlib external bytecode on pinned `2-3` (`3/3`):
+  - `mandelbrot`: `6.4033s` (from the prior keep `6.4300s`)
+  - `matrixmultiply`: `0.5267s` (same general pinned band)
+
+Profile note:
+
+- `bytecodeStackSnapshotValue(...)` drops out of the hot tier after this keep
+- `finishStoreSlotFloatRawResult(...)` still shows up, but its own result-push
+  work is no longer the cost center; most of that cumulative time is now the
+  delegated store helper
+- the remaining pinned wall is now more clearly shared between the raw
+  setter/interface conversion inside
+  `storeReusableNormalizedFloatSlotRaw(...)` / `bytecodeSetNormalizedRawFloatValue(...)`
+  and the surviving owned-float snapshot path in `slotStackValue(...)`
+
+The next productive tranche should stay on that remaining store/load wall,
+starting with either the raw setter/interface path or the owned-float
+snapshot branch in `slotStackValue(...)`, rather than reopening broader
+representation rewrites.
+
+Rejected follow-up on that same pinned wall:
+
+- swapped several already-normalized raw-result fast paths from
+  `bytecodeRawFloatSlotValue(...)` to
+  `bytecodeNormalizedRawFloatSlotValue(...)`
+- focused tests still passed, but the benchmark did not:
+  - rejected pinned runtime `mandelbrot`:
+    `6295696203 ns/op`, `831875248 B/op`, `65985279 allocs/op`
+  - rejected cached-stdlib external bytecode (`3/3`):
+    - `mandelbrot`: `6.5367s`
+    - `matrixmultiply`: `0.5733s`
+- the code was backed out; restored cached-stdlib external control returned to
+  `6.4433s` for `mandelbrot` and `0.5333s` for `matrixmultiply` over `3/3`
+- do not reopen this exact normalized-carrier caller substitution as the next
+  tranche
+
+Rejected follow-ups after that same pinned wall:
+
+- `StoreSlotFloatAddSub` source-slot rewrite:
+  - rewired the fused `zr = zr2 - zi2 + cr` update so the VM would read the
+    three operands directly from source slots instead of consuming the
+    existing stack inputs
+  - focused tests still passed, but the benchmark regressed:
+    - pinned runtime `mandelbrot`: `7045240416 ns/op`, `831881048 B/op`,
+      `65985295 allocs/op`
+    - cached-stdlib external bytecode (`3/3`):
+      - `mandelbrot`: `7.1067s`
+      - `matrixmultiply`: `0.5867s`
+  - the code was backed out
+- typed-slot-gated float-store `i32` register invalidation:
+  - added a temporary `slotUsesI32Register(...)` helper and used it to skip
+    float-store `setI32RegisterValue(...)` work for slots whose active
+    register-frame layout was not typed as `bytecodeCellKindI32`
+  - focused tests still passed, but the benchmark still regressed:
+    - pinned runtime `mandelbrot`: `6661331456 ns/op`, `831875680 B/op`,
+      `65985297 allocs/op`
+    - cached-stdlib external bytecode (`3/3`):
+      - `mandelbrot`: `6.6433s`
+      - `matrixmultiply`: `0.5533s`
+  - the code was backed out
+
+Restored state:
+
+- focused interpreter test slice passed again after the second backout
+- pinned runtime sanity check on the restored tree:
+  `6302627976 ns/op`, `831854752 B/op`, `65985241 allocs/op`
+- the last full restored external control on this same code remains:
+  - `mandelbrot`: `6.4433s` over `3/3`
+  - `matrixmultiply`: `0.5333s` over `3/3`
+
+The next productive tranche should not reopen any of these three rejected
+micro-branches. The remaining credible work is still the raw
+setter/interface conversion inside `storeReusableNormalizedFloatSlotRaw(...)`
+/ `bytecodeSetNormalizedRawFloatValue(...)` or the surviving owned-float
+snapshot branch in `slotStackValue(...)`.
+
+Rejected follow-up after that same setter-side wall:
+
+- replaced `setI32RegisterValue(...)` with direct
+  `clearI32RegisterSlot(...)` on float-store paths that already know the
+  written value is not `i32`
+- touched:
+  - `storeReusableNormalizedFloatSlotRaw(...)`
+  - `storeFloatSlotValue(...)`
+  - the existing-owned-target fast path in
+    `execStoreSlotCastSlotFloatConstDivDiscardFast(...)`
+- focused tests still passed, and pinned runtime `mandelbrot` improved in
+  isolation:
+  - `6032095841 ns/op`, `831875600 B/op`, `65985294 allocs/op`
+- but the broader pinned external pair regressed, so the code was backed out:
+  - cached-stdlib external bytecode (`3/3`):
+    - `mandelbrot`: `6.5300s`
+    - `matrixmultiply`: `0.5533s`
+- restored pinned runtime sanity on the backed-out tree:
+  `6165178361 ns/op`, `831853992 B/op`, `65985223 allocs/op`
+- do not reopen this exact float-store register-invalidation substitution
+
+At this point the next productive tranche should move away from this exact
+setter/register invalidation micro-edge and instead target the surviving
+owned-float snapshot branch in `slotStackValue(...)` or another larger
+remaining hotspot.
+
+## 2026-06-22 — Value-only lexical name lookups
+
+The next pinned `mandelbrot` tranche followed that advice and moved away from
+the rejected float-store invalidation edge onto the still-visible lexical-name
+cache lane.
+
+The landed change:
+
+- value-only cached name lookups no longer route through
+  `lookupCachedIdentifierNameEntry(...)` and its
+  `bytecodeResolvedIdentifierLookup` construction
+- `lookupCachedIdentifierName(...)` now reads the same hot/global/scope caches
+  directly and returns only the resolved `runtime.Value`
+- the metadata-returning helper stays intact for `CallName` cache building,
+  where env/owner/version still matter
+- added focused lookup-cache coverage for both the hot-value path and the
+  scope-cache value path
+
+Focused verification:
+
+- `cd v12/interpreters/go && go test ./pkg/interpreter -run '^TestBytecodeVM_(LookupCachedIdentifierNameUsesHotValueCache|ResolveCachedIdentifierNameUsesScopeCache|ResetForRunPreservesLookupCaches|CallNameCacheRecordsDirectInlineShape|CallNameCacheSkipsDirectInlineForTypeArguments|CallNameCacheInvalidatesOnRebind)$' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-lookup-value-only.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements on pinned `2-3`:
+
+- runtime `mandelbrot`: `6024494161 ns/op`, `831881032 B/op`,
+  `65985294 allocs/op`
+- cached-stdlib external bytecode `mandelbrot`: `6.2767s` over `3/3`
+- cached-stdlib external bytecode `matrixmultiply`: `0.5233s` over `3/3`
+
+Post-keep profile note:
+
+- the lexical-name lane drops substantially:
+  - `lookupCachedIdentifierName(...)`: about `0.17s` cumulative
+  - `resolveCachedIdentifierName(...)`: about `0.19s` cumulative
+- the remaining wall is back on the float slot load/store boundary:
+  - `slotStackValue(...)`: about `0.68s` cumulative, with the owned-float
+    snapshot branch still prominent
+  - `storeReusableNormalizedFloatSlotRaw(...)`: about `0.82s` cumulative,
+    with `bytecodeSetNormalizedRawFloatValue(...)` still dominating the raw
+    visible-slot write branch
+
+The next productive tranche should likely return to that remaining
+`slotStackValue(...)` / `storeReusableNormalizedFloatSlotRaw(...)` wall, but
+without reopening the already-rejected owned-float raw-snapshot/direct-append
+or float-store register-invalidation probes.
+
+Rejected follow-up after that same remaining float wall:
+
+- specialized the visible raw-slot branch in
+  `storeReusableNormalizedFloatSlotRaw(...)` so same-kind raw slots wrote
+  their concrete carrier directly instead of always routing through
+  `bytecodeSetNormalizedRawFloatValue(...)`
+- focused tests still passed, and pinned runtime `mandelbrot` improved
+  slightly in isolation:
+  - `6023863340 ns/op`, `831881312 B/op`, `65985294 allocs/op`
+- but the broader pinned external pair regressed clearly, so the code was
+  backed out:
+  - cached-stdlib external bytecode (`3/3`):
+    - `mandelbrot`: `6.9933s`
+    - `matrixmultiply`: `0.5367s`
+- restored pinned runtime sanity on the backed-out tree:
+  `6083851654 ns/op`, `831854008 B/op`, `65985222 allocs/op`
+- do not reopen this exact same-kind raw visible-slot specialization
+
+At this point the next productive tranche should stay on the remaining
+`slotStackValue(...)` owned-float snapshot cost or another larger hotspot,
+but via a genuinely different cut than the already-rejected raw-snapshot,
+direct-append, register-invalidation, or same-kind raw visible-slot
+specializations.
+
+Rejected follow-up before the next keep:
+
+- rewired generic `StoreSlot` / `StoreSlotNew` float stores so
+  `runtime.FloatValue` locals landed as visible raw float carriers instead of
+  reusable owned cells
+- pinned runtime-only `mandelbrot` regressed immediately:
+  - `7206534036 ns/op`, `706607616 B/op`, `81568226 allocs/op`
+- that branch was backed out before a broader external pair because the pinned
+  runtime signal was already materially worse than the kept control
+- do not reopen generic raw-float `StoreSlot` rewrites on this lane
+
+## 2026-06-22 — Slot-sourced fused float add-mul keep
+
+The next genuinely different `mandelbrot` cut stayed local to the hot
+`zi = 2.0 * zr * zi + ci` update shape instead of changing float slot
+representation again.
+
+The landed change:
+
+- lowering now emits `bytecodeOpStoreSlotFloatAddMulSlot` when a fused float
+  add-mul update can keep one multiplicand on the stack while reading the base
+  and the other multiplicand directly from source slots
+- the new opcode executes through the existing raw-float fast path and stores
+  the final result through the normal float-store boundary
+- this removes two hot `LoadSlot` operations from shapes like
+  `zi = 2.0 * zr * zi + ci` without reopening the rejected direct source-slot
+  `StoreSlotFloatAddSub` path
+- focused coverage now includes both lowering proof and direct fast-path proof
+  for the new slot-sourced add-mul update
+
+Focused verification:
+
+- `cd v12/interpreters/go && go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsFloatAddMulSlotUpdate|StoreSlotFloatAddMulSlotFastPath|LoweringEmitsFloatAddMulSlotUpdateWithNonTargetBase|FloatAddMulSlotUpdateParity|FloatAddMulNonTargetBaseParity|FloatAddMulSlotUpdateFallbackParity|FloatAddMulSlotUpdatePreservesRHSOrder|LoweringUsesBinaryFloatMulSlotConstInsideFloatAddMulUpdate|LoweringEmitsBinaryFloatMulSlotConst|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity|FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatReusesOwnedCellAcrossReinitialization)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-next-tranche-5.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+Kept measurements on pinned `2-3`:
+
+- runtime `mandelbrot`: `5278795757 ns/op`, `456978464 B/op`,
+  `50364582 allocs/op`
+- cached-stdlib external bytecode `mandelbrot`: `5.4667s` over `3/3`
+- cached-stdlib external bytecode `matrixmultiply`: `0.5400s` over `3/3`
+
+Post-keep profile note:
+
+- the load-side wall drops sharply:
+  - `execLoadSlotOpcode(...)`: about `0.40s` cumulative, down from about
+    `1.14s`
+  - `slotStackValue(...)`: about `0.23s` cumulative, down from about `0.82s`
+- the new hot tier is now more clearly store/result centered:
+  - `storeReusableNormalizedFloatSlotRaw(...)`: about `1.04s` cumulative
+  - `bytecodeSetNormalizedRawFloatValue(...)`: about `0.62s` cumulative
+  - `execStoreSlotFloatBinary(...)`: about `1.22s` cumulative
+  - `slotDirectFloatValue(...)`: about `0.31s` flat
+
+The next productive tranche should now target that remaining raw
+result/write wall rather than the older load-side assumption, most likely
+through another local float-store/result cut around
+`storeReusableNormalizedFloatSlotRaw(...)`,
+`bytecodeSetNormalizedRawFloatValue(...)`,
+`execStoreSlotFloatBinary(...)`, or `slotDirectFloatValue(...)`, and not by
+reopening generic raw-float `StoreSlot` rewrites or the rejected direct
+source-slot `StoreSlotFloatAddSub` probe.
+
+## 2026-06-22 — Same-slot float square micro-path was backed out under host drift
+
+The next probe stayed on that same remaining float-store wall and targeted the
+common `zr * zr` / `zi * zi` shape inside `StoreSlotFloatBinary`.
+
+The temporary change:
+
+- added an early `*` fast path in `execStoreSlotFloatBinary(...)` when the
+  left and right source slots were identical
+- read the raw float once, squared it directly, and stored the normalized
+  result through the existing raw-float store helper
+- added focused parity/stack coverage for the same-slot square case
+
+Focused verification on the temporary branch:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatBinarySquareFastPath|LoweringEmitsFloatAddMulSlotUpdate|StoreSlotFloatAddMulSlotFastPath|FloatAddMulSlotUpdateParity|FloatAddMulNonTargetBaseParity|StoreSlotFloatReusesOwnedCellAcrossReinitialization)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-next-tranche-6.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+What the measurements showed:
+
+- the profiled pinned runtime-only run improved slightly:
+  - `5233077344 ns/op`, `456984424 B/op`, `50364607 allocs/op`
+- but the broader harness did not produce a trustworthy keep/reject signal:
+  - candidate external pair: `6.1067s` for `mandelbrot`, `0.7033s` for
+    `matrixmultiply`
+  - after backout, the restored pinned runtime sanity check was
+    `6147137914 ns/op`, `456957632 B/op`, `50364537 allocs/op`
+  - the restored external control rerun had drifted to `10.3667s` for
+    `mandelbrot` and `0.6667s` for `matrixmultiply`
+
+Outcome:
+
+- the probe was backed out
+- the runtime-only win was too small to justify landing without a stable
+  broader confirmation
+- the next productive tranche on this wall should either re-establish a quiet
+  pinned control first, or take a larger write-side cut around
+  `storeReusableNormalizedFloatSlotRaw(...)`,
+  `bytecodeSetNormalizedRawFloatValue(...)`, `execStoreSlotFloatBinary(...)`,
+  or `slotDirectFloatValue(...)` instead of another sub-1% micro-path
+
+## 2026-06-22 — Narrowed discard-store and validated binary-slot fetch keep
+
+The next follow-up did re-establish that quiet pinned control first, then kept
+the actual landing narrower than the initial temporary probe.
+
+The landed change:
+
+- `execStoreSlotFloatBinary(...)` now uses a validated slot-float fetch on the
+  already-range-checked source slots and reuses the left operand fetch when
+  both source slots are identical, instead of paying the full checked helper
+  twice on hot `zr * zr` / `zi * zi` shapes
+- `finishStoreSlotFloatRawResult(...)` now routes discard-only raw-float
+  stores through `storeReusableNormalizedFloatSlotRawDiscard(...)`, so hot
+  statement-position raw stores avoid result-value bookkeeping when no stack
+  result is needed
+- the broader temporary fanout of the validated-slot fetch across other float
+  opcodes was measured first and rejected on pinned runtime, then narrowed back
+  down to this binary-store-local keep before the final external reruns
+- the raw-float reuse helper also drops a redundant reassignment when an owned
+  float slot cell is already visibly present
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(SlotDirectFloatValueCoversRawOwnedAndActiveFrame|SlotDirectF64ValueRejectsNonF64|StoreReusableNormalizedFloatSlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|FinishStoreSlotFloatRawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|FinishStoreSlotFloatRawResultDiscardKeepsStackEmpty|FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatAddMulSlotFastPath|FloatAddMulSlotUpdateParity|FloatAddMulNonTargetBaseParity|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity|FloatAddCompareConstJumpFastPathWithRawFloatSlots|LoweringEmitsFloatAddCompareConstJump|FloatMulAddMulCompareConstJumpFastPath|LoweringEmitsFloatMulAddMulCompareConstJump)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-next-tranche-7-baseline.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-next-tranche-7c.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot --modes bytecode --runs 5 --timeout 60`
+
+Kept measurements:
+
+- pinned runtime `mandelbrot` control:
+  - `5174709854 ns/op`, `456984248 B/op`, `50364601 allocs/op`
+- pinned runtime `mandelbrot` on the kept tree:
+  - `5162038896 ns/op`, `456979544 B/op`, `50364610 allocs/op`
+- cached-stdlib external bytecode pair (`3/3`):
+  - `mandelbrot`: `5.4833s`
+  - `matrixmultiply`: `0.5233s`
+- cached-stdlib external bytecode `mandelbrot` confirmation (`5/5`):
+  - `mandelbrot`: `5.4420s`
+
+Post-keep profile note:
+
+- the binary-store source-read work now shows up on the new validated helper
+  rather than the old fully checked helper path
+- the write-side wall is now more explicitly discard-store centered:
+  - `storeReusableNormalizedFloatSlotRawDiscard(...)`
+  - `bytecodeSetNormalizedRawFloatValue(...)`
+  - the remaining raw store inside `execStoreSlotFloatBinary(...)`
+
+The next productive tranche should stay on that discard-store/raw visible-slot
+setter wall, and should not widen the validated-slot fetch path back onto the
+other float opcodes without fresh profile evidence.
+
+## 2026-06-22 — Active-float-frame discard-store rewrite was rejected quickly
+
+The next follow-up stayed on that same discard-store/raw visible-slot setter
+wall, but tried a structurally different rewrite instead of another direct
+visible-slot specialization.
+
+The temporary change:
+
+- discard-only raw-float stores tried to route through the existing active
+  float side frame instead of always writing a visible raw slot carrier
+- to preserve semantics, `slotStoredValue(...)`, `slotStackValue(...)`,
+  `slotMaterializedValue(...)`, and `slotRuntimeValue(...)` were taught to
+  materialize active-float side-frame values when the visible slot was `nil`
+- focused coverage was added for discard-result float stores plus the generic
+  slot readers that had to see the active-float frame
+
+Focused verification on the temporary branch:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(StoreReusableNormalizedFloatSlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|FinishStoreSlotFloatRawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|FinishStoreSlotFloatRawResultDiscardKeepsStackEmpty|SlotDirectFloatValueCoversRawOwnedAndActiveFrame|SlotDirectF64ValueRejectsNonF64|ActiveFloatFrameFeedsStoredStackMaterializedAndRuntimeReads|FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatAddMulSlotFastPath|FloatAddMulSlotUpdateParity|FloatAddMulNonTargetBaseParity|FloatAddCompareConstJumpFastPathWithRawFloatSlots|FloatMulAddMulCompareConstJumpFastPath|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity)' -count=1`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-next-tranche-8.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+
+What the measurements showed:
+
+- the pinned runtime signal regressed immediately:
+  - `6419770662 ns/op`, `569780160 B/op`, `64464704 allocs/op`
+- that was enough to reject the branch without paying for a broader external
+  pair
+- after backout, the restored pinned runtime sanity check returned to:
+  - `5130504355 ns/op`, `456957392 B/op`, `50364525 allocs/op`
+
+Outcome:
+
+- the probe was backed out
+- do not route discard-only raw-float stores through the active float side
+  frame on this lane
+- the next productive follow-up should stay on the visible raw-slot setter
+  boundary itself, because the deferred materialization/load cost was clearly
+  worse than the visible raw-slot setter cost it tried to remove
+
+## 2026-06-22 — Owned-float discard-store rewrites were rejected too
+
+The next follow-up stayed on that same discard-store/raw visible-slot setter
+wall, but tried owned-float-cell reuse instead of active-frame deferral.
+
+The temporary changes:
+
+- first, discard-only raw-float stores on the non-`slot0`, non-`i32`-register
+  lane delegated directly to `storeOwnedFloatSlotRaw(...)`, so the visible raw
+  slot carrier was replaced by an owned float cell
+- after that regressed badly, the eager rewrite was backed out and narrowed to
+  only reuse an already-cached owned float cell when a discard-only raw store
+  was about to rewrite a visible raw float slot
+
+Focused verification on both temporary branches stayed green:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(StoreReusableNormalizedFloatSlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|FinishStoreSlotFloatRawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|FinishStoreSlotFloatRawResultDiscardKeepsStackEmpty|SlotDirectFloatValueCoversRawOwnedAndActiveFrame|SlotDirectF64ValueRejectsNonF64|FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatAddMulSlotFastPath|FloatAddMulSlotUpdateParity|FloatAddMulNonTargetBaseParity|FloatAddCompareConstJumpFastPathWithRawFloatSlots|FloatMulAddMulCompareConstJumpFastPath|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity)' -count=1`
+
+What the measurements showed:
+
+- eager discard-only owned-cell conversion regressed pinned runtime
+  immediately:
+  - `8896777706 ns/op`, `1330329960 B/op`, `65811894 allocs/op`
+- narrowing that to cached-owned-cell reuse only still regressed pinned
+  runtime:
+  - `5611075691 ns/op`, `456957504 B/op`, `50364531 allocs/op`
+- after backing both out, the restored pinned runtime sanity check returned
+  to:
+  - `5199497341 ns/op`, `456957112 B/op`, `50364523 allocs/op`
+
+Outcome:
+
+- both probes were backed out
+- do not route discard-only raw-float visible slots through owned float cells
+  on this lane, whether eagerly or only when a stale cached cell is already
+  present
+- the next productive follow-up should stay on the visible raw-slot setter
+  cost itself rather than trying more discard-store owned-cell rewrites
+
+## 2026-06-22 — Narrow `f64` raw-store specialization was not a trustworthy keep
+
+The next follow-up stayed on that same discard-store/raw visible-slot setter
+wall, but took a smaller `f64`-dominant helper cut instead of another slot
+representation rewrite.
+
+The temporary change:
+
+- `finishStoreSlotFloatRawResult(...)` and the raw float store helpers were
+  temporarily specialized for `runtime.FloatF64`
+- the generic `f32` / mixed-kind path stayed unchanged
+
+Focused verification on the temporary branch stayed green:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(StoreReusableNormalizedFloatSlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|FinishStoreSlotFloatRawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|FinishStoreSlotFloatRawResultDiscardKeepsStackEmpty|SlotDirectFloatValueCoversRawOwnedAndActiveFrame|SlotDirectF64ValueRejectsNonF64|FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatAddMulSlotFastPath|FloatAddMulSlotUpdateParity|FloatAddMulNonTargetBaseParity|FloatAddCompareConstJumpFastPathWithRawFloatSlots|FloatMulAddMulCompareConstJumpFastPath|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity)' -count=1`
+
+What the measurements showed:
+
+- the temporary branch moved the pinned runtime only slightly:
+  - `5252265729 ns/op`, `456957400 B/op`, `50364535 allocs/op`
+- after backout, restored pinned controls drifted materially wider than that
+  code delta:
+  - `5351846737 ns/op`, `456958360 B/op`, `50364547 allocs/op`
+  - `5740348223 ns/op`, `456957384 B/op`, `50364535 allocs/op`
+
+Outcome:
+
+- the probe was backed out
+- do not treat narrow `f64` raw-result/store helper specialization on this
+  wall as a trustworthy keep on the current host
+- the next productive follow-up should either take a broader cut than another
+  sub-1% setter helper specialization or re-establish a quieter multi-run
+  control before spending more time on this wall
+
+## 2026-06-22 — Quieter control re-established; embedded float-jump plan cut rejected
+
+The next follow-up did the quieter control tranche first, then used that
+cleaner baseline to test a broader runtime-path cut.
+
+The quieter baseline:
+
+- pinned runtime `3/3` control:
+  - `5140757340 ns/op`, `456957592 B/op`, `50364537 allocs/op`
+- profiled pinned control:
+  - `5104599912 ns/op`, `456978912 B/op`, `50364603 allocs/op`
+
+The fresh profile still showed the remaining float-store wall, but it also
+showed a surprisingly hot per-iteration plan lookup inside
+`execJumpIfFloatAddCompareConstFalse(...)`, so the temporary branch:
+
+- encoded the fused float-add-compare slots and float literal directly into the
+  instruction fields
+- used the old `program.floatAddCompareConstJumps[...]` map only as fallback
+  compatibility
+
+Focused verification on the temporary branch stayed green:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(LoweringEmitsFloatAddCompareConstJump|FloatAddCompareConstJumpParity|FloatAddCompareConstJumpFastPathWithRawFloatSlots|FloatAddCompareConstJumpPlanFallbackUsesProgramPlan|StoreReusableNormalizedFloatSlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|FinishStoreSlotFloatRawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|FinishStoreSlotFloatRawResultDiscardKeepsStackEmpty|FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|FloatMulAddMulCompareConstJumpFastPath|StoreSlotFloatAddMulSlotFastPath|FloatAddMulSlotUpdateParity|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity)' -count=1`
+
+What the measurements showed:
+
+- temporary branch pinned runtime `1/1`:
+  - `5313156306 ns/op`, `456957648 B/op`, `50364537 allocs/op`
+- temporary branch pinned runtime `3/3`:
+  - `5340723333 ns/op`, `456957261 B/op`, `50364522 allocs/op`
+- after backout, the restored pinned sanity check returned to:
+  - `5170882711 ns/op`, `456957232 B/op`, `50364519 allocs/op`
+
+Outcome:
+
+- the branch was backed out
+- the quieter multi-run control tranche was worth doing and should remain the
+  baseline procedure for this wall
+- do not treat direct instruction-embedded plan elision for
+  `JumpIfFloatAddCompareConstFalse` as a keep on this benchmark
+- the next productive follow-up should return to a broader float read/store cut
+  rather than another single-site execution-plan lookup shave
+
+## 2026-06-23 — Broader `f64` float-opcode lane was rejected after external validation
+
+The next follow-up took exactly that broader read/store cut instead of another
+single helper shave.
+
+The temporary change:
+
+- added shared direct `f64` decode/arithmetic/compare helpers
+- added `finishStoreSlotF64RawResult(...)` plus dedicated visible-slot `f64`
+  raw-store/discard helpers
+- the hot float opcodes tried the explicit `f64` lane before the generic
+  mixed-width path:
+  - `execStoreSlotFloatBinary(...)`
+  - `execStoreSlotFloatAddMulSlot(...)`
+  - `execStoreSlotFloatAddSub(...)`
+  - `binaryFloatMulSlotConstFastRaw(...)`
+  - `floatAddCompareConstCondition(...)`
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(DirectF64Value|DirectFloatArithmeticFastPath|DirectFloatCompareFastPath|SlotDirectF64ValueRejectsNonF64|StoreReusableNormalizedF64SlotRawKeepsVisibleRawSlotDespiteCachedOwnedCell|FinishStoreSlotF64RawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|FinishStoreSlotFloatRawResultPushesRawSnapshotWhenSlotReusesOwnedFloatCell|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatAddMulSlotFastPath|StoreSlotFloatAddSubFastPath|FloatAddCompareConstJumpFastPathWithRawFloatSlots)$'`
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(FloatBinaryStoreParity|FloatAddMulNonTargetBaseParity|FloatAddMulSlotUpdateParity|FloatAddSubSlotUpdateParity|FloatAddCompareConstJumpParity|DirectFloatArithmeticFastPathFallsBackForNonFloat)$'`
+- `./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_perf --cpu-affinity 2-3 --runs 3 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `ABLE_GO_CPU_PROFILE=/tmp/able-next-tranche-11-f64-lane.cpu.pprof ./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+What the measurements showed:
+
+- quiet pinned runtime control (`3/3`):
+  - `5140757340 ns/op`, `456957592 B/op`, `50364537 allocs/op`
+- temporary branch pinned runtime confirmation (`3/3`):
+  - `4742534466 ns/op`, `456957744 B/op`, `50364538 allocs/op`
+- temporary branch profiled confirmation:
+  - `4740266093 ns/op`, `456978864 B/op`, `50364603 allocs/op`
+- but the same-session cached-stdlib external pair rejected it clearly:
+  - `mandelbrot`: `8.4300s`
+  - `matrixmultiply`: `0.6167s`
+- after backout, the restored cached-stdlib external control (`3/3`) returned
+  to:
+  - `mandelbrot`: `5.7700s`
+  - `matrixmultiply`: `0.5533s`
+
+Outcome:
+
+- the branch was backed out
+- the pinned runtime win was not representative of the external workload
+- do not treat this broader `f64` opcode lane as a keep
+
+## 2026-06-23 — Same-slot square fast path was also rejected under the restored stable control
+
+With the restored tree back in place, I re-tested the older unresolved
+same-slot square probe (`zr * zr` / `zi * zi`) under the same now-stable
+external control.
+
+The temporary change:
+
+- added an early `*` fast path in `execStoreSlotFloatBinary(...)` for
+  `leftSlot == rightSlot`
+- that path read the source slot once, squared the raw float directly, and
+  stored the normalized result through the existing raw-float store helper
+
+Focused verification:
+
+- `go test ./pkg/interpreter -run 'TestBytecodeVM_(FloatBinaryStoreParity|FloatBinaryStoreDiscardResultKeepsSnapshotSemantics|StoreSlotFloatAddMulSlotFastPath|FloatAddMulSlotUpdateParity|FloatAddMulNonTargetBaseParity|BinaryFloatMulSlotConstFastPath|BinaryFloatMulSlotConstParity|FloatAddCompareConstJumpFastPathWithRawFloatSlots)$'`
+- `./v12/bench_perf --cpu-affinity 2-3 --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- `./v12/bench_compare_external --cpu-affinity 2-3 --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+
+What the measurements showed:
+
+- restored pinned runtime control (`1/1`):
+  - `5149685281 ns/op`, `456958248 B/op`, `50364546 allocs/op`
+- temporary branch pinned runtime candidate (`1/1`):
+  - `5162196039 ns/op`, `456957680 B/op`, `50364537 allocs/op`
+- temporary branch cached-stdlib external pair (`3/3`):
+  - `mandelbrot`: `6.0667s`
+  - `matrixmultiply`: `0.5533s`
+
+Outcome:
+
+- the branch was backed out
+- on the stable restored control, this same-slot arithmetic micro-cut is not a
+  keep either
+- the current external-validated baseline is `mandelbrot` `5.7700s` and
+  `matrixmultiply` `0.5533s` over `3/3`
+- the next productive follow-up should move away from both broader `f64` lane
+  rewrites and same-slot arithmetic micro-cuts
+
+## 2026-06-09 — Mono-array metadata assignment build fix
+
+A compiler correctness regression had reopened the compiled mono-array path for
+matrix-shaped code: member assignment handled static struct metadata before the
+specialized mono-array carrier, so kernel `Array` methods on `Array f64`
+could still emit legacy wrapper writes like `self.Length` and
+`self.Capacity`. That broke generated Go builds for the external
+`matrixmultiply` source path.
+
+The kept fix stays narrow:
+
+- `generator_assignments.go` now routes mono-array metadata assignments through
+  a dedicated helper before generic struct-field assignment.
+- new helper file
+  `v12/interpreters/go/pkg/compiler/generator_assignments_mono_array.go`
+  lowers:
+  - `length` writes as direct slice resize/extend,
+  - `capacity` writes as direct slice reserve logic,
+  - `storage_handle` writes as a no-op on the existing borrowed slice-backed
+    mono carrier.
+
+Focused proof coverage landed in
+`v12/interpreters/go/pkg/compiler/compiler_mono_array_field_assignment_test.go`:
+
+- source/build proof that mono-array metadata assignment no longer emits the
+  broken legacy wrapper fields,
+- execution proof for direct `Array f64` metadata updates,
+- exact benchmark-build proof for
+  `v12/examples/benchmarks/matrixmultiply.able`.
+
+Verification:
+
+- `go test ./pkg/compiler -run 'TestCompiler(MonoArrayMetadataAssignmentAvoidsLegacyWrapperFields|MonoArrayMetadataAssignmentExecutes|ExperimentalMonoArraysMatrixMultiplyBuilds)' -count=1 -timeout 300s`
+- `git diff --check`
+
+This is a build-fix keep, not a new matrix performance keep. The adjacent
+compiled `matrixmultiply` no-fallback/runtime regression around nil
+propagation in `matmul` / `dot` remains separate work.
+
+## 2026-06-09 — Compiled mono-array nil-propagation no-fallback repair
+
+The next compiler regression on the same matrix path was broader than the
+build failure: static mono-array `get(...)!` / `[idx]!` propagation in
+functions returning non-nil-compatible native types had started forcing a
+compiler fallback with:
+
+- `nil propagation requires nil-compatible return type`
+
+That reopened representative mono-array static proofs and the compiled
+`matrixmultiply` no-fallback path even after the metadata-assignment build fix.
+
+The kept fix stays compiler-local:
+
+- `v12/interpreters/go/pkg/compiler/generator_control_results.go`
+  now lowers incompatible nil propagation as the normal compiled
+  return-type-mismatch control path instead of abandoning native codegen.
+- nil-compatible return paths are unchanged; they still return `nil` directly.
+
+Focused regression coverage:
+
+- `TestCompilerNilPropagationNonNullableReturnStaysNative`
+- restored existing mono-array no-fallback matrix proofs:
+  - `StaticBodyStaysOnCompilerOwnedArrayCarrier`
+  - `NestedF64RowsStaySpecialized`
+  - `MatrixMultiplyScalarLoopStaysNative`
+  - `MatrixMultiplyMainStaysNative`
+  - `MatrixMultiplyCountedLoopsStayNative`
+
+Verification:
+
+- `go test ./pkg/compiler -run 'TestCompiler(NilPropagationNonNullableReturnStaysNative|ExperimentalMonoArrays(StaticBodyStaysOnCompilerOwnedArrayCarrier|NestedF64RowsStaySpecialized|MatrixMultiply(ScalarLoopStaysNative|MainStaysNative|CountedLoopsStayNative)))' -count=1 -timeout 300s`
+- `go test ./pkg/compiler -run 'TestCompiler(ExperimentalMonoArrays|MonoArrayMetadataAssignment|NilPropagationNonNullableReturnStaysNative)' -count=1 -timeout 300s`
+- `./v12/bench_compare_external --benchmarks matrixmultiply --modes compiled --runs 1 --timeout 120`
+  - restored compiled external `matrixmultiply`: `1.0200s` over `1/1`
+- `git diff --check`
+
+This is still not a new matrix performance keep. It is the compiler
+correctness repair that reopens the compiled benchmark path after the metadata
+build fix. The next matrix tranche should be a general proof/performance step,
+not another nil-propagation fallback repair.
 
 The final compiled `fib` gap closed with a bounded recursive return-range
 proof. For simple one-parameter signed integer recurrences with a proven
@@ -209,6 +1777,684 @@ baseline was `13.1900s`; the kept run landed at `0.7867s` over `3/3`, with a
 profiled one-shot at `0.8100s` whose samples are entirely in the native
 recurrence kernel. Full external bytecode `fib(45)` moved to `3.7633s` over
 `3/3`, versus Go `2.8400s`, Ruby `46.6400s`, and Python `60.6700s`.
+
+The next kept aligned-recursion tranche stayed inside that same guarded native
+kernel, but changed how it executes the simple nonnegative domain. When the
+kernel sees a nonnegative argument and a nonnegative base-limit, it now uses a
+bounded dynamic-programming table for the exact recurrence shape instead of
+re-entering the kernel recursively. That preserves the same checked `i32`
+overflow behavior and keeps the older recursive kernel as fallback for the
+remaining shapes.
+
+Reduced `BenchmarkFib30Bytecode` moved from a fresh `153.25-173.16ms/op` band
+to:
+
+- `144.99ms/op`
+- `144.68ms/op`
+- `147.86ms/op`
+
+Full external bytecode `fib(45)` moved from the prior kept `3.7633s` band to:
+
+- `0.1100s` over `3/3`
+
+Runtime confirmation on the external workload landed at:
+
+- `36792 ns/op`
+- `22712 B/op`
+- `52 allocs/op`
+
+This is another real keep. The old recursive native-kernel overhead is gone on
+the benchmark shape; if this family stays in scope, the next question is how
+broadly to generalize this recurrence execution strategy, not another
+return/helper micro-cut around the old recursive path.
+
+The next kept recurrence tranche took that broader path instead of another
+aligned-`fib` helper cut. The same native `i32` recurrence kernel now also
+recognizes the generic `Int` slot-return base shape used by the reduced local
+benchmarks: `if n <= c { return n }` followed by `self(n-a) + self(n-b)`. The
+fast path still only executes when the live entry value is concrete `i32`, so
+wider boxed integer cases keep the old bytecode fallback, but the generic-`Int`
+benchmark shape no longer misses the native recurrence machinery just because
+its base case returns the parameter slot and its final add stays on the generic
+integer return opcode.
+
+Fresh reduced local baselines this turn were:
+
+- `BenchmarkFib30Bytecode`: `151.05-157.74ms/op`
+- `BenchmarkFib30BytecodeRuntimeOnly`: `151.53-156.34ms/op`
+
+The kept widened recurrence detector moved those to:
+
+- `BenchmarkFib30Bytecode`: `80.19us/op`, `87.81us/op`, `92.33us/op`
+- `BenchmarkFib30BytecodeRuntimeOnly`: `770.7ns/op`, `721.1ns/op`, `736.4ns/op`
+
+The aligned external `i32` `fib(45)` workload stayed in the already-kept band:
+
+- `0.1133s` over `3/3`
+
+This is a real keep because it broadens the recurrence execution machinery
+rather than adding another benchmark-local helper, while preserving the
+existing aligned external result.
+
+The next kept recurrence follow-up widened that same generic-`Int`
+execution path beyond live concrete `i32`. The bounded recurrence kernel now
+also executes when the live entry value is concrete `i64`, while keeping the
+older boxed fallback for unsupported integer kinds. This was measured with a
+temporary source shaped as:
+
+```able
+fn fib(n: Int) -> Int {
+  if n <= 1_i64 { return n }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(30_i64))
+```
+
+Using `bench_perf` on that source:
+
+- clean `HEAD` worktree baseline: `0.6833s` over `3/3`
+- kept code: `0.1100s` over `3/3`
+- runtime confirmation on the kept code:
+  - `52866 ns/op`
+  - `21880 B/op`
+  - `44 allocs/op`
+
+The aligned external `i32` `fib(45)` guardrail stayed at:
+
+- `0.1100s` over `3/3`
+
+This is another real keep. The recurrence machinery is no longer specific to
+concrete `i32` execution on the generic-`Int` source shape.
+
+The next kept recurrence slice removed the last lowering blocker on the exact
+typed-source side. `ReturnConstIfIntLessEqualSlotConst` lowering no longer
+requires an unsuffixed `i32` return literal, so source like:
+
+```able
+fn fib(n: i64) -> i64 {
+  if n <= 2_i64 { return 1_i64 }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(30_i64))
+```
+
+now lowers into the same recurrence detector instead of missing the fused
+base-case opcode entirely.
+
+Fresh exact-`i64` source measurements this turn:
+
+- pre-change kept-tree baseline: `0.6433s` over `3/3`
+- kept code: `0.1467s` over `3/3`
+- runtime confirmation:
+  - `49941 ns/op`
+  - `21880 B/op`
+  - `44 allocs/op`
+
+The aligned external `i32` `fib(45)` guardrail stayed in range at:
+
+- `0.1167s` over `3/3`
+
+This is another real keep. The remaining recurrence work is no longer about
+source-shape mismatches for `i64` literals; the next step is other primitive
+widths or broader recurrence lowering, not another `fib` helper micro-cut.
+
+The next kept recurrence narrowing step closed the adjacent exact typed-source
+gap where the function return type is fixed-width but the base return literal
+is still unsuffixed. Source like:
+
+```able
+fn fib(n: i64) -> i64 {
+  if n <= 2_i64 { return 1 }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(30_i64))
+```
+
+used to miss the recurrence detector because the fused base return constant was
+stored as an `i32` literal even though the function return type was exact
+`i64`. The detector now accepts coercible integer base-return literals for
+exact typed integer returns instead of requiring an exact suffix match in the
+fused opcode.
+
+Fresh exact-`i64` untyped-base measurements this turn:
+
+- pre-change kept-tree baseline: `1.2467s` over `3/3`
+- kept code: `0.1100s` over `3/3`
+- runtime confirmation:
+  - `50728 ns/op`
+  - `21880 B/op`
+  - `44 allocs/op`
+
+The aligned external `i32` `fib(45)` guardrail stayed in range at:
+
+- `0.1267s` over `3/3`
+
+This is another real keep. The remaining recurrence work is no longer about
+exact typed integer return literals on the `fib` source side; the next step is
+other primitive widths or broader recurrence lowering, not another local base
+return mismatch.
+
+The next kept recurrence-width slice closed the remaining exact `isize` source
+gap. Before this change, source like:
+
+```able
+fn fib(n: isize) -> isize {
+  if n <= 2 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(30))
+```
+
+did not even typecheck. The typechecker integer-bound tables still excluded
+`isize`/`usize`, so `<=`, `-`, `+`, return coercion, and the final `fib(30)`
+call all rejected the source. The runtime/typechecker promotion helpers also
+needed to preserve `isize` when mixed with unsuffixed integer literals rather
+than silently promoting those operations to `i64`.
+
+After that width-plumbing keep:
+
+- the same exact-`isize` source runs at `0.1100s` over `3/3`
+- runtime confirmation:
+  - `52865 ns/op`
+  - `21832 B/op`
+  - `43 allocs/op`
+
+The aligned external `i32` `fib(45)` guardrail stayed in range at:
+
+- `0.1067s` over `3/3`
+
+This is another real keep. The recurrence family is no longer blocked on
+`isize` integer classification at the source boundary; the next step is
+broader recurrence-policy widening or additional primitive widths, not more
+local fib source-shape cleanup.
+
+The next kept recurrence-width slice closed the adjacent exact unsigned source
+gap. After the source-boundary widening keep, exact source like:
+
+```able
+fn fib(n: u64) -> u64 {
+  if n <= 2 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(30))
+```
+
+and:
+
+```able
+fn fib(n: usize) -> usize {
+  if n <= 2 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(30))
+```
+
+still fell back to boxed recursive bytecode, because assignment-style and
+inline integer coercion only widened when the entire source type range fit the
+target type. Fitting unsuffixed positive literals like `30` still arrived at
+the call boundary as concrete `i32`.
+
+The coercion layer now widens by concrete value fit instead of whole-type-range
+fit, so the exact unsigned source shapes reach the same native recurrence
+kernel:
+
+- exact `u64` pre-change kept-tree baseline: `1.3733s` over `3/3`
+- exact `u64` kept code: `0.1000s` over `3/3`
+- exact `u64` runtime confirmation:
+  - `88051 ns/op`
+  - `21832 B/op`
+  - `43 allocs/op`
+- exact `usize` kept code: `0.1000s` over `3/3`
+- exact `usize` runtime confirmation:
+  - `76220 ns/op`
+  - `21832 B/op`
+  - `43 allocs/op`
+
+The aligned external `i32` `fib(45)` guardrail stayed in range at:
+
+- `0.1133s` over `3/3`
+
+This is another real keep. The recurrence family is no longer blocked on exact
+unsigned source coercion at the runtime call boundary; the next step is
+broader recurrence-policy widening or additional primitive widths, not more
+local fib coercion cleanup.
+
+The next kept recurrence-width slice closed the adjacent exact signed narrow
+source gap. Before this change, exact source like:
+
+```able
+fn fib(n: i8) -> i8 {
+  if n <= 2 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(10))
+```
+
+and:
+
+```able
+fn fib(n: i16) -> i16 {
+  if n <= 2 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(20))
+```
+
+still failed typechecking at the recursive calls. The source-boundary
+preservation rule only kept exact unsigned widths when mixed with coercible
+unsuffixed literals, so `n - 1` and `n - 2` widened back to `i32`.
+
+The source-boundary rule now preserves exact signed widths too whenever the
+unsuffixed integer literal fits the target kind. That lets exact `i8` / `i16`
+source reach the same native recurrence kernel:
+
+- exact `i8` pre-change state: recursive calls failed typechecking
+- exact `i8` kept code: `0.1467s` over `3/3`
+- exact `i8` runtime confirmation:
+  - `80837 ns/op`
+  - `21672 B/op`
+  - `43 allocs/op`
+- exact `i16` pre-change state: recursive calls failed typechecking
+- exact `i16` kept code: `0.1333s` over `3/3`
+- exact `i16` runtime confirmation:
+  - `68055 ns/op`
+  - `21752 B/op`
+  - `43 allocs/op`
+
+The same tranche also pins the rest of the primitive-width family under
+focused source-based detection/parity coverage:
+
+- `u8`
+- `u16`
+- `u32`
+- `i128`
+- `u128`
+
+The aligned external `i32` `fib(45)` guardrail stayed in range at:
+
+- `0.1200s` over `3/3`
+
+This is another real keep. The recurrence family is no longer blocked on exact
+signed narrow source coercion; the next step is broader recurrence-policy
+widening, not more local width cleanup.
+
+The next kept recurrence-policy slice took that broader path. Exact `<`
+base-guard source like:
+
+```able
+fn fib(n: i32) -> i32 {
+  if n < 3 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(45))
+```
+
+was already lowering through the fused slot-const return-if boundary, but the
+VM and the native recurrence detector still treated that opcode as a hardcoded
+`<=` check. So the useful fix was not another `fib` helper or a new opcode; it
+was to make the existing fused boundary honor the preserved compare operator
+and let the recurrence detector derive the right base limit from it.
+
+Measured on that temporary exact-`i32` source:
+
+- clean `HEAD` baseline: `2.5433s` over `3/3`
+- kept code: `0.0833s` over `3/3`
+
+The aligned external `i32` `fib(45)` guardrail stayed in the kept band at:
+
+- `0.1100s` over `3/3`
+
+This is another real keep. The recurrence family is now widened through the
+existing fused return-if boundary for simple `<` base guards; the next useful
+step is broader recurrence policy beyond those simple guard forms, not another
+width-specific cleanup.
+
+The next recurrence-policy widening stayed on the same theme, but addressed
+operand order instead of a new operator family. Exact source like:
+
+```able
+fn fib(n: i32) -> i32 {
+  if 3 > n { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(40))
+```
+
+was still falling off the native kernel because slot-const lowering only
+recognized identifier-left / integer-right comparisons. The kept fix
+canonicalizes integer `const op slot` compares into the existing
+`slot flipped_op const` lowering shape, which means the existing fused jump,
+fused return-if, and recurrence detector paths now all reuse the same fast
+boundary.
+
+Measured on that temporary exact-`i32` source:
+
+- clean `HEAD` baseline: `18.94s`
+- kept code: `0.03s` over `3/3`
+
+The aligned external `i32` `fib(45)` guardrail stayed in the same fast band:
+
+- `0.1233s` over `3/3`
+
+This is another real keep. The next useful recurrence step is broader policy
+beyond simple base-guard normalization, not another compare-specific helper.
+
+The next recurrence-policy keep widened the seed shape itself instead of the
+operator surface form. Exact source like:
+
+```able
+fn fib(n: i32) -> i32 {
+  if n == 0 { return 0 }
+  if n == 1 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(40))
+```
+
+was still missing the native recurrence kernel even though both leading guards
+were already lowering as fused equality return-if opcodes. The kept fix teaches
+the detector to accept a contiguous nonnegative equality prefix at that same
+fused boundary and use it as the seed table for the existing kernel. Negative
+inputs on that shape still fall back to the older boxed bytecode path.
+
+Measured on that temporary exact-`i32` source:
+
+- pre-fix current-tree baseline: `29.47s`
+- kept warm band: `0.16-0.22s`
+- kept `fib(45)` source-shape confirmation: `0.22-0.23s`
+
+The aligned external `i32` `fib(45)` guardrail returned to the same kept band:
+
+- `0.1233s` over `3/3`
+
+This is another real keep. The next useful recurrence step is broader policy
+beyond single-range and equality-prefix seed recognition, not another
+compare-shape tweak.
+
+The next recurrence-policy keep removed the remaining gap between those two
+seed families. Exact source like:
+
+```able
+fn fib(n: i32) -> i32 {
+  if n == 0 { return 0 }
+  if n <= 2 { return 1 }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(40))
+```
+
+was still missing the native recurrence kernel because the detector accepted
+either the equality prefix or the range seed, but not both together. The kept
+fix merges a leading equality prefix with one following fused `<` / `<=` base
+guard at the same boundary, letting the explicit equality seeds override the
+overlapping range seed by source order and using the range tail for the rest.
+
+Measured on that temporary exact-`i32` mixed-seed source:
+
+- pre-fix current-tree baseline at `fib(40)`: `10.93s`
+- kept warm band at `fib(40)`: `0.15-0.16s`
+- kept `fib(45)` source-shape confirmation: `0.14-0.16s`
+
+The canonical external `fib` benchmark still uses the older single-range
+source:
+
+```able
+if n <= 2 { return 1 }
+```
+
+and stayed in the fast band after the keep:
+
+- `0.1000s` over `3/3`
+- `0.1167s` over `3/3` on the confirmation rerun
+
+This is another real keep. The next useful recurrence step is broader policy
+beyond equality-prefix plus range-tail seed recognition, not another local base
+shape patch.
+
+The next recurrence-policy keep widened that seed handling one more step. Exact
+source like:
+
+```able
+fn fib(n: i32) -> i32 {
+  if n == 2 { return 1 }
+  if n <= 1 { return n }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(40))
+```
+
+was still missing the native recurrence kernel because the detector only
+understood one ordered equality prefix, optionally followed by one trailing
+range guard. The kept fix instead treats the whole leading fused base-guard run
+as a small source-ordered seed program, builds the contiguous nonnegative seed
+table from the values those guards actually produce, and only keeps the native
+kernel when the recursive subtraction offsets can bottom out through those
+discovered base facts.
+
+Measured on that temporary exact-`i32` source:
+
+- pre-fix direct bytecode `fib(40)` probe: `10.51s`
+- post-fix direct bytecode `fib(40)` confirmation: `3.99s`
+- kept steady-state bytecode-runtime `fib(40)`: `0.1133s` over `3/3`
+- kept steady-state bytecode-runtime `fib(45)`: `0.1133s` over `3/3`
+
+The aligned external `i32` `fib(45)` guardrail stayed in the kept band:
+
+- `0.1100s` over `3/3`
+
+This is another real keep. The next useful recurrence step is broader
+source-ordered seed policy at the same fused boundary, not another dedicated
+compare or `fib` helper tweak.
+
+The next recurrence-policy keep stayed on that family but widened the generic
+`Int` side of it. Source like:
+
+```able
+fn fib(n: Int) -> Int {
+  if n <= 2_i64 { return 1_i64 }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(40_i64))
+```
+
+and the adjacent mixed-seed form:
+
+```able
+fn fib(n: Int) -> Int {
+  if n == 2_i64 { return 1_i64 }
+  if n <= 1_i64 { return n }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(40_i64))
+```
+
+were still missing the native recurrence kernel because the detector refused
+generic-`Int` constant base returns entirely. The kept fix now carries a
+required concrete integer kind through generic-`Int` constant base guards and
+only runs the native kernel when the live concrete argument kind matches that
+constant-return kind. Current-return generic-`Int` shapes stay unconstrained,
+and mismatches still fall back to the older boxed bytecode path.
+
+Measured on those temporary generic-`Int` `i64` sources:
+
+- pre-fix direct bytecode `fib(40_i64)` probes:
+  - const-range source: `27.79s`
+  - out-of-order mixed-seed source: `28.30s`
+- kept steady-state bytecode-runtime confirmations:
+  - const-range `fib(40_i64)`: `0.1333s` over `3/3`
+  - const-range `fib(45_i64)`: `0.1467s` over `3/3`
+  - out-of-order mixed-seed `fib(40_i64)`: `0.1200s` over `3/3`
+  - out-of-order mixed-seed `fib(45_i64)`: `0.1500s` over `3/3`
+
+The aligned external `i32` `fib(45)` guardrail stayed in the kept band:
+
+- `0.1300s` over `3/3`
+
+This is another real keep. The next useful recurrence step is broader concrete
+kind tracking for generic-`Int` recurrence seeds and operations, not another
+local source-shape patch.
+
+The next recurrence-policy keep stayed on that same generic-`Int` line and
+closed the adjacent untyped-literal hole. Source like:
+
+```able
+fn fib(n: Int) -> Int {
+  if n <= 2_i64 { return 1 }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(40_i64))
+```
+
+the mixed-seed form:
+
+```able
+fn fib(n: Int) -> Int {
+  if n == 2_i64 { return 1 }
+  if n <= 1_i64 { return n }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(40_i64))
+```
+
+and the adjacent operator variant:
+
+```able
+fn fib(n: Int) -> Int {
+  if n < 3_i64 { return 1 }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(40_i64))
+```
+
+were still missing the native recurrence kernel because generic-`Int` untyped
+base literals were being pinned to the lowered default `i32` kind. The kept fix
+now treats generic-`Int` untyped integer base literals as kind-flexible seeds
+while still validating that every constant base value fits the live concrete
+integer kind before the native kernel runs. Explicitly typed constant returns
+still keep the older conservative kind-matching rule.
+
+Measured on those temporary generic-`Int` `i64` sources:
+
+- pre-fix steady-state bytecode-runtime probes at `fib(40_i64)`:
+  - untyped const-range source: `49.4200s`
+  - untyped mixed-seed source: timed out at `60s`
+  - untyped `<` source: `49.8600s`
+- kept steady-state bytecode-runtime confirmations:
+  - untyped const-range `fib(40_i64)`: `0.1067s` over `3/3`
+  - untyped const-range `fib(45_i64)`: `0.1100s` over `3/3`
+  - untyped mixed-seed `fib(40_i64)`: `0.1100s` over `3/3`
+  - untyped mixed-seed `fib(45_i64)`: `0.1100s` over `3/3`
+  - untyped `<` `fib(40_i64)`: `0.1100s` over `3/3`
+
+The aligned external `i32` `fib(45)` guardrail stayed in the kept band:
+
+- `0.1167s` over `3/3`
+
+This is another real keep. The next useful recurrence step is broader
+concrete-kind reasoning for generic-`Int` recurrence arithmetic and coercion,
+not more literal-shape cleanup.
+
+That next recurrence-policy keep is now landed too, but the final useful cut
+turned out to be exact generic-`Int` result-kind tracking rather than one more
+admission rule. The old native kernel could match numeric values while still
+returning the wrong integer suffix because generic `Int` recurrence can widen
+recursive argument kinds and still return different kinds at base vs non-base
+states.
+
+The most visible semantic examples were:
+
+```able
+fn fib(n: Int) -> Int {
+  if n <= 2_i64 { return 1_i32 }
+  fib(n - 1_i64) + fib(n - 2_i64)
+}
+print(fib(40_i64))
+```
+
+and:
+
+```able
+fn fib(n: Int) -> Int {
+  if n <= 1 { return n }
+  fib(n - 1) + fib(n - 2)
+}
+print(fib(10_u64))
+```
+
+The kept fix now evaluates generic-`Int` recurrences as exact per-state
+`(n, kind)` transitions, using the same `promoteIntegerTypes(...)` rules as
+normal integer arithmetic. When every recursive child stabilizes to one widened
+kind after the first subtraction, the runtime folds the hot path back to a
+dense DP table keyed by raw `n`; only truly multi-kind state spaces stay on the
+full `(raw, kind)` memo map. The remaining true multi-kind nonnegative cases
+now also avoid the hash-map memo: the runtime builds the reachable argument-kind
+closure for the root entry, propagates only the reachable `(raw, kind)` frontier,
+and memoizes those states in indexed slices. That means:
+
+- current-return bases preserve the live recursive-state kind
+- constant bases preserve their literal integer kind
+- widening states like live `u64` plus untyped `1`/`2` offsets now run directly
+  instead of taking one boxed step first
+
+Measured on temporary generic-`Int` recurrence probes:
+
+- pre-fix steady-state bytecode-runtime probe:
+  - untyped current-return `fib(40_u64)`: `0.1500s` over `3/3`
+- stable-recursive-kind DP recovery:
+  - untyped current-return `fib(40_u64)`: stayed in the `0.1300s` over `3/3`
+    band while dropping from `25000 B/op, 44 allocs/op` to
+    `20032 B/op, 38 allocs/op`
+  - explicit-`i32` const-range `fib(40_i64)`: `ns/op=42260`, `20032 B/op`,
+    `38 allocs/op`
+  - untyped const-range `fib(40_i64)`: `ns/op=53583`, `20032 B/op`,
+    `38 allocs/op`
+- true multi-kind nonnegative fallback recovery:
+  - mixed recursive-kind
+    `fn fib(n: Int) -> Int { if n <= 1 { return n } fib(n - 1_i64) + fib(n - 2) }`
+    at `fib(30_i32)`: moved from `0.1300s` over `3/3`, `25048 B/op`,
+    `45 allocs/op` to `0.1167s` over `3/3`, `20768 B/op`, `43 allocs/op`
+- oversize split:
+  - when the indexed DP table still fits under the byte budget, the oversize
+    source
+    `fn fib(n: Int) -> Int { if n <= 2_i64 { return 0 } fib(n - 1_i64) + fib(n - 2) }`
+    at `fib(1048700_i32)` is still on the under-budget dense lane and
+    currently measures `1.2200s` over `3/3`, `54577483 B/op`, `52 allocs/op`
+  - when the same source widens the reachable kind closure enough to exceed the
+    byte budget, the runtime now switches to a paged indexed DP lane before the
+    sparse raw-row memo fallback. The three-kind source
+    `fn fib(n: Int) -> Int { if n <= 2_i64 { return 0 } fib(n - 1_i64) + fib(n - 2_i128) }`
+    moved from `1.9733s` over `3/3`, `629750435 B/op`, `4188 allocs/op` to
+    `1.6400s` over `3/3`, `80041200 B/op`, `822 allocs/op` at
+    `fib(1048700_i32)`
+  - once the source is genuinely sparse instead of just over-budget, the
+    runtime still stays on the memo lane but now pre-indexes the stride-aligned
+    rows before using the spill map. The large-step three-kind source
+    `fn fib(n: Int) -> Int { if n <= 2000_i64 { return 0 } fib(n - 1000_i64) + fib(n - 2000_i128) }`
+    moved on the isolated bytecode runtime benchmark from `569460 ns/op`,
+    `424101 B/op`, `25 allocs/op` to `519291 ns/op`, `387305 B/op`,
+    `21 allocs/op`
+  - when the flat stride table itself is too large but the source still stays
+    on-grid, the runtime now pages that memo index before dropping to the spill
+    map. The close-step three-kind source
+    `fn fib(n: Int) -> Int { if n <= 2000_i64 { return 0 } fib(n - 1000_i64) + fib(n - 1001_i128) }`
+    now skips that paged memo lane entirely once the semigroup-density
+    heuristic recognizes that paged DP is dense enough in practice, moving the
+    isolated bytecode runtime benchmark from `275160752 ns/op`, `269225856 B/op`,
+    `4182 allocs/op` to `169929420 ns/op`, `80023036 B/op`, `787 allocs/op`
+  - direct strategy comparisons around the cutoff kept the paged-DP route on
+    the right side of the crossover:
+    - `1000/1001`: paged DP `158393442 ns/op` vs memo `175850514 ns/op`
+    - `1000/1033`: paged DP `157617704 ns/op` vs memo `174048877 ns/op`
+    - `1000/1049`: paged DP `167143252 ns/op` vs memo `190621394 ns/op`
+    - `1000/1051`: falls just below the density cutoff and stays on memo
+
+The aligned external `i32` `fib(45)` guardrail stayed in the kept band:
+
+- `0.1100s` over `3/3`
+
+This is another real keep. The next useful recurrence step is only to revisit
+the cutoff if a new reduced-step family shows a different crossover, not more
+local literal-shape cleanup.
 
 The next kept VM-v2 general slice added a slot-backed bool conditional jump.
 Declared `bool` identifiers used directly as `if`, `elsif`, or `while`
@@ -591,6 +2837,32 @@ combined guard and `0.4480s` on the rerun, versus the prior `0.4360s` /
 `binarytrees` still times out at `60s`, so the next profile should target
 post-match `sudoku` member/index/string work or move to the larger
 typed-frame/struct-allocation problems in the timeout bytecode workloads.
+
+A first bounded timeout-workload slice is now landed on that second front:
+simple non-generic named struct literals with explicit field initializers now
+lower to a dedicated bytecode opcode when function-body lowering can seed
+visible struct definitions from the closure environment. On the reduced
+external-style `binarytrees` profile case (`n := 16`), bytecode runtime moved
+from `96.88s`, `12.54 GB/op`, and `187.36M allocs/op` to `71.05s`,
+`10.99 GB/op`, and `127.77M allocs/op`. The old tree-walker
+`evaluateStructLiteral(...)` wall dropped out of the top tier in favor of the
+new `execStructLiteralNamedFast(...)` path. Full external bytecode
+`binarytrees` still times out at `60s`, so this is a real timeout-family
+keep but not a benchmark closure; the next step still needs a broader typed
+nominal/struct allocation and call-boundary design slice rather than more
+source-level local typing or helper cleanup.
+
+A direct follow-up on the same reduced case is now landed too: exact simple
+named-struct typed patterns now bypass the generic
+`matchesType(...)` / `coerceValueToType(...)` nominal path when the runtime
+value already carries that exact non-generic struct definition. That moved the
+same reduced `binarytrees` case again to `62.83s`, `10.99 GB/op`, and
+`127.77M allocs/op`, with `matchTypedPatternValue(...)`,
+`matchesType(...)`, and `execJumpIfNotTypedPattern(...)` all dropping
+materially in the profile. Full external bytecode `binarytrees` still times
+out at `60s`, so the planning conclusion does not change: the next real
+timeout-family step still needs a broader typed nominal/materialization
+boundary rather than another local source tweak or helper cleanup.
 
 The next kept bytecode member-call slice targeted the repeated canonical
 `Array.get` method resolution left after slot-aware match lowering. Once a
@@ -1845,6 +4117,24 @@ The iterator-pipeline family is now split intentionally:
 ./v12/bench_perf --runs 3 --timeout 60 --modes compiled \
   v12/fixtures/bench/linked_list_iterator_filter_map_i64_small/main.able
 
+# generated-call execution-context ABI candidate comparison
+./v12/bench_suite \
+  --suite fixture-generality \
+  --modes compiled \
+  --runs 3 \
+  --timeout 90 \
+  --experimental-execution-context \
+  --output-json v12/docs/perf-baselines/execution-context-candidate.json
+
+# the external harness forwards the same candidate flag only to Able compiled builds
+./v12/bench_compare_external \
+  --suite generality \
+  --modes compiled,bytecode \
+  --runs 3 \
+  --timeout 90 \
+  --experimental-execution-context \
+  --output-md v12/docs/perf-baselines/execution-context-external-candidate.md
+
 # reproducible baseline example
 ./v12/bench_suite \
   --suite bytecode-core \
@@ -1930,8 +4220,10 @@ For `bytecode-runtime`, the JSON payload also includes:
 - `avg_bytes_per_op`
 - `avg_allocs_per_op`
 
-`bytecode-runtime` runs one explicit warmup call before timed measurement, so
-the wall-clock timeout must budget for warmup plus the measured benchmark call.
+`bytecode-runtime` typechecks, loads, lowers, and runs one explicit warmup
+call before timed measurement, so the wall-clock timeout must budget for setup,
+warmup, and the measured benchmark call. The reported `ns/op`, allocation, and
+profile data cover only the post-warmup `main()` calls.
 When `ABLE_GO_CPU_PROFILE` or `ABLE_GO_MEM_PROFILE` is set for
 `bytecode-runtime`, the emitted profiles cover only the post-warmup measured
 call, not the initial load/lower/warmup phase.
@@ -4238,6 +6530,44 @@ uncached raw i32 slot-write allocations with a typed opcode/register-frame
 design, or re-profile the parser byte-array lane before adding another narrow
 parser fusion.
 
+The next kept quicksort tranche stayed on the tracked-array runtime boundary,
+but moved from the compare/read side to swap metadata sync. Tracked
+array-index and array-slot swaps used to replay two generic tracked writes
+after the values had already been exchanged, paying duplicate revision/token
+updates and duplicate alias sync on the hot quicksort helper path. The kept
+slice replaced that with one swap-aware metadata helper that:
+
+- bumps tracked-array revision once per logical swap while preserving the old
+  two-write revision delta
+- recomputes the leading element token only when slot `0` changes
+- swaps the tracked raw-`i32` cache in place when the existing token/cache
+  still applies
+- resyncs alias-visible array wrappers once after metadata is settled
+
+This also closed an important raw-first edge: if a tracked swap materializes a
+raw-first `Array i32` shape into boxed `i32` values, the tracked raw-`i32`
+cache is now recovered after the swap instead of remaining disabled behind the
+old raw first element.
+
+The reduced quicksort hotloop stayed in the improved band at `5106341 ns/op`,
+`5393816 ns/op`, and `5353576 ns/op` over `100x`, but the real beneficiary was
+the full external-scale runtime. On the current kept baseline, the `95MB`
+steady-state quicksort pass moved from `193.98s` real average
+(`100155699583 ns/op`, `9217829424 B/op`, `203288604 allocs/op`) to
+`172.50s` (`88569772666 ns/op`, `9457822464 B/op`, `203288610 allocs/op`).
+
+The full profile confirms that swap metadata is no longer the first-tier wall:
+`resolveTrackedArraySlotSwapSlotFastAtSlots(...)` is now `2.12s` cumulative,
+`execArraySlotSwapSlot(...)` is `3.94s`, and
+`updateTrackedArrayMetadataForSwap(...)` is only `0.69s`. The remaining
+full-scale quicksort cost is now led by
+`bytecodeDirectSmallI32Value(...)`,
+`lookupCachedCanonicalArraySlotCallForArray(...)`,
+`compareArrayReadSlotTrackedI32Condition(...)`,
+`execJumpIfArrayReadSlotCompareSlotFalse(...)`, and the adjacent call/store
+tier. The next quicksort tranche should therefore stay on that same full-scale
+compare/canonical-array edge rather than reopening swap-local cuts.
+
 The next benchmark-coverage tranche moved out of VM micro-optimization and
 unlocked the external `base64` family. Canonical stdlib now exposes
 `able.encoding.base64` for string/byte-array encode/decode and
@@ -4260,6 +6590,176 @@ the JSON benchmark with a reusable `able.json` DOM surface; the next optional
 base64 cleanup is a string/byte-buffer convenience such as `String.repeat` so
 the source can express the initial one-million-character string without a
 manual byte-push loop.
+
+## 2026-06-08 — Base64 bytes-first stdlib and `Array u8` extern fast path
+
+The next `base64` tranche stayed deliberately outside VM opcode work and cut
+the host boundary instead:
+
+- `../able-stdlib/src/encoding/base64.able` now exposes reusable
+  `encode_bytes(...)` / `decode_bytes(...)` APIs in addition to the existing
+  string-based surface.
+- `v12/examples/benchmarks/base64/base64.able` now keeps the payload as
+  `Array u8` end to end and hashes with `md5.hex(...)`, so it no longer pays
+  `String` conversion plus `DecodeError | String` matching on every pass.
+- the Go extern fast-invoker layer now handles primitive `Array u8` host
+  signatures directly (`[]byte -> String`, `[]byte -> []byte`,
+  `[]byte -> interface{}`), which lets hot base64/MD5 externs skip the generic
+  host coercion bridge.
+
+On the external benchmark over `3/3` runs this moved bytecode from the fresh
+kept `8.9300s` band to `3.2600s`:
+
+- bytecode: `3.2600s` vs Go `2.2000s`, Ruby `2.2100s`, Python `3.3100s`
+
+The profiled runtime confirmation landed at:
+
+- `3485950441 ns/op`
+- `6935074184 B/op`
+- `480 allocs/op`
+
+The useful profile change is structural rather than another VM micro-hotspot
+shuffle: the old string/union round-trip is gone, allocation count collapsed,
+and the remaining wall is now the actual host codec plus byte-slice copying
+(`encoding/base64`, `runtime.memmove`, and MD5) instead of generic extern
+dispatch.
+
+The follow-up kept the same boundary but narrowed it further on the result
+side only:
+
+- host `[]byte` results now transfer into mono `Array u8` storage through an
+  explicit owned-bytes helper instead of being copied again on the Able side
+- input `Array u8` arguments still copy, because borrowing them would change
+  host-extern mutation semantics
+
+That moved the external bytecode band again from `3.2600s` to `3.0533s` over
+`3/3`, with profiled runtime confirmation at:
+
+- `3213493295 ns/op`
+- `4734526144 B/op`
+- `434 allocs/op`
+
+The useful profile result is that the output-side array construction dropped
+out of the top tier. The remaining `base64` wall is now almost entirely the
+input extraction plus host codec/copy boundary:
+
+- `externU8ArrayArg(...)`
+- `ArrayStoreMonoU8BytesIfAvailable(...)`
+- `encoding/base64.(*Encoding).Encode`
+- `encoding/base64.(*Encoding).Decode`
+
+## 2026-06-08 — Explicit borrowed-byte input contract for read-only `Array u8` externs
+
+The deferred `base64` input-boundary tranche finally landed, but only as an
+explicit opt-in contract. The earlier owned-result transfer proved the output
+side was safe; the missing piece was input borrowing without silently changing
+host-extern mutation semantics.
+
+The keep is deliberately narrow:
+
+- generated Go extern modules now include
+  `able_borrowed_bytes(data []byte) []byte`
+- the `Array u8` fast-invoker layer recognizes that explicit marker and, only
+  on that path, borrows mono-`u8` backing storage through
+  `ArrayStoreMonoBorrowedU8BytesIfAvailable(...)`
+- non-opt-in `Array u8` host args still copy exactly as before
+
+The first reusable stdlib adopters are the read-only Go externs in:
+
+- `../able-stdlib/src/encoding/base64.able`
+- `../able-stdlib/src/crypto/md5.able`
+- `../able-stdlib/src/io.able`
+
+That moved the external `base64` bytecode band from `3.0533s` to `2.5533s`
+over `3/3`, with steady-state runtime confirmation at:
+
+- `2275118163 ns/op`
+- `2218630616 B/op`
+- `375 allocs/op`
+
+This cut is important because it keeps the contract reusable and explicit. The
+fast path is no longer "borrow whenever the runtime can"; it is "borrow only
+when the host body declares read-only intent". That keeps ordinary user externs
+on the old safe copying path while letting byte-heavy stdlib calls stop paying
+the inbound mono-`u8` copy.
+
+## 2026-06-09 — Compiler-side borrowed-byte host ABI recovery for `base64`
+
+The explicit borrowed-byte contract now lands on the compiled path too. The
+bytecode fast-invoker keep proved that opt-in read-only borrowing was safe and
+useful; this tranche applies the same contract to compiled mono `Array u8`
+extern arguments without changing default host semantics.
+
+The keep is again intentionally exact-shape:
+
+- compiled Go host support now emits
+  `able_borrowed_bytes(data []byte) []byte`
+- compiled extern lowering recognizes only the explicit opt-in shape:
+  - host body contains `able_borrowed_bytes(...)`
+  - parameter type is exact mono `Array u8`
+  - host carrier type is native `[]uint8`
+- on that path, compiled extern calls pass `value.Elements` directly instead of
+  routing the argument through `bridge.RuntimeValueToHost[...]`
+- non-opt-in `Array u8` args still copy, so ordinary host-extern mutation
+  semantics are unchanged
+
+The focused compiler proof now covers both sides of the contract:
+
+- source inspection proves the borrowed mono-`u8` path uses the native carrier
+  directly and avoids the generic host bridge
+- execution proves the old default path still copies while the explicit
+  borrowed path can alias and mutate the original byte array
+
+That moved the external `base64` compiled band from the historical
+`2.8600s` baseline to `2.5567s` over `3/3`.
+
+Verification:
+
+- focused compiler extern host tests
+- `../able/v12/ablebc test tests/encoding/base64.test.able tests/crypto/md5.test.able tests/io.test.able`
+- external `./v12/bench_compare_external --benchmarks base64 --modes compiled --runs 3 --timeout 120`
+
+This matters because the borrowed-byte ABI is now coherent across execution
+paths. The same explicit stdlib marker used by bytecode fast invokers now also
+cuts the compiled inbound `Array u8` bridge, without silently changing the
+default extern contract for user code.
+
+## 2026-06-09 — Compiled owned-`[]byte` host-result transfer for `base64`
+
+The next compiled `base64` tranche stayed on the same host ABI boundary, but on
+the return side instead of the input side. The bytecode path had already proven
+that fresh host `[]byte` results should become owned mono `Array u8` values
+without an extra copy. The compiled path was still copying those slices with
+`append(...)` in both the exact `Array u8` return fast path and the union
+`Array u8` member fast path.
+
+The keep is deliberately narrow:
+
+- exact mono `Array u8` compiled extern returns now transfer host `[]uint8`
+  directly into `__able_array_u8{Elements: ...}`
+- union fast returns that detect a `[]uint8` member now do the same
+- other mono-array return paths keep the old copy behavior
+
+Focused proof coverage now checks both structure and behavior:
+
+- source inspection proves the compiled extern body no longer emits the old
+  `append([]uint8(nil), ...)` copy on the direct and union fast paths
+- execution proves a returned host `[]uint8` slice is now reused by the mono
+  `Array u8` carrier
+
+That moved the external `base64` compiled band from the prior kept `2.5567s`
+to `2.1667s` over `3/3`, which puts compiled Able slightly ahead of the
+current Go row (`2.2000s`) on this family.
+
+Verification:
+
+- focused compiler extern host tests
+- `../able/v12/ablebc test tests/encoding/base64.test.able tests/crypto/md5.test.able tests/io.test.able`
+- external `./v12/bench_compare_external --benchmarks base64 --modes compiled --runs 3 --timeout 120`
+
+This is the point where `base64` stops being a compelling local compiled
+micro-target. Further work there should be broader host ABI/codegen machinery,
+not more one-off `Array u8` probes.
 
 ## 2026-05-27 — JSON benchmark stdlib coverage and `fs.read_text` fast path
 
@@ -4314,6 +6814,99 @@ benchmark-specific source rule. Tree-walker remains semantic-only. At this
 point, the remaining unimplemented coverage target was `pidigits`, which still
 needed a competitive BigInt/BigUint boundary before its later coverage tranche.
 
+## 2026-06-08 — JSON `Array String` extern fast invoker recovery
+
+The latest external `json` runs exposed a host-ABI regression boundary rather
+than a parsing problem. On the current benchmark input, the bytecode external
+baseline had drifted to `5.6200s`, while a direct runtime profile still showed
+the real scanner path at about `528ms/op`. The hot gap was back at the host
+boundary:
+
+- `reflect.Value.Call`
+- generic extern argument coercion for `Array String`
+- generic union-result coercion for `JsonError | Array f64`
+
+The keep was a reusable direct host ABI cut, not a JSON-specific parser
+rewrite:
+
+- add a fast invoker for the exact shape
+  `(String, String, Array String) -> JsonError | Array f64`
+- decode `Array String` arguments directly from runtime arrays
+- handle `[]float64` union results directly without going through the generic
+  reflection call bridge
+
+That moved the external bytecode band from the fresh `5.6200s` baseline to
+`0.8300s` over `3/3` runs:
+
+- bytecode: `0.8300s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+
+Profiled runtime confirmation landed at:
+
+- `536181557 ns/op`
+- `229466568 B/op`
+- `188 allocs/op`
+
+The useful profile result is that `reflect.Value.Call` dropped out of the top
+tier entirely. The remaining `json` wall is now the actual numeric scanner and
+file ingress:
+
+- `ableJsonF64FieldMeansFast(...)`
+- `ableJsonReadNumber(...)`
+- `strconv.ParseFloat`
+- `fs_read_text_fast`
+
+## 2026-06-08 — JSON union-`String` extern fast-path follow-up
+
+The next `json` tranche kept the scanner unchanged and only removed the
+remaining generic host-ABI bridge behind `fs_read_text_fast(...)`: for
+`func(string) interface{}` externs whose declared union result includes
+`String`, the fast invoker now returns a direct `runtime.StringValue` instead
+of falling back through generic union-result coercion.
+
+That moved the prior kept external bytecode band from `0.8300s` to
+`0.7867s` over `3/3` runs:
+
+- bytecode: `0.7867s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+
+Profiled runtime confirmation landed at:
+
+- `533953303 ns/op`
+- `229461760 B/op`
+- `173 allocs/op`
+
+The useful conclusion is narrower now: generic extern dispatch is no longer
+the `json` wall. The remaining work is the real scanner/file path:
+
+- `ableJsonF64FieldMeansFast(...)`
+- `ableJsonReadNumber(...)`
+- `strconv.ParseFloat`
+- `fs_read_text_fast`
+
+## 2026-06-08 — JSON owned file-text ingress follow-up
+
+The next `json` tranche left the scanner unchanged again and only removed the
+fresh file-read `[]byte -> String` copy inside the Go `fs_read_text_fast(...)`
+host prelude. Fresh `os.ReadFile(...)` bytes now become an immutable String
+directly before crossing back into Able.
+
+That moved the prior kept external bytecode band from `0.7867s` to
+`0.7533s` over `3/3` runs:
+
+- bytecode: `0.7533s` vs Go `1.3600s`, Ruby `1.5600s`, Python `2.8700s`
+
+Profiled runtime confirmation landed at:
+
+- `505536583 ns/op`
+- `114755048 B/op`
+- `170 allocs/op`
+
+The useful conclusion is tighter now: `fs_read_text_fast(...)` is no longer a
+first-tier `json` wall. The remaining work is decisively the numeric scanner:
+
+- `ableJsonReadNumber(...)`
+- `strconv.ParseFloat`
+- residual `ableJsonF64FieldMeansFast(...)` control flow around them
+
 ## 2026-05-28 — Monte Carlo Pi benchmark coverage
 
 The next coverage tranche added deterministic RNG support and the canonical
@@ -4338,7 +6931,642 @@ until the VM has a general primitive numeric slot representation.
 Aligned external comparisons over `3/3` runs landed at:
 
 - compiled: `0.3233s` vs Go `0.1800s`, Ruby `1.4200s`, Python `1.6800s`
-- bytecode: `18.7967s` vs Go `0.1800s`, Ruby `1.4200s`, Python `1.6800s`
+- bytecode baseline: `18.7967s` vs Go `0.1800s`, Ruby `1.4200s`, Python
+  `1.6800s`
+
+The next bytecode keep was a general integer recurrence slice, not a
+benchmark-specific RNG shortcut. Lowering now fuses
+
+- `state = (state * 48271_i64) % 2147483647_i64`
+
+and any other exact `slot = (slot * const) % const` integer self-assignment
+shape into a dedicated bytecode store opcode. That removes the intermediate
+boxed multiply result plus the follow-on generic `%` dispatch without changing
+v12 overflow or Euclidean modulo semantics.
+
+The kept external Monte Carlo comparison over `3/3` runs moved to:
+
+- bytecode kept band: `12.5367s` vs Go `0.1800s`, Ruby `1.4200s`, Python
+  `1.6800s`
+
+The profiled bytecode runtime confirmation moved from roughly
+`17019697503 ns/op`, `5101560232 B/op`, and `184425053 allocs/op` to:
+
+- `14678232749 ns/op`
+- `4038540752 B/op`
+- `162287138 allocs/op`
+
+The profile shift is the important part:
+
+- before: `execBinary(...)` about `21.77s` cumulative,
+  `applyBinaryOperator(...)` about `10.82s`,
+  `evaluateDivMod(...)` about `7.44s`
+- after: `execBinary(...)` about `6.99s` cumulative,
+  `applyBinaryOperator(...)` about `3.37s`, and the new
+  `bytecodeIntMulConstModConstFast(...)` carrying the Park-Miller update path
+
+This is a real bytecode competitiveness win, but it still does not close the
+full Monte Carlo gap. The next remaining wall is broader boxed `i64` / `f64`
+representation, casts, and numeric boxing rather than the recurrence source
+shape itself.
+
+The next kept Monte Carlo bytecode slice removed the remaining cast/div
+boundary around:
+
+- `(state as f64) / 2147483647.0`
+
+Lowering now recognizes the exact `(<slot> as f32|f64) / <float literal>`
+shape and emits a dedicated opcode that reads the slot, performs the cast, and
+divides by the constant directly, with a full fallback to the existing cast and
+binary division semantics if the slot value is not a direct numeric shape.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `12.5367s`
+- next kept bytecode band: `11.0433s`
+
+The profiled runtime confirmation moved from:
+
+- `14678232749 ns/op`
+- `4038540752 B/op`
+- `162287138 allocs/op`
+
+to:
+
+- `11857149346 ns/op`
+- `3505213024 B/op`
+- `140065140 allocs/op`
+
+The profile shift is clear:
+
+- the old `castValueToCanonicalSimpleTypeFast(...)` and `evaluateDivision(...)`
+  prominence dropped out of the visible top tier
+- the new `execBinaryCastSlotFloatConstDiv(...)` path is only about `2.04s`
+  cumulative on the kept profile
+- the remaining dominant Monte Carlo wall is now boxed integer creation:
+  `bytecodeBoxedIntegerValue(...)` about `8.04s` cumulative and
+  `boxedOrSmallIntegerValue(...)` about `8.07s`
+
+So this is another real bytecode competitiveness keep, and it tightens the
+next direction further: do not spend another tranche on cast/div reshaping.
+The next Monte Carlo slice should target boxed `i64` value creation and the
+dynamic integer boxing/cache path instead.
+
+That large-`i64` boxing path is now also kept. The next bounded Monte Carlo
+slice changed the integer boxing policy itself: large `i64` values now bypass
+the dynamic boxed-int map/RWMutex path and return direct `runtime.NewSmallInt`
+carriers instead. This is deliberately narrow to the high-cardinality `i64`
+case; the existing `i32` extended static cache and the dynamic caching policy
+for the other integer kinds are unchanged.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `11.0433s`
+- next kept bytecode band: `7.5667s`
+
+The profiled runtime confirmation moved from:
+
+- `11857149346 ns/op`
+- `3505213024 B/op`
+- `140065140 allocs/op`
+
+to:
+
+- `7923979565 ns/op`
+- `3541045976 B/op`
+- `140811440 allocs/op`
+
+The wall-clock improvement is real even though bytes/allocs stayed roughly
+flat. The profile explains why:
+
+- before: `bytecodeBoxedIntegerValue(...)` about `8.04s` cumulative and
+  `boxedOrSmallIntegerValue(...)` about `8.07s`, with the dynamic map path
+  still visible
+- after: `bytecodeBoxedIntegerValue(...)` about `1.17s` cumulative and
+  `boxedOrSmallIntegerValue(...)` about `1.19s`, with the old map/lock path
+  no longer a first-tier cost
+
+That changes the Monte Carlo ranking again. The dominant remaining wall is now
+boxed `f64` / `runtime.Value` arithmetic:
+
+- `execBinary(...)`: about `6.18s` cumulative
+- `runtime.convT`: about `6.07s`
+- `bytecodeDirectFloatArithmeticFast(...)`: about `2.11s`
+- `execBinaryCastSlotFloatConstDiv(...)`: about `2.02s`
+
+So this is a strong keep, and it closes the large-`i64` boxing question for
+this benchmark. The next bounded Monte Carlo slice should target float/value
+representation and scalar `f64` arithmetic, not another integer boxing tweak.
+
+That float/value boundary is now materially narrower too. The next kept Monte
+Carlo bytecode slice fused the exact slot-backed condition:
+
+- `(x * x + y * y) <= 1.0`
+
+Lowering now recognizes the exact multiply-add-multiply compare shape in
+`if`/`elsif` conditions and emits a dedicated false-jump opcode instead of
+separate `LoadSlot`, `Binary "*"`, `Binary "*"`, `Binary "+"`, `Const`, and
+`Binary "<="` work. The VM executes that condition directly from slots when
+the runtime values are direct float shapes, with a full fallback to the
+existing multiply/add/compare semantics when they are not. This is still a
+semantic bytecode keep, not a benchmark-source rewrite.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `7.5667s`
+- next kept bytecode band: `4.1733s`
+
+The profiled bytecode runtime confirmation moved from:
+
+- `7923979565 ns/op`
+- `3541045976 B/op`
+- `140811440 allocs/op`
+
+to:
+
+- `4218845731 ns/op`
+- `1674386480 B/op`
+- `63034426 allocs/op`
+
+The profile shift is the key result:
+
+- `execBinary(...)` dropped from about `6.18s` cumulative to about `1.96s`
+- `runtime.convT` dropped from about `6.07s` to about `1.64s`
+- the new `execJumpIfFloatMulAddMulCompareConstFalse(...)` path is only about
+  `0.61s` cumulative
+- the remaining first-tier Monte Carlo wall is now the slot-backed float
+  production/storage boundary:
+  `execStoreSlotIntMulConstModConst(...)`,
+  `bytecodeCastSlotFloatConstDivFast(...)`, and `storeOwnedFloatSlot(...)`
+
+So this is another real bytecode competitiveness keep. The next bounded Monte
+Carlo slice should stay on typed-float representation or slot-backed float
+value movement, not another integer boxing or source-level RNG probe.
+
+That slot-backed float movement boundary is now narrower too. A fifth kept
+Monte Carlo bytecode slice fused the exact statement-position store shape:
+
+- `target := (slot as f64) / const_f64`
+- `target = (slot as f64) / const_f64`
+
+Lowering now recognizes that store boundary and emits a dedicated
+`StoreSlotCastSlotFloatConstDiv` opcode instead of lowering through the
+existing expression opcode and then the generic store path. The VM executes
+that store directly, reusing the existing `bytecodeCastSlotFloatConstDivFast`
+helper when the source slot is a direct integer shape and falling back to the
+current cast/divide semantics otherwise. The result still goes through the
+existing float-slot ownership rules, so this is a semantic VM keep rather than
+a benchmark-source special case.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `4.1733s`
+- next kept bytecode band: `3.7900s`
+
+The profiled bytecode runtime confirmation moved from:
+
+- `4218845731 ns/op`
+- `1674386480 B/op`
+- `63034426 allocs/op`
+
+to:
+
+- `3864059446 ns/op`
+- `1674386400 B/op`
+- `63034425 allocs/op`
+
+The important conclusion is again the boundary shift:
+
+- `execStoreSlotCastSlotFloatConstDiv(...)` is now the visible hot edge at
+  about `2.40s` cumulative
+- `storeSlotCastSlotFloatConstDivResult(...)` is about `1.63s`
+- `bytecodeCastSlotFloatConstDivFast(...)` remains materially hot at about
+  `1.58s`
+- `storeOwnedFloatSlot(...)` is now isolated at about `0.37s`
+- `execBinary(...)` is still present, but the old generic stack-staging plus
+  store boundary is no longer the first-tier wall
+
+So the next bounded Monte Carlo slice should stay on the remaining float slot
+production/storage and materialization wall, especially
+`bytecodeCastSlotFloatConstDivFast(...)`, `storeOwnedFloatSlot(...)`, and
+residual `runtime.convT`, not integer boxing policy or more RNG-source
+rewrites.
+
+That float-slot completion boundary is now narrower again. A sixth kept Monte
+Carlo bytecode slice specialized the already-fused discarded local store path
+for:
+
+- `x := (state as f64) / const_f64`
+- `y := (state as f64) / const_f64`
+
+The fused `StoreSlotCastSlotFloatConstDiv` opcode now computes the direct raw
+float result and stores it straight into the owned float slot cell when the
+assignment result is discarded, instead of round-tripping through a generic
+`runtime.Value` result and the broader visible-result completion path. This is
+still a semantic VM keep: non-fast or non-discarded cases keep the existing
+cast/divide and store behavior.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `3.7900s`
+- next kept bytecode band: `3.0400s`
+
+The profiled bytecode runtime confirmation moved from:
+
+- `3864059446 ns/op`
+- `1674386400 B/op`
+- `63034425 allocs/op`
+
+to:
+
+- `3110566300 ns/op`
+- `1141058080 B/op`
+- `40812425 allocs/op`
+
+The profile shift is the key result:
+
+- `execStoreSlotCastSlotFloatConstDiv(...)` dropped to about `1.34s`
+  cumulative
+- `execStoreSlotCastSlotFloatConstDivDiscardFast(...)` now carries the hot
+  fused discarded-store path at about `1.06s`
+- `storeOwnedFloatSlotRaw(...)` is about `0.21s`
+- `runtime.convT` is down to about `0.75s`
+- the primary Monte Carlo wall has moved back to the integer recurrence
+  update path:
+  `execStoreSlotIntMulConstModConst(...)`,
+  `storeSlotIntMulConstModConstResult(...)`, and
+  `bytecodeIntMulConstModConstFast(...)`
+
+So the next bounded Monte Carlo slice should pivot back to the integer
+recurrence store/update boundary, not spend another tranche on float-store
+completion shaving.
+
+That recurrence boundary is now narrower too. A seventh kept Monte Carlo
+bytecode slice specialized the exact nonnegative small-int recurrence case
+inside `bytecodeIntMulConstModConstFast(...)`.
+
+When the current slot value, multiply immediate, and modulo immediate are all
+proven small positive integers of the same signed kind, the VM now skips the
+generic direct-integer + Euclidean modulo path, uses native checked positive
+multiply, and uses direct `%` because it is already Euclidean for the proven
+nonnegative case. Unsupported signed or mixed cases still use the existing
+generic path, so this remains a semantic keep.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `3.0400s`
+- next kept bytecode band: `2.9900s`
+
+The profiled bytecode runtime confirmation moved from:
+
+- `3110566300 ns/op`
+- `1141058080 B/op`
+- `40812425 allocs/op`
+
+to:
+
+- `3063708460 ns/op`
+- `1141058096 B/op`
+- `40812425 allocs/op`
+
+This is a smaller keep than the previous float-store slices, but the profile
+shift is still real:
+
+- `execStoreSlotIntMulConstModConst(...)` dropped to about `2.38s`
+  cumulative
+- `storeSlotIntMulConstModConstResult(...)` dropped to about `1.70s`
+- `bytecodeIntMulConstModConstFast(...)` dropped to about `1.52s`
+
+So the remaining first-tier Monte Carlo wall is now the boxed `i64` result
+boundary on that same recurrence path:
+
+- `boxedOrSmallIntegerValue(...)`
+- `bytecodeBoxedIntegerValue(...)`
+- `runtime.convT`
+
+The next bounded Monte Carlo slice should target that result-boxing boundary,
+not more multiply/mod arithmetic shaving.
+
+That boxed-`i64` result boundary is now largely gone too. An eighth kept Monte
+Carlo bytecode slice changed discarded `i64`
+`StoreSlotIntMulConstModConst` results to stay in the slot as an internal raw
+`i64` sentinel instead of materializing a boxed `runtime.IntegerValue` on
+every recurrence step.
+
+Visible reads still box that sentinel back through `bytecodeSlotReadValue(...)`,
+and the fused recurrence helper plus the fused cast-slot-float-const divide
+helper read it directly in slot form. So this stays a semantic VM keep rather
+than a benchmark-source shortcut.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `2.9900s`
+- next kept bytecode band: `2.2400s`
+
+The profiled bytecode runtime confirmation moved from:
+
+- `3063708460 ns/op`
+- `1141058096 B/op`
+- `40812425 allocs/op`
+
+to:
+
+- `2154280243 ns/op`
+- `261624272 B/op`
+- `40812578 allocs/op`
+
+This is another major boundary shift:
+
+- `execStoreSlotIntMulConstModConst(...)` dropped to about `1.44s`
+  cumulative
+- `storeSlotIntMulConstModConstResult(...)` dropped to about `0.83s`
+- `bytecodeIntMulConstModConstFast(...)` dropped to about `0.56s`
+- the boxed `i64` result boundary is no longer first-tier
+
+The next remaining recurrence wall is now the raw `i64` slot/interface
+boundary itself:
+
+- `bytecodeRawI64SlotValueFor(...)`
+- `runtime.convT64`
+- `finishStoreSlotBinaryIntSlotConstFastResult(...)`
+
+So the next bounded Monte Carlo slice should target raw `i64` slot
+materialization/interface conversion, not more recurrence arithmetic or
+boxing-policy shaving.
+
+That raw-`i64` slot boundary is now narrower too. A ninth kept Monte Carlo
+bytecode slice changed the discarded recurrence fast path to reuse a
+per-target internal `*bytecodeRawI64SlotCell` instead of creating a fresh raw
+wrapper or boxed `i64` value on each Park-Miller update.
+
+Visible reads still box that cell back through `bytecodeSlotReadValue(...)`,
+and the fused recurrence helper plus the fused cast-slot-float-const divide
+helper still read it directly in slot form. So this remains an internal slot
+representation keep rather than a benchmark-source shortcut.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `2.2400s`
+- next kept bytecode band: `1.8533s`
+
+The direct bytecode runtime confirmation moved from:
+
+- `2154280243 ns/op`
+- `261624272 B/op`
+- `40812578 allocs/op`
+
+to:
+
+- `1751216714 ns/op`
+- `74404488 B/op`
+- `18590587 allocs/op`
+
+The planning consequence shifts again:
+
+- `execStoreSlotIntMulConstModConst(...)` is down to about `0.77s`
+  cumulative
+- `execStoreSlotCastSlotFloatConstDiv(...)` is about `0.59s`
+- `execStoreSlotBinaryIntSlotConst(...)` is now a co-equal wall at about
+  `0.75s`
+- the old raw-`i64` slot/interface boundary is no longer first-tier
+
+So the next bounded Monte Carlo slice should pivot to the generic small-int
+slot update path that still carries the loop counters and sample accumulation:
+
+- `storeSlotBinaryIntSlotConstI32RawFastResult(...)`
+- `storeSlotBinaryIntSlotConstI32RawResult(...)`
+- `finishStoreSlotBinaryIntSlotConstFastResult(...)`
+- `runtime.convT32`
+
+That small-int slot-update boundary is now narrower too. A tenth kept Monte
+Carlo bytecode slice specialized the exact discarded `i32`
+`StoreSlotBinaryIntSlotConst` path for out-of-cache counter values so it
+writes into reusable owned `*runtime.IntegerValue` slot cells instead of
+creating a fresh raw-`i32` interface carrier on every update.
+
+Visible loads still materialize ordinary Able integers through
+`bytecodeSlotReadValue(...)`, and the existing direct integer readers already
+support `*runtime.IntegerValue`, so this remains a semantic VM keep rather
+than a benchmark-source shortcut.
+
+That moved the external Monte Carlo comparison again over `3/3` runs:
+
+- prior kept bytecode band: `1.8533s`
+- next kept bytecode band: `1.6733s`
+
+The direct bytecode runtime confirmation moved from:
+
+- `1751216714 ns/op`
+- `74404488 B/op`
+- `18590587 allocs/op`
+
+to:
+
+- `1583567530 ns/op`
+- `35520 B/op`
+- `140 allocs/op`
+
+The planning consequence shifts again:
+
+- `execStoreSlotBinaryIntSlotConst(...)` dropped from about `0.75s`
+  cumulative to about `0.63s`
+- `execStoreSlotBinaryIntSlotConstDiscardI32Fast(...)` now carries the hot
+  counter-update path at about `0.51s`
+- `runtime.convT32` dropped out of the visible top tier
+
+So the next bounded Monte Carlo slice should pivot to the owned slot
+write/update boundary and its map lookups:
+
+- `storeOwnedFloatSlotRaw(...)`
+- `storeOwnedI32SlotRaw(...)`
+- `runtime.mapaccess1_fast64`
+
+That owned-slot write boundary is now narrower too. An eleventh kept Monte
+Carlo bytecode slice changed the discarded `StoreSlotCastSlotFloatConstDiv`
+fast path to update the existing owned target `*runtime.FloatValue` in place
+when the target slot already holds the reusable float cell from a prior loop
+iteration, instead of routing every `x`/`y` update back through
+`storeOwnedFloatSlotRaw(...)`.
+
+Visible reads still materialize plain Able `f64` values through
+`bytecodeSlotReadValue(...)`, and unsupported cases still fall back to the
+existing owned-float helper path. So this remains an internal slot-update keep
+rather than a source-level benchmark trick or a new global cache policy.
+
+On the external benchmark, that moved bytecode Monte Carlo from `1.6733s` to
+`1.5133s` over `3/3` runs, and the direct runtime confirmation from about
+`1.58s` / `35KB` / `140 allocs` to about `1.40s` / `35KB` / `140 allocs`.
+
+The planning consequence changes again. The owned float-slot write/map
+boundary is no longer the first wall:
+
+- `execStoreSlotCastSlotFloatConstDiv(...)` is down to about `0.33s`
+  cumulative
+- `execStoreSlotCastSlotFloatConstDivDiscardFast(...)` is about `0.21s`
+- `runtime.mapaccess1_fast64` is down to about `0.15s`
+
+So the next primitive-numeric VM-v2 slice should pivot back to the remaining
+opcode-local Monte Carlo walls:
+
+- `execStoreSlotIntMulConstModConst(...)`
+- `execJumpIfFloatMulAddMulCompareConstFalse(...)`
+- `execStoreSlotBinaryIntSlotConst(...)`
+
+with residual helper work still visible in:
+
+- `runtime.mapaccess1_fast64`
+- `bytecodeCastSlotFloatConstDivRawFast(...)`
+
+That owned `i32` slot-update boundary is now narrower too. A twelfth kept
+Monte Carlo bytecode slice changed the exact discarded
+`StoreSlotBinaryIntSlotConst` fast path so it updates the existing owned
+target `*runtime.IntegerValue` in place when the slot already holds the
+reusable large-counter cell from a prior loop iteration, instead of routing
+every large out-of-cache `i32` increment back through
+`storeOwnedI32SlotRaw(...)`.
+
+Visible loads still materialize plain Able integers through
+`bytecodeSlotReadValue(...)`, and unsupported cases still fall back to the
+existing owned-`i32` helper path. So this remains an internal slot-update keep
+rather than a new visible representation or a new shared cache policy.
+
+On the external benchmark, that moved bytecode Monte Carlo from `1.5133s` to
+`1.4433s` over `3/3` runs.
+
+The one-shot direct runtime confirmation was slightly noisier at about
+`1.43s`, `35.8KB`, and `142 allocs`, so the keep basis is the repeated
+external band plus the profile shift rather than the single runtime wall
+clock.
+
+The planning consequence changes again. The owned `i32` slot helper boundary
+is no longer first-tier:
+
+- `execStoreSlotBinaryIntSlotConstDiscardI32Fast(...)` dropped to about
+  `0.38s` cumulative
+- `execStoreSlotBinaryIntSlotConst(...)` is down to about `0.45s`
+- `storeOwnedI32SlotRaw(...)` dropped out of the visible top tier
+
+So the next primitive-numeric VM-v2 slice should stay on Monte Carlo, but
+pivot back to the remaining opcode-local walls:
+
+- `execStoreSlotIntMulConstModConst(...)`
+- `execJumpIfFloatMulAddMulCompareConstFalse(...)`
+- `execStoreSlotCastSlotFloatConstDiv(...)`
+
+with secondary remaining cost still visible in:
+
+- `execStoreSlotBinaryIntSlotConst(...)`
+- `bytecodeCastSlotFloatConstDivRawFast(...)`
+
+That recurrence boundary is now narrower too. A fourteenth kept Monte Carlo
+bytecode slice changed the exact discarded
+`StoreSlotIntMulConstModConst` steady-state path so it operates directly on
+the existing raw `i64` slot cell when the multiply and modulo immediates are
+already proven positive small `i64` values. That removes the old
+`bytecodeImmediateIntegerValue(...)` decode and the broader helper/store
+ladder from the hot Park-Miller loop once the loop is already in its internal
+raw-cell form.
+
+Visible reads still materialize ordinary Able integers through
+`bytecodeSlotReadValue(...)`, and unsupported cases still fall back to the
+existing fused recurrence path. So this remains an internal opcode keep
+rather than a new visible representation or another instruction-metadata
+layer.
+
+On the external benchmark, that moved bytecode Monte Carlo from `1.3633s` to
+`1.2000s` over `3/3` runs, and the direct runtime confirmation from about
+`1.23s` / `35.5KB` / `140 allocs` to about `1.11s` / `35.5KB` / `140 allocs`.
+
+The planning consequence changes again. The generic recurrence immediate
+decode path is gone as a first-tier cost:
+
+- `execJumpIfFloatMulAddMulCompareConstFalse(...)` is now about `0.34s`
+  cumulative
+- `execStoreSlotIntMulConstModConstDiscardSteadyStateFast(...)` now carries
+  the recurrence hot path at about `0.44s`
+- `bytecodeImmediateIntegerValue(instr.value)` dropped out of the visible top
+  tier
+
+So the next primitive-numeric VM-v2 slice should stay on Monte Carlo and
+target the remaining opcode-local walls in this order:
+
+- `execJumpIfFloatMulAddMulCompareConstFalse(...)`
+- `execStoreSlotIntMulConstModConst(...)`
+- `execStoreSlotBinaryIntSlotConst(...)`
+
+with secondary remaining cost in:
+
+- `execStoreSlotCastSlotFloatConstDiv(...)`
+- `execStoreSlotBinaryIntSlotConstDiscardI32Fast(...)`
+- `bytecodeDirectSmallI32Value(...)`
+- `bytecodeDirectPositiveSmallI64ImmediateValue(...)`
+
+That last immediate boundary is now narrower too. A fifteenth kept Monte Carlo
+bytecode slice carries the modulo constant for
+`StoreSlotIntMulConstModConst` through lowering as a second predecoded `i64`
+immediate, instead of rediscovering it from `instr.value` on every recurrence
+step. The instruction still keeps the original boxed immediate for the generic
+path, but the hot fused recurrence path now reuses the raw second immediate
+when the same positive-small `i64` proof already holds.
+
+On the external benchmark, that moved bytecode Monte Carlo from the prior kept
+`1.2000s` band to:
+
+- `1.1933s` over one `3/3` run
+- `1.1667s` over the confirming `3/3` run
+
+Direct runtime confirmation moved to:
+
+- `1106164191 ns/op`
+- `63136 B/op`
+- `199 allocs/op`
+
+The profile consequence is clean:
+
+- `bytecodeDirectPositiveSmallI64ImmediateValue(...)` dropped out of the top
+  tier
+- `bytecodePositiveIntMulConstModFast(...)` is now the visible recurrence
+  inner wall at about `0.19s` flat
+- the remaining first-tier Monte Carlo costs are still
+  `execJumpIfFloatMulAddMulCompareConstFalse(...)`,
+  `execStoreSlotIntMulConstModConstDiscardSteadyStateFast(...)`, and
+  `execStoreSlotBinaryIntSlotConst(...)`
+
+So the next Monte Carlo slice should stay on those true remaining walls, not
+go back to integer-immediate rediscovery helpers.
+
+A sixteenth kept Monte Carlo bytecode slice now reuses repeated slot decodes
+inside the fused float compare when both multiply operands are the same slot,
+so the hot `x*x + y*y <= const_f64` branch stops reading the same float slot
+twice per square term. This stays narrow and reusable: it only changes the
+already-fused float compare helper, and non-square multiply terms still use
+the old two-slot decode path.
+
+On the external benchmark, that moved bytecode Monte Carlo from the fresh
+`1.2133s` baseline for this tranche to:
+
+- `1.1933s` over one `3/3` run
+- `1.1967s` over the confirming `3/3` run
+
+Direct runtime confirmation was:
+
+- `1202512748 ns/op`
+- `62888 B/op`
+- `197 allocs/op`
+
+The profile consequence is small but real:
+
+- `floatMulTermConditionValue(...)` is only about `0.02s` flat
+- `execJumpIfFloatMulAddMulCompareConstFalse(...)` is still about `0.21s`
+  cumulative
+- the remaining first-tier Monte Carlo costs are now led by
+  `execStoreSlotIntMulConstModConstDiscardSteadyStateFast(...)`,
+  `bytecodePositiveIntMulConstModFast(...)`, and
+  `execStoreSlotBinaryIntSlotConstDiscardI32Fast(...)`
+
+So the next Monte Carlo slice should stay on the fused float compare,
+recurrence, and counter-update walls, not go back to local square-term decode
+helpers.
 
 Two bytecode source-level numeric probes were rejected:
 
@@ -4400,6 +7628,233 @@ expanded into pidigits-specific bytecode opcodes. The next bytecode work should
 return to the broader VM-v2 plan: typed primitive slots/registers for quicksort
 and Monte Carlo numeric arithmetic, plus general host-extern call overhead if
 pidigits becomes a profiling target.
+
+## 2026-06-08 — Primitive integer extern fast invokers for pidigits bytecode
+
+The next pidigits bytecode tranche stayed on the general host ABI boundary and
+did not add any pidigits-specific opcode. The existing extern fast-invoker
+layer now also recognizes primitive signed integer signatures directly:
+
+- `i32` / `i64` arguments
+- arities `1..3`
+- `i32`, `i64`, and `String` results
+
+That keep landed in `extern_host_fast_int.go` plus the dispatch hook in
+`extern_host_fast.go`. It means the hot host-backed `BigIntRef` externs now
+skip `reflect.Value.Call`, `toHostValue(...)`, and the broader generic result
+bridge once the signature is already proven by the extern definition.
+
+This is still a general extern-host optimization, not a BigInt-only special
+case. The same path is available to any host extern that uses those primitive
+integer carriers.
+
+Result: keep. External pidigits bytecode over `3/3` runs moved from the prior
+kept `2.0300s` band to:
+
+- `1.8867s`
+
+Profiled bytecode runtime confirmation moved from:
+
+- `1936339805 ns/op`
+- `1756396792 B/op`
+- `2336849 allocs/op`
+
+to:
+
+- `1815567152 ns/op`
+- `1707375344 B/op`
+- `981000 allocs/op`
+
+The profile shift is the real reason to keep it:
+
+- before: `invokeExternHostFunction(...)` about `3.02s` cumulative and
+  `reflect.Value.call` about `2.61s`
+- after: the reflect call path dropped out of the top tier entirely, and the
+  remaining time is dominated by the host `math/big` operations themselves
+  (`mulAddVWW`, `nat.div`, `nat.mulAddWW`) plus GC work driven by BigInt
+  allocation churn
+
+So the next pidigits slice should not spend time on generic extern dispatch
+again. The remaining wall is now the host-backed BigInt implementation in
+`able-stdlib`, especially the allocation-heavy `*_i64` helpers and the
+mutable-handle storage path.
+
+## 2026-06-08 — Per-handle division remainder scratch for pidigits bytecode
+
+The follow-up pidigits keep stayed inside the host-backed stdlib BigInt
+implementation and did not change the public `BigIntRef` surface. The internal
+handle table in `able.numbers.bigint_native` now stores:
+
+- the live `*big.Int` value
+- a reusable `big.Int` remainder scratch cell owned by that same handle
+
+With that change, `div` and `div_i64` now route through
+`math/big.Int.QuoRem(..., &entry.remScratch)` instead of `Quo(...)`, so the
+hot quotient path keeps the same semantics while reusing remainder storage
+across repeated divisions on the same destination handle.
+
+Result: keep. External pidigits bytecode over `3/3` runs moved from the prior
+kept `1.8867s` band to:
+
+- `1.7467s`
+
+Profiled bytecode runtime confirmation moved from:
+
+- `1815567152 ns/op`
+- `1707375344 B/op`
+- `981000 allocs/op`
+
+to:
+
+- `1623393160 ns/op`
+- `324930856 B/op`
+- `937067 allocs/op`
+
+The profile moved in the right place:
+
+- `math/big.nat.div` dropped from about `1.33s` cumulative to about `0.79s`
+- `runtime.tryDeferToSpanScan` dropped from about `1.08s` cumulative to about
+  `0.21s`
+- the remaining first-tier pidigits wall is now the host multiplication side:
+  `math/big.mulAddVWW`, `math/big.nat.mulAddWW`, and adjacent allocation/GC
+  churn
+
+So the next pidigits slice should stay in `able-stdlib` and target the
+multiplication-side host path, not reopen generic extern dispatch or add a
+pidigits-specific bytecode opcode.
+
+## 2026-06-09 — BigIntRef Lsh plus pidigits source alignment for compiled pidigits
+
+The next pidigits keep stayed shared and reusable, but moved away from local
+host scratch tricks. Two things landed together:
+
+- `../able-stdlib/src/numbers/bigint_native.able` now exposes a general
+  `BigIntRef.lsh(lhs, shift)` method backed by `math/big.Int.Lsh(...)`
+- `v12/examples/benchmarks/pidigits/pidigits.able` now matches the reference
+  Go benchmark shape more closely:
+  - `tmp.lsh(numer, 1)` replaces the old doubling
+    `tmp.mul_i64(numer, 2_i64)`
+  - reusable `BigIntRef` constants now back the hot `3`, `4`, and `10`
+    multiplier sites
+  - `eliminate_digit(...)` now materializes the digit into a reusable temp via
+    `set_i64(...)` and uses the general `mul(...)` path for the subtraction
+    term
+
+That is still a reusable stdlib/benchmark-source improvement, not a
+pidigits-only opcode or a new extern ABI branch.
+
+Result: keep for compiled pidigits. External compiled pidigits over `3/3` runs
+moved from the prior kept:
+
+- `1.3367s`
+
+to:
+
+- `1.1867s`
+
+The matching bytecode external run stayed effectively flat at:
+
+- `1.7533s`
+
+Profiled compiled confirmation landed at:
+
+- `1.1600s`
+
+The profile moved the intended boundaries:
+
+- `main.__able_compiled_entry_method_BigIntRef_mul_i64` dropped from about
+  `0.45s` cumulative to about `0.33s`
+- `main.__able_compiled_entry_method_BigIntRef_div` dropped from about
+  `0.58s` cumulative to about `0.30s`
+- `main.__able_compiled_entry_method_BigIntRef_lsh` is only about `0.01s`
+- the remaining first-tier wall is still host `math/big` multiplication
+  (`mulAddVWW`, `nat.mulAddWW`) plus residual GC churn
+
+So the next pidigits slice should not go back to local `mul_i64` scratch or
+alias-buffer experiments. Either take a deeper host-side `math/big` redesign,
+or pivot to another benchmark family.
+
+## 2026-06-09 — Pidigits digit-extraction intermediate reuse
+
+The next pidigits keep stayed source-level and reusable rather than adding
+another local `BigIntRef` scratch field or host wrapper tweak. The hot digit
+check in `v12/examples/benchmarks/pidigits/pidigits.able` now reuses the
+already-computed `3*numer + accum` temporary:
+
+- compute `d3` from `tmp2 = 3*numer + accum`
+- derive the `d4` candidate by `tmp2.add(tmp2, numer)` instead of rebuilding
+  `4*numer + accum` from a fresh multiply
+- drop the now-unused reusable `four` constant and the separate
+  `extract_digit(...)` helper pair
+
+That removes one full BigInt multiply from each candidate-digit attempt
+without adding any new host ABI branch or pidigits-only opcode.
+
+Result: keep. External pidigits moved from the prior kept bands:
+
+- compiled: `1.1867s`
+- bytecode: `1.7533s`
+
+to:
+
+- compiled: `1.0300s`
+- bytecode: `1.5700s`
+
+Profiled compiled confirmation landed at:
+
+- `1.0100s` over `1/1`
+
+The useful profile shift is that the reused intermediate cut the expected host
+math side directly:
+
+- `main.__able_compiled_entry_method_BigIntRef_mul` dropped from about
+  `0.17s` cumulative on the fresh pre-change profile to about `0.07s`
+- `main.__able_compiled_entry_method_BigIntRef_lsh` dropped from about
+  `0.05s` to about `0.02s`
+- the remaining first-tier wall is still host division and scalar multiply:
+  `BigIntRef_div`, `BigIntRef_mul_i64`, and the underlying
+  `math/big.mulAddVWW` / division machinery
+
+So the next pidigits slice should not go back to local helper scratch or
+alias-buffer experiments. If this family stays in focus, the next step has to
+be a broader multiplication/division-side redesign.
+
+## 2026-06-09 — Compiled signed helper fast paths close Monte Carlo
+
+The next compiled Monte Carlo keep stayed inside the compiler-emitted signed
+integer helpers and did not touch the benchmark source. The generated compiled
+runtime now emits two direct positive fast paths:
+
+- `__able_checked_mul_signed(...)` now returns `a * b` directly when both
+  operands are nonnegative and the signed bound check proves the product safe
+- `__able_divmod_signed(...)` now returns `a / b` and `a % b` directly when
+  the dividend is nonnegative and the divisor is positive, skipping the
+  Euclidean remainder-adjustment branch
+
+That is a general primitive-helper improvement, not a Monte Carlo-specific
+lowering rule.
+
+Result: keep. External compiled Monte Carlo over `3/3` runs moved from the
+refreshed baseline:
+
+- `0.2100s`
+
+to:
+
+- `0.1700s`
+
+Profiled compiled confirmation landed at:
+
+- `0.1700s`
+
+The profile moved exactly where expected:
+
+- before: `__able_divmod_signed` was about `0.05s` flat and
+  `__able_checked_mul_signed` about `0.02s` cumulative inside a `0.15s` total
+- after: both helpers are down to about `0.02s` each inside a `0.12s` total
+
+This closes compiled Monte Carlo into Go range without changing the benchmark
+algorithm or adding a benchmark-shaped compiler rule.
 
 ## 2026-05-28 — Quicksort tracked-array swap direct path
 
@@ -5024,3 +8479,1414 @@ full-benchmark status remains a `90s` timeout. The right next step is not a
 return to parser arithmetic fusion. It is another bounded slice on the same
 quicksort loop edge: the remaining canonical array-slot cache lookup and
 tracked-read overhead.
+
+## 2026-06-06 — External quicksort tracked compare local raw extraction
+
+The next keep stayed on the same fused quicksort compare opcode, but it was
+smaller than the earlier tracked-`Array i32` shortcut. The useful profile
+signal was no longer the whole boxed compare chain. It was the residual helper
+traffic still sitting inside that kept fast path:
+
+- right-slot small-`i32` extraction
+- tracked-element small-`i32` extraction
+- wrapper calls around those reads
+
+The kept change therefore does not add a new opcode or a new cache rule. It
+only rewires the existing tracked compare fast path in
+`execJumpIfArrayReadSlotCompareSlotFalse(...)` so that:
+
+- the right slot is decoded locally from slots/registers
+- the tracked element is decoded locally from the tracked array state
+- the old generic wrapper helpers are skipped on this one bounded path
+
+Everything else still falls back to the prior kept logic unchanged.
+
+On a refreshed restored canonical external-stdlib 1 MB quicksort prefix
+baseline of:
+
+- `789324033 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+- `795803486 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+- `803643848 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+
+the kept band moved to:
+
+- `764213712 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+- `768451478 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+- `764628876 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+
+The profiled confirmation was noisier at:
+
+- `810782795 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+
+So the keep basis here is the repeated warmed band plus the still-green focused
+and full-package gates, not the one-shot profile wall-clock.
+
+The profile moved in a narrower way than the previous tracked compare keep:
+
+- `compareArrayReadSlotTrackedI32Condition(...)` edged down from about `220ms`
+  cumulative to about `200ms`
+- the old generic `bytecodeDirectSmallI32Value(...)` flat cost dropped, but
+  part of that work now appears under the new local tracked-compare extractor
+
+That is still acceptable because this tranche was never trying to remove the
+entire extraction cost globally. It was only trying to trim the hot quicksort
+opcode without reopening broad `i32` helper rewrites.
+
+## 2026-06-06 — External quicksort direct `i32` boxing beyond extended cache
+
+The next keep did not stay on the array-compare edge. The fresh external
+profile and the real 1 MB quicksort input distribution changed the answer.
+
+On that workload there are about `105998` parsed numbers in the 1 MB prefix,
+and only `102` are at or below `1048575`. That means the earlier extended
+static `i32` cache keep solved the small-and-midrange parser/counter wall, but
+it left the dedicated `bytecodeBoxedIntegerI32Value(...)` helper still paying
+for the dynamic map/RWMutex path on large parser values.
+
+The kept slice is deliberately narrower than a broad integer-cache redesign:
+
+- preserve the existing shared small-int cache,
+- preserve the dedicated `i32` extended static cache through `262143`,
+- keep the generic multi-kind `bytecodeBoxedIntegerValue(...)` path unchanged,
+- but drop the dynamic map path from the dedicated
+  `bytecodeBoxedIntegerI32Value(...)` helper once those static caches miss.
+
+So the helper now falls through to:
+
+- `runtime.NewSmallInt(value, runtime.IntegerI32)`
+
+instead of taking the old lock-and-map path.
+
+This is a real tradeoff, not a free lunch. On the canonical external 1 MB
+quicksort prefix, the prior kept band of:
+
+- `764213712 ns/op`, `15308704 B/op`, `1180496 allocs/op`
+- `768451478 ns/op`, `15308720 B/op`, `1180497 allocs/op`
+- `764628876 ns/op`, `15308720 B/op`, `1180496 allocs/op`
+
+moved to:
+
+- `710210584 ns/op`, `20395552 B/op`, `1286472 allocs/op`
+- `710788667 ns/op`, `20395568 B/op`, `1286473 allocs/op`
+- `762015572 ns/op`, `20395568 B/op`, `1286473 allocs/op`
+
+with a profiled confirmation at:
+
+- `767822277 ns/op`, `20395552 B/op`, `1286472 allocs/op`
+
+So wall-clock improved materially, but allocs/op and bytes/op got worse. The
+profile still makes the keep defensible for this workload:
+
+- before: `bytecodeBoxedIntegerI32Value(...)` about `120ms` cumulative with
+  real time still in the dynamic map path
+- after: `bytecodeBoxedIntegerI32Value(...)` about `10ms` cumulative and the
+  map/RWMutex path gone from the hot list
+
+Reduced `Fib30Bytecode` stayed in the recent `152-158ms/op` band, so this is
+not a general recursion win. It is an external quicksort wall-clock keep.
+
+Full external bytecode quicksort was still not rerun for this keep, so the
+last known full-benchmark status remains the earlier `90s` timeout. The next
+step should stop optimizing the 1 MB prefix in isolation and refresh that full
+external status on the current kept state; if it still times out, the larger
+profile should decide between the remaining tracked-compare work and the
+parser/store boxed-`i32` wall.
+
+## 2026-06-06 — External quicksort full-scale status refresh after direct `i32` boxing
+
+The next tranche was the scale check that the 1 MB prefix work had been
+pointing to, not a new code edit.
+
+On the real external `../benchmarks/quicksort` input, the current kept
+bytecode state still does not clear the full benchmark guard:
+
+- `./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+- result: `timeout (1)` at `90s`
+
+That answers the immediate planning question: the recent prefix wins are real,
+but they have not yet turned into a full external quicksort pass.
+
+To choose the next tranche from full-input behavior instead of the `1 MB`
+proxy, the steady-state runtime benchmark was then run on the full `95MB`
+input with CPU profiling enabled:
+
+- `ABLE_HOME=/tmp/able-empty-home ABLE_PATH=/home/david/sync/projects/able-stdlib ABLE_MODULE_PATHS= GOCACHE=/tmp/able-gocache GOMODCACHE=/tmp/able-gomodcache ABLE_BENCH_RUNTIME_CPU_PROFILE=/tmp/able-qsort-full-runtime-600.cpu.pprof ./v12/bench_perf --runs 1 --timeout 600 --modes bytecode-runtime --run-from ../benchmarks/quicksort v12/examples/benchmarks/quicksort/quicksort.able`
+
+That full-input steady-state run completed at:
+
+- `102007915062 ns/op`
+- `10484933528 B/op`
+- `545624289 allocs/op`
+- `237.98s` real average
+- `260.51s` user average
+- `2.50s` sys average
+- `21.00` GC average
+
+The useful outcome is the hotspot ranking. On the full input, the dominant
+remaining wall is still the tracked `Array i32` compare boundary, not another
+canonical array-slot cache-policy probe and not another parser arithmetic
+rewrite:
+
+- `trackedArrayCompareDirectSmallI32Value(...)`: `15.27s` cumulative
+- `trackedArrayCompareI32RawAtSlot(...)`: `15.62s` cumulative
+- `compareArrayReadSlotTrackedI32Condition(...)`: `23.72s` cumulative
+- `execJumpIfArrayReadSlotCompareSlotFalse(...)`: `24.72s` cumulative
+- `storeSlotBinaryIntSlotConstI32RawFastResult(...)`: `8.79s` cumulative
+- `bytecodeRawI32SlotCachedValue(...)`: `6.65s` cumulative
+- `lookupCachedCanonicalArraySlotCallForArray(...)`: `5.85s` cumulative
+- `tryInlineCachedCallNameDirectFromSlots(...)`: `10.51s` cumulative
+
+That ordering matters. It says:
+
+- do not go back to canonical array-slot cache validation/layout rewrites as
+  the first next step
+- do not pivot back to parser digit-decode fusion as the first next step
+- keep the next slice opcode-local on the tracked compare extractor/read path,
+  with the raw slot/store edge as the secondary fallback
+
+A refreshed full-scale rerun on the same kept baseline after the rejected
+store-path probes did not move the timeout status. Full external bytecode
+`quicksort` still times out at the `90s` guard, and the full `95MB`
+steady-state `bytecode-runtime` pass completed at `105108381198 ns/op`,
+`10485031864 B/op`, and `545624301 allocs/op` with `212.00s` real average,
+`235.05s` user average, `2.16s` sys average, and `22.00` GC average.
+
+The tracked compare wall is still first:
+
+- `trackedArrayCompareDirectSmallI32Value(...)`: `18.67s` cumulative
+- `trackedArrayCompareI32RawAtSlot(...)`: `19.01s` cumulative
+- `compareArrayReadSlotTrackedI32Condition(...)`: `27.03s` cumulative
+- `execJumpIfArrayReadSlotCompareSlotFalse(...)`: `27.97s` cumulative
+
+The store/boxing side is still secondary on the same run:
+
+- `storeSlotBinaryIntSlotConstI32RawFastResult(...)`: `8.23s` cumulative
+- `bytecodeRawI32SlotCachedValue(...)`: `6.76s` cumulative
+- `bytecodeBoxedIntegerI32Value(...)`: `5.53s` cumulative
+
+A later refresh on the current kept baseline tightened that conclusion rather
+than changing it. Full external bytecode `quicksort` still times out at the
+`90s` guard, and the full `95MB` steady-state `bytecode-runtime` pass
+completed at `99556758026 ns/op`, `10484909080 B/op`, and `545624288
+allocs/op` with `197.92s` real average and `22.00` GC average. The tracked
+compare wall is still first, and now even more clearly flat-cost dominated by
+the value extraction itself:
+
+- `trackedArrayCompareDirectSmallI32Value(...)`: `16.18s` flat /
+  `16.31s` cumulative
+- `compareArrayReadSlotTrackedI32Condition(...)`: `23.34s` cumulative
+- `execJumpIfArrayReadSlotCompareSlotFalse(...)`: `24.24s` cumulative
+- `lookupCachedCanonicalArraySlotCallForArray(...)`: `5.75s` cumulative
+
+The non-compare wall is still second-tier on the same run:
+
+- `storeSlotBinaryIntSlotConstI32RawFastResult(...)`: `9.10s` cumulative
+- `bytecodeRawI32SlotCachedValue(...)`: `7.43s` cumulative
+- `bytecodeBoxedIntegerI32Value(...)`: `5.22s` cumulative
+
+That refreshed profile rules out another round of safe helper-level compare or
+store shaving as the likely next keep. The next real quicksort gain probably
+needs a larger tracked-`Array i32` representation boundary or typed collection
+lane instead of another local extractor, operator-dispatch, or cache-policy
+tweak.
+- `lookupCachedCanonicalArraySlotCallForArray(...)`: `5.98s` cumulative
+
+So the next bounded quicksort tranche should stay on the tracked compare
+opcode boundary, but move one level outward from the rejected extractor
+representation rewrites: target
+`compareArrayReadSlotTrackedI32Condition(...)` /
+`execJumpIfArrayReadSlotCompareSlotFalse(...)` before spending more time on
+slot-store completion or cache-policy reshaping.
+
+That outer compare slice is now kept. The tracked `Array i32` compare path in
+`bytecode_vm_array_slot_compare.go` was flattened so the opcode-local fast path
+performs the receiver/state/cache/index/right checks in one place and skips the
+dead slow-path slot loads on a hot hit. The focused compare/quicksort slice and
+full `go test ./pkg/interpreter` gate stayed green. On the current kept
+baseline, the external 1 MB quicksort prefix moved to:
+
+- `698458713 ns/op`, `20395552 B/op`, `1286472 allocs/op`
+- `673385319 ns/op`, `20395568 B/op`, `1286473 allocs/op`
+- `719970367 ns/op`, `20395552 B/op`, `1286472 allocs/op`
+
+with a profiled confirmation at:
+
+- `687033283 ns/op`, `20395552 B/op`, `1286472 allocs/op`
+
+The 1 MB profile still shows the same path as the real beneficiary:
+
+- `compareArrayReadSlotTrackedI32Condition(...)`: about `260ms` cumulative
+- `execJumpIfArrayReadSlotCompareSlotFalse(...)`: about `270ms` cumulative
+- `lookupCachedCanonicalArraySlotCallForArray(...)`: about `80ms` cumulative
+
+Full external bytecode `quicksort` still times out at the `90s` guard, so this
+is a real external-prefix keep but not the final timeout closure. The next
+bounded tranche should stay on this same loop edge and start from a fresh
+full-scale profile on the kept state; the likely next targets are the
+remaining `trackedArrayCompareDirectSmallI32Value(...)` /
+`lookupCachedCanonicalArraySlotCallForArray(...)` cost inside the kept compare
+path, not a return to slot-store completion.
+
+That full-scale refresh is now available on the later kept baseline too. Full
+external bytecode `quicksort` still times out at the `90s` guard, and the
+full-input steady-state `bytecode-runtime` pass completed at
+`115031018567 ns/op`, `9016856664 B/op`, and `203288578 allocs/op` with
+`240.69s` real average and `20.00` GC average. The ranking is still dominated
+by the same tracked compare / `i32` extraction boundary:
+
+- `trackedArrayCompareDirectSmallI32Value(...)`: `19.35s` flat /
+  `19.38s` cumulative
+- `compareArrayReadSlotTrackedI32Condition(...)`: `31.11s` cumulative
+- `execJumpIfArrayReadSlotCompareSlotFalse(...)`: `32.53s` cumulative
+- `arrayReadSlotTrackedI32RawAtSlot(...)`: `21.82s` cumulative
+- `lookupCachedCanonicalArraySlotCallForArray(...)`: `6.89s` cumulative
+
+The remaining store/call setup costs are clearly second-tier on the same run:
+
+- `execStoreSlotBinaryIntSlotConst(...)`: `10.47s` cumulative
+- `tryInlineCachedCallNameDirectFromSlots(...)`: `11.90s` cumulative
+- `bytecodeDirectSmallI32Value(...)`: `5.37s` cumulative
+
+That tightened the planning conclusion rather than changing it. The next real
+quicksort tranche should be the first real typed `i32` frame/register slice or
+an equivalently large tracked-`Array i32` representation step, not another
+boxed-path helper tweak.
+
+One more bounded keep was still hiding inside that same fused compare boundary.
+The `arr[idx] as i32 <op> rhs` opcode path still missed raw `i32` register
+operands and still recast tracked `Array i32` elements locally even though the
+tracked array state already carried the incremental raw-`i32` cache from the
+earlier quicksort representation slice. The kept follow-up now:
+
+- reads the rhs and index directly from the raw `i32` register lane on the
+  fused `JumpIfArrayIndexSlotCompareSlotFalse` `i32` fast path
+- uses the tracked-array raw-`i32` cache first on the array-index compare path
+  before falling back to `runtime.Value`
+- materializes register-backed fallback operands explicitly so negative/raw
+  register indexes keep the same error behavior as boxed slots
+
+On the reduced in-tree quicksort hotloop, a fresh `100x` guard moved from
+`5568622 ns/op` to `5307936 ns/op`, with the confirming profile run at
+`5349063 ns/op`. The reduced hotloop profile changed in the intended way:
+
+- `bytecodeArrayIndexCastSmallI32Raw(...)` dropped out of the top tier
+- `arrayIndexSlotCompareI32RawValue(...)` dropped out of the top tier
+- the visible compare work is now the opcode-local
+  `compareArrayIndexSlotI32ConditionAtSlots(...)` /
+  `execJumpIfArrayIndexSlotCompareSlotFalse(...)` lane instead of the old
+  tracked-value recast helper
+
+This is another real keep, but it is still a reduced quicksort keep rather
+than a timeout closure. The next useful step is to re-profile full-scale
+quicksort on this state and decide whether the next bounded cut stays on the
+fused compare/load edge or moves to the adjacent call/store tier.
+
+## 2026-06-10 — External quicksort tracked dynamic-array raw `i32` cache
+
+The next quicksort keep finally took the larger representation step that the
+full-scale profiles had been pointing at. Instead of re-reading a tracked
+dynamic `Array i32` element as `runtime.Value` and rediscovering a small `i32`
+on every partition compare, tracked array state now keeps an incremental raw
+`i32` cache whenever the live tracked contents remain direct small `i32`
+values. The compare opcode reads that cache first.
+
+This landed in the runtime/interpreter boundary rather than as another local
+opcode micro-branch:
+
+- `v12/interpreters/go/pkg/runtime/array_store.go`
+- `v12/interpreters/go/pkg/runtime/array_store_i32_cache.go`
+- `v12/interpreters/go/pkg/interpreter/interpreter_array_i32_cache.go`
+- `v12/interpreters/go/pkg/interpreter/interpreter_arrays.go`
+- `v12/interpreters/go/pkg/interpreter/bytecode_vm_array_slot_compare.go`
+- `v12/interpreters/go/pkg/interpreter/bytecode_vm_array_slot_member_fast.go`
+- tests in `interpreter_array_tracking_test.go`
+
+The first version rebuilt the cache on every append and was immediately
+rejected. The kept version only appends to the raw cache incrementally on the
+steady-state `push(...)` path, while `syncArrayValues(...)` still rebuilds from
+full state only at broader sync boundaries.
+
+On the current local quicksort measurements, the old baselines were:
+
+- hotloop bench: `7550051 ns/op`, `212355 B/op`, `2964 allocs/op`
+- 1 MB external-style prefix: `777962886 ns/op`, `16203384 B/op`,
+  `500040 allocs/op`
+
+The kept state moved to:
+
+- hotloop bench: `5881281 ns/op`, `233355 B/op`, `2977 allocs/op`
+- hotloop confirmation: `6848786 ns/op`, `233387 B/op`, `2977 allocs/op`
+- 1 MB external-style prefix `3/3`: `708968279 ns/op`, `18171568 B/op`,
+  `500068 allocs/op`
+- profiled 1 MB confirmation: `702132004 ns/op`, `18201992 B/op`,
+  `500134 allocs/op`
+
+The profile consequence is the important result. On the profiled 1 MB prefix
+run, the old tracked-compare extraction wall moved behind the remaining local
+materialization and index helpers:
+
+- `compareArrayReadSlotTrackedI32Condition(...)`: about `60ms` cumulative
+- `trackedArrayCompareI32RawAtSlot(...)`: about `30ms` cumulative
+- `execJumpIfArrayReadSlotCompareSlotFalse(...)`: about `70ms` cumulative
+- `bytecodeRawI32SlotCachedValue(...)`: about `60ms` flat
+- `arraySlotIndexSmall(...)`: about `40ms` flat
+
+So this is a real keep, but it is still not the end state for bytecode
+`quicksort`. The next defensible slice should stay on the same tracked
+`Array i32` materialization boundary: target
+`bytecodeRawI32SlotCachedValue(...)`, `arraySlotIndexSmall(...)`,
+`execArrayReadSlot(...)`, or a broader operand/load cut that shares this raw
+lane, not another helper-level compare metadata tweak. Full external bytecode
+`quicksort` still timed out at the `90s` guard on this tranche:
+
+- `./v12/bench_compare_external --benchmarks quicksort --modes bytecode --runs 1 --timeout 90`
+
+## 2026-06-09 — Bytecode named-struct storage path follow-up
+
+The next timeout-family keep stayed on the same nominal/materialization
+boundary instead of opening another isolated helper cut. Exact named struct
+literals built through the bytecode fast path now use definition-ordered
+positional storage rather than allocating a per-instance `map[string]Value`,
+and the generic named-struct consumers that must preserve field semantics now
+route through a shared helper boundary that works for both legacy map-backed
+and new positional-backed instances.
+
+This was a real reduced-case win on `binarytrees` (`n := 16`). The kept
+baseline moved from:
+
+- `62.83s`
+- `10992937632 B/op`
+- `127767105 allocs/op`
+
+to:
+
+- `56.59s`
+- `6437212488 B/op`
+- `112781161 allocs/op`
+
+The full external bytecode benchmark still times out at the `60s` guard, so
+this remains a timeout-family keep rather than a closure. But the allocation
+drop is large enough to matter: roughly `4.56GB` and about `15M` allocs/op
+came out of the reduced case on this slice alone.
+
+The next kept follow-up stayed on the same broader nominal call/materialization
+boundary instead of opening another field/member helper cut. Exact simple
+named-struct coercion and return edges now bypass the generic
+`matchesType(...)` / `coerceValueToType(...)` path when the runtime value
+already carries that exact non-generic struct definition, while preserving the
+old `Error` payload unwrap semantics.
+
+That moved the same reduced `binarytrees` case again from:
+
+- `56.59s`
+- `6437212488 B/op`
+- `112781161 allocs/op`
+
+to:
+
+- `54.27s`
+- `6437180464 B/op`
+- `112781084 allocs/op`
+
+The profile consequence is modest but real: recursive nominal call/return
+coercion is cheaper now, and the broader generic type-expression
+materialization dropped further out of the top tier. Full external bytecode
+`binarytrees` still times out at the `60s` guard, so this is another reduced
+timeout-family keep rather than a closure.
+
+The next kept follow-up pushed that exact nominal proof into the bytecode
+inline boundary itself instead of leaving it inside the generic coercion
+helper. Exact simple named-struct parameter and return shapes now count as
+no-coercion hits during:
+
+- inline direct-call frame setup
+- inline self-call frame setup
+- cached call-name direct-inline setup
+- inline return finish
+
+That moved the same reduced `binarytrees` case again from:
+
+- `54.27s`
+- `6437180464 B/op`
+- `112781084 allocs/op`
+
+to:
+
+- `53.49s`
+- `6437165800 B/op`
+- `112781019 allocs/op`
+
+The gain is smaller than the earlier storage and typed-pattern keeps, but it
+is still defensible and it confirms the same design conclusion: the remaining
+timeout-family wall is the broader nominal call/materialization boundary, not
+another local field/member helper slice. Full external bytecode `binarytrees`
+still times out at the `60s` guard.
+
+## 2026-06-09 — Env-aware simple named-struct slot eligibility for `binarytrees` bytecode
+
+The next kept timeout-family slice moved that same broader nominal proof into
+slot-layout eligibility itself. The bytecode lowerer already had an exact
+simple named-struct literal fast path, but slot analysis still rejected every
+`StructLiteral`, which kept `make_tree(...)` off the slot/direct-inline path
+and left the reduced `binarytrees` case dominated by the generic lexical
+call/cache ladder.
+
+The landed rule is intentionally narrow:
+
+- exact simple named-struct literals may count as slot-safe only when the
+  lowering environment can already prove the visible named struct definition
+- this is only for the bytecode slot-layout path; it is not a new language
+  rule and not a new nominal representation
+- functions that become slot-eligible only through this rule are still
+  rejected when the body also contains placeholder expressions or dotted
+  identifier calls
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from:
+
+- `53.49s`
+- `6437165800 B/op`
+- `112781019 allocs/op`
+
+to:
+
+- `19.17s`
+- `1692672920 B/op`
+- `30223222 allocs/op`
+
+This is the first `binarytrees` bytecode slice in this run that clearly
+collapses the old generic lexical call wall. The reduced-case profile is no
+longer led by `invokeFunction(...)` / `execCallName(...)`; the new top tier is
+now the direct-inline and struct-fast boundary:
+
+- `execStructLiteralNamedFast(...)`
+- `finishInlineReturn(...)`
+- `tryInlineSelfCallFromStack(...)`
+- `execCallOpcode(...)`
+- `execCallSelfIntSubSlotConst(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this is still a timeout-family keep rather than a closure. But the planning
+target changed materially: the next slice should target the new
+direct-inline/struct-fast wall, not the old lexical call/cache ladder.
+
+## 2026-06-09 — Lowered named-struct literal plans for `binarytrees` bytecode
+
+The next kept follow-up stayed on that new direct-inline/struct-fast wall. The
+previous keep had already made `make_tree(...)` slot-backed and direct-inline,
+but the hot `Node { left: ..., right: ... }` path still paid two avoidable
+costs on every execution:
+
+- `env.StructDefinition(...)` to recover the same exact named struct
+- a field-name scan to map source field order onto definition order
+
+The new slice removes both from the fast path when lowering already knows the
+struct definition:
+
+- lowering records a per-site named-struct literal plan
+- the plan carries precomputed definition-order field indices
+- when available, it also carries the exact `StructDefinitionValue` from the
+  lowering environment
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from:
+
+- `19.17s`
+- `1692672920 B/op`
+- `30223222 allocs/op`
+
+to:
+
+- `17.42s`
+- `1692672936 B/op`
+- `30223223 allocs/op`
+
+The profiled reduced run confirms the intended shift:
+
+- `execStructLiteralNamedFast(...)` dropped from about `3.65s` cumulative on
+  the earlier slot-inline keep to about `1.17s`
+- the remaining first-tier wall is still the same direct-inline boundary:
+  `finishInlineReturn(...)`, `execCallOpcode(...)`, and
+  `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this remains a reduced timeout-family keep rather than a closure.
+
+## 2026-06-19 — `nbody` and `k_nucleotide` broadened the external harness
+
+The next benchmark-coverage tranche added two more comparison targets to the
+local/external performance workflow:
+
+- `nbody`
+- `k_nucleotide`
+
+The harness changes landed in three places:
+
+- canonical Able sources under `v12/examples/benchmarks`
+- sibling `../benchmarks` Go/Able/verify packaging
+- `v12/bench_compare_external` benchmark wiring, including the
+  `k_nucleotide` program argument and the `nbody` target mapping
+
+`k_nucleotide` also exposed three general runtime seams that were fixed as part
+of the tranche rather than worked around in the benchmark source:
+
+- compiled/interpreted hash-map helpers now hash and compare primitive
+  `String`/`bool`/`char`/integer keys directly before falling back to
+  interface dispatch
+- static host-extern launchers now seed `interp.SetArgs(os.Args[1:])`, which
+  restores compiled `os.args()` for CLI-driven workloads
+- the benchmark-facing `able.fs` / `able.io` wrappers in the external
+  `able-stdlib` now use explicit `match` handling instead of the earlier
+  generic `unwrap(...)` wrappers that were tripping compiler/typechecker paths
+
+Current validation from the landed state:
+
+- full compiled `k_nucleotide` verification now passes against the generated
+  FASTA/reference output
+- `./v12/bench_compare_external --benchmarks k_nucleotide --modes compiled --runs 1 --timeout 120`
+  currently returns `ok (1)` at `2.8800s`
+- `./v12/bench_compare_external --benchmarks nbody --modes compiled --runs 1 --timeout 120`
+  currently returns `ok (1)` at `0.3600s`
+
+The next useful work on this slice is no longer harness repair. It is source
+audit plus measurement work on the new benchmark families, and then the same
+compiled-vs-bytecode follow-up loop already used on the existing core set.
+
+## 2026-06-19 — `reverse_complement` joined the external harness
+
+The next external benchmark-coverage slice added a byte-oriented FASTA
+workload:
+
+- `reverse_complement`
+
+The landed coverage spans the same three surfaces as the other external
+families:
+
+- canonical Able source under
+  `v12/examples/benchmarks/reverse_complement/reverse_complement.able`
+- sibling `../benchmarks/reverse-complement` Go/Able/setup/verify packaging
+- `v12/bench_compare_external` mapping plus program-argument wiring
+
+This benchmark did not require a new stdlib surface. The existing
+`able.fs.read_bytes(...)` and `able.io.write_all(...)` APIs were enough for a
+direct byte-oriented implementation, which is the right first shape for this
+workload because it keeps the benchmark focused on reverse traversal, byte
+lookup, and buffered output rather than on string-object churn.
+
+Current validation from the landed state:
+
+- `go run ../benchmarks/reverse-complement/app.go ../benchmarks/reverse-complement/reverse-complement-input.fasta | ruby ../benchmarks/reverse-complement/verify.rb`
+  passes
+- compiled canonical Able build now verifies against the generated FASTA
+  reference output
+- `./v12/bench_compare_external --benchmarks reverse_complement --modes compiled,bytecode --runs 1 --timeout 30`
+  now returns:
+  - compiled `ok (1)` at `0.3200s` vs Go `0.0100s` (`32.00x`)
+  - bytecode `ok (1)` at `3.5300s` vs Go `0.0100s` (`353.00x`)
+- treewalker still times out at the `30s` guard on the same workload
+
+The sibling `../benchmarks/results.json` snapshot now includes Go reference
+rows for `reverse-complement`, so `bench_compare_external` no longer reports
+`n/a` for the Go comparison on this benchmark.
+
+## 2026-06-19 — `mandelbrot` joined the external harness
+
+The next external benchmark-coverage slice added a binary-output numeric
+workload:
+
+- `mandelbrot`
+
+The landed coverage again spans the same three surfaces:
+
+- canonical Able source under
+  `v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+- sibling `../benchmarks/mandelbrot` Go/Able/setup/verify packaging
+- `v12/bench_compare_external` target mapping
+
+Two harness-level notes matter for this benchmark:
+
+- the sibling `../benchmarks/run.rb` now extracts timing metrics from raw
+  merged stdout/stderr bytes instead of assuming UTF-8 text output, which is
+  necessary for PBM/binary workloads
+- the kept benchmark size is `SIZE = 800`; larger earlier sizes kept the
+  bytecode path in the timeout family, so the landed benchmark is tuned to
+  keep compiled and bytecode measurable in the standard external harness
+
+Current validation from the landed state:
+
+- `go run ../benchmarks/mandelbrot/app.go | ruby ../benchmarks/mandelbrot/verify.rb`
+  passes
+- compiled canonical Able build verifies against the generated PBM reference
+  output
+- `./v12/bench_compare_external --benchmarks mandelbrot --modes compiled,bytecode --runs 1 --timeout 30`
+  now returns:
+  - compiled `ok (1)` at `0.1100s` vs Go `0.0400s` (`2.75x`)
+  - bytecode `ok (1)` at `20.2800s` vs Go `0.0400s` (`507.00x`)
+- treewalker still times out at the `30s` guard on the same workload
+
+## 2026-06-19 — `mandelbrot` bytecode float-slot store tranche
+
+The first measured bytecode optimization pass on `mandelbrot` stayed fully on
+the VM/lowering side and did not change the benchmark source.
+
+The landed pieces were:
+
+- a new direct slot-to-slot float binary store opcode for simple statement
+  shapes like `zr2 := zr * zr` and `zi2 := zi * zi`
+- a generalized float add-mul lowering rule so the base term no longer has to
+  be the target slot itself, which now covers `zi = 2.0 * zr * zi + ci`
+- a binary-output fix in `v12/bench_perf` (`grep -a`) so steady-state
+  `bytecode-runtime` measurements work on PBM-emitting programs
+
+Measured impact:
+
+- like-for-like one-shot `bytecode-runtime` confirmation moved from
+  `20448897471 ns/op`, `7753471504 B/op`, `323454802 allocs/op`
+  to `13175977420 ns/op`, `3964297712 B/op`, `165573914 allocs/op`
+- external bytecode mode moved from `20.2800s` to `13.2100s`
+  on `./v12/bench_compare_external --benchmarks mandelbrot --modes bytecode --runs 1 --timeout 30`
+- against the kept Go row (`0.0400s`), the external bytecode ratio improved
+  from `507.00x` to `330.25x`
+
+The refreshed post-keep CPU/alloc profile still points at the same broad class
+of remaining work, but on a narrower wall:
+
+- CPU hot tier: `execLoadSlotOpcode(...)`, `bytecodeDirectFloatArithmeticFast(...)`,
+  `slotRuntimeValue(...)`, `bytecodeSlotReadValue(...)`, `execBinary(...)`
+- allocation hot tier: `bytecodeDirectFloatArithmeticFast(...)`,
+  `bytecodeSlotReadValue(...)`, `bytecodeDirectFloatAddMul(...)`
+
+That makes the next likely productive tranche a float-materialization cut:
+avoid boxing/materializing transient float results when the next step is a
+direct slot write or another float-specialized opcode.
+
+## 2026-06-19 — `mandelbrot` raw-float slot lane
+
+The follow-on `mandelbrot` pass stayed entirely inside the bytecode VM and
+implemented the first bounded raw-float lane.
+
+The landed shape was:
+
+- new internal raw float carriers:
+  - `bytecodeRawF32SlotValue`
+  - `bytecodeRawF64SlotValue`
+- float-specialized slot/store opcodes now keep those carriers unboxed across:
+  - direct float binary arithmetic
+  - fused float add-mul slot updates
+  - fused float binary stores
+  - cast-slot-float-const-div fast paths
+  - slot loads onto the VM stack
+- explicit materialization boundaries were added at:
+  - generic binary fallback
+  - call setup
+  - typed slot assignment
+  - inline/direct return and VM exit
+
+Measured impact with the comparable cached-stdlib harness:
+
+- `./v12/bench_perf --runs 1 --timeout 90 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+  moved from the post-store-tranche `13175977420 ns/op`,
+  `3964297712 B/op`, `165573914 allocs/op` band to a new
+  `12237905096-12594330580 ns/op`, `2783100744-2783130656 B/op`,
+  `300798648-300798705 allocs/op` band
+- `./v12/bench_compare_external --benchmarks mandelbrot --modes bytecode --runs 1 --timeout 30`
+  moved from `13.2100s` to `12.5900s`
+- against the kept Go row (`0.0400s`), external bytecode improved from
+  `330.25x` to `314.75x`
+- secondary cached-stdlib spot-check:
+  - `matrixmultiply` bytecode: `0.5200s` vs Go `0.8800s`
+
+One important harness note came out of the same session: the source-stdlib
+external runs (`ABLE_PATH=/home/david/sync/projects/able-stdlib/src:...`) were
+consistently slower on the same code (`mandelbrot` `13.6400-13.7200s`,
+`matrixmultiply` `0.8200s`) because source-resolution/bootstrap work is folded
+into those CLI timings. The cached-stdlib runs are the comparable keep against
+the existing checked-in snapshot.
+
+The new profile changed what "next" means:
+
+- CPU still clusters around `execLoadSlotOpcode(...)`, `execBinary(...)`,
+  `bytecodeDirectFloatArithmeticFast(...)`, `slotStackValue(...)`, and
+  `bytecodeStackSnapshotValue(...)`
+- allocation space is now dominated by the raw-float carrier itself:
+  - `bytecodeRawFloatSlotValue(...)`: `76.87%`
+  - `bytecodeMaterializeRawFloatValue(...)`: `14.86%`
+
+So the raw-float carrier keep is worth preserving, but the next productive
+step is no longer "more raw carrier propagation". It is a true slot/register
+sidecar raw-float lane so those transient float results stop allocating at all.
+
+## 2026-06-20 — slot-only float sidecar probe rejected
+
+The next follow-on experiment tried to cash that conclusion out with a bounded
+slot-side raw-float frame substrate. The implementation was made correct and
+covered with focused float/F64 call-frame tests, but it did not produce a new
+performance keep.
+
+Measured result:
+
+- active slot-side lane regressed cached-stdlib external `mandelbrot` to
+  `13.8200s`
+- active slot-side lane regressed cached-stdlib external `matrixmultiply` to
+  `0.6300s`
+- the runtime allocation band stayed effectively unchanged, so the extra slot
+  indirection did not remove the
+  `bytecodeRawFloatSlotValue(...)` / `bytecodeMaterializeRawFloatValue(...)`
+  cost identified by the prior profile
+- after backing the active slot-storage path back out of the generic hot
+  readers, the exploratory runtime spot check returned to
+  `12827501003 ns/op`, `2783102000 B/op`, `300798642 allocs/op`, which still
+  does not beat the kept raw-float-carrier band
+
+Conclusion:
+
+- do not treat a slot-only float sidecar as a benchmark keep
+- the next credible `mandelbrot` cut is a true stack/register raw-float lane,
+  or a more direct reduction of raw-float carrier/materialization allocation
+
+## 2026-06-20 — stack-local float-cell follow-up also rejected
+
+The next experiment took that conclusion literally and tried the smallest
+stack/register-side cut that could hit the same hot loop without reopening a
+full VM rewrite.
+
+Two active variants were measured:
+
+- pooled stack-local `*runtime.FloatValue` cells for float loads/results plus
+  explicit call-boundary materialization
+- a lighter follow-up that backed the pooled cell path back out but kept the
+  stack-side float normalization helpers in the hot load/replace/push path
+
+Measured result:
+
+- pooled-cell active lane:
+  - `./v12/bench_perf --runs 1 --timeout 90 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+    landed at `28454783500 ns/op`, `1834321752 B/op`, `78319459 allocs/op`
+  - `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 1 --timeout 30`
+    regressed cached-stdlib external `mandelbrot` to `28.2600s`
+    and landed cached-stdlib external `matrixmultiply` at `0.5500s`
+- lighter raw-normalization follow-up:
+  - runtime spot check landed at
+    `16682311702 ns/op`, `3131617712 B/op`, `346922621 allocs/op`
+  - cached-stdlib external `mandelbrot` still regressed to `17.6200s`
+  - cached-stdlib external `matrixmultiply` stayed near the old band at
+    `0.5200s`
+
+So neither follow-up was a keep. The lower alloc bands did not translate into
+better wall-clock on `mandelbrot`; pointer/pool bookkeeping and extra
+normalization cost were more expensive than the raw-float-carrier control they
+were trying to replace.
+
+The active stack-side path was then backed out and the control restored:
+
+- runtime `mandelbrot` spot check returned to
+  `12783506275 ns/op`, `2783102432 B/op`, `300798658 allocs/op`
+- cached-stdlib external `mandelbrot` returned to `13.2300s`
+- cached-stdlib external `matrixmultiply` re-confirmed in the same general
+  band at `0.7800s`
+
+Conclusion:
+
+- do not treat stack-local pooled `*runtime.FloatValue` lanes as a keep
+- do not treat load/replace raw-normalization on its own as a keep
+- the next credible float tranche still needs a true raw stack/register
+  sidecar or a more local allocation cut that does not add pointer/pool
+  bookkeeping to the hot loop
+
+## 2026-06-20 — direct raw-float compare fast path kept the next cut
+
+The next follow-up stayed on the narrower "local allocation cut" branch rather
+than reopening another stack/slot representation experiment.
+
+The landed change was:
+
+- new direct float compare helpers for `<`, `<=`, `>`, `>=`, `==`, and `!=`
+  that accept the existing raw-float carriers plus ordinary
+  `runtime.FloatValue` / `*runtime.FloatValue`
+- `execBinary(...)` now tries that path before materializing into the generic
+  operator helpers
+- `compareBytecodeCondition(...)` now uses the same path before falling
+  through to `ApplyBinaryOperatorFast(...)` / `applyBinaryOperator(...)`
+
+This keeps the existing raw-float carrier representation, but removes one of
+the remaining materialization boundaries when float results flow directly into
+comparisons.
+
+Measured impact:
+
+- `./v12/bench_perf --runs 1 --timeout 90 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+  moved from the restored control
+  `12783506275 ns/op`, `2783102432 B/op`, `300798658 allocs/op`
+  to `10834374807 ns/op`, `2398954784 B/op`, `284792308 allocs/op`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 1 --timeout 30`
+  moved cached-stdlib external bytecode:
+  - `mandelbrot`: `13.2300s` -> `11.2100s`
+  - `matrixmultiply`: `0.5400s` on the same one-shot confirmation
+
+So this one is a real keep. The prior rejected sidecar lesson still stands,
+but the narrower conclusion is now better grounded: local boundary cuts around
+raw-float comparison can pay off without changing the broader VM
+representation.
+
+What is next:
+
+- the compare itself is now cheap, but the condition still pays for producing a
+  bool on the VM stack and immediately consuming it with `JumpIfFalse`
+- the next productive `mandelbrot` cut should stay on that same boundary and
+  target a direct float-add-compare-const jump for the hot
+  `zr2 + zi2 > 4.0` escape test before revisiting broader representation work
+
+## 2026-06-20 — direct float-add compare jump kept the next cut
+
+The next follow-up stayed on the exact hot `mandelbrot` condition branch that
+the prior compare keep left behind.
+
+The landed change was:
+
+- new lowering support for `bytecodeOpJumpIfFloatAddCompareConstFalse` on
+  slot-backed float shapes like `zr2 + zi2 > 4.0`
+- a per-site jump plan carrying the two resolved input slots plus the float
+  literal
+- `execJumpIfFloatAddCompareConstFalse(...)` now reads raw float carriers from
+  those slots directly, adds them, compares the result to the literal, and
+  branches without materializing an intermediate float value or a transient
+  bool
+- unsupported cases still fall back to the existing generic condition path
+
+This keeps the existing raw-float carrier representation again, but removes
+the remaining bool stack round-trip on the hottest escape test in the
+benchmark.
+
+Measured impact:
+
+- `./v12/bench_perf --runs 1 --timeout 90 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+  moved from the prior kept direct-compare tranche
+  `10834374807 ns/op`, `2398954784 B/op`, `284792308 allocs/op`
+  to `9700657707 ns/op`, `2030453960 B/op`, `238730417 allocs/op`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 1 --timeout 30`
+  moved cached-stdlib external bytecode:
+  - `mandelbrot`: `11.2100s` -> `9.9900s`
+  - `matrixmultiply`: `0.5200s` on the same one-shot confirmation
+
+So this one is also a real keep. The more specific conclusion now is that
+local condition-boundary cuts on the existing raw-float carrier path continue
+to pay off, while the broader slot/stack sidecar experiments still do not.
+
+What is next:
+
+- the fused compare+jump is now cheap on this site, so the next step should
+  re-profile and target the remaining raw-float slot load/materialization churn
+  rather than reopening wider representation changes
+- that will likely entail either another local load/materialization boundary
+  cut or a more disciplined raw stack/register lane, but only after the fresh
+  profile confirms where the new top wall moved
+
+## 2026-06-20 — raw-float load snapshot cut kept the next cut
+
+The next follow-up did exactly that re-profile, and the new hot allocation wall
+was narrow enough for another local keep.
+
+The landed change was:
+
+- `bytecodeStackSnapshotValue(...)` now reuses an existing immutable raw
+  `f32`/`f64` carrier instead of wrapping the same slot value into a fresh raw
+  float carrier again
+- that removes the repeated load-side reboxing on `execLoadSlotOpcode(...)`
+  and other stack snapshot sites while keeping the existing copy behavior for
+  mutable boxed integer/float cells
+- focused coverage now includes a zero-allocation raw-float slot-load test, in
+  addition to the nearby stdlib primitive parity path that had already proven
+  the member-call materialization boundary
+
+This keeps the existing raw-float carrier representation again, but stops
+paying for a second raw-float carrier allocation when an immutable slot value
+is merely being loaded onto the VM stack.
+
+Measured impact:
+
+- `./v12/bench_perf --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+  moved from the prior kept condition-jump tranche
+  `9700657707 ns/op`, `2030453960 B/op`, `238730417 allocs/op`
+  to `8580938220 ns/op`, `1302262736 B/op`, `147706479 allocs/op`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 1 --timeout 30`
+  moved cached-stdlib external bytecode:
+  - `mandelbrot`: `9.9900s` -> `9.6000s`
+  - `matrixmultiply`: `0.5300s` on the same one-shot confirmation
+
+So this one is also a real keep. More importantly, the post-keep profile
+changes what "next" means:
+
+- load-side cumulative allocation mostly drops out of the hot tier
+- `bytecodeRawFloatSlotValue(...)` still dominates allocation space, but it is
+  now driven much more by raw-float result creation and slot-write paths such
+  as `execStoreSlotFloatBinary(...)`, `storeFloatSlotValue(...)`, and
+  `bytecodeDirectFloatArithmeticFast(...)`
+
+What is next:
+
+- the next productive `mandelbrot` cut should stay local to that same
+  raw-float carrier boundary and target raw-float result production or slot
+  write churn
+- that will likely entail another narrow store/result boundary cut rather than
+  reopening the broader slot/stack sidecar experiments that already failed
+
+## 2026-06-20 — raw-float slot-write reuse kept the next cut
+
+The next follow-up stayed on exactly that store/result boundary and removed the
+next duplicate raw-float carrier allocation instead of widening the VM shape.
+
+The landed change was:
+
+- `storeFloatSlotValue(...)` now reuses an existing raw float carrier when a
+  fast path has already produced one, instead of unwrapping that carrier and
+  constructing another raw float carrier for the slot write
+- that removes the duplicate raw-float slot-write allocation on the proven
+  float store fast paths while leaving boxed float/int slot behavior unchanged
+- focused coverage now includes a zero-allocation raw-float slot-store test
+
+This keeps the existing raw-float carrier representation again, but removes one
+more carrier rebuild on the hot float store path.
+
+Measured impact:
+
+- `./v12/bench_perf --runs 1 --timeout 120 --modes bytecode-runtime --run-from ../benchmarks v12/examples/benchmarks/mandelbrot/mandelbrot.able`
+  moved from the prior kept load-snapshot tranche
+  `8580938220 ns/op`, `1302262736 B/op`, `147706479 allocs/op`
+  to `7602284359 ns/op`, `932025480 B/op`, `101426969 allocs/op`
+- a profiled post-keep confirmation landed at
+  `7481653447 ns/op`, `932066960 B/op`, `101427045 allocs/op`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 1 --timeout 30`
+  moved cached-stdlib external bytecode:
+  - `mandelbrot`: `9.6000s` -> `8.7900s`
+  - `matrixmultiply`: `0.5800s` on the same one-shot confirmation
+
+So this one is also a real keep. The new post-keep profile sharpens the next
+target again:
+
+- `bytecodeRawFloatSlotValue(...)` still dominates allocation space
+- the remaining cumulative wall is now much more clearly centered on raw-float
+  result creation in generic float arithmetic and float store arithmetic
+  helpers such as `execBinary(...)`, `bytecodeDirectFloatArithmeticFast(...)`,
+  `execStoreSlotFloatBinary(...)`, and `bytecodeDirectFloatAddMulValue(...)`
+
+What is next:
+
+- the next productive `mandelbrot` cut should stay on that same raw-float
+  carrier boundary and target raw-float result creation itself
+- that likely means another narrow arithmetic/result-path cut rather than any
+  return to the broader slot/stack sidecar experiments that already failed
+
+## 2026-06-20 — narrowed owned-float result reuse kept the array-get follow-up
+
+The next float follow-up tested a broader reusable owned-float slot update
+path, then kept only the subset that held up after profiling.
+
+The landed change was:
+
+- added shared float-store result helpers so exact raw float results can write
+  directly into an existing owned float slot cell when one is already present
+- kept that reuse only on `StoreSlotFloatAddMulArrayGet` and
+  `StoreSlotCastSlotFloatConstDiv`
+- backed the same reuse out of plain `StoreSlotFloatBinary` and plain
+  `StoreSlotFloatAddMul` after profiling showed those lanes shifting
+  allocation into `bytecodeStackSnapshotValue(...)`
+
+The useful lesson here is narrower than the original probe: broad owned-float
+slot reuse is still the wrong direction, but the fused array-get accumulation
+lane can reuse an already-owned float slot cell without reopening the larger
+load-side regression.
+
+Measured impact:
+
+- the rejected broad plain-store reuse probe regressed profiled runtime
+  `mandelbrot` to `8563048519 ns/op`, `1166922760 B/op`,
+  `100823898 allocs/op`
+- the final narrowed tree lands unprofiled runtime `mandelbrot` at
+  `7842792429 ns/op`, `932030880 B/op`, `101426975 allocs/op`
+- the profiled confirmation landed at
+  `7976444236 ns/op`, `932067504 B/op`, `101427061 allocs/op`
+- `./v12/bench_compare_external --benchmarks mandelbrot,matrixmultiply --modes bytecode --runs 3 --timeout 60`
+  averaged cached-stdlib external bytecode:
+  - `mandelbrot`: `8.1100s`
+  - `matrixmultiply`: `0.5467s`
+
+What is next:
+
+- the next productive float cut should stay on the remaining raw-float result
+  creation in `execBinary(...)` and adjacent generic arithmetic helpers
+- do not widen owned-float slot reuse back onto the plain float store lanes;
+  that just trades raw-result allocation for load-side snapshot churn
+
+## 2026-06-10 — Per-site exact named-struct member plans for `binarytrees`
+
+The next kept `binarytrees` slice stayed on the same reduced inline wall, but
+the target moved from local helper shaving to a broader bytecode-site plan for
+named-struct field access.
+
+The landed cut carries exact named-struct field plans on
+`bytecodeOpMemberAccess` sites when lowering can already prove the receiver’s
+exact named-struct definition from slot-backed metadata:
+
+- exact named-struct params now seed slot-local exact-definition metadata
+- typed-pattern bindings like `left: Node` propagate that same proof into the
+  bound slot
+- simple declarations whose RHS already carries an exact named-struct proof,
+  such as direct `as DepthResult`, also seed the slot metadata
+- `execMemberAccess(...)` now tries the planned exact-definition/field-index
+  path before the broader `structNamedFieldValue(...)` name-scan helper
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from the
+prior kept `12.21-12.78s` band to:
+
+- `12.7100s`, `2172228568 B/op`, `15237328 allocs/op`
+- `11.8800s`, `2172228456 B/op`, `15237327 allocs/op`
+- isolated confirmation: `12.2300s`, `2172228664 B/op`, `15237328 allocs/op`
+
+The direct profiled confirmation held at:
+
+- `6278000300 ns/op`
+- `2172258976 B/op`
+- `15237395 allocs/op`
+
+The profile change is the useful part:
+
+- new `bytecodeDirectPlannedStructMemberValue(...)`: about `0.19s`
+  cumulative
+- `execMemberAccess(...)`: about `0.37s` cumulative
+- the old `bytecodeDirectStructMemberValue(...)` / repeated
+  `structNamedFieldIndex(...)` scan path dropped out of the top tier for the
+  planned hot sites
+- the remaining reduced wall is still:
+  `finishInlineReturn(...)`, `execCallOpcode(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this is another reduced timeout-family keep rather than a closure.
+
+## 2026-06-10 — Direct minimal self-fast frame push for `binarytrees`
+
+The next kept `binarytrees` slice stayed on the same reduced inline wall, but
+it moved from member planning to the remaining self-inline setup boundary.
+
+The landed cut is narrow:
+
+- added `pushInlineSelfFastFrame(...)`
+- self-inline setup sites that already satisfy
+  `bytecodeCanUseSelfFastMinimalFrame(...)` now go directly to
+  `pushSelfFastMinimalCallFrameWithBases(...)`
+- non-minimal sites still fall back to the existing `pushCallFrame(...)`
+  path unchanged
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from the
+prior kept `11.88-12.71s` band to:
+
+- `11.6700s`, `2172228872 B/op`, `15237329 allocs/op`
+- `12.1100s`, `2172229016 B/op`, `15237332 allocs/op`
+
+The direct profiled confirmation held at:
+
+- `6224157625 ns/op`
+- `2172258640 B/op`
+- `15237392 allocs/op`
+
+The profile consequence is the useful part:
+
+- inside `tryInlineSelfCallFromStack(...)`, the old inline
+  `pushCallFrame(...)` edge on the hot one-param branch dropped from about
+  `210ms` sampled to about `100ms` through `pushInlineSelfFastFrame(...)`
+- `pushCallFrame(...)` dropped out of the first-tier reduced hot path
+- the remaining reduced wall is still:
+  `finishInlineReturn(...)`, `execCallOpcode(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this is another reduced timeout-family keep rather than a closure.
+
+## 2026-06-09 — Ambient minimal self-fast frames for `binarytrees`
+
+The next kept follow-up stayed on the same inline return/call boundary. The
+previous keep had already removed most exact named-struct nominal work from
+recursive inline setup/return, but the runtime still dropped back to the
+heavier self-fast frame form whenever the caller already sat inside worker
+loop/iterator depth.
+
+The landed slice keeps those self-fast calls on the minimal frame path when
+analysis can already prove the callee body cannot mutate loop/iterator stacks:
+
+- frame-layout analysis now records that control-flow preservation fact
+- compact self-fast frames now store iterator/loop base depth directly
+- minimal self-fast return restores those depths from the compact frame
+  instead of forcing the call onto the full self-fast frame ladder
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from:
+
+- `15.67s`
+- `1692673160 B/op`
+- `30223225 allocs/op`
+
+to:
+
+- `15.17s`
+- `1692675272 B/op`
+- `30223231 allocs/op`
+
+The profiled reduced rerun confirms the intended shift:
+
+- `finishInlineReturn(...)` dropped from about `1.27s` cumulative to about
+  `1.07s`
+- `pushSelfFastMinimalCallFrameWithBases(...)` and
+  `pushSelfFastSlot0CallFrameWithBases(...)` now carry the recovered compact
+  path under ambient worker-loop state
+- the remaining wall is still the same inline execution boundary:
+  `execCallOpcode(...)`, `finishInlineReturn(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this remains another reduced timeout-family keep rather than a closure.
+
+## 2026-06-10 - exact named-struct field hits bypass interpreter member ladder on binarytrees
+
+The next kept `binarytrees` bytecode slice stayed on the same reduced inline
+wall, but moved from frame/register cleanup to direct member reads.
+
+The landed cut is opcode-local:
+
+- `execMemberAccess(...)` now handles exact named-struct field hits directly
+  when the bytecode site already knows the member name and method precedence
+  cannot change the result
+- the `preferMethods` callable-field case stays intact, so callable fields
+  still win before method lookup would
+- misses still fall through to the existing `memberAccessOnValueWithOptions(...)`
+  / `structInstanceMember(...)` machinery unchanged
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from the
+prior kept band:
+
+- `13.60s`
+- `13.76s`
+
+to:
+
+- `12.83s`
+- `12.39s`
+
+with bytes/allocs effectively flat:
+
+- `2172228472 B/op`, `15237328 allocs/op`
+- `2172228904 B/op`, `15237331 allocs/op`
+
+The profiled confirmation held at:
+
+- `6243638979 ns/op`
+- `2172263848 B/op`
+- `15237394 allocs/op`
+
+The profile consequence is the useful result:
+
+- `execMemberAccess(...)` dropped from about `1.62s` cumulative on the prior
+  kept reduced profile to about `0.42s`
+- `memberAccessOnValueWithOptions(...)` and `structInstanceMember(...)`
+  dropped out of the top tier
+- the remaining reduced wall is still:
+  `finishInlineReturn(...)`, `execCallOpcode(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this is another reduced timeout-family keep rather than a closure.
+
+## 2026-06-10 — Exact-definition inline return cut for `binarytrees`
+
+The next kept `binarytrees` slice stayed on the same reduced inline
+call/return wall, but it moved off member access and away from broader
+struct-literal reshaping. The previous kept profile still showed the inline
+return boundary doing two pieces of unnecessary work on every hot recursive
+step:
+
+- exact named-struct no-coercion checks still routed through the broader
+  cached-name / error-payload helper
+- the minimal self-fast return path still called the control-stack restore
+  helper even when iterator and loop depth were already unchanged
+
+The landed cut stays narrow:
+
+- bytecode inline arg/return sites that already carry an exact struct
+  definition now use a direct exact-definition match helper instead of the
+  broader cached-name fallback logic
+- that bytecode-only helper does not unwrap `Error` payloads, so payload cases
+  still fall through to the existing full coercion path unchanged
+- hot return sites now skip `restoreCallFrameControlStacks(...)` entirely when
+  both iterator and loop depth already match the saved frame bases
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from the
+prior kept band:
+
+- `12.83s`
+- `12.39s`
+
+to:
+
+- `12.78s`
+- `12.21s`
+
+with bytes/allocs effectively flat:
+
+- `2172228424 B/op`, `15237325 allocs/op`
+- `2172228328 B/op`, `15237325 allocs/op`
+
+The profiled confirmation held at:
+
+- `6601784747 ns/op`
+- `2172259056 B/op`
+- `15237394 allocs/op`
+
+The profile consequence is narrow but real:
+
+- inside `finishInlineReturn(...)`, the exact named-struct no-coercion edge
+  dropped from about `70ms` sampled to about `20ms`
+- the no-op `restoreCallFrameControlStacks(...)` edge dropped out of the
+  sampled minimal-return path
+- the remaining reduced wall is still:
+  `finishInlineReturn(...)`, `execCallOpcode(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this remains another reduced timeout-family keep rather than a closure.
+
+## 2026-06-09 — Inline small positional struct storage for `binarytrees`
+
+The next kept follow-up stayed on the same reduced direct-inline / struct-fast
+wall. The current reduced profile still showed `execStructLiteralNamedFast(...)`
+doing real work, and the remaining hot cost included both the struct instance
+allocation itself and a second allocation for the positional backing slice.
+
+The landed slice removes that second allocation for common small structs:
+
+- `StructInstanceValue` now carries inline positional storage for up to four
+  fields
+- `runtime.NewStructInstancePositionalSized(...)` builds small positional
+  struct instances without allocating a separate backing slice
+- exact named-struct bytecode literals now allocate/fill through that helper
+  instead of `make([]runtime.Value, len(fields))`
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from:
+
+- `15.17s`
+- `1692675272 B/op`
+- `30223231 allocs/op`
+
+to:
+
+- `14.16s`
+- `2172228840 B/op`
+- `15237331 allocs/op`
+
+The direct profiled runtime confirmation held at:
+
+- `7183191547 ns/op`
+- `2172264424 B/op`
+- `15237401 allocs/op`
+
+The useful profile consequence is clear:
+
+- `execStructLiteralNamedFast(...)` dropped again, from about `1.23s`
+  cumulative on the prior kept reduced-profile chain to about `0.68s`
+- the remaining first-tier reduced wall is still:
+  `finishInlineReturn(...)`, `execCallOpcode(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Tradeoff:
+
+- allocation count dropped sharply because small named structs no longer
+  allocate a second positional slice
+- bytes/op rose because every struct instance now carries inline positional
+  storage
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this remains a reduced timeout-family keep rather than a closure.
+
+## 2026-06-09 — Direct detached `i32` frame restore for `binarytrees`
+
+The next kept follow-up stayed on the same reduced inline call/return wall.
+The previous kept profile still showed the detached caller `i32` lane restore
+as part of the hot inline-return boundary even when no active callee register
+frame was live:
+
+- `releaseActiveI32RegisterFrame(...)`
+- `restoreI32RegisterFrame(...)`
+
+The landed slice removes that empty-path churn:
+
+- `restoreI32RegisterFrame(...)` now installs the detached caller register
+  frame directly when the VM has no active `i32` frame
+- the old release/re-pool path still runs unchanged when an active frame
+  actually exists
+- focused coverage proves that restoring into an idle VM installs the provided
+  raw lane directly
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from:
+
+- `14.16s`
+- `2172228840 B/op`
+- `15237331 allocs/op`
+
+to:
+
+- `13.60s`
+- `2172228568 B/op`
+- `15237328 allocs/op`
+
+with a second confirmation rerun at:
+
+- `13.76s`
+- `2172228312 B/op`
+- `15237324 allocs/op`
+
+The profiled confirmation shows the intended consequence:
+
+- `releaseActiveI32RegisterFrame(...)` is down to about `0.12s`
+- `restoreI32RegisterFrame(...)` is down to about `0.12s`
+- the remaining first-tier reduced wall is still:
+  `finishInlineReturn(...)`, `execCallOpcode(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this remains another reduced timeout-family keep rather than a closure.
+
+## 2026-06-09 — Cached exact named-struct no-coercion metadata for `binarytrees`
+
+The next kept follow-up stayed on the same direct-inline/struct-fast wall. The
+previous keep had already removed env lookup and field-name scans from hot
+`Node` construction, but inline arg setup and inline return were still paying
+exact named-struct nominal checks on every recursive step.
+
+The landed slice moves that proof onto the frame layout itself:
+
+- frame-layout analysis caches exact named-struct definitions for eligible
+  params and returns when lowering already has the env proof
+- inline arg setup uses that cached definition before the older name-based
+  nominal helper
+- inline return finish does the same
+- the older exact named-struct helper remains as fallback when the lowering
+  env cannot prove the definition
+
+That moved the reduced external-style `binarytrees` case (`n := 16`) from:
+
+- `17.42s`
+- `1692672936 B/op`
+- `30223223 allocs/op`
+
+to:
+
+- `15.67s`
+- `1692673160 B/op`
+- `30223225 allocs/op`
+
+The profiled reduced run confirms the intended consequence:
+
+- `finishInlineReturn(...)` is now about `1.27s` cumulative
+- `execStructLiteralNamedFast(...)` is about `1.01s`
+- the cached exact named-struct helpers dropped out of the hot tier
+- the remaining wall is still the same inline execution boundary:
+  `execCallOpcode(...)`, `finishInlineReturn(...)`,
+  `execStructLiteralNamedFast(...)`, `tryInlineSelfCallFromStack(...)`
+
+Full external bytecode `binarytrees` still times out at the `60s` guard, so
+this remains a reduced timeout-family keep rather than a closure.

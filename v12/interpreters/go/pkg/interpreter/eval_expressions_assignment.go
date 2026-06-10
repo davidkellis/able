@@ -80,7 +80,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 				}
 				if assign.Operator == ast.AssignmentAssign {
 					state.Values[idx] = value
-					i.syncArrayValues(arrayVal.Handle, state)
+					i.syncTrackedArrayWrite(arrayVal, state, idx, value)
 					return value, nil
 				}
 				if !isCompound {
@@ -92,18 +92,17 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 					return nil, err
 				}
 				state.Values[idx] = computed
-				i.syncArrayValues(arrayVal.Handle, state)
+				i.syncTrackedArrayWrite(arrayVal, state, idx, computed)
 				return computed, nil
 			case *ast.Identifier:
 				if assign.Operator != ast.AssignmentAssign {
 					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
 				}
-				state, err := i.ensureArrayState(arrayVal, 0)
-				if err != nil {
-					return nil, err
-				}
 				switch member.Name {
 				case "storage_handle":
+					if _, err := i.ensureArrayStateForMetadata(arrayVal, 0); err != nil {
+						return nil, err
+					}
 					intVal, ok := value.(runtime.IntegerValue)
 					if !ok {
 						return nil, fmt.Errorf("array storage_handle must be an integer")
@@ -115,23 +114,39 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 					if handle <= 0 {
 						return nil, fmt.Errorf("array storage_handle must be positive")
 					}
+					prevHandle := arrayVal.Handle
+					if prevHandle == 0 {
+						prevHandle = arrayVal.TrackedHandle
+					}
 					newState, err := runtime.ArrayStoreEnsureHandle(handle, 0, 0)
 					if err != nil {
 						return nil, err
 					}
 					i.trackArrayValue(handle, arrayVal)
 					arrayVal.Elements = newState.Values
-					i.syncArrayValues(handle, newState)
+					if handle == prevHandle {
+						i.syncTrackedArrayState(arrayVal, newState)
+					} else {
+						i.syncArrayValues(handle, newState)
+					}
 					return value, nil
 				case "length":
+					state, err := i.ensureArrayStateForMetadata(arrayVal, 0)
+					if err != nil {
+						return nil, err
+					}
 					newLen, err := arrayIndexFromValue(value)
 					if err != nil {
 						return nil, fmt.Errorf("array length must be a non-negative integer")
 					}
 					setArrayLength(state, newLen)
-					i.syncArrayValues(arrayVal.Handle, state)
+					i.syncArrayHandleLength(arrayVal.Handle, state)
 					return value, nil
 				case "capacity":
+					state, err := i.ensureArrayStateForMetadata(arrayVal, 0)
+					if err != nil {
+						return nil, err
+					}
 					newCap, err := arrayIndexFromValue(value)
 					if err != nil {
 						return nil, fmt.Errorf("array capacity must be a non-negative integer")
@@ -144,7 +159,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 					} else if newCap > state.Capacity {
 						state.Capacity = newCap
 					}
-					i.syncArrayValues(arrayVal.Handle, state)
+					i.syncArrayHandleMetadata(arrayVal.Handle, state)
 					return value, nil
 				default:
 					return nil, fmt.Errorf("Array has no member '%s'", member.Name)

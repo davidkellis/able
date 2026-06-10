@@ -1,0 +1,455 @@
+#!/usr/bin/env python3
+"""Generate and check the shared runtime semantic-ABI feasibility decision."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_EVIDENCE = SCRIPT_DIR / "bench-shared-runtime-semantic-abi.json"
+CHECKED_JSON = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-22-shared-runtime-semantic-abi-feasibility.json"
+)
+CHECKED_MARKDOWN = SCRIPT_DIR / "design/shared-runtime-semantic-abi-feasibility.md"
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def resolve_source(record: Any, label: str) -> Path:
+    if not isinstance(record, dict):
+        raise ValueError(f"{label} source must be an object")
+    raw_path = record.get("path")
+    expected = record.get("sha256")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError(f"{label} source needs a path")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ValueError(f"{label} source needs a SHA-256 fingerprint")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except FileNotFoundError:
+        raise ValueError(f"{label} source not found: {path}") from None
+    if actual != expected:
+        raise ValueError(
+            f"{label} source fingerprint drifted: expected {expected}, got {actual}"
+        )
+    return path
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def runtime_kind_names(path: Path) -> list[str]:
+    source = path.read_text(encoding="utf-8")
+    match = re.search(r"type Kind int\s+const \((.*?)\n\)", source, re.DOTALL)
+    if match is None:
+        raise ValueError("runtime values source has no Kind constant block")
+    result = []
+    for line in match.group(1).splitlines():
+        name_match = re.match(r"\s*(Kind[A-Za-z0-9]+)\b", line)
+        if name_match is not None:
+            result.append(name_match.group(1))
+    if not result:
+        raise ValueError("runtime values source has no Kind constants")
+    return result
+
+
+def validate_evidence(evidence: dict[str, Any]) -> None:
+    if evidence.get("kind") != "able-shared-runtime-semantic-abi-evidence":
+        raise ValueError("semantic-ABI evidence has an invalid kind")
+    if evidence.get("schema_version") != 1:
+        raise ValueError("semantic-ABI evidence needs schema_version 1")
+    proposal = evidence.get("proposal")
+    if not isinstance(proposal, dict) or proposal.get("id") != "shared-arena-semantic-runtime":
+        raise ValueError("semantic-ABI evidence needs the shared-arena proposal")
+    cell = evidence.get("value_cell")
+    if not isinstance(cell, dict) or cell.get("size_bytes") != 16:
+        raise ValueError("semantic-ABI evidence needs a 16-byte value cell")
+    image = evidence.get("program_image")
+    if not isinstance(image, dict) or len(image.get("sections", [])) != 8:
+        raise ValueError("semantic-ABI evidence needs eight program-image sections")
+
+
+def kind_mapping(
+    evidence: dict[str, Any], runtime_kinds: list[str]
+) -> dict[str, Any]:
+    groups = evidence.get("runtime_kind_groups")
+    if not isinstance(groups, dict) or len(groups) != 3:
+        raise ValueError("semantic-ABI evidence needs three runtime kind groups")
+    flattened = []
+    counts: dict[str, int] = {}
+    for group, names in groups.items():
+        if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
+            raise ValueError(f"runtime kind group {group} must be a string array")
+        flattened.extend(names)
+        counts[group] = len(names)
+    duplicates = sorted({name for name in flattened if flattened.count(name) > 1})
+    missing = sorted(set(runtime_kinds) - set(flattened))
+    unknown = sorted(set(flattened) - set(runtime_kinds))
+    return {
+        "runtime_kind_count": len(runtime_kinds),
+        "mapped_kind_count": len(flattened),
+        "group_counts": counts,
+        "duplicates": duplicates,
+        "missing": missing,
+        "unknown": unknown,
+        "exhaustive": not duplicates and not missing and not unknown,
+        "groups": groups,
+    }
+
+
+def performance_rows(native: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = native.get("hot_function_reach_budget")
+    if not isinstance(rows, list):
+        raise ValueError("native tier budget needs hot-function reach")
+    result = []
+    for row in rows:
+        benchmark = row.get("benchmark")
+        if benchmark == "concurrent_event_routing":
+            continue
+        reduction = row.get("hottest_program_modeled_target_excess_reduction_percent")
+        if not isinstance(reduction, (int, float)):
+            raise ValueError(f"{benchmark} needs a hot-function reduction model")
+        hottest = row.get("hottest_program")
+        if not isinstance(hottest, dict):
+            raise ValueError(f"{benchmark} needs hottest program data")
+        result.append(
+            {
+                "benchmark": benchmark,
+                "family": row.get("family"),
+                "hottest_program": hottest.get("name"),
+                "hottest_program_instruction_share_percent": row.get(
+                    "hottest_program_instruction_share_percent"
+                ),
+                "compiled_equivalent_target_excess_reduction_percent": float(reduction),
+                "passes_25_percent_gate": float(reduction) >= 25.0,
+            }
+        )
+    return result
+
+
+def build_report(evidence_path: Path) -> dict[str, Any]:
+    evidence = load_json(evidence_path, "semantic-ABI evidence")
+    validate_evidence(evidence)
+    sources = evidence.get("sources")
+    if not isinstance(sources, dict):
+        raise ValueError("semantic-ABI evidence needs sources")
+    paths = {label: resolve_source(record, label) for label, record in sources.items()}
+    backend_adr = load_json(paths["backend_adr"], "backend ADR")
+    native = load_json(paths["native_tier_budget"], "native tier budget")
+    bytecode_budget = load_json(
+        paths["bytecode_architecture_budget"], "bytecode architecture budget"
+    )
+    if backend_adr.get("kind") != "able-portable-vm-backend-abi-dependency-adr":
+        raise ValueError("backend ADR has an invalid kind")
+    if native.get("kind") != "able-bytecode-native-hot-tier-design-budget":
+        raise ValueError("native tier budget has an invalid kind")
+    if bytecode_budget.get("kind") != "able-bytecode-architecture-budget":
+        raise ValueError("bytecode architecture budget has an invalid kind")
+    runtime_kinds = runtime_kind_names(paths["runtime_values"])
+    mapping = kind_mapping(evidence, runtime_kinds)
+    if not mapping["exhaustive"]:
+        raise ValueError("runtime kind mapping is not exhaustive")
+    target_rows = performance_rows(native)
+    target_passes = sum(row["passes_25_percent_gate"] for row in target_rows)
+    gates = evidence.get("feasibility_gates")
+    if not isinstance(gates, dict):
+        raise ValueError("semantic-ABI evidence needs feasibility gates")
+    required_true = (
+        "single_semantic_runtime",
+        "pointer_free_cross_engine_values",
+        "no_per_opcode_go_transition_in_fast_engine",
+        "identity_without_graph_conversion",
+        "ordinary_vm_fallback_without_live_frame_conversion",
+        "source_exact_effect_resume",
+        "three_unlike_target_model",
+    )
+    design_passes = all(gates.get(name) is True for name in required_true)
+    codec_admitted = (
+        design_passes
+        and mapping["exhaustive"]
+        and target_passes >= 3
+        and gates.get("codec_layout_spike_admitted") is True
+        and gates.get("runtime_or_backend_implementation_admitted") is False
+    )
+    decision = (
+        "conditionally-feasible-admit-codec-layout-spike"
+        if codec_admitted
+        else "semantic-abi-feasibility-closed"
+    )
+    return {
+        "kind": "able-shared-runtime-semantic-abi-feasibility",
+        "schema_version": 1,
+        "sources": {"evidence": source_record(evidence_path)}
+        | {label: source_record(path) for label, path in paths.items()},
+        "summary": {
+            "decision": decision,
+            "feasibility_passes": design_passes,
+            "codec_layout_spike_admitted": codec_admitted,
+            "runtime_or_backend_implementation_admitted": False,
+            "runtime_kind_count": mapping["runtime_kind_count"],
+            "mapped_runtime_kind_count": mapping["mapped_kind_count"],
+            "program_image_section_count": len(evidence["program_image"]["sections"]),
+            "current_live_opcode_count": bytecode_budget.get("summary", {}).get(
+                "live_opcode_count"
+            ),
+            "target_model_row_count": len(target_rows),
+            "target_model_material_row_count": target_passes,
+            "minimum_unlike_target_rows": 3,
+            "predecessor_decision": backend_adr.get("summary", {}).get("decision"),
+        },
+        "proposal": evidence["proposal"],
+        "value_cell": evidence["value_cell"],
+        "runtime_kind_mapping": mapping,
+        "program_image": evidence["program_image"],
+        "ownership": evidence["ownership"],
+        "effect_resume": evidence["effect_resume"],
+        "migration": evidence["migration"],
+        "feasibility_gates": gates,
+        "target_model": target_rows,
+        "next_lane": evidence["next_lane"],
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    proposal = report["proposal"]
+    mapping = report["runtime_kind_mapping"]
+    lines = [
+        "# Shared runtime semantic-ABI feasibility",
+        "",
+        "Date: 2026-07-22",
+        "",
+        "Status: conditional feasibility; codec/layout spike admitted",
+        "",
+        "## Decision",
+        "",
+        f"**`{summary['decision']}`**.",
+        "",
+        "A backend-neutral ABI is feasible only as a shared semantic runtime, not as a",
+        "serialization veneer over the current Go object graph. The Go reference",
+        "interpreters, compiled applications, and any future fast engine must use the same",
+        "pointer-free value cells, stable object identities, heap, root protocol, semantic",
+        "operation manifest, and structured effect records.",
+        "",
+        "This decision admits only a standalone pure-Go codec and layout spike. It does",
+        "not admit a foreign heap, runtime migration, backend, JIT dependency, executable",
+        "memory, or production dispatch change.",
+        "",
+        "## Semantic authority and execution boundary",
+        "",
+        proposal["semantic_authority"],
+        "",
+        proposal["fast_engine_boundary"],
+        "",
+        proposal["go_reference_boundary"],
+        "",
+        "The serialized ABI is internal and versioned. The current 144 live bytecodes—",
+        "especially fused source-shape instructions—remain Go implementation details and",
+        "are not frozen into the portable semantic instruction set.",
+        "",
+        "## Pointer-free value cell",
+        "",
+        "```text",
+        "AbleValueCell (16 bytes)",
+        "  tag     u32",
+        "  aux     u32",
+        "  payload u64",
+        "```",
+        "",
+    ]
+    lines.extend(f"- {rule}" for rule in report["value_cell"]["rules"])
+    lines += [
+        "",
+        f"All {mapping['runtime_kind_count']} current `runtime.Kind` values map exactly once:",
+        "",
+        "| Representation | Kinds | Count |",
+        "| --- | --- | ---: |",
+    ]
+    labels = {
+        "immediate_or_immediate_with_heap_overflow": "Immediate or heap-overflow primitive",
+        "shared_heap_or_immutable_metadata": "Shared heap or immutable metadata",
+        "host_effect_registry": "Host-effect registry",
+    }
+    for group, kinds in mapping["groups"].items():
+        lines.append(f"| {labels[group]} | {', '.join(f'`{kind}`' for kind in kinds)} | {len(kinds)} |")
+    lines += [
+        "",
+        "Small primitive payloads live in the cell. Big integers and all identity-bearing",
+        "objects use generation-checked object IDs. Native functions, futures, and opaque",
+        "host objects use separate generation-checked registry IDs. Neither kind is a raw",
+        "Go or native pointer.",
+        "",
+        "## Program image",
+        "",
+        f"Encoding: {report['program_image']['encoding']}.",
+        "",
+    ]
+    lines.extend(f"- {section}" for section in report["program_image"]["sections"])
+    lines += [
+        "",
+        f"Instruction shape: `{report['program_image']['instruction_shape']}`.",
+        "",
+        "Validation and fallback rules:",
+        "",
+    ]
+    lines.extend(f"- {rule}" for rule in report["program_image"]["validation"])
+    lines += [
+        "",
+        "This removes AST pointers from executable images. Match, rescue, ensure, calls,",
+        "definitions, and other currently AST-assisted behavior must lower to canonical",
+        "semantic instructions before a function becomes engine-eligible. Unsupported",
+        "functions stay in the ordinary Go VM from their entry point.",
+        "",
+        "## Ownership",
+        "",
+    ]
+    for name, detail in report["ownership"].items():
+        lines.append(f"- **{name.replace('_', ' ')}**: {detail}")
+    lines += [
+        "",
+        "The essential commitment is one canonical heap. Old Go identity-bearing values",
+        "and shared-heap identity values cannot coexist behind automatic conversion; that",
+        "would recreate the graph-conversion and aliasing failure from the backend ADR.",
+        "",
+        "## Effects, control, and exact resume",
+        "",
+        "Internal structured control remains inside the engine/runtime:",
+        "",
+    ]
+    lines.extend(f"- {item}" for item in report["effect_resume"]["internal_control"])
+    lines += ["", "Declared Go host effects:", ""]
+    lines.extend(f"- {item}" for item in report["effect_resume"]["host_effects"])
+    lines += [
+        "",
+        f"Effect record: `{report['effect_resume']['record']}`.",
+        "",
+        report["effect_resume"]["resume_rule"],
+        "",
+        report["effect_resume"]["diagnostics"],
+        "",
+        "Phase one excludes concurrency from the performance scope. Goroutines, futures,",
+        "channels, mutexes, cancellation, and yielding remain Go host effects until a",
+        "separate concurrency ABI clears its own parity and performance gates.",
+        "",
+        "## Target-budget model",
+        "",
+        "This is the existing optimistic compiled-equivalent hottest-function model, not",
+        "a timing promise. A shared heap/runtime is the missing condition that lets a fast",
+        "engine keep these whole effectful functions inside one native address space.",
+        "",
+        "| Application | Family | Hottest function | Dynamic share | Target excess removed | Gate |",
+        "| --- | --- | --- | ---: | ---: | --- |",
+    ]
+    for row in report["target_model"]:
+        lines.append(
+            f"| `{row['benchmark']}` | {row['family']} | `{row['hottest_program']}` | "
+            f"{row['hottest_program_instruction_share_percent']:.2f}% | "
+            f"{row['compiled_equivalent_target_excess_reduction_percent']:.2f}% | "
+            f"{'pass' if row['passes_25_percent_gate'] else 'fail'} |"
+        )
+    lines += [
+        "",
+        f"All {summary['target_model_material_row_count']} serial/effectful rows clear the",
+        "25% materiality gate, satisfying the required three-unlike-family planning bar.",
+        "",
+        "## Migration gates",
+        "",
+        "| Stage | Scope | Production execution change? | Exit gate |",
+        "| ---: | --- | --- | --- |",
+    ]
+    for stage in report["migration"]:
+        lines.append(
+            f"| {stage['stage']} | `{stage['name']}` | "
+            f"{'yes' if stage['production_execution_change'] else 'no'} | "
+            f"{stage['exit_gate']} |"
+        )
+    lane = report["next_lane"]
+    lines += [
+        "",
+        "## Next recommendation",
+        "",
+        f"Complete **`{lane['id']}`**.",
+        "",
+        lane["scope"],
+        "",
+        "Why: the feasibility model now has an exhaustive value mapping, one ownership",
+        "model, exact function-entry fallback, and sufficient whole-function reach. The",
+        "smallest reversible way to test the design is the immutable data plane—layout,",
+        "encoding, validation, and source identity—before changing any live value or",
+        "execution path.",
+        "",
+        f"Governing applications: {', '.join(f'`{name}`' for name in lane['governing_applications'])}.",
+        "",
+        f"Admission: {lane['admission']}",
+        "",
+        f"Exclusions: {lane['exclusions']}",
+        "",
+        "## Reproduction",
+        "",
+        "```sh",
+        "python3 v12/bench_shared_runtime_semantic_abi_test.py",
+        "v12/bench_shared_runtime_semantic_abi --check",
+        "just bench-evidence-ledger --check",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, default=DEFAULT_EVIDENCE)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        report = build_report(args.evidence)
+    except ValueError as error:
+        parser.error(str(error))
+    rendered_json = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    rendered_markdown = markdown(report)
+    if args.json_out:
+        args.json_out.write_text(rendered_json, encoding="utf-8")
+    if args.markdown_out:
+        args.markdown_out.write_text(rendered_markdown, encoding="utf-8")
+    if args.check:
+        if report["summary"]["runtime_or_backend_implementation_admitted"]:
+            raise SystemExit("semantic-ABI runtime implementation requires review")
+        if args.evidence == DEFAULT_EVIDENCE:
+            if CHECKED_JSON.read_text(encoding="utf-8") != rendered_json:
+                raise SystemExit("checked semantic-ABI JSON artifact is stale")
+            if CHECKED_MARKDOWN.read_text(encoding="utf-8") != rendered_markdown:
+                raise SystemExit("checked semantic-ABI feasibility record is stale")
+    if not args.json_out and not args.markdown_out and not args.check:
+        print(rendered_json, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

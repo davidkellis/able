@@ -1,0 +1,62 @@
+package future_await_race
+
+import able.kernel.{Channel}
+
+fn wave_score(seed: i64) -> i64 {
+  value := seed + 3_i64
+  step := 0_i64
+  loop {
+    if step >= 96_i64 { break }
+    value = ((value * 48271_i64) + (step * 17_i64) + 3_i64) % 1_000_003_i64
+    step = step + 1_i64
+  }
+  value
+}
+
+fn main() -> void {
+  rounds := 96_i64
+  ready: Channel i64 = Channel.new(1)
+  probe := spawn {
+    ready.send(1_i64)
+    future_yield()
+    loop {
+      if future_cancelled() { break }
+      future_yield()
+    }
+    1_i64
+  }
+  canceller := spawn {
+    ready.receive()
+    probe.cancel()
+    0_i64
+  }
+
+  total := 0_i64
+  round := 0_i64
+  loop {
+    if round >= rounds { break }
+    left = spawn {
+      future_yield()
+      wave_score(round * 2_i64)
+    }
+    right = spawn {
+      future_yield()
+      wave_score((round * 2_i64) + 1_i64)
+    }
+    joined = spawn {
+      left_value = await [left]
+      right_value = await [right]
+      (left_value as i64) + (right_value as i64)
+    }
+    total = total + (joined.value()! as i64)
+    round = round + 1_i64
+  }
+
+  future_flush()
+  canceller.value()
+  cancelled := probe.status() match {
+    case Cancelled {} => 1_i64,
+    case _ => 0_i64
+  }
+  print(`${rounds}:${total}:${cancelled}`)
+}

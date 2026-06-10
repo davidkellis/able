@@ -194,3 +194,36 @@ func bytecodeArrayReadSlotInstruction(ctx *bytecodeLoweringContext, call *ast.Fu
 		node:      call,
 	}, true
 }
+
+func bytecodeArrayReadSlotI32Instruction(ctx *bytecodeLoweringContext, expr ast.Expression) (bytecodeInstruction, bool) {
+	call, ok := expr.(*ast.FunctionCall)
+	if !ok || call == nil {
+		return bytecodeInstruction{}, false
+	}
+	member, ok := call.Callee.(*ast.MemberAccessExpression)
+	if !ok || member == nil {
+		return bytecodeInstruction{}, false
+	}
+	return bytecodeArrayReadSlotI32CallInstruction(ctx, call, member, bytecodeIdentifierMemberName(member.Member))
+}
+
+func bytecodeExactReadSlotCall(expr ast.Expression) bool {
+	call, ok := expr.(*ast.FunctionCall)
+	if !ok || call == nil || len(call.Arguments) != 1 {
+		return false
+	}
+	member, ok := call.Callee.(*ast.MemberAccessExpression)
+	if !ok || member == nil || member.Safe {
+		return false
+	}
+	return bytecodeIdentifierMemberName(member.Member) == "read_slot"
+}
+
+func bytecodeArrayReadSlotI32CallInstruction(ctx *bytecodeLoweringContext, call *ast.FunctionCall, member *ast.MemberAccessExpression, memberName string) (bytecodeInstruction, bool) {
+	instr, ok := bytecodeArrayReadSlotInstruction(ctx, call, member, memberName)
+	if !ok {
+		return bytecodeInstruction{}, false
+	}
+	instr.op = bytecodeOpArrayReadSlotI32
+	return instr, true
+}

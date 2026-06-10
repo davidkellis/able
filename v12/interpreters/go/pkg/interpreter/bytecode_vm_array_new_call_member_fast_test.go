@@ -50,7 +50,7 @@ func TestBytecodeVM_CanonicalArrayNewCallCacheFeedsArrayNewOpcode(t *testing.T) 
 	}
 }
 
-func TestBytecodeVM_LoweringEmitsArrayNewCallMemberOpcode(t *testing.T) {
+func TestBytecodeVM_LoweringUsesStaticCandidatesForUnknownNewReceivers(t *testing.T) {
 	safeNew := ast.Member(ast.ID("maybe_array_type"), "new")
 	safeNew.Safe = true
 	module := ast.Mod([]ast.Statement{
@@ -64,7 +64,7 @@ func TestBytecodeVM_LoweringEmitsArrayNewCallMemberOpcode(t *testing.T) {
 		t.Fatalf("bytecode lowering failed: %v", err)
 	}
 
-	arrayNewCount := 0
+	staticNewCount := 0
 	regularNewCount := 0
 	safeNewCount := 0
 	for _, instr := range program.instructions {
@@ -72,10 +72,10 @@ func TestBytecodeVM_LoweringEmitsArrayNewCallMemberOpcode(t *testing.T) {
 			continue
 		}
 		switch instr.op {
-		case bytecodeOpCallMemberArrayNew:
-			arrayNewCount++
-			if instr.argCount != 0 || instr.safe {
-				t.Fatalf("unexpected Array.new opcode instruction: %#v", instr)
+		case bytecodeOpCallStaticMember:
+			staticNewCount++
+			if instr.safe {
+				t.Fatalf("unexpected static new call instruction: %#v", instr)
 			}
 		case bytecodeOpCallMember:
 			regularNewCount++
@@ -84,11 +84,11 @@ func TestBytecodeVM_LoweringEmitsArrayNewCallMemberOpcode(t *testing.T) {
 			}
 		}
 	}
-	if arrayNewCount != 1 {
-		t.Fatalf("Array.new opcode count = %d, want 1", arrayNewCount)
+	if staticNewCount != 2 {
+		t.Fatalf("static new call count = %d, want 2", staticNewCount)
 	}
-	if regularNewCount != 2 {
-		t.Fatalf("regular new CallMember count = %d, want 2", regularNewCount)
+	if regularNewCount != 1 {
+		t.Fatalf("regular new CallMember count = %d, want 1", regularNewCount)
 	}
 	if safeNewCount != 1 {
 		t.Fatalf("safe new CallMember count = %d, want 1", safeNewCount)

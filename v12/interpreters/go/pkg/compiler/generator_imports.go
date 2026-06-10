@@ -74,6 +74,55 @@ func (g *generator) collectStaticImportsForPackage(pkgName string, imports []*as
 	}
 }
 
+// collectSourceReexports records the import binding behind each explicit
+// source export. A re-export is an additional package name for the original
+// definition, not a wrapper definition, so later static resolution follows
+// this binding back to the original package.
+func (g *generator) collectSourceReexportsForPackage(pkgName string, exports []*ast.ExportStatement) {
+	if g == nil || len(exports) == 0 {
+		return
+	}
+	if g.sourceReexports == nil {
+		g.sourceReexports = make(map[string][]staticImportBinding)
+	}
+	for _, exp := range exports {
+		if exp == nil {
+			continue
+		}
+		if exp.IsWildcard {
+			sourcePkg := importPathString(exp.PackagePath)
+			if sourcePkg == "" {
+				continue
+			}
+			g.addSourceReexportBinding(pkgName, staticImportBinding{
+				Kind:          staticImportBindingWildcard,
+				SourcePackage: sourcePkg,
+			})
+			continue
+		}
+		if exp.Name == nil || strings.TrimSpace(exp.Name.Name) == "" {
+			continue
+		}
+		name := strings.TrimSpace(exp.Name.Name)
+		for _, binding := range g.staticImportsForPackage(pkgName) {
+			switch binding.Kind {
+			case staticImportBindingSelector:
+				if strings.TrimSpace(binding.LocalName) != name {
+					continue
+				}
+				g.addSourceReexportBinding(pkgName, binding)
+			case staticImportBindingWildcard:
+				g.addSourceReexportBinding(pkgName, staticImportBinding{
+					Kind:          staticImportBindingSelector,
+					SourcePackage: binding.SourcePackage,
+					LocalName:     name,
+					SourceName:    name,
+				})
+			}
+		}
+	}
+}
+
 func (g *generator) addStaticImportBinding(pkgName string, binding staticImportBinding) {
 	if g == nil || binding.Kind == "" || binding.SourcePackage == "" {
 		return
@@ -85,6 +134,21 @@ func (g *generator) addStaticImportBinding(pkgName string, binding staticImportB
 		}
 	}
 	g.staticImports[pkgName] = append(bucket, binding)
+	g.invalidateImportResolutionCaches()
+}
+
+func (g *generator) addSourceReexportBinding(pkgName string, binding staticImportBinding) {
+	if g == nil || binding.Kind == "" || strings.TrimSpace(binding.SourcePackage) == "" {
+		return
+	}
+	bucket := g.sourceReexports[pkgName]
+	for _, existing := range bucket {
+		if existing == binding {
+			return
+		}
+	}
+	g.sourceReexports[pkgName] = append(bucket, binding)
+	g.invalidateImportResolutionCaches()
 }
 
 func importPathString(path []*ast.Identifier) string {
@@ -126,13 +190,121 @@ func (g *generator) staticImportsForPackage(pkgName string) []staticImportBindin
 	if g == nil || len(g.staticImports) == 0 {
 		return nil
 	}
-	bindings := g.staticImports[pkgName]
-	if len(bindings) == 0 {
+	// Bindings are append-only during collection and read-only afterward.
+	// Returning the owned slice avoids copying it on every type lookup.
+	return g.staticImports[pkgName]
+}
+
+func (g *generator) sourceReexportsForPackage(pkgName string) []staticImportBinding {
+	if g == nil || len(g.sourceReexports) == 0 {
 		return nil
 	}
-	out := make([]staticImportBinding, len(bindings))
-	copy(out, bindings)
+	// Re-export bindings follow the same append-then-read lifecycle as imports.
+	return g.sourceReexports[pkgName]
+}
+
+func (g *generator) staticImportBindingsForName(pkgName string, name string) []staticImportBinding {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(name) == "" {
+		return nil
+	}
+	name = strings.TrimSpace(name)
+	var out []staticImportBinding
+	for _, binding := range g.staticImportsForPackage(pkgName) {
+		switch binding.Kind {
+		case staticImportBindingSelector:
+			if strings.TrimSpace(binding.LocalName) == name {
+				out = append(out, binding)
+			}
+		case staticImportBindingWildcard:
+			if _, exported := g.importableNameSet(binding.SourcePackage)[name]; !exported {
+				continue
+			}
+			out = append(out, staticImportBinding{
+				Kind:          staticImportBindingSelector,
+				SourcePackage: binding.SourcePackage,
+				LocalName:     name,
+				SourceName:    name,
+			})
+		}
+	}
 	return out
+}
+
+func (g *generator) sourceReexportBindingsForName(pkgName string, name string) []staticImportBinding {
+	if g == nil || strings.TrimSpace(pkgName) == "" || strings.TrimSpace(name) == "" {
+		return nil
+	}
+	name = strings.TrimSpace(name)
+	var out []staticImportBinding
+	for _, binding := range g.sourceReexportsForPackage(pkgName) {
+		switch binding.Kind {
+		case staticImportBindingSelector:
+			if strings.TrimSpace(binding.LocalName) == name {
+				out = append(out, binding)
+			}
+		case staticImportBindingWildcard:
+			if _, exported := g.importableNameSet(binding.SourcePackage)[name]; !exported {
+				continue
+			}
+			out = append(out, staticImportBinding{
+				Kind:          staticImportBindingSelector,
+				SourcePackage: binding.SourcePackage,
+				LocalName:     name,
+				SourceName:    name,
+			})
+		}
+	}
+	return out
+}
+
+func (g *generator) sourceReexportSourceForName(pkgName string, name string) (string, string, bool) {
+	if g == nil {
+		return "", "", false
+	}
+	key := newImportResolutionCacheKey(pkgName, name)
+	if cached, ok := g.sourceReexportResolutionCache[key]; ok {
+		return cached.SourcePackage, cached.SourceName, cached.Resolved
+	}
+	sourcePkg, sourceName, resolved := g.sourceReexportSourceForNameSeen(pkgName, name, make(map[string]struct{}))
+	g.sourceReexportResolutionCache[key] = sourceReexportResolutionCacheEntry{
+		SourcePackage: sourcePkg,
+		SourceName:    sourceName,
+		Resolved:      resolved,
+	}
+	return sourcePkg, sourceName, resolved
+}
+
+func (g *generator) sourceReexportSourceForNameSeen(pkgName string, name string, seen map[string]struct{}) (string, string, bool) {
+	if g == nil {
+		return "", "", false
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	name = strings.TrimSpace(name)
+	if pkgName == "" || name == "" {
+		return "", "", false
+	}
+	key := pkgName + "::" + name
+	if _, exists := seen[key]; exists {
+		return "", "", false
+	}
+	seen[key] = struct{}{}
+	defer delete(seen, key)
+	var sourcePkg, sourceName string
+	for _, binding := range g.sourceReexportBindingsForName(pkgName, name) {
+		candidatePkg := strings.TrimSpace(binding.SourcePackage)
+		candidateName := strings.TrimSpace(binding.SourceName)
+		if candidatePkg == "" || candidateName == "" {
+			continue
+		}
+		if nestedPkg, nestedName, ok := g.sourceReexportSourceForNameSeen(candidatePkg, candidateName, seen); ok {
+			candidatePkg, candidateName = nestedPkg, nestedName
+		}
+		if sourcePkg != "" && (sourcePkg != candidatePkg || sourceName != candidateName) {
+			return "", "", false
+		}
+		sourcePkg, sourceName = candidatePkg, candidateName
+	}
+	return sourcePkg, sourceName, sourcePkg != "" && sourceName != ""
 }
 
 func (g *generator) noBootstrapImportsSeedable() bool {
@@ -222,26 +394,47 @@ func (g *generator) knownPackageNames() map[string]struct{} {
 }
 
 func (g *generator) importableNameSet(pkgName string) map[string]struct{} {
+	if g == nil {
+		return nil
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	if g.importableNameSetCache == nil {
+		g.importableNameSetCache = make(map[string]map[string]struct{})
+	}
+	if cached, ok := g.importableNameSetCache[pkgName]; ok {
+		return cached
+	}
 	set := make(map[string]struct{})
 	for _, name := range g.sortedImportableNames(pkgName) {
 		set[name] = struct{}{}
 	}
+	g.importableNameSetCache[pkgName] = set
 	return set
 }
 
 func (g *generator) sortedImportableNames(pkgName string) []string {
+	return g.sortedImportableNamesSeen(pkgName, make(map[string]struct{}))
+}
+
+func (g *generator) sortedImportableNamesSeen(pkgName string, seenPackages map[string]struct{}) []string {
 	if g == nil {
 		return nil
 	}
+	pkgName = strings.TrimSpace(pkgName)
+	if pkgName == "" {
+		return nil
+	}
+	if _, seen := seenPackages[pkgName]; seen {
+		return nil
+	}
+	seenPackages[pkgName] = struct{}{}
+	defer delete(seenPackages, pkgName)
 	callables := g.sortedPublicCallableNames(pkgName)
 	structs := g.sortedPublicStructNames(pkgName)
 	interfaces := g.sortedPublicInterfaceNames(pkgName)
 	unions := g.sortedPublicUnionNames(pkgName)
 	aliases := g.sortedPublicTypeAliasNames(pkgName)
 	implNamespaces := g.sortedPublicImplNamespaceNames(pkgName)
-	if len(callables) == 0 && len(structs) == 0 && len(interfaces) == 0 && len(unions) == 0 && len(aliases) == 0 && len(implNamespaces) == 0 {
-		return nil
-	}
 	seen := make(map[string]struct{}, len(callables)+len(structs)+len(interfaces)+len(unions)+len(aliases)+len(implNamespaces))
 	names := make([]string, 0, len(callables)+len(structs)+len(interfaces)+len(unions)+len(aliases)+len(implNamespaces))
 	add := func(name string) {
@@ -271,6 +464,65 @@ func (g *generator) sortedImportableNames(pkgName string) []string {
 	}
 	for _, name := range implNamespaces {
 		add(name)
+	}
+	for _, binding := range g.sourceReexportsForPackage(pkgName) {
+		switch binding.Kind {
+		case staticImportBindingSelector:
+			add(binding.LocalName)
+		case staticImportBindingWildcard:
+			for _, name := range g.sortedImportableNamesSeen(binding.SourcePackage, seenPackages) {
+				add(name)
+			}
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+func (g *generator) sortedExportedCallableNames(pkgName string) []string {
+	return g.sortedExportedCallableNamesSeen(pkgName, make(map[string]struct{}))
+}
+
+func (g *generator) sortedExportedCallableNamesSeen(pkgName string, seenPackages map[string]struct{}) []string {
+	if g == nil {
+		return nil
+	}
+	pkgName = strings.TrimSpace(pkgName)
+	if pkgName == "" {
+		return nil
+	}
+	if _, seen := seenPackages[pkgName]; seen {
+		return nil
+	}
+	seenPackages[pkgName] = struct{}{}
+	defer delete(seenPackages, pkgName)
+	seenNames := make(map[string]struct{})
+	var names []string
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, exists := seenNames[name]; exists {
+			return
+		}
+		seenNames[name] = struct{}{}
+		names = append(names, name)
+	}
+	for _, name := range g.sortedPublicCallableNames(pkgName) {
+		add(name)
+	}
+	for _, binding := range g.sourceReexportsForPackage(pkgName) {
+		switch binding.Kind {
+		case staticImportBindingSelector:
+			if g.callableExistsSeen(binding.SourcePackage, binding.SourceName, seenPackages) {
+				add(binding.LocalName)
+			}
+		case staticImportBindingWildcard:
+			for _, name := range g.sortedExportedCallableNamesSeen(binding.SourcePackage, seenPackages) {
+				add(name)
+			}
+		}
 	}
 	sort.Strings(names)
 	return names

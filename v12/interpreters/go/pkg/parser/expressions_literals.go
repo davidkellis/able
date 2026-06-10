@@ -171,19 +171,33 @@ func unescapeQuotedLiteral(raw string, kind string) (string, error) {
 	if (quote != '"' && quote != '\'') || raw[len(raw)-1] != quote {
 		return "", fmt.Errorf("%s literal is not properly quoted", kind)
 	}
+	return unescapeLiteralText(raw[1:len(raw)-1], kind+" literal", false)
+}
+
+func unescapeLiteralText(text string, context string, interpolation bool) (string, error) {
 	var builder strings.Builder
-	builder.Grow(len(raw) - 2)
-	for i := 1; i < len(raw)-1; i++ {
-		ch := raw[i]
+	builder.Grow(len(text))
+	for i := 0; i < len(text); i++ {
+		ch := text[i]
 		if ch != '\\' {
 			builder.WriteByte(ch)
 			continue
 		}
 		i++
-		if i >= len(raw)-1 {
-			return "", fmt.Errorf("%s literal ends with escape", kind)
+		if i >= len(text) {
+			return "", fmt.Errorf("%s ends with escape", context)
 		}
-		esc := raw[i]
+		esc := text[i]
+		if interpolation {
+			switch esc {
+			case '`':
+				builder.WriteByte('`')
+				continue
+			case '$':
+				builder.WriteByte('$')
+				continue
+			}
+		}
 		switch esc {
 		case 'n':
 			builder.WriteByte('\n')
@@ -204,30 +218,30 @@ func unescapeQuotedLiteral(raw string, kind string) (string, error) {
 		case '/':
 			builder.WriteByte('/')
 		case 'u':
-			r, advance, err := parseUnicodeEscape(raw, i)
+			r, advance, err := parseUnicodeEscape(text, i)
 			if err != nil {
-				return "", fmt.Errorf("%s literal has invalid unicode escape: %w", kind, err)
+				return "", fmt.Errorf("%s has invalid unicode escape: %w", context, err)
 			}
 			builder.WriteRune(r)
 			i += advance
 		default:
-			return "", fmt.Errorf("%s literal has invalid escape \\%c", kind, esc)
+			return "", fmt.Errorf("%s has invalid escape \\%c", context, esc)
 		}
 	}
 	return builder.String(), nil
 }
 
-func parseUnicodeEscape(raw string, index int) (rune, int, error) {
-	if index+1 < len(raw)-1 && raw[index+1] == '{' {
+func parseUnicodeEscape(text string, index int) (rune, int, error) {
+	if index+1 < len(text) && text[index+1] == '{' {
 		start := index + 2
 		end := start
-		for end < len(raw)-1 && raw[end] != '}' {
+		for end < len(text) && text[end] != '}' {
 			end++
 		}
-		if end >= len(raw)-1 {
+		if end >= len(text) {
 			return 0, 0, fmt.Errorf("unterminated unicode escape")
 		}
-		hex := raw[start:end]
+		hex := text[start:end]
 		if len(hex) < 1 || len(hex) > 6 || !isHexSequence(hex) {
 			return 0, 0, fmt.Errorf("invalid unicode escape")
 		}
@@ -237,10 +251,10 @@ func parseUnicodeEscape(raw string, index int) (rune, int, error) {
 		}
 		return r, end - index, nil
 	}
-	if index+4 >= len(raw) {
+	if index+4 >= len(text) {
 		return 0, 0, fmt.Errorf("invalid unicode escape")
 	}
-	hex := raw[index+1 : index+5]
+	hex := text[index+1 : index+5]
 	if !isHexSequence(hex) {
 		return 0, 0, fmt.Errorf("invalid unicode escape")
 	}

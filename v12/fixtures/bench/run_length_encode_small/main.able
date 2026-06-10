@@ -1,0 +1,78 @@
+package bench_run_length_encode_small
+
+import able.core.interfaces.{Error}
+import able.core.iteration.{IteratorEnd}
+import able.text.string.{String, StringBuilder}
+
+fn finish_builder(builder: StringBuilder) -> String {
+  builder.finish() match {
+    case value: String => value,
+    case err: Error => { raise err }
+  }
+}
+
+fn build_text(size: i32) -> String {
+  builder := StringBuilder.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    phase := i % 31
+    if phase < 6 {
+      builder.push_char('A')
+    } elsif phase < 12 {
+      builder.push_char('B')
+    } elsif phase < 18 {
+      builder.push_char('C')
+    } elsif phase < 24 {
+      builder.push_char('D')
+    } else {
+      builder.push_char('E')
+    }
+    i = i + 1
+  }
+  finish_builder(builder)
+}
+
+fn encode_len(text: String) -> i64 {
+  iter := text.chars()
+  builder := StringBuilder.with_capacity(text.len_bytes() as i32)
+  current := 'A'
+  count := 0
+  have := false
+  loop {
+    iter.next() match {
+      case _: IteratorEnd => { break },
+      case ch: char => {
+        if !have {
+          current = ch
+          count = 1
+          have = true
+        } elsif ch == current {
+          count = count + 1
+        } else {
+          builder.push_char(current)
+          builder.push_string(`${count}`)
+          current = ch
+          count = 1
+        }
+      }
+    }
+  }
+  if have {
+    builder.push_char(current)
+    builder.push_string(`${count}`)
+  }
+  finish_builder(builder).len_bytes() as i64
+}
+
+fn main() -> void {
+  text := build_text(20_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 48 { break }
+    total = total + encode_len(text)
+    rounds = rounds + 1
+  }
+  print(total)
+}

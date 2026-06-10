@@ -1,0 +1,52 @@
+package fixed_width_128
+
+import able.numbers.uint128.{UInt128}
+
+fn words_less(left: UInt128, right: UInt128) -> bool {
+  if left.high < right.high { return true }
+  if left.high > right.high { return false }
+  left.low < right.low
+}
+
+fn modular_add_checksum() -> UInt128 {
+  modulus := UInt128.new(15_u64, 18_446_744_073_709_551_557_u64)
+  value := UInt128.new(9_u64, 12_345_678_901_234_567_u64)
+  delta := UInt128.new(3_u64, 9_876_543_210_987_654_321_u64)
+  i := 0
+  loop {
+    if i >= 1_000_000 { break }
+    sum := value.add(delta)
+    if words_less(sum, modulus) {
+      value = sum
+    } else {
+      value = sum.sub(modulus)
+    }
+    i = i + 1
+  }
+  value
+}
+
+fn ordered_select_checksum() -> UInt128 {
+  best := UInt128.zero()
+  i := 0
+  loop {
+    if i >= 1_000_000 { break }
+    high := ((i * 17 + 5) % 16) as u64
+    low := ((i as i64) * 48_271_i64 + 4_660_i64) as u64
+    candidate := UInt128.new(high, low)
+    if words_less(best, candidate) {
+      best = candidate
+    }
+    i = i + 1
+  }
+  best
+}
+
+fn print_words(value: UInt128) -> void {
+  print(`${value.high}:${value.low}`)
+}
+
+fn main() -> void {
+  print_words(modular_add_checksum())
+  print_words(ordered_select_checksum())
+}

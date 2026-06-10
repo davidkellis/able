@@ -1,0 +1,119 @@
+File: app
+Build ID: f3640f258d158b904d46c3332ff16e563602ba82
+Type: alloc_space
+Time: 2026-07-28 06:36:02 CDT
+Showing nodes accounting for 10460.96kB, 97.00% of 10784.01kB total
+Dropped 152 nodes (cum <= 53.92kB)
+      flat  flat%   sum%        cum   cum%
+ 3041.78kB 28.21% 28.21%  3041.78kB 28.21%  runtime/pprof.allFrames
+  998.34kB  9.26% 37.46%  1058.56kB  9.82%  runtime/pprof.(*profileBuilder).emitLocation
+     648kB  6.01% 43.47%  1171.88kB 10.87%  compress/flate.NewWriter (inline)
+     576kB  5.34% 48.81%      576kB  5.34%  able/interpreter-go/pkg/runtime.newEnvironmentBase (inline)
+  512.19kB  4.75% 53.56%   512.19kB  4.75%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     416kB  3.86% 57.42%      416kB  3.86%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+     416kB  3.86% 61.28%      416kB  3.86%  able/interpreter-go/pkg/ast.NewSimpleTypeExpression (inline)
+     320kB  2.97% 64.25%   523.88kB  4.86%  compress/flate.(*compressor).init
+     264kB  2.45% 66.69%      264kB  2.45%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+     208kB  1.93% 68.62%  5731.66kB 53.15%  runtime/pprof.writeHeapInternal
+     200kB  1.85% 70.48%      200kB  1.85%  compress/flate.newDeflateFast (inline)
+  192.09kB  1.78% 72.26%   192.14kB  1.78%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     192kB  1.78% 74.04%      288kB  2.67%  able/interpreter-go/pkg/runtime.NewFutureWithContext (inline)
+     168kB  1.56% 75.60%   969.19kB  8.99%  main.(*__able_goroutine_executor).RunFuture
+  156.52kB  1.45% 77.05%   204.52kB  1.90%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinitionIn
+  155.09kB  1.44% 78.49%  5523.66kB 51.22%  runtime/pprof.writeHeapProto
+     144kB  1.34% 79.82%      144kB  1.34%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+     144kB  1.34% 81.16%      144kB  1.34%  able/interpreter-go/pkg/runtime.(*Environment).mutex
+     136kB  1.26% 82.42%      136kB  1.26%  main.__able_array_iface_Awaitable_i64_to
+     128kB  1.19% 83.61%      128kB  1.19%  main.__able_channel_await_try_recv_impl
+     128kB  1.19% 84.79%      128kB  1.19%  main.__able_fn__int64_to_int64_to_runtime_value
+     120kB  1.11% 85.91%      120kB  1.11%  context.withCancel (inline)
+     120kB  1.11% 87.02%      120kB  1.11%  main.(*__able_await_state).appendArm (inline)
+     112kB  1.04% 88.06%      112kB  1.04%  main.(*__able_await_state).waitChLocked (inline)
+   96.06kB  0.89% 88.95%    96.06kB  0.89%  sync.NewCond (inline)
+      96kB  0.89% 89.84%    96.05kB  0.89%  main.__able_try_member_get_method
+   83.75kB  0.78% 90.61%    83.75kB  0.78%  internal/sync.newIndirectNode[go.shape.interface {},go.shape.interface {}] (inline)
+      80kB  0.74% 91.36%       80kB  0.74%  main.__able_acquire_await_state
+   72.07kB  0.67% 92.02%  2709.52kB 25.13%  main.__able_compiled_fn_main_ctx
+   72.05kB  0.67% 92.69%    72.05kB  0.67%  main.__able_context_from_environment
+   65.25kB  0.61% 93.30%    65.25kB  0.61%  runtime/pprof.(*protobuf).string (inline)
+      60kB  0.56% 93.85%      156kB  1.45%  main.__able_call_value_fast
+      56kB  0.52% 94.37%       56kB  0.52%  context.(*cancelCtx).Done
+      48kB  0.45% 94.82%   200.93kB  1.86%  main.__able_make_await_waker_ctx
+   36.02kB  0.33% 95.15%   197.25kB  1.83%  main.__able_call_named
+      36kB  0.33% 95.49%  1293.34kB 11.99%  main.__able_spawn_context
+      24kB  0.22% 95.71%      144kB  1.34%  context.WithCancel
+      24kB  0.22% 95.93%    75.59kB   0.7%  main.__able_make_await_registration_value_ctx
+      24kB  0.22% 96.15%   276.05kB  2.56%  main.__able_method_call
+   19.28kB  0.18% 96.33%   320.31kB  2.97%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+      16kB  0.15% 96.48%   139.97kB  1.30%  main.(*__able_channel_awaitable).register
+      16kB  0.15% 96.63%   155.97kB  1.45%  main.__able_register_await_state_ctx
+   12.02kB  0.11% 96.74%    68.84kB  0.64%  main.__able_call_value
+       8kB 0.074% 96.81%   174.91kB  1.62%  main.(*__able_channel_awaitable).commit
+       8kB 0.074% 96.89%   100.08kB  0.93%  main.__able_compiled_method_Await__default_spec_ctx
+    7.64kB 0.071% 96.96%   231.64kB  2.15%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+    2.62kB 0.024% 96.98%    81.19kB  0.75%  main.(*__able_goroutine_executor).registerHandle
+    1.53kB 0.014% 97.00%   456.73kB  4.24%  main.__able_await_with_state_ctx
+    0.50kB 0.0046% 97.00%  4102.31kB 38.04%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.05kB 0.00043% 97.00%  2709.57kB 25.13%  main.__able_compiled_entry_fn_main_ctx
+    0.05kB 0.00043% 97.00%   383.20kB  3.55%  main.__able_invoke_awaitable_method_ctx
+    0.02kB 0.00022% 97.00%     5732kB 53.15%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00022% 97.00%  2709.64kB 25.13%  main.RunRegisteredMain
+         0     0% 97.00%      144kB  1.34%  able/interpreter-go/pkg/ast.Gen (inline)
+         0     0% 97.00%      416kB  3.86%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0% 97.00%      832kB  7.72%  able/interpreter-go/pkg/ast.Ty (inline)
+         0     0% 97.00%   256.34kB  2.38%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0% 97.00%    72.17kB  0.67%  able/interpreter-go/pkg/compiler/bridge.MatchType
+         0     0% 97.00%   231.64kB  2.15%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 97.00%    96.17kB  0.89%  able/interpreter-go/pkg/compiler/bridge.matchSimpleTypeWithoutInterpreter
+         0     0% 97.00%    96.17kB  0.89%  able/interpreter-go/pkg/compiler/bridge.matchTypeWithoutInterpreter
+         0     0% 97.00%     5732kB 53.15%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 97.00%     5732kB 53.15%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 97.00%       72kB  0.67%  able/interpreter-go/pkg/runtime.(*Environment).SetRuntimeData
+         0     0% 97.00%      576kB  5.34%  able/interpreter-go/pkg/runtime.NewEnvironment (inline)
+         0     0% 97.00%      576kB  5.34%  able/interpreter-go/pkg/runtime.NewEnvironmentWithValueCapacity (inline)
+         0     0% 97.00%      576kB  5.34%  able/interpreter-go/pkg/runtime.newEnvironmentWithStoredValueCapacity (inline)
+         0     0% 97.00%  1178.62kB 10.93%  compress/gzip.(*Writer).Write
+         0     0% 97.00%   347.59kB  3.22%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0% 97.00%   347.59kB  3.22%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0% 97.00%    83.44kB  0.77%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).expand
+         0     0% 97.00%      120kB  1.11%  internal/sync.(*entry[go.shape.interface {},go.shape.interface {}]).swap
+         0     0% 97.00%      112kB  1.04%  main.(*__able_await_state).ensureWaitCh
+         0     0% 97.00%   174.91kB  1.62%  main.(*__able_channel_awaitable).NativeAwaitableCommit
+         0     0% 97.00%   139.97kB  1.30%  main.(*__able_channel_awaitable).NativeAwaitableRegister
+         0     0% 97.00%       68kB  0.63%  main.(*__able_default_awaitable).NativeAwaitableCommit
+         0     0% 97.00%  2337.88kB 21.68%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 97.00%  2709.62kB 25.13%  main.RunRegisteredMain.func1
+         0     0% 97.00%   989.66kB  9.18%  main.__able_await_ctx
+         0     0% 97.00%   989.66kB  9.18%  main.__able_await_value_ctx
+         0     0% 97.00%   142.91kB  1.33%  main.__able_call_value_fast_ctx
+         0     0% 97.00%      128kB  1.19%  main.__able_channel_await_try_recv_ctx (inline)
+         0     0% 97.00%      140kB  1.30%  main.__able_collect_await_arms_ctx
+         0     0% 97.00%   218.81kB  2.03%  main.__able_compiled_entry_method_Await__default_spec_ctx
+         0     0% 97.00%   797.16kB  7.39%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 97.00%       56kB  0.52%  main.__able_compiled_fn_main_ctx.func1.1
+         0     0% 97.00%       56kB  0.52%  main.__able_compiled_fn_main_ctx.func1.2
+         0     0% 97.00%   128.05kB  1.19%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 97.00%   835.46kB  7.75%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 97.00%   288.14kB  2.67%  main.__able_compiled_method_Channel_await_receive_spec_ctx
+         0     0% 97.00%   242.91kB  2.25%  main.__able_complete_await_ctx
+         0     0% 97.00%   142.91kB  1.33%  main.__able_fn__int64_to_int64_to_runtime_value.func1
+         0     0% 97.00%   745.94kB  6.92%  main.__able_iface_Future_i64_runtime_adapter.__able_ctx_value
+         0     0% 97.00%   745.94kB  6.92%  main.__able_iface_Future_i64_runtime_adapter.value
+         0     0% 97.00%   532.93kB  4.94%  main.__able_initialize_await_state_ctx
+         0     0% 97.00%  2749.62kB 25.50%  main.__able_register_compiled_call.func1
+         0     0% 97.00%  2337.88kB 21.68%  main.__able_run_compiled_task
+         0     0% 97.00%  1832.66kB 16.99%  main.__able_spawn_context.func1
+         0     0% 97.00%   469.89kB  4.36%  main.__able_union_int64_or_runtime_ErrorValue_from_value
+         0     0% 97.00%   469.89kB  4.36%  main.__able_union_int64_or_runtime_ErrorValue_try_from_value
+         0     0% 97.00%  2709.62kB 25.13%  main.__able_wrap_fn_main
+         0     0% 97.00%  8441.64kB 78.28%  main.main
+         0     0% 97.00%  8441.64kB 78.28%  main.runMain
+         0     0% 97.00%     5732kB 53.15%  main.startMainProfilePhase (inline)
+         0     0% 97.00%  8441.64kB 78.28%  runtime.main
+         0     0% 97.00%  5731.66kB 53.15%  runtime/pprof.(*Profile).WriteTo
+         0     0% 97.00%    65.25kB  0.61%  runtime/pprof.(*profileBuilder).build
+         0     0% 97.00%  1178.62kB 10.93%  runtime/pprof.(*profileBuilder).flush
+         0     0% 97.00%  1180.12kB 10.94%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 97.00%    65.25kB  0.61%  runtime/pprof.(*protobuf).strings
+         0     0% 97.00%  5731.66kB 53.15%  runtime/pprof.writeAlloc
+         0     0% 97.00%   347.59kB  3.22%  sync.(*Map).Store (inline)

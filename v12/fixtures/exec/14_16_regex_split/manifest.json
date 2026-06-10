@@ -1,0 +1,16 @@
+{
+  "description": "regex split preserves edge segments, applies a match-count limit, and advances zero-width Unicode delimiters safely",
+  "expect": {
+    "stdout": [
+      "basic 5 [|a||b|]",
+      "limit 3 [a|b|c:d]",
+      "limit-zero 1 [a:b]",
+      "zero 3 [|é|]",
+      "start 2 [|é]",
+      "end 2 [é|]",
+      "no-match 1 [é]",
+      "empty 1 []",
+      "whole 2 [|]"
+    ]
+  }
+}

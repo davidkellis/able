@@ -1,0 +1,35 @@
+File: compiled
+Build ID: d7c04c263dc89a6e78690b1ccf8730b8deace654
+Type: alloc_space
+Time: 2026-07-28 09:44:13 CDT
+Showing nodes accounting for 18653.79kB, 98.50% of 18937.51kB total
+Dropped 104 nodes (cum <= 94.69kB)
+      flat  flat%   sum%        cum   cum%
+ 4812.50kB 25.41% 25.41%  5640.64kB 29.79%  main.__able_compiled_fn_parse_unsigned_ctx
+ 4598.19kB 24.28% 49.69%  4598.19kB 24.28%  runtime/pprof.allFrames
+ 3968.75kB 20.96% 70.65%  4750.02kB 25.08%  main.__able_compiled_fn_parse_signed_ctx
+ 1831.45kB  9.67% 80.32%  3062.80kB 16.17%  runtime/pprof.(*profileBuilder).emitLocation
+ 1609.41kB  8.50% 88.82%  1609.41kB  8.50%  main.__able_compiled_method_String_bytes_ctx
+     648kB  3.42% 92.24%  1171.88kB  6.19%  compress/flate.NewWriter (inline)
+     400kB  2.11% 94.35%  8450.55kB 44.62%  runtime/pprof.writeHeapInternal
+     320kB  1.69% 96.04%   523.88kB  2.77%  compress/flate.(*compressor).init
+  264.75kB  1.40% 97.44%  8050.55kB 42.51%  runtime/pprof.writeHeapProto
+     200kB  1.06% 98.50%      200kB  1.06%  compress/flate.newDeflateFast (inline)
+    0.50kB 0.0026% 98.50%  7662.95kB 40.46%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.20kB 0.0011% 98.50% 10486.54kB 55.37%  main.__able_compiled_fn_main_ctx
+    0.02kB 0.00012% 98.50%  8450.92kB 44.63%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00012% 98.50% 10486.59kB 55.37%  main.RunRegisteredMain
+         0     0% 98.50%  8450.92kB 44.63%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 98.50%  8450.92kB 44.63%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 98.50%  1178.62kB  6.22%  compress/gzip.(*Writer).Write
+         0     0% 98.50% 10486.56kB 55.37%  main.RunRegisteredMain.func1
+         0     0% 98.50% 10486.56kB 55.37%  main.__able_compiled_fn_main
+         0     0% 98.50% 10486.56kB 55.37%  main.__able_register_compiled_call.func1
+         0     0% 98.50% 10486.56kB 55.37%  main.__able_wrap_fn_main
+         0     0% 98.50% 18937.51kB   100%  main.main
+         0     0% 98.50% 18937.51kB   100%  main.runMain
+         0     0% 98.50%  8450.92kB 44.63%  main.startMainProfilePhase (inline)
+         0     0% 98.50% 18937.51kB   100%  runtime.main
+         0     0% 98.50%  8450.55kB 44.62%  runtime/pprof.(*Profile).WriteTo
+         0     0% 98.50%  1178.62kB  6.22%  runtime/pprof.(*profileBuilder).flush
+         0     0% 98.50%  8450.55kB 44.62%  runtime/pprof.writeAlloc

@@ -144,10 +144,10 @@ func runCompilerExecFixture(t *testing.T, dir string, rel string) {
 
 	moduleRoot, workDir := compilerTestWorkDir(t, "ablec-fixture")
 
-	comp := New(Options{
+	comp := New(compilerFixtureOptions(t, Options{
 		PackageName:        "main",
 		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
-	})
+	}))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)
@@ -542,6 +542,9 @@ func defaultCompilerExecFixtures() []string {
 		"06_12_24_stdlib_process",
 		"06_12_25_stdlib_term",
 		"06_12_26_stdlib_test_harness_reporters",
+		"06_12_27_stdlib_iterator_close",
+		"06_12_28_stdlib_fs_lines",
+		"06_12_29_stdlib_array_slice",
 	}
 }
 
@@ -774,6 +777,10 @@ func findStdlibRoots(start string) []string {
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 			roots = append(roots, candidate)
 		}
+	}
+	if configured := strings.TrimSpace(os.Getenv("ABLE_STDLIB_ROOT")); configured != "" {
+		add(configured)
+		return roots
 	}
 	if installed := stdlibpath.ResolveInstalledSrc(); installed != "" {
 		add(installed)

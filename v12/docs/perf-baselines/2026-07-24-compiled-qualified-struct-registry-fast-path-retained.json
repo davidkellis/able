@@ -1,0 +1,126 @@
+{
+  "date": "2026-07-24",
+  "decision": "retain",
+  "candidate": "register generated struct definitions under preserved loader and normalized runtime package identities, then consult the exact qualified registry before environment recovery",
+  "settings": {
+    "cpu_affinity": "7",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "pairs": 5,
+    "order_balanced": true,
+    "frozen_binaries": true,
+    "executor": "goroutine",
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Dependency Wave Validation",
+      "baseline_seconds": [0.43, 0.37, 0.34, 0.35, 0.35],
+      "baseline_mean_seconds": 0.368,
+      "candidate_seconds": [0.18, 0.18, 0.16, 0.16, 0.17],
+      "candidate_mean_seconds": 0.170,
+      "change_percent": -53.80,
+      "baseline_mean_gc": 10.8,
+      "candidate_mean_gc": 10.0,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.002237721, 0.002107611, 0.002173661, 0.002143060, 0.002343064],
+      "go_mean_seconds": 0.0022010234,
+      "candidate_over_go": 77.236798,
+      "profile": {
+        "baseline_total_seconds": 1.67,
+        "baseline_struct_definition_seconds": 0.93,
+        "baseline_struct_definition_percent": 55.69,
+        "candidate_total_seconds": 0.74,
+        "candidate_struct_definition_seconds": 0.0,
+        "candidate_current_gid_seconds": 0.59,
+        "candidate_current_gid_percent": 79.73,
+        "remaining_owner": "Runtime.Env task payload"
+      },
+      "sha256": {
+        "baseline": "eb3622753d2413896e410bbd51c202d70c3ca1cf5496a0c57927fa24e5a76e59",
+        "candidate": "f37d46bbe302e3b24151d73411c47699f1c1f5c2928d2536246038056632761c",
+        "go": "cda38aee36fd8dcb17cbd236a21b20403cb761687a6638c376a54c5e5ad850f6"
+      }
+    },
+    {
+      "name": "Validated Job Pipeline",
+      "baseline_seconds": [0.37, 0.37, 0.38, 0.34, 0.34],
+      "baseline_mean_seconds": 0.360,
+      "candidate_seconds": [0.32, 0.32, 0.34, 0.31, 0.31],
+      "candidate_mean_seconds": 0.320,
+      "change_percent": -11.11,
+      "baseline_mean_gc": 7.0,
+      "candidate_mean_gc": 6.8,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.001884003, 0.001842097, 0.001943577, 0.001931657, 0.001956458],
+      "go_mean_seconds": 0.0019115584,
+      "candidate_over_go": 167.402680,
+      "profile": {
+        "baseline_total_seconds": 1.72,
+        "baseline_struct_definition_seconds": 0.15,
+        "baseline_struct_definition_percent": 8.72,
+        "candidate_total_seconds": 1.58,
+        "candidate_struct_definition_seconds": 0.0,
+        "candidate_current_gid_seconds": 1.51,
+        "candidate_current_gid_percent": 95.57,
+        "remaining_owner": "Runtime.SwapEnv, SwapEnvIfNeeded, Runtime.Env"
+      },
+      "sha256": {
+        "baseline": "0487e3173491c9fa28ec43a6731c98545dccf6c6b0ac5ec94514ef7c4ea01cb4",
+        "candidate": "1f49ce4ab8d64041684601790f52663fd2cafa9571db4e6a562ce53519545e47",
+        "go": "e5b9725db1379d2bc2ab6918a86c4730c45ef49680a5fd6cb3f5092e5193a9d6"
+      }
+    },
+    {
+      "name": "Concurrent Document Pipeline",
+      "baseline_seconds": [0.15, 0.14, 0.14, 0.14, 0.14],
+      "baseline_mean_seconds": 0.142,
+      "candidate_seconds": [0.12, 0.12, 0.12, 0.12, 0.12],
+      "candidate_mean_seconds": 0.120,
+      "change_percent": -15.49,
+      "baseline_mean_gc": 3.0,
+      "candidate_mean_gc": 3.0,
+      "verified_baseline": 5,
+      "verified_candidate": 5,
+      "go_seconds": [0.001978990, 0.001618984, 0.001905996, 0.001903402, 0.001864624],
+      "go_mean_seconds": 0.0018543992,
+      "candidate_over_go": 64.710986,
+      "profile": {
+        "baseline_total_seconds": 0.64,
+        "baseline_struct_definition_seconds": 0.16,
+        "baseline_struct_definition_percent": 25.0,
+        "candidate_total_seconds": 0.56,
+        "candidate_struct_definition_seconds": 0.0,
+        "candidate_current_gid_seconds": 0.50,
+        "candidate_current_gid_percent": 89.29,
+        "remaining_owner": "Runtime.SwapEnv, SwapEnvIfNeeded, Runtime.Env"
+      },
+      "sha256": {
+        "baseline": "c7b28b7f257cb1b03d657cbaaf3d387a7e944c5c2b7e87a48acc0e36dacaa9bd",
+        "candidate": "84d48681c6a247c9e73fef69227cb82508562041498bd4e7e7f367b9f4bde6be",
+        "go": "a46a7558e9fbc14a7204a1e37c35f418aae900134d62433c029414772954aa34"
+      }
+    }
+  ],
+  "rejected_precursor": {
+    "candidate": "qualified registry lookup before environment recovery without dual package-identity registration",
+    "decision": "reject",
+    "reason": "generated normalized lookup keys did not match loader-qualified registration keys; profiles retained the original owner"
+  },
+  "temporary_evidence_root": "/tmp/able-aot-struct-definition-20260724.yc8lAD",
+  "changed_surfaces": [
+    "compiler",
+    "compiler_bridge"
+  ],
+  "unchanged_surfaces": [
+    "canonical_stdlib",
+    "tree_walker",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

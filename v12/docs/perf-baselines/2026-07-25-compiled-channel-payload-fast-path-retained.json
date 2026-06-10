@@ -1,0 +1,241 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain",
+  "candidate": "recover scheduler payload only after a channel operation misses its nonblocking fast path, then reuse that payload for cancellation and blocked-task accounting",
+  "settings": {
+    "cpu_affinity": "9",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "executor": "goroutine",
+    "pairs": 20,
+    "order_balanced": true,
+    "go_runs": 20,
+    "warmups_per_binary": 2,
+    "nanosecond_resolution_clock": true,
+    "frozen_binaries": true,
+    "public_verifier_required": true,
+    "timeout_seconds": 60
+  },
+  "applications": [
+    {
+      "name": "Concurrent Document Pipeline",
+      "baseline_nanoseconds": [
+        43068631, 42881484, 40034746, 39310802, 36919363,
+        38277795, 44023652, 42671013, 45379829, 43760634,
+        45448827, 41271609, 42595530, 42524480, 39811289,
+        40476235, 42001435, 42596824, 42931760, 41011425
+      ],
+      "candidate_nanoseconds": [
+        7526316, 7683400, 6615099, 6967856, 7446250,
+        7017173, 8340865, 8186715, 7673374, 8109645,
+        8530225, 8539047, 7440137, 7707316, 7643970,
+        7402278, 7592594, 7953653, 9009879, 8065390
+      ],
+      "go_nanoseconds": [
+        2222854, 2422873, 1824885, 1929673, 1855403,
+        2221674, 2445873, 2177523, 2175055, 2113482,
+        2321048, 2411428, 2016659, 1987619, 2146383,
+        2027645, 2585370, 2389611, 2152235, 2211412
+      ],
+      "baseline_mean_nanoseconds": 41849868,
+      "candidate_mean_nanoseconds": 7772559,
+      "go_mean_nanoseconds": 2181935,
+      "change_percent": -81.4275,
+      "candidate_over_go": 3.5622,
+      "go_performance_percent": 28.0723,
+      "allocation": {
+        "baseline_samples_bytes_allocations_gc": [
+          [1876936, 22916, 2],
+          [1876904, 22916, 2],
+          [1875960, 22904, 1]
+        ],
+        "candidate_samples_bytes_allocations_gc": [
+          [1613592, 18802, 1],
+          [1611240, 18778, 1],
+          [1613800, 18803, 2]
+        ],
+        "baseline_mean_bytes": 1876600,
+        "candidate_mean_bytes": 1612877.3333,
+        "bytes_change_percent": -14.0532,
+        "baseline_mean_allocations": 22912,
+        "candidate_mean_allocations": 18794.3333,
+        "allocations_change_percent": -17.9717
+      },
+      "profile": {
+        "baseline_profiles": 5,
+        "baseline_total_samples_seconds": 0.17,
+        "baseline_selected_owner_seconds": 0.16,
+        "candidate_profiles": 20,
+        "candidate_total_samples_seconds": 0.06,
+        "candidate_selected_owner_seconds": 0,
+        "baseline_current_gid_allocations_sample": 4137,
+        "baseline_current_payload_allocations_sample": 4122,
+        "candidate_current_gid_allocations_sample": 0,
+        "candidate_current_payload_allocations_sample": 0
+      },
+      "sha256": {
+        "baseline": "94e3ed5f76098a6ecd2efe6416613a86ddbcec525e3b0043c6847c3149c8533f",
+        "candidate": "825ac3b63fa67b362474adbe656394cabe5545a6178816dbd3874a016cc9b26f",
+        "go": "a46a7558e9fbc14a7204a1e37c35f418aae900134d62433c029414772954aa34"
+      }
+    },
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_nanoseconds": [
+        340322031, 304478074, 301629840, 313272482, 307852370,
+        303057942, 325310412, 302883999, 347572836, 305910140,
+        311248032, 312677134, 321522672, 314921764, 313094755,
+        296983183, 312633547, 301964204, 293799151, 300505589
+      ],
+      "candidate_nanoseconds": [
+        195842659, 169677049, 172339139, 171703598, 174692355,
+        168349296, 167797277, 171638263, 202984063, 174959141,
+        169579523, 182969317, 187943145, 166299595, 188408056,
+        165171435, 181659742, 169623577, 186495184, 173846187
+      ],
+      "go_nanoseconds": [
+        2804878, 2520444, 2701001, 2909678, 3044934,
+        2654008, 2639695, 3216659, 2707652, 2572517,
+        2620237, 2677220, 2623969, 2723909, 2628044,
+        2652927, 2789848, 2634656, 3142778, 2658699
+      ],
+      "baseline_mean_nanoseconds": 311582008,
+      "candidate_mean_nanoseconds": 177098930,
+      "go_mean_nanoseconds": 2746188,
+      "change_percent": -43.1614,
+      "candidate_over_go": 64.4890,
+      "go_performance_percent": 1.5507,
+      "allocation": {
+        "baseline_samples_bytes_allocations_gc": [
+          [45707320, 972268, 23],
+          [45707688, 972270, 23],
+          [45708032, 972273, 24]
+        ],
+        "candidate_samples_bytes_allocations_gc": [
+          [44658136, 955873, 22],
+          [44656904, 955862, 21],
+          [44659672, 955887, 22]
+        ],
+        "baseline_mean_bytes": 45707680,
+        "candidate_mean_bytes": 44658237.3333,
+        "bytes_change_percent": -2.2960,
+        "baseline_mean_allocations": 972270.3333,
+        "candidate_mean_allocations": 955874,
+        "allocations_change_percent": -1.6864
+      },
+      "profile": {
+        "baseline_profiles": 5,
+        "baseline_total_samples_seconds": 1.48,
+        "baseline_current_payload_seconds": 0.62,
+        "baseline_runtime_env_seconds": 0.61,
+        "baseline_current_gid_seconds": 0.90,
+        "candidate_profiles": 20,
+        "candidate_total_samples_seconds": 3.33,
+        "candidate_current_payload_seconds": 0,
+        "candidate_runtime_env_seconds": 0,
+        "candidate_current_gid_seconds": 1.22,
+        "candidate_current_gid_caller": "__able_compiled_entry_method_String_split",
+        "baseline_current_gid_allocations_sample": 24603,
+        "baseline_current_payload_allocations_sample": 16396,
+        "candidate_current_gid_allocations_sample": 8207,
+        "candidate_current_payload_allocations_sample": 0
+      },
+      "sha256": {
+        "baseline": "bd647ac4748000743029cc3cbbdb18f8fa93ac03889935edaced278a8156f626",
+        "candidate": "6adaf4233ed1e60bc91b648498245de27b6e0c4f65de3ee4c09359ee12f33b34",
+        "go": "e08c89e8f55ee0e09834e4c4498248dd61cfb5683c542b044151271d37ad16d7"
+      }
+    },
+    {
+      "name": "Concurrent Policy Callbacks",
+      "baseline_nanoseconds": [
+        73106386, 75586283, 73926315, 77467606, 77335393,
+        75480363, 76384641, 87760308, 90790373, 90356335,
+        90085215, 86303180, 105411395, 77115137, 81008596,
+        78293231, 73625706, 75940284, 76491733, 77012188
+      ],
+      "candidate_nanoseconds": [
+        14245726, 14176432, 14501381, 14465234, 14226040,
+        14833836, 14699238, 16179540, 17133306, 15241412,
+        17574345, 15054106, 14283146, 13859492, 14106761,
+        14704448, 15847325, 14178565, 14773581, 14512360
+      ],
+      "go_nanoseconds": [
+        2085300, 1938337, 2231951, 2224788, 2256394,
+        2291787, 2395459, 2366676, 2420726, 2565674,
+        2467522, 2820332, 2166963, 2026320, 2345213,
+        2178633, 2408092, 2187972, 2248128, 2126436
+      ],
+      "baseline_mean_nanoseconds": 80974033,
+      "candidate_mean_nanoseconds": 14929814,
+      "go_mean_nanoseconds": 2287635,
+      "change_percent": -81.5622,
+      "candidate_over_go": 6.5263,
+      "go_performance_percent": 15.3226,
+      "allocation": {
+        "baseline_samples_bytes_allocations_gc": [
+          [5277080, 64752, 4],
+          [5276848, 64748, 5],
+          [5277616, 64760, 5]
+        ],
+        "candidate_samples_bytes_allocations_gc": [
+          [4751032, 56531, 4],
+          [4751320, 56534, 4],
+          [4750896, 56530, 4]
+        ],
+        "baseline_mean_bytes": 5277181.3333,
+        "candidate_mean_bytes": 4751082.6667,
+        "bytes_change_percent": -9.9693,
+        "baseline_mean_allocations": 64753.3333,
+        "candidate_mean_allocations": 56531.6667,
+        "allocations_change_percent": -12.6969
+      },
+      "profile": {
+        "baseline_profiles": 5,
+        "baseline_total_samples_seconds": 0.33,
+        "baseline_selected_owner_seconds": 0.28,
+        "candidate_profiles": 20,
+        "candidate_total_samples_seconds": 0.16,
+        "candidate_selected_owner_seconds": 0,
+        "baseline_current_gid_allocations_sample": 8259,
+        "baseline_current_payload_allocations_sample": 8240,
+        "candidate_current_gid_allocations_sample": 0,
+        "candidate_current_payload_allocations_sample": 0
+      },
+      "sha256": {
+        "baseline": "37b4e9a8286a699dd7f900487533f9faf3fed0be4671e9b0f08df3d786712fe8",
+        "candidate": "f67c9cd9a32443e180c098b46e9a7a958dce46c63f38f759a3328f687fd46426",
+        "go": "46bd01493be186dc8cd46230b9f8b503e9db86c2511433e18f679af46bc66585"
+      }
+    }
+  ],
+  "geometric_mean_change_percent": -73.1007,
+  "verification": {
+    "timing_public_verifier_processes": 180,
+    "candidate_profile_public_verifier_processes": 69,
+    "strict_candidate_dependency_graphs_without_interpreter": 3,
+    "focused_generated_payload_guard": "pass",
+    "compiled_concurrency_parity": "pass",
+    "goroutine_await_flush_and_mutex": "pass",
+    "experimental_execution_context_composition": "pass",
+    "cmd_ablec": "pass",
+    "aggregate_focused_command_timeout": "cumulative_60_second_cap_only",
+    "active_test_from_timeout_isolated_seconds": 0.746,
+    "active_test_from_timeout_isolated_result": "pass"
+  },
+  "temporary_evidence_root": "/tmp/able-scheduler-payload-20260725.1csW2e",
+  "changed_surfaces": [
+    "compiler_generated_runtime"
+  ],
+  "unchanged_surfaces": [
+    "canonical_stdlib",
+    "runtime_package",
+    "interpreter",
+    "tree_walker",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

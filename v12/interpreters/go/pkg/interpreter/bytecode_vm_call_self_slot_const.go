@@ -44,11 +44,16 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConstCompact(instr *bytecodeInstruct
 	if instr == nil || currentProgram == nil || !instr.hasIntRaw || !instr.hasIntImmediate || instr.target != 1 || instr.argCount != 0 {
 		return nil, false, nil
 	}
-	if len(vm.slots) < 2 || len(vm.iterStack) != 0 || len(vm.loopStack) != 0 {
+	if len(vm.slots) < 2 {
 		return nil, false, nil
 	}
 	layout := currentProgram.frameLayout
 	if layout == nil || !layout.selfCallOneArgFast || layout.slotCount != 2 || layout.selfCallSlot != 1 || layout.usesImplicitMember {
+		return nil, false, nil
+	}
+	iterBase := len(vm.iterStack)
+	loopBase := len(vm.loopStack)
+	if (iterBase != 0 || loopBase != 0) && !layout.preservesControlFlow {
 		return nil, false, nil
 	}
 	if !currentProgram.returnGenericNamesCached || currentProgram.returnGenericNames != nil {
@@ -89,25 +94,12 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConstCompact(instr *bytecodeInstruct
 		}
 		return nil, true, err
 	}
-	if cap(vm.selfFastMinimal) == 0 {
-		vm.selfFastMinimal = make([]bytecodeSelfFastMinimalCallFrame, 0, 32)
+	if !vm.pushSelfFastSlot0CallFrameWithBases(vm.ip+1, iterBase, loopBase) {
+		return nil, false, nil
 	}
-	idx := len(vm.selfFastMinimal)
-	if idx < cap(vm.selfFastMinimal) {
-		vm.selfFastMinimal = vm.selfFastMinimal[:idx+1]
-	} else {
-		vm.selfFastMinimal = append(vm.selfFastMinimal, bytecodeSelfFastMinimalCallFrame{})
-	}
-	frame := &vm.selfFastMinimal[idx]
-	frame.returnIP = vm.ip + 1
-	frame.slots = vm.slots
-	frame.slot0 = vm.slots[0]
-	vm.saveSelfFastSlot0I32(frame)
-	frame.reusesSlots = true
-	vm.selfFastMinimalSuffix++
-	vm.slots[0] = bytecodeBoxedIntegerI32Value(diff)
+	vm.slots[0] = bytecodeRawI32SlotCachedValue(int32(diff))
 	vm.setSelfFastSlot0I32Raw(int32(diff))
-	vm.env = fn.Closure
+	vm.env = vm.bytecodeCalleeEnv(fn.Closure)
 	vm.ip = 0
 	if vm.interp != nil && vm.interp.bytecodeStatsEnabled {
 		vm.interp.recordBytecodeInlineCallHit()
@@ -152,7 +144,7 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 								if diff < math.MinInt32 || diff > math.MaxInt32 {
 									argErr = newOverflowError("integer overflow")
 								} else {
-									arg = bytecodeBoxedIntegerI32Value(diff)
+									arg = bytecodeRawI32ResultValue(diff)
 								}
 							}
 						}
@@ -163,7 +155,7 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 							if diff < math.MinInt32 || diff > math.MaxInt32 {
 								argErr = newOverflowError("integer overflow")
 							} else {
-								arg = bytecodeBoxedIntegerI32Value(diff)
+								arg = bytecodeRawI32ResultValue(diff)
 							}
 						}
 					}
@@ -188,11 +180,11 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 					if !currentProgram.returnGenericNamesCached {
 						returnGenericNames = bytecodeInlineReturnGenericNames(fn, currentProgram)
 					}
-					if layout.slotCount == 2 && layout.selfCallSlot == 1 && instr.argCount == 0 && returnGenericNames == nil && iterBase == 0 && loopBase == 0 && !hasImplicit {
-						if vm.pushSelfFastSlot0CallFrame(vm.ip + 1) {
+					if layout.slotCount == 2 && layout.selfCallSlot == 1 && instr.argCount == 0 && bytecodeCanUseSelfFastMinimalFrame(currentProgram, returnGenericNames, iterBase, loopBase, hasImplicit, true) {
+						if vm.pushSelfFastSlot0CallFrameWithBases(vm.ip+1, iterBase, loopBase) {
 							vm.slots[0] = arg
 							vm.setSelfFastSlot0I32Value(arg)
-							vm.env = fn.Closure
+							vm.env = vm.bytecodeCalleeEnv(fn.Closure)
 							vm.ip = 0
 							if statsEnabled {
 								vm.interp.recordBytecodeInlineCallHit()
@@ -210,17 +202,15 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConst(instr *bytecodeInstruction, sl
 					if layout.selfCallSlot >= 0 && layout.selfCallSlot < len(slots) {
 						slots[layout.selfCallSlot] = fn
 					}
+					calleeEnv := vm.bytecodeCalleeEnv(fn.Closure)
 					if hasImplicit {
-						state := vm.interp.stateFromEnv(fn.Closure)
-						state.pushImplicitReceiver(arg)
+						state := vm.interp.stateFromEnv(calleeEnv)
+						state.pushImplicitReceiver(bytecodeStackSnapshotValue(arg))
 					}
-					if returnGenericNames == nil && iterBase == 0 && loopBase == 0 && !hasImplicit {
-						vm.pushSelfFastMinimalCallFrame(vm.ip+1, vm.slots)
-					} else {
-						vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, returnGenericNames, iterBase, loopBase, hasImplicit, true)
-					}
+					vm.pushCallFrame(vm.ip+1, currentProgram, vm.slots, vm.env, returnGenericNames, iterBase, loopBase, hasImplicit, true)
 					vm.slots = slots
-					vm.env = fn.Closure
+					vm.prepareValueSlotI32Frame(currentProgram)
+					vm.env = calleeEnv
 					vm.ip = 0
 					if statsEnabled {
 						vm.interp.recordBytecodeInlineCallHit()
@@ -266,7 +256,7 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConstFallback(instr *bytecodeInstruc
 		if result, handled, err := vm.tryExecExactNativeCall(callee, args[:], callNode); handled {
 			return vm.finishCompletedCall(result, err, callNode, nil)
 		}
-		result, err := vm.interp.callCallableValueMutable(callee, args[:], vm.env, callNode)
+		result, err := vm.callCallableValueMutable(callee, args[:], callNode)
 		return vm.finishCompletedCall(result, err, callNode, nil)
 	default:
 		if statsEnabled {
@@ -287,6 +277,6 @@ func (vm *bytecodeVM) execCallSelfIntSubSlotConstFallback(instr *bytecodeInstruc
 	if result, handled, err := vm.tryExecExactNativeCall(callee, args[:], callNode); handled {
 		return vm.finishCompletedCall(result, err, callNode, nil)
 	}
-	result, err := vm.interp.callCallableValueMutable(callee, args[:], vm.env, callNode)
+	result, err := vm.callCallableValueMutable(callee, args[:], callNode)
 	return vm.finishCompletedCall(result, err, callNode, nil)
 }

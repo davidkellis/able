@@ -1,0 +1,49 @@
+{
+  "date": "2026-07-22",
+  "decision": "no_new_exact_cpu_leaf_candidate",
+  "retained_change": false,
+  "profile_binary_sha256": "883a6ff6eaa828076a32dd5738f8844e2bec1803778bf2be86fb7e19ec650a00",
+  "guardrails": {
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "gomaxprocs": 1,
+    "timeout_seconds": 59,
+    "warmup_calls": 1,
+    "normal_typechecking": true,
+    "source_root_only": true,
+    "canonical_external_stdlib": true
+  },
+  "materiality_rule": "same exact non-dispatch interpreter leaf at or above 1 percent flat CPU in at least three unlike applications",
+  "runs": [
+    {"family":"text_file","workload":"binary_event_log","measured_calls":1,"ns_per_op":6424270525,"bytes_per_op":465602864,"allocs_per_op":8361497,"cpu_samples_ms":6400,"profile_sha256":"4a5a3b1fb2316c20c196380e40b9bfe21e62c4df4e81f9fd01a759101165997f"},
+    {"family":"numeric","workload":"matrix_multiply","measured_calls":2,"ns_per_op":4667423656,"bytes_per_op":306823384,"allocs_per_op":14034078,"cpu_samples_ms":9310,"profile_sha256":"925432e32af866d42e17a85af2ea8f573e2d4f84556a339ffd1d535935508d25"},
+    {"family":"collection_iterator","workload":"linked_list_iterator_collect","measured_calls":20,"ns_per_op":404939483,"bytes_per_op":8366802,"allocs_per_op":192563,"cpu_samples_ms":8060,"profile_sha256":"565c5cbaa53959efe13473dcc5ce57d7859868f1ccdde6610e99a22caff95a8b"},
+    {"family":"nominal_union","workload":"option_result_config","measured_calls":8,"ns_per_op":800227069,"bytes_per_op":66994835,"allocs_per_op":1167548,"cpu_samples_ms":6390,"profile_sha256":"21564dafbb93930155560bb606d540d9333a8739f1c4af0f844379e84df64369"},
+    {"family":"concurrency","workload":"validated_job_pipeline","measured_calls":100,"ns_per_op":139396074,"bytes_per_op":13578029,"allocs_per_op":201104,"cpu_samples_ms":13880,"profile_sha256":"ac5d00bd7090fb7c26a0ac9d5dd30dea93bc598404905a3cdd77808f3590367a"}
+  ],
+  "flat_percent": {
+    "bytecodeVM.runResumable": [4.69,6.34,6.45,3.76,2.45],
+    "bytecodeRawIntegerValueInfo": [3.12,0.97,3.85,0.94,0.86],
+    "bytecodeVM.execCallOpcode": [0.62,0.75,1.61,0.63,0.65],
+    "bytecodeVM.finishInlineReturn": [0.78,0.0,1.36,0.63,0.58],
+    "bytecodeVM.appendSlotStackValueChecked": [0.62,0.86,0.74,0.0,0.36],
+    "bytecodeVM.tryInlineResolvedCallFromStack": [0.16,0.0,1.24,1.56,0.58],
+    "Environment.lookupCurrentValueNoLock": [0.62,0.0,1.12,1.10,0.29],
+    "runtime_maps.ctrlGroup.matchH2": [4.38,2.58,3.10,4.38,2.81],
+    "runtime.tryDeferToSpanScan": [6.56,1.40,0.99,7.04,5.84]
+  },
+  "cumulative_percent": {
+    "lookupIntegerInfo": [3.28,3.33,1.61,1.10,0.58],
+    "Environment.lookupCurrentValueNoLock": [3.44,0.0,3.85,2.66,1.37],
+    "bytecodeVM.finishInlineReturn": [6.41,0.0,7.07,16.59,6.70],
+    "runtime.mallocgc": [15.94,8.81,2.11,14.71,17.94]
+  },
+  "raw_integer_direct_caller_ms": {
+    "binary_event_log": {"direct_immediate_compare":50,"same_type_small_pair":40,"integer_immediate_raw":40,"cast":20,"direct_integer_value":20,"inline_coercion_check":10,"is_integer":10,"is_numeric":10},
+    "matrix_multiply": {"fast_cast":40,"u8_value":30,"generic_integer_value":20},
+    "linked_list_iterator_collect": {"cast":110,"direct_immediate_compare":60,"same_type_small_pair":50,"native_raw_value":40,"direct_integer_value":30,"typed_pattern_snapshot":10,"u8_value":10},
+    "option_result_config": {"direct_integer_value":40,"integer_immediate_raw":10,"inline_coercion_check":10},
+    "validated_job_pipeline": {"same_type_small_pair":60,"direct_integer_value":30,"direct_immediate_compare":10,"integer_immediate_raw":10,"inline_coercion_check":10}
+  },
+  "next": "sampled alloc_objects and alloc_space owner matrix across the same five feature families"
+}

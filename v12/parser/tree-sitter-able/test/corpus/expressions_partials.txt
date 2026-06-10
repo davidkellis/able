@@ -428,28 +428,30 @@ fn partials(data, factor) {
                                                     (lambda_parameter_list
                                                       (lambda_parameter
                                                         (identifier)))
-                                                    (low_precedence_pipe_expression
-                                                      (assignment_expression
-                                                        (pipe_expression
-                                                          (matchable_expression
-                                                            (pipe_operand_base
-                                                              (range_expression
-                                                                (logical_or_expression
-                                                                  (logical_and_expression
-                                                                    (bitwise_or_expression
-                                                                      (bitwise_xor_expression
-                                                                        (bitwise_and_expression
-                                                                          (equality_expression
-                                                                            (comparison_expression
-                                                                              (shift_expression
-                                                                                (additive_expression
-                                                                                  (multiplicative_expression
-                                                                                    (unary_expression
-                                                                                      (exponent_expression
-                                                                                        (postfix_expression
-                                                                                          (primary_expression
-                                                                                            (implicit_member_expression
-                                                                                              (identifier)))))))))))))))))))))))))))))))))))))))))))))
+                                                    (expression_list
+                                                      (expression_statement
+                                                        (low_precedence_pipe_expression
+                                                          (assignment_expression
+                                                            (pipe_expression
+                                                              (matchable_expression
+                                                                (pipe_operand_base
+                                                                  (range_expression
+                                                                    (logical_or_expression
+                                                                      (logical_and_expression
+                                                                        (bitwise_or_expression
+                                                                          (bitwise_xor_expression
+                                                                            (bitwise_and_expression
+                                                                              (equality_expression
+                                                                                (comparison_expression
+                                                                                  (shift_expression
+                                                                                    (additive_expression
+                                                                                      (multiplicative_expression
+                                                                                        (unary_expression
+                                                                                          (exponent_expression
+                                                                                            (postfix_expression
+                                                                                              (primary_expression
+                                                                                                (implicit_member_expression
+                                                                                                  (identifier)))))))))))))))))))))))))))))))))))))))))))))))
       (expression_statement
         (low_precedence_pipe_expression
           (assignment_expression

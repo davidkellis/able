@@ -20,7 +20,7 @@ func TestCompilerRegistersBuiltinFutureNamedCalls(t *testing.T) {
 	if !strings.Contains(compiledSrc, "func __able_builtin_named_future_yield(") {
 		t.Fatalf("expected builtin future_yield compiled call helper to be emitted")
 	}
-	if !strings.Contains(compiledSrc, "func __able_register_builtin_compiled_calls(entryEnv *runtime.Environment, interp *interpreter.Interpreter)") {
+	if !strings.Contains(compiledSrc, "func __able_register_builtin_compiled_calls(entryEnv *runtime.Environment, interp bridge.Interpreter)") {
 		t.Fatalf("expected builtin compiled call registration helper to be emitted")
 	}
 	if !strings.Contains(compiledSrc, "__able_register_compiled_call(env, \"future_yield\", 0, 0, \"\", __able_builtin_named_future_yield)") {

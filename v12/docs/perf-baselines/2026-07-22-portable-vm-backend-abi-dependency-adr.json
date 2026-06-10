@@ -1,0 +1,290 @@
+{
+  "backend_classes": [
+    {
+      "admitted_variants": [],
+      "disposition": "reject-under-current-runtime-contract",
+      "id": "whole-engine-c-abi",
+      "implementation_cost": "extreme",
+      "security_cost": "high",
+      "variants": [
+        {
+          "avoids_per_opcode_callbacks": false,
+          "concrete_toolchain_and_distribution": false,
+          "id": "go-owned-values-with-effect-exits",
+          "one_semantics_owner": true,
+          "passes_all_gates": false,
+          "portable_fallback": true,
+          "preserves_identity_without_graph_conversion": true,
+          "prior_rejection_equivalent": true,
+          "reason": "Safe handles preserve roots but cannot execute Go-owned Array, map, nominal, call, error, environment, Future, or extern semantics. Measured hot functions hit such boundaries after only four to seven primitive instructions, making this the rejected native-leaf/side-exit architecture."
+        },
+        {
+          "avoids_per_opcode_callbacks": true,
+          "concrete_toolchain_and_distribution": false,
+          "id": "foreign-owned-complete-runtime",
+          "one_semantics_owner": false,
+          "passes_all_gates": false,
+          "portable_fallback": false,
+          "preserves_identity_without_graph_conversion": false,
+          "prior_rejection_equivalent": false,
+          "reason": "Owning values, heap, environments, dispatch, errors, scheduling, and externs in C could keep whole activations native, but it creates a second semantic runtime and requires graph conversion or dual ownership at every Go/tree-walker/extern boundary."
+        }
+      ]
+    },
+    {
+      "admitted_variants": [],
+      "disposition": "reject-under-current-runtime-contract",
+      "id": "portable-jit-library",
+      "implementation_cost": "very-high",
+      "security_cost": "high",
+      "variants": [
+        {
+          "avoids_per_opcode_callbacks": false,
+          "concrete_toolchain_and_distribution": false,
+          "id": "jit-with-go-owned-runtime",
+          "one_semantics_owner": true,
+          "passes_all_gates": false,
+          "portable_fallback": true,
+          "preserves_identity_without_graph_conversion": true,
+          "prior_rejection_equivalent": true,
+          "reason": "A JIT library changes code generation but not the Go object-graph boundary; safe generated code remains a pointer-free leaf with dense exits, exactly the unadmitted native tier."
+        },
+        {
+          "avoids_per_opcode_callbacks": true,
+          "concrete_toolchain_and_distribution": false,
+          "id": "jit-with-foreign-runtime",
+          "one_semantics_owner": false,
+          "passes_all_gates": false,
+          "portable_fallback": false,
+          "preserves_identity_without_graph_conversion": false,
+          "prior_rejection_equivalent": false,
+          "reason": "Adding a foreign heap/runtime beneath a JIT has the same semantic duplication and boundary conversion problem as a complete C runtime, plus an unselected dependency, license, code-memory, and platform policy."
+        }
+      ]
+    },
+    {
+      "admitted_variants": [],
+      "disposition": "reject-under-current-runtime-contract",
+      "id": "direct-machine-code-generation",
+      "implementation_cost": "extreme",
+      "security_cost": "very-high",
+      "variants": [
+        {
+          "avoids_per_opcode_callbacks": false,
+          "concrete_toolchain_and_distribution": false,
+          "id": "direct-codegen-with-go-owned-runtime",
+          "one_semantics_owner": true,
+          "passes_all_gates": false,
+          "portable_fallback": true,
+          "preserves_identity_without_graph_conversion": true,
+          "prior_rejection_equivalent": true,
+          "reason": "Custom emitters do not alter the semantic boundary, so safe code still side-exits at the same four-to-seven-instruction spans."
+        },
+        {
+          "avoids_per_opcode_callbacks": true,
+          "concrete_toolchain_and_distribution": false,
+          "id": "direct-codegen-with-foreign-runtime",
+          "one_semantics_owner": false,
+          "passes_all_gates": false,
+          "portable_fallback": false,
+          "preserves_identity_without_graph_conversion": false,
+          "prior_rejection_equivalent": false,
+          "reason": "A complete foreign runtime retains the duplication problem while custom per-OS/architecture emitters add the largest unwind, executable-memory, cache, security, and maintenance burden."
+        }
+      ]
+    }
+  ],
+  "current_abi_observations": [
+    {
+      "detail": "bytecodeInstruction embeds runtime.Value, strings, AST types/nodes, nested program pointers, and Go-managed metadata; bytecodeProgram embeds maps, slices, and runtime definition pointers.",
+      "id": "program-is-go-object-graph"
+    },
+    {
+      "detail": "runtime.Value implementations embed Go strings, slices, maps, interfaces, functions, AST pointers, environments, mutexes, contexts, condition variables, futures, and arbitrary host values.",
+      "id": "value-is-go-object-graph"
+    },
+    {
+      "detail": "VM frames, environments, lookup caches, iterator and loop stacks, unwind state, Array ownership, raw sidecars, and async payloads are Go object graphs.",
+      "id": "execution-state-is-go-owned"
+    },
+    {
+      "detail": "production spawn uses goroutines, contexts, channels/conditions, and Go-owned Future state; deterministic execution resumes exact Go VM state after serial yields.",
+      "id": "concurrency-is-go-runtime-backed"
+    },
+    {
+      "detail": "extern functions are compiled as exact-toolchain Go plugins and exchange runtime.Value/NativeCallContext state.",
+      "id": "externs-are-go-runtime-backed"
+    },
+    {
+      "detail": "integer handles can keep Go values rooted across C, but each semantic operation still returns to Go and foreign memory cannot traverse the referenced Go object graph.",
+      "id": "cgo-handles-do-not-create-a-value-abi"
+    }
+  ],
+  "decision_gates": [
+    "one-semantics-owner",
+    "no-go-pointer-retention-in-foreign-memory",
+    "coarse-whole-activation-entry",
+    "no-per-opcode-foreign-callback",
+    "identity-and-mutation-preservation",
+    "source-exact-effect-and-resume",
+    "concurrency-and-extern-preservation",
+    "ordinary-vm-fallback-without-graph-conversion",
+    "concrete-toolchain-license-and-distribution",
+    "not-equivalent-to-completed-rejection"
+  ],
+  "hot_function_boundary_evidence": [
+    {
+      "benchmark": "fixed_width_128",
+      "contract_eligible": false,
+      "effect_boundary_instructions": 15125029,
+      "family": "wide-numeric",
+      "hottest_program": "ordered_select_checksum",
+      "maximum_static_primitive_span": 7,
+      "primitive_instruction_share_percent": 34.376023,
+      "primitive_instructions": 13125026,
+      "program_instruction_share_percent": 46.735683
+    },
+    {
+      "benchmark": "distance_field",
+      "contract_eligible": false,
+      "effect_boundary_instructions": 22000058,
+      "family": "float-numeric",
+      "hottest_program": "main",
+      "maximum_static_primitive_span": 4,
+      "primitive_instruction_share_percent": 35.897497,
+      "primitive_instructions": 22000107,
+      "program_instruction_share_percent": 56.410349
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "contract_eligible": false,
+      "effect_boundary_instructions": 5159680,
+      "family": "concurrency-text",
+      "hottest_program": "split",
+      "maximum_static_primitive_span": 4,
+      "primitive_instruction_share_percent": 35.161387,
+      "primitive_instructions": 3067648,
+      "program_instruction_share_percent": 38.503797
+    },
+    {
+      "benchmark": "word_frequency",
+      "contract_eligible": false,
+      "effect_boundary_instructions": 4428635,
+      "family": "text-map",
+      "hottest_program": "split",
+      "maximum_static_primitive_span": 4,
+      "primitive_instruction_share_percent": 35.092201,
+      "primitive_instructions": 2648779,
+      "program_instruction_share_percent": 40.23112
+    },
+    {
+      "benchmark": "array_slice_window",
+      "contract_eligible": false,
+      "effect_boundary_instructions": 3564014,
+      "family": "array-iterator",
+      "hottest_program": "rolling_checksum",
+      "maximum_static_primitive_span": 6,
+      "primitive_instruction_share_percent": 34.710445,
+      "primitive_instructions": 1992010,
+      "program_instruction_share_percent": 63.488427
+    },
+    {
+      "benchmark": "reverse_complement",
+      "contract_eligible": false,
+      "effect_boundary_instructions": 18200223,
+      "family": "byte-text",
+      "hottest_program": "reverse_complement_fasta",
+      "maximum_static_primitive_span": 4,
+      "primitive_instruction_share_percent": 43.399156,
+      "primitive_instructions": 14166776,
+      "program_instruction_share_percent": 53.408536
+    }
+  ],
+  "kind": "able-portable-vm-backend-abi-dependency-adr",
+  "next_lane": {
+    "admission": "Advance only if one design keeps a single semantic authority, avoids per-opcode foreign transitions, preserves identity/fallback without whole-graph conversion, and models at least 25% target-excess reduction in three unlike applications. Otherwise close foreign/native backends and return to the portable application frontier.",
+    "exclusions": "No WASM, foreign runtime implementation, JIT dependency, executable-memory code, benchmark branches, named-container rules, or non-primitive nominal special cases.",
+    "id": "shared-runtime-semantic-abi-feasibility",
+    "required_outputs": [
+      "an immutable serialized instruction/type/source-identity format with no Go pointers",
+      "a value, identity, mutation, root, and lifetime model covering every runtime.Value kind",
+      "semantic operation and structured effect/resume contracts for dispatch, errors, cleanup, suspension, and externs",
+      "an ownership decision for heap, GC, environments, futures, and host handles",
+      "a migration and conformance plan preserving tree-walker and ordinary-bytecode fallback",
+      "a target-budget model for at least three unlike whole hot functions"
+    ],
+    "scope": "Determine whether Able can define one backend-neutral serialized program/value/effect ABI that both the Go reference runtime and a future fast engine can implement without per-operation foreign calls or duplicate language semantics. This is a feasibility/design tranche, not a runtime rewrite."
+  },
+  "prototype_policy": {
+    "code_memory": "No executable-memory or W^X policy is activated because no code-generating backend is selected.",
+    "conformance": "Existing tree-walker/bytecode fixture parity and portable application verifiers remain mandatory for any future engine.",
+    "fallback": "Ordinary Go bytecode remains the sole implementation and semantic authority.",
+    "supported_platforms": "No backend-specific platform is selected. Ordinary Go bytecode remains required everywhere the native Go interpreter builds.",
+    "toolchain": "No new C/C++/Rust/JIT dependency is admitted."
+  },
+  "schema_version": 1,
+  "sources": {
+    "environment": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/environment.go",
+      "sha256": "2419913e1a26bf7c3efa4fa1b3e23795290d70f2c910a0f0feb78cf2c8bdcaad"
+    },
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-portable-vm-backend-adr.json",
+      "sha256": "69b2877a562521842ec1ee4a54de4bcb0378c10e4f6bb6a033c2d854ef8a0e4a"
+    },
+    "executor": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/executor.go",
+      "sha256": "8305b83ecc9504360d9fe53a66c45771f0be1bbc91f968440d5b7b6defc68ef1"
+    },
+    "extern_builder": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/extern_host_builder.go",
+      "sha256": "5f4df30aedb25aa08451279f3c20f1882bcd591ddbb6dc6aae660cbdce1f87bd"
+    },
+    "native_tier_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
+      "sha256": "7e58450b286d7b45a25383708bfbcfda7f86865e8943a102c11a3acbfdb24167"
+    },
+    "raw_values": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/raw_value.go",
+      "sha256": "279c69be032ff3877a839fe8bf5e654e148b20e89a1585276bd99a1ee8ed4fd9"
+    },
+    "runtime_values": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/values.go",
+      "sha256": "871f0a4735ce0660c902e356c2a47c5fd0886c0e42f3641338677110e8301280"
+    },
+    "spec": {
+      "path": "/home/david/sync/projects/able/spec/full_spec_v12.md",
+      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+    },
+    "structural_strategy": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json",
+      "sha256": "69679874a7d9666a32411bb126c726349cdfeff692055d6c0d13bf53b5d1f78e"
+    },
+    "vm_dispatch": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go",
+      "sha256": "1710cb15a38a50bf5097c89ecf441e27f49240c9389b8a824b9b5986033a7f23"
+    },
+    "vm_opcodes": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm.go",
+      "sha256": "0edfeba2a1adcaf742e824be43fc764fd42791818a27f08136ffe16dc6347a29"
+    },
+    "vm_types": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go",
+      "sha256": "f6dbf296c8f28673546b03250f12eab1471227309e90e6c08e0db5c10147855f"
+    }
+  },
+  "summary": {
+    "backend_class_count": 3,
+    "contract_eligible_hot_function_count": 0,
+    "decision": "close-portable-foreign-backend-under-current-runtime-contract",
+    "hot_function_row_count": 6,
+    "maximum_static_primitive_span": 7,
+    "ownership_variant_count": 6,
+    "phase_one_governing_rows": 5,
+    "phase_one_material_rows": 5,
+    "phase_one_performance_capable": true,
+    "predecessor_decision": "portable-backend-performance-capable-but-no-concrete-mechanism",
+    "prototype_admitted": false,
+    "selected_backend_count": 0
+  }
+}

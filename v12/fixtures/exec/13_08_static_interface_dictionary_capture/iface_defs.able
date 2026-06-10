@@ -1,0 +1,5 @@
+package iface_defs
+
+interface Renderable for Self {
+  fn render(self: Self) -> String
+}

@@ -204,3 +204,16 @@ func TestFutureFlushReturnsNil(t *testing.T) {
 		t.Fatalf("expected future_flush to return nil, got %#v", typ)
 	}
 }
+
+func TestFutureFlushRejectsArguments(t *testing.T) {
+	checker := New()
+	call := ast.Call("future_flush", ast.Int(1))
+	module := ast.NewModule([]ast.Statement{call}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected checker failure: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatal("expected an arity diagnostic for future_flush(1)")
+	}
+}

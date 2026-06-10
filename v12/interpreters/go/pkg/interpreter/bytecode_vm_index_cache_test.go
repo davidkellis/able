@@ -303,6 +303,98 @@ func TestBytecodeVM_ArrayIndexGetSlotUsesI32RegisterIndex(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_ArrayIndexGetSlotMonoCharFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := monoCharArrayValueForTest(t, 'a', 'b', 'l', 'e')
+	vm.slots = []runtime.Value{
+		arr,
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+	}
+	instr := &bytecodeInstruction{
+		op:        bytecodeOpArrayIndexGetSlot,
+		argCount:  0,
+		loopBreak: 1,
+	}
+
+	if err := vm.execArrayIndexGetSlot(instr); err != nil {
+		t.Fatalf("mono char array index slot opcode failed: %v", err)
+	}
+	if got, ok := vm.stack[0].(runtime.CharValue); !ok || got.Val != 'l' {
+		t.Fatalf("mono char array index slot result = %#v, want char 'l'", vm.stack[0])
+	}
+	if arr.State != nil || arr.Elements != nil {
+		t.Fatalf("mono char array index slot should not materialize boxed state")
+	}
+}
+
+func TestBytecodeVM_ArrayIndexGetSlotMonoU32UsesReusableRawStackCell(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	value := uint32(bytecodeSmallIntBoxMax + 70000)
+	arr := monoU32ArrayValueForTest(t, value)
+	vm.slots = []runtime.Value{
+		arr,
+		runtime.NewSmallInt(0, runtime.IntegerI32),
+	}
+	instr := &bytecodeInstruction{
+		op:        bytecodeOpArrayIndexGetSlot,
+		argCount:  0,
+		loopBreak: 1,
+	}
+
+	if err := vm.execArrayIndexGetSlot(instr); err != nil {
+		t.Fatalf("mono u32 array index slot opcode failed: %v", err)
+	}
+	cell, ok := vm.stack[0].(*bytecodeRawIntegerSlotCell)
+	if !ok || cell == nil || cell.TypeSuffix != runtime.IntegerU32 || cell.Raw != int64(value) {
+		t.Fatalf("mono u32 array index slot result = %#v, want reusable raw u32 stack cell %d", vm.stack[0], value)
+	}
+	first := cell
+	if arr.State != nil || arr.Elements != nil {
+		t.Fatalf("mono u32 array index slot should not materialize boxed state")
+	}
+
+	vm.stack = vm.stack[:0]
+	vm.ip = 0
+	if err := vm.execArrayIndexGetSlot(instr); err != nil {
+		t.Fatalf("mono u32 array index slot second opcode failed: %v", err)
+	}
+	if vm.stack[0] != first {
+		t.Fatalf("mono u32 array index slot result pointer = %#v, want reuse of %#v", vm.stack[0], first)
+	}
+}
+
+func TestBytecodeVM_ArrayIndexGetSlotSkipsFollowingPropagationForMonoChar(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := monoCharArrayValueForTest(t, 'a', 'b', 'l', 'e')
+	vm.currentProgram = &bytecodeProgram{instructions: []bytecodeInstruction{
+		{op: bytecodeOpArrayIndexGetSlot},
+		{op: bytecodeOpPropagation},
+	}}
+	vm.ip = 0
+	vm.slots = []runtime.Value{
+		arr,
+		runtime.NewSmallInt(2, runtime.IntegerI32),
+	}
+	instr := &bytecodeInstruction{
+		op:        bytecodeOpArrayIndexGetSlot,
+		argCount:  0,
+		loopBreak: 1,
+	}
+
+	if err := vm.execArrayIndexGetSlot(instr); err != nil {
+		t.Fatalf("mono char array index slot propagation skip failed: %v", err)
+	}
+	if vm.ip != 2 {
+		t.Fatalf("ip after mono char array index slot propagation skip = %d, want 2", vm.ip)
+	}
+	if got, ok := vm.stack[0].(runtime.CharValue); !ok || got.Val != 'l' {
+		t.Fatalf("mono char array index slot propagated result = %#v, want char 'l'", vm.stack[0])
+	}
+}
+
 func TestBytecodeVM_ArrayIndexGetSlotTrackedNilFastPath(t *testing.T) {
 	interp := NewBytecode()
 	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
@@ -402,6 +494,171 @@ func TestBytecodeVM_ArrayIndexSetSlotUsesI32RegisterIndex(t *testing.T) {
 	}
 }
 
+func TestBytecodeVM_ArrayIndexSetSlotMonoCharFastPath(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := monoCharArrayValueForTest(t, 'a', 'b', 'l', 'e')
+	written := runtime.CharValue{Val: 'z'}
+	vm.slots = []runtime.Value{
+		arr,
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	}
+	vm.stack = []runtime.Value{written}
+	instr := &bytecodeInstruction{
+		op:        bytecodeOpArrayIndexSetSlot,
+		argCount:  0,
+		loopBreak: 1,
+	}
+
+	if err := vm.execArrayIndexSetSlot(instr); err != nil {
+		t.Fatalf("mono char array index set slot opcode failed: %v", err)
+	}
+	if len(vm.stack) != 1 || !valuesEqual(vm.stack[0], written) {
+		t.Fatalf("mono char array index set stack = %#v, want written value", vm.stack)
+	}
+	raw, ok, err := runtime.ArrayStoreMonoReadCharIfAvailable(arr.Handle, 1)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoReadCharIfAvailable after direct set: %v", err)
+	}
+	if !ok || raw != 'z' {
+		t.Fatalf("mono char array index set stored = (%q, %v), want ('z', true)", raw, ok)
+	}
+	if arr.State != nil || arr.Elements != nil {
+		t.Fatalf("mono char array index set should not materialize boxed state")
+	}
+}
+
+func TestBytecodeVM_IndexGetSkipsFollowingPropagationForMonoChar(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := monoCharArrayValueForTest(t, 'a', 'b', 'l', 'e')
+	vm.currentProgram = &bytecodeProgram{instructions: []bytecodeInstruction{
+		{op: bytecodeOpIndexGet},
+		{op: bytecodeOpPropagation},
+	}}
+	vm.ip = 0
+	vm.stack = []runtime.Value{
+		arr,
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	}
+
+	if err := vm.execIndexGet(bytecodeInstruction{op: bytecodeOpIndexGet}); err != nil {
+		t.Fatalf("generic index get propagation skip failed: %v", err)
+	}
+	if vm.ip != 2 {
+		t.Fatalf("ip after generic index get propagation skip = %d, want 2", vm.ip)
+	}
+	if got, ok := vm.stack[0].(runtime.CharValue); !ok || got.Val != 'b' {
+		t.Fatalf("generic index get propagated result = %#v, want char 'b'", vm.stack[0])
+	}
+	if arr.State != nil || arr.Elements != nil {
+		t.Fatalf("generic index get should not materialize boxed state")
+	}
+}
+
+func TestBytecodeVM_CanonicalIndexGetMethodFastPathReadsMonoCharWithoutMaterializingState(t *testing.T) {
+	interp := NewBytecode()
+	preloadArrayStdlibForTest(t, interp)
+	if interp.canUseDirectArrayIndexGetFastPath() {
+		t.Fatalf("expected stdlib bootstrap to install canonical Array Index impl")
+	}
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := monoCharArrayValueForTest(t, 'a', 'b', 'l', 'e')
+
+	got, err := vm.resolveIndexGet(arr, runtime.NewSmallInt(2, runtime.IntegerI32))
+	if err != nil {
+		t.Fatalf("resolveIndexGet canonical fast path failed: %v", err)
+	}
+	if charVal, ok := got.(runtime.CharValue); !ok || charVal.Val != 'l' {
+		t.Fatalf("resolveIndexGet canonical fast path result = %#v, want char 'l'", got)
+	}
+	if arr.State != nil || arr.Elements != nil {
+		t.Fatalf("resolveIndexGet canonical fast path should not materialize boxed state")
+	}
+}
+
+func TestBytecodeVM_CanonicalIndexSetMethodFastPathWritesMonoCharWithoutMaterializingState(t *testing.T) {
+	interp := NewBytecode()
+	preloadArrayStdlibForTest(t, interp)
+	if interp.canUseDirectArrayIndexSetFastPath() {
+		t.Fatalf("expected stdlib bootstrap to install canonical Array IndexMut impl")
+	}
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := monoCharArrayValueForTest(t, 'a', 'b', 'l', 'e')
+	written := runtime.CharValue{Val: 'z'}
+
+	got, err := vm.resolveIndexSet(arr, runtime.NewSmallInt(1, runtime.IntegerI32), written, ast.AssignmentAssign, "", false)
+	if err != nil {
+		t.Fatalf("resolveIndexSet canonical fast path failed: %v", err)
+	}
+	if !valuesEqual(got, written) {
+		t.Fatalf("resolveIndexSet canonical fast path result = %#v, want %#v", got, written)
+	}
+	raw, ok, err := runtime.ArrayStoreMonoReadCharIfAvailable(arr.Handle, 1)
+	if err != nil {
+		t.Fatalf("ArrayStoreMonoReadCharIfAvailable after canonical set: %v", err)
+	}
+	if !ok || raw != 'z' {
+		t.Fatalf("canonical index set stored = (%q, %v), want ('z', true)", raw, ok)
+	}
+	if arr.State != nil || arr.Elements != nil {
+		t.Fatalf("resolveIndexSet canonical fast path should not materialize boxed state")
+	}
+}
+
+func TestBytecodeVM_CanonicalIndexMethodFastPathKindsResolveFromStdlibArrayImpl(t *testing.T) {
+	interp := NewBytecode()
+	preloadArrayStdlibForTest(t, interp)
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	arr := monoCharArrayValueForTest(t, 'a', 'b', 'l', 'e')
+
+	getMethod, getFastPath, hasGetMethod, _, err := vm.resolveCachedIndexMethod(nil, 0, arr, "get", "Index")
+	if err != nil {
+		t.Fatalf("resolveCachedIndexMethod get failed: %v", err)
+	}
+	if !hasGetMethod || getMethod == nil {
+		t.Fatalf("expected canonical Array Index.get method")
+	}
+	if getFastPath != bytecodeIndexMethodFastPathCanonicalArrayGet {
+		t.Fatalf("get fast path = %v, want canonical array get", getFastPath)
+	}
+
+	setMethod, setFastPath, hasSetMethod, _, err := vm.resolveCachedIndexMethod(nil, 0, arr, "set", "IndexMut")
+	if err != nil {
+		t.Fatalf("resolveCachedIndexMethod set failed: %v", err)
+	}
+	if !hasSetMethod || setMethod == nil {
+		t.Fatalf("expected canonical Array IndexMut.set method")
+	}
+	if setFastPath != bytecodeIndexMethodFastPathCanonicalArraySet {
+		t.Fatalf("set fast path = %v, want canonical array set", setFastPath)
+	}
+	if arr.State != nil || arr.Elements != nil {
+		t.Fatalf("resolving canonical index methods should not materialize boxed state")
+	}
+}
+
+func TestBytecodeVM_IndexMethodCacheIdentityTracksNominalArrayElementType(t *testing.T) {
+	interp := NewBytecode()
+	inner := monoCharArrayValueForTest(t, 'a', 'b')
+	outer := interp.newArrayValue([]runtime.Value{inner}, 1)
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+
+	receiverKind, elemType, typeKey, _, _, ok := vm.indexMethodCacheIdentityKey(outer)
+	if !ok {
+		t.Fatalf("expected nested array receiver to be cacheable")
+	}
+	if receiverKind != bytecodeMemberReceiverArray {
+		t.Fatalf("receiver kind = %v, want array", receiverKind)
+	}
+	if elemType != bytecodeIndexTypeUnknown {
+		t.Fatalf("element token = %v, want unknown for nominal nested arrays", elemType)
+	}
+	if typeKey != "Array<char>" {
+		t.Fatalf("receiver type key = %q, want Array<char>", typeKey)
+	}
+}
+
 func TestBytecodeVM_UnaliasedTrackedArrayWriteSyncFastPath(t *testing.T) {
 	interp := NewBytecode()
 	arr := interp.newArrayValue([]runtime.Value{
@@ -424,10 +681,36 @@ func TestBytecodeVM_UnaliasedTrackedArrayWriteSyncFastPath(t *testing.T) {
 	if !state.ElementTypeTokenKnown || state.ElementTypeToken != bytecodeIndexTypeI32 {
 		t.Fatalf("expected fast sync to refresh element type token, known=%v token=%v", state.ElementTypeTokenKnown, state.ElementTypeToken)
 	}
+	if !state.ValuesMaterialized {
+		t.Fatalf("materialized tracked write should keep array state materialized")
+	}
 
 	arr.TrackedAliases = true
 	if bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, 0, written) {
 		t.Fatalf("expected aliased tracked array write to use the shared sync path")
+	}
+}
+
+func TestBytecodeVM_UnaliasedTrackedArrayWriteMarksRawStateUnmaterialized(t *testing.T) {
+	interp := NewBytecode()
+	arr := interp.newArrayValue([]runtime.Value{
+		runtime.NewSmallInt(1, runtime.IntegerI32),
+	}, 1)
+	state, err := interp.ensureArrayState(arr, 0)
+	if err != nil {
+		t.Fatalf("ensure array state: %v", err)
+	}
+	if !state.ValuesMaterialized {
+		t.Fatalf("expected initial tracked state to be materialized")
+	}
+
+	written := bytecodeRawI32SlotCachedValue(11)
+	state.Values[0] = written
+	if !bytecodeSyncUnaliasedTrackedArrayWrite(arr, state, 0, written) {
+		t.Fatalf("expected unaliased tracked raw write to use fast sync")
+	}
+	if state.ValuesMaterialized {
+		t.Fatalf("tracked raw write should mark array state as needing materialization")
 	}
 }
 

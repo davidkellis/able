@@ -1,0 +1,88 @@
+{
+  "kind": "able-v12-post-consolidation-source-identity-invalidation-closure",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "refresh-exact-evidence-retain-no-production-change",
+  "invalidation": {
+    "path": "v12/examples/benchmarks/fasta_generation/fasta_generation.able",
+    "cause": "removed-extra-final-blank-line",
+    "semantic_change": false,
+    "previous_sha256": "f8c67c9ab16e29d92904db2d58091f2512f83319a3bca5caf8ee90c37a2a96d7",
+    "current_sha256": "7b30ce2139b20f4b30495a44e5afc99bb4ab664c2ec9e0817512784adcb06c0e",
+    "selected_closures": [
+      "bytecode-byte-output",
+      "compiled-byte-output"
+    ]
+  },
+  "measurement": {
+    "cpu": "4",
+    "runs_per_row": 5,
+    "able_cohorts": 2,
+    "verifier_stdout_sha256": "2907f3fb66fea247549c0f26b5b5d5cd1940a055574b72dad344283e1eb0fd10",
+    "reference_seconds": {
+      "go": 0.0166,
+      "python": 0.2031,
+      "ruby": 0.3046
+    },
+    "cohort_a": {
+      "compiled_seconds": 0.058,
+      "compiled_go_ratio": 3.4939759036144578,
+      "bytecode_seconds": 1.898,
+      "bytecode_python_ratio": 9.345150172328901,
+      "bytecode_ruby_ratio": 6.231122783978989
+    },
+    "cohort_b_selected": {
+      "compiled_seconds": 0.042,
+      "compiled_go_ratio": 2.5301204819277108,
+      "bytecode_seconds": 1.958,
+      "bytecode_python_ratio": 9.640571147218118,
+      "bytecode_ruby_ratio": 6.4281024294156275
+    },
+    "ten_sample_spread": {
+      "compiled_mean_seconds": 0.05,
+      "compiled_coefficient_of_variation_percent": 49.89,
+      "bytecode_mean_seconds": 1.928,
+      "bytecode_coefficient_of_variation_percent": 9.54
+    }
+  },
+  "frontier": {
+    "full_status_rows": 122,
+    "selected_rows": 115,
+    "target_meets": 8,
+    "target_misses": 107,
+    "actionable_groups": 0,
+    "total_excess_seconds": 182.00747368421054,
+    "selection_sha256": "1dc70106786a7e668982f070428fed3a81f77ba2abb4adf72d97848265f9dead"
+  },
+  "ledger": {
+    "closure_count": 21,
+    "current_count": 21,
+    "invalidated_count": 0
+  },
+  "verification": {
+    "coverage_check": "pass",
+    "scoreboard_check": "pass",
+    "five_run_evidence_check": "pass",
+    "frontier_check": "pass",
+    "ledger_check": "pass",
+    "architecture_gate": "pass",
+    "architecture_gate_wall_seconds": 8.36,
+    "architecture_gate_peak_rss_kb": 164376,
+    "git_diff_check": "pass"
+  },
+  "retained_changes": [
+    "measurement-evidence",
+    "scoreboard-roll-forward",
+    "derived-evidence-identities",
+    "current-value-contract-expectations",
+    "closure-ledger-snapshots",
+    "handoff-documentation"
+  ],
+  "production_candidate_advanced": false,
+  "next": {
+    "id": "wait-for-authoritative-performance-invalidation",
+    "why": "The only trigger was semantically inert source identity drift, and its refresh retains zero actionable groups.",
+    "entails": "Refresh affected evidence only after a new broad application, execution-semantic change, correctness failure, or non-closed owner material in three unlike applications appears.",
+    "importance": "This preserves exact provenance and the native-carrier/minimal-boundary strategy without repeating closed or benchmark-specific work."
+  }
+}

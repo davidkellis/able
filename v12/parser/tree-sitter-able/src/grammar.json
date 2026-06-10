@@ -218,6 +218,53 @@
         }
       ]
     },
+    "export_statement": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "export"
+            },
+            {
+              "type": "FIELD",
+              "name": "name",
+              "content": {
+                "type": "SYMBOL",
+                "name": "identifier"
+              }
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "export"
+            },
+            {
+              "type": "STRING",
+              "value": "*"
+            },
+            {
+              "type": "STRING",
+              "value": "from"
+            },
+            {
+              "type": "FIELD",
+              "name": "path",
+              "content": {
+                "type": "SYMBOL",
+                "name": "import_path"
+              }
+            }
+          ]
+        }
+      ]
+    },
     "import_clause": {
       "type": "CHOICE",
       "members": [
@@ -405,6 +452,10 @@
             {
               "type": "SYMBOL",
               "name": "import_statement"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "export_statement"
             },
             {
               "type": "SYMBOL",
@@ -2239,29 +2290,33 @@
       ]
     },
     "named_implementation_definition": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "name",
-          "content": {
-            "type": "SYMBOL",
-            "name": "identifier"
+      "type": "PREC_DYNAMIC",
+      "value": 1,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "name",
+            "content": {
+              "type": "SYMBOL",
+              "name": "identifier"
+            }
+          },
+          {
+            "type": "STRING",
+            "value": "="
+          },
+          {
+            "type": "FIELD",
+            "name": "implementation",
+            "content": {
+              "type": "SYMBOL",
+              "name": "implementation_definition"
+            }
           }
-        },
-        {
-          "type": "STRING",
-          "value": "="
-        },
-        {
-          "type": "FIELD",
-          "name": "implementation",
-          "content": {
-            "type": "SYMBOL",
-            "name": "implementation_definition"
-          }
-        }
-      ]
+        ]
+      }
     },
     "prelude_statement": {
       "type": "SEQ",

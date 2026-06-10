@@ -1,0 +1,23 @@
+package exec_14_20_regex_scanner_unicode_zero
+
+import able.text.regex.{Match, Regex, RegexScanner}
+
+fn show_next(label: String, scanner: RegexScanner) -> void {
+  scanner.next() match {
+    case found: Match => print(`${label} ${found.matched} ${found.span.start}-${found.span.end}`),
+    case _ => print(`${label} none`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("a*") match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("é")
+      show_next("unicode-first", scanner)
+      scanner.flush()
+      show_next("unicode-last", scanner)
+    },
+    case _ => print("unicode compile error")
+  }
+}

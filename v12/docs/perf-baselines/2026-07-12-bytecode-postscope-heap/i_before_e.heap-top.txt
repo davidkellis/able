@@ -1,0 +1,37 @@
+File: interpreter.test
+Build ID: 61226e58d79e68f17ad9d1d4c9b65a83b0cca6f7
+Type: inuse_space
+Time: 2026-07-11 23:45:11 CDT
+Showing nodes accounting for 33107.87kB, 100% of 33107.87kB total
+Showing top 30 nodes out of 69
+      flat  flat%   sum%        cum   cum%
+22848.05kB 69.01% 69.01% 22848.05kB 69.01%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+ 2717.82kB  8.21% 77.22%  2717.82kB  8.21%  able/interpreter-go/pkg/interpreter.externCloneValueSlice (inline)
+ 2560.04kB  7.73% 84.95%  2560.04kB  7.73%  able/interpreter-go/pkg/interpreter.externStringSliceTemplate (inline)
+ 1767.38kB  5.34% 90.29%  1767.38kB  5.34%  plugin/unnamed-16f9f1ae6a7743e92015f02bd771b60e0189c073.fs_read_lines_fast
+ 1064.52kB  3.22% 93.51%  1064.52kB  3.22%  able/interpreter-go/pkg/ast.annotateOrigins
+  613.99kB  1.85% 95.36%   613.99kB  1.85%  able/interpreter-go/pkg/interpreter.(*bytecodeLoweringContext).emit (inline)
+  512.04kB  1.55% 96.91%   512.04kB  1.55%  able/interpreter-go/pkg/ast.NewFunctionParameter (inline)
+  512.03kB  1.55% 98.45%   512.03kB  1.55%  able/interpreter-go/pkg/ast.NewIntegerLiteral (inline)
+  512.01kB  1.55%   100%   512.01kB  1.55%  able/interpreter-go/pkg/interpreter.init.func1
+         0     0%   100%  1064.52kB  3.22%  able/interpreter-go/pkg/ast.AnnotateOrigins
+         0     0%   100%   512.03kB  1.55%  able/interpreter-go/pkg/ast.IntBig (inline)
+         0     0%   100%  1064.52kB  3.22%  able/interpreter-go/pkg/ast.annotateValue
+         0     0%   100%  1576.56kB  4.76%  able/interpreter-go/pkg/driver.(*Loader).Load
+         0     0%   100%  1576.56kB  4.76%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions
+         0     0%   100%  2088.59kB  6.31%  able/interpreter-go/pkg/driver.(*Loader).LoadWithOptions.func1
+         0     0%   100%  1024.07kB  3.09%  able/interpreter-go/pkg/driver.(*Loader).parseFile
+         0     0%   100%  1064.52kB  3.22%  able/interpreter-go/pkg/driver.combinePackage
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%   100%   613.99kB  1.85%  able/interpreter-go/pkg/interpreter.(*Interpreter).EvaluateProgram
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateExternFunctionBody.(*Interpreter).makeExternNative.func1
+         0     0%   100%   613.99kB  1.85%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateLoadedProgramModule
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeExternHostFunction
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%   100%   613.99kB  1.85%  able/interpreter-go/pkg/interpreter.(*Interpreter).lowerModuleToBytecode
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execAndFinishExactNativeCall
+         0     0%   100%  7045.24kB 21.28%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedCallName

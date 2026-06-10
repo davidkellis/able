@@ -380,13 +380,6 @@ func (e *irGoEmitter) emitPattern(pattern ast.Pattern, valueExpr string, okVar s
 			}
 			return nil
 		}
-		if len(p.Fields) > 0 {
-			fmt.Fprintf(&e.buf, "\tif %s {\n", okVar)
-			fmt.Fprintf(&e.buf, "\t\tif %s.Fields == nil {\n", instTemp)
-			e.emitPatternMismatch(okVar, errVar, "pattern mismatch")
-			fmt.Fprintf(&e.buf, "\t\t}\n")
-			fmt.Fprintf(&e.buf, "\t}\n")
-		}
 		for _, field := range p.Fields {
 			if field == nil || field.FieldName == nil || field.FieldName.Name == "" {
 				return fmt.Errorf("compiler: named struct pattern missing field name")
@@ -396,7 +389,7 @@ func (e *irGoEmitter) emitPattern(pattern ast.Pattern, valueExpr string, okVar s
 			fmt.Fprintf(&e.buf, "\tvar %s runtime.Value\n", fieldTemp)
 			fmt.Fprintf(&e.buf, "\tvar %s bool\n", fieldOk)
 			fmt.Fprintf(&e.buf, "\tif %s {\n", okVar)
-			fmt.Fprintf(&e.buf, "\t\t%s, %s = %s.Fields[%q]\n", fieldTemp, fieldOk, instTemp, field.FieldName.Name)
+			fmt.Fprintf(&e.buf, "\t\t%s, %s = __able_struct_named_field_value(%s, %q)\n", fieldTemp, fieldOk, instTemp, field.FieldName.Name)
 			fmt.Fprintf(&e.buf, "\t\tif !%s {\n", fieldOk)
 			e.emitPatternMismatch(okVar, errVar, "pattern mismatch")
 			fmt.Fprintf(&e.buf, "\t\t}\n")

@@ -1,0 +1,57 @@
+package bench_persistent_map_string_small
+
+import able.collections.map.{MapEntry}
+import able.collections.persistent_map.{PersistentMap, PersistentMapBuilder}
+import able.text.string.{String}
+
+fn key_for(i: i32, size: i32) -> String {
+  `key${(i * 17) % (size * 5)}:${i % 19}`
+}
+
+fn build(size: i32) -> PersistentMap String i32 {
+  builder := PersistentMapBuilder.new<String, i32>()
+  i := 0
+  loop {
+    if i >= size { break }
+    builder.insert(key_for(i, size), (i * 3) - 11)
+    i = i + 1
+  }
+  builder.finish()
+}
+
+fn score(initial: PersistentMap String i32, size: i32) -> i64 {
+  values := initial
+  total: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= 3 { break }
+    i := 0
+    loop {
+      if i >= size * 2 { break }
+      key := key_for((i * 7) + round, size)
+      values.get(key) match {
+        case nil => values = values.set(key, (i * 5) - round),
+        case value: i32 => {
+          total = total + (value as i64)
+          if i % 5 == 0 {
+            values = values.set(key, value + round + 1)
+          }
+        }
+      }
+      if i % 11 == 0 {
+        values = values.remove(key_for((i * 3) + 5, size))
+      }
+      i = i + 1
+    }
+    values.for_each(fn(entry: MapEntry String i32) -> void {
+      total = total + (entry.value as i64) + (entry.key.len_bytes() as i64)
+    })
+    round = round + 1
+  }
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  values := build(600)
+  print(score(values, 600))
+}

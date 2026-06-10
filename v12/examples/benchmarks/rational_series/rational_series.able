@@ -1,0 +1,41 @@
+package rational_series
+
+import able.numbers.rational.{Rational}
+
+fn normalization_checksum() -> String {
+  numerator_total := 0_i64
+  denominator_total := 0_i64
+  i := 0
+  loop {
+    if i >= 50_000 { break }
+    numerator := ((i * 17) % 97 + 1) as i64
+    denominator := ((i * 31) % 89 + 1) as i64
+    value := Rational.new(numerator, denominator)
+    numerator_total = (numerator_total + value.numerator()) % 1_000_000_007_i64
+    denominator_total = (denominator_total + value.denominator()) % 1_000_000_007_i64
+    i = i + 1
+  }
+  `${numerator_total}:${denominator_total}`
+}
+
+fn series_checksum() -> String {
+  half := Rational.new(1_i64, 2_i64)
+  numerator_total := 0_i64
+  denominator_total := 0_i64
+  i := 1
+  loop {
+    if i > 50_000 { break }
+    left := Rational.new(((i * 5) % 23 + 1) as i64, ((i * 7) % 29 + 1) as i64)
+    right := Rational.new(((i * 11) % 31 + 1) as i64, ((i * 13) % 37 + 1) as i64)
+    value := left.add(right).mul(left).div(half)
+    numerator_total = (numerator_total + value.numerator()) % 1_000_000_007_i64
+    denominator_total = (denominator_total + value.denominator()) % 1_000_000_007_i64
+    i = i + 1
+  }
+  `${numerator_total}:${denominator_total}`
+}
+
+fn main() -> void {
+  print(normalization_checksum())
+  print(series_checksum())
+}

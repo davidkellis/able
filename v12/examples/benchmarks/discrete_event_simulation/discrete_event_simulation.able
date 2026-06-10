@@ -1,0 +1,155 @@
+package discrete_event_simulation
+
+import able.collections.array
+import able.kernel.{Array}
+
+INITIAL_EVENTS: i32 := 4_096
+EVENTS_TO_PROCESS: i32 := 50_000
+CHECKSUM_MOD: i64 := 1_000_000_007_i64
+
+struct SimulationEvent {
+  kind: i32,
+  payload: i64
+}
+
+struct Scheduled T {
+  at: i64,
+  sequence: i64,
+  value: T
+}
+
+struct EventQueue T {
+  items: Array (Scheduled T)
+}
+
+methods EventQueue T {
+  fn new() -> EventQueue T {
+    EventQueue { items: Array.new() }
+  }
+
+  fn len(self: Self) -> i32 {
+    self.items.len()
+  }
+
+  fn comes_before(left: Scheduled T, right: Scheduled T) -> bool {
+    left.at < right.at ||
+      (left.at == right.at && left.sequence < right.sequence)
+  }
+
+  fn push(self: Self, scheduled: Scheduled T) -> void {
+    self.items.push(scheduled)
+    position := self.items.len() - 1
+    loop {
+      if position == 0 { break }
+      parent := (position - 1) // 2
+      current := self.items.get(position)!
+      parent_value := self.items.get(parent)!
+      if !EventQueue.comes_before(current, parent_value) { break }
+      self.items.write_slot(position, parent_value)
+      self.items.write_slot(parent, current)
+      position = parent
+    }
+  }
+
+  fn pop(self: Self) -> ?Scheduled T {
+    if self.items.len() == 0 { return nil }
+    result := self.items.get(0)
+    tail_index := self.items.len() - 1
+    last := self.items.get(tail_index)
+    self.items.pop()
+    if self.items.len() > 0 {
+      self.items.write_slot(0, last!)
+      position := 0
+      size := self.items.len()
+      loop {
+        left := position * 2 + 1
+        right := left + 1
+        earliest := position
+        if left < size {
+          left_value := self.items.get(left)!
+          earliest_value := self.items.get(earliest)!
+          if EventQueue.comes_before(left_value, earliest_value) {
+            earliest = left
+          }
+        }
+        if right < size {
+          right_value := self.items.get(right)!
+          earliest_value := self.items.get(earliest)!
+          if EventQueue.comes_before(right_value, earliest_value) {
+            earliest = right
+          }
+        }
+        if earliest == position { break }
+        current := self.items.get(position)!
+        earliest_value := self.items.get(earliest)!
+        self.items.write_slot(position, earliest_value)
+        self.items.write_slot(earliest, current)
+        position = earliest
+      }
+    }
+    result
+  }
+}
+
+fn main() -> void {
+  queue: EventQueue SimulationEvent := EventQueue.new()
+  alias := queue
+  initial := 0
+  loop {
+    if initial >= INITIAL_EVENTS { break }
+    at := ((initial as i64) * 37_i64) % 10_007_i64
+    payload := ((initial as i64) * 7_919_i64 + 17_i64) % CHECKSUM_MOD
+    event := SimulationEvent {
+      kind: initial % 4,
+      payload
+    }
+    queue.push(Scheduled {
+      at,
+      sequence: initial as i64,
+      value: event
+    })
+    initial = initial + 1
+  }
+
+  processed := 0
+  checksum := 0_i64
+  last_at := 0_i64
+  kind_zero := 0_i64
+  loop {
+    if processed >= EVENTS_TO_PROCESS { break }
+    scheduled := queue.pop()!
+    event := scheduled.value
+    last_at = scheduled.at
+    if event.kind == 0 { kind_zero = kind_zero + 1_i64 }
+    checksum = (
+      checksum +
+      scheduled.at * 3_i64 +
+      scheduled.sequence * 5_i64 +
+      event.payload * 7_i64 +
+      (event.kind as i64) * 11_i64
+    ) % CHECKSUM_MOD
+
+    next_payload := (
+      event.payload * 48_271_i64 +
+      (event.kind as i64) * 31_i64 +
+      (processed as i64)
+    ) % CHECKSUM_MOD
+    next_at := (
+      scheduled.at +
+      1_i64 +
+      ((event.payload + (processed as i64) * 17_i64) % 97_i64)
+    )
+    next_event := SimulationEvent {
+      kind: (event.kind + 1) % 4,
+      payload: next_payload
+    }
+    queue.push(Scheduled {
+      at: next_at,
+      sequence: (INITIAL_EVENTS as i64) + (processed as i64),
+      value: next_event
+    })
+    processed = processed + 1
+  }
+
+  print(`${processed}:${last_at}:${queue.len()}:${alias.len()}:${kind_zero}:${checksum}`)
+}

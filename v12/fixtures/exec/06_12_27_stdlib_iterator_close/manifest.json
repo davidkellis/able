@@ -1,0 +1,19 @@
+{
+  "description": "public iterator close and default combinator close propagation",
+  "expect": {
+    "stdout": [
+      "typed_close_count 1",
+      "typed_closed true",
+      "literal_closed true",
+      "for_break_closes 1",
+      "filter_closes 1",
+      "map_closes 1",
+      "filter_map_closes 1",
+      "collect_values 2",
+      "collect_closes 1",
+      "each_sum 3",
+      "each_closes 1"
+    ],
+    "exit": 0
+  }
+}

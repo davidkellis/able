@@ -1,0 +1,6 @@
+{
+  "description": "benchmark fixture",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -1,0 +1,41 @@
+package bench_md5_hex_small
+
+import able.core.iteration.{IteratorEnd}
+import able.crypto.md5
+import able.kernel.{Array}
+import able.text.string.{String}
+
+fn build_bytes(size: i32) -> Array u8 {
+  bytes: Array u8 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    bytes.push((((i * 7) + 13) % 251) as u8)
+    i = i + 1
+  }
+  bytes
+}
+
+fn checksum(text: String) -> i64 {
+  iter := text.bytes()
+  total: i64 = 0_i64
+  loop {
+    iter.next() match {
+      case IteratorEnd {} => { break },
+      case byte: u8 => { total = total + (byte as i64) }
+    }
+  }
+  total
+}
+
+fn main() -> void {
+  bytes := build_bytes(12_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 6_000 { break }
+    total = total + checksum(md5.hex(bytes))
+    rounds = rounds + 1
+  }
+  print(total)
+}

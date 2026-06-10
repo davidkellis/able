@@ -38,27 +38,29 @@ func isResultVoidType(expr ast.TypeExpression) bool {
 }
 
 func canReuseFunctionClosureEnvForBytecode(slotProgram *bytecodeProgram, decl *ast.FunctionDefinition, call *ast.FunctionCall, closure *runtime.Environment) bool {
-	if closure == nil || decl == nil || slotProgram == nil || slotProgram.frameLayout == nil {
+	if decl == nil {
 		return false
 	}
-	if slotProgram.frameLayout.needsEnvScopes {
-		return false
-	}
-	// Generic calls bind inferred/explicit type args into call-local env.
-	if len(decl.GenericParams) > 0 {
-		return false
-	}
-	if call != nil && len(call.TypeArguments) > 0 {
-		return false
-	}
-	return true
+	return canReuseCallableClosureEnvForBytecode(slotProgram, callableNeedsExplicitRuntimeTypeBindings(decl), closure)
 }
 
 func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value runtime.Value, genericNames map[string]struct{}, env *runtime.Environment) (runtime.Value, error) {
 	if returnType == nil {
 		return value, nil
 	}
-	canonical := canonicalizeTypeExpression(returnType, env, i.typeAliases)
+	if typeExpressionUsesGenerics(returnType, genericNames) {
+		return value, nil
+	}
+	returnTypeHasAlias := i.typeExpressionReferencesAliasCached(returnType)
+	if !returnTypeHasAlias && isVoidTypeExpr(returnType) {
+		return runtime.VoidValue{}, nil
+	}
+	if !returnTypeHasAlias {
+		if coerced, ok, err := i.tryFastSimpleTypeCoercion(returnType, value); ok {
+			return coerced, err
+		}
+	}
+	canonical := i.canonicalizeTypeExpressionCached(returnType, env, returnTypeHasAlias)
 	if isVoidTypeExpr(canonical) {
 		return runtime.VoidValue{}, nil
 	}
@@ -69,8 +71,13 @@ func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value run
 		expected := typeExpressionToString(canonical)
 		return nil, fmt.Errorf("Return type mismatch: expected %s, got void", expected)
 	}
-	if typeExpressionUsesGenerics(returnType, genericNames) {
-		return value, nil
+	if simple, ok := canonical.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
+		name := normalizeKernelAliasName(simple.Name.Name)
+		if !fastNamedStructTypeNameIsNonNominal(i, name) {
+			if coerced, ok := exactNamedStructCoercionValueForName(value, name); ok {
+				return coerced, nil
+			}
+		}
 	}
 	if !i.matchesType(canonical, value) {
 		expected := typeExpressionToString(canonical)
@@ -87,6 +94,16 @@ func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value run
 	return coerced, nil
 }
 
+func (i *Interpreter) coerceCallableReturnValue(fn *runtime.FunctionValue, returnType ast.TypeExpression, value runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	if returnType == nil {
+		return value, nil
+	}
+	if i.functionReturnTypeUsesGenerics(fn, returnType) {
+		return value, nil
+	}
+	return i.coerceReturnValue(returnType, value, nil, env)
+}
+
 func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.Environment) (runtime.Value, error) {
 	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok {
 		target, err := i.evaluateExpression(member.Object, env)
@@ -95,6 +112,25 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 		}
 		if member.Safe && isNilRuntimeValue(target) {
 			return runtime.NilValue{}, nil
+		}
+		if ident, ok := member.Member.(*ast.Identifier); ok && ident != nil {
+			receiverTypeHint := i.staticReceiverTypeForCall(call, env)
+			if callable, injectedReceiver, hasInjectedReceiver, found, err := i.resolveDirectCallMemberCallable(env, target, ident.Name, receiverTypeHint); err != nil {
+				return nil, err
+			} else if found {
+				argValues := make([]runtime.Value, 0, len(call.Arguments))
+				for _, argExpr := range call.Arguments {
+					val, err := i.evaluateExpression(argExpr, env)
+					if err != nil {
+						return nil, err
+					}
+					argValues = append(argValues, val)
+				}
+				if hasInjectedReceiver {
+					return i.callCallableValueWithInjectedReceiver(callable, injectedReceiver, argValues, env, call, false)
+				}
+				return i.callCallableValue(callable, argValues, env, call)
+			}
 		}
 		// When a member access appears in callee position, prefer methods over fields so
 		// method names that overlap with struct fields still bind to the callable.
@@ -134,6 +170,14 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 						receiver = runtime.TypeRefValue{TypeName: head}
 					}
 				}
+				if callable, injectedReceiver, hasInjectedReceiver, found, err := i.resolveDirectCallMemberCallable(env, receiver, tail, nil); err != nil {
+					return nil, err
+				} else if found {
+					if hasInjectedReceiver {
+						return i.callCallableValueWithInjectedReceiver(callable, injectedReceiver, argValues, env, call, false)
+					}
+					return i.callCallableValue(callable, argValues, env, call)
+				}
 				member := ast.ID(tail)
 				candidate, err := i.memberAccessOnValueWithOptions(receiver, member, env, true)
 				if err != nil {
@@ -166,11 +210,12 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if decl.Body == nil {
 			return runtime.NilValue{}, nil
 		}
-		if call != nil {
+		if call != nil && len(decl.GenericParams) > 0 {
 			if err := i.populateCallTypeArguments(decl, call, args); err != nil {
 				return nil, err
 			}
 		}
+		callPlan := i.functionRuntimeGenericBindingPlan(fn)
 		paramCount := len(decl.Params)
 		optionalLast := paramCount > 0 && isNullableParam(decl.Params[paramCount-1])
 		expectedArgs := paramCount
@@ -185,32 +230,59 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, expectedArgs, len(args))
 		}
 		missingOptional := optionalLast && len(args) == expectedArgs-1
-		if receiver, ok := resolveMethodSetReceiver(decl, args); ok {
+		receiver, hasReceiver := resolveMethodSetReceiver(decl, args)
+		if hasReceiver {
 			if err := i.enforceMethodSetConstraints(fn, receiver); err != nil {
 				return nil, err
 			}
 		}
-		if call != nil {
+		needsCallLocalTypeBindings := hasReceiver && callPlan.callLocalUsed
+		if call != nil && len(decl.GenericParams) > 0 && callPlan.hasGenericConstraints {
 			if err := i.enforceGenericConstraintsIfAny(decl, call); err != nil {
 				return nil, err
 			}
 		}
 		// Check for slot-enabled bytecode program.
 		var slotProgram *bytecodeProgram
+		var slotLayout *bytecodeFrameLayout
 		if i.execMode == execModeBytecode {
 			if p, ok := fn.Bytecode.(*bytecodeProgram); ok && p != nil && p.frameLayout != nil {
 				slotProgram = p
+				slotLayout = p.frameLayout
 			}
 		}
 		// When slot execution never writes call-local env bindings, reusing the
 		// closure env avoids per-call Environment allocation churn.
-		reuseClosureEnv := canReuseFunctionClosureEnvForBytecode(slotProgram, decl, call, fn.Closure)
+		reuseClosureEnv := canReuseCallableClosureEnvForBytecode(slotProgram, callPlan.explicitUsed, fn.Closure)
+		if reuseClosureEnv && needsCallLocalTypeBindings {
+			reuseClosureEnv = false
+		}
 		localEnv := fn.Closure
+		var transientCallEnv *runtime.Environment
+		callTypeBindings := functionCallTypeBindingSet{}
 		if !reuseClosureEnv {
-			localEnv = runtime.NewEnvironmentWithValueCapacity(fn.Closure, functionLocalBindingCapacity(decl, call))
-			if call != nil {
-				i.bindTypeArgumentsIfAny(decl, call, localEnv)
+			callTypeBindings = i.functionCallTypeBindingSetWithPlanAndEnv(fn, decl, call, receiver, needsCallLocalTypeBindings, callPlan, env)
+			if reusableEnv, ok := i.reusableBytecodeCallEnvForResolvedBindings(fn, decl, call, slotProgram, callTypeBindings); ok {
+				localEnv = reusableEnv
+			} else if i.callableAllowsTransientCallEnvReuse(decl) {
+				localEnv = i.acquireTransientCallEnvForBindingSets(
+					fn.Closure,
+					callTypeBindings.envValueCapacity(functionLocalBindingCapacityForLayout(decl, call, slotLayout)),
+					callTypeBindings.explicit,
+					callTypeBindings.callLocal,
+				)
+				transientCallEnv = localEnv
+			} else {
+				localEnv = runtime.NewEnvironmentWithBindingSets(
+					fn.Closure,
+					callTypeBindings.envValueCapacity(functionLocalBindingCapacityForLayout(decl, call, slotLayout)),
+					callTypeBindings.explicit,
+					callTypeBindings.callLocal,
+				)
 			}
+		}
+		if transientCallEnv != nil {
+			defer i.releaseTransientCallEnv(transientCallEnv)
 		}
 		bindArgs := args
 		var mutableBindArgs []runtime.Value
@@ -250,37 +322,48 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			}
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, paramCount, len(bindArgs))
 		}
-		generics := functionGenericNameSet(fn, decl)
-		for idx, param := range decl.Params {
-			if param == nil {
-				return nil, fmt.Errorf("function parameter %d is nil", idx)
+		if slotLayout != nil {
+			coercedArgs, mutated, err := invokeFunctionBindArgsForSlotLayout(i, fn, slotLayout, bindArgs, argsMutable)
+			if err != nil {
+				return nil, err
 			}
-			arg := bindArgs[idx]
-			if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) && !i.coerceValueToTypeWouldBeNoOp(param.ParamType) && !inlineCoercionUnnecessary(param.ParamType, arg) {
-				coerced, err := i.coerceValueToType(param.ParamType, arg)
-				if err != nil {
-					return nil, err
+			bindArgs = coercedArgs
+			argsMutable = mutated
+		} else {
+			for idx, param := range decl.Params {
+				if param == nil {
+					return nil, fmt.Errorf("function parameter %d is nil", idx)
 				}
-				if mutableBindArgs == nil {
-					if argsMutable {
-						mutableBindArgs = bindArgs
-					} else {
-						mutableBindArgs = append([]runtime.Value(nil), bindArgs...)
-						argsMutable = true
+				arg := bindArgs[idx]
+				paramType := i.canonicalizeTypeExpressionCached(param.ParamType, fn.Closure, i.typeExpressionReferencesAliasCached(param.ParamType))
+				if paramType != nil && !callPlan.paramUsesGeneric(idx) && !i.coerceValueToTypeWouldBeNoOp(paramType) && !inlineCoercionUnnecessaryWithInterpreter(i, paramType, arg) {
+					coerced, err := i.coerceValueToType(paramType, arg)
+					if err != nil {
+						return nil, err
 					}
-					bindArgs = mutableBindArgs
+					if mutableBindArgs == nil {
+						if argsMutable {
+							mutableBindArgs = bindArgs
+						} else {
+							mutableBindArgs = append([]runtime.Value(nil), bindArgs...)
+							argsMutable = true
+						}
+						bindArgs = mutableBindArgs
+					}
+					arg = coerced
+					bindArgs[idx] = coerced
 				}
-				arg = coerced
-				bindArgs[idx] = coerced
-			}
-			if slotProgram == nil {
+				if bindSimpleIdentifierPatternIntoEnv(localEnv, param.Name, arg) {
+					continue
+				}
 				if err := i.assignPattern(param.Name, arg, localEnv, true, nil); err != nil {
 					return nil, err
 				}
 			}
 		}
-		state := i.stateFromEnv(localEnv)
-		if hasImplicit {
+		localEnv = i.asyncCallableEnv(localEnv, env)
+		if slotLayoutUsesImplicitReceiver(slotLayout, hasImplicit) {
+			state := i.stateFromEnv(localEnv)
 			state.pushImplicitReceiver(implicitReceiver)
 			defer state.popImplicitReceiver()
 		}
@@ -289,10 +372,10 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			if serial, ok := i.executor.(*SerialExecutor); ok {
 				var payload *asyncContextPayload
 				if env != nil {
-					payload = payloadFromState(env.RuntimeData())
+					payload = payloadFromState(i.runtimeDataFromEnv(env))
 				}
 				if payload == nil {
-					payload = payloadFromState(localEnv.RuntimeData())
+					payload = payloadFromState(i.runtimeDataFromEnv(localEnv))
 				}
 				if payload == nil {
 					serialSync = serial
@@ -302,14 +385,22 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			if serialSync != nil {
 				defer serialSync.endSynchronousSection()
 			}
-			result, err := thunk(localEnv, args)
+			thunkArgs := args
+			if bytecodeCallArgsNeedMaterialization(thunkArgs) {
+				if argsMutable {
+					bytecodeMaterializeRawFloatArgs(thunkArgs)
+				} else {
+					thunkArgs = bytecodeMaterializedCallArgs(thunkArgs)
+				}
+			}
+			result, err := thunk(localEnv, thunkArgs)
 			if err != nil {
 				return nil, err
 			}
 			if result == nil {
 				result = runtime.NilValue{}
 			}
-			return i.coerceReturnValue(decl.ReturnType, result, generics, localEnv)
+			return i.coerceCallableReturnValue(fn, decl.ReturnType, result, localEnv)
 		}
 		if i.execMode == execModeBytecode {
 			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
@@ -326,14 +417,17 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 					}
 					vm.slots = slots
 				}
-				result, err := vm.run(program)
+				result, err := vm.runDetached(program)
 				if err != nil {
 					if ret, ok := err.(returnSignal); ok {
 						retVal := ret.value
 						if retVal == nil {
 							retVal = runtime.NilValue{}
 						}
-						coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, generics, localEnv)
+						if slotProgram != nil {
+							return retVal, nil
+						}
+						coerced, err := i.coerceCallableReturnValue(fn, decl.ReturnType, retVal, localEnv)
 						if err != nil {
 							if ret.node != nil {
 								return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
@@ -347,7 +441,10 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				if result == nil {
 					result = runtime.NilValue{}
 				}
-				return i.coerceReturnValue(decl.ReturnType, result, generics, localEnv)
+				if slotProgram != nil {
+					return result, nil
+				}
+				return i.coerceCallableReturnValue(fn, decl.ReturnType, result, localEnv)
 			}
 			name := "<anonymous>"
 			if decl.ID != nil && decl.ID.Name != "" {
@@ -362,7 +459,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				if retVal == nil {
 					retVal = runtime.NilValue{}
 				}
-				coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, generics, localEnv)
+				coerced, err := i.coerceCallableReturnValue(fn, decl.ReturnType, retVal, localEnv)
 				if err != nil {
 					if ret.node != nil {
 						return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
@@ -376,12 +473,17 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if result == nil {
 			result = runtime.NilValue{}
 		}
-		return i.coerceReturnValue(decl.ReturnType, result, generics, localEnv)
+		return i.coerceCallableReturnValue(fn, decl.ReturnType, result, localEnv)
 	case *ast.LambdaExpression:
+		callPlan := i.functionRuntimeGenericBindingPlan(fn)
 		if call != nil {
-			if err := i.populateCallTypeArguments(decl, call, args); err != nil {
-				return nil, err
+			if len(decl.GenericParams) > 0 {
+				if err := i.populateCallTypeArguments(decl, call, args); err != nil {
+					return nil, err
+				}
 			}
+		}
+		if call != nil && len(decl.GenericParams) > 0 && callPlan.hasGenericConstraints {
 			if err := i.enforceGenericConstraintsIfAny(decl, call); err != nil {
 				return nil, err
 			}
@@ -389,42 +491,92 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if len(args) != len(decl.Params) {
 			return nil, fmt.Errorf("Lambda expects %d arguments, got %d", len(decl.Params), len(args))
 		}
-		localEnv := runtime.NewEnvironmentWithValueCapacity(fn.Closure, lambdaLocalBindingCapacity(decl, call))
-		if call != nil {
-			i.bindTypeArgumentsIfAny(decl, call, localEnv)
+		var slotProgram *bytecodeProgram
+		var slotLayout *bytecodeFrameLayout
+		if i.execMode == execModeBytecode {
+			if p, ok := fn.Bytecode.(*bytecodeProgram); ok && p != nil && p.frameLayout != nil {
+				slotProgram = p
+				slotLayout = p.frameLayout
+			}
 		}
+		reuseClosureEnv := canReuseCallableClosureEnvForBytecode(slotProgram, callPlan.explicitUsed, fn.Closure)
+		localEnv := fn.Closure
+		var transientCallEnv *runtime.Environment
+		if !reuseClosureEnv {
+			explicitBindings := i.explicitCallTypeBindingValuesIfAny(decl, call)
+			if i.callableAllowsTransientCallEnvReuse(decl) {
+				localEnv = i.acquireTransientCallEnvForBindingSets(
+					fn.Closure,
+					lambdaLocalBindingCapacityForLayout(decl, call, slotLayout),
+					explicitBindings,
+					nil,
+				)
+				transientCallEnv = localEnv
+			} else {
+				localEnv = runtime.NewEnvironmentWithBindings(
+					fn.Closure,
+					lambdaLocalBindingCapacityForLayout(decl, call, slotLayout),
+					explicitBindings,
+				)
+			}
+		}
+		if transientCallEnv != nil {
+			defer i.releaseTransientCallEnv(transientCallEnv)
+		}
+		bindArgs := args
 		var implicitReceiver runtime.Value
 		hasImplicit := false
 		if len(decl.Params) > 0 && len(args) > 0 {
 			implicitReceiver = args[0]
 			hasImplicit = true
 		}
-		for idx, param := range decl.Params {
-			if param == nil {
-				return nil, fmt.Errorf("lambda parameter %d is nil", idx)
-			}
-			if err := i.assignPattern(param.Name, args[idx], localEnv, true, nil); err != nil {
+		if slotLayout != nil {
+			coercedArgs, _, err := invokeFunctionBindArgsForSlotLayout(i, fn, slotLayout, bindArgs, argsMutable)
+			if err != nil {
 				return nil, err
 			}
+			bindArgs = coercedArgs
+		} else {
+			for idx, param := range decl.Params {
+				if param == nil {
+					return nil, fmt.Errorf("lambda parameter %d is nil", idx)
+				}
+				if bindSimpleIdentifierPatternIntoEnv(localEnv, param.Name, bindArgs[idx]) {
+					continue
+				}
+				if err := i.assignPattern(param.Name, bindArgs[idx], localEnv, true, nil); err != nil {
+					return nil, err
+				}
+			}
 		}
-		state := i.stateFromEnv(localEnv)
-		if hasImplicit {
+		localEnv = i.asyncCallableEnv(localEnv, env)
+		if slotLayoutUsesImplicitReceiver(slotLayout, hasImplicit) {
+			state := i.stateFromEnv(localEnv)
 			state.pushImplicitReceiver(implicitReceiver)
 			defer state.popImplicitReceiver()
 		}
-		lambdaGenerics := genericNameSet(decl.GenericParams)
 		if i.execMode == execModeBytecode {
 			if program, ok := fn.Bytecode.(*bytecodeProgram); ok && program != nil {
 				vm := i.acquireBytecodeVM(localEnv)
 				defer i.releaseBytecodeVM(vm)
-				result, err := vm.run(program)
+				if slotProgram != nil {
+					slots := vm.acquireSlotFrame(slotLayout.slotCount)
+					for idx := 0; idx < len(bindArgs) && idx < slotLayout.paramSlots; idx++ {
+						slots[idx] = bindArgs[idx]
+					}
+					vm.slots = slots
+				}
+				result, err := vm.runDetached(program)
 				if err != nil {
 					if ret, ok := err.(returnSignal); ok {
 						retVal := ret.value
 						if retVal == nil {
 							retVal = runtime.NilValue{}
 						}
-						coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, lambdaGenerics, localEnv)
+						if slotProgram != nil {
+							return retVal, nil
+						}
+						coerced, err := i.coerceCallableReturnValue(fn, decl.ReturnType, retVal, localEnv)
 						if err != nil {
 							if ret.node != nil {
 								return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
@@ -438,7 +590,10 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				if result == nil {
 					result = runtime.NilValue{}
 				}
-				return i.coerceReturnValue(decl.ReturnType, result, lambdaGenerics, localEnv)
+				if slotProgram != nil {
+					return result, nil
+				}
+				return i.coerceCallableReturnValue(fn, decl.ReturnType, result, localEnv)
 			}
 			return nil, fmt.Errorf("bytecode missing for lambda")
 		}
@@ -449,7 +604,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				if retVal == nil {
 					retVal = runtime.NilValue{}
 				}
-				coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, lambdaGenerics, localEnv)
+				coerced, err := i.coerceCallableReturnValue(fn, decl.ReturnType, retVal, localEnv)
 				if err != nil {
 					if ret.node != nil {
 						return nil, i.attachRuntimeContext(err, ret.node, i.stateFromEnv(localEnv))
@@ -463,7 +618,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if result == nil {
 			result = runtime.NilValue{}
 		}
-		return i.coerceReturnValue(decl.ReturnType, result, lambdaGenerics, localEnv)
+		return i.coerceCallableReturnValue(fn, decl.ReturnType, result, localEnv)
 	default:
 		return nil, fmt.Errorf("calling unsupported function declaration %T", fn.Declaration)
 	}
@@ -524,13 +679,10 @@ func (i *Interpreter) callCallableValueWithOptionalInjectedReceiver(callee runti
 		merged := mergePartialCallArgs(fn.BoundArgs, args)
 		return i.callCallableValueWithOptionalInjectedReceiver(fn.Target, merged, env, call, false, injectedReceiver, hasInjectedReceiver)
 	}
-	if state := i.stateFromEnv(env); call != nil {
+	if call != nil {
+		state := i.stateFromEnv(env)
 		state.pushCallFrame(call)
 		defer state.popCallFrame()
-	}
-	var callState any
-	if env != nil {
-		callState = env.RuntimeData()
 	}
 	var native runtime.NativeFunctionValue
 	hasNative := false
@@ -651,26 +803,14 @@ func (i *Interpreter) callCallableValueWithOptionalInjectedReceiver(callee runti
 				return makePartialFunctionValue(partialTarget, evalArgs, call), nil
 			}
 		}
+		var callState any
+		if !native.SkipContext && env != nil {
+			callState = i.runtimeDataFromEnv(env)
+		}
 		return i.invokeNativeFunctionValue(native, env, callState, evalArgs)
 	}
 	if directFunction != nil {
-		minRequired := minArgsForFunctionValue(directFunction)
-		if len(evalArgs) < minRequired {
-			return makePartialFunctionValue(partialTarget, evalArgs, call), nil
-		}
-		if directFunction.TypeQualified {
-			if mismatchErr := i.reportOverloadMismatch(directFunction, evalArgs, call); mismatchErr != nil {
-				return nil, mismatchErr
-			}
-		}
-		result, err := i.invokeFunction(directFunction, evalArgs, env, call, argsMutable)
-		if err != nil {
-			if mismatchErr := i.reportOverloadMismatch(directFunction, evalArgs, call); mismatchErr != nil {
-				return nil, mismatchErr
-			}
-			return nil, err
-		}
-		return result, nil
+		return i.callResolvedFunctionValue(directFunction, partialTarget, evalArgs, env, call, argsMutable)
 	}
 
 	if len(overloads) == 0 {
@@ -782,110 +922,6 @@ func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expr
 	return result, nil
 }
 
-func (i *Interpreter) populateCallTypeArguments(funcNode ast.Node, call *ast.FunctionCall, args []runtime.Value) error {
-	if funcNode == nil || call == nil {
-		return nil
-	}
-	generics, _ := extractFunctionGenerics(funcNode)
-	if len(generics) == 0 {
-		return nil
-	}
-	if len(call.TypeArguments) > 0 {
-		if len(call.TypeArguments) != len(generics) {
-			name := functionNameForErrors(funcNode)
-			return fmt.Errorf("Type arguments count mismatch calling %s: expected %d, got %d", name, len(generics), len(call.TypeArguments))
-		}
-		return nil
-	}
-	bindings := make(map[string]ast.TypeExpression)
-	genericNames := genericNameSet(generics)
-	params := extractFunctionParams(funcNode)
-	bindArgs := args
-	if def, ok := funcNode.(*ast.FunctionDefinition); ok && def.IsMethodShorthand && len(bindArgs) > 0 {
-		bindArgs = bindArgs[1:]
-	}
-	max := len(params)
-	if len(bindArgs) < max {
-		max = len(bindArgs)
-	}
-	for idx := 0; idx < max; idx++ {
-		param := params[idx]
-		if param == nil || param.ParamType == nil {
-			continue
-		}
-		actual := i.typeExpressionFromValue(bindArgs[idx])
-		if actual == nil {
-			continue
-		}
-		matchTypeExpressionTemplate(param.ParamType, actual, genericNames, bindings)
-	}
-	typeArgs := make([]ast.TypeExpression, len(generics))
-	for idx, gp := range generics {
-		if gp != nil && gp.Name != nil {
-			if bound, ok := bindings[gp.Name.Name]; ok {
-				typeArgs[idx] = bound
-				continue
-			}
-		}
-		typeArgs[idx] = ast.NewWildcardTypeExpression()
-	}
-	call.TypeArguments = typeArgs
-	return nil
-}
-
-func (i *Interpreter) enforceGenericConstraintsIfAny(funcNode ast.Node, call *ast.FunctionCall) error {
-	if funcNode == nil || call == nil {
-		return nil
-	}
-	generics, whereClause := extractFunctionGenerics(funcNode)
-	if len(generics) == 0 {
-		return nil
-	}
-	name := functionNameForErrors(funcNode)
-	if len(call.TypeArguments) != len(generics) {
-		return fmt.Errorf("Type arguments count mismatch calling %s: expected %d, got %d", name, len(generics), len(call.TypeArguments))
-	}
-	constraints := collectConstraintSpecs(generics, whereClause)
-	if len(constraints) == 0 {
-		return nil
-	}
-	typeArgMap, err := mapTypeArguments(generics, call.TypeArguments, fmt.Sprintf("calling %s", name))
-	if err != nil {
-		return err
-	}
-	return i.enforceConstraintSpecs(constraints, typeArgMap)
-}
-
-func (i *Interpreter) bindTypeArgumentsIfAny(funcNode ast.Node, call *ast.FunctionCall, env *runtime.Environment) {
-	if funcNode == nil || call == nil {
-		return
-	}
-	generics, _ := extractFunctionGenerics(funcNode)
-	if len(generics) == 0 {
-		return
-	}
-	count := len(generics)
-	if len(call.TypeArguments) < count {
-		count = len(call.TypeArguments)
-	}
-	for idx := 0; idx < count; idx++ {
-		gp := generics[idx]
-		if gp == nil || gp.Name == nil {
-			continue
-		}
-		ta := call.TypeArguments[idx]
-		if ta == nil {
-			continue
-		}
-		name := gp.Name.Name + "_type"
-		value := runtime.StringValue{Val: typeExpressionToString(ta)}
-		env.Define(name, value)
-		if info, ok := parseTypeExpression(ta); ok {
-			env.Define(gp.Name.Name, runtime.TypeRefValue{TypeName: info.name, TypeArgs: info.typeArgs})
-		}
-	}
-}
-
 func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {
 	iterCapacity := 1
 	bindingName := "gen"
@@ -898,12 +934,12 @@ func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *ru
 	iterEnv := runtime.NewEnvironmentWithValueCapacity(env, iterCapacity)
 	instance := newGeneratorInstance(i, iterEnv, expr.Body)
 	controller := instance.controllerValue()
-	iterEnv.Define(bindingName, controller)
+	iterEnv.DefineWithoutMerge(bindingName, controller)
 	if bindingName != "gen" {
-		iterEnv.Define("gen", controller)
+		iterEnv.DefineWithoutMerge("gen", controller)
 	}
-	return runtime.NewIteratorValue(func() (runtime.Value, bool, error) {
-		return instance.next()
+	return runtime.NewIteratorValueWithRaw(func() (runtime.RawValue, bool, error) {
+		return instance.nextRaw()
 	}, instance.close), nil
 }
 
@@ -913,7 +949,7 @@ func (i *Interpreter) evaluateLambdaExpression(expr *ast.LambdaExpression, env *
 	}
 	fnVal := &runtime.FunctionValue{Declaration: expr, Closure: env}
 	if expr.Body != nil {
-		program, err := i.lowerExpressionToBytecodeWithOptions(expr.Body, true)
+		program, err := i.lowerLambdaExpressionBytecodeWithEnv(expr, env)
 		if err != nil {
 			if i.execMode == execModeBytecode {
 				return nil, err

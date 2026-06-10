@@ -1,0 +1,62 @@
+{
+  "runs_per_side": 3,
+  "rows": [
+    {
+      "benchmark": "fixed_width_128",
+      "contract": {
+        "target": "/home/david/sync/projects/able/v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+        "run_dir": "/home/david/sync/projects/benchmarks/fixed-width-128",
+        "verifier": "/home/david/sync/projects/benchmarks/fixed-width-128/verify.rb",
+        "args": [],
+        "cpu_budget": 1,
+        "executor": "serial",
+        "source_root_only": true
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 8.149169020995032,
+            "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+            "pair": 1,
+            "order": 1
+          },
+          {
+            "seconds": 8.273631657008082,
+            "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+            "pair": 2,
+            "order": 2
+          },
+          {
+            "seconds": 8.00485509398277,
+            "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+            "pair": 3,
+            "order": 1
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 8.144116125971777,
+            "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+            "pair": 1,
+            "order": 2
+          },
+          {
+            "seconds": 8.001889402978122,
+            "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+            "pair": 2,
+            "order": 1
+          },
+          {
+            "seconds": 8.052181546023348,
+            "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+            "pair": 3,
+            "order": 2
+          }
+        ]
+      },
+      "baseline_mean_seconds": 8.142551923995294,
+      "candidate_mean_seconds": 8.066062358324416,
+      "change_percent": -0.9393807541523969
+    }
+  ]
+}

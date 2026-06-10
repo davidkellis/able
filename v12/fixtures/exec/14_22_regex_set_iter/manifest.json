@@ -1,0 +1,17 @@
+{
+  "description": "regex-set span iteration uses one combined NFA with leftmost-longest non-overlap and source-ordered same-span pattern indices",
+  "expect": {
+    "stdout": [
+      "order 2 0-3",
+      "order 0 4-7",
+      "order 1 4-7",
+      "order end",
+      "longest 1 0-2",
+      "longest 2 0-2",
+      "longest end",
+      "nonoverlap 0 0-2",
+      "nonoverlap 0 2-4",
+      "nonoverlap end"
+    ]
+  }
+}

@@ -3,205 +3,131 @@ package runtime
 import "fmt"
 
 func ArrayStoreMonoReadI32(handle int64, index int) (int32, error) {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
-		return 0, err
+	value, kind, err := arrayStoreMonoReadValue(handle, index, monoArrayKindI32, monoArrayI32States)
+	if err != nil || kind == monoArrayKindI32 {
+		return value, err
 	}
 	if kind == monoArrayKindDynamic {
-		value, err := ArrayStoreRead(handle, index)
+		boxed, err := ArrayStoreRead(handle, index)
 		if err != nil {
 			return 0, err
 		}
-		return int32FromValue(value)
+		return int32FromValue(boxed)
 	}
-	if kind != monoArrayKindI32 {
-		return 0, fmt.Errorf("array handle %d is not mono i32", handle)
-	}
-	state, ok := monoArrayI32States[handle]
-	if !ok {
-		return 0, fmt.Errorf("array handle %d is not defined", handle)
-	}
-	if index < 0 || index >= len(state.Values) {
-		return 0, fmt.Errorf("index out of bounds")
-	}
-	return state.Values[index], nil
+	return 0, fmt.Errorf("array handle %d is not mono i32", handle)
 }
 
 func ArrayStoreMonoWriteI32(handle int64, index int, value int32) error {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
+	kind, err := arrayStoreMonoWriteValue(handle, index, value, monoArrayKindI32, monoArrayI32States, false)
+	if err != nil || kind == monoArrayKindI32 {
 		return err
-	}
-	if index < 0 {
-		return fmt.Errorf("index must be non-negative")
 	}
 	if kind == monoArrayKindDynamic {
 		return ArrayStoreWrite(handle, index, i32ToValue(value))
 	}
-	if kind != monoArrayKindI32 {
-		return fmt.Errorf("array handle %d is not mono i32", handle)
-	}
-	state, ok := monoArrayI32States[handle]
-	if !ok {
-		return fmt.Errorf("array handle %d is not defined", handle)
-	}
-	monoEnsureCapacity(state, index+1)
-	if index >= len(state.Values) {
-		monoSetLength(state, index+1)
-	}
-	state.Values[index] = value
-	return nil
+	return fmt.Errorf("array handle %d is not mono i32", handle)
 }
 
 func ArrayStoreMonoReadI64(handle int64, index int) (int64, error) {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
-		return 0, err
+	value, kind, err := arrayStoreMonoReadValue(handle, index, monoArrayKindI64, monoArrayI64States)
+	if err != nil || kind == monoArrayKindI64 {
+		return value, err
 	}
 	if kind == monoArrayKindDynamic {
-		value, err := ArrayStoreRead(handle, index)
+		boxed, err := ArrayStoreRead(handle, index)
 		if err != nil {
 			return 0, err
 		}
-		return int64FromValue(value)
+		return int64FromValue(boxed)
 	}
-	if kind != monoArrayKindI64 {
-		return 0, fmt.Errorf("array handle %d is not mono i64", handle)
-	}
-	state, ok := monoArrayI64States[handle]
-	if !ok {
-		return 0, fmt.Errorf("array handle %d is not defined", handle)
-	}
-	if index < 0 || index >= len(state.Values) {
-		return 0, fmt.Errorf("index out of bounds")
-	}
-	return state.Values[index], nil
+	return 0, fmt.Errorf("array handle %d is not mono i64", handle)
 }
 
 func ArrayStoreMonoWriteI64(handle int64, index int, value int64) error {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
+	kind, err := arrayStoreMonoWriteValue(handle, index, value, monoArrayKindI64, monoArrayI64States, false)
+	if err != nil || kind == monoArrayKindI64 {
 		return err
-	}
-	if index < 0 {
-		return fmt.Errorf("index must be non-negative")
 	}
 	if kind == monoArrayKindDynamic {
 		return ArrayStoreWrite(handle, index, i64ToValue(value))
 	}
-	if kind != monoArrayKindI64 {
-		return fmt.Errorf("array handle %d is not mono i64", handle)
-	}
-	state, ok := monoArrayI64States[handle]
-	if !ok {
-		return fmt.Errorf("array handle %d is not defined", handle)
-	}
-	monoEnsureCapacity(state, index+1)
-	if index >= len(state.Values) {
-		monoSetLength(state, index+1)
-	}
-	state.Values[index] = value
-	return nil
+	return fmt.Errorf("array handle %d is not mono i64", handle)
 }
 
 func ArrayStoreMonoReadBool(handle int64, index int) (bool, error) {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
-		return false, err
+	value, kind, err := arrayStoreMonoReadValue(handle, index, monoArrayKindBool, monoArrayBoolStates)
+	if err != nil || kind == monoArrayKindBool {
+		return value, err
 	}
 	if kind == monoArrayKindDynamic {
-		value, err := ArrayStoreRead(handle, index)
+		boxed, err := ArrayStoreRead(handle, index)
 		if err != nil {
 			return false, err
 		}
-		return boolFromValue(value)
+		return boolFromValue(boxed)
 	}
-	if kind != monoArrayKindBool {
-		return false, fmt.Errorf("array handle %d is not mono bool", handle)
-	}
-	state, ok := monoArrayBoolStates[handle]
-	if !ok {
-		return false, fmt.Errorf("array handle %d is not defined", handle)
-	}
-	if index < 0 || index >= len(state.Values) {
-		return false, fmt.Errorf("index out of bounds")
-	}
-	return state.Values[index], nil
+	return false, fmt.Errorf("array handle %d is not mono bool", handle)
 }
 
 func ArrayStoreMonoWriteBool(handle int64, index int, value bool) error {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
+	kind, err := arrayStoreMonoWriteValue(handle, index, value, monoArrayKindBool, monoArrayBoolStates, false)
+	if err != nil || kind == monoArrayKindBool {
 		return err
-	}
-	if index < 0 {
-		return fmt.Errorf("index must be non-negative")
 	}
 	if kind == monoArrayKindDynamic {
 		return ArrayStoreWrite(handle, index, boolToValue(value))
 	}
-	if kind != monoArrayKindBool {
-		return fmt.Errorf("array handle %d is not mono bool", handle)
-	}
-	state, ok := monoArrayBoolStates[handle]
-	if !ok {
-		return fmt.Errorf("array handle %d is not defined", handle)
-	}
-	monoEnsureCapacity(state, index+1)
-	if index >= len(state.Values) {
-		monoSetLength(state, index+1)
-	}
-	state.Values[index] = value
-	return nil
+	return fmt.Errorf("array handle %d is not mono bool", handle)
 }
 
-func ArrayStoreMonoReadU8(handle int64, index int) (uint8, error) {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
-		return 0, err
+func ArrayStoreMonoReadChar(handle int64, index int) (rune, error) {
+	value, kind, err := arrayStoreMonoReadValue(handle, index, monoArrayKindChar, monoArrayCharStates)
+	if err != nil || kind == monoArrayKindChar {
+		return value, err
 	}
 	if kind == monoArrayKindDynamic {
-		value, err := ArrayStoreRead(handle, index)
+		boxed, err := ArrayStoreRead(handle, index)
 		if err != nil {
 			return 0, err
 		}
-		return u8FromValue(value)
+		return charFromValue(boxed)
 	}
-	if kind != monoArrayKindU8 {
-		return 0, fmt.Errorf("array handle %d is not mono u8", handle)
+	return 0, fmt.Errorf("array handle %d is not mono char", handle)
+}
+
+func ArrayStoreMonoWriteChar(handle int64, index int, value rune) error {
+	kind, err := arrayStoreMonoWriteValue(handle, index, value, monoArrayKindChar, monoArrayCharStates, false)
+	if err != nil || kind == monoArrayKindChar {
+		return err
 	}
-	state, ok := monoArrayU8States[handle]
-	if !ok {
-		return 0, fmt.Errorf("array handle %d is not defined", handle)
+	if kind == monoArrayKindDynamic {
+		return ArrayStoreWrite(handle, index, charToValue(value))
 	}
-	if index < 0 || index >= len(state.Values) {
-		return 0, fmt.Errorf("index out of bounds")
+	return fmt.Errorf("array handle %d is not mono char", handle)
+}
+
+func ArrayStoreMonoReadU8(handle int64, index int) (uint8, error) {
+	value, kind, err := arrayStoreMonoReadValue(handle, index, monoArrayKindU8, monoArrayU8States)
+	if err != nil || kind == monoArrayKindU8 {
+		return value, err
 	}
-	return state.Values[index], nil
+	if kind == monoArrayKindDynamic {
+		boxed, err := ArrayStoreRead(handle, index)
+		if err != nil {
+			return 0, err
+		}
+		return u8FromValue(boxed)
+	}
+	return 0, fmt.Errorf("array handle %d is not mono u8", handle)
 }
 
 func ArrayStoreMonoWriteU8(handle int64, index int, value uint8) error {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
+	kind, err := arrayStoreMonoWriteValue(handle, index, value, monoArrayKindU8, monoArrayU8States, false)
+	if err != nil || kind == monoArrayKindU8 {
 		return err
-	}
-	if index < 0 {
-		return fmt.Errorf("index must be non-negative")
 	}
 	if kind == monoArrayKindDynamic {
 		return ArrayStoreWrite(handle, index, u8ToValue(value))
 	}
-	if kind != monoArrayKindU8 {
-		return fmt.Errorf("array handle %d is not mono u8", handle)
-	}
-	state, ok := monoArrayU8States[handle]
-	if !ok {
-		return fmt.Errorf("array handle %d is not defined", handle)
-	}
-	monoEnsureCapacity(state, index+1)
-	if index >= len(state.Values) {
-		monoSetLength(state, index+1)
-	}
-	state.Values[index] = value
-	return nil
+	return fmt.Errorf("array handle %d is not mono u8", handle)
 }

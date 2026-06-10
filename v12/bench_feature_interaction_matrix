@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""Build a pairwise portable-feature interaction matrix from the coverage manifest."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_MANIFEST = SCRIPT_DIR / "bench-feature-coverage.json"
+
+
+def load_manifest(path: Path) -> dict[str, Any]:
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"coverage manifest not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid coverage JSON in {path}: {error}") from None
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("families"), list):
+        raise ValueError("coverage manifest needs a families array")
+    return manifest
+
+
+def portable_families(
+    manifest: dict[str, Any], excluded: set[str]
+) -> list[tuple[str, set[str]]]:
+    families: list[tuple[str, set[str]]] = []
+    for raw in manifest["families"]:
+        if not isinstance(raw, dict) or raw.get("coverage_kind") == "local_only":
+            continue
+        family = raw.get("id")
+        benchmarks = raw.get("portable_benchmarks")
+        if not isinstance(family, str) or not isinstance(benchmarks, list):
+            raise ValueError("portable family needs id and portable_benchmarks")
+        if family in excluded:
+            continue
+        families.append((family, set(benchmarks)))
+    families.sort(key=lambda item: item[0])
+    return families
+
+
+def build_report(
+    manifest_path: Path,
+    excluded: set[str],
+    baseline_without: set[str],
+    baseline_removed_memberships: dict[str, set[str]] | None = None,
+) -> dict[str, Any]:
+    manifest = load_manifest(manifest_path)
+    families = portable_families(manifest, excluded)
+    removals = baseline_removed_memberships or {}
+    family_apps = dict(families)
+    for family, benchmarks in removals.items():
+        if family not in family_apps:
+            raise ValueError(f"baseline removal names unknown portable family: {family}")
+        missing = benchmarks - family_apps[family]
+        if missing:
+            raise ValueError(
+                f"baseline removal names benchmarks absent from {family}: "
+                f"{', '.join(sorted(missing))}"
+            )
+    pairs: list[dict[str, Any]] = []
+    for left_index, (left, left_apps) in enumerate(families):
+        for right, right_apps in families[left_index + 1 :]:
+            current = sorted(left_apps & right_apps)
+            baseline_left = left_apps - baseline_without - removals.get(left, set())
+            baseline_right = right_apps - baseline_without - removals.get(right, set())
+            baseline = sorted(baseline_left & baseline_right)
+            pairs.append(
+                {
+                    "left": left,
+                    "right": right,
+                    "baseline_count": len(baseline),
+                    "current_count": len(current),
+                    "delta": len(current) - len(baseline),
+                    "portable_benchmarks": current,
+                }
+            )
+    return {
+        "kind": "able-feature-interaction-matrix",
+        "schema_version": 1,
+        "manifest": str(manifest_path.resolve()),
+        "excluded_families": sorted(excluded),
+        "baseline_without": sorted(baseline_without),
+        "baseline_removed_memberships": [
+            {"family": family, "portable_benchmarks": sorted(benchmarks)}
+            for family, benchmarks in sorted(removals.items())
+        ],
+        "family_count": len(families),
+        "pair_count": len(pairs),
+        "baseline_zero_pairs": sum(pair["baseline_count"] == 0 for pair in pairs),
+        "current_zero_pairs": sum(pair["current_count"] == 0 for pair in pairs),
+        "baseline_min_depth": min(
+            (pair["baseline_count"] for pair in pairs), default=0
+        ),
+        "current_min_depth": min(
+            (pair["current_count"] for pair in pairs), default=0
+        ),
+        "baseline_depth_one_pairs": sum(
+            pair["baseline_count"] == 1 for pair in pairs
+        ),
+        "current_depth_one_pairs": sum(
+            pair["current_count"] == 1 for pair in pairs
+        ),
+        "improved_pairs": sum(pair["delta"] > 0 for pair in pairs),
+        "pairs": pairs,
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    lines = [
+        "# Portable Feature-Interaction Matrix",
+        "",
+        f"- Families: `{report['family_count']}`",
+        f"- Pairwise interactions: `{report['pair_count']}`",
+        f"- Baseline zero-coverage pairs: `{report['baseline_zero_pairs']}`",
+        f"- Current zero-coverage pairs: `{report['current_zero_pairs']}`",
+        f"- Baseline minimum pair depth: `{report['baseline_min_depth']}`",
+        f"- Current minimum pair depth: `{report['current_min_depth']}`",
+        f"- Baseline depth-one pairs: `{report['baseline_depth_one_pairs']}`",
+        f"- Current depth-one pairs: `{report['current_depth_one_pairs']}`",
+        f"- Improved pairs: `{report['improved_pairs']}`",
+        f"- Baseline excludes: `{', '.join(report['baseline_without']) or 'none'}`",
+        "- Baseline removes memberships: `"
+        + (
+            "; ".join(
+                f"{item['family']}={','.join(item['portable_benchmarks'])}"
+                for item in report["baseline_removed_memberships"]
+            )
+            or "none"
+        )
+        + "`",
+        f"- Intentionally excluded families: `{', '.join(report['excluded_families']) or 'none'}`",
+        "",
+        "The baseline column removes only the named applications or individual family",
+        "memberships from the current manifest. Counts therefore measure the exact",
+        "interaction coverage gained by the tranche without maintaining a second stale",
+        "coverage manifest.",
+        "",
+        "| Left family | Right family | Baseline | Current | Delta | Current applications |",
+        "| --- | --- | ---: | ---: | ---: | --- |",
+    ]
+    for pair in report["pairs"]:
+        apps = ", ".join(f"`{app}`" for app in pair["portable_benchmarks"]) or "—"
+        lines.append(
+            f"| `{pair['left']}` | `{pair['right']}` | {pair['baseline_count']} | "
+            f"{pair['current_count']} | {pair['delta']:+d} | {apps} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def csv_set(raw: str) -> set[str]:
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+def parse_membership_removals(values: list[str]) -> dict[str, set[str]]:
+    removals: dict[str, set[str]] = {}
+    for value in values:
+        family, separator, raw_benchmarks = value.partition("=")
+        family = family.strip()
+        benchmarks = csv_set(raw_benchmarks)
+        if not separator or not family or not benchmarks:
+            raise ValueError(
+                "--baseline-remove must use FAMILY=BENCHMARK[,BENCHMARK...]"
+            )
+        removals.setdefault(family, set()).update(benchmarks)
+    return removals
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument("--exclude", default="packages_modules_imports")
+    parser.add_argument("--baseline-without", default="")
+    parser.add_argument(
+        "--baseline-remove",
+        action="append",
+        default=[],
+        metavar="FAMILY=BENCHMARK[,BENCHMARK...]",
+        help="remove selected family memberships only from the reconstructed baseline",
+    )
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    args = parser.parse_args()
+    try:
+        report = build_report(
+            args.manifest,
+            csv_set(args.exclude),
+            csv_set(args.baseline_without),
+            parse_membership_removals(args.baseline_remove),
+        )
+    except ValueError as error:
+        parser.error(str(error))
+    payload = json.dumps(report, indent=2, sort_keys=False) + "\n"
+    if args.json_out:
+        write_text(args.json_out, payload)
+    if args.markdown_out:
+        write_text(args.markdown_out, markdown(report))
+    if not args.json_out and not args.markdown_out:
+        print(payload, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

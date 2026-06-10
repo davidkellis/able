@@ -1,0 +1,64 @@
+package bench_bigint_ref_newton_small
+
+import able.numbers.bigint_native.{BigIntRef}
+
+fn build_target() -> BigIntRef {
+  value := BigIntRef.new(2_i64)
+  tmp := BigIntRef.zero()
+  increment := BigIntRef.new(7_i64)
+  i := 0
+  loop {
+    if i >= 1024 { break }
+    tmp.mul_i64(value, 10_i64)
+    value.add(tmp, increment)
+    i = i + 1
+  }
+  tmp.dispose()
+  increment.dispose()
+  value
+}
+
+fn integer_sqrt(target: BigIntRef) -> BigIntRef {
+  zero := BigIntRef.zero()
+  guess := target.clone()
+  quotient := BigIntRef.zero()
+  sum := BigIntRef.zero()
+  next := BigIntRef.zero()
+  i := 0
+  loop {
+    if i >= 20 { break }
+    quotient.div(target, guess)
+    sum.add(guess, quotient)
+    next.div_i64(sum, 2_i64)
+    if next.compare(guess) == 0 { break }
+    guess.add(next, zero)
+    i = i + 1
+  }
+  zero.dispose()
+  quotient.dispose()
+  sum.dispose()
+  next.dispose()
+  guess
+}
+
+fn main() -> void {
+  target := build_target()
+  total := BigIntRef.zero()
+  tmp := BigIntRef.zero()
+  increment := BigIntRef.new(13_i64)
+  round := 0
+  loop {
+    if round >= 4 { break }
+    root := integer_sqrt(target)
+    total.add(total, root)
+    tmp.mul(root, root)
+    target.add(tmp, increment)
+    root.dispose()
+    round = round + 1
+  }
+  print(total.to_string())
+  target.dispose()
+  total.dispose()
+  tmp.dispose()
+  increment.dispose()
+}

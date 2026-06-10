@@ -40,6 +40,10 @@ func isPrivateSymbol(val runtime.Value) bool {
 		return v.Node != nil && v.Node.IsPrivate
 	case runtime.UnionDefinitionValue:
 		return v.Node != nil && v.Node.IsPrivate
+	case runtime.ImplementationNamespaceValue:
+		return v.IsPrivate
+	case *runtime.ImplementationNamespaceValue:
+		return v != nil && v.IsPrivate
 	}
 	return false
 }
@@ -76,6 +80,14 @@ func importPrivacyError(name string, val runtime.Value) error {
 		if v.Node != nil && v.Node.IsPrivate {
 			return fmt.Errorf("Import error: union '%s' is private", name)
 		}
+	case runtime.ImplementationNamespaceValue:
+		if v.IsPrivate {
+			return fmt.Errorf("Import error: implementation '%s' is private", name)
+		}
+	case *runtime.ImplementationNamespaceValue:
+		if v != nil && v.IsPrivate {
+			return fmt.Errorf("Import error: implementation '%s' is private", name)
+		}
 	}
 	return fmt.Errorf("Import error: symbol '%s' is private", name)
 }
@@ -111,6 +123,14 @@ func dynImportPrivacyError(name string, val runtime.Value) error {
 	case runtime.UnionDefinitionValue:
 		if v.Node != nil && v.Node.IsPrivate {
 			return fmt.Errorf("dynimport error: union '%s' is private", name)
+		}
+	case runtime.ImplementationNamespaceValue:
+		if v.IsPrivate {
+			return fmt.Errorf("dynimport error: implementation '%s' is private", name)
+		}
+	case *runtime.ImplementationNamespaceValue:
+		if v != nil && v.IsPrivate {
+			return fmt.Errorf("dynimport error: implementation '%s' is private", name)
 		}
 	}
 	return fmt.Errorf("dynimport error: symbol '%s' is private", name)
@@ -200,6 +220,18 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 	if dynamic {
 		return i.processDynImport(pkgName, pkgParts, isWildcard, selectors, alias, env)
 	}
+	bindImport := func(name string, value runtime.Value) error {
+		if name == "" {
+			return nil
+		}
+		if existing, ok := env.LookupInCurrentScope(name); ok &&
+			(namedImplementationNamespaceValue(existing) || namedImplementationNamespaceValue(value)) {
+			return fmt.Errorf("Import error: named implementation binding '%s' conflicts with an existing import; use a selector alias", name)
+		}
+		i.defineInEnv(env, name, value)
+		defineStructBinding(env, name, value)
+		return nil
+	}
 
 	if alias != nil && !isWildcard && len(selectors) == 0 {
 		bucket, ok := i.packageRegistry[pkgName]
@@ -209,10 +241,11 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 		public := copyPublicSymbols(bucket)
 		meta := i.getPackageMeta(pkgName, pkgParts)
 		i.defineInEnv(env, alias.Name, runtime.PackageValue{
-			Name:      pkgName,
-			NamePath:  meta.namePath,
-			IsPrivate: meta.isPrivate,
-			Public:    public,
+			Name:        pkgName,
+			NamePath:    meta.namePath,
+			IdentityKey: bytecodePackageIdentityKey(pkgName, meta.namePath),
+			IsPrivate:   meta.isPrivate,
+			Public:      public,
 		})
 		return runtime.NilValue{}, nil
 	}
@@ -226,8 +259,9 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			if isPrivateSymbol(val) {
 				continue
 			}
-			i.defineInEnv(env, name, val)
-			defineStructBinding(env, name, val)
+			if err := bindImport(name, val); err != nil {
+				return nil, err
+			}
 		}
 		addReexportsToEnv(i, pkgName, env)
 		return runtime.NilValue{}, nil
@@ -264,11 +298,15 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			if isPrivateSymbol(val) {
 				return nil, importPrivacyError(original, val)
 			}
-			if env.HasInCurrentScope(aliasName) && !i.dynamicDefinitionMode {
+			if existing, exists := env.LookupInCurrentScope(aliasName); exists && !i.dynamicDefinitionMode {
+				if namedImplementationNamespaceValue(existing) || namedImplementationNamespaceValue(val) {
+					return nil, fmt.Errorf("Import error: named implementation binding '%s' conflicts with an existing import; use a selector alias", aliasName)
+				}
 				continue
 			}
-			i.defineInEnv(env, aliasName, val)
-			defineStructBinding(env, aliasName, val)
+			if err := bindImport(aliasName, val); err != nil {
+				return nil, err
+			}
 		}
 		return runtime.NilValue{}, nil
 	}
@@ -286,14 +324,26 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			aliasName = pkgParts[len(pkgParts)-1]
 		}
 		i.defineInEnv(env, aliasName, runtime.PackageValue{
-			Name:      pkgName,
-			NamePath:  meta.namePath,
-			IsPrivate: meta.isPrivate,
-			Public:    public,
+			Name:        pkgName,
+			NamePath:    meta.namePath,
+			IdentityKey: bytecodePackageIdentityKey(pkgName, meta.namePath),
+			IsPrivate:   meta.isPrivate,
+			Public:      public,
 		})
 	}
 
 	return runtime.NilValue{}, nil
+}
+
+func namedImplementationNamespaceValue(value runtime.Value) bool {
+	switch namespace := value.(type) {
+	case runtime.ImplementationNamespaceValue:
+		return namespace.Name != nil && namespace.Name.Name != ""
+	case *runtime.ImplementationNamespaceValue:
+		return namespace != nil && namespace.Name != nil && namespace.Name.Name != ""
+	default:
+		return false
+	}
 }
 
 func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWildcard bool, selectors []*ast.ImportSelector, alias *ast.Identifier, env *runtime.Environment) (runtime.Value, error) {
@@ -321,9 +371,10 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 		}
 		if alias != nil {
 			i.defineInEnv(env, alias.Name, runtime.DynPackageValue{
-				Name:      pkgName,
-				NamePath:  append([]string{}, pkgParts...),
-				IsPrivate: false,
+				Name:        pkgName,
+				NamePath:    append([]string{}, pkgParts...),
+				IdentityKey: bytecodePackageIdentityKey(pkgName, pkgParts),
+				IsPrivate:   false,
 			})
 			return runtime.NilValue{}, nil
 		}
@@ -333,9 +384,10 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 				aliasName = pkgParts[len(pkgParts)-1]
 			}
 			i.defineInEnv(env, aliasName, runtime.DynPackageValue{
-				Name:      pkgName,
-				NamePath:  append([]string{}, pkgParts...),
-				IsPrivate: false,
+				Name:        pkgName,
+				NamePath:    append([]string{}, pkgParts...),
+				IdentityKey: bytecodePackageIdentityKey(pkgName, pkgParts),
+				IsPrivate:   false,
 			})
 		}
 		return runtime.NilValue{}, nil
@@ -344,9 +396,10 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 	if alias != nil && !isWildcard && len(selectors) == 0 {
 		meta := i.getPackageMeta(pkgName, pkgParts)
 		i.defineInEnv(env, alias.Name, runtime.DynPackageValue{
-			Name:      pkgName,
-			NamePath:  meta.namePath,
-			IsPrivate: meta.isPrivate,
+			Name:        pkgName,
+			NamePath:    meta.namePath,
+			IdentityKey: bytecodePackageIdentityKey(pkgName, meta.namePath),
+			IsPrivate:   meta.isPrivate,
 		})
 		return runtime.NilValue{}, nil
 	}
@@ -391,9 +444,10 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 			aliasName = pkgParts[len(pkgParts)-1]
 		}
 		i.defineInEnv(env, aliasName, runtime.DynPackageValue{
-			Name:      pkgName,
-			NamePath:  meta.namePath,
-			IsPrivate: meta.isPrivate,
+			Name:        pkgName,
+			NamePath:    meta.namePath,
+			IdentityKey: bytecodePackageIdentityKey(pkgName, meta.namePath),
+			IsPrivate:   meta.isPrivate,
 		})
 	}
 

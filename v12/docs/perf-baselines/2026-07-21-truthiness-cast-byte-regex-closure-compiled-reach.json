@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-07-22T00:50:43.408848Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "base64",
+    "fasta_generation",
+    "pidigits",
+    "reverse_complement"
+  ],
+  "timeout_seconds": 55,
+  "telemetry_build": true,
+  "telemetry_mode": "dynamic-boundary",
+  "rows": [
+    {
+      "benchmark": "base64",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_cast_check": 0,
+        "explicit_dynamic_call": 3,
+        "host_abi_call": 3,
+        "residual_polymorphic_call": 3,
+        "runtime_service_call": 0,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "fasta_generation",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_cast_check": 0,
+        "explicit_dynamic_call": 0,
+        "host_abi_call": 0,
+        "residual_polymorphic_call": 0,
+        "runtime_service_call": 0,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "pidigits",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_cast_check": 0,
+        "explicit_dynamic_call": 1001,
+        "host_abi_call": 1000,
+        "residual_polymorphic_call": 1001,
+        "runtime_service_call": 0,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "reverse_complement",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_cast_check": 0,
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 0,
+        "residual_polymorphic_call": 1,
+        "runtime_service_call": 0,
+        "semantic_truthy_check": 0,
+        "semantic_truthy_error_fallback": 0
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "explicit_dynamic_call": 1005,
+    "residual_polymorphic_call": 1005,
+    "host_abi_call": 1003,
+    "runtime_service_call": 0,
+    "semantic_truthy_check": 0,
+    "semantic_truthy_error_fallback": 0,
+    "explicit_cast_check": 0
+  }
+}

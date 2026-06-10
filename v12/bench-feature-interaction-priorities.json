@@ -1,0 +1,61 @@
+{
+  "kind": "able-feature-interaction-priorities",
+  "schema_version": 1,
+  "families": [
+    {
+      "id": "lexical_blocks_bindings_patterns",
+      "weight": 3,
+      "reason": "Core source, binding, scope, and pattern semantics used throughout ordinary programs."
+    },
+    {
+      "id": "types_nominals_generics_unions",
+      "weight": 3,
+      "reason": "Core value representation and static/dynamic type semantics."
+    },
+    {
+      "id": "expressions_arrays_text_files",
+      "weight": 3,
+      "reason": "Core computation and application-data operations."
+    },
+    {
+      "id": "functions_closures_callables",
+      "weight": 3,
+      "reason": "Core abstraction, closure, and callable execution semantics."
+    },
+    {
+      "id": "control_flow",
+      "weight": 3,
+      "reason": "Core branching, matching, iteration, and recursion semantics."
+    },
+    {
+      "id": "interfaces_implementations_dispatch",
+      "weight": 3,
+      "reason": "Core polymorphism and static/dynamic dispatch semantics."
+    },
+    {
+      "id": "option_result_exceptions",
+      "weight": 3,
+      "reason": "Core nullable, recoverable-error, propagation, and exception semantics."
+    },
+    {
+      "id": "concurrency",
+      "weight": 3,
+      "reason": "Core spawn, Future, Channel, Awaitable, and Mutex semantics."
+    },
+    {
+      "id": "inherent_methods",
+      "weight": 2,
+      "reason": "Reusable nominal method-resolution surface layered over core functions and types."
+    },
+    {
+      "id": "stdlib_protocols_regex",
+      "weight": 2,
+      "reason": "Reusable language/runtime protocol boundary exercised by applications."
+    },
+    {
+      "id": "program_entry",
+      "weight": 1,
+      "reason": "Important process integration boundary with narrower semantic reach than core execution."
+    }
+  ]
+}

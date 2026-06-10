@@ -1,0 +1,210 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain",
+  "candidate": "exact-native primitive String/static Array u8 kernel helper lowering",
+  "settings": {
+    "cpu_affinity": "9",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timed_runs_per_lane": 20,
+    "warmups_per_lane": 2,
+    "order_balanced": true,
+    "cpu_profiles_per_candidate_application": 10,
+    "allocation_profiles_per_candidate_application": 3,
+    "strict_no_fallbacks": true,
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_mean_nanoseconds": 194721877.2,
+      "candidate_mean_nanoseconds": 105768269.85,
+      "go_mean_nanoseconds": 3109349.95,
+      "candidate_change_percent": -45.6824,
+      "candidate_over_go": 34.0162,
+      "go_performance_percent": 2.9398,
+      "samples_nanoseconds": {
+        "baseline": [
+          167457359, 171681682, 175635781, 171340876, 175797478,
+          179967528, 176011500, 198036583, 200179115, 195961314,
+          199169615, 199277250, 200277321, 210197698, 216570133,
+          211594433, 198534088, 209401239, 217593445, 219753106
+        ],
+        "candidate": [
+          93990484, 112533028, 96746665, 92971482, 92428876,
+          93554135, 95192713, 92357037, 108370389, 109188899,
+          107105015, 106472544, 107405665, 110865192, 118679132,
+          129133342, 115838160, 119267987, 107040843, 106223809
+        ],
+        "go": [
+          2597907, 2691853, 3170129, 2756455, 2961074,
+          2905961, 2717345, 2997152, 3377360, 3113500,
+          3201136, 3139957, 3046976, 3431361, 3221885,
+          3414536, 3442534, 3533937, 3125650, 3340291
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 44657909.3333,
+        "candidate_samples_bytes_allocations_gc": [
+          [15936248, 421377, 10],
+          [15937752, 421390, 10],
+          [15936488, 421378, 10]
+        ],
+        "candidate_mean_bytes": 15936829.3333,
+        "bytes_change_percent": -64.3135,
+        "baseline_mean_allocations": 955870.3333,
+        "candidate_mean_allocations": 421381.6667,
+        "allocations_change_percent": -55.9164,
+        "baseline_mean_gc": 21.3333,
+        "candidate_mean_gc": 10
+      },
+      "candidate_exact_objects": {
+        "utf8_decode": 77595,
+        "bridge_to_string": 38274,
+        "slice_bytes": 33344,
+        "string_from_builtin_native": 14835,
+        "string_to_builtin_native": 7986
+      },
+      "candidate_sha256": "42cd8711566a9a4ea2258b97739ac4bcb6e34db373d1c2c2af85907544c9e3d3"
+    },
+    {
+      "name": "Word Frequency",
+      "baseline_mean_nanoseconds": 80971262.65,
+      "candidate_mean_nanoseconds": 21227989.1,
+      "go_mean_nanoseconds": 3791864.45,
+      "candidate_change_percent": -73.7833,
+      "candidate_over_go": 5.5983,
+      "go_performance_percent": 17.8626,
+      "samples_nanoseconds": {
+        "baseline": [
+          90724397, 92190772, 85905945, 82377123, 74738264,
+          74215576, 72551686, 74540383, 80719896, 74654164,
+          79278459, 84476024, 75868812, 77269801, 78349204,
+          87166833, 84681500, 86127071, 78086447, 85502896
+        ],
+        "candidate": [
+          25855812, 23047323, 19851879, 19696090, 19967531,
+          19354066, 19565777, 19949577, 19428145, 20072806,
+          20449086, 20346504, 21131555, 21257156, 22449749,
+          23105427, 23406563, 23797261, 19240812, 22586663
+        ],
+        "go": [
+          5108110, 3953272, 3992724, 3382763, 3564388,
+          3319606, 3359338, 3520418, 3475419, 3592374,
+          3937780, 3808472, 3723553, 3622709, 3826069,
+          4395518, 3919625, 3898834, 3522916, 3913401
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 29474258.6667,
+        "candidate_samples_bytes_allocations_gc": [
+          [6269920, 266044, 6],
+          [6269936, 266044, 7],
+          [6269904, 266044, 6]
+        ],
+        "candidate_mean_bytes": 6269920,
+        "bytes_change_percent": -78.7275,
+        "baseline_mean_allocations": 690056.6667,
+        "candidate_mean_allocations": 266044,
+        "allocations_change_percent": -61.4461,
+        "baseline_mean_gc": 31.3333,
+        "candidate_mean_gc": 6.3333
+      },
+      "candidate_exact_objects": {
+        "utf8_decode": 65485,
+        "bridge_to_string": 35959,
+        "slice_bytes": 33698,
+        "string_from_builtin_native": 6266,
+        "string_to_builtin_native": 7306
+      },
+      "candidate_sha256": "f2ab0cd5549e091eb1d33a345dc35a3f8370c1f81c48cf0fb45b018aef1dd13e"
+    },
+    {
+      "name": "Sensor Calibration",
+      "baseline_mean_nanoseconds": 190588936.3,
+      "candidate_mean_nanoseconds": 27922937.2,
+      "go_mean_nanoseconds": 3368851.45,
+      "candidate_change_percent": -85.3491,
+      "candidate_over_go": 8.2886,
+      "go_performance_percent": 12.0648,
+      "samples_nanoseconds": {
+        "baseline": [
+          200543718, 196025046, 200988786, 185337502, 170856842,
+          181237250, 182050666, 204894321, 196237810, 201978749,
+          207286179, 208868056, 202970680, 195929737, 196298250,
+          177789320, 179123010, 177329236, 170150979, 175882589
+        ],
+        "candidate": [
+          29430810, 28479964, 29060650, 31359197, 25258706,
+          25479800, 26720893, 29454706, 29051792, 29966766,
+          31657710, 30099140, 29773579, 29033276, 26944407,
+          25408948, 25653232, 25030479, 25023538, 25571151
+        ],
+        "go": [
+          3497495, 3233131, 3369965, 3428389, 3159142,
+          3094476, 3105068, 3740064, 3400039, 3508301,
+          3595796, 3605781, 3492556, 3399901, 3476703,
+          3080359, 3179285, 3113564, 3324645, 3572369
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 63185498.6667,
+        "candidate_samples_bytes_allocations_gc": [
+          [11938864, 534977, 11],
+          [11938896, 534977, 11],
+          [11938912, 534977, 12]
+        ],
+        "candidate_mean_bytes": 11938890.6667,
+        "bytes_change_percent": -81.1050,
+        "baseline_mean_allocations": 1521369.6667,
+        "candidate_mean_allocations": 534977,
+        "allocations_change_percent": -64.8358,
+        "baseline_mean_gc": 64,
+        "candidate_mean_gc": 11.3333
+      },
+      "candidate_exact_objects": {
+        "utf8_decode": 105994,
+        "bridge_to_string": 48898,
+        "slice_bytes": 61950,
+        "string_from_builtin_native": 28409,
+        "string_to_builtin_native": 9217
+      },
+      "candidate_sha256": "cb6fb0992411873e6b39ad707998d45393e36ae1526a53e23a7d2a68f1b3ec85"
+    }
+  ],
+  "geometric_mean": {
+    "wall_time_improvement_percent": 72.4708,
+    "allocation_bytes_reduction_percent": 75.7028,
+    "allocation_count_reduction_percent": 60.9025
+  },
+  "verification": {
+    "timed_public_verifier_processes": 180,
+    "candidate_profile_public_verifier_processes": 39,
+    "strict_dependency_graphs_without_interpreter": 3,
+    "focused_compiler_guards_passed": true,
+    "ablec_package_passed": true,
+    "broad_string_selector": {
+      "listed_tests": 44,
+      "result": "cumulative_timeout_without_assertion_failure",
+      "in_flight_test_passed_alone_seconds": 11.177
+    }
+  },
+  "temporary_evidence_root": "/tmp/able-string-native-boundary-20260725",
+  "changed_surfaces": [
+    "compiler",
+    "generated_runtime",
+    "tests",
+    "documentation"
+  ],
+  "unchanged_surfaces": [
+    "canonical_stdlib",
+    "runtime_package",
+    "interpreter",
+    "tree_walker",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

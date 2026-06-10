@@ -1,0 +1,119 @@
+package exec_06_12_28_stdlib_fs_lines
+
+import able.core.interfaces.{Error}
+import able.core.iteration.{IteratorEnd}
+import able.fs
+import able.io
+import able.io.{Closed, IOError, NotFound}
+import able.io.path
+import able.io.path.{Path}
+import able.io.temp
+
+## Semantics: fs.lines lazily reads normalized lines and closes its owned file
+## handle on EOF, explicit close, and for-loop early exit.
+
+fn print_next(label: String, value: String | IteratorEnd) -> void {
+  value match {
+    case IteratorEnd {} => print(`${label} end`),
+    case line: String => print(`${label} ${line}`)
+  }
+}
+
+fn cleanup_path(path_value: String) -> void {
+  do {
+    fs.remove(path_value, true)
+  } rescue {
+    case err: Error => {
+      err.value match {
+        case io_err: IOError => {
+          io_err.kind match {
+            case NotFound => {},
+            case _ => { raise io_err }
+          }
+        },
+        case _ => { raise err }
+      }
+    }
+  }
+}
+
+fn main() -> void {
+  root := temp.dir("able-fixture-fs-lines-").path
+  root_path: Path := path.parse(root)
+  file := root_path.join("lines.txt").to_string()
+  eof_renamed := root_path.join("eof-renamed.txt").to_string()
+  closed_renamed := root_path.join("closed-renamed.txt").to_string()
+  break_renamed := root_path.join("break-renamed.txt").to_string()
+  missing := root_path.join("missing.txt").to_string()
+
+  do {
+    fs.write_text(file, "alpha\r\nbeta\nfinal", true)
+    all_lines := fs.lines(file)
+    print(`initial_closed ${all_lines.closed}`)
+    print_next("line0", all_lines.next())
+    print_next("line1", all_lines.next())
+    print_next("line2", all_lines.next())
+    print_next("line3", all_lines.next())
+    fs.rename(file, eof_renamed)
+    print(`eof_rename ${fs.exists(eof_renamed)}`)
+
+    fs.write_text(file, "first\nsecond\n", false)
+    early := fs.lines(file)
+    print_next("early0", early.next())
+    early.close()
+    early.close()
+    print_next("early1", early.next())
+    fs.rename(file, closed_renamed)
+    print(`early_rename ${fs.exists(closed_renamed)}`)
+
+    fs.write_text(file, "break-first\nbreak-second\n", false)
+    for line in fs.lines(file) {
+      print(`for_line ${line}`)
+      break
+    }
+    fs.rename(file, break_renamed)
+    print(`break_rename ${fs.exists(break_renamed)}`)
+
+    fs.write_text(file, "failure\n", false)
+    failed := fs.lines(file)
+    io.close(failed.handle)
+    saw_closed := false
+    do {
+      failed.next()
+    } rescue {
+      case err: Error => {
+        err.value match {
+          case io_err: IOError => {
+            io_err.kind match {
+              case Closed => saw_closed = true,
+              case _ => { raise io_err }
+            }
+          },
+          case _ => { raise err }
+        }
+      }
+    }
+    print(`mid_error_closed ${saw_closed}`)
+    print_next("mid_after", failed.next())
+
+    saw_not_found := false
+    do {
+      fs.lines(missing)
+    } rescue {
+      case err: Error => {
+        err.value match {
+          case io_err: IOError => {
+            io_err.kind match {
+              case NotFound => saw_not_found = true,
+              case _ => { raise io_err }
+            }
+          },
+          case _ => { raise err }
+        }
+      }
+    }
+    print(`missing_not_found ${saw_not_found}`)
+  } ensure {
+    cleanup_path(root)
+  }
+}

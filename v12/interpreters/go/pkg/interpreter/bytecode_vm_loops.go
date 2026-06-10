@@ -41,7 +41,7 @@ func (vm *bytecodeVM) handleLoopSignal(err error) bool {
 		if val == nil {
 			val = runtime.NilValue{}
 		}
-		vm.stack = append(vm.stack, val)
+		vm.appendStackValue(val)
 		vm.ip = frame.breakTarget
 		return true
 	case continueSignal:

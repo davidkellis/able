@@ -1,0 +1,7 @@
+{
+  "description": "batched checksum application exercising spawn, Future completion, await, closure capture, and scheduler flushing; local-only until a fair cross-language counterpart exists",
+  "expect": {
+    "stdout": ["32835560"],
+    "exit": 0
+  }
+}

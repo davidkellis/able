@@ -154,15 +154,15 @@ func TestResolveAblecExperimentalMonoArraysDefaultEnabled(t *testing.T) {
 	}
 }
 
-func TestResolveAblecExperimentalMonoArraysDisabledFromEnv(t *testing.T) {
+func TestResolveAblecExperimentalMonoArraysLegacyDisableEnvCannotOptOut(t *testing.T) {
 	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "false")
 
 	enabled, err := resolveAblecExperimentalMonoArraysFromEnv()
 	if err != nil {
 		t.Fatalf("resolve env: %v", err)
 	}
-	if enabled {
-		t.Fatalf("expected mono arrays disabled from env")
+	if !enabled {
+		t.Fatalf("legacy environment setting must not disable native static arrays")
 	}
 }
 
@@ -192,12 +192,12 @@ fn main() -> void {}
 	if err != nil {
 		t.Fatalf("read compiled.go: %v", err)
 	}
-	if !strings.Contains(string(data), "const __able_experimental_mono_arrays = true") {
-		t.Fatalf("expected mono arrays constant enabled by default")
+	if !strings.Contains(string(data), "const __able_native_static_arrays = true") {
+		t.Fatalf("expected native static Array contract enabled by default")
 	}
 }
 
-func TestAblecNoExperimentalMonoArraysFlagDisablesGeneratedOutput(t *testing.T) {
+func TestAblecLegacyNoExperimentalMonoArraysFlagCannotDisableGeneratedOutput(t *testing.T) {
 	projectDir := t.TempDir()
 	entryPath := filepath.Join(projectDir, "main.able")
 	writeFile(t, entryPath, `
@@ -215,8 +215,31 @@ fn main() -> void {}
 	if err != nil {
 		t.Fatalf("read compiled.go: %v", err)
 	}
-	if !strings.Contains(string(data), "const __able_experimental_mono_arrays = false") {
-		t.Fatalf("expected mono arrays constant disabled via --no-experimental-mono-arrays")
+	if !strings.Contains(string(data), "const __able_native_static_arrays = true") {
+		t.Fatalf("legacy --no-experimental-mono-arrays must not disable native static arrays")
+	}
+}
+
+func TestAblecNoFallbacksFlagRejectsResidualLowering(t *testing.T) {
+	projectDir := t.TempDir()
+	entryPath := filepath.Join(projectDir, "main.able")
+	writeFile(t, entryPath, `
+fn complex() -> i64 {
+  1 / 2
+}
+
+fn main() -> void {
+  complex()
+}
+`)
+	outDir := filepath.Join(projectDir, "out")
+
+	code, _, stderr := captureCLI(t, []string{"-no-fallbacks", "-o", outDir, entryPath})
+	if code == 0 {
+		t.Fatalf("expected strict ablec compilation to reject residual lowering")
+	}
+	if !strings.Contains(stderr, "fallback not allowed") {
+		t.Fatalf("strict ablec error missing fallback policy: %q", stderr)
 	}
 }
 

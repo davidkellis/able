@@ -1,0 +1,13 @@
+{
+  "description": "functional regex replacement receives ordered Match values, preserves Unicode zero-length progression, and propagates callback errors",
+  "expect": {
+    "stdout": [
+      "captures z<ab> <ab>",
+      "calls ab@1;ab@4;",
+      "zero <>é<>",
+      "no-match é",
+      "no-match-calls 0",
+      "callback-error raised"
+    ]
+  }
+}

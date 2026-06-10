@@ -1,0 +1,26 @@
+package exec_14_21_regex_scanner_multiline
+
+import able.text.regex.{Match, Regex, RegexOptions, RegexScanner}
+
+fn show_next(label: String, scanner: RegexScanner) -> void {
+  scanner.next() match {
+    case found: Match => print(`${label} ${found.matched} ${found.span.start}-${found.span.end}`),
+    case _ => print(`${label} none`)
+  }
+}
+
+fn main() -> void {
+  options := RegexOptions.default()
+  options.multiline = true
+  Regex.compile_with_options("^cat$", options) match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("x\ncat")
+      show_next("line-pending", scanner)
+      scanner.feed("\ny")
+      show_next("line-final", scanner)
+      scanner.flush()
+    },
+    case _ => print("line compile error")
+  }
+}

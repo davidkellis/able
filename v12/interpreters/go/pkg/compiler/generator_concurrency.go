@@ -69,6 +69,35 @@ func (g *generator) compileSpawnExpression(ctx *compileContext, expr *ast.SpawnE
 	taskLines = append(taskLines, convLines...)
 	taskLines = append(taskLines, fmt.Sprintf("return %s, nil", resultExpr))
 	taskBody := strings.Join(taskLines, "; ")
+	if g.executionContextsEnabled() && ctx.executionContextExpr != "" {
+		child.executionContextExpr = "__able_child_ctx"
+		bodyLines, bodyExpr, bodyType, ok = g.compileTailExpression(child, "", expr.Expression)
+		if !ok {
+			return nil, "", "", false
+		}
+		if g.isVoidType(bodyType) {
+			voidChild := child.closureChild()
+			voidChild.controlMode = compileControlModeRuntimeValueError
+			voidLines, stmtOK := g.compileStatement(voidChild, expr.Expression)
+			if stmtOK {
+				bodyLines = voidLines
+			}
+			resultExpr = "runtime.VoidValue{}"
+		} else {
+			cl, runtimeExpr, runtimeOK := g.lowerRuntimeValue(child, bodyExpr, bodyType)
+			if !runtimeOK {
+				ctx.setReason("spawn body unsupported")
+				return nil, "", "", false
+			}
+			convLines = cl
+			resultExpr = runtimeExpr
+		}
+		taskLines = append(append([]string{}, bodyLines...), convLines...)
+		taskLines = append(taskLines, fmt.Sprintf("return %s, nil", resultExpr))
+		taskBody = strings.Join(taskLines, "; ")
+		taskExpr := fmt.Sprintf("func(__able_child_ctx %s) (runtime.Value, error) { %s }", executionContextType, taskBody)
+		return nil, fmt.Sprintf("__able_spawn_context(%s, %s)", ctx.executionContextExpr, taskExpr), "runtime.Value", true
+	}
 	taskExpr := fmt.Sprintf("func(_ *runtime.Environment) (runtime.Value, error) { %s }", taskBody)
 	return nil, fmt.Sprintf("__able_spawn(%s)", taskExpr), "runtime.Value", true
 }
@@ -95,7 +124,13 @@ func (g *generator) compileAwaitExpression(ctx *compileContext, expr *ast.AwaitE
 	lines = append(lines, iterLines...)
 	lines = append(lines, iterConvLines...)
 	awaitName := g.awaitExprName(expr)
-	awaitExpr := fmt.Sprintf("__able_await(%s, %s)", awaitName, iterRuntime)
+	awaitHelper := "__able_await"
+	awaitArgs := []string{awaitName, iterRuntime}
+	if g.executionContextsEnabled() && ctx.executionContextExpr != "" {
+		awaitHelper = "__able_await_ctx"
+		awaitArgs = append(awaitArgs, ctx.executionContextExpr)
+	}
+	awaitExpr := fmt.Sprintf("%s(%s)", awaitHelper, strings.Join(awaitArgs, ", "))
 	if expected != "" && expected != "runtime.Value" {
 		expectLines, converted, ok := g.lowerExpectRuntimeValue(ctx, awaitExpr, expected)
 		if !ok {

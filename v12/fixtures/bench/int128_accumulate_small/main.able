@@ -1,0 +1,24 @@
+package bench_int128_accumulate_small
+
+import able.kernel.{Array}
+import able.numbers.int128.{Int128}
+
+fn deltas() -> Array i64 {
+  [3_i64, 8_i64, 13_i64, 18_i64, 23_i64, 28_i64, 33_i64, 38_i64, 43_i64, 48_i64, 53_i64, 58_i64, 63_i64, 68_i64, 73_i64, 78_i64]
+}
+
+fn main() -> void {
+  acc := Int128.zero()
+  mult := Int128.from_i64(13_i64)
+  step := Int128.from_i64(7_i64)
+  modulus := Int128.from_i64(1_000_000_007_i64)
+  steps := deltas()
+  i := 0
+  loop {
+    if i >= 200_000 { break }
+    delta := Int128.from_i64(steps[i % steps.len()]!)
+    acc = acc.add(delta).mul(mult).add(step).rem(modulus)
+    i = i + 1
+  }
+  print(acc.to_i64()!)
+}

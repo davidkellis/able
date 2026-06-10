@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+"""Rank portable three-family interactions by depth, semantics, and target excess."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import itertools
+import json
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_MANIFEST = SCRIPT_DIR / "bench-feature-coverage.json"
+DEFAULT_PRIORITIES = SCRIPT_DIR / "bench-feature-interaction-priorities.json"
+DEFAULT_FRONTIER = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json"
+)
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def portable_families(
+    manifest: dict[str, Any], excluded: set[str]
+) -> dict[str, set[str]]:
+    raw_families = manifest.get("families")
+    if not isinstance(raw_families, list):
+        raise ValueError("coverage manifest needs a families array")
+    families: dict[str, set[str]] = {}
+    for raw in raw_families:
+        if not isinstance(raw, dict) or raw.get("coverage_kind") == "local_only":
+            continue
+        family = raw.get("id")
+        benchmarks = raw.get("portable_benchmarks")
+        if not isinstance(family, str) or not isinstance(benchmarks, list):
+            raise ValueError("portable family needs id and portable_benchmarks")
+        if family in excluded:
+            continue
+        if family in families:
+            raise ValueError(f"coverage manifest repeats family {family}")
+        if any(not isinstance(benchmark, str) for benchmark in benchmarks):
+            raise ValueError(f"family {family} has a non-string benchmark")
+        families[family] = set(benchmarks)
+    if len(families) < 3:
+        raise ValueError("triple analysis needs at least three portable families")
+    return families
+
+
+def load_priorities(
+    path: Path, expected_families: set[str]
+) -> dict[str, dict[str, Any]]:
+    value = load_json(path, "interaction priorities")
+    if value.get("kind") != "able-feature-interaction-priorities":
+        raise ValueError("interaction priorities has an invalid kind")
+    if value.get("schema_version") != 1:
+        raise ValueError("interaction priorities needs schema_version 1")
+    raw_families = value.get("families")
+    if not isinstance(raw_families, list):
+        raise ValueError("interaction priorities needs a families array")
+    priorities: dict[str, dict[str, Any]] = {}
+    for raw in raw_families:
+        if not isinstance(raw, dict):
+            raise ValueError("interaction priority entries must be objects")
+        family = raw.get("id")
+        weight = raw.get("weight")
+        reason = raw.get("reason")
+        if not isinstance(family, str) or not family:
+            raise ValueError("interaction priority needs an id")
+        if type(weight) is not int or weight < 1 or weight > 3:
+            raise ValueError(f"interaction priority {family} needs weight 1..3")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError(f"interaction priority {family} needs a reason")
+        if family in priorities:
+            raise ValueError(f"interaction priorities repeats family {family}")
+        priorities[family] = {"weight": weight, "reason": reason}
+    missing = sorted(expected_families - set(priorities))
+    extra = sorted(set(priorities) - expected_families)
+    if missing or extra:
+        details = []
+        if missing:
+            details.append("missing " + ", ".join(missing))
+        if extra:
+            details.append("extra " + ", ".join(extra))
+        raise ValueError("interaction priority family mismatch: " + "; ".join(details))
+    return priorities
+
+
+def load_excess(path: Path) -> tuple[dict[str, float], float]:
+    value = load_json(path, "performance frontier")
+    if value.get("kind") != "able-performance-frontier":
+        raise ValueError("performance frontier has an invalid kind")
+    raw_rows = value.get("rows")
+    if not isinstance(raw_rows, list):
+        raise ValueError("performance frontier needs rows")
+    excess: dict[str, float] = {}
+    for row in raw_rows:
+        if not isinstance(row, dict):
+            raise ValueError("performance frontier rows must be objects")
+        benchmark = row.get("benchmark")
+        seconds = row.get("excess_seconds")
+        if not isinstance(benchmark, str) or not benchmark:
+            raise ValueError("performance frontier row needs benchmark")
+        if not isinstance(seconds, (int, float)) or seconds < 0:
+            raise ValueError(f"performance frontier row {benchmark} has invalid excess")
+        excess[benchmark] = excess.get(benchmark, 0.0) + float(seconds)
+    summary = value.get("summary")
+    total = summary.get("total_excess_seconds") if isinstance(summary, dict) else None
+    if not isinstance(total, (int, float)):
+        raise ValueError("performance frontier summary needs total_excess_seconds")
+    if abs(sum(excess.values()) - float(total)) > 0.000001:
+        raise ValueError("performance frontier excess total does not reconcile")
+    return excess, float(total)
+
+
+def csv_set(raw: str) -> set[str]:
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+def parse_membership_removals(values: list[str]) -> dict[str, set[str]]:
+    removals: dict[str, set[str]] = {}
+    for value in values:
+        family, separator, raw_benchmarks = value.partition("=")
+        family = family.strip()
+        benchmarks = csv_set(raw_benchmarks)
+        if not separator or not family or not benchmarks:
+            raise ValueError(
+                "--baseline-remove must use FAMILY=BENCHMARK[,BENCHMARK...]"
+            )
+        removals.setdefault(family, set()).update(benchmarks)
+    return removals
+
+
+def validate_removals(
+    families: dict[str, set[str]], removals: dict[str, set[str]]
+) -> None:
+    for family, benchmarks in removals.items():
+        if family not in families:
+            raise ValueError(f"baseline removal names unknown portable family: {family}")
+        missing = benchmarks - families[family]
+        if missing:
+            raise ValueError(
+                f"baseline removal names benchmarks absent from {family}: "
+                f"{', '.join(sorted(missing))}"
+            )
+
+
+def build_report(
+    manifest_path: Path,
+    priorities_path: Path,
+    frontier_path: Path,
+    excluded: set[str],
+    removals: dict[str, set[str]],
+) -> dict[str, Any]:
+    manifest = load_json(manifest_path, "coverage manifest")
+    families = portable_families(manifest, excluded)
+    priorities = load_priorities(priorities_path, set(families))
+    excess, total_excess = load_excess(frontier_path)
+    validate_removals(families, removals)
+    catalog = set().union(*families.values())
+    triples: list[dict[str, Any]] = []
+    for names in itertools.combinations(sorted(families), 3):
+        current_sets = [families[name] for name in names]
+        baseline_sets = [
+            families[name] - removals.get(name, set()) for name in names
+        ]
+        current = sorted(set.intersection(*current_sets))
+        baseline = sorted(set.intersection(*baseline_sets))
+        adjacent = sorted(
+            benchmark
+            for benchmark in catalog
+            if sum(benchmark in family for family in current_sets) >= 2
+        )
+        triples.append(
+            {
+                "families": list(names),
+                "baseline_count": len(baseline),
+                "current_count": len(current),
+                "delta": len(current) - len(baseline),
+                "semantic_weight": sum(
+                    priorities[name]["weight"] for name in names
+                ),
+                "covered_excess_seconds": round(
+                    sum(excess.get(benchmark, 0.0) for benchmark in current), 6
+                ),
+                "adjacent_excess_seconds": round(
+                    sum(excess.get(benchmark, 0.0) for benchmark in adjacent), 6
+                ),
+                "portable_benchmarks": current,
+                "adjacent_benchmarks": adjacent,
+            }
+        )
+    triples.sort(
+        key=lambda item: (
+            item["current_count"],
+            -item["semantic_weight"],
+            -item["adjacent_excess_seconds"],
+            item["families"],
+        )
+    )
+    for rank, triple in enumerate(triples, 1):
+        triple["priority_rank"] = rank
+    return {
+        "kind": "able-feature-interaction-triple-frontier",
+        "schema_version": 1,
+        "sources": {
+            "coverage_manifest": source_record(manifest_path),
+            "priorities": source_record(priorities_path),
+            "performance_frontier": source_record(frontier_path),
+        },
+        "excluded_families": sorted(excluded),
+        "baseline_removed_memberships": [
+            {"family": family, "portable_benchmarks": sorted(benchmarks)}
+            for family, benchmarks in sorted(removals.items())
+        ],
+        "ranking": {
+            "order": [
+                "current_count ascending",
+                "semantic_weight descending",
+                "adjacent_excess_seconds descending",
+                "families ascending",
+            ],
+            "semantic_weight_range_per_family": [1, 3],
+            "adjacent_definition": "applications covering at least two of the three families",
+        },
+        "family_priorities": [
+            {"family": family, **priorities[family]} for family in sorted(priorities)
+        ],
+        "summary": {
+            "family_count": len(families),
+            "triple_count": len(triples),
+            "baseline_zero_triples": sum(
+                item["baseline_count"] == 0 for item in triples
+            ),
+            "current_zero_triples": sum(
+                item["current_count"] == 0 for item in triples
+            ),
+            "baseline_min_depth": min(
+                (item["baseline_count"] for item in triples), default=0
+            ),
+            "current_min_depth": min(
+                (item["current_count"] for item in triples), default=0
+            ),
+            "baseline_depth_one_triples": sum(
+                item["baseline_count"] == 1 for item in triples
+            ),
+            "current_depth_one_triples": sum(
+                item["current_count"] == 1 for item in triples
+            ),
+            "improved_triples": sum(item["delta"] > 0 for item in triples),
+            "performance_frontier_total_excess_seconds": round(total_excess, 6),
+        },
+        "triples": triples,
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Weighted Portable Feature-Interaction Triple Frontier",
+        "",
+        f"- Families: `{summary['family_count']}`",
+        f"- Three-family interactions: `{summary['triple_count']}`",
+        f"- Baseline/current zero-depth triples: `{summary['baseline_zero_triples']}` / `{summary['current_zero_triples']}`",
+        f"- Baseline/current minimum depth: `{summary['baseline_min_depth']}` / `{summary['current_min_depth']}`",
+        f"- Baseline/current depth-one triples: `{summary['baseline_depth_one_triples']}` / `{summary['current_depth_one_triples']}`",
+        f"- Improved triples: `{summary['improved_triples']}`",
+        f"- Current target excess represented: `{summary['performance_frontier_total_excess_seconds']:.3f}` seconds",
+        "",
+        "Coverage depth is the primary rank. Equal-depth triples are ordered by",
+        "reviewed semantic weight, then by current target excess in applications",
+        "covering at least two of the three families. The weights prioritize audit",
+        "order only; they never relax correctness or candidate-admission rules.",
+        "",
+        "| Rank | Families | Baseline | Current | Semantic | Adjacent excess s | Covered excess s | Current applications |",
+        "| ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for item in report["triples"]:
+        families = " × ".join(f"`{family}`" for family in item["families"])
+        applications = (
+            ", ".join(f"`{app}`" for app in item["portable_benchmarks"]) or "—"
+        )
+        lines.append(
+            f"| {item['priority_rank']} | {families} | {item['baseline_count']} | "
+            f"{item['current_count']} | {item['semantic_weight']} | "
+            f"{item['adjacent_excess_seconds']:.3f} | "
+            f"{item['covered_excess_seconds']:.3f} | {applications} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_text(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value, encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument("--priorities", type=Path, default=DEFAULT_PRIORITIES)
+    parser.add_argument("--frontier", type=Path, default=DEFAULT_FRONTIER)
+    parser.add_argument("--exclude", default="packages_modules_imports")
+    parser.add_argument(
+        "--baseline-remove",
+        action="append",
+        default=[],
+        metavar="FAMILY=BENCHMARK[,BENCHMARK...]",
+    )
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    args = parser.parse_args()
+    try:
+        report = build_report(
+            args.manifest,
+            args.priorities,
+            args.frontier,
+            csv_set(args.exclude),
+            parse_membership_removals(args.baseline_remove),
+        )
+    except ValueError as error:
+        parser.error(str(error))
+    payload = json.dumps(report, indent=2) + "\n"
+    if args.json_out:
+        write_text(args.json_out, payload)
+    if args.markdown_out:
+        write_text(args.markdown_out, markdown(report))
+    if not args.json_out and not args.markdown_out:
+        print(payload, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

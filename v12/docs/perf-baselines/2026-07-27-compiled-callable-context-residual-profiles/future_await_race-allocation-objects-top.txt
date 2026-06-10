@@ -1,0 +1,48 @@
+File: compiled
+Build ID: ffa77121317b7ddb1b421c90cee161e444251eae
+Type: alloc_objects
+Time: 2026-07-27 23:59:30 CDT
+Showing nodes accounting for 30684, 97.75% of 31391 total
+Dropped 187 nodes (cum <= 156)
+Showing top 40 nodes out of 80
+      flat  flat%   sum%        cum   cum%
+     13540 43.13% 43.13%      13540 43.13%  runtime/pprof.allFrames
+      3481 11.09% 54.22%       3524 11.23%  runtime/pprof.(*profileBuilder).emitLocation
+      1590  5.07% 59.29%      18736 59.69%  runtime/pprof.writeHeapProto
+      1094  3.49% 62.77%       1094  3.49%  able/interpreter-go/pkg/compiler/bridge.currentGID
+       960  3.06% 65.83%       1066  3.40%  main.__able_make_await_waker_ctx
+       870  2.77% 68.60%        870  2.77%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+       695  2.21% 70.82%        695  2.21%  main.__able_try_member_get_method
+       616  1.96% 72.78%       1328  4.23%  main.__able_call_value_fast_ctx
+       616  1.96% 74.74%        616  1.96%  main.__able_native_call_context
+       606  1.93% 76.67%       2530  8.06%  main.__able_method_call_ctx
+       580  1.85% 78.52%        580  1.85%  able/interpreter-go/pkg/runtime.newEnvironmentBase (inline)
+       580  1.85% 80.37%       2413  7.69%  main.(*__able_goroutine_executor).RunFuture
+       579  1.84% 82.21%        579  1.84%  able/interpreter-go/pkg/runtime.(*Environment).mutex
+       384  1.22% 83.43%       1152  3.67%  main.__able_collect_await_arms_ctx
+       384  1.22% 84.66%       5455 17.38%  main.__able_compiled_fn_main_ctx.func5
+       293  0.93% 85.59%       4110 13.09%  main.__able_compiled_fn_main_ctx
+       291  0.93% 86.52%        291  0.93%  main.__able_context_from_environment
+       291  0.93% 87.45%        291  0.93%  sync.NewCond (inline)
+       290  0.92% 88.37%        580  1.85%  able/interpreter-go/pkg/runtime.NewFutureWithContext (inline)
+       290  0.92% 89.29%        580  1.85%  context.WithCancel
+       290  0.92% 90.22%        290  0.92%  context.withCancel (inline)
+       290  0.92% 91.14%       2995  9.54%  main.__able_spawn_context
+       287  0.91% 92.06%        290  0.92%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+       218  0.69% 92.75%        356  1.13%  main.__able_call_value_fast
+       195  0.62% 93.37%        781  2.49%  main.__able_call_named
+       192  0.61% 93.98%        192  0.61%  main.(*__able_async_payload).setAwaitState (inline)
+       192  0.61% 94.59%        192  0.61%  main.(*__able_await_state).ensureWaitCh
+       192  0.61% 95.21%       2602  8.29%  main.__able_initialize_await_state_ctx
+       192  0.61% 95.82%        192  0.61%  main.__able_struct_Array_clone_elements (inline)
+       192  0.61% 96.43%        386  1.23%  main.__able_struct_Array_to
+       156   0.5% 96.93%        156   0.5%  runtime.mallocgc
+        99  0.32% 97.24%        524  1.67%  main.__able_method_call_node
+        81  0.26% 97.50%        383  1.22%  main.(*__able_goroutine_executor).registerHandle
+        37  0.12% 97.62%        617  1.97%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+        20 0.064% 97.68%        708  2.26%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+        10 0.032% 97.71%        166  0.53%  main.__able_register_await_state_ctx
+         6 0.019% 97.73%      17077 54.40%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         3 0.0096% 97.74%       1795  5.72%  main.__able_await_with_state_ctx
+         1 0.0032% 97.74%      18742 59.71%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.0032% 97.75%       4113 13.10%  main.RunRegisteredMain

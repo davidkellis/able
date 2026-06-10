@@ -20,7 +20,7 @@ func (vm *bytecodeVM) execDefineUnion(instr bytecodeInstruction) error {
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }
@@ -44,7 +44,7 @@ func (vm *bytecodeVM) execDefineTypeAlias(instr bytecodeInstruction) error {
 		}
 		vm.interp.setTypeAlias(def.ID.Name, alias)
 	}
-	vm.stack = append(vm.stack, runtime.NilValue{})
+	vm.appendStackValue(runtime.NilValue{})
 	vm.ip++
 	return nil
 }
@@ -61,7 +61,7 @@ func (vm *bytecodeVM) execDefineMethods(instr bytecodeInstruction) error {
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }
@@ -78,7 +78,7 @@ func (vm *bytecodeVM) execDefineInterface(instr bytecodeInstruction) error {
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }
@@ -95,7 +95,7 @@ func (vm *bytecodeVM) execDefineImplementation(instr bytecodeInstruction) error 
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }
@@ -112,7 +112,7 @@ func (vm *bytecodeVM) execDefineExtern(instr bytecodeInstruction) error {
 	if val == nil {
 		val = runtime.NilValue{}
 	}
-	vm.stack = append(vm.stack, val)
+	vm.appendStackValue(val)
 	vm.ip++
 	return nil
 }

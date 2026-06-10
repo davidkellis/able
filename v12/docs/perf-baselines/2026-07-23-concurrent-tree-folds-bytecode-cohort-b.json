@@ -1,0 +1,233 @@
+{
+  "generated_at": "2026-07-23T20:11:18.261616Z",
+  "suite": "custom",
+  "benchmarks": [
+    "concurrent_tree_folds"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-interpreter-b.json",
+  "go_reference_json": null,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "concurrent_tree_folds",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "concurrent_tree_folds",
+        "mode": "bytecode",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.39,
+        "avg_user_seconds": 0.348,
+        "avg_sys_seconds": 0.024,
+        "avg_gc": 7.2,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 0.42,
+            "user_seconds": 0.34,
+            "sys_seconds": 0.02,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 0.38,
+            "user_seconds": 0.36,
+            "sys_seconds": 0.02,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 0.39,
+            "user_seconds": 0.36,
+            "sys_seconds": 0.02,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 0.37,
+            "user_seconds": 0.33,
+            "sys_seconds": 0.03,
+            "gc_count": 7.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 0.39,
+            "user_seconds": 0.35,
+            "sys_seconds": 0.03,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/concurrent-tree-folds/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+          "sha256": "521a80923670cdbf78d12110adb8e7b8fc4aa540ac1aea39133f029aa6b2e321"
+        },
+        "execution_contract": {
+          "mode": "bytecode",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "goroutine"
+        }
+      },
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "goroutine"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [],
+        "provenance": "measured",
+        "sha256": "3e664dc864f83e585286de98a7713d84841569e90824d572b24c4ca184ea6ae1",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/concurrent-tree-folds/verify.rb",
+          "sha256": "7bcb01598b7f5a563584c23e58bf1171cedc89e376fd324424bb825708398ae7"
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 0.0568,
+          "reference_implementation": "python-3.14",
+          "ratio": 6.866197183098591,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-tree-folds/python-3.14/run.py",
+            "sha256": "3d2c8f2fa5668db9648fa926ec384d73576ca6822783edc7f0eef1382c9a48f3",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.058477353,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.057733152,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.056260857,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.056014265,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.055660242,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "goroutine"
+          }
+        },
+        "ruby": {
+          "reference_real_seconds": 0.0544,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 7.169117647058824,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-tree-folds/ruby-4.0/run.rb",
+            "sha256": "6d96e3de3b3f99d2ac5b63e3f1e2101b758dc3e7316793080865e4a25e455193",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.054661097,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.054545018,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.054547821,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.054361473,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.054052615,
+              "stdout_sha256": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "goroutine"
+          }
+        }
+      }
+    }
+  ]
+}

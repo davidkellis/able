@@ -12,8 +12,10 @@ func (i *Interpreter) initOsBuiltins() {
 	}
 
 	osArgsFn := runtime.NativeFunctionValue{
-		Name:  "__able_os_args",
-		Arity: 0,
+		Name:        "__able_os_args",
+		Arity:       0,
+		BorrowArgs:  true,
+		SkipContext: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 0 {
 				return nil, fmt.Errorf("__able_os_args expects no arguments")
@@ -27,8 +29,10 @@ func (i *Interpreter) initOsBuiltins() {
 	}
 
 	osExitFn := runtime.NativeFunctionValue{
-		Name:  "__able_os_exit",
-		Arity: 1,
+		Name:        "__able_os_exit",
+		Arity:       1,
+		BorrowArgs:  true,
+		SkipContext: true,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_os_exit expects one argument")

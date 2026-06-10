@@ -1,0 +1,67 @@
+File: app
+Build ID: 53f557ed12beb99f9e783e9110572b9797ca089e
+Type: alloc_space
+Time: 2026-07-28 06:36:10 CDT
+Showing nodes accounting for 7768.02kB, 99.03% of 7843.90kB total
+Dropped 192 nodes (cum <= 39.22kB)
+      flat  flat%   sum%        cum   cum%
+ 3078.55kB 39.25% 39.25%  3078.55kB 39.25%  runtime/pprof.allFrames
+ 1002.49kB 12.78% 52.03%  1065.72kB 13.59%  runtime/pprof.(*profileBuilder).emitLocation
+     648kB  8.26% 60.29%  1171.88kB 14.94%  compress/flate.NewWriter (inline)
+     448kB  5.71% 66.00%      448kB  5.71%  main.__able_array_iface_Awaitable_i64_to
+  384.23kB  4.90% 70.90%   384.23kB  4.90%  able/interpreter-go/pkg/compiler/bridge.ToInt
+  384.19kB  4.90% 75.80%   384.39kB  4.90%  main.__able_notify_mutex_awaiters
+     320kB  4.08% 79.88%   523.88kB  6.68%  compress/flate.(*compressor).init
+     256kB  3.26% 83.14%      256kB  3.26%  main.__able_fn_void_to_int64_to_runtime_value
+     208kB  2.65% 85.79%  5775.86kB 73.64%  runtime/pprof.writeHeapInternal
+     200kB  2.55% 88.34%      200kB  2.55%  compress/flate.newDeflateFast (inline)
+     192kB  2.45% 90.79%  1862.45kB 23.74%  main.__able_compiled_fn_commit_job_ctx
+     192kB  2.45% 93.24%   192.47kB  2.45%  main.__able_make_await_waker_ctx
+  158.38kB  2.02% 95.26%  5567.86kB 70.98%  runtime/pprof.writeHeapProto
+     128kB  1.63% 96.89%      128kB  1.63%  main.__able_mutex_await_lock_impl
+      64kB  0.82% 97.70%       64kB  0.82%  main.__able_iface_Awaitable_i64_wrap_runtime (inline)
+   58.50kB  0.75% 98.45%    65.25kB  0.83%  runtime/pprof.(*protobuf).string (inline)
+   44.57kB  0.57% 99.02%    44.57kB  0.57%  runtime/pprof.(*profileBuilder).stringIndex (inline)
+    0.55kB 0.007% 99.03%   580.92kB  7.41%  main.__able_await_with_state_ctx
+    0.50kB 0.0064% 99.03%  4146.23kB 52.86%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.05kB 0.0006% 99.03%   579.69kB  7.39%  main.__able_invoke_awaitable_method_ctx
+    0.02kB 0.0003% 99.03%  5776.20kB 73.64%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         0     0% 99.03%  5776.20kB 73.64%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.03%  5776.20kB 73.64%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.03%  1178.62kB 15.03%  compress/gzip.(*Writer).Write
+         0     0% 99.03%  2056.92kB 26.22%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 99.03%   576.44kB  7.35%  main.(*__able_mutex_awaitable).NativeAwaitableCommit
+         0     0% 99.03%   576.44kB  7.35%  main.(*__able_mutex_awaitable).commit
+         0     0% 99.03%   774.36kB  9.87%  main.__able_await_ctx
+         0     0% 99.03%   774.36kB  9.87%  main.__able_await_value_ctx
+         0     0% 99.03%   384.11kB  4.90%  main.__able_call_value_fast_ctx
+         0     0% 99.03%   192.88kB  2.46%  main.__able_compiled_fn_claim_job_ctx
+         0     0% 99.03%   192.11kB  2.45%  main.__able_compiled_fn_commit_job_ctx.func1
+         0     0% 99.03%   471.05kB  6.01%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.03%   692.91kB  8.83%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.03%   380.22kB  4.85%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 99.03%   511.34kB  6.52%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 99.03%  2055.33kB 26.20%  main.__able_compiled_fn_run_worker_ctx
+         0     0% 99.03%   192.88kB  2.46%  main.__able_compiled_fn_with_lock_spec_ctx
+         0     0% 99.03%   448.05kB  5.71%  main.__able_compiled_method_Mutex_await_lock_spec_ctx
+         0     0% 99.03%   384.50kB  4.90%  main.__able_compiled_method_Mutex_unlock_ctx
+         0     0% 99.03%   576.44kB  7.35%  main.__able_complete_await_ctx
+         0     0% 99.03%   384.11kB  4.90%  main.__able_fn_void_to_int64_to_runtime_value.func1
+         0     0% 99.03%    64.05kB  0.82%  main.__able_iface_Awaitable_i64_from_value
+         0     0% 99.03%    64.05kB  0.82%  main.__able_iface_Awaitable_i64_try_from_value
+         0     0% 99.03%   193.44kB  2.47%  main.__able_initialize_await_state_ctx
+         0     0% 99.03%      128kB  1.63%  main.__able_mutex_await_lock_ctx (inline)
+         0     0% 99.03%   384.50kB  4.90%  main.__able_mutex_unlock_ctx (inline)
+         0     0% 99.03%   384.50kB  4.90%  main.__able_mutex_unlock_impl
+         0     0% 99.03%  2056.92kB 26.22%  main.__able_run_compiled_task
+         0     0% 99.03%  2055.70kB 26.21%  main.__able_spawn_context.func1
+         0     0% 99.03%  5785.09kB 73.75%  main.main
+         0     0% 99.03%  5785.09kB 73.75%  main.runMain
+         0     0% 99.03%  5776.20kB 73.64%  main.startMainProfilePhase (inline)
+         0     0% 99.03%  5785.09kB 73.75%  runtime.main
+         0     0% 99.03%  5775.86kB 73.64%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.03%    65.25kB  0.83%  runtime/pprof.(*profileBuilder).build
+         0     0% 99.03%  1178.62kB 15.03%  runtime/pprof.(*profileBuilder).flush
+         0     0% 99.03%  1177.12kB 15.01%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 99.03%    65.25kB  0.83%  runtime/pprof.(*protobuf).strings
+         0     0% 99.03%  5775.86kB 73.64%  runtime/pprof.writeAlloc

@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Validate spec-to-application and intentional local-only feature coverage."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_MANIFEST = SCRIPT_DIR / "bench-feature-coverage.json"
+DEFAULT_SPEC = REPO_ROOT / "spec" / "full_spec_v12.md"
+CATALOG = SCRIPT_DIR / "bench_external_catalog.sh"
+KINDS = {"portable", "mixed", "local_only"}
+
+
+def load_json(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"feature coverage manifest not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid feature coverage JSON in {path}: {error}") from None
+
+
+def coverage_catalog() -> set[str]:
+    result = subprocess.run(
+        ["bash", "-c", f"source {CATALOG!s}; bench_external_suite_csv coverage"],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ValueError(result.stderr.strip() or "cannot read coverage catalog")
+    return {name for name in result.stdout.strip().split(",") if name}
+
+
+def normative_sections(path: Path) -> set[str]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise ValueError(f"v12 spec not found: {path}") from None
+    sections = {
+        match.group(1)
+        for match in re.finditer(r"^## ([0-9]+)\. ", text, flags=re.MULTILINE)
+        if 2 <= int(match.group(1)) <= 17
+    }
+    expected = {str(number) for number in range(2, 18)}
+    if sections != expected:
+        raise ValueError("cannot identify the complete normative v12 section set (2 through 17)")
+    return sections
+
+
+def string_list(value: Any, field: str, family: str, allow_empty: bool) -> list[str]:
+    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+        raise ValueError(f"{family}: {field} must be a list of non-empty strings")
+    if not allow_empty and not value:
+        raise ValueError(f"{family}: {field} must not be empty")
+    if len(value) != len(set(value)):
+        raise ValueError(f"{family}: {field} contains duplicates")
+    return value
+
+
+def validate_fixture(raw_path: str, family: str) -> None:
+    path = (SCRIPT_DIR / raw_path).resolve()
+    try:
+        path.relative_to(SCRIPT_DIR)
+    except ValueError:
+        raise ValueError(f"{family}: local fixture escapes v12: {raw_path}") from None
+    if not raw_path.startswith("fixtures/"):
+        raise ValueError(f"{family}: local fixture must be under fixtures/: {raw_path}")
+    if not path.is_dir() or not (path / "main.able").is_file():
+        raise ValueError(f"{family}: local fixture has no main.able: {raw_path}")
+
+
+def validate(manifest_path: Path, spec_path: Path) -> tuple[int, int, int, int]:
+    manifest = load_json(manifest_path)
+    if not isinstance(manifest, dict) or manifest.get("kind") != "able-feature-benchmark-coverage":
+        raise ValueError("feature coverage manifest has an invalid kind")
+    if manifest.get("schema_version") != 1:
+        raise ValueError("feature coverage manifest needs schema_version 1")
+    families = manifest.get("families")
+    if not isinstance(families, list) or not families:
+        raise ValueError("feature coverage manifest needs families")
+
+    catalog = coverage_catalog()
+    required_sections = normative_sections(spec_path)
+    seen_ids: set[str] = set()
+    covered_sections: set[str] = set()
+    covered_benchmarks: set[str] = set()
+    fixture_paths: set[str] = set()
+    local_only_count = 0
+
+    for index, raw_family in enumerate(families):
+        if not isinstance(raw_family, dict):
+            raise ValueError(f"family {index}: entry must be an object")
+        family = raw_family.get("id")
+        if not isinstance(family, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", family):
+            raise ValueError(f"family {index}: id must be snake_case")
+        if family in seen_ids:
+            raise ValueError(f"feature coverage repeats family id: {family}")
+        seen_ids.add(family)
+
+        kind = raw_family.get("coverage_kind")
+        if kind not in KINDS:
+            raise ValueError(f"{family}: coverage_kind must be portable, mixed, or local_only")
+        sections = string_list(raw_family.get("spec_sections"), "spec_sections", family, False)
+        unknown_sections = sorted(set(sections) - required_sections, key=int)
+        if unknown_sections:
+            raise ValueError(f"{family}: unknown normative spec sections: {', '.join(unknown_sections)}")
+        covered_sections.update(sections)
+
+        benchmarks = string_list(
+            raw_family.get("portable_benchmarks"), "portable_benchmarks", family, True
+        )
+        fixtures = string_list(raw_family.get("local_fixtures"), "local_fixtures", family, True)
+        unknown_benchmarks = sorted(set(benchmarks) - catalog)
+        if unknown_benchmarks:
+            raise ValueError(f"{family}: benchmarks are outside coverage: {', '.join(unknown_benchmarks)}")
+        if kind == "portable" and not benchmarks:
+            raise ValueError(f"{family}: portable coverage needs a portable benchmark")
+        if kind == "mixed" and (not benchmarks or not fixtures):
+            raise ValueError(f"{family}: mixed coverage needs portable benchmarks and local fixtures")
+        if kind == "local_only":
+            local_only_count += 1
+            if benchmarks:
+                raise ValueError(f"{family}: local_only coverage cannot claim a portable benchmark")
+            if not fixtures:
+                raise ValueError(f"{family}: local_only coverage needs a local fixture")
+        reason = raw_family.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError(f"{family}: reason must be a non-empty string")
+
+        covered_benchmarks.update(benchmarks)
+        for fixture in fixtures:
+            validate_fixture(fixture, family)
+            fixture_paths.add(fixture)
+
+    missing_sections = sorted(required_sections - covered_sections, key=int)
+    if missing_sections:
+        raise ValueError("uncovered normative spec sections: " + ", ".join(missing_sections))
+    missing_benchmarks = sorted(catalog - covered_benchmarks)
+    if missing_benchmarks:
+        raise ValueError("portable applications absent from feature coverage: " + ", ".join(missing_benchmarks))
+    return len(families), len(covered_sections), len(covered_benchmarks), local_only_count
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST), metavar="PATH")
+    parser.add_argument("--spec", default=str(DEFAULT_SPEC), metavar="PATH")
+    args = parser.parse_args()
+    try:
+        families, sections, benchmarks, local_only = validate(
+            Path(args.manifest), Path(args.spec)
+        )
+        print(
+            f"feature coverage ok: {families} families, {sections} normative sections, "
+            f"{benchmarks} portable applications, {local_only} intentional local-only families"
+        )
+        return 0
+    except ValueError as error:
+        print(f"bench_feature_coverage_check: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

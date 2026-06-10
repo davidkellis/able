@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-07-14T04:02:10Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 3,
+  "timeout_seconds": 45,
+  "cpu_affinity": "15",
+  "gomaxprocs": 1,
+  "rows": [
+    {
+      "benchmark": "channel_rollup",
+      "source": "/home/david/sync/projects/benchmarks/channel-rollup/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0056,
+      "validation": "verified",
+      "stdout_sha256": [
+        "a6a1f91069e8c95a38fba1a3cb7fb3f582434245605091f200ee90cdb190e604"
+      ]
+    },
+    {
+      "benchmark": "future_pipeline",
+      "source": "/home/david/sync/projects/benchmarks/future-pipeline/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0053,
+      "validation": "verified",
+      "stdout_sha256": [
+        "3db937fdd21b5719ab57c25679a1944e8f30128695c8edbfae4940aba7aa6d98"
+      ]
+    },
+    {
+      "benchmark": "future_await_race",
+      "source": "/home/david/sync/projects/benchmarks/future-await-race/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0037,
+      "validation": "verified",
+      "stdout_sha256": [
+        "33297798eeb96d6d471a6afe97ec8a8bf09eda0ce30e13917aed1db40fb930e4"
+      ]
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "source": "/home/david/sync/projects/benchmarks/await-channel-mux/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0046,
+      "validation": "verified",
+      "stdout_sha256": [
+        "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693"
+      ]
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "source": "/home/david/sync/projects/benchmarks/mutex-ledger/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0042,
+      "validation": "verified",
+      "stdout_sha256": [
+        "58f2e2fda882a7c1e5032a2f34c4d9d05f40ced51199c0be0672ecc4d4cf14e4"
+      ]
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "source": "/home/david/sync/projects/benchmarks/mutex-await-journal/go-1.26/app.go",
+      "requested_runs": 3,
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.004,
+      "validation": "verified",
+      "stdout_sha256": [
+        "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e"
+      ]
+    }
+  ]
+}

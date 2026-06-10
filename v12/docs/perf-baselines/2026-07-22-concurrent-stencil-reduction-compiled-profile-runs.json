@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-07-23T05:01:24.384870Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stencil_reduction/concurrent_stencil_reduction.able",
+  "run_from": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction",
+  "runs": 3,
+  "timeout_seconds": 60,
+  "build_timeout_seconds": 60,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [
+    "samples.txt"
+  ],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": "0-3",
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.2267,
+      "avg_user_seconds": 0.3633,
+      "avg_sys_seconds": 0.0633,
+      "avg_gc": 6.33,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.27,
+          "user_seconds": 0.37,
+          "sys_seconds": 0.06,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.21,
+          "user_seconds": 0.37,
+          "sys_seconds": 0.07,
+          "gc_count": 7.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.2,
+          "user_seconds": 0.35,
+          "sys_seconds": 0.06,
+          "gc_count": 6.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/verify.rb",
+        "verified_runs": 3,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+        ]
+      }
+    }
+  ]
+}

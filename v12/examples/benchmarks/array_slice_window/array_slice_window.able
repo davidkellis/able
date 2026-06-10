@@ -1,0 +1,63 @@
+package array_slice_window
+
+import able.collections.array.*
+import able.core.errors.{IndexError}
+
+## A portable rolling-batch checksum. Each batch must be an independent Array
+## copy, so later work cannot mutate the source event sequence through a view.
+
+VALUE_COUNT: i32 := 257
+WINDOW_WIDTH: i32 := 24
+WINDOW_ROUNDS: i32 := 12_000
+
+fn seed_values() -> Array i32 {
+  values: Array i32 := Array.with_capacity(VALUE_COUNT)
+  index := 0
+  loop {
+    if index >= VALUE_COUNT { break }
+    values.push((index * 37 + 137) % 251)
+    index = index + 1
+  }
+  values
+}
+
+fn copy_probe(values: Array i32) -> i64 {
+  values.slice(0_u64, 2_u64) match {
+    case batch: Array i32 => {
+      batch.write_slot(0, 999)
+      ((values.read_slot(0) as i64) * 1000_i64) + (batch.read_slot(0) as i64)
+    },
+    case err: IndexError => { raise err }
+  }
+}
+
+fn rolling_checksum(values: Array i32) -> i64 {
+  starts := values.len() - WINDOW_WIDTH + 1
+  checksum: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= WINDOW_ROUNDS { break }
+    start := ((round * 29 + 7) % starts) as u64
+    end := start + (WINDOW_WIDTH as u64)
+    values.slice(start, end) match {
+      case batch: Array i32 => {
+        weighted: i64 = 0_i64
+        index := 0
+        loop {
+          if index >= batch.len() { break }
+          weighted = weighted + (batch.read_slot(index) as i64) * ((index as i64) + 3_i64)
+          index = index + 1
+        }
+        checksum = checksum + weighted * ((round % 13) as i64 + 1_i64)
+      },
+      case err: IndexError => { raise err }
+    }
+    round = round + 1
+  }
+  checksum
+}
+
+fn main() -> void {
+  values := seed_values()
+  print(`${copy_probe(values)}:${rolling_checksum(values)}`)
+}

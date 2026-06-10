@@ -15,6 +15,7 @@ type namedImplNamespaceInfo struct {
 	InterfaceName string
 	TargetType    ast.TypeExpression
 	TargetKey     string
+	IsPrivate     bool
 	Invalid       bool
 	Methods       []*implMethodInfo
 }
@@ -78,6 +79,7 @@ func (g *generator) namedImplNamespacesByPackage() map[string][]*namedImplNamesp
 				InterfaceName: impl.InterfaceName,
 				TargetType:    impl.TargetType,
 				TargetKey:     typeExpressionToString(impl.TargetType),
+				IsPrivate:     impl.Info.Definition != nil && impl.Info.Definition.IsPrivate,
 				Invalid:       false,
 				Methods:       make([]*implMethodInfo, 0, 4),
 			}
@@ -407,8 +409,8 @@ func (g *generator) renderNamedImplNamespaceSeeds(buf *bytes.Buffer, pkgEnvVar s
 			fmt.Fprintf(buf, "\t\t}\n")
 			fmt.Fprintf(buf, "\t\t%s[%q] = %s\n", methodsVar, group.MethodName, methodVar)
 		}
-		fmt.Fprintf(buf, "\t\t%s.Define(%q, runtime.ImplementationNamespaceValue{Name: ast.NewIdentifier(%q), InterfaceName: ast.NewIdentifier(%q), TargetType: %s, Methods: %s})\n",
-			pkgEnvVar, info.Name, info.Name, info.InterfaceName, targetExpr, methodsVar)
+		fmt.Fprintf(buf, "\t\t%s.Define(%q, runtime.ImplementationNamespaceValue{Name: ast.NewIdentifier(%q), InterfaceName: ast.NewIdentifier(%q), TargetType: %s, Methods: %s, IsPrivate: %t})\n",
+			pkgEnvVar, info.Name, info.Name, info.InterfaceName, targetExpr, methodsVar, info.IsPrivate)
 		fmt.Fprintf(buf, "\t}\n")
 	}
 }

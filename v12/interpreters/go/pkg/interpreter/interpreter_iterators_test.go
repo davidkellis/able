@@ -2,10 +2,86 @@ package interpreter
 
 import (
 	"testing"
+	"time"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
+
+func TestIteratorCloseStopsGeneratorAndRunsEnsure(t *testing.T) {
+	module := mustParseModuleSource(t, `
+package iterator_close_ensure
+
+touched := 0
+iter := Iterator i32 { gen =>
+  do {
+    gen.yield(1)
+    touched = 99
+  } ensure {
+    touched = touched + 10
+  }
+}
+`)
+	interp := New()
+	_, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("evaluate module: %v", err)
+	}
+	value, err := env.Get("iter")
+	if err != nil {
+		t.Fatalf("lookup iterator: %v", err)
+	}
+	iter, ok := value.(*runtime.IteratorValue)
+	if !ok {
+		t.Fatalf("iterator type = %T, want *runtime.IteratorValue", value)
+	}
+	first, done, err := iter.Next()
+	if err != nil || done || !valuesEqual(first, runtime.NewSmallInt(1, runtime.IntegerI32)) {
+		t.Fatalf("first iterator value = (%#v, done=%t, err=%v), want (1, false, nil)", first, done, err)
+	}
+
+	iter.Close()
+	if _, done, err := iter.Next(); err != nil || !done {
+		t.Fatalf("next after close = (done=%t, err=%v), want (true, nil)", done, err)
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		touched, err := env.Get("touched")
+		if err != nil {
+			t.Fatalf("lookup touched: %v", err)
+		}
+		if valuesEqual(touched, runtime.NewSmallInt(10, runtime.IntegerI32)) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("ensure did not finish after close; touched=%#v", touched)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func TestIteratorControllerNativeMethodsBorrowArgs(t *testing.T) {
+	interp := New()
+	g := newGeneratorInstance(interp, interp.GlobalEnvironment(), nil)
+	controller, ok := g.controllerValue().(*runtime.StructInstanceValue)
+	if !ok {
+		t.Fatalf("controller type = %T, want *runtime.StructInstanceValue", g.controllerValue())
+	}
+	for _, name := range []string{"yield", "close", "stop"} {
+		field, ok := structNamedFieldValue(controller, name)
+		if !ok {
+			t.Fatalf("controller missing %s", name)
+		}
+		fn, ok := field.(runtime.NativeBoundMethodValue)
+		if !ok {
+			t.Fatalf("controller.%s type = %T, want runtime.NativeBoundMethodValue", name, field)
+		}
+		if !fn.Method.BorrowArgs {
+			t.Fatalf("controller.%s should borrow call args", name)
+		}
+	}
+}
 
 func TestIteratorLiteralIsLazy(t *testing.T) {
 	interp := New()
@@ -362,6 +438,54 @@ func TestIteratorMatchExpressionWithinGenerator(t *testing.T) {
 	}
 	if got := mustGetInt(t, env, "guard_calls"); got != 1 {
 		t.Fatalf("expected guard evaluated once, got %d", got)
+	}
+}
+
+func TestIteratorDefaultInterfaceMethodDispatch(t *testing.T) {
+	module := ast.Mod([]ast.Statement{
+		ast.Iface(
+			"Iterator",
+			[]*ast.FunctionSignature{
+				ast.FnSig(
+					"next",
+					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+					nil,
+					nil,
+					nil,
+					nil,
+				),
+				ast.FnSig(
+					"ready",
+					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+					ast.Ty("bool"),
+					nil,
+					nil,
+					ast.Block(ast.Ret(ast.Bool(true))),
+				),
+			},
+			nil,
+			nil,
+			nil,
+			nil,
+			false,
+		),
+		ast.Assign(
+			ast.ID("iter"),
+			ast.IteratorLit(
+				ast.Yield(ast.Int(1)),
+			),
+		),
+		ast.CallExpr(ast.Member(ast.ID("iter"), "ready")),
+	}, nil, nil)
+
+	want := mustEvalModule(t, New(), module)
+	got := runBytecodeModule(t, module)
+	if !valuesEqual(got, want) {
+		t.Fatalf("bytecode iterator default method mismatch: got=%#v want=%#v", got, want)
+	}
+	boolVal, ok := got.(runtime.BoolValue)
+	if !ok || !boolVal.Val {
+		t.Fatalf("expected iterator default method to return true, got %#v", got)
 	}
 }
 

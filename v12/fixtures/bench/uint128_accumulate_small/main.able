@@ -1,0 +1,24 @@
+package bench_uint128_accumulate_small
+
+import able.kernel.{Array}
+import able.numbers.uint128.{UInt128}
+
+fn deltas() -> Array u64 {
+  [3_u64, 10_u64, 17_u64, 24_u64, 31_u64, 38_u64, 45_u64, 52_u64, 59_u64, 66_u64, 73_u64, 80_u64, 87_u64, 94_u64]
+}
+
+fn main() -> void {
+  acc := UInt128.zero()
+  mult := UInt128.from_u64(13_u64)
+  step := UInt128.from_u64(7_u64)
+  modulus := UInt128.from_u64(1_000_000_007_u64)
+  steps := deltas()
+  i := 0
+  loop {
+    if i >= 200_000 { break }
+    delta := UInt128.from_u64(steps[i % steps.len()]!)
+    acc = acc.add(delta).mul(mult).add(step).rem(modulus)
+    i = i + 1
+  }
+  print(acc.to_u64()!)
+}

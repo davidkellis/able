@@ -99,6 +99,42 @@ func TestParseWildcardImport(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseSourceReexports(t *testing.T) {
+	source := `import able.kernel.{Array};
+export Array;
+export * from able.collections.array;
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+	expected := ast.NewModuleWithExports(
+		[]ast.Statement{},
+		[]*ast.ImportStatement{
+			ast.NewImportStatement(
+				[]*ast.Identifier{ast.ID("able"), ast.ID("kernel")},
+				false,
+				[]*ast.ImportSelector{ast.NewImportSelector(ast.ID("Array"), nil)},
+				nil,
+			),
+		},
+		[]*ast.ExportStatement{
+			ast.NewExportStatement(ast.ID("Array"), nil, false),
+			ast.NewExportStatement(nil, []*ast.Identifier{ast.ID("able"), ast.ID("collections"), ast.ID("array")}, true),
+		},
+		nil,
+	)
+
+	assertModulesEqual(t, expected, mod)
+}
+
 func TestParseImportAlias(t *testing.T) {
 	source := `import util.io::io_util;
 `
@@ -205,7 +241,7 @@ func TestParseModuleImports(t *testing.T) {
 	}
 	defer p.Close()
 
-source := []byte(`package sample;
+	source := []byte(`package sample;
 
 import alpha.beta.{Foo, Bar::B};
 import gamma.delta.*;

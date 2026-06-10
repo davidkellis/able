@@ -1,0 +1,413 @@
+{
+  "generated_at": "2026-07-23T04:55:27.757991Z",
+  "suite": "custom",
+  "benchmarks": [
+    "concurrent_stencil_reduction"
+  ],
+  "modes": [
+    "compiled",
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go",
+    "ruby",
+    "python"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-interpreter-reference.json",
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-go-reference.json",
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "concurrent_stencil_reduction",
+        "mode": "compiled",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.214,
+        "avg_user_seconds": 0.234,
+        "avg_sys_seconds": 0.038,
+        "avg_gc": 3.2,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 0.28,
+            "user_seconds": 0.21,
+            "sys_seconds": 0.04,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 0.2,
+            "user_seconds": 0.21,
+            "sys_seconds": 0.04,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 0.19,
+            "user_seconds": 0.21,
+            "sys_seconds": 0.03,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 0.18,
+            "user_seconds": 0.18,
+            "sys_seconds": 0.03,
+            "gc_count": 3.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 0.22,
+            "user_seconds": 0.36,
+            "sys_seconds": 0.05,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stencil_reduction/concurrent_stencil_reduction.able",
+          "sha256": "db33fbbe0624cda3958b64f1fb51a07e950a023ca480b3469f1b09215f22501a"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 4,
+          "cpu_affinity": "0,1,2,3",
+          "executor_policy": "goroutine"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      },
+      "benchmark_contract": {
+        "input_files": [
+          {
+            "argument": "samples.txt",
+            "path": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/samples.txt",
+            "sha256": "6f5bdbc0b457472a8fd1445ad65791b70ca2ec07a19efd0f09e75f1e406729fd"
+          }
+        ],
+        "program_args": [
+          "samples.txt"
+        ],
+        "provenance": "measured",
+        "sha256": "34ab4dc67fbcd9d4923f465e255542e700ad08f923a05af034f459da0d0680c3",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/verify.rb",
+          "sha256": "0c32e339994eaa93eec1ac74d1af754a08aced1d36047bac38aa558cdd42427d"
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0051,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 41.96078431372548,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/go-1.26/app.go",
+            "sha256": "ac0b3b8210a6c956b2fd4b97bdd0e477a6063dfc451e62d05efc72b82107cc20",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.005217667,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.004955635,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.004676974,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.005541082,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.004925552,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            }
+          ],
+          "execution_contract": {
+            "mode": "compiled",
+            "logical_cpu_budget": 4,
+            "cpu_affinity": "0,1,2,3",
+            "executor_policy": "goroutine"
+          }
+        }
+      }
+    },
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "concurrent_stencil_reduction",
+        "mode": "bytecode",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.862,
+        "avg_user_seconds": 1.794,
+        "avg_sys_seconds": 0.054,
+        "avg_gc": 8.0,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 1.73,
+            "user_seconds": 1.67,
+            "sys_seconds": 0.05,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 1.94,
+            "user_seconds": 1.87,
+            "sys_seconds": 0.05,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 1.75,
+            "user_seconds": 1.69,
+            "sys_seconds": 0.05,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 1.94,
+            "user_seconds": 1.87,
+            "sys_seconds": 0.06,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 1.95,
+            "user_seconds": 1.87,
+            "sys_seconds": 0.06,
+            "gc_count": 8.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_stencil_reduction/concurrent_stencil_reduction.able",
+          "sha256": "db33fbbe0624cda3958b64f1fb51a07e950a023ca480b3469f1b09215f22501a"
+        },
+        "execution_contract": {
+          "mode": "bytecode",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "goroutine"
+        }
+      },
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "goroutine"
+      },
+      "benchmark_contract": {
+        "input_files": [
+          {
+            "argument": "samples.txt",
+            "path": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/samples.txt",
+            "sha256": "6f5bdbc0b457472a8fd1445ad65791b70ca2ec07a19efd0f09e75f1e406729fd"
+          }
+        ],
+        "program_args": [
+          "samples.txt"
+        ],
+        "provenance": "measured",
+        "sha256": "34ab4dc67fbcd9d4923f465e255542e700ad08f923a05af034f459da0d0680c3",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/verify.rb",
+          "sha256": "0c32e339994eaa93eec1ac74d1af754a08aced1d36047bac38aa558cdd42427d"
+        }
+      },
+      "comparisons": {
+        "ruby": {
+          "reference_real_seconds": 0.124,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 15.016129032258066,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/ruby-4.0/run.rb",
+            "sha256": "ea14ad82fa5c6026c70a3edf369f4b945d87a926a019f478a0f024c7fd4eb9ec",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.123039216,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.137240771,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.115360358,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.113332929,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.131271099,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "goroutine"
+          }
+        },
+        "python": {
+          "reference_real_seconds": 0.0963,
+          "reference_implementation": "python-3.14",
+          "ratio": 19.335410176531674,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/concurrent-stencil-reduction/python-3.14/run.py",
+            "sha256": "d2d4a770e1993dab7f02e3848e21e421cf4a2b682333debf361e8702e43be893",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.081685985,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.093573231,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.093518714,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.121444489,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.091088806,
+              "stdout_sha256": "42870ec44f0b8a860e066ec155ce13e2916bbff632d74a5c87704f7f81fa4a3b"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "goroutine"
+          }
+        }
+      }
+    }
+  ]
+}

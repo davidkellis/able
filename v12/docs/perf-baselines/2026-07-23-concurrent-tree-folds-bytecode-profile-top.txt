@@ -1,0 +1,30 @@
+File: interpreter.test
+Build ID: c62550f30c94d35a6be7735a4f061281f0754c0a
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_tree_folds/bytecode_runtime_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_tree_folds/bytecode_runtime_merged.cpu.pprof
+Duration: 514.63ms, Total samples = 580ms (112.70%)
+
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      540ms 93.10%  able/interpreter-go/pkg/interpreter.(*GoroutineExecutor).runTask
+         0     0%     0%      540ms 93.10%  able/interpreter-go/pkg/interpreter.(*Interpreter).runAsyncBytecodeProgram
+      20ms  3.45%  3.45%      540ms 93.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+      10ms  1.72%  5.17%      160ms 27.59%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0%  5.17%      130ms 22.41%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMember
+      20ms  3.45%  8.62%      100ms 17.24%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineResolvedCallFromStack
+      20ms  3.45% 12.07%       90ms 15.52%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+         0     0% 12.07%       80ms 13.79%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedResolvedMemberCall
+         0     0% 12.07%       70ms 12.07%  runtime.mallocgc
+      70ms 12.07% 24.14%       70ms 12.07%  sync/atomic.(*Int32).Add
+      20ms  3.45% 29.31%       50ms  8.62%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishInlineReturn
+         0     0% 29.31%       50ms  8.62%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).lookupCachedMemberMethodEntry
+         0     0% 36.21%       40ms  6.90%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodLexicalState
+
+The dispatch trace records 65,899 calls. The dominant calls already use
+generic fast paths: 12,448 `is_leaf` inline calls, 8,192 Array `len` calls,
+16,376 Array `push` calls, 12,448 inline `signature` calls, and 8,184 inline
+`combine` calls after four cold generic interface resolutions.
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_tree_folds/bytecode_runtime_merged.cpu.pprof

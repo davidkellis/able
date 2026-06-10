@@ -1,0 +1,483 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Refresh the complete current application scorecard in bounded groups. The
+# grouping makes each verifier-backed source report durable on its own.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PERF_DIR="$SCRIPT_DIR/docs/perf-baselines"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+runs=5
+status_runs=1
+timeout_seconds=90
+cpu_affinity="${ABLE_BENCH_CPU_AFFINITY:-}"
+tag="$(date -u +%Y-%m-%d-full-scorecard-%H%M%SZ)"
+output_dir="$PERF_DIR"
+keep_tmp=false
+dry_run=false
+require_quiet_cpu=false
+promote_current=true
+stdlib_root="${ABLE_STDLIB_ROOT:-$SCRIPT_DIR/../../able-stdlib}"
+selection_manifest="${ABLE_BENCH_SELECTION_MANIFEST:-$SCRIPT_DIR/bench-selection-manifest.json}"
+
+generality_csv="$(bench_external_suite_csv generality)"
+async_csv="channel_rollup,future_pipeline,future_await_race,await_channel_mux,mutex_ledger,mutex_await_journal,mutex_work_queue"
+coverage_extra_csv="backup_dedup,fixed_width_128,rational_series,wide_integer_records,binary_event_log,word_frequency,document_audit,lexical_rollup,regex_suffix_audit,regex_set_audit,regex_stream_audit,log_routing_redaction,config_validation_extraction,array_slice_window,dependency_plan,discrete_event_simulation,inventory_reconciliation,option_result_config,unicode_scalar_pipeline,concurrent_text_index,validated_job_pipeline,dependency_wave_validation,concurrent_event_routing,concurrent_document_pipeline,manifest_normalization,policy_record_dispatch,sensor_calibration,concurrent_stencil_reduction,concurrent_signal_dispatch,concurrent_transform_chain,concurrent_policy_callbacks,concurrent_graph_visitors,concurrent_audio_voices,concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,concurrent_state_machines,concurrent_stateful_pipeline"
+generality_groups=(
+  "fib,binarytrees,matrixmultiply"
+  "quicksort,sudoku_masks"
+  "i_before_e,base64,json"
+  "monte_carlo_pi,pidigits,mandelbrot"
+  "reverse_complement,k_nucleotide,fasta_generation"
+  "nbody,tapelang_alphabet"
+  "distance_field,rms_norm"
+)
+async_groups=(
+  "channel_rollup,future_pipeline,future_await_race"
+  "await_channel_mux,mutex_ledger,mutex_await_journal,mutex_work_queue"
+)
+coverage_extra_groups=(
+  "backup_dedup,fixed_width_128,rational_series,wide_integer_records,binary_event_log,word_frequency"
+  "document_audit,lexical_rollup,regex_suffix_audit"
+  "regex_set_audit,regex_stream_audit,log_routing_redaction,array_slice_window"
+  "dependency_plan,discrete_event_simulation,inventory_reconciliation,option_result_config,unicode_scalar_pipeline"
+  "config_validation_extraction"
+  "concurrent_text_index,validated_job_pipeline,dependency_wave_validation,concurrent_event_routing,concurrent_document_pipeline,manifest_normalization,policy_record_dispatch,sensor_calibration,concurrent_stencil_reduction,concurrent_signal_dispatch,concurrent_transform_chain,concurrent_policy_callbacks,concurrent_graph_visitors,concurrent_audio_voices,concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,concurrent_state_machines,concurrent_stateful_pipeline"
+)
+
+usage() {
+  cat <<'EOF'
+Usage: v12/bench_refresh_external_scorecard [options]
+
+Refresh the complete portable verifier-backed scorecard in bounded groups: 18
+generality applications, seven standalone async applications, and thirty-eight additional
+portable coverage applications in compiled and bytecode modes. It rebuilds
+fresh Go/Python/Ruby references, preserves every source scorecard, writes a
+dated aggregate, and promotes the same explicit source cohort to the checked-in
+current scoreboard. Reviewed strict-selection rows receive the requested five
+timed processes; excluded full-status rows receive one fresh bounded probe.
+It also records the canonical stdlib `src/**/*.able` source state before the
+timed launches, including whether that checkout is dirty.
+
+Options:
+  -r, --runs N              Timed processes per strict-selection row (default:
+                            5; promotion requires exactly five). Excluded
+                            full-status rows always receive one probe.
+  -t, --timeout SEC         Per-process execution cap (default: 90)
+      --cpu-affinity CPUSET CPU pool from which each row's catalog budget is
+                            resolved (default: current allowed CPUs)
+      --require-quiet-cpu  Require the first resolved serial CPU to pass the
+                           host preflight before measuring
+      --tag NAME            Output filename prefix (default: UTC timestamp)
+      --output-dir DIR      Report directory (default: v12/docs/perf-baselines)
+      --selection-manifest PATH
+                            Reviewed mode-aware strict-variance row manifest
+                            (default: v12/bench-selection-manifest.json)
+      --keep                Retain temporary benchmark workspaces in v12/tmp
+      --no-promote          Keep external-scoreboard-current.* unchanged; use
+                            dated artifacts for a candidate cohort comparison
+      --dry-run             Print commands without running them
+  -h, --help                Show this help
+
+The refresh inherits GOMEMLIMIT and GOGC if set. Otherwise it uses the standard
+memory guard: 1 GiB and GOGC=50. Each runner sets GOMAXPROCS from the row's
+catalog logical-CPU budget. Its five-run default
+uses independent verifier-backed processes and records their average for every
+strict-selection row. The one-run excluded-row probes preserve current full
+status without treating those rows as variance evidence. Pass an explicit lower
+--runs value only with --no-promote for a non-selection smoke check.
+EOF
+}
+
+die() {
+  echo "bench_refresh_external_scorecard: $*" >&2
+  exit 1
+}
+
+is_positive_int() {
+  [[ "$1" =~ ^[0-9]+$ ]] && ((10#$1 > 0))
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -r|--runs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --runs"
+      runs="$1"
+      ;;
+    -t|--timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    --cpu-affinity)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --cpu-affinity"
+      cpu_affinity="$1"
+      ;;
+    --cpu-affinity=*)
+      cpu_affinity="${1#*=}"
+      ;;
+    --require-quiet-cpu)
+      require_quiet_cpu=true
+      ;;
+    --tag)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --tag"
+      tag="$1"
+      ;;
+    --output-dir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-dir"
+      output_dir="$1"
+      ;;
+    --selection-manifest)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --selection-manifest"
+      selection_manifest="$1"
+      ;;
+    --keep)
+      keep_tmp=true
+      ;;
+    --no-promote)
+      promote_current=false
+      ;;
+    --dry-run)
+      dry_run=true
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+is_positive_int "$runs" || die "--runs must be a positive integer"
+is_positive_int "$timeout_seconds" || die "--timeout must be a positive integer"
+if [[ "$promote_current" == true ]] && ((10#$runs != 5)); then
+  die "--runs must be exactly 5 when promoting; use --no-promote for a smoke check"
+fi
+[[ "$tag" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "--tag contains unsupported characters"
+if [[ "$require_quiet_cpu" == true ]]; then
+  quiet_pool="$(bench_external_effective_cpu_pool "$cpu_affinity")" || die "cannot resolve benchmark CPU pool"
+  quiet_cpu="$(bench_external_resolve_cpu_affinity "$quiet_pool" 1)" || die "cannot resolve quiet-check CPU"
+  if [[ "$dry_run" == true ]]; then
+    printf '+ %q --cpu %q\n' "$SCRIPT_DIR/bench_host_cpu_check" "$quiet_cpu"
+  else
+    "$SCRIPT_DIR/bench_host_cpu_check" --cpu "$quiet_cpu"
+  fi
+fi
+
+output_dir="$(realpath -m "$output_dir")"
+selection_manifest="$(realpath -m "$selection_manifest")"
+tmp_root="$SCRIPT_DIR/tmp/scorecard-refresh-$tag"
+if [[ "$dry_run" == false ]]; then
+  mkdir -p "$output_dir" "$tmp_root"
+fi
+
+env_guard=(
+  "GOMEMLIMIT=${GOMEMLIMIT:-1GiB}"
+  "GOGC=${GOGC:-50}"
+)
+affinity_args=()
+if [[ -n "$cpu_affinity" ]]; then
+  affinity_args=(--cpu-affinity "$cpu_affinity")
+fi
+keep_args=()
+if [[ "$keep_tmp" == true ]]; then
+  keep_args=(--keep)
+fi
+
+run() {
+  if [[ "$dry_run" == true ]]; then
+    printf '+ '
+    printf '%q ' "$@"
+    printf '\n'
+    return
+  fi
+  "$@"
+}
+
+output_json() {
+  printf '%s/%s-%s.json\n' "$output_dir" "$tag" "$1"
+}
+
+output_md() {
+  printf '%s/%s-%s.md\n' "$output_dir" "$tag" "$1"
+}
+
+ensure_absent() {
+  local path
+  for path in "$@"; do
+    [[ ! -e "$path" ]] || die "refusing to overwrite existing report: $path"
+  done
+}
+
+sources=()
+add_source() {
+  sources+=("$1")
+}
+
+csv_set() {
+  tr ',' '\n' <<<"$1" | sed '/^$/d' | sort -u
+}
+
+csv_partition() {
+  local candidates_csv="$1"
+  local selected_mode_csv="$2"
+  local want_selected="$3"
+  local candidate is_selected
+  local result=()
+  IFS=',' read -r -a candidates <<< "$candidates_csv"
+  for candidate in "${candidates[@]}"; do
+    [[ -n "$candidate" ]] || continue
+    is_selected=false
+    if [[ ",$selected_mode_csv," == *",$candidate,"* ]]; then
+      is_selected=true
+    fi
+    if [[ "$is_selected" == "$want_selected" ]]; then
+      result+=("$candidate")
+    fi
+  done
+  local IFS=','
+  printf '%s\n' "${result[*]}"
+}
+
+coverage_csv="$(bench_external_suite_csv coverage)"
+selected_csv="$generality_csv,$async_csv,$coverage_extra_csv"
+if [[ "$(csv_set "$selected_csv")" != "$(csv_set "$coverage_csv")" ]]; then
+  die "generality, async, and coverage-extra groups must partition the coverage catalog"
+fi
+
+# This query also validates the complete manifest. Preserve catalog/group order
+# below rather than relying on the manifest's canonical alphabetical order.
+selected_compiled_csv="$(
+  "$SCRIPT_DIR/bench_selection_manifest_check" \
+    --manifest "$selection_manifest" --print-selected compiled
+)"
+selected_bytecode_csv="$(
+  "$SCRIPT_DIR/bench_selection_manifest_check" \
+    --manifest "$selection_manifest" --print-selected bytecode
+)"
+if [[ "$(csv_set "$selected_compiled_csv")" != "$(csv_set "$coverage_csv")" ]]; then
+  die "compiled strict selection must equal the coverage catalog"
+fi
+
+general_selected_bytecode_csv="$(csv_partition "$generality_csv" "$selected_bytecode_csv" true)"
+general_status_bytecode_csv="$(csv_partition "$generality_csv" "$selected_bytecode_csv" false)"
+async_selected_bytecode_csv="$(csv_partition "$async_csv" "$selected_bytecode_csv" true)"
+async_status_bytecode_csv="$(csv_partition "$async_csv" "$selected_bytecode_csv" false)"
+coverage_extra_selected_bytecode_csv="$(csv_partition "$coverage_extra_csv" "$selected_bytecode_csv" true)"
+coverage_extra_status_bytecode_csv="$(csv_partition "$coverage_extra_csv" "$selected_bytecode_csv" false)"
+coverage_count="$(csv_set "$coverage_csv" | wc -l)"
+selected_row_count=$((
+  $(csv_set "$selected_compiled_csv" | wc -l) +
+  $(csv_set "$selected_bytecode_csv" | wc -l)
+))
+full_status_row_count=$((coverage_count * 2))
+status_row_count=$((full_status_row_count - selected_row_count))
+printf '>>> Collection policy: %d strict rows at %d run(s); %d excluded full-status rows at %d probe.\n' \
+  "$selected_row_count" "$runs" "$status_row_count" "$status_runs"
+
+go_general_json="$(output_json generality-go-reference)"
+go_general_md="$(output_md generality-go-reference)"
+interp_general_selected_json="$(output_json generality-interpreter-reference-selected)"
+interp_general_selected_md="$(output_md generality-interpreter-reference-selected)"
+interp_general_status_json="$(output_json generality-interpreter-reference-status)"
+interp_general_status_md="$(output_md generality-interpreter-reference-status)"
+go_async_json="$(output_json async-go-reference)"
+go_async_md="$(output_md async-go-reference)"
+interp_async_selected_json="$(output_json async-interpreter-reference-selected)"
+interp_async_selected_md="$(output_md async-interpreter-reference-selected)"
+interp_async_status_json="$(output_json async-interpreter-reference-status)"
+interp_async_status_md="$(output_md async-interpreter-reference-status)"
+go_coverage_extra_json="$(output_json coverage-extra-go-reference)"
+go_coverage_extra_md="$(output_md coverage-extra-go-reference)"
+interp_coverage_extra_selected_json="$(output_json coverage-extra-interpreter-reference-selected)"
+interp_coverage_extra_selected_md="$(output_md coverage-extra-interpreter-reference-selected)"
+interp_coverage_extra_status_json="$(output_json coverage-extra-interpreter-reference-status)"
+interp_coverage_extra_status_md="$(output_md coverage-extra-interpreter-reference-status)"
+aggregate_json="$(output_json refresh)"
+aggregate_md="$(output_md refresh)"
+stdlib_state_json="$(output_json stdlib-source-state)"
+
+ensure_absent \
+  "$go_general_json" "$go_general_md" \
+  "$interp_general_selected_json" "$interp_general_selected_md" \
+  "$interp_general_status_json" "$interp_general_status_md" \
+  "$go_async_json" "$go_async_md" \
+  "$interp_async_selected_json" "$interp_async_selected_md" \
+  "$interp_async_status_json" "$interp_async_status_md" \
+  "$go_coverage_extra_json" "$go_coverage_extra_md" \
+  "$interp_coverage_extra_selected_json" "$interp_coverage_extra_selected_md" \
+  "$interp_coverage_extra_status_json" "$interp_coverage_extra_status_md" \
+  "$aggregate_json" "$aggregate_md" "$stdlib_state_json"
+
+run "$SCRIPT_DIR/bench_selection_manifest_check" --manifest "$selection_manifest"
+
+run "$SCRIPT_DIR/bench_stdlib_source_state" \
+  --root "$stdlib_root" --output "$stdlib_state_json"
+
+run env "${env_guard[@]}" "$SCRIPT_DIR/bench_refresh_go_refs" \
+  -b "$generality_csv" -r "$runs" -t "$timeout_seconds" "${affinity_args[@]}" \
+  --output-json "$go_general_json" --output-md "$go_general_md" \
+  --workdir "$tmp_root/generality-go-reference" "${keep_args[@]}"
+run env "${env_guard[@]}" "$SCRIPT_DIR/bench_refresh_go_refs" \
+  -b "$async_csv" -r "$runs" -t "$timeout_seconds" "${affinity_args[@]}" \
+  --output-json "$go_async_json" --output-md "$go_async_md" \
+  --workdir "$tmp_root/async-go-reference" "${keep_args[@]}"
+run env "${env_guard[@]}" "$SCRIPT_DIR/bench_refresh_go_refs" \
+  -b "$coverage_extra_csv" -r "$runs" -t "$timeout_seconds" "${affinity_args[@]}" \
+  --output-json "$go_coverage_extra_json" --output-md "$go_coverage_extra_md" \
+  --workdir "$tmp_root/coverage-extra-go-reference" "${keep_args[@]}"
+
+run_interpreter_reference_partition() {
+  local lane="$1"
+  local partition="$2"
+  local benchmarks_csv="$3"
+  local sample_runs="$4"
+  local output_json_path="$5"
+  local output_md_path="$6"
+  if [[ -z "$benchmarks_csv" ]]; then
+    return 0
+  fi
+  run env "${env_guard[@]}" "$SCRIPT_DIR/bench_refresh_interpreter_refs" \
+    -b "$benchmarks_csv" -r "$sample_runs" -t "$timeout_seconds" "${affinity_args[@]}" \
+    --output-json "$output_json_path" --output-md "$output_md_path" \
+    --workdir "$tmp_root/$lane-interpreter-reference-$partition" "${keep_args[@]}"
+}
+
+run_interpreter_reference_partition \
+  generality selected "$general_selected_bytecode_csv" "$runs" \
+  "$interp_general_selected_json" "$interp_general_selected_md"
+run_interpreter_reference_partition \
+  generality status "$general_status_bytecode_csv" "$status_runs" \
+  "$interp_general_status_json" "$interp_general_status_md"
+run_interpreter_reference_partition \
+  async selected "$async_selected_bytecode_csv" "$runs" \
+  "$interp_async_selected_json" "$interp_async_selected_md"
+run_interpreter_reference_partition \
+  async status "$async_status_bytecode_csv" "$status_runs" \
+  "$interp_async_status_json" "$interp_async_status_md"
+run_interpreter_reference_partition \
+  coverage-extra selected "$coverage_extra_selected_bytecode_csv" "$runs" \
+  "$interp_coverage_extra_selected_json" "$interp_coverage_extra_selected_md"
+run_interpreter_reference_partition \
+  coverage-extra status "$coverage_extra_status_bytecode_csv" "$status_runs" \
+  "$interp_coverage_extra_status_json" "$interp_coverage_extra_status_md"
+
+run_group_partition() {
+  local lane="$1"
+  local mode="$2"
+  local languages="$3"
+  local reference_flag="$4"
+  local reference_json="$5"
+  local index="$6"
+  local partition="$7"
+  local group="$8"
+  local sample_runs="$9"
+  if [[ -z "$group" ]]; then
+    return 0
+  fi
+  local label json md
+  printf -v label '%s-%s-%02d-%s' "$lane" "$mode" "$index" "$partition"
+  json="$(output_json "$label")"
+  md="$(output_md "$label")"
+  ensure_absent "$json" "$md"
+  run env "${env_guard[@]}" "$SCRIPT_DIR/bench_compare_external" \
+    -b "$group" --modes "$mode" --languages "$languages" -r "$sample_runs" -t "$timeout_seconds" \
+    "${affinity_args[@]}" "$reference_flag" "$reference_json" \
+    --output-json "$json" --output-md "$md" \
+    --workdir "$tmp_root/$label" "${keep_args[@]}"
+  add_source "$json"
+}
+
+run_groups() {
+  local lane="$1"
+  local mode="$2"
+  local languages="$3"
+  local reference_flag="$4"
+  local selected_reference_json="$5"
+  local status_reference_json="$6"
+  local -n groups="$7"
+  local selected_mode_csv
+  case "$mode" in
+    compiled) selected_mode_csv="$selected_compiled_csv" ;;
+    bytecode) selected_mode_csv="$selected_bytecode_csv" ;;
+    *) die "unsupported scorecard mode partition: $mode" ;;
+  esac
+  local index=0 group selected_group status_group
+  for group in "${groups[@]}"; do
+    index=$((index + 1))
+    selected_group="$(csv_partition "$group" "$selected_mode_csv" true)"
+    status_group="$(csv_partition "$group" "$selected_mode_csv" false)"
+    run_group_partition \
+      "$lane" "$mode" "$languages" "$reference_flag" "$selected_reference_json" \
+      "$index" selected "$selected_group" "$runs"
+    if [[ -n "$status_group" && -z "$status_reference_json" ]]; then
+      die "$lane/$mode group $index has excluded rows but no status reference report"
+    fi
+    run_group_partition \
+      "$lane" "$mode" "$languages" "$reference_flag" "$status_reference_json" \
+      "$index" status "$status_group" "$status_runs"
+  done
+}
+
+run_groups generality compiled go --go-reference-json \
+  "$go_general_json" "" generality_groups
+run_groups generality bytecode python,ruby --reference-json \
+  "$interp_general_selected_json" "$interp_general_status_json" generality_groups
+run_groups async compiled go --go-reference-json \
+  "$go_async_json" "" async_groups
+run_groups async bytecode python,ruby --reference-json \
+  "$interp_async_selected_json" "$interp_async_status_json" async_groups
+run_groups coverage-extra compiled go --go-reference-json \
+  "$go_coverage_extra_json" "" coverage_extra_groups
+run_groups coverage-extra bytecode python,ruby --reference-json \
+  "$interp_coverage_extra_selected_json" "$interp_coverage_extra_status_json" coverage_extra_groups
+
+scoreboard_args=(
+  "$SCRIPT_DIR/bench_external_scoreboard"
+  --stdlib-source-state "$stdlib_state_json"
+  --selection-manifest "$selection_manifest"
+)
+for source in "${sources[@]}"; do
+  scoreboard_args+=(--input "$source")
+done
+scoreboard_args+=(--output-json "$aggregate_json" --output-md "$aggregate_md")
+run "${scoreboard_args[@]}"
+
+run python3 "$SCRIPT_DIR/bench_scorecard_evidence_check.py" \
+  --scorecard "$aggregate_json" \
+  --selection-manifest "$selection_manifest" \
+  --require-runs "$runs"
+
+if [[ "$promote_current" == true ]]; then
+  current_scoreboard_args=(
+    "$SCRIPT_DIR/bench_external_scoreboard"
+    --stdlib-source-state "$stdlib_state_json"
+    --selection-manifest "$selection_manifest"
+  )
+  for source in "${sources[@]}"; do
+    current_scoreboard_args+=(--input "$source")
+  done
+  current_scoreboard_args+=(--write-current)
+  run "${current_scoreboard_args[@]}"
+else
+  printf '>>> Left current scoreboard unchanged; dated cohort is: %s\n' "$aggregate_json"
+fi
+
+if [[ "$dry_run" == false && "$keep_tmp" == false ]]; then
+  rmdir "$tmp_root" 2>/dev/null || true
+fi
+
+printf '>>> Wrote scorecard JSON: %s\n' "$aggregate_json"
+printf '>>> Wrote scorecard Markdown: %s\n' "$aggregate_md"

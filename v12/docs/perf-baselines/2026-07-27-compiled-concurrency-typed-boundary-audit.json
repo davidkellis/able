@@ -1,0 +1,387 @@
+{
+  "generated_at": "2026-07-28T03:23:03.665693Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "await_channel_mux",
+    "mutex_await_journal",
+    "mutex_work_queue"
+  ],
+  "timeout_seconds": 120,
+  "telemetry_build": true,
+  "telemetry_mode": "typed-boundary",
+  "rows": [
+    {
+      "benchmark": "await_channel_mux",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "categories": {
+          "any_to_runtime": 0,
+          "array_from_runtime": 0,
+          "array_to_runtime": 1024,
+          "callable_from_runtime": 0,
+          "callable_to_runtime": 2560,
+          "control_from_error": 10756,
+          "control_to_error": 2560,
+          "integer_from_runtime": 3074,
+          "interface_from_runtime": 4096,
+          "interface_lift_via_runtime": 0,
+          "interface_to_runtime": 2560,
+          "struct_from_runtime": 0,
+          "struct_to_runtime": 0,
+          "union_from_runtime": 1536,
+          "union_to_runtime": 0
+        },
+        "shapes": [
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "error",
+            "category": "control_from_error",
+            "count": 10756,
+            "generated_function": "__able_control_from_error_with_node",
+            "id": 0,
+            "immediate_consumer": "*__ableControl",
+            "reason": "preserve Able raise and runtime-error control semantics"
+          },
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "*__ableControl",
+            "category": "control_to_error",
+            "count": 2560,
+            "generated_function": "__able_control_to_error",
+            "id": 1,
+            "immediate_consumer": "error",
+            "reason": "preserve Able raise across a runtime-callable ABI"
+          },
+          {
+            "able_source": "<compiler-runtime>::channel-handle",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 3072,
+            "generated_function": "__able_int64_from_value",
+            "id": 3,
+            "immediate_consumer": "int64 channel handle",
+            "reason": "recover an opaque channel-service handle at its runtime ABI"
+          },
+          {
+            "able_source": "<compiler-runtime>::channel-capacity",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 2,
+            "generated_function": "__able_int64_from_value",
+            "id": 4,
+            "immediate_consumer": "int64 channel capacity",
+            "reason": "validate channel capacity at the runtime channel-construction ABI"
+          },
+          {
+            "able_source": "core::Array<__able_iface_Awaitable_i64>",
+            "carrier": "*__able_array_iface_Awaitable_i64",
+            "category": "array_to_runtime",
+            "count": 1024,
+            "generated_function": "__able_array_iface_Awaitable_i64_to",
+            "id": 102,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a static primitive Array for runtime-visible semantics"
+          },
+          {
+            "able_source": "able.concurrency::Future<i64>",
+            "carrier": "runtime.Value",
+            "category": "interface_from_runtime",
+            "count": 1536,
+            "generated_function": "__able_iface_Future_i64_try_from_value",
+            "id": 103,
+            "immediate_consumer": "__able_iface_Future_i64",
+            "reason": "recover a native interface after semantic conformance matching"
+          },
+          {
+            "able_source": "able.kernel::Awaitable<i64>",
+            "carrier": "runtime.Value",
+            "category": "interface_from_runtime",
+            "count": 2560,
+            "generated_function": "__able_iface_Awaitable_i64_try_from_value",
+            "id": 121,
+            "immediate_consumer": "__able_iface_Awaitable_i64",
+            "reason": "recover a native interface after semantic conformance matching"
+          },
+          {
+            "able_source": "able.kernel::Awaitable<i64>",
+            "carrier": "__able_iface_Awaitable_i64",
+            "category": "interface_to_runtime",
+            "count": 2560,
+            "generated_function": "__able_iface_Awaitable_i64_to_runtime_value",
+            "id": 122,
+            "immediate_consumer": "runtime.Value",
+            "reason": "expose an interface value through its semantic runtime adapter"
+          },
+          {
+            "able_source": "able.concurrency::Error | i64",
+            "carrier": "runtime.Value",
+            "category": "union_from_runtime",
+            "count": 1536,
+            "generated_function": "__able_union_int64_or_runtime_ErrorValue_try_from_value",
+            "id": 135,
+            "immediate_consumer": "__able_union_int64_or_runtime_ErrorValue",
+            "reason": "recover a statically represented union with runtime type matching"
+          },
+          {
+            "able_source": "able.kernel::fn(i64?) -> i64",
+            "carrier": "__able_fn__int64_to_int64",
+            "category": "callable_to_runtime",
+            "count": 2048,
+            "generated_function": "__able_fn__int64_to_int64_to_runtime_value",
+            "id": 138,
+            "immediate_consumer": "runtime.Value",
+            "reason": "expose a static native callable through the runtime callable ABI"
+          },
+          {
+            "able_source": "able.concurrency::fn() -> i64",
+            "carrier": "__able_fn_void_to_int64",
+            "category": "callable_to_runtime",
+            "count": 512,
+            "generated_function": "__able_fn_void_to_int64_to_runtime_value",
+            "id": 140,
+            "immediate_consumer": "runtime.Value",
+            "reason": "expose a static native callable through the runtime callable ABI"
+          }
+        ]
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "categories": {
+          "any_to_runtime": 0,
+          "array_from_runtime": 0,
+          "array_to_runtime": 2048,
+          "callable_from_runtime": 0,
+          "callable_to_runtime": 2048,
+          "control_from_error": 12294,
+          "control_to_error": 5300,
+          "integer_from_runtime": 6144,
+          "interface_from_runtime": 2048,
+          "interface_lift_via_runtime": 0,
+          "interface_to_runtime": 2048,
+          "struct_from_runtime": 0,
+          "struct_to_runtime": 0,
+          "union_from_runtime": 0,
+          "union_to_runtime": 0
+        },
+        "shapes": [
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "error",
+            "category": "control_from_error",
+            "count": 12294,
+            "generated_function": "__able_control_from_error_with_node",
+            "id": 0,
+            "immediate_consumer": "*__ableControl",
+            "reason": "preserve Able raise and runtime-error control semantics"
+          },
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "*__ableControl",
+            "category": "control_to_error",
+            "count": 5300,
+            "generated_function": "__able_control_to_error",
+            "id": 1,
+            "immediate_consumer": "error",
+            "reason": "preserve Able raise across a runtime-callable ABI"
+          },
+          {
+            "able_source": "<compiler-runtime>::mutex-handle",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 6144,
+            "generated_function": "__able_int64_from_value",
+            "id": 5,
+            "immediate_consumer": "int64 mutex handle",
+            "reason": "recover an opaque mutex-service handle at its runtime ABI"
+          },
+          {
+            "able_source": "core::Array<__able_iface_Awaitable_i64>",
+            "carrier": "*__able_array_iface_Awaitable_i64",
+            "category": "array_to_runtime",
+            "count": 2048,
+            "generated_function": "__able_array_iface_Awaitable_i64_to",
+            "id": 68,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a static primitive Array for runtime-visible semantics"
+          },
+          {
+            "able_source": "able.kernel::Awaitable<i64>",
+            "carrier": "runtime.Value",
+            "category": "interface_from_runtime",
+            "count": 2048,
+            "generated_function": "__able_iface_Awaitable_i64_try_from_value",
+            "id": 71,
+            "immediate_consumer": "__able_iface_Awaitable_i64",
+            "reason": "recover a native interface after semantic conformance matching"
+          },
+          {
+            "able_source": "able.kernel::Awaitable<i64>",
+            "carrier": "__able_iface_Awaitable_i64",
+            "category": "interface_to_runtime",
+            "count": 2048,
+            "generated_function": "__able_iface_Awaitable_i64_to_runtime_value",
+            "id": 72,
+            "immediate_consumer": "runtime.Value",
+            "reason": "expose an interface value through its semantic runtime adapter"
+          },
+          {
+            "able_source": "able.kernel::fn() -> i64",
+            "carrier": "__able_fn_void_to_int64",
+            "category": "callable_to_runtime",
+            "count": 2048,
+            "generated_function": "__able_fn_void_to_int64_to_runtime_value",
+            "id": 78,
+            "immediate_consumer": "runtime.Value",
+            "reason": "expose a static native callable through the runtime callable ABI"
+          }
+        ]
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "categories": {
+          "any_to_runtime": 0,
+          "array_from_runtime": 0,
+          "array_to_runtime": 4096,
+          "callable_from_runtime": 0,
+          "callable_to_runtime": 4096,
+          "control_from_error": 32782,
+          "control_to_error": 11861,
+          "integer_from_runtime": 20488,
+          "interface_from_runtime": 4100,
+          "interface_lift_via_runtime": 0,
+          "interface_to_runtime": 4096,
+          "struct_from_runtime": 0,
+          "struct_to_runtime": 0,
+          "union_from_runtime": 4,
+          "union_to_runtime": 0
+        },
+        "shapes": [
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "error",
+            "category": "control_from_error",
+            "count": 32782,
+            "generated_function": "__able_control_from_error_with_node",
+            "id": 0,
+            "immediate_consumer": "*__ableControl",
+            "reason": "preserve Able raise and runtime-error control semantics"
+          },
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "*__ableControl",
+            "category": "control_to_error",
+            "count": 11861,
+            "generated_function": "__able_control_to_error",
+            "id": 1,
+            "immediate_consumer": "error",
+            "reason": "preserve Able raise across a runtime-callable ABI"
+          },
+          {
+            "able_source": "<compiler-runtime>::mutex-handle",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 20488,
+            "generated_function": "__able_int64_from_value",
+            "id": 5,
+            "immediate_consumer": "int64 mutex handle",
+            "reason": "recover an opaque mutex-service handle at its runtime ABI"
+          },
+          {
+            "able_source": "core::Array<__able_iface_Awaitable_i64>",
+            "carrier": "*__able_array_iface_Awaitable_i64",
+            "category": "array_to_runtime",
+            "count": 4096,
+            "generated_function": "__able_array_iface_Awaitable_i64_to",
+            "id": 100,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a static primitive Array for runtime-visible semantics"
+          },
+          {
+            "able_source": "able.concurrency::Future<i64>",
+            "carrier": "runtime.Value",
+            "category": "interface_from_runtime",
+            "count": 4,
+            "generated_function": "__able_iface_Future_i64_try_from_value",
+            "id": 101,
+            "immediate_consumer": "__able_iface_Future_i64",
+            "reason": "recover a native interface after semantic conformance matching"
+          },
+          {
+            "able_source": "able.kernel::Awaitable<i64>",
+            "carrier": "runtime.Value",
+            "category": "interface_from_runtime",
+            "count": 4096,
+            "generated_function": "__able_iface_Awaitable_i64_try_from_value",
+            "id": 115,
+            "immediate_consumer": "__able_iface_Awaitable_i64",
+            "reason": "recover a native interface after semantic conformance matching"
+          },
+          {
+            "able_source": "able.kernel::Awaitable<i64>",
+            "carrier": "__able_iface_Awaitable_i64",
+            "category": "interface_to_runtime",
+            "count": 4096,
+            "generated_function": "__able_iface_Awaitable_i64_to_runtime_value",
+            "id": 116,
+            "immediate_consumer": "runtime.Value",
+            "reason": "expose an interface value through its semantic runtime adapter"
+          },
+          {
+            "able_source": "able.concurrency::Error | i64",
+            "carrier": "runtime.Value",
+            "category": "union_from_runtime",
+            "count": 4,
+            "generated_function": "__able_union_int64_or_runtime_ErrorValue_try_from_value",
+            "id": 127,
+            "immediate_consumer": "__able_union_int64_or_runtime_ErrorValue",
+            "reason": "recover a statically represented union with runtime type matching"
+          },
+          {
+            "able_source": "mutex_work_queue.mutex_work_queue::fn() -> i64",
+            "carrier": "__able_fn_void_to_int64",
+            "category": "callable_to_runtime",
+            "count": 4096,
+            "generated_function": "__able_fn_void_to_int64_to_runtime_value",
+            "id": 130,
+            "immediate_consumer": "runtime.Value",
+            "reason": "expose a static native callable through the runtime callable ABI"
+          }
+        ]
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "any_to_runtime": 0,
+    "integer_from_runtime": 29706,
+    "array_from_runtime": 0,
+    "array_to_runtime": 7168,
+    "struct_from_runtime": 0,
+    "struct_to_runtime": 0,
+    "union_from_runtime": 1540,
+    "union_to_runtime": 0,
+    "interface_from_runtime": 10244,
+    "interface_to_runtime": 8704,
+    "callable_from_runtime": 0,
+    "callable_to_runtime": 8704,
+    "control_from_error": 55832,
+    "control_to_error": 19721
+  }
+}

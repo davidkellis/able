@@ -1,0 +1,755 @@
+#!/usr/bin/env python3
+"""Build and evaluate the checked performance-evidence closure ledger."""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import fnmatch
+import hashlib
+import json
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_FRONTIER_EVIDENCE = SCRIPT_DIR / "bench-performance-frontier-evidence.json"
+DEFAULT_FRONTIER = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json"
+)
+DEFAULT_EXTRAS = SCRIPT_DIR / "bench-performance-closure-extras.json"
+DEFAULT_LEDGER = SCRIPT_DIR / "bench-performance-closure-ledger.json"
+DEFAULT_REPORT_JSON = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-21-performance-evidence-invalidation-ledger.json"
+)
+DEFAULT_REPORT_MARKDOWN = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-21-performance-evidence-invalidation-ledger.md"
+)
+
+
+SCOPE_DEFINITIONS = [
+    {
+        "id": "v12-spec",
+        "root": "spec",
+        "include": ["full_spec_v12.md"],
+        "exclude": [],
+    },
+    {
+        "id": "compiler-production",
+        "root": "v12/interpreters/go/pkg/compiler",
+        "include": ["*.go", "**/*.go"],
+        "exclude": ["*_test.go", "**/*_test.go"],
+    },
+    {
+        "id": "bytecode-production",
+        "root": "v12/interpreters/go/pkg/interpreter",
+        "include": ["bytecode*.go", "interpreter_bytecode*.go"],
+        "exclude": ["*_test.go"],
+    },
+    {
+        "id": "shared-interpreter-semantics",
+        "root": "v12/interpreters/go/pkg/interpreter",
+        "include": ["*.go"],
+        "exclude": [
+            "*_test.go",
+            "*_wasm.go",
+            "bytecode*.go",
+            "fixture*.go",
+            "fixtures*.go",
+            "interpreter_bytecode*.go",
+        ],
+    },
+    {
+        "id": "runtime-production",
+        "root": "v12/interpreters/go/pkg/runtime",
+        "include": ["*.go", "**/*.go"],
+        "exclude": ["*_test.go", "**/*_test.go"],
+    },
+    {
+        "id": "canonical-stdlib",
+        "root": "../able-stdlib/src",
+        "include": ["*.able", "**/*.able"],
+        "exclude": [],
+    },
+]
+
+
+def load(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be an object")
+    return value
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    return sha256_bytes(path.read_bytes())
+
+
+def canonical_sha(value: Any) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return sha256_bytes(payload)
+
+
+def display_path(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path.resolve())
+
+
+def matches(relative: str, patterns: list[str]) -> bool:
+    return any(fnmatch.fnmatch(relative, pattern) for pattern in patterns)
+
+
+def hash_scope(
+    definition: dict[str, Any], root_override: Path | None = None
+) -> dict[str, Any]:
+    root_value = definition.get("root")
+    include = definition.get("include")
+    exclude = definition.get("exclude")
+    if not isinstance(root_value, str) or not isinstance(include, list) or not include:
+        raise ValueError(f"scope {definition.get('id')} has invalid root/include")
+    if not isinstance(exclude, list):
+        raise ValueError(f"scope {definition.get('id')} has invalid exclude")
+    root = root_override or (REPO_ROOT / root_value).resolve()
+    if not root.is_dir():
+        raise ValueError(f"scope root not found: {root}")
+    records: list[tuple[str, str]] = []
+    for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
+        relative = path.relative_to(root).as_posix()
+        if matches(relative, include) and not matches(relative, exclude):
+            records.append((relative, sha256_file(path)))
+    if not records:
+        raise ValueError(f"scope {definition.get('id')} matched no files")
+    payload = "".join(f"{relative}\0{digest}\n" for relative, digest in records)
+    return {
+        "id": definition["id"],
+        "root": display_path(root),
+        "include": include,
+        "exclude": exclude,
+        "file_count": len(records),
+        "tree_sha256": sha256_bytes(payload.encode()),
+    }
+
+
+def current_scopes(
+    definitions: list[dict[str, Any]], overrides: dict[str, Path] | None = None
+) -> dict[str, dict[str, Any]]:
+    overrides = overrides or {}
+    result: dict[str, dict[str, Any]] = {}
+    for definition in definitions:
+        identifier = definition.get("id")
+        if not isinstance(identifier, str) or not identifier or identifier in result:
+            raise ValueError("scope definitions need unique ids")
+        result[identifier] = hash_scope(definition, overrides.get(identifier))
+    return result
+
+
+def scope_ids_for_modes(modes: list[str]) -> list[str]:
+    result = {
+        "v12-spec",
+        "runtime-production",
+        "shared-interpreter-semantics",
+        "canonical-stdlib",
+    }
+    if "compiled" in modes:
+        result.add("compiler-production")
+    if "bytecode" in modes:
+        result.add("bytecode-production")
+    return sorted(result)
+
+
+def validate_frontier_evidence(value: dict[str, Any]) -> list[dict[str, Any]]:
+    if value.get("kind") != "able-performance-frontier-evidence":
+        raise ValueError("invalid frontier evidence kind")
+    if value.get("schema_version") != 1:
+        raise ValueError("frontier evidence schema_version must be 1")
+    groups = value.get("groups")
+    if not isinstance(groups, list) or not groups:
+        raise ValueError("frontier evidence needs groups")
+    ids: set[str] = set()
+    for group in groups:
+        identifier = group.get("id") if isinstance(group, dict) else None
+        if not isinstance(identifier, str) or not identifier or identifier in ids:
+            raise ValueError("frontier evidence needs unique group ids")
+        ids.add(identifier)
+    return groups
+
+
+def validate_frontier(value: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if value.get("kind") != "able-performance-frontier":
+        raise ValueError("invalid frontier kind")
+    if value.get("schema_version") != 2:
+        raise ValueError("frontier schema_version must be 2")
+    rows = value.get("rows")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("frontier needs rows")
+    sources = value.get("sources")
+    if not isinstance(sources, dict):
+        raise ValueError("frontier needs sources")
+    return rows, sources
+
+
+def validate_extras(value: dict[str, Any]) -> list[dict[str, Any]]:
+    if value.get("kind") != "able-performance-closure-extras":
+        raise ValueError("invalid closure extras kind")
+    if value.get("schema_version") != 1:
+        raise ValueError("closure extras schema_version must be 1")
+    closures = value.get("closures")
+    if not isinstance(closures, list):
+        raise ValueError("closure extras needs closures")
+    return closures
+
+
+def row_semantics(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "benchmark": row.get("benchmark"),
+        "mode": row.get("mode"),
+        "target_status": row.get("target_status"),
+        "stability_classification": row.get("stability_classification"),
+        "established_guard_status": row.get("established_guard_status"),
+        "able_source": row.get("able_source"),
+    }
+
+
+def rows_by_group(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    result: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        group = row.get("group") if isinstance(row, dict) else None
+        if not isinstance(group, str) or not group:
+            raise ValueError("frontier row needs group")
+        result.setdefault(group, []).append(row)
+    return result
+
+
+def sources_for_rows(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
+    records: dict[str, str] = {}
+    for row in rows:
+        source = row.get("able_source")
+        path = source.get("path") if isinstance(source, dict) else None
+        expected = source.get("sha256") if isinstance(source, dict) else None
+        if not isinstance(path, str) or not isinstance(expected, str):
+            raise ValueError("frontier row needs Able source path and sha256")
+        if path in records and records[path] != expected:
+            raise ValueError(f"frontier source identity conflicts for {path}")
+        records[path] = expected
+    return [{"path": path, "sha256": records[path]} for path in sorted(records)]
+
+
+def evidence_records(paths: Any, label: str) -> list[dict[str, str]]:
+    if not isinstance(paths, list) or not paths:
+        raise ValueError(f"{label} needs evidence paths")
+    result: list[dict[str, str]] = []
+    for raw_path in paths:
+        if not isinstance(raw_path, str) or not raw_path:
+            raise ValueError(f"{label} has invalid evidence path")
+        path = (REPO_ROOT / raw_path).resolve()
+        if not path.is_file():
+            raise ValueError(f"{label} evidence not found: {raw_path}")
+        result.append({"path": raw_path, "sha256": sha256_file(path)})
+    return result
+
+
+def rows_for_benchmarks(
+    rows: list[dict[str, Any]], benchmarks: Any, modes: list[str]
+) -> list[dict[str, Any]]:
+    if not isinstance(benchmarks, list):
+        raise ValueError("extra closure benchmarks must be a list")
+    selected = [
+        row
+        for row in rows
+        if row.get("benchmark") in benchmarks and row.get("mode") in modes
+    ]
+    found = {row.get("benchmark") for row in selected}
+    missing = sorted(set(benchmarks) - found)
+    if missing:
+        raise ValueError("extra closure benchmarks missing from frontier: " + ", ".join(missing))
+    return selected
+
+
+def definition_for_frontier_group(group: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: group.get(key)
+        for key in (
+            "id",
+            "rows",
+            "profile_freshness",
+            "artifact_identity",
+            "disposition",
+            "exact_leaf_breadth",
+            "owner",
+            "rationale",
+            "evidence",
+        )
+    }
+
+
+def definition_for_extra(extra: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: extra.get(key)
+        for key in (
+            "id",
+            "modes",
+            "disposition",
+            "owner",
+            "rationale",
+            "benchmarks",
+            "evidence",
+        )
+    }
+
+
+def build_baseline(
+    frontier_evidence: dict[str, Any],
+    frontier: dict[str, Any],
+    extras: dict[str, Any],
+    frontier_evidence_path: Path = DEFAULT_FRONTIER_EVIDENCE,
+    frontier_path: Path = DEFAULT_FRONTIER,
+    extras_path: Path = DEFAULT_EXTRAS,
+    overrides: dict[str, Path] | None = None,
+) -> dict[str, Any]:
+    groups = validate_frontier_evidence(frontier_evidence)
+    rows, frontier_sources = validate_frontier(frontier)
+    extra_closures = validate_extras(extras)
+    grouped_rows = rows_by_group(rows)
+    scopes = current_scopes(SCOPE_DEFINITIONS, overrides)
+    closures: list[dict[str, Any]] = []
+    ids: set[str] = set()
+
+    for group in groups:
+        identifier = group["id"]
+        if identifier in ids or identifier not in grouped_rows:
+            raise ValueError(f"frontier group {identifier} is duplicate or has no rows")
+        ids.add(identifier)
+        group_rows = grouped_rows[identifier]
+        modes = sorted({str(row["mode"]) for row in group_rows})
+        closures.append(
+            {
+                "id": identifier,
+                "origin": "frontier",
+                "modes": modes,
+                "disposition": group["disposition"],
+                "definition_sha256": canonical_sha(definition_for_frontier_group(group)),
+                "row_semantics_sha256": canonical_sha(
+                    sorted((row_semantics(row) for row in group_rows), key=lambda item: (item["benchmark"], item["mode"]))
+                ),
+                "scope_ids": scope_ids_for_modes(modes),
+                "evidence": evidence_records(group.get("evidence"), identifier),
+                "benchmark_sources": sources_for_rows(group_rows),
+            }
+        )
+
+    for extra in extra_closures:
+        identifier = extra.get("id") if isinstance(extra, dict) else None
+        if not isinstance(identifier, str) or not identifier or identifier in ids:
+            raise ValueError("extra closures need unique ids")
+        ids.add(identifier)
+        modes = extra.get("modes")
+        if not isinstance(modes, list) or not modes or any(
+            mode not in {"compiled", "bytecode"} for mode in modes
+        ):
+            raise ValueError(f"extra closure {identifier} has invalid modes")
+        selected_rows = rows_for_benchmarks(rows, extra.get("benchmarks"), modes)
+        closures.append(
+            {
+                "id": identifier,
+                "origin": "extra",
+                "modes": sorted(set(modes)),
+                "disposition": extra.get("disposition"),
+                "definition_sha256": canonical_sha(definition_for_extra(extra)),
+                "row_semantics_sha256": canonical_sha(
+                    sorted((row_semantics(row) for row in selected_rows), key=lambda item: (item["benchmark"], item["mode"]))
+                ),
+                "scope_ids": scope_ids_for_modes(modes),
+                "evidence": evidence_records(extra.get("evidence"), identifier),
+                "benchmark_sources": sources_for_rows(selected_rows),
+            }
+        )
+
+    return {
+        "kind": "able-performance-closure-ledger",
+        "schema_version": 1,
+        "selection_sha256": frontier_sources.get("selection_manifest", {}).get("selection_sha256"),
+        "inputs": {
+            "frontier_evidence": {
+                "path": display_path(frontier_evidence_path),
+                "sha256": sha256_file(frontier_evidence_path),
+            },
+            "frontier": {
+                "path": display_path(frontier_path),
+                "sha256": sha256_file(frontier_path),
+            },
+            "extras": {
+                "path": display_path(extras_path),
+                "sha256": sha256_file(extras_path),
+            },
+        },
+        "scopes": [scopes[key] for key in sorted(scopes)],
+        "closures": sorted(closures, key=lambda item: item["id"]),
+    }
+
+
+def records_map(records: Any, label: str) -> dict[str, str]:
+    if not isinstance(records, list):
+        raise ValueError(f"{label} must be a list")
+    result: dict[str, str] = {}
+    for record in records:
+        path = record.get("path") if isinstance(record, dict) else None
+        digest = record.get("sha256") if isinstance(record, dict) else None
+        if not isinstance(path, str) or not isinstance(digest, str) or path in result:
+            raise ValueError(f"{label} has invalid records")
+        result[path] = digest
+    return result
+
+
+def compare_records(
+    expected: Any, current: Any, reason_prefix: str
+) -> list[str]:
+    expected_map = records_map(expected, reason_prefix + " expected")
+    current_map = records_map(current, reason_prefix + " current")
+    reasons: list[str] = []
+    for path in sorted(set(expected_map) | set(current_map)):
+        if path not in expected_map or path not in current_map:
+            reasons.append(f"{reason_prefix}-path-set-drift:{path}")
+        elif expected_map[path] != current_map[path]:
+            reasons.append(f"{reason_prefix}-content-drift:{path}")
+        else:
+            resolved = (REPO_ROOT / path).resolve()
+            if not resolved.is_file() or sha256_file(resolved) != expected_map[path]:
+                reasons.append(f"{reason_prefix}-source-drift:{path}")
+    return reasons
+
+
+def evaluate(
+    ledger: dict[str, Any], current: dict[str, Any]
+) -> dict[str, Any]:
+    if ledger.get("kind") != "able-performance-closure-ledger" or ledger.get("schema_version") != 1:
+        raise ValueError("invalid closure ledger")
+    expected_scopes = {scope["id"]: scope for scope in ledger.get("scopes", [])}
+    current_scopes_by_id = {scope["id"]: scope for scope in current.get("scopes", [])}
+    current_closures = {closure["id"]: closure for closure in current.get("closures", [])}
+    expected_closures = ledger.get("closures")
+    if not isinstance(expected_closures, list):
+        raise ValueError("closure ledger needs closures")
+    rows: list[dict[str, Any]] = []
+
+    for expected in expected_closures:
+        identifier = expected.get("id") if isinstance(expected, dict) else None
+        if not isinstance(identifier, str) or not identifier:
+            raise ValueError("closure ledger has invalid closure")
+        reasons: list[str] = []
+        candidate = current_closures.get(identifier)
+        if candidate is None:
+            reasons.append("closure-definition-removed")
+        else:
+            if expected.get("definition_sha256") != candidate.get("definition_sha256"):
+                reasons.append("closure-definition-drift")
+            if expected.get("row_semantics_sha256") != candidate.get("row_semantics_sha256"):
+                reasons.append("frontier-row-semantics-drift")
+            if set(expected.get("scope_ids", [])) != set(candidate.get("scope_ids", [])):
+                reasons.append("scope-membership-drift")
+            reasons.extend(compare_records(expected.get("evidence"), candidate.get("evidence"), "evidence"))
+            reasons.extend(
+                compare_records(
+                    expected.get("benchmark_sources"),
+                    candidate.get("benchmark_sources"),
+                    "benchmark",
+                )
+            )
+        for scope_id in expected.get("scope_ids", []):
+            expected_scope = expected_scopes.get(scope_id)
+            current_scope = current_scopes_by_id.get(scope_id)
+            if expected_scope is None or current_scope is None:
+                reasons.append(f"scope-definition-drift:{scope_id}")
+            elif (
+                expected_scope.get("root") != current_scope.get("root")
+                or expected_scope.get("include") != current_scope.get("include")
+                or expected_scope.get("exclude") != current_scope.get("exclude")
+            ):
+                reasons.append(f"scope-definition-drift:{scope_id}")
+            elif expected_scope.get("tree_sha256") != current_scope.get("tree_sha256"):
+                reasons.append(f"scope-content-drift:{scope_id}")
+        rows.append(
+            {
+                "id": identifier,
+                "origin": expected.get("origin"),
+                "modes": expected.get("modes"),
+                "disposition": expected.get("disposition"),
+                "status": "invalidated" if reasons else "current",
+                "reasons": sorted(set(reasons)),
+            }
+        )
+
+    extra_current = sorted(set(current_closures) - {row["id"] for row in rows})
+    for identifier in extra_current:
+        candidate = current_closures[identifier]
+        rows.append(
+            {
+                "id": identifier,
+                "origin": candidate.get("origin"),
+                "modes": candidate.get("modes"),
+                "disposition": candidate.get("disposition"),
+                "status": "invalidated",
+                "reasons": ["new-unreviewed-closure"],
+            }
+        )
+
+    invalidated = [row for row in rows if row["status"] == "invalidated"]
+    reason_counts = Counter(reason for row in invalidated for reason in row["reasons"])
+    by_mode = {
+        mode: sorted(row["id"] for row in invalidated if mode in (row.get("modes") or []))
+        for mode in ("compiled", "bytecode")
+    }
+    return {
+        "kind": "able-performance-evidence-invalidation-report",
+        "schema_version": 1,
+        "closures": sorted(rows, key=lambda item: item["id"]),
+        "summary": {
+            "decision": "invalidated-closures-selected" if invalidated else "no-invalidated-closure",
+            "closure_count": len(rows),
+            "current_count": len(rows) - len(invalidated),
+            "invalidated_count": len(invalidated),
+            "selected_closures": sorted(row["id"] for row in invalidated),
+            "selected_by_mode": by_mode,
+            "reason_counts": dict(sorted(reason_counts.items())),
+        },
+        "recommendation": (
+            "Refresh only the selected closures before considering a candidate."
+            if invalidated
+            else "Do not rerun a closed performance tranche; no checked evidence identity is invalidated."
+        ),
+    }
+
+
+def advance_closures(
+    ledger: dict[str, Any], current: dict[str, Any], identifiers: list[str]
+) -> dict[str, Any]:
+    """Advance only named closure snapshots without masking shared scope drift."""
+    if ledger.get("kind") != "able-performance-closure-ledger" or ledger.get("schema_version") != 1:
+        raise ValueError("invalid closure ledger")
+    requested = set(identifiers)
+    if not requested or len(requested) != len(identifiers):
+        raise ValueError("closure advances need unique closure ids")
+    expected_closures = {
+        closure.get("id"): closure for closure in ledger.get("closures", [])
+        if isinstance(closure, dict)
+    }
+    current_closures = {
+        closure.get("id"): closure for closure in current.get("closures", [])
+        if isinstance(closure, dict)
+    }
+    unknown = sorted(requested - set(expected_closures))
+    missing = sorted(requested - set(current_closures))
+    if unknown:
+        raise ValueError("closure advance ids are not in the ledger: " + ", ".join(unknown))
+    if missing:
+        raise ValueError("closure advance ids are not current: " + ", ".join(missing))
+
+    result = copy.deepcopy(ledger)
+    result["selection_sha256"] = current.get("selection_sha256")
+    result["inputs"] = copy.deepcopy(current.get("inputs"))
+    result_scopes = {scope["id"]: scope for scope in result.get("scopes", [])}
+    current_scopes_by_id = {scope["id"]: scope for scope in current.get("scopes", [])}
+    required_scope_ids = {
+        scope_id
+        for identifier in requested
+        for scope_id in current_closures[identifier].get("scope_ids", [])
+    }
+    for scope_id in sorted(required_scope_ids):
+        current_scope = current_scopes_by_id.get(scope_id)
+        if current_scope is None:
+            raise ValueError(f"closure advance scope is not current: {scope_id}")
+        expected_scope = result_scopes.get(scope_id)
+        if expected_scope is not None and expected_scope != current_scope:
+            raise ValueError(
+                "closure advance would mask shared scope drift: " + scope_id
+            )
+        if expected_scope is None:
+            result["scopes"].append(copy.deepcopy(current_scope))
+            result_scopes[scope_id] = current_scope
+    result["scopes"] = sorted(result["scopes"], key=lambda item: item["id"])
+    result["closures"] = sorted(
+        [
+            copy.deepcopy(current_closures[closure["id"]])
+            if closure["id"] in requested
+            else closure
+            for closure in result["closures"]
+        ],
+        key=lambda item: item["id"],
+    )
+    return result
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    if summary["invalidated_count"]:
+        selected = ", ".join(f"`{item}`" for item in summary["selected_closures"])
+        next_recommendation = [
+            f"Use this selector as the gate for the next performance tranche. It currently selects {summary['invalidated_count']} closures: {selected}.",
+            "",
+            "Why: relevant production or evidence identities changed after those closures were measured, so their prior performance dispositions are no longer sufficient evidence for the current runtime.",
+            "",
+            "What it entails: refresh only the named closures with verifier-backed repeated processes and arithmetic means, update their evidence records and closure baseline, then reapply the three-unlike-family candidate gate. Do not infer that an invalidated closure already contains an eligible optimization.",
+        ]
+    else:
+        next_recommendation = [
+            "Use this selector as the gate for future performance work. Because it currently selects nothing, do not start another optimization or profiling tranche until a checked source, semantic, stdlib, benchmark, or scorecard trigger invalidates at least one closure.",
+            "",
+            f"Why: all {summary['closure_count']} closures are current. Repeating a closed profile or candidate would measure unchanged evidence, while broad aggregate labels have already failed to identify one general mechanism.",
+            "",
+            "What it entails: keep `just bench-evidence-ledger-check` green during ordinary work. After an intentional production/spec/stdlib/benchmark change, run the selector, refresh only the closures it names with repeated verifier-backed arithmetic means, update their evidence hashes, and then reconsider candidate admission. If no trigger occurs, work on correctness or specified language/stdlib completeness rather than manufacturing a benchmark optimization.",
+        ]
+    lines = [
+        "# Performance evidence invalidation ledger",
+        "",
+        "## Decision",
+        "",
+        f"**{summary['decision']}**.",
+        "",
+        report["recommendation"],
+        "",
+        f"The ledger contains {summary['closure_count']} closures: {summary['current_count']} current and {summary['invalidated_count']} invalidated.",
+        "",
+        "## Closure selector",
+        "",
+        "| Closure | Modes | Origin | Disposition | Status | Reasons |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for closure in report["closures"]:
+        reasons = ", ".join(closure["reasons"]) or "—"
+        lines.append(
+            f"| `{closure['id']}` | {', '.join(closure['modes'])} | {closure['origin']} | "
+            f"`{closure['disposition']}` | **{closure['status']}** | {reasons} |"
+        )
+    lines += [
+        "",
+        "## Contract",
+        "",
+        "A frontier closure is invalidated by a changed group definition, changed target/guard classification, changed evidence path or content, changed benchmark source, or changed relevant production scope. Extra architecture closures use the same evidence, benchmark, and scope checks without pretending to own frontier rows.",
+        "",
+        "Production scopes cover the v12 spec, compiler, bytecode VM, shared runtime, and canonical external stdlib. Go tests, caches, generated artifacts, and unrelated documentation are excluded. Compiler changes invalidate compiled closures, bytecode VM changes invalidate bytecode closures, while shared semantic/runtime/stdlib changes invalidate both.",
+        "",
+        "`--advance-closure ID` replaces only a named, freshly reviewed closure snapshot. It may add a newly tracked scope, but it refuses to advance when an existing required scope has drifted because replacing that global scope snapshot could falsely validate other closures that share it.",
+        "",
+        "The selector does not run benchmarks. An invalidated closure authorizes a bounded evidence refresh, not an implementation candidate. Candidate admission still requires one concrete material mechanism in at least three unlike verifier-backed applications and the established guard gate.",
+        "",
+        "## Next recommendation",
+        "",
+        *next_recommendation,
+        "",
+        "## Reproduction",
+        "",
+        "```sh",
+        "python3 v12/bench_performance_evidence_ledger_test.py",
+        "v12/bench_performance_evidence_ledger \\",
+        "  --json-out v12/docs/perf-baselines/2026-07-21-performance-evidence-invalidation-ledger.json \\",
+        "  --markdown-out v12/docs/perf-baselines/2026-07-21-performance-evidence-invalidation-ledger.md",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def parse_overrides(values: list[str]) -> dict[str, Path]:
+    result: dict[str, Path] = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError("scope overrides use id=path")
+        identifier, raw_path = value.split("=", 1)
+        if not identifier or not raw_path or identifier in result:
+            raise ValueError("scope overrides need unique id=path values")
+        result[identifier] = Path(raw_path).resolve()
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--frontier-evidence", type=Path, default=DEFAULT_FRONTIER_EVIDENCE)
+    parser.add_argument("--frontier", type=Path, default=DEFAULT_FRONTIER)
+    parser.add_argument("--extras", type=Path, default=DEFAULT_EXTRAS)
+    parser.add_argument("--ledger", type=Path, default=DEFAULT_LEDGER)
+    parser.add_argument("--bootstrap", action="store_true")
+    parser.add_argument("--advance-closure", action="append", default=[])
+    parser.add_argument("--scope-override", action="append", default=[])
+    parser.add_argument("--select", action="store_true")
+    parser.add_argument("--check", action="store_true")
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    args = parser.parse_args()
+    try:
+        overrides = parse_overrides(args.scope_override)
+        frontier_evidence = load(args.frontier_evidence, "frontier evidence")
+        frontier = load(args.frontier, "frontier")
+        extras = load(args.extras, "closure extras")
+        current = build_baseline(
+            frontier_evidence,
+            frontier,
+            extras,
+            args.frontier_evidence,
+            args.frontier,
+            args.extras,
+            overrides,
+        )
+        if args.bootstrap:
+            payload_value = current
+        elif args.advance_closure:
+            payload_value = advance_closures(
+                load(args.ledger, "closure ledger"), current, args.advance_closure
+            )
+        else:
+            payload_value = evaluate(load(args.ledger, "closure ledger"), current)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        parser.error(str(error))
+    if args.advance_closure and (args.bootstrap or args.select or args.check or args.markdown_out):
+        parser.error(
+            "--advance-closure cannot be combined with bootstrap, select, check, or markdown output"
+        )
+    if args.check and (args.bootstrap or args.select or args.json_out or args.markdown_out):
+        parser.error("--check cannot be combined with bootstrap, select, or output options")
+    if args.select and not args.bootstrap:
+        for identifier in payload_value["summary"]["selected_closures"]:
+            print(identifier)
+        return 0
+    payload = (
+        json.dumps(payload_value, separators=(",", ":")) + "\n"
+        if args.bootstrap or args.advance_closure
+        else json.dumps(payload_value, indent=2) + "\n"
+    )
+    if args.check:
+        expected_json = DEFAULT_REPORT_JSON.read_text(encoding="utf-8")
+        expected_markdown = DEFAULT_REPORT_MARKDOWN.read_text(encoding="utf-8")
+        if payload != expected_json or markdown(payload_value) != expected_markdown:
+            parser.error("checked performance evidence ledger report is stale")
+        print(
+            "performance evidence ledger current: "
+            f"{payload_value['summary']['closure_count']} closures, "
+            f"{payload_value['summary']['invalidated_count']} invalidated"
+        )
+        return 0
+    if args.json_out:
+        args.json_out.write_text(payload, encoding="utf-8")
+    if args.markdown_out:
+        if args.bootstrap or args.advance_closure:
+            parser.error("--markdown-out is not valid with --bootstrap")
+        args.markdown_out.write_text(markdown(payload_value), encoding="utf-8")
+    if not args.json_out and not args.markdown_out:
+        print(payload, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

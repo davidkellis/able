@@ -1,0 +1,78 @@
+File: compiled
+Build ID: d7c04c263dc89a6e78690b1ccf8730b8deace654
+Type: cpu
+Time: 2026-07-28 09:44:12 CDT
+Duration: 343.90ms, Total samples = 570ms (165.75%)
+Showing nodes accounting for 570ms, 100% of 570ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      570ms   100%  main.RunRegisteredMain
+         0     0%     0%      570ms   100%  main.RunRegisteredMain.func1
+         0     0%     0%      570ms   100%  main.__able_compiled_fn_main
+         0     0%     0%      570ms   100%  main.__able_compiled_fn_main_ctx
+         0     0%     0%      570ms   100%  main.__able_register_compiled_call.func1
+         0     0%     0%      570ms   100%  main.__able_wrap_fn_main
+         0     0%     0%      570ms   100%  main.main
+         0     0%     0%      570ms   100%  main.runMain
+         0     0%     0%      570ms   100%  runtime.main
+      10ms  1.75%  1.75%      280ms 49.12%  main.__able_compiled_fn_parse_unsigned_ctx
+      10ms  1.75%  3.51%      270ms 47.37%  main.__able_compiled_fn_parse_signed_ctx
+      30ms  5.26%  8.77%      240ms 42.11%  runtime.newobject
+      20ms  3.51% 12.28%      220ms 38.60%  runtime.mallocgc
+      40ms  7.02% 19.30%      160ms 28.07%  runtime.mallocgcSmallNoscan
+      10ms  1.75% 21.05%       70ms 12.28%  main.__able_compiled_method_Int128_add_ctx_into
+      30ms  5.26% 26.32%       70ms 12.28%  main.__able_compiled_method_Int128_from_i128_ctx_into
+      10ms  1.75% 28.07%       70ms 12.28%  main.__able_compiled_method_UInt128_add_ctx_into
+         0     0% 28.07%       60ms 10.53%  main.__able_compiled_method_Int128_mul_ctx_into
+      10ms  1.75% 29.82%       50ms  8.77%  main.__able_compiled_method_UInt128_mul_ctx_into
+      50ms  8.77% 38.60%       50ms  8.77%  runtime.nextFreeFast (inline)
+      40ms  7.02% 45.61%       40ms  7.02%  able/interpreter-go/pkg/runtime.Uint128.MulChecked
+      30ms  5.26% 50.88%       40ms  7.02%  main.__able_compiled_fn_int128_from_i128_ctx_into
+      20ms  3.51% 54.39%       40ms  7.02%  main.__able_compiled_fn_int128_to_i128_ctx
+         0     0% 54.39%       40ms  7.02%  main.__able_compiled_method_Int128_to_i128_ctx
+         0     0% 54.39%       40ms  7.02%  main.__able_compiled_method_String_bytes_ctx
+      30ms  5.26% 59.65%       30ms  5.26%  main.__able_compiled_method_UInt128_to_u128_ctx
+         0     0% 59.65%       30ms  5.26%  runtime.deductAssistCredit
+         0     0% 59.65%       30ms  5.26%  runtime.gcAssistAlloc
+         0     0% 59.65%       30ms  5.26%  runtime.gcAssistAlloc.func2
+         0     0% 59.65%       30ms  5.26%  runtime.gcAssistAlloc1
+         0     0% 59.65%       30ms  5.26%  runtime.gcDrainN
+         0     0% 59.65%       30ms  5.26%  runtime.systemstack
+         0     0% 59.65%       20ms  3.51%  able/interpreter-go/pkg/runtime.Int128.MulChecked
+         0     0% 59.65%       20ms  3.51%  able/interpreter-go/pkg/runtime.Int128.ShiftLeft
+      10ms  1.75% 61.40%       20ms  3.51%  able/interpreter-go/pkg/runtime.Int128.shiftCount (inline)
+      20ms  3.51% 64.91%       20ms  3.51%  able/interpreter-go/pkg/runtime.Uint128.DivMod
+      10ms  1.75% 66.67%       20ms  3.51%  main.__able_compiled_fn_uint128_from_u128_ctx_into
+      10ms  1.75% 68.42%       20ms  3.51%  main.__able_compiled_impl_Iterator_next_0_a_spec_ctx
+         0     0% 68.42%       20ms  3.51%  main.__able_iface_Iterator_u8_adapter_ptr_RawStringBytesIter.__able_ctx_next
+         0     0% 68.42%       20ms  3.51%  runtime.(*mcache).nextFree
+      10ms  1.75% 70.18%       20ms  3.51%  runtime.gcmarknewobject
+      10ms  1.75% 71.93%       20ms  3.51%  runtime.makeSpanClass (inline)
+      10ms  1.75% 73.68%       20ms  3.51%  runtime.scanObject
+      10ms  1.75% 75.44%       10ms  1.75%  able/interpreter-go/pkg/runtime.Int128.IsNegative (inline)
+         0     0% 75.44%       10ms  1.75%  able/interpreter-go/pkg/runtime.Int128.ShiftRight
+      10ms  1.75% 77.19%       10ms  1.75%  able/interpreter-go/pkg/runtime.Uint128.Compare (inline)
+      10ms  1.75% 78.95%       10ms  1.75%  able/interpreter-go/pkg/runtime.Uint128.ShiftLeftUnchecked (inline)
+      10ms  1.75% 80.70%       10ms  1.75%  able/interpreter-go/pkg/runtime.Uint128.ShiftRight (inline)
+      10ms  1.75% 82.46%       10ms  1.75%  main.__able_compiled_fn_read_byte_ctx (inline)
+         0     0% 82.46%       10ms  1.75%  main.__able_compiled_fn_uint128_check_overflow_ctx
+         0     0% 82.46%       10ms  1.75%  main.__able_compiled_method_Int128_abs_ctx
+         0     0% 82.46%       10ms  1.75%  main.__able_compiled_method_Int128_from_i64_ctx_into
+      10ms  1.75% 84.21%       10ms  1.75%  main.__able_compiled_method_Int128_min_ctx
+         0     0% 84.21%       10ms  1.75%  runtime.(*mcache).refill
+         0     0% 84.21%       10ms  1.75%  runtime.(*mcentral).cacheSpan
+      10ms  1.75% 85.96%       10ms  1.75%  runtime.(*mspan).base (inline)
+      10ms  1.75% 87.72%       10ms  1.75%  runtime.(*mspan).nextFreeIndex
+      10ms  1.75% 89.47%       10ms  1.75%  runtime.(*sweepLocked).sweep
+      10ms  1.75% 91.23%       10ms  1.75%  runtime.bool2int (inline)
+         0     0% 91.23%       10ms  1.75%  runtime.deductSweepCredit
+      10ms  1.75% 92.98%       10ms  1.75%  runtime.heapSetTypeNoHeader (inline)
+         0     0% 92.98%       10ms  1.75%  runtime.mallocgcSmallScanNoHeader
+         0     0% 92.98%       10ms  1.75%  runtime.markroot
+         0     0% 92.98%       10ms  1.75%  runtime.markrootBlock
+         0     0% 92.98%       10ms  1.75%  runtime.rawbyteslice
+      10ms  1.75% 94.74%       10ms  1.75%  runtime.releasem (inline)
+      10ms  1.75% 96.49%       10ms  1.75%  runtime.scanblock
+         0     0% 96.49%       10ms  1.75%  runtime.stringtoslicebyte
+         0     0% 96.49%       10ms  1.75%  runtime.sweepone
+      10ms  1.75% 98.25%       10ms  1.75%  runtime.tryDeferToSpanScan
+      10ms  1.75%   100%       10ms  1.75%  unicode/utf8.ValidString

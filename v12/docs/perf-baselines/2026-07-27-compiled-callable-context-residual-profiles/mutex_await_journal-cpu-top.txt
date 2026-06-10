@@ -1,0 +1,38 @@
+File: compiled
+Build ID: 400ec6093dca7339e0cbd1811ac7f05a7c74a63a
+Type: cpu
+Time: 2026-07-27 23:58:17 CDT
+Duration: 82.70ms, Total samples = 130ms (157.19%)
+Showing nodes accounting for 130ms, 100% of 130ms total
+Showing top 30 nodes out of 79
+      flat  flat%   sum%        cum   cum%
+      20ms 15.38% 15.38%       20ms 15.38%  runtime.memclrNoHeapPointers
+      20ms 15.38% 30.77%       30ms 23.08%  runtime.pcvalue
+      10ms  7.69% 38.46%       10ms  7.69%  indexbytebody
+      10ms  7.69% 46.15%       10ms  7.69%  internal/runtime/atomic.(*UnsafePointer).StoreNoWB (inline)
+      10ms  7.69% 53.85%       10ms  7.69%  internal/runtime/maps.(*Iter).Next
+      10ms  7.69% 61.54%       10ms  7.69%  main.__able_checked_mul_signed
+      10ms  7.69% 69.23%       10ms  7.69%  runtime.(*moduledata).textAddr
+      10ms  7.69% 76.92%       10ms  7.69%  runtime.gcmarknewobject
+      10ms  7.69% 84.62%       50ms 38.46%  runtime.newobject
+      10ms  7.69% 92.31%       10ms  7.69%  runtime.recordForPanic
+      10ms  7.69%   100%       10ms  7.69%  runtime.typeAssert
+         0     0%   100%       10ms  7.69%  able/interpreter-go/pkg/ast.Gen (inline)
+         0     0%   100%       10ms  7.69%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+         0     0%   100%       50ms 38.46%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%       10ms  7.69%  able/interpreter-go/pkg/compiler/bridge.MatchType
+         0     0%   100%       50ms 38.46%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%       10ms  7.69%  able/interpreter-go/pkg/compiler/bridge.materializeBoundaryValue (inline)
+         0     0%   100%      130ms   100%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%       10ms  7.69%  main.(*__able_mutex_awaitable).commit
+         0     0%   100%       50ms 38.46%  main.(*__able_mutex_awaitable).register
+         0     0%   100%       50ms 38.46%  main.(*__able_mutex_awaitable).toStruct.func2
+         0     0%   100%       10ms  7.69%  main.(*__able_mutex_awaitable).toStruct.func3
+         0     0%   100%       10ms  7.69%  main.__able_await_arm_is_default_ctx
+         0     0%   100%      100ms 76.92%  main.__able_await_ctx
+         0     0%   100%      100ms 76.92%  main.__able_await_value_ctx
+         0     0%   100%       60ms 46.15%  main.__able_await_with_state_ctx
+         0     0%   100%       50ms 38.46%  main.__able_call_value_fast
+         0     0%   100%       70ms 53.85%  main.__able_call_value_fast_ctx
+         0     0%   100%       10ms  7.69%  main.__able_collect_await_arms_ctx
+         0     0%   100%       10ms  7.69%  main.__able_compiled_fn_entry_score_ctx

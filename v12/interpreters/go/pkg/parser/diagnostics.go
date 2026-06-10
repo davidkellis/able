@@ -59,7 +59,7 @@ func syntaxError(root *sitter.Node) *ParseError {
 	}
 	expected := ""
 	if missing != nil {
-		expected = formatExpectedKind(missing.Kind())
+		expected = formatExpectedKind(nodeKind(missing))
 	}
 	if expected == "" && errorNode != nil && errorNode.IsError() {
 		expected = "valid syntax"

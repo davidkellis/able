@@ -8,7 +8,7 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func mustParseModuleSource(t *testing.T, source string) *ast.Module {
+func mustParseModuleSource(t testing.TB, source string) *ast.Module {
 	t.Helper()
 	parser, err := goParser.NewModuleParser()
 	if err != nil {

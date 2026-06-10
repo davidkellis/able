@@ -1,0 +1,93 @@
+package config_validation_extraction
+
+import able.core.interfaces.{Error}
+import able.fs
+import able.kernel.{Array}
+import able.os
+import able.text.regex.{Match, Regex}
+
+fn compile_regex(pattern: String) -> Regex {
+  Regex.compile(pattern) match {
+    case regex: Regex => regex,
+    case err: Error => { raise err }
+  }
+}
+
+fn group_value(found: Match, index: i32) -> String {
+  found.groups.read_slot(index).value match {
+    case value: String => value,
+    case nil => { raise "required configuration capture did not participate" }
+  }
+}
+
+fn accepted_checksum(found: Match, line_index: i32) -> i64 {
+  checksum: i64 = ((line_index as i64) + 1_i64) * 5_i64
+  group_index := 0
+  loop {
+    if group_index >= 8 { break }
+    value := group_value(found, group_index)
+    weight := ((group_index as i64) + 3_i64) * 17_i64
+    checksum = checksum + ((value.len_bytes() as i64) * weight)
+    group_index = group_index + 1
+  }
+  checksum
+}
+
+fn audit_rounds(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" { return 1 }
+  4
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "deployments.cfg" }
+  lines := fs.read_lines_prefix(path, 24)
+  rounds := audit_rounds(args)
+
+  schema := compile_regex("^service=([a-z][a-z0-9-]*) version=v([0-9]+)[.]([0-9]+)[.]([0-9]+) endpoint=https://([a-z0-9.-]+):([0-9]+) replicas=([0-9]+) region=([a-z][a-z]-[a-z]+-[0-9]+)$")
+  version := compile_regex("^[1-3]$")
+  port := compile_regex("^(443|8443)$")
+  replicas := compile_regex("^([1-9]|[1-5][0-9]|6[0-4])$")
+  region := compile_regex("^(us|eu|ap)-[a-z]+-[1-3]$")
+
+  rejected: Array i64 := Array.with_capacity(5)
+  rejected.push(0_i64)
+  rejected.push(0_i64)
+  rejected.push(0_i64)
+  rejected.push(0_i64)
+  rejected.push(0_i64)
+  accepted: i64 = 0_i64
+  checksum: i64 = 0_i64
+
+  round := 0
+  loop {
+    if round >= rounds { break }
+    line_index := 0
+    loop {
+      if line_index >= lines.len() { break }
+      line := lines.read_slot(line_index)
+      schema.match(line) match {
+        case nil => rejected.write_slot(0, rejected.read_slot(0) + 1_i64),
+        case found: Match => {
+          if !version.is_match(group_value(found, 1)) {
+            rejected.write_slot(1, rejected.read_slot(1) + 1_i64)
+          } elsif !port.is_match(group_value(found, 5)) {
+            rejected.write_slot(2, rejected.read_slot(2) + 1_i64)
+          } elsif !replicas.is_match(group_value(found, 6)) {
+            rejected.write_slot(3, rejected.read_slot(3) + 1_i64)
+          } elsif !region.is_match(group_value(found, 7)) {
+            rejected.write_slot(4, rejected.read_slot(4) + 1_i64)
+          } else {
+            accepted = accepted + 1_i64
+            checksum = checksum + accepted_checksum(found, line_index)
+          }
+        }
+      }
+      line_index = line_index + 1
+    }
+    round = round + 1
+  }
+
+  total := (lines.len() as i64) * (rounds as i64)
+  print(`${total}:${accepted}:${rejected.read_slot(0)},${rejected.read_slot(1)},${rejected.read_slot(2)},${rejected.read_slot(3)},${rejected.read_slot(4)}:${checksum}`)
+}

@@ -85,6 +85,116 @@ func TestCompilerGenericNominalMethodSpecializationStaysNative(t *testing.T) {
 	}
 }
 
+func TestCompilerGenericNamedUnionMethodSpecializationStaysNative(t *testing.T) {
+	result := compileNoFallbackExecSource(t, "ablec-generic-union-method-spec", strings.Join([]string{
+		"package demo",
+		"",
+		"union Choice T = nil | T",
+		"",
+		"methods Choice T {",
+		"  fn map<U>(self: Self, f: T -> U) -> Choice U {",
+		"    self match {",
+		"      case nil => nil,",
+		"      case value => f(value),",
+		"    }",
+		"  }",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  value: Choice i32 = 5",
+		"  mapped := value.map<i64>({ item => (item as i64) + 2_i64 })",
+		"  mapped match {",
+		"    case nil => 0,",
+		"    case item => item as i32,",
+		"  }",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	source := compiledSourceText(t, result)
+	if !strings.Contains(mainBody, "__able_compiled_method_Choice__map_spec(") {
+		t.Fatalf("expected main to call specialized Choice.map:\n%s", mainBody)
+	}
+	if strings.Contains(mainBody, "__able_compiled_method_Choice__map_spec_spec(") {
+		t.Fatalf("expected main to reuse the resolved Choice.map specialization:\n%s", mainBody)
+	}
+	if !strings.Contains(source, "f __able_fn_int32_to_int64") {
+		t.Fatalf("expected specialized Choice.map callback to use the native i32 -> i64 ABI:\n%s", source)
+	}
+	mapBody, ok := findCompiledFunction(result, "__able_compiled_method_Choice__map_spec")
+	if !ok {
+		t.Fatalf("could not find specialized Choice.map")
+	}
+	for _, fragment := range []string{
+		"__able_static_generic_union_method_call(",
+		"__able_method_call_node(",
+		"__able_fn_runtime_Value",
+	} {
+		if strings.Contains(mapBody, fragment) {
+			t.Fatalf("expected specialized Choice.map to avoid %q:\n%s", fragment, mapBody)
+		}
+	}
+}
+
+func TestCompilerStdlibOptionResultMapSpecializationsStayNative(t *testing.T) {
+	result := compileAndBuildCanonicalStdlibSource(t, "ablec-stdlib-option-result-map-spec", strings.Join([]string{
+		"package demo",
+		"",
+		"import able.core.options.*",
+		"",
+		"fn main() -> i64 {",
+		"  optional: Option i32 = 5",
+		"  mapped_option := optional.map<i64>({ value => (value as i64) * 3_i64 })",
+		"  resolved: Result i32 = 7",
+		"  mapped_result := resolved.map<i64>({ value => (value as i64) + 11_i64 })",
+		"  mapped_option.unwrap_or(0_i64) + mapped_result.unwrap_or(0_i64)",
+		"}",
+		"",
+	}, "\n"))
+
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	source := compiledSourceText(t, result)
+	for _, fragment := range []string{
+		"__able_compiled_method_Option__map_spec(",
+		"__able_compiled_method_Result__map_spec(",
+	} {
+		if !strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected main to call %q directly:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_compiled_entry_method_Option__map_spec(",
+		"__able_compiled_entry_method_Result__map_spec(",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected environment-independent map call to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+	for _, fragment := range []string{
+		"func __able_compiled_method_Option__map_spec(self *int32, f __able_fn_int32_to_int64)",
+		"func __able_compiled_method_Result__map_spec(self __able_union_int32_or_runtime_ErrorValue, f __able_fn_int32_to_int64)",
+	} {
+		if !strings.Contains(source, fragment) {
+			t.Fatalf("expected canonical generic-union specialization %q:\n%s", fragment, source)
+		}
+	}
+	for _, fragment := range []string{
+		"__able_static_generic_union_method_call(",
+		"__able_fn_runtime.Value",
+	} {
+		if strings.Contains(mainBody, fragment) {
+			t.Fatalf("expected canonical Option/Result map calls to avoid %q:\n%s", fragment, mainBody)
+		}
+	}
+}
+
 func TestCompilerHeapGenericMethodSpecializationStaysNative(t *testing.T) {
 	result := compileNoFallbackExecSource(t, "ablec-heap-generic-method-spec", strings.Join([]string{
 		"package demo",
@@ -106,7 +216,7 @@ func TestCompilerHeapGenericMethodSpecializationStaysNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	source := compiledSourceText(t, result)
-	if !strings.Contains(mainBody, "__able_compiled_method_Heap_push_spec(") {
+	if !bodyCallsCompiledDirect(mainBody, "__able_compiled_method_Heap_push_spec") {
 		t.Fatalf("expected main to use specialized Heap.push:\n%s", mainBody)
 	}
 

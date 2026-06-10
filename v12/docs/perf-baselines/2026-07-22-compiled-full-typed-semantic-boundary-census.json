@@ -1,0 +1,64 @@
+{
+  "kind": "compiled-full-typed-semantic-boundary-census",
+  "schema_version": 1,
+  "generated_at": "2026-07-22T21:59:20.444725Z",
+  "suite": "coverage",
+  "application_count": 49,
+  "verified_count": 31,
+  "timeout_count": 18,
+  "failure_count": 0,
+  "timeout_seconds": 55,
+  "raw_json_sha256": "5364859d3fbbb48a436020f311ba6b3f099f2911171a279021f417f6e88b478d",
+  "successful_totals": {
+    "any_to_runtime": 337358,
+    "integer_from_runtime": 100302,
+    "struct_from_runtime": 33779,
+    "struct_to_runtime": 30047,
+    "union_from_runtime": 68091,
+    "union_to_runtime": 118554,
+    "interface_from_runtime": 10248,
+    "interface_to_runtime": 8704,
+    "callable_from_runtime": 0,
+    "callable_to_runtime": 136704,
+    "control_from_error": 3182673,
+    "control_to_error": 8958
+  },
+  "zero_reach": [
+    "fib", "matrixmultiply", "quicksort", "sudoku_masks", "base64",
+    "distance_field", "rms_norm", "fixed_width_128", "rational_series",
+    "wide_integer_records", "array_slice_window", "dependency_plan"
+  ],
+  "timeouts": [
+    "binary_event_log", "reverse_complement", "k_nucleotide",
+    "tapelang_alphabet", "word_frequency", "document_audit",
+    "lexical_rollup", "channel_rollup", "regex_suffix_audit",
+    "regex_set_audit", "regex_stream_audit", "log_routing_redaction",
+    "config_validation_extraction", "concurrent_text_index",
+    "validated_job_pipeline", "concurrent_event_routing",
+    "manifest_normalization", "policy_record_dispatch"
+  ],
+  "profile_gate": [
+    {
+      "benchmark": "option_result_config",
+      "processes": 5,
+      "pooled_cpu_samples_seconds": 0.55,
+      "merged_profile_sha256": "35779aa4ff24ed633cc6cd19193a4376859cb0a55c5b4e0ba64a4f0f65307633",
+      "disposition": "serial allocation and generic-union type matching"
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "processes": 5,
+      "pooled_cpu_samples_seconds": 5.60,
+      "merged_profile_sha256": "98770d048cf1f5ac5f4c339ed6fdd4125d0ebbac035f0c4fa356e7e60f235126",
+      "disposition": "closed currentGID/runtime.Stack execution-context wall"
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "processes": 5,
+      "pooled_cpu_samples_seconds": 1.69,
+      "merged_profile_sha256": "ce7070f09d3acdb78eb384b3171743fa2c564f7407275f89776e116650ca175e",
+      "disposition": "closed currentGID/runtime.Stack execution-context wall"
+    }
+  ],
+  "decision": "close-typed-semantic-boundary-layer-no-runtime-candidate"
+}

@@ -655,7 +655,7 @@ func TestCompilerNestedCarrierArraysDefaultToNativeWrappers(t *testing.T) {
 
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
-		"const __able_experimental_mono_arrays = true",
+		"const __able_native_static_arrays = true",
 		"type __able_array_array_char struct {",
 		"Elements []*__able_array_char",
 		"func __able_array_array_char_from(value runtime.Value) (*__able_array_array_char, error) {",

@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-22T03:44:55Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 50,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "manifest_normalization",
+      "source": "/home/david/sync/projects/benchmarks/manifest-normalization/go-1.26/app.go",
+      "source_sha256": "6bbbec6c228c0d5c525bac71bee099af423e6af69f02e5e4d0e9d394352919b6",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0054,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005684694,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.005403566,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.005334806,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.005293256,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005244709,
+          "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}

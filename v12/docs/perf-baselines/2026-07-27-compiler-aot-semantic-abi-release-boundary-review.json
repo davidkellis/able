@@ -1,0 +1,134 @@
+{
+  "date": "2026-07-27",
+  "decision": "compiler-aot-semantic-abi-boundary-reviewed",
+  "staging_authorized": false,
+  "commit_created": false,
+  "history_changed": false,
+  "production_changed_by_review": true,
+  "production_change": "compiled-serial-executor-flush-dequeue-active-handoff",
+  "performance_candidate_advanced": false,
+  "manifest": {
+    "path": "2026-07-27-compiler-aot-semantic-abi-release-boundary-manifest.tsv",
+    "sha256": "9072a4a4762cf9736979f69612e168df63bd2b064c469b49751e0d5579cd84ce",
+    "lines": 341,
+    "bytes": 59239,
+    "paths": 340,
+    "tracked_modified": 174,
+    "untracked": 166,
+    "tracked_insertions": 6242,
+    "tracked_deletions": 3365,
+    "reviewed": 340,
+    "unclassified": 0
+  },
+  "families": {
+    "aot_cli": 2,
+    "aot_cli_guard": 1,
+    "compiled_cli": 17,
+    "compiled_cli_guard": 10,
+    "compiler_analysis_tool": 10,
+    "compiler_bridge": 22,
+    "compiler_guard": 98,
+    "compiler_lowering_runtime_generation": 142,
+    "embedded_kernel": 1,
+    "module_metadata": 1,
+    "semantic_abi": 32,
+    "semantic_abi_tool": 4
+  },
+  "generated_scheduler_correction": {
+    "record": "2026-07-27-compiled-serial-executor-flush-handoff-retained.md",
+    "root_cause": "Generated Flush could observe an empty queue after worker dequeue and before active publication.",
+    "retained_rule": "Count only the locked dequeue-to-active worker handoff as runnable work.",
+    "blocked_flush_semantics_changed": false,
+    "generated_race_repetitions": 20
+  },
+  "strict_applications": {
+    "no_fallbacks": true,
+    "applications": 3,
+    "packages_per_graph": 96,
+    "interpreter_dependency_matches": 0,
+    "generated_interpreter_source_matches": 0,
+    "fib_repeat_generated_files": 14,
+    "fib_repeat_exact": true,
+    "applications_detail": [
+      {
+        "name": "fib",
+        "generated_primary_sha256": "ff189e394c899d7ae776261f0006bfb2ca33f7043606d46b68dfcc2f233b3c61",
+        "verified_processes": 3,
+        "smoke_wall_mean_seconds": 3.42
+      },
+      {
+        "name": "sudoku_masks",
+        "generated_primary_sha256": "dedab220ab8fb130dbdc7ac726887e67ebb222bc0bf3d1918ead423dad930ebc",
+        "verified_processes": 3,
+        "smoke_wall_mean_seconds": 1.51
+      },
+      {
+        "name": "tapelang_alphabet",
+        "generated_primary_sha256": "957ab35d0d75df2faf37dee64bf81b2606eb15c5b49c7378157476e7931a4fd5",
+        "verified_processes": 3,
+        "smoke_wall_mean_seconds": 3.6033
+      }
+    ]
+  },
+  "focused_verification": {
+    "changed_go_gofmt_clean": true,
+    "largest_changed_go_lines": 998,
+    "go_vet_compiler_semantic_abi_cli": "pass",
+    "semantic_abi_tests": "pass",
+    "compiler_bridge_tests": "pass",
+    "ablec_tests": "pass",
+    "compiled_control_census_tests": "pass",
+    "able_cli_tests": "pass",
+    "native_carrier_guards": "pass",
+    "shared_nominal_guards": "pass",
+    "strict_package_cut_guards": "pass",
+    "dynamic_boundary_guards": "pass",
+    "go_mod_verify": "pass",
+    "resolved_modules": 64,
+    "git_diff_check": "pass"
+  },
+  "compiled_cli": {
+    "command": "./v12/run_all_tests.sh --compiled-cli",
+    "status": "pass",
+    "wall_seconds": 1171.59,
+    "peak_rss_kb": 3399964,
+    "cases": 42
+  },
+  "complete_handoff": {
+    "command": "./run_all_tests.sh",
+    "status": "pass",
+    "wall_seconds": 914.81,
+    "peak_rss_kb": 4545104,
+    "compiler_batches": 33,
+    "bytecode_fixture_seconds": 97.109
+  },
+  "canonical_stdlib": {
+    "command": "./run_stdlib_tests.sh",
+    "status": "pass",
+    "wall_seconds": 50.25,
+    "peak_rss_kb": 856468,
+    "treewalker_reported_seconds": 20,
+    "bytecode_reported_seconds": 19,
+    "stdlib_changed": false
+  },
+  "compiled_test_cache": {
+    "max_bytes": 1610612736,
+    "removed_entries": 42,
+    "removed_bytes": 1580708024,
+    "retained_valid_entries": 42,
+    "retained_valid_bytes": 1580796720,
+    "corrupt_entries": 0,
+    "staging_entries": 0,
+    "obsolete_schema_entries": 0,
+    "unknown_entries": 0
+  },
+  "cleanup": {
+    "disk_backed_audit_workspace_mib": 405,
+    "ram_backed_stale_extern_cache_mib": 37,
+    "tranche_scratch_remaining": 0,
+    "bounded_compiled_test_cache_retained": true,
+    "disk_backed_go_cache_retained": true
+  },
+  "next_boundary": "documentation-examples-benchmarks-evidence-shared-held-paths",
+  "wasm_work_started": false
+}

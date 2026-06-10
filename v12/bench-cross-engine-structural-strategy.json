@@ -1,0 +1,130 @@
+{
+  "kind": "able-cross-engine-structural-strategy-evidence",
+  "schema_version": 1,
+  "sources": {
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+    },
+    "native_tier_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
+      "sha256": "7e58450b286d7b45a25383708bfbcfda7f86865e8943a102c11a3acbfdb24167"
+    },
+    "compiled_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
+      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+    },
+    "compiled_boundary_census": {
+      "path": "v12/docs/perf-baselines/2026-07-22-compiled-full-typed-semantic-boundary-census.json",
+      "sha256": "cdf4dca6e1d4261bf74cec27c122dbfb0af737a8b0578ee71293d0f429901718"
+    },
+    "closure_ledger": {
+      "path": "v12/bench-performance-closure-ledger.json",
+      "sha256": "f00e9fafd2ad222c018de0748093957687bfd555f3bceb711825ef23191c3ffc"
+    }
+  },
+  "admission": {
+    "minimum_unlike_families": 3,
+    "minimum_target_excess_reduction_percent": 25.0,
+    "require_every_governing_row": true,
+    "require_concrete_mechanism": true,
+    "require_no_completed_rejection_equivalence": true
+  },
+  "governing_applications": [
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "phase_one_portable_backend": true
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "phase_one_portable_backend": true
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency-text",
+      "phase_one_portable_backend": false
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "phase_one_portable_backend": true
+    },
+    {
+      "benchmark": "array_slice_window",
+      "family": "array-iterator",
+      "phase_one_portable_backend": true
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "byte-text",
+      "phase_one_portable_backend": true
+    }
+  ],
+  "routes": [
+    {
+      "id": "typed-bytecode-semantic-specialization",
+      "model": "make every dynamically observed instruction carrying a checked primitive proof free at uniform instruction cost",
+      "concrete_mechanism": "extend typed lowering facts into specialized bytecodes and representations while retaining ordinary semantic fallback",
+      "completed_rejection_equivalence": "partly-overlaps-rejected-go-region-register-and-slot-hint-routes",
+      "implementation_cost": "high",
+      "deployment_cost": "low",
+      "semantic_risk": "medium"
+    },
+    {
+      "id": "portable-lower-level-vm-backend",
+      "model": "substitute the current semantics-preserving compiled whole-application time for each bytecode row",
+      "concrete_mechanism": null,
+      "completed_rejection_equivalence": "distinct-only-if-it-crosses-boxed-and-effectful-boundaries-at-whole-activation-granularity",
+      "implementation_cost": "very-high",
+      "deployment_cost": "high",
+      "semantic_risk": "very-high"
+    },
+    {
+      "id": "compiled-general-nominal-abi-simplification",
+      "model": "make every currently attributed exact compiled mechanism free and require one shared mechanism to remain material in three unlike families",
+      "concrete_mechanism": null,
+      "completed_rejection_equivalence": "current-direct-method-and-boundary-descendants-are-closed",
+      "implementation_cost": "high",
+      "deployment_cost": "low",
+      "semantic_risk": "medium"
+    }
+  ],
+  "semantic_obligations": [
+    {
+      "id": "values-identity-and-gc",
+      "requirement": "Preserve primitive values, boxed values, nominal identity, aliases, mutation, and liveness without retaining movable Go pointers in foreign memory."
+    },
+    {
+      "id": "dispatch-and-nominal-semantics",
+      "requirement": "Preserve overload, interface, generic-union, inherent-method, dynamic member, and general non-primitive nominal translation rules without named-type exceptions."
+    },
+    {
+      "id": "errors-and-structured-unwind",
+      "requirement": "Preserve source-attached errors, raise/rescue/ensure/rethrow, propagation, cleanup, break/continue, and return coercion."
+    },
+    {
+      "id": "concurrency-and-suspension",
+      "requirement": "Preserve spawn, Future, await, cancellation, yielding, serial scheduling, goroutine scheduling, and bounded fairness polls."
+    },
+    {
+      "id": "externs-and-host-interop",
+      "requirement": "Preserve extern calls, host values, package/runtime state, and callback reentrancy without depending on an unstable Go ABI."
+    },
+    {
+      "id": "diagnostics-and-exact-resume",
+      "requirement": "Retain original instruction and source identity for failures, side exits, fallback, and reproducible diagnostics."
+    },
+    {
+      "id": "portable-fallback-and-distribution",
+      "requirement": "Define supported platforms, dependency and license policy, executable-memory policy, compile latency, bounded caches, and exact ordinary-VM fallback."
+    }
+  ],
+  "next_lane": {
+    "id": "portable-vm-backend-abi-dependency-adr",
+    "scope": "Resolve whether a non-WASM portable lower-level engine can own whole bytecode activations across boxed and effectful boundaries without per-opcode foreign callbacks or a semantically divergent second runtime. Compare whole-engine C-ABI, portable JIT-library, and direct-codegen classes; select the value/root ABI, effect/resume protocol, toolchain and distribution policy, or close the route.",
+    "admission": "Admit an executable prototype only after one backend class, ABI, ownership model, supported-platform policy, and conformance/fallback plan are concrete. The retained timing model must cover at least three of the five serial governing families at 25% target-excess reduction each, and JSON plus PiDigits must retain exact ordinary-VM fallback guards.",
+    "exclusions": "No WASM, benchmark or application branches, named-container rules, non-primitive nominal fast paths, per-opcode cgo callbacks, or retry of Go-level region/register executors."
+  }
+}

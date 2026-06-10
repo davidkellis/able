@@ -443,14 +443,18 @@ func TestStructStaticMethod(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected struct instance, got %#v", result)
 	}
-	if inst.Fields == nil {
-		t.Fatalf("expected named struct instance fields")
+	if !structUsesNamedFieldStorage(inst) {
+		t.Fatalf("expected named struct storage")
 	}
-	if x, ok := inst.Fields["x"].(runtime.IntegerValue); !ok || x.BigInt().Cmp(bigInt(0)) != 0 {
-		t.Fatalf("expected x == 0, got %#v", inst.Fields["x"])
+	if raw, ok := structNamedFieldValue(inst, "x"); !ok {
+		t.Fatalf("expected named field x")
+	} else if x, ok := raw.(runtime.IntegerValue); !ok || x.BigInt().Cmp(bigInt(0)) != 0 {
+		t.Fatalf("expected x == 0, got %#v", raw)
 	}
-	if y, ok := inst.Fields["y"].(runtime.IntegerValue); !ok || y.BigInt().Cmp(bigInt(0)) != 0 {
-		t.Fatalf("expected y == 0, got %#v", inst.Fields["y"])
+	if raw, ok := structNamedFieldValue(inst, "y"); !ok {
+		t.Fatalf("expected named field y")
+	} else if y, ok := raw.(runtime.IntegerValue); !ok || y.BigInt().Cmp(bigInt(0)) != 0 {
+		t.Fatalf("expected y == 0, got %#v", raw)
 	}
 }
 

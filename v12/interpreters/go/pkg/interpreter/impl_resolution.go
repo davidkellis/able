@@ -43,6 +43,83 @@ type constraintSpec struct {
 	ifaceType ast.TypeExpression
 }
 
+func implCandidateIdentityKey(candidate implCandidate) string {
+	var b strings.Builder
+	if candidate.entry != nil {
+		if candidate.entry.definition != nil {
+			fmt.Fprintf(&b, "%p", candidate.entry.definition)
+		} else {
+			b.WriteString("<nil-definition>")
+		}
+		b.WriteByte('|')
+		b.WriteString(candidate.entry.interfaceName)
+		if len(candidate.entry.argTemplates) > 0 {
+			b.WriteByte('|')
+			for idx, arg := range candidate.entry.argTemplates {
+				if idx > 0 {
+					b.WriteByte(',')
+				}
+				b.WriteString(typeExpressionToString(arg))
+			}
+		}
+		if len(candidate.entry.unionVariants) > 0 {
+			b.WriteByte('|')
+			b.WriteString(strings.Join(candidate.entry.unionVariants, ","))
+		}
+	} else {
+		b.WriteString("<nil-entry>")
+	}
+	if len(candidate.bindings) == 0 {
+		return b.String()
+	}
+	names := make([]string, 0, len(candidate.bindings))
+	for name := range candidate.bindings {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		b.WriteByte('|')
+		b.WriteString(name)
+		b.WriteByte('=')
+		b.WriteString(typeExpressionToString(candidate.bindings[name]))
+	}
+	return b.String()
+}
+
+func dedupeImplCandidates(matches []implCandidate) []implCandidate {
+	if len(matches) < 2 {
+		return matches
+	}
+	seen := make(map[string]struct{}, len(matches))
+	deduped := make([]implCandidate, 0, len(matches))
+	for _, match := range matches {
+		key := implCandidateIdentityKey(match)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		deduped = append(deduped, match)
+	}
+	return deduped
+}
+
+func dedupeMethodMatches(matches []methodMatch) []methodMatch {
+	if len(matches) < 2 {
+		return matches
+	}
+	seen := make(map[string]struct{}, len(matches))
+	deduped := make([]methodMatch, 0, len(matches))
+	for _, match := range matches {
+		key := implCandidateIdentityKey(match.candidate)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		deduped = append(deduped, match)
+	}
+	return deduped
+}
+
 func (i *Interpreter) registerUnnamedImpl(ifaceName string, ifaceArgs []ast.TypeExpression, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string, isBuiltin bool) error {
 	key := ifaceName + "::" + variant.typeName
 	bucket, ok := i.unnamedImpls[key]
@@ -118,10 +195,17 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 		return false
 	}
 	if entry.definition != nil {
-		actual := typeExpressionFromInfo(info)
+		actual := i.cachedTypeExpressionFromInfo(info)
 		if actual != nil {
-			template := expandTypeAliases(entry.definition.TargetType, i.typeAliases, nil)
-			matchTypeExpressionTemplate(template, expandTypeAliases(actual, i.typeAliases, nil), genericNames, bindings)
+			template := i.expandTypeAliasesCached(entry.definition.TargetType)
+			if template == nil {
+				template = entry.definition.TargetType
+			}
+			actualExpanded := i.expandTypeAliasesCached(actual)
+			if actualExpanded == nil {
+				actualExpanded = actual
+			}
+			matchTypeExpressionTemplate(template, actualExpanded, genericNames, bindings)
 		}
 	}
 	if len(entry.argTemplates) > 0 {
@@ -129,7 +213,15 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 			return nil, false
 		}
 		for idx, tmpl := range entry.argTemplates {
-			if !matchTypeExpressionTemplate(expandTypeAliases(tmpl, i.typeAliases, nil), expandTypeAliases(info.typeArgs[idx], i.typeAliases, nil), genericNames, bindings) {
+			template := i.expandTypeAliasesCached(tmpl)
+			if template == nil {
+				template = tmpl
+			}
+			actual := i.expandTypeAliasesCached(info.typeArgs[idx])
+			if actual == nil {
+				actual = info.typeArgs[idx]
+			}
+			if !matchTypeExpressionTemplate(template, actual, genericNames, bindings) {
 				return nil, false
 			}
 		}
@@ -163,9 +255,17 @@ func (i *Interpreter) matchInterfaceArgs(entry *implEntry, ifaceArgs []ast.TypeE
 		if tmpl == nil || ifaceArgs[idx] == nil {
 			return false
 		}
+		template := i.expandTypeAliasesCached(tmpl)
+		if template == nil {
+			template = tmpl
+		}
+		actual := i.expandTypeAliasesCached(ifaceArgs[idx])
+		if actual == nil {
+			actual = ifaceArgs[idx]
+		}
 		if !matchTypeExpressionTemplate(
-			expandTypeAliases(tmpl, i.typeAliases, nil),
-			expandTypeAliases(ifaceArgs[idx], i.typeAliases, nil),
+			template,
+			actual,
 			genericNames,
 			bindings,
 		) {
@@ -193,7 +293,7 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 	var constraintErr error
 	for idx := range entries {
 		entry := &entries[idx]
-		if interfaceFilter != "" && entry.interfaceName != interfaceFilter {
+		if interfaceFilter != "" && !i.interfaceExtendsInterface(entry.interfaceName, interfaceFilter, make(map[string]struct{})) {
 			continue
 		}
 		if methodFilter != "" && !i.implProvidesMethod(entry, methodFilter) {

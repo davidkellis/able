@@ -1,38 +1,65 @@
 # Able v12 Parser Workspace
 
-This directory hosts the tree-sitter grammar for the Able v12 language. The
-initial scaffold lives in `tree-sitter-able/` and will evolve until it can
-round-trip programs into the shared AST (`design/ast-contract.md`).
+This directory contains the active Tree-sitter grammar and Go source-to-AST
+pipeline for Able v12. The Go parser maps source into the shared AST consumed
+by both reference interpreters and the compiler; TypeScript is not part of the
+active v12 toolchain.
 
-## Immediate goals
-- Capture the v12 lexical surface (identifiers, literals, comments, keywords).
-- Encode the top-level grammar (package/import statements, declarations,
-  expression statements) without the v12 safe-navigation operator.
-- Map grammar productions to canonical AST constructors so the Go/TS runtimes
-  can consume parser output directly.
-- Wire CI/dev scripts to build and test the grammar via the tree-sitter CLI.
+The language authority is `spec/full_spec_v12.md`. The current feature,
+fixture, and test matrix is `design/parser-ast-coverage.md`; the old parser
+roadmap and node inventory are historical bring-up records, not syntax
+backlogs.
 
-## Status
-- `tree-sitter init` scaffold committed.
-- `grammar.js` now tracks the v12 declaration surface: spec-style generics for
-  structs/unions/interfaces/methods, interface compositions (`=` + `+`), and
-  `impl` headers that accept space-delimited interface arguments (with
-  parenthesized generic applications).
-- Host interop is parsed via dedicated `prelude <target> { ... }` and
-  `extern <target> fn ... { ... }` rules that treat the body as raw host code
-  while keeping signatures aligned with Able syntax.
-- Async/error flow now matches the spec: `proc`/`spawn` accept only function
-  calls or blocks, `rescue` requires match-style clauses, `ensure` wraps any
-  expression (including `rescue`), and `rethrow` stays a standalone statement.
-- Type expressions cover union pipes, function arrows, nullable/result
-  shorthands, wildcard placeholders, and space-delimited applications (e.g.,
-  `Array string`, `Self A`), while expressions cover callable-only pipes and
-  placeholder lambdas (`@`, `@n`).
-- Corpus directory stubbed at `tree-sitter-able/test/corpus`; add cases once the
-  grammar stabilises. Use `npm run test` (alias for `tree-sitter test`) to drive
-  regression suites as fixtures land.
-- Next steps: clarify any outstanding `type` alias semantics once the spec
-  nails them down, plan the future safe member access operator once it is
-  specced, thread placeholder handling into AST generation, populate the
-  corpus, and hook the parser output into AST builders for integration smoke
-  tests.
+## Current contract
+
+- `tree-sitter-able/grammar.js` defines the active syntax and its generated
+  `src/parser.c`, `src/grammar.json`, and `src/node-types.json` stay checked
+  in with it.
+- `interpreter-go/pkg/parser` maps the concrete tree into the canonical AST.
+  It supports the current v12 declaration, expression, type, concurrency,
+  error-handling, host-interop, import, and source-re-export surface.
+- `spawn` accepts only function calls or blocks; the retired `proc` keyword is
+  not grammar syntax. Safe navigation (`?.`) is also not active v12 syntax.
+- The default Go parser package round-trips the shared source fixtures against
+  their canonical `module.json` representations. `-short` deliberately omits
+  that corpus.
+
+## Verification
+
+Run the Tree-sitter corpus after a grammar change:
+
+```sh
+cd v12/parser/tree-sitter-able
+npm test
+```
+
+Run the complete Go parser package, including the default fixture corpus:
+
+```sh
+cd v12/interpreters/go
+GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 go test ./pkg/parser -count=1 -timeout 55s
+```
+
+For a source fixture change, verify that the generated canonical AST remains
+synchronized:
+
+```sh
+./v12/export_fixtures.sh --check <fixture-path>
+```
+
+## Changing specified syntax
+
+Only add syntax after it is defined in the v12 specification. Update the
+grammar and regenerate its checked-in artifacts, add a corpus assertion and a
+canonical AST fixture, then add focused Go mapper coverage. Because cgo does
+not track an included generated `parser.c`, force the Go parser to relink after
+regeneration:
+
+```sh
+cd v12/interpreters/go
+GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser
+```
+
+Finally run the appropriate tree-walker, bytecode, and strict compiler checks
+for the new semantic surface. A benchmark requirement is never authority for a
+new AST node or parser branch.

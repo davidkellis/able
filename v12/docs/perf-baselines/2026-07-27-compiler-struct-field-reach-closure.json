@@ -1,0 +1,99 @@
+{
+  "kind": "able-compiler-struct-field-reach-closure",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "retain-correction-and-close-compiler-scope",
+  "census": {
+    "applications": 63,
+    "interpreter_free": 63,
+    "verifier_pass": 63,
+    "emitted_branch_families": 11,
+    "reached_branch_families": {
+      "awaitable_shape": 3,
+      "callable_member_get": 4
+    },
+    "reached_applications": [
+      "await_channel_mux",
+      "future_await_race",
+      "mutex_await_journal",
+      "mutex_work_queue"
+    ],
+    "artifact": "v12/docs/perf-baselines/2026-07-27-compiler-struct-field-reach-census.tsv",
+    "sha256": "1144bdb1e2190a2095ab21577ac96719db86820f6e4219b9ab062137dc54317c"
+  },
+  "balanced_measurement": {
+    "cohorts_per_lane": 21,
+    "processes": 252,
+    "verifier_pass": 252,
+    "results": [
+      {
+        "application": "await_channel_mux",
+        "baseline_mean_seconds": 0.254228,
+        "candidate_mean_seconds": 0.250492,
+        "candidate_vs_baseline_percent": -1.47,
+        "paired_mean_percent": -1.15,
+        "paired_95_percent_interval": [-5.55, 3.24],
+        "go_mean_seconds": 0.004894,
+        "candidate_as_go_performance_percent": 1.95
+      },
+      {
+        "application": "future_await_race",
+        "baseline_mean_seconds": 0.034133,
+        "candidate_mean_seconds": 0.035581,
+        "candidate_vs_baseline_percent": 4.24,
+        "paired_mean_percent": 5.52,
+        "paired_95_percent_interval": [-1.06, 12.09],
+        "go_mean_seconds": 0.004366,
+        "candidate_as_go_performance_percent": 12.27
+      },
+      {
+        "application": "mutex_await_journal",
+        "baseline_mean_seconds": 0.391587,
+        "candidate_mean_seconds": 0.394607,
+        "candidate_vs_baseline_percent": 0.77,
+        "paired_mean_percent": 2.26,
+        "paired_95_percent_interval": [-5.42, 9.95],
+        "go_mean_seconds": 0.004099,
+        "candidate_as_go_performance_percent": 1.04
+      },
+      {
+        "application": "mutex_work_queue",
+        "baseline_mean_seconds": 0.945521,
+        "candidate_mean_seconds": 0.987128,
+        "candidate_vs_baseline_percent": 4.40,
+        "paired_mean_percent": 5.66,
+        "paired_95_percent_interval": [-3.54, 14.86],
+        "go_mean_seconds": 0.004447,
+        "candidate_as_go_performance_percent": 0.45
+      }
+    ],
+    "disposition": "no-statistically-distinguishable-regression",
+    "samples": "v12/docs/perf-baselines/2026-07-27-compiler-struct-field-reach-balanced-21-samples.tsv",
+    "samples_sha256": "283260be52e982e10c4f943a6cdd1407feca11b7de5bfc8c6bd715114545361f",
+    "report": "v12/docs/perf-baselines/2026-07-27-compiler-struct-field-reach-balanced-21.json",
+    "report_sha256": "fe484f24d67078d91149b58a99786a6a4855970217857f6a107c0b01e5109df3"
+  },
+  "rejected_experiment": {
+    "candidate": "split-map-fast-path-from-positional-fallback",
+    "original_inline_cost": 127,
+    "split_wrapper_inline_cost": 98,
+    "go_inline_budget": 80,
+    "decision": "reject-no-code-retained",
+    "reason": "The wrapper still could not inline, so the extra cold helper added complexity without establishing a faster map-backed path."
+  },
+  "evidence_ledger": {
+    "old_compiler_scope_sha256": "30e71f61e48405c87191288c7683da108e5de641d314ac1570f778ac4770b13d",
+    "new_compiler_scope_sha256": "68d53484af4eba833020274b15896862b356cd091ae93818c9f7631eddab8f54",
+    "bootstrap_diff": "compiler-production-scope-only",
+    "closure_count": 21,
+    "current_count": 21,
+    "invalidated_count": 0,
+    "ledger_sha256": "0852af6b112829cdae82254a5052aea68833a797dee6064c93d28cecdb64771d"
+  },
+  "production_change": "none-beyond-the-reviewed-struct-field-correction",
+  "stdlib_change": false,
+  "runtime_change": false,
+  "interpreter_change": false,
+  "bytecode_change": false,
+  "wasm_change": false
+}

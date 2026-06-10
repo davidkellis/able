@@ -1,0 +1,6 @@
+{
+  "description": "buffered concurrent queue wrapper benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -1,0 +1,4065 @@
+{
+  "kind": "able-performance-frontier",
+  "schema_version": 2,
+  "generated_from": "2026-07-21T13:34:14.191208Z",
+  "sources": {
+    "scorecard": {
+      "path": "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-scorecard.json",
+      "sha256": "808a92eca27c7319cb97f1ebacbdeffeecd04715ce5aee80e52cf8644bfa5221"
+    },
+    "selection_manifest": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "37e340876ea1f72c30abe02baa0d5f5cf1d312c3d15ed00023df9a6185c34012",
+      "selection_sha256": "1ad518fdb927dde805960ec549673016f669830d47a4f033e4830d4970bad66f"
+    },
+    "evidence_manifest": {
+      "path": "v12/bench-performance-frontier-evidence.json",
+      "sha256": "a5cfe07602f311db94d834d2b307fe2a81b9d94e2bc0e5a3147f866686bcaf2b"
+    },
+    "stability_manifest": {
+      "path": "v12/bench-performance-stability.json",
+      "sha256": "11db42f4f8c568932901f0da664c508f555f27fdd2196e71f158929e65fad22f"
+    }
+  },
+  "summary": {
+    "selected_rows": 83,
+    "compiled_rows": 45,
+    "bytecode_rows": 38,
+    "target_meets": 8,
+    "target_misses": 75,
+    "established_guards": 5,
+    "unestablished_snapshot_meets": 3,
+    "compiled_established_guards": 3,
+    "bytecode_established_guards": 2,
+    "total_excess_seconds": 134.95073684210527,
+    "disposition_rows": {
+      "closed-insufficient-breadth": 1,
+      "closed-no-shared-leaf": 40,
+      "closed-rejected-candidate": 36,
+      "target-guard": 6
+    },
+    "actionable_groups": 0
+  },
+  "recommendation": null,
+  "actionable_groups": [],
+  "groups": [
+    {
+      "id": "compiled-target-guards",
+      "row_count": 4,
+      "miss_count": 1,
+      "total_excess_seconds": 0.5014736842105267,
+      "maximum_ratio": 1.2104617127749977,
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot-scorecard",
+      "artifact_identity": "current-scorecard-source-and-threshold-cohorts",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.",
+      "rationale": "Binary Trees, JSON, and QuickSort are established target guards. Fib currently misses after a noisy prior meet but remains a source-exact control for every admitted compiled candidate.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md",
+        "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md"
+      ]
+    },
+    {
+      "id": "compiled-current-control",
+      "row_count": 2,
+      "miss_count": 1,
+      "total_excess_seconds": 1.5922105263157893,
+      "maximum_ratio": 1.9000479003672361,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Matrix primitive nested arithmetic and TapeLang flat dispatch remain separate generated bodies.",
+      "rationale": "Fresh current binaries expose no compiler/runtime child shared across these control-flow programs.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md"
+      ]
+    },
+    {
+      "id": "compiled-sudoku-quotient",
+      "row_count": 1,
+      "miss_count": 1,
+      "total_excess_seconds": 1.2017894736842107,
+      "maximum_ratio": 3.196004993757803,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-insufficient-breadth",
+      "exact_leaf_breadth": 1,
+      "owner": "find_best_empty allocation/search plus square_index; signed Euclidean division is 13.17% cumulative in this application only.",
+      "rationale": "The exact quotient helper receives zero samples in three unlike quotient controls.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "id": "compiled-float-numeric",
+      "row_count": 5,
+      "miss_count": 4,
+      "total_excess_seconds": 0.4337894736842105,
+      "maximum_ratio": 9.320388349514563,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
+      "rationale": "Raw-float lane and carrier candidates improved local allocation but regressed all broad wall-time guards.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "id": "compiled-wide-numeric",
+      "row_count": 3,
+      "miss_count": 3,
+      "total_excess_seconds": 0.531578947368421,
+      "maximum_ratio": 42.10526315789473,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Package-environment publication through SwapEnv/sync/atomic.StorePointer recurs in checked arithmetic, Rational division, and wide-record parsing; the dominant arithmetic descendants remain different.",
+      "rationale": "General execution-context and package-linkage alternatives already regressed unrelated N-Body and K-Nucleotide wall time; recurrence supplies breadth but no invalidation, and nominal specialization is prohibited.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "id": "compiled-byte-output",
+      "row_count": 4,
+      "miss_count": 4,
+      "total_excess_seconds": 0.3074736842105266,
+      "maximum_ratio": 9.545454545454545,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binaries-no-candidate",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Current generated-main profiles split into Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work.",
+      "rationale": "The retained write_all change already removed the shared copy; fresh CPU/allocation profiles expose no remaining exact compiler-controlled descendant shared by at least three unlike applications.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md"
+      ]
+    },
+    {
+      "id": "compiled-text-map",
+      "row_count": 5,
+      "miss_count": 5,
+      "total_excess_seconds": 3.7923157894736845,
+      "maximum_ratio": 43.94444444444445,
+      "profile_freshness": "current-exact-post-hash-index",
+      "artifact_identity": "current-profile-processes-merged-short-compiled",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Post-index Inventory, Word Frequency, and K-Nucleotide split into integer equality/conversion, UTF-8 and String work, boxing, and different allocation/GC descendants.",
+      "rationale": "The retained index removes the common linear scan; fresh exact profiles expose no next compiler-controlled leaf material in all three unlike map applications.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "id": "compiled-regex",
+      "row_count": 5,
+      "miss_count": 5,
+      "total_excess_seconds": 0.5843157894736842,
+      "maximum_ratio": 30.4,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "current-profile-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA closure, move, and thread management recur across the related API audits, log routing/redaction, and configuration validation/extraction.",
+      "rationale": "Three unlike workload families now establish breadth, but closure scratch, capture templates, and primitive thread carriers are already retained while arenas, state indexes, character specialization, and carrier/call alternatives failed broad gates; the new exact profile invalidates none of those decisions.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "id": "compiled-concurrency",
+      "row_count": 11,
+      "miss_count": 11,
+      "total_excess_seconds": 12.903684210526317,
+      "maximum_ratio": 673.75,
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "rationale": "All eleven selected concurrency applications reproduce the owner at 72.73%-94.46% cumulative. Five directly alternating pairs show that the fixed-context ABI improves Channel Rollup and Future Pipeline but regresses Event Routing 10.70%, Mutex Ledger 26.84%, and three serial guards 2.60%-6.25%; candidate profiles still spend 89.27%-96.11% in currentGID at compatibility/task-entry boundaries.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "id": "compiled-iterator-control",
+      "row_count": 5,
+      "miss_count": 5,
+      "total_excess_seconds": 0.6109473684210527,
+      "maximum_ratio": 72.94117647058823,
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot",
+      "artifact_identity": "preserved-current-baseline-candidate-binaries",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "The retained per-value dynamic-i64 cache removes the only newly repeated initialization owner; residual Array slice, Queue/graph, iterator/channel, text, and generic-union descendants remain separate.",
+      "rationale": "Current exact profiles and allocation counters expose no residual compiler-controlled leaf material in three unlike applications after the retained primitive-boundary fix.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-target-guards",
+      "row_count": 2,
+      "miss_count": 0,
+      "total_excess_seconds": 0.0,
+      "maximum_ratio": 0.5627478144556441,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "scorecard-source-current-cross-cohort",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "JSON host decoding and PiDigits BigInt/native output are protected target-meeting rows.",
+      "rationale": "Every admitted VM candidate must preserve these current target meets.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
+      ]
+    },
+    {
+      "id": "bytecode-float-numeric",
+      "row_count": 4,
+      "miss_count": 4,
+      "total_excess_seconds": 15.316947368421054,
+      "maximum_ratio": 13.718377088305491,
+      "profile_freshness": "current-exact-six-application",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Validated float-slot reads and retained raw float arithmetic recur across three unlike scalar programs; Matrix dot-loop/Array, Monte Carlo integer recurrence/cast, and Reverse byte/Array work separate the concrete consumers.",
+      "rationale": "The current six-application refresh reproduces only the closed raw-float carrier, operand-lane, typed-region, stack-carrier, and dispatcher families; prior alternatives reduced allocation but regressed broad wall time, and no new coherence rule or consumer invalidates those results.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-wide-numeric",
+      "row_count": 3,
+      "miss_count": 3,
+      "total_excess_seconds": 16.595368421052633,
+      "maximum_ratio": 59.63005780346822,
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 4,
+      "owner": "Raw integer extraction recurs across the three wide programs and Reverse Complement, but its consumers split among checked wide operations, casts, comparisons, parsing, bitwise work, member calls, and byte loops.",
+      "rationale": "Closed carrier/extractor/store designs remain invalid; a new general reserved-primitive cast-target canonicalization bypass passed semantics but was allocation-neutral and reversed sign across complete and CPU-0 broad wall cohorts, so it was removed.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-byte-output",
+      "row_count": 3,
+      "miss_count": 2,
+      "total_excess_seconds": 4.877052631578947,
+      "maximum_ratio": 123.6842105263158,
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binary-retained-u8-array-path",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 3,
+      "owner": "The retained raw-u8 Array push/read path clears the shared primitive-array leaf; residual Base64 host kernels, Reverse Array/extern work, and FASTA call/arithmetic work diverge.",
+      "rationale": "A generic monomorphic u8 write/read path improves all three applications and passes target and unlike guards; post-change profiles expose no second material exact descendant shared by all three.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "id": "bytecode-text-map",
+      "row_count": 5,
+      "miss_count": 5,
+      "total_excess_seconds": 51.68126315789474,
+      "maximum_ratio": 75.42553191489361,
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Fresh K-Nucleotide, Word Frequency, Inventory, Reverse Complement, and JSON profiles share only closed VM parents and Go map/GC leaves; map callers divide among integer boxing, type/member/call caches, Array state, language HashMap work, and native JSON parsing.",
+      "rationale": "Two CPU and two exact-allocation processes per application expose no concrete VM-owned leaf material in three unlike programs; combining unrelated Go map implementations would not define a general Able optimization.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-regex",
+      "row_count": 5,
+      "miss_count": 5,
+      "total_excess_seconds": 15.091684210526315,
+      "maximum_ratio": 222.09944751381212,
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA Array-slot cache/read work and small named-struct field checks recur across the audit, log/privacy, and configuration workload families; Word Frequency and Mandelbrot exclude those children from corpus-wide VM breadth.",
+      "rationale": "The current direct Array cache is allocation-free and its remaining version checks preserve runtime/member invalidation, while the general small-definition field map and NFA carrier/index/arena alternatives already failed broad wall-time gates; the seven-application refresh exposes no invalidating fact or new shared operation.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-concurrency",
+      "row_count": 11,
+      "miss_count": 11,
+      "total_excess_seconds": 6.425052631578947,
+      "maximum_ratio": 102.08754208754209,
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "rationale": "The atomic symbol is not a removable scheduler counter, and changing locking to favor a one-CPU profile could regress real parallel applications. Two current CPU and two exact measured-main allocation processes across eleven concurrency rows plus three unlike controls expose no second concrete VM child shared by at least three unlike families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-iterator-control",
+      "row_count": 5,
+      "miss_count": 5,
+      "total_excess_seconds": 2.503789473684211,
+      "maximum_ratio": 42.48648648648649,
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 5,
+      "owner": "Current Array copying, graph/Queue, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, active-lookup, return/frame, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.",
+      "rationale": "Two high-sample CPU and two exact one-main allocation processes per selected row, plus Mandelbrot and Word Frequency controls, expose no new concrete VM operation shared by three unlike iterator/control families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "array_slice_window",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.648,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 22.040816326530614,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0294,
+      "target_budget_seconds": 0.03094736842105263,
+      "excess_seconds": 0.6170526315789474,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0294,
+          "ratio": 22.040816326530614
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0638,
+          "ratio": 10.156739811912226
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+        "sha256": "64c65a525023e5fc7000f13b9d36875716b7d8b936060fede904381b58156b4e",
+        "provenance": "measured"
+      },
+      "group": "bytecode-iterator-control",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 5,
+      "owner": "Current Array copying, graph/Queue, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, active-lookup, return/frame, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.208,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.7261410788381744,
+      "worst_ratio_reference": "ruby",
+      "fastest_reference": "ruby",
+      "fastest_reference_real_seconds": 0.1205,
+      "target_budget_seconds": 0.1268421052631579,
+      "excess_seconds": 0.0811578947368421,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.1286,
+          "ratio": 1.6174183514774494
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.1205,
+          "ratio": 1.7261410788381744
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/await_channel_mux/await_channel_mux.able",
+        "sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "base64",
+      "mode": "bytecode",
+      "target_status": "meets",
+      "established_guard_status": "not-established",
+      "stability_classification": "variance-sensitive-miss",
+      "able_real_seconds": 2.806,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.0476794981891497,
+      "worst_ratio_reference": "ruby",
+      "fastest_reference": "ruby",
+      "fastest_reference_real_seconds": 2.6783,
+      "target_budget_seconds": 2.8192631578947367,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 4.0059,
+          "ratio": 0.7004668114531067
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 2.6783,
+          "ratio": 1.0476794981891497
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/base64/base64.able",
+        "sha256": "b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108",
+        "provenance": "measured"
+      },
+      "group": "bytecode-byte-output",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binary-retained-u8-array-path",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 3,
+      "owner": "The retained raw-u8 Array push/read path clears the shared primitive-array leaf; residual Base64 host kernels, Reverse Array/extern work, and FASTA call/arithmetic work diverge.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ],
+      "stability": {
+        "classification": "variance-sensitive-miss",
+        "established_guard_status": "not-established",
+        "pooled_ratio": 1.1272210381441197,
+        "cohort_ratios": [
+          1.0476794981891497,
+          1.20569725074528,
+          1.136444181925576
+        ],
+        "limiting_reference": "ruby",
+        "able_samples": 15,
+        "reference_samples": 15,
+        "able_source_sha256": "b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108",
+        "reference_source_sha256": {
+          "python": "c19ec8e11eb48b54f50f73d40729338dddffb89db89575d1e8470fe36144bfb3",
+          "ruby": "29c3d989b9f6bcdd4fe9def690e017bbd270b767f68c0c4446e61c43783f2fda"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-variance.json",
+            "sha256": "89f37a2f036934cf59626fa82e5b7138bca0ab40f8891a7cdb8f3a84dafcb971"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+            "sha256": "39887cf11a886b3f537c24bac07cebdbd70a0b079bfeaba815324a1ab3e7a44e"
+          }
+        ],
+        "rationale": "The current snapshot narrowly meets, but two of three Ruby cohorts and the pooled limiting ratio miss the bytecode product target."
+      }
+    },
+    {
+      "benchmark": "channel_rollup",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.446,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 10.825242718446601,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0412,
+      "target_budget_seconds": 0.04336842105263158,
+      "excess_seconds": 0.40263157894736845,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0412,
+          "ratio": 10.825242718446601
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0504,
+          "ratio": 8.84920634920635
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/channel_rollup/channel_rollup.able",
+        "sha256": "cc7ddd6dca16348087e17b89f07a30afa536750d088606744f9c22ce0704808a",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.032,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 102.08754208754209,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0297,
+      "target_budget_seconds": 0.03126315789473684,
+      "excess_seconds": 3.000736842105263,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0297,
+          "ratio": 102.08754208754209
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0488,
+          "ratio": 62.131147540983605
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able",
+        "sha256": "23d12e189b92ee44f83917df8a8fa8a84f2ab77242f9785474df345fbe5e274b",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "concurrent_text_index",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.634,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 7.511848341232227,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0844,
+      "target_budget_seconds": 0.08884210526315789,
+      "excess_seconds": 0.5451578947368421,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0844,
+          "ratio": 7.511848341232227
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.1024,
+          "ratio": 6.19140625
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/concurrent_text_index/concurrent_text_index.able",
+        "sha256": "5a2429f00e30e21af242850073e6e8c24d4022b8cad9bc7aee5e6e7860999eef",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "config_validation_extraction",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 1.386,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 56.34146341463414,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0246,
+      "target_budget_seconds": 0.025894736842105262,
+      "excess_seconds": 1.3601052631578947,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0246,
+          "ratio": 56.34146341463414
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0452,
+          "ratio": 30.66371681415929
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/config_validation_extraction/config_validation_extraction.able",
+        "sha256": "ffdba7256c645683bd9e53ef5a3422ca332ad51dae98816ef902906691ac8b73",
+        "provenance": "measured"
+      },
+      "group": "bytecode-regex",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA Array-slot cache/read work and small named-struct field checks recur across the audit, log/privacy, and configuration workload families; Word Frequency and Mandelbrot exclude those children from corpus-wide VM breadth.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "dependency_plan",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.498,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 30.740740740740744,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0162,
+      "target_budget_seconds": 0.017052631578947368,
+      "excess_seconds": 0.4809473684210526,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0162,
+          "ratio": 30.740740740740744
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0466,
+          "ratio": 10.686695278969957
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/dependency_plan/dependency_plan.able",
+        "sha256": "f2579982dbe25debb2e40f2ec1f2d0187016a3801c5373c82f45258e16210d8e",
+        "provenance": "measured"
+      },
+      "group": "bytecode-iterator-control",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 5,
+      "owner": "Current Array copying, graph/Queue, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, active-lookup, return/frame, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.42,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 8.75,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.048,
+      "target_budget_seconds": 0.05052631578947368,
+      "excess_seconds": 0.3694736842105263,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.048,
+          "ratio": 8.75
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0514,
+          "ratio": 8.171206225680933
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/dependency_wave_validation/dependency_wave_validation.able",
+        "sha256": "7d200dbe3ee867e95668ae8c74a2e45893f4d369db6bf00962363348dc632a50",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "distance_field",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 5.748,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 13.718377088305491,
+      "worst_ratio_reference": "ruby",
+      "fastest_reference": "ruby",
+      "fastest_reference_real_seconds": 0.419,
+      "target_budget_seconds": 0.4410526315789473,
+      "excess_seconds": 5.306947368421053,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.5347,
+          "ratio": 10.749953244810175
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.419,
+          "ratio": 13.718377088305491
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/distance_field/distance_field.able",
+        "sha256": "80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88",
+        "provenance": "measured"
+      },
+      "group": "bytecode-float-numeric",
+      "profile_freshness": "current-exact-six-application",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Validated float-slot reads and retained raw float arithmetic recur across three unlike scalar programs; Matrix dot-loop/Array, Monte Carlo integer recurrence/cast, and Reverse byte/Array work separate the concrete consumers.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "document_audit",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.274,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 19.571428571428573,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.014,
+      "target_budget_seconds": 0.014736842105263158,
+      "excess_seconds": 0.25926315789473686,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.014,
+          "ratio": 19.571428571428573
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0408,
+          "ratio": 6.715686274509804
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/document_audit/document_audit.able",
+        "sha256": "4f3fe4b3ce2a782c67e79d1178ba0ef3165ff8917b1970a6c96ccd7e550f27f2",
+        "provenance": "measured"
+      },
+      "group": "bytecode-iterator-control",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 5,
+      "owner": "Current Array copying, graph/Queue, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, active-lookup, return/frame, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "fasta_generation",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 1.828,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 9.036085022244192,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.2023,
+      "target_budget_seconds": 0.21294736842105264,
+      "excess_seconds": 1.6150526315789475,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.2023,
+          "ratio": 9.036085022244192
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.2986,
+          "ratio": 6.121902210314803
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/fasta_generation/fasta_generation.able",
+        "sha256": "f8c67c9ab16e29d92904db2d58091f2512f83319a3bca5caf8ee90c37a2a96d7",
+        "provenance": "measured"
+      },
+      "group": "bytecode-byte-output",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binary-retained-u8-array-path",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 3,
+      "owner": "The retained raw-u8 Array push/read path clears the shared primitive-array leaf; residual Base64 host kernels, Reverse Array/extern work, and FASTA call/arithmetic work diverge.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 7.988,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 21.872946330777655,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.3652,
+      "target_budget_seconds": 0.38442105263157894,
+      "excess_seconds": 7.603578947368422,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.3652,
+          "ratio": 21.872946330777655
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.7681,
+          "ratio": 10.399687540684807
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+        "sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e",
+        "provenance": "measured"
+      },
+      "group": "bytecode-wide-numeric",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 4,
+      "owner": "Raw integer extraction recurs across the three wide programs and Reverse Complement, but its consumers split among checked wide operations, casts, comparisons, parsing, bitwise work, member calls, and byte loops.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "future_await_race",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.136,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 4.011799410029499,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0339,
+      "target_budget_seconds": 0.03568421052631579,
+      "excess_seconds": 0.10031578947368422,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0339,
+          "ratio": 4.011799410029499
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0557,
+          "ratio": 2.44165170556553
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/future_await_race/future_await_race.able",
+        "sha256": "7950a425ac6225a577d7c234395ee4293d5c89c2ddfcb19fd87732e8d4d0335b",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "future_pipeline",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.406,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 6.612377850162867,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0614,
+      "target_budget_seconds": 0.06463157894736841,
+      "excess_seconds": 0.3413684210526316,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0614,
+          "ratio": 6.612377850162867
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0733,
+          "ratio": 5.5388813096862215
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/future_pipeline/future_pipeline.able",
+        "sha256": "823bcdb46878c9d57ab6438bed3767861974227b96318572dc823f3da69067b7",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.526,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 6.31452581032413,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0833,
+      "target_budget_seconds": 0.08768421052631578,
+      "excess_seconds": 0.4383157894736842,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0833,
+          "ratio": 6.31452581032413
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.1143,
+          "ratio": 4.601924759405074
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/i_before_e/i_before_e.able",
+        "sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9",
+        "provenance": "measured"
+      },
+      "group": "bytecode-text-map",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Fresh K-Nucleotide, Word Frequency, Inventory, Reverse Complement, and JSON profiles share only closed VM parents and Go map/GC leaves; map callers divide among integer boxing, type/member/call caches, Array state, language HashMap work, and native JSON parsing.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 2.536,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 37.29411764705882,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.068,
+      "target_budget_seconds": 0.07157894736842105,
+      "excess_seconds": 2.464421052631579,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.068,
+          "ratio": 37.29411764705882
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.1179,
+          "ratio": 21.509754028837996
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/inventory_reconciliation/inventory_reconciliation.able",
+        "sha256": "16c408486e1f3fb1003c795b5ed0ee63b310cd2fecba4a85d9b4081c381e8d9f",
+        "provenance": "measured"
+      },
+      "group": "bytecode-text-map",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Fresh K-Nucleotide, Word Frequency, Inventory, Reverse Complement, and JSON profiles share only closed VM parents and Go map/GC leaves; map callers divide among integer boxing, type/member/call caches, Array state, language HashMap work, and native JSON parsing.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "json",
+      "mode": "bytecode",
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 0.816,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 0.4741704921843221,
+      "worst_ratio_reference": "ruby",
+      "fastest_reference": "ruby",
+      "fastest_reference_real_seconds": 1.7209,
+      "target_budget_seconds": 1.8114736842105263,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 2.6975,
+          "ratio": 0.3025023169601483
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 1.7209,
+          "ratio": 0.4741704921843221
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/json/json.able",
+        "sha256": "84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a",
+        "provenance": "measured"
+      },
+      "group": "bytecode-target-guards",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "scorecard-source-current-cross-cohort",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "JSON host decoding and PiDigits BigInt/native output are protected target-meeting rows.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.5331171280484366,
+        "cohort_ratios": [
+          0.4741704921843221,
+          0.593447107094012
+        ],
+        "limiting_reference": "ruby",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a",
+        "reference_source_sha256": {
+          "python": "1368eca8a57392ec4397ad755449848fef914b155ad0541a58fb9205b7a0605b",
+          "ruby": "6d72bd6d7656ff81ceb481cd621eb2eef60e12d6ad602433c30a223dbbd6420c"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
+            "sha256": "6ddc564ee065ccd620a21db9356b6ea7fce98a1550755a30e0448cc94ffeb825"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+            "sha256": "27e6da6cd4603287e6f46e2edcdb79df8c93dfeec81fb70713226902e16369e7"
+          }
+        ],
+        "rationale": "Both independent current-source cohorts meet against both interpreters, including the faster Ruby reference."
+      }
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 45.164,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 35.88146500357512,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 1.2587,
+      "target_budget_seconds": 1.3249473684210524,
+      "excess_seconds": 43.83905263157895,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 1.2587,
+          "ratio": 35.88146500357512
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 1.2902,
+          "ratio": 35.005425515423966
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/k_nucleotide/k_nucleotide.able",
+        "sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a",
+        "provenance": "measured"
+      },
+      "group": "bytecode-text-map",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Fresh K-Nucleotide, Word Frequency, Inventory, Reverse Complement, and JSON profiles share only closed VM parents and Go map/GC leaves; map callers divide among integer boxing, type/member/call caches, Array state, language HashMap work, and native JSON parsing.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.398,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 23.27485380116959,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0171,
+      "target_budget_seconds": 0.018,
+      "excess_seconds": 0.38,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0171,
+          "ratio": 23.27485380116959
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0461,
+          "ratio": 8.633405639913232
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/lexical_rollup/lexical_rollup.able",
+        "sha256": "567a239892f4f6b00e5d61e4d262857ff14687c31e16cd1d390d9e9dfb6b3159",
+        "provenance": "measured"
+      },
+      "group": "bytecode-iterator-control",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 5,
+      "owner": "Current Array copying, graph/Queue, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, active-lookup, return/frame, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.016,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 124.62809917355372,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0242,
+      "target_budget_seconds": 0.025473684210526315,
+      "excess_seconds": 2.9905263157894737,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0242,
+          "ratio": 124.62809917355372
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.063,
+          "ratio": 47.87301587301587
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/log_routing_redaction/log_routing_redaction.able",
+        "sha256": "958ad9cdee6f91694757dbca9748e6f23bff84340e52e0e1375589726be0629b",
+        "provenance": "measured"
+      },
+      "group": "bytecode-regex",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA Array-slot cache/read work and small named-struct field checks recur across the audit, log/privacy, and configuration workload families; Word Frequency and Mandelbrot exclude those children from corpus-wide VM breadth.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "mandelbrot",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 6.324,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 5.3670542306713065,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 1.1783,
+      "target_budget_seconds": 1.240315789473684,
+      "excess_seconds": 5.083684210526316,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 1.1783,
+          "ratio": 5.3670542306713065
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 1.8131,
+          "ratio": 3.487948816943357
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mandelbrot/mandelbrot.able",
+        "sha256": "663385828c4e7318bac285c4fcce27d3b435f9a3536a1a20b3cfa09af2a32315",
+        "provenance": "measured"
+      },
+      "group": "bytecode-float-numeric",
+      "profile_freshness": "current-exact-six-application",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Validated float-slot reads and retained raw float arithmetic recur across three unlike scalar programs; Matrix dot-loop/Array, Monte Carlo integer recurrence/cast, and Reverse byte/Array work separate the concrete consumers.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 2.492,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.688461277864354,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 1.4759,
+      "target_budget_seconds": 1.553578947368421,
+      "excess_seconds": 0.938421052631579,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 1.4759,
+          "ratio": 1.688461277864354
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 1.6183,
+          "ratio": 1.5398875363035283
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able",
+        "sha256": "9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c",
+        "provenance": "measured"
+      },
+      "group": "bytecode-float-numeric",
+      "profile_freshness": "current-exact-six-application",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Validated float-slot reads and retained raw float arithmetic recur across three unlike scalar programs; Matrix dot-loop/Array, Monte Carlo integer recurrence/cast, and Reverse byte/Array work separate the concrete consumers.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.22,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 10.42654028436019,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0211,
+      "target_budget_seconds": 0.022210526315789472,
+      "excess_seconds": 0.19778947368421052,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0211,
+          "ratio": 10.42654028436019
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0446,
+          "ratio": 4.932735426008969
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mutex_await_journal/mutex_await_journal.able",
+        "sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.368,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 8.699763593380615,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0423,
+      "target_budget_seconds": 0.04452631578947368,
+      "excess_seconds": 0.3234736842105263,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0423,
+          "ratio": 8.699763593380615
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0589,
+          "ratio": 6.247877758913412
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mutex_ledger/mutex_ledger.able",
+        "sha256": "2975ac5ae318fd528fd353ee8846f4cb86104e8525a43c2aa1c31e05dfdb1a61",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.346,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 12.627737226277372,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0274,
+      "target_budget_seconds": 0.028842105263157895,
+      "excess_seconds": 0.3171578947368421,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0274,
+          "ratio": 12.627737226277372
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0527,
+          "ratio": 6.565464895635674
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mutex_work_queue/mutex_work_queue.able",
+        "sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "option_result_config",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.786,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 42.48648648648649,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0185,
+      "target_budget_seconds": 0.019473684210526313,
+      "excess_seconds": 0.7665263157894737,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0185,
+          "ratio": 42.48648648648649
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0434,
+          "ratio": 18.110599078341014
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/option_result_config/option_result_config.able",
+        "sha256": "9a0cd261ba89aad1fe1cea7da9ce78bdf356a350151ba7f17277ed5a125d7c48",
+        "provenance": "measured"
+      },
+      "group": "bytecode-iterator-control",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 5,
+      "owner": "Current Array copying, graph/Queue, iterator/text, lexical aggregation, and union/default profiles share only completed cached-member, active-lookup, return/frame, and raw-integer leaves; Go map/hash callers split across unrelated semantic stores.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-text-map-graph-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-19-bytecode-inline-return-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "pidigits",
+      "mode": "bytecode",
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 2.356,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 0.5627478144556441,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 4.1866,
+      "target_budget_seconds": 4.4069473684210525,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 4.1866,
+          "ratio": 0.5627478144556441
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 10.1687,
+          "ratio": 0.23169136664470386
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/pidigits/pidigits.able",
+        "sha256": "236a74ef456b4a5ca3e33a743a0b3b8e8767db9cfa07dd619df870bff876d5cb",
+        "provenance": "measured"
+      },
+      "group": "bytecode-target-guards",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "scorecard-source-current-cross-cohort",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "JSON host decoding and PiDigits BigInt/native output are protected target-meeting rows.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.5909284225823324,
+        "cohort_ratios": [
+          0.5627478144556441,
+          0.6199679921211375
+        ],
+        "limiting_reference": "python",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "236a74ef456b4a5ca3e33a743a0b3b8e8767db9cfa07dd619df870bff876d5cb",
+        "reference_source_sha256": {
+          "python": "98090e1898327ebc9133554bd91609d1732698d76b0ca8b30696ea65726ff0f9",
+          "ruby": "2926a844870ab5241b2694db2bae830501ef1dea0219758d05962e45f945e3d0"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
+            "sha256": "6ddc564ee065ccd620a21db9356b6ea7fce98a1550755a30e0448cc94ffeb825"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+            "sha256": "27e6da6cd4603287e6f46e2edcdb79df8c93dfeec81fb70713226902e16369e7"
+          }
+        ],
+        "rationale": "Both independent current-source cohorts meet against both interpreters, including the faster Python reference."
+      }
+    },
+    {
+      "benchmark": "rational_series",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 4.046,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 35.15204170286707,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.1151,
+      "target_budget_seconds": 0.12115789473684209,
+      "excess_seconds": 3.924842105263158,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.1151,
+          "ratio": 35.15204170286707
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.1518,
+          "ratio": 26.653491436100136
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/rational_series/rational_series.able",
+        "sha256": "20a58261d852834d425de755ed35e7c34b0bda80945caf97a94d4ba9b2e0bf46",
+        "provenance": "measured"
+      },
+      "group": "bytecode-wide-numeric",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 4,
+      "owner": "Raw integer extraction recurs across the three wide programs and Reverse Complement, but its consumers split among checked wide operations, casts, comparisons, parsing, bitwise work, member calls, and byte loops.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 4.02,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 222.09944751381212,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0181,
+      "target_budget_seconds": 0.01905263157894737,
+      "excess_seconds": 4.000947368421052,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0181,
+          "ratio": 222.09944751381212
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0406,
+          "ratio": 99.01477832512315
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/regex_set_audit/regex_set_audit.able",
+        "sha256": "124fcfb1435ab1160adff38f7d50ba442c22b4d63cce25fa06e7799a26458b9b",
+        "provenance": "measured"
+      },
+      "group": "bytecode-regex",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA Array-slot cache/read work and small named-struct field checks recur across the audit, log/privacy, and configuration workload families; Word Frequency and Mandelbrot exclude those children from corpus-wide VM breadth.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.548,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 193.87978142076503,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0183,
+      "target_budget_seconds": 0.01926315789473684,
+      "excess_seconds": 3.528736842105263,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0183,
+          "ratio": 193.87978142076503
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0473,
+          "ratio": 75.01057082452431
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/regex_stream_audit/regex_stream_audit.able",
+        "sha256": "ed58e3975b12776a03ace5bd7e066b570e7538f303f631db9c1704d3a1eaa999",
+        "provenance": "measured"
+      },
+      "group": "bytecode-regex",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA Array-slot cache/read work and small named-struct field checks recur across the audit, log/privacy, and configuration workload families; Word Frequency and Mandelbrot exclude those children from corpus-wide VM breadth.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.23,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 182.48587570621467,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0177,
+      "target_budget_seconds": 0.01863157894736842,
+      "excess_seconds": 3.2113684210526316,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0177,
+          "ratio": 182.48587570621467
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0407,
+          "ratio": 79.36117936117937
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/regex_suffix_audit/regex_suffix_audit.able",
+        "sha256": "7f8a1b031ae20c9af490cd21ac9846ea472b43c62cd082b22cb6e600fea2c5fe",
+        "provenance": "measured"
+      },
+      "group": "bytecode-regex",
+      "profile_freshness": "current-exact-seven-application-refresh",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA Array-slot cache/read work and small named-struct field checks recur across the audit, log/privacy, and configuration workload families; Word Frequency and Mandelbrot exclude those children from corpus-wide VM breadth.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "reverse_complement",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.29,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 123.6842105263158,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0266,
+      "target_budget_seconds": 0.027999999999999997,
+      "excess_seconds": 3.262,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0266,
+          "ratio": 123.6842105263158
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0723,
+          "ratio": 45.50484094052559
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+        "sha256": "4bd16d4b6c65362efc5b2515548f59686144553a91eadcc65a0cde6df537e5f9",
+        "provenance": "measured"
+      },
+      "group": "bytecode-byte-output",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binary-retained-u8-array-path",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 3,
+      "owner": "The retained raw-u8 Array push/read path clears the shared primitive-array leaf; residual Base64 host kernels, Reverse Array/extern work, and FASTA call/arithmetic work diverge.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "benchmark": "rms_norm",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 4.526,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 8.853677621283255,
+      "worst_ratio_reference": "ruby",
+      "fastest_reference": "ruby",
+      "fastest_reference_real_seconds": 0.5112,
+      "target_budget_seconds": 0.5381052631578946,
+      "excess_seconds": 3.9878947368421054,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.8428,
+          "ratio": 5.370194589463693
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.5112,
+          "ratio": 8.853677621283255
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/rms_norm/rms_norm.able",
+        "sha256": "b289c78432f7c4077e259810c9e788341824899188821df669af345eed04dc59",
+        "provenance": "measured"
+      },
+      "group": "bytecode-float-numeric",
+      "profile_freshness": "current-exact-six-application",
+      "artifact_identity": "frozen-current-binary-profile-and-allocation-cohorts",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Validated float-slot reads and retained raw float arithmetic recur across three unlike scalar programs; Matrix dot-loop/Array, Monte Carlo integer recurrence/cast, and Reverse byte/Array work separate the concrete consumers.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "unicode_scalar_pipeline",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.776,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 16.932735426008968,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.223,
+      "target_budget_seconds": 0.23473684210526316,
+      "excess_seconds": 3.5412631578947367,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.223,
+          "ratio": 16.932735426008968
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.3237,
+          "ratio": 11.66512202656781
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/unicode_scalar_pipeline/unicode_scalar_pipeline.able",
+        "sha256": "9ff36de9cbdd1e2b1138611fc20453e0803e3f8734769a30929eb52528ab7bdb",
+        "provenance": "measured"
+      },
+      "group": "bytecode-text-map",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Fresh K-Nucleotide, Word Frequency, Inventory, Reverse Complement, and JSON profiles share only closed VM parents and Go map/GC leaves; map callers divide among integer boxing, type/member/call caches, Array state, language HashMap work, and native JSON parsing.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.834,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 9.952267303102625,
+      "worst_ratio_reference": "ruby",
+      "fastest_reference": "ruby",
+      "fastest_reference_real_seconds": 0.0838,
+      "target_budget_seconds": 0.08821052631578946,
+      "excess_seconds": 0.7457894736842106,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.1056,
+          "ratio": 7.8977272727272725
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0838,
+          "ratio": 9.952267303102625
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able",
+        "sha256": "7e3987037cbfac4a14e90e0910631a989d64f1bb2719175470441d4fc8816b35",
+        "provenance": "measured"
+      },
+      "group": "bytecode-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-bytecode-runtime-artifact",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 11,
+      "owner": "sync/atomic.(*Int32).Add is exact in nine concurrency rows, but every sample is an RWMutex operation whose Able callers split across environment lookup/revision/runtime-data/parent/definition and alias/method-cache stores; allocation repeats the retained lazy environmentState plus closed VM families.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-bytecode-concurrency-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-exact-leaf-selection-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 5.158,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 59.63005780346822,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0865,
+      "target_budget_seconds": 0.09105263157894736,
+      "excess_seconds": 5.066947368421053,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0865,
+          "ratio": 59.63005780346822
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.1471,
+          "ratio": 35.06458191706322
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/wide_integer_records/wide_integer_records.able",
+        "sha256": "8ba1e245f5d169409d2d35ba53c3ba94a554fd6767ec8d9d4602fef064b8405d",
+        "provenance": "measured"
+      },
+      "group": "bytecode-wide-numeric",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 4,
+      "owner": "Raw integer extraction recurs across the three wide programs and Reverse Complement, but its consumers split among checked wide operations, casts, comparisons, parsing, bitwise work, member calls, and byte loops.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "word_frequency",
+      "mode": "bytecode",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 1.418,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 75.42553191489361,
+      "worst_ratio_reference": "python",
+      "fastest_reference": "python",
+      "fastest_reference_real_seconds": 0.0188,
+      "target_budget_seconds": 0.019789473684210527,
+      "excess_seconds": 1.3982105263157893,
+      "comparisons": [
+        {
+          "language": "python",
+          "real_seconds": 0.0188,
+          "ratio": 75.42553191489361
+        },
+        {
+          "language": "ruby",
+          "real_seconds": 0.0485,
+          "ratio": 29.237113402061855
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+        "sha256": "ad6e5d39c1685931dfb7b86fb7ce2afe783a1088ffc646a5482540606cd79a3f",
+        "provenance": "measured"
+      },
+      "group": "bytecode-text-map",
+      "profile_freshness": "current-exact-five-application-refresh",
+      "artifact_identity": "frozen-current-main-only-profile-processes",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Fresh K-Nucleotide, Word Frequency, Inventory, Reverse Complement, and JSON profiles share only closed VM parents and Go map/GC leaves; map callers divide among integer boxing, type/member/call caches, Array state, language HashMap work, and native JSON parsing.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "array_slice_window",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.088,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 17.599999999999998,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.005,
+      "target_budget_seconds": 0.005263157894736842,
+      "excess_seconds": 0.08273684210526315,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.005,
+          "ratio": 17.599999999999998
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+        "sha256": "64c65a525023e5fc7000f13b9d36875716b7d8b936060fede904381b58156b4e",
+        "provenance": "measured"
+      },
+      "group": "compiled-iterator-control",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot",
+      "artifact_identity": "preserved-current-baseline-candidate-binaries",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "The retained per-value dynamic-i64 cache removes the only newly repeated initialization owner; residual Array slice, Queue/graph, iterator/channel, text, and generic-union descendants remain separate.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.356,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 72.65306122448979,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0049,
+      "target_budget_seconds": 0.005157894736842105,
+      "excess_seconds": 0.3508421052631579,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0049,
+          "ratio": 72.65306122448979
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/await_channel_mux/await_channel_mux.able",
+        "sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "base64",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 2.558,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.0611906243517941,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 2.4105,
+      "target_budget_seconds": 2.5373684210526313,
+      "excess_seconds": 0.020631578947368556,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 2.4105,
+          "ratio": 1.0611906243517941
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/base64/base64.able",
+        "sha256": "b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108",
+        "provenance": "measured"
+      },
+      "group": "compiled-byte-output",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binaries-no-candidate",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Current generated-main profiles split into Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md"
+      ]
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "compiled",
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 9.578,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 0.896875263359958,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 10.6793,
+      "target_budget_seconds": 11.24136842105263,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 10.6793,
+          "ratio": 0.896875263359958
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/binarytrees.able",
+        "sha256": "d973598c0ca4e88fcbe96dc852fa64a935cd651b3b85be10121222e9694293d8",
+        "provenance": "measured"
+      },
+      "group": "compiled-target-guards",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot-scorecard",
+      "artifact_identity": "current-scorecard-source-and-threshold-cohorts",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md",
+        "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md"
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.9549935126576558,
+        "cohort_ratios": [
+          0.9338941208740972,
+          0.9754841001954166
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "d973598c0ca4e88fcbe96dc852fa64a935cd651b3b85be10121222e9694293d8",
+        "reference_source_sha256": {
+          "go": "27d067b4bfe5f501f1fe2d6a3e0254d699759c750296d9414161c2b5d3623b9f"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
+            "sha256": "6ddc564ee065ccd620a21db9356b6ea7fce98a1550755a30e0448cc94ffeb825"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+            "sha256": "27e6da6cd4603287e6f46e2edcdb79df8c93dfeec81fb70713226902e16369e7"
+          }
+        ],
+        "rationale": "Both independent current-source cohorts meet the compiled target."
+      }
+    },
+    {
+      "benchmark": "channel_rollup",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.54,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 93.10344827586208,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0058,
+      "target_budget_seconds": 0.006105263157894736,
+      "excess_seconds": 0.5338947368421053,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0058,
+          "ratio": 93.10344827586208
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/channel_rollup/channel_rollup.able",
+        "sha256": "cc7ddd6dca16348087e17b89f07a30afa536750d088606744f9c22ce0704808a",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.234,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 673.75,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0048,
+      "target_budget_seconds": 0.005052631578947368,
+      "excess_seconds": 3.2289473684210526,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0048,
+          "ratio": 673.75
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able",
+        "sha256": "23d12e189b92ee44f83917df8a8fa8a84f2ab77242f9785474df345fbe5e274b",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "concurrent_text_index",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.876,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 141.29032258064515,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0062,
+      "target_budget_seconds": 0.006526315789473684,
+      "excess_seconds": 0.8694736842105263,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0062,
+          "ratio": 141.29032258064515
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/concurrent_text_index/concurrent_text_index.able",
+        "sha256": "5a2429f00e30e21af242850073e6e8c24d4022b8cad9bc7aee5e6e7860999eef",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "config_validation_extraction",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.102,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 24.285714285714285,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0042,
+      "target_budget_seconds": 0.004421052631578947,
+      "excess_seconds": 0.09757894736842104,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0042,
+          "ratio": 24.285714285714285
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/config_validation_extraction/config_validation_extraction.able",
+        "sha256": "ffdba7256c645683bd9e53ef5a3422ca332ad51dae98816ef902906691ac8b73",
+        "provenance": "measured"
+      },
+      "group": "compiled-regex",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "current-profile-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA closure, move, and thread management recur across the related API audits, log routing/redaction, and configuration validation/extraction.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "dependency_plan",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.094,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 22.380952380952383,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0042,
+      "target_budget_seconds": 0.004421052631578947,
+      "excess_seconds": 0.08957894736842105,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0042,
+          "ratio": 22.380952380952383
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/dependency_plan/dependency_plan.able",
+        "sha256": "f2579982dbe25debb2e40f2ec1f2d0187016a3801c5373c82f45258e16210d8e",
+        "provenance": "measured"
+      },
+      "group": "compiled-iterator-control",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot",
+      "artifact_identity": "preserved-current-baseline-candidate-binaries",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "The retained per-value dynamic-i64 cache removes the only newly repeated initialization owner; residual Array slice, Queue/graph, iterator/channel, text, and generic-union descendants remain separate.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 1.244,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 296.1904761904762,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0042,
+      "target_budget_seconds": 0.004421052631578947,
+      "excess_seconds": 1.2395789473684211,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0042,
+          "ratio": 296.1904761904762
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/dependency_wave_validation/dependency_wave_validation.able",
+        "sha256": "7d200dbe3ee867e95668ae8c74a2e45893f4d369db6bf00962363348dc632a50",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "distance_field",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.104,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 7.938931297709923,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0131,
+      "target_budget_seconds": 0.013789473684210527,
+      "excess_seconds": 0.09021052631578946,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0131,
+          "ratio": 7.938931297709923
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/distance_field/distance_field.able",
+        "sha256": "80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88",
+        "provenance": "measured"
+      },
+      "group": "compiled-float-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "benchmark": "document_audit",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.088,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 22.564102564102562,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0039,
+      "target_budget_seconds": 0.004105263157894737,
+      "excess_seconds": 0.08389473684210526,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0039,
+          "ratio": 22.564102564102562
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/document_audit/document_audit.able",
+        "sha256": "4f3fe4b3ce2a782c67e79d1178ba0ef3165ff8917b1970a6c96ccd7e550f27f2",
+        "provenance": "measured"
+      },
+      "group": "compiled-iterator-control",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot",
+      "artifact_identity": "preserved-current-baseline-candidate-binaries",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "The retained per-value dynamic-i64 cache removes the only newly repeated initialization owner; residual Array slice, Queue/graph, iterator/channel, text, and generic-union descendants remain separate.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "fasta_generation",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.126,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 9.545454545454545,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0132,
+      "target_budget_seconds": 0.013894736842105262,
+      "excess_seconds": 0.11210526315789474,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0132,
+          "ratio": 9.545454545454545
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/fasta_generation/fasta_generation.able",
+        "sha256": "f8c67c9ab16e29d92904db2d58091f2512f83319a3bca5caf8ee90c37a2a96d7",
+        "provenance": "measured"
+      },
+      "group": "compiled-byte-output",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binaries-no-candidate",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Current generated-main profiles split into Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md"
+      ]
+    },
+    {
+      "benchmark": "fib",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.846,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.2104617127749977,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 3.1773,
+      "target_budget_seconds": 3.3445263157894733,
+      "excess_seconds": 0.5014736842105267,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 3.1773,
+          "ratio": 1.2104617127749977
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/fib.able",
+        "sha256": "1613bf12ba84db9d59c04eb8a2d9b9912d27f51696b22210743e1e499f52ae02",
+        "provenance": "measured"
+      },
+      "group": "compiled-target-guards",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot-scorecard",
+      "artifact_identity": "current-scorecard-source-and-threshold-cohorts",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md",
+        "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md"
+      ]
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.24,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 42.10526315789473,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0057,
+      "target_budget_seconds": 0.006,
+      "excess_seconds": 0.23399999999999999,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0057,
+          "ratio": 42.10526315789473
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+        "sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e",
+        "provenance": "measured"
+      },
+      "group": "compiled-wide-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Package-environment publication through SwapEnv/sync/atomic.StorePointer recurs in checked arithmetic, Rational division, and wide-record parsing; the dominant arithmetic descendants remain different.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "benchmark": "future_await_race",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.09,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 21.95121951219512,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0041,
+      "target_budget_seconds": 0.00431578947368421,
+      "excess_seconds": 0.08568421052631578,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0041,
+          "ratio": 21.95121951219512
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/future_await_race/future_await_race.able",
+        "sha256": "7950a425ac6225a577d7c234395ee4293d5c89c2ddfcb19fd87732e8d4d0335b",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "future_pipeline",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.382,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 70.74074074074073,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0054,
+      "target_budget_seconds": 0.00568421052631579,
+      "excess_seconds": 0.3763157894736842,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0054,
+          "ratio": 70.74074074074073
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/future_pipeline/future_pipeline.able",
+        "sha256": "823bcdb46878c9d57ab6438bed3767861974227b96318572dc823f3da69067b7",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.102,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.5863141524105755,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0643,
+      "target_budget_seconds": 0.06768421052631578,
+      "excess_seconds": 0.034315789473684216,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0643,
+          "ratio": 1.5863141524105755
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/i_before_e/i_before_e.able",
+        "sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9",
+        "provenance": "measured"
+      },
+      "group": "compiled-text-map",
+      "profile_freshness": "current-exact-post-hash-index",
+      "artifact_identity": "current-profile-processes-merged-short-compiled",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Post-index Inventory, Word Frequency, and K-Nucleotide split into integer equality/conversion, UTF-8 and String work, boxing, and different allocation/GC descendants.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.214,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 24.04494382022472,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0089,
+      "target_budget_seconds": 0.009368421052631578,
+      "excess_seconds": 0.20463157894736841,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0089,
+          "ratio": 24.04494382022472
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/inventory_reconciliation/inventory_reconciliation.able",
+        "sha256": "16c408486e1f3fb1003c795b5ed0ee63b310cd2fecba4a85d9b4081c381e8d9f",
+        "provenance": "measured"
+      },
+      "group": "compiled-text-map",
+      "profile_freshness": "current-exact-post-hash-index",
+      "artifact_identity": "current-profile-processes-merged-short-compiled",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Post-index Inventory, Word Frequency, and K-Nucleotide split into integer equality/conversion, UTF-8 and String work, boxing, and different allocation/GC descendants.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "json",
+      "mode": "compiled",
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 0.792,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 0.5352074604676308,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 1.4798,
+      "target_budget_seconds": 1.5576842105263158,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 1.4798,
+          "ratio": 0.5352074604676308
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/json/json.able",
+        "sha256": "84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a",
+        "provenance": "measured"
+      },
+      "group": "compiled-target-guards",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot-scorecard",
+      "artifact_identity": "current-scorecard-source-and-threshold-cohorts",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md",
+        "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md"
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.5607701861121319,
+        "cohort_ratios": [
+          0.5881546476556073,
+          0.5332782141380736
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a",
+        "reference_source_sha256": {
+          "go": "6ea05b659c17322d9fd009c1b6f7ca3862e4621d2d854bbae25cd2eaccbc91c1"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
+            "sha256": "6ddc564ee065ccd620a21db9356b6ea7fce98a1550755a30e0448cc94ffeb825"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+            "sha256": "27e6da6cd4603287e6f46e2edcdb79df8c93dfeec81fb70713226902e16369e7"
+          }
+        ],
+        "rationale": "Both independent current-source cohorts meet the compiled target."
+      }
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.164,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 43.94444444444445,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.072,
+      "target_budget_seconds": 0.07578947368421052,
+      "excess_seconds": 3.0882105263157897,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.072,
+          "ratio": 43.94444444444445
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/k_nucleotide/k_nucleotide.able",
+        "sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a",
+        "provenance": "measured"
+      },
+      "group": "compiled-text-map",
+      "profile_freshness": "current-exact-post-hash-index",
+      "artifact_identity": "current-profile-processes-merged-short-compiled",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Post-index Inventory, Word Frequency, and K-Nucleotide split into integer equality/conversion, UTF-8 and String work, boxing, and different allocation/GC descendants.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.116,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 21.48148148148148,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0054,
+      "target_budget_seconds": 0.00568421052631579,
+      "excess_seconds": 0.11031578947368421,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0054,
+          "ratio": 21.48148148148148
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/lexical_rollup/lexical_rollup.able",
+        "sha256": "567a239892f4f6b00e5d61e4d262857ff14687c31e16cd1d390d9e9dfb6b3159",
+        "provenance": "measured"
+      },
+      "group": "compiled-iterator-control",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot",
+      "artifact_identity": "preserved-current-baseline-candidate-binaries",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "The retained per-value dynamic-i64 cache removes the only newly repeated initialization owner; residual Array slice, Queue/graph, iterator/channel, text, and generic-union descendants remain separate.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.124,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 22.142857142857142,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0056,
+      "target_budget_seconds": 0.0058947368421052625,
+      "excess_seconds": 0.11810526315789474,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0056,
+          "ratio": 22.142857142857142
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/log_routing_redaction/log_routing_redaction.able",
+        "sha256": "958ad9cdee6f91694757dbca9748e6f23bff84340e52e0e1375589726be0629b",
+        "provenance": "measured"
+      },
+      "group": "compiled-regex",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "current-profile-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA closure, move, and thread management recur across the related API audits, log routing/redaction, and configuration validation/extraction.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "mandelbrot",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.166,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 3.0181818181818185,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.055,
+      "target_budget_seconds": 0.05789473684210526,
+      "excess_seconds": 0.10810526315789475,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.055,
+          "ratio": 3.0181818181818185
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mandelbrot/mandelbrot.able",
+        "sha256": "663385828c4e7318bac285c4fcce27d3b435f9a3536a1a20b3cfa09af2a32315",
+        "provenance": "measured"
+      },
+      "group": "compiled-float-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "compiled",
+      "target_status": "meets",
+      "established_guard_status": "not-established",
+      "stability_classification": "variance-sensitive-miss",
+      "able_real_seconds": 1.138,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.0498154981549814,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 1.084,
+      "target_budget_seconds": 1.1410526315789473,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 1.084,
+          "ratio": 1.0498154981549814
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/matrixmultiply.able",
+        "sha256": "f4e1ae5575094ab725db5ee0adb81eb6783221844aac9ef99b8f820f56c18246",
+        "provenance": "measured"
+      },
+      "group": "compiled-current-control",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Matrix primitive nested arithmetic and TapeLang flat dispatch remain separate generated bodies.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md"
+      ],
+      "stability": {
+        "classification": "variance-sensitive-miss",
+        "established_guard_status": "not-established",
+        "pooled_ratio": 1.1554031528313566,
+        "cohort_ratios": [
+          1.0498154981549814,
+          1.268090971743625
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "f4e1ae5575094ab725db5ee0adb81eb6783221844aac9ef99b8f820f56c18246",
+        "reference_source_sha256": {
+          "go": "4b77c1e4f0add1763c830c9da22a9d92c43d14e48432bab021e2146e3ccb1e42"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.json",
+            "sha256": "f8e9726fae3206fac958e33d4b0a4074910eb3618f51e8b816c1ae7e094a40eb"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md",
+            "sha256": "062dd832b7c254a0da1e32019a646b62cc9e0c4f64694af1a11befe70d59a25f"
+          }
+        ],
+        "rationale": "The current snapshot narrowly meets, but the independent second cohort and the pooled ratio miss the compiled target."
+      }
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "mode": "compiled",
+      "target_status": "meets",
+      "established_guard_status": "not-established",
+      "stability_classification": "volatile-crossing",
+      "able_real_seconds": 0.212,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.0033128253667771,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.2113,
+      "target_budget_seconds": 0.22242105263157894,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.2113,
+          "ratio": 1.0033128253667771
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able",
+        "sha256": "9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c",
+        "provenance": "measured"
+      },
+      "group": "compiled-float-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ],
+      "stability": {
+        "classification": "volatile-crossing",
+        "established_guard_status": "not-established",
+        "pooled_ratio": 1.0049177921359118,
+        "cohort_ratios": [
+          0.9272097053726169,
+          1.1579481970543424,
+          0.9497964721845319
+        ],
+        "limiting_reference": "go",
+        "able_samples": 15,
+        "reference_samples": 15,
+        "able_source_sha256": "9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c",
+        "reference_source_sha256": {
+          "go": "34b6ad655126f97e453b17350d49552144c2bcd332fb3b3ca7192382554e3877"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-variance.json",
+            "sha256": "89f37a2f036934cf59626fa82e5b7138bca0ab40f8891a7cdb8f3a84dafcb971"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+            "sha256": "39887cf11a886b3f537c24bac07cebdbd70a0b079bfeaba815324a1ab3e7a44e"
+          }
+        ],
+        "rationale": "The pooled ratio meets, but one of three independent cohorts misses materially, so this snapshot crossing is not a durable guard."
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.684,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 171.0,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.004,
+      "target_budget_seconds": 0.004210526315789474,
+      "excess_seconds": 0.6797894736842106,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.004,
+          "ratio": 171.0
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mutex_await_journal/mutex_await_journal.able",
+        "sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.826,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 196.66666666666666,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0042,
+      "target_budget_seconds": 0.004421052631578947,
+      "excess_seconds": 0.821578947368421,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0042,
+          "ratio": 196.66666666666666
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mutex_ledger/mutex_ledger.able",
+        "sha256": "2975ac5ae318fd528fd353ee8846f4cb86104e8525a43c2aa1c31e05dfdb1a61",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 1.366,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 310.45454545454544,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0044,
+      "target_budget_seconds": 0.0046315789473684215,
+      "excess_seconds": 1.3613684210526318,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0044,
+          "ratio": 310.45454545454544
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/mutex_work_queue/mutex_work_queue.able",
+        "sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "nbody",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.184,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 5.75,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.032,
+      "target_budget_seconds": 0.03368421052631579,
+      "excess_seconds": 0.1503157894736842,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.032,
+          "ratio": 5.75
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/nbody.able",
+        "sha256": "697e6d589629213c9fcbcaf7b2607fb7f9d98035dce04ef829ce71e2c12acef9",
+        "provenance": "measured"
+      },
+      "group": "compiled-float-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "benchmark": "option_result_config",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.248,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 72.94117647058823,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0034,
+      "target_budget_seconds": 0.003578947368421052,
+      "excess_seconds": 0.24442105263157896,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0034,
+          "ratio": 72.94117647058823
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/option_result_config/option_result_config.able",
+        "sha256": "9a0cd261ba89aad1fe1cea7da9ce78bdf356a350151ba7f17277ed5a125d7c48",
+        "provenance": "measured"
+      },
+      "group": "compiled-iterator-control",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot",
+      "artifact_identity": "preserved-current-baseline-candidate-binaries",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "The retained per-value dynamic-i64 cache removes the only newly repeated initialization owner; residual Array slice, Queue/graph, iterator/channel, text, and generic-union descendants remain separate.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-iterator-control-dynamic-i64-lazy-slot-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-iterator-control-profile-refresh.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md"
+      ]
+    },
+    {
+      "benchmark": "pidigits",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 1.254,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.0865609565895504,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 1.1541,
+      "target_budget_seconds": 1.2148421052631577,
+      "excess_seconds": 0.03915789473684228,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 1.1541,
+          "ratio": 1.0865609565895504
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/pidigits/pidigits.able",
+        "sha256": "236a74ef456b4a5ca3e33a743a0b3b8e8767db9cfa07dd619df870bff876d5cb",
+        "provenance": "measured"
+      },
+      "group": "compiled-byte-output",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binaries-no-candidate",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Current generated-main profiles split into Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md"
+      ]
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 1.846,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 0.7288952065071469,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 2.5326,
+      "target_budget_seconds": 2.665894736842105,
+      "excess_seconds": 0.0,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 2.5326,
+          "ratio": 0.7288952065071469
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/quicksort/quicksort.able",
+        "sha256": "f54986a03bce5d3fa5bb8d1dd342299c1b6a434a682572d353c46d5f66c1af92",
+        "provenance": "measured"
+      },
+      "group": "compiled-target-guards",
+      "profile_freshness": "current-exact-post-dynamic-i64-lazy-slot-scorecard",
+      "artifact_identity": "current-scorecard-source-and-threshold-cohorts",
+      "disposition": "target-guard",
+      "exact_leaf_breadth": 0,
+      "owner": "Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md",
+        "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md"
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.7401068929976997,
+        "cohort_ratios": [
+          0.7571782538988484,
+          0.7223339276907318
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "f54986a03bce5d3fa5bb8d1dd342299c1b6a434a682572d353c46d5f66c1af92",
+        "reference_source_sha256": {
+          "go": "f0bc08270a8f666cb9df5fc21fbbebba5fabd6375e7dc7b1313a5949e7ad485a"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
+            "sha256": "6ddc564ee065ccd620a21db9356b6ea7fce98a1550755a30e0448cc94ffeb825"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
+            "sha256": "27e6da6cd4603287e6f46e2edcdb79df8c93dfeec81fb70713226902e16369e7"
+          }
+        ],
+        "rationale": "Both independent current-source cohorts meet the compiled target."
+      }
+    },
+    {
+      "benchmark": "rational_series",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.138,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 10.615384615384617,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.013,
+      "target_budget_seconds": 0.013684210526315788,
+      "excess_seconds": 0.12431578947368423,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.013,
+          "ratio": 10.615384615384617
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/rational_series/rational_series.able",
+        "sha256": "20a58261d852834d425de755ed35e7c34b0bda80945caf97a94d4ba9b2e0bf46",
+        "provenance": "measured"
+      },
+      "group": "compiled-wide-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Package-environment publication through SwapEnv/sync/atomic.StorePointer recurs in checked arithmetic, Rational division, and wide-record parsing; the dominant arithmetic descendants remain different.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.152,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 30.4,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.005,
+      "target_budget_seconds": 0.005263157894736842,
+      "excess_seconds": 0.14673684210526317,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.005,
+          "ratio": 30.4
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/regex_set_audit/regex_set_audit.able",
+        "sha256": "124fcfb1435ab1160adff38f7d50ba442c22b4d63cce25fa06e7799a26458b9b",
+        "provenance": "measured"
+      },
+      "group": "compiled-regex",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "current-profile-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA closure, move, and thread management recur across the related API audits, log routing/redaction, and configuration validation/extraction.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.112,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 18.983050847457626,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0059,
+      "target_budget_seconds": 0.006210526315789473,
+      "excess_seconds": 0.10578947368421053,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0059,
+          "ratio": 18.983050847457626
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/regex_stream_audit/regex_stream_audit.able",
+        "sha256": "ed58e3975b12776a03ace5bd7e066b570e7538f303f631db9c1704d3a1eaa999",
+        "provenance": "measured"
+      },
+      "group": "compiled-regex",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "current-profile-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA closure, move, and thread management recur across the related API audits, log routing/redaction, and configuration validation/extraction.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.122,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 21.785714285714285,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0056,
+      "target_budget_seconds": 0.0058947368421052625,
+      "excess_seconds": 0.11610526315789474,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0056,
+          "ratio": 21.785714285714285
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/regex_suffix_audit/regex_suffix_audit.able",
+        "sha256": "7f8a1b031ae20c9af490cd21ac9846ea472b43c62cd082b22cb6e600fea2c5fe",
+        "provenance": "measured"
+      },
+      "group": "compiled-regex",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "current-profile-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 5,
+      "owner": "Canonical NFA closure, move, and thread management recur across the related API audits, log routing/redaction, and configuration validation/extraction.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-regex-three-api-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-log-routing-redaction-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-config-validation-extraction-profile-gate.md"
+      ]
+    },
+    {
+      "benchmark": "reverse_complement",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.154,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 8.799999999999999,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0175,
+      "target_budget_seconds": 0.01842105263157895,
+      "excess_seconds": 0.13557894736842105,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0175,
+          "ratio": 8.799999999999999
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+        "sha256": "4bd16d4b6c65362efc5b2515548f59686144553a91eadcc65a0cde6df537e5f9",
+        "provenance": "measured"
+      },
+      "group": "compiled-byte-output",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-current-binaries-no-candidate",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Current generated-main profiles split into Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-fasta-write-all-gate.md",
+        "v12/docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md"
+      ]
+    },
+    {
+      "benchmark": "rms_norm",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.096,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 9.320388349514563,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0103,
+      "target_budget_seconds": 0.010842105263157894,
+      "excess_seconds": 0.08515789473684211,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0103,
+          "ratio": 9.320388349514563
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/rms_norm/rms_norm.able",
+        "sha256": "b289c78432f7c4077e259810c9e788341824899188821df669af345eed04dc59",
+        "provenance": "measured"
+      },
+      "group": "compiled-float-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
+      ]
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 1.792,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 3.196004993757803,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.5607,
+      "target_budget_seconds": 0.5902105263157894,
+      "excess_seconds": 1.2017894736842107,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.5607,
+          "ratio": 3.196004993757803
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/sudoku_masks/sudoku_masks.able",
+        "sha256": "88294708698dd72bd6ac6a6249633cc7fddf4274a33587930f8e932b00b199a5",
+        "provenance": "measured"
+      },
+      "group": "compiled-sudoku-quotient",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-insufficient-breadth",
+      "exact_leaf_breadth": 1,
+      "owner": "find_best_empty allocation/search plus square_index; signed Euclidean division is 13.17% cumulative in this application only.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.57,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 1.9000479003672361,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 1.8789,
+      "target_budget_seconds": 1.9777894736842105,
+      "excess_seconds": 1.5922105263157893,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 1.8789,
+          "ratio": 1.9000479003672361
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/tapelang_alphabet/tapelang_alphabet.able",
+        "sha256": "426a40e33840f3a0e9e62d5f9b9519a6840edd2733b8031df6a280e4b782fdb8",
+        "provenance": "measured"
+      },
+      "group": "compiled-current-control",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Matrix primitive nested arithmetic and TapeLang flat dispatch remain separate generated bodies.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md"
+      ]
+    },
+    {
+      "benchmark": "unicode_scalar_pipeline",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.294,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 28.54368932038835,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0103,
+      "target_budget_seconds": 0.010842105263157894,
+      "excess_seconds": 0.2831578947368421,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0103,
+          "ratio": 28.54368932038835
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/unicode_scalar_pipeline/unicode_scalar_pipeline.able",
+        "sha256": "9ff36de9cbdd1e2b1138611fc20453e0803e3f8734769a30929eb52528ab7bdb",
+        "provenance": "measured"
+      },
+      "group": "compiled-text-map",
+      "profile_freshness": "current-exact-post-hash-index",
+      "artifact_identity": "current-profile-processes-merged-short-compiled",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Post-index Inventory, Word Frequency, and K-Nucleotide split into integer equality/conversion, UTF-8 and String work, boxing, and different allocation/GC descendants.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 3.362,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 611.2727272727274,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0055,
+      "target_budget_seconds": 0.005789473684210526,
+      "excess_seconds": 3.3562105263157895,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0055,
+          "ratio": 611.2727272727274
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able",
+        "sha256": "7e3987037cbfac4a14e90e0910631a989d64f1bb2719175470441d4fc8816b35",
+        "provenance": "measured"
+      },
+      "group": "compiled-concurrency",
+      "profile_freshness": "current-exact-fourteen-application-refresh",
+      "artifact_identity": "frozen-current-and-fixed-context-generated-binaries",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 11,
+      "owner": "Goroutine identity through bridge.currentGID/runtime.Stack is the exact repeated compiled wall.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-20-mutex-work-queue-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-17-compiled-equal-cpu-concurrency-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-18-post-string-full-scorecard-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-feature-interaction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-dependency-wave-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-concurrent-event-routing-application-gate.md"
+      ]
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.2,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 7.874015748031497,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0254,
+      "target_budget_seconds": 0.026736842105263156,
+      "excess_seconds": 0.17326315789473684,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0254,
+          "ratio": 7.874015748031497
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/wide_integer_records/wide_integer_records.able",
+        "sha256": "8ba1e245f5d169409d2d35ba53c3ba94a554fd6767ec8d9d4602fef064b8405d",
+        "provenance": "measured"
+      },
+      "group": "compiled-wide-numeric",
+      "profile_freshness": "current-exact",
+      "artifact_identity": "preserved-binary-matched",
+      "disposition": "closed-rejected-candidate",
+      "exact_leaf_breadth": 3,
+      "owner": "Package-environment publication through SwapEnv/sync/atomic.StorePointer recurs in checked arithmetic, Rational division, and wide-record parsing; the dominant arithmetic descendants remain different.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-wide-integer-records-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-20-compiled-quotient-only-ownership-census.md"
+      ]
+    },
+    {
+      "benchmark": "word_frequency",
+      "mode": "compiled",
+      "target_status": "miss",
+      "established_guard_status": "not-applicable",
+      "stability_classification": null,
+      "able_real_seconds": 0.188,
+      "target_ratio": 1.0526315789473684,
+      "worst_ratio": 32.98245614035088,
+      "worst_ratio_reference": "go",
+      "fastest_reference": "go",
+      "fastest_reference_real_seconds": 0.0057,
+      "target_budget_seconds": 0.006,
+      "excess_seconds": 0.182,
+      "comparisons": [
+        {
+          "language": "go",
+          "real_seconds": 0.0057,
+          "ratio": 32.98245614035088
+        }
+      ],
+      "able_source": {
+        "path": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+        "sha256": "ad6e5d39c1685931dfb7b86fb7ce2afe783a1088ffc646a5482540606cd79a3f",
+        "provenance": "measured"
+      },
+      "group": "compiled-text-map",
+      "profile_freshness": "current-exact-post-hash-index",
+      "artifact_identity": "current-profile-processes-merged-short-compiled",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Post-index Inventory, Word Frequency, and K-Nucleotide split into integer equality/conversion, UTF-8 and String work, boxing, and different allocation/GC descendants.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-post-hash-index-profile-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md"
+      ]
+    }
+  ]
+}

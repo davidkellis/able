@@ -1,0 +1,9 @@
+{
+  "description": "unproven explicit interface casts defer validation to runtime",
+  "expect": {
+    "stdout": [
+      "runtime-rejected"
+    ],
+    "exit": 0
+  }
+}

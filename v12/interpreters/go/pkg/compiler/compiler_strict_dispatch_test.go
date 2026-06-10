@@ -113,10 +113,10 @@ func runCompilerStrictDispatchFixture(t *testing.T, root, rel string) {
 
 	moduleRoot, workDir := compilerTestWorkDir(t, "ablec-strict-fixture")
 
-	comp := New(Options{
+	comp := New(compilerFixtureOptions(t, Options{
 		PackageName:        "main",
 		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
-	})
+	}))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

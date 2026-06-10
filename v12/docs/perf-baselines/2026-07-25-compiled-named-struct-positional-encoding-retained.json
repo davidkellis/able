@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-25",
+  "decision": "retain",
+  "candidate": "generated named structs use definition-ordered positional runtime storage",
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "wall_time_ns": {
+        "baseline_mean": 25700199.55,
+        "candidate_mean": 19888122.95,
+        "go_mean": 3173229.1,
+        "candidate_change_percent": -22.6149,
+        "candidate_over_go": 6.26747,
+        "go_performance_percent": 15.9554
+      },
+      "allocation": {
+        "normal": {
+          "baseline_bytes_mean": 8959858.667,
+          "candidate_bytes_mean": 4484386.667,
+          "bytes_change_percent": -49.9503,
+          "baseline_allocations_mean": 104584.0,
+          "candidate_allocations_mean": 77944.333,
+          "allocations_change_percent": -25.4720,
+          "baseline_gc_mean": 5.0,
+          "candidate_gc_mean": 4.0
+        },
+        "error_heavy": {
+          "baseline_bytes_mean": 11261325.333,
+          "candidate_bytes_mean": 5753624.0,
+          "bytes_change_percent": -48.9081,
+          "baseline_allocations_mean": 119160.0,
+          "candidate_allocations_mean": 86376.333,
+          "allocations_change_percent": -27.5123,
+          "baseline_gc_mean": 7.0,
+          "candidate_gc_mean": 5.0
+        }
+      },
+      "merged_cpu_samples_ns": {
+        "normal_baseline": 170000000,
+        "normal_candidate": 150000000,
+        "error_heavy_baseline": 150000000,
+        "error_heavy_candidate": 120000000
+      },
+      "sha256": {
+        "candidate": "ba9f56fed856bcea681fe77364dee23aa435fec2c746e7f17a83136c0921f574"
+      }
+    },
+    {
+      "name": "Manifest Normalization",
+      "wall_time_ns": {
+        "baseline_mean": 15569203.6,
+        "candidate_mean": 13117161.0,
+        "go_mean": 2787234.05,
+        "candidate_change_percent": -15.7493,
+        "candidate_over_go": 4.70616,
+        "go_performance_percent": 21.2488
+      },
+      "allocation": {
+        "normal": {
+          "baseline_bytes_mean": 5824397.333,
+          "candidate_bytes_mean": 3907458.667,
+          "bytes_change_percent": -32.9122,
+          "baseline_allocations_mean": 93125.667,
+          "candidate_allocations_mean": 84933.667,
+          "allocations_change_percent": -8.7967,
+          "baseline_gc_mean": 5.0,
+          "candidate_gc_mean": 3.0
+        },
+        "error_heavy": {
+          "baseline_bytes_mean": 4208890.667,
+          "candidate_bytes_mean": 2832554.667,
+          "bytes_change_percent": -32.7007,
+          "baseline_allocations_mean": 41156.0,
+          "candidate_allocations_mean": 32963.333,
+          "allocations_change_percent": -19.9064,
+          "baseline_gc_mean": 3.0,
+          "candidate_gc_mean": 2.0
+        }
+      },
+      "merged_cpu_samples_ns": {
+        "normal_baseline": 90000000,
+        "normal_candidate": 80000000,
+        "error_heavy_baseline": 40000000,
+        "error_heavy_candidate": 50000000
+      },
+      "sha256": {
+        "candidate": "fcf9852ad2841401e58a3a6e71a1c2ecfc50ebc5539784e8d0929c641f9777a7"
+      }
+    },
+    {
+      "name": "Binary Event Log",
+      "wall_time_ns": {
+        "baseline_mean": 170151886.05,
+        "candidate_mean": 135743107.9,
+        "go_mean": 6296924.65,
+        "candidate_change_percent": -20.22239,
+        "candidate_over_go": 21.55705,
+        "go_performance_percent": 4.63885
+      },
+      "allocation": {
+        "normal": {
+          "baseline_bytes_mean": 94117293.333,
+          "candidate_bytes_mean": 62725448.0,
+          "bytes_change_percent": -33.3540,
+          "baseline_allocations_mean": 1209078.0,
+          "candidate_allocations_mean": 1078006.0,
+          "allocations_change_percent": -10.8407,
+          "baseline_gc_mean": 89.667,
+          "candidate_gc_mean": 60.0
+        },
+        "error_heavy": {
+          "baseline_bytes_mean": 55070773.333,
+          "candidate_bytes_mean": 33050490.667,
+          "bytes_change_percent": -39.9854,
+          "baseline_allocations_mean": 463033.0,
+          "candidate_allocations_mean": 331961.0,
+          "allocations_change_percent": -28.3073,
+          "baseline_gc_mean": 52.0,
+          "candidate_gc_mean": 31.0
+        }
+      },
+      "merged_cpu_samples_ns": {
+        "normal_baseline": 1610000000,
+        "normal_candidate": 1290000000,
+        "error_heavy_baseline": 500000000,
+        "error_heavy_candidate": 400000000
+      },
+      "sha256": {
+        "candidate": "efa50d8502ff542cc6c208120faf54c8a1f301e42c64d394d83c394f2c126a7c"
+      }
+    }
+  ],
+  "aggregate": {
+    "wall_time_geometric_improvement_percent": 19.5788,
+    "candidate_over_go_geometric_mean": 8.59903,
+    "go_performance_geometric_mean_percent": 11.6292
+  },
+  "protocol": {
+    "wall_time_cohorts_per_application": 20,
+    "warmups_per_lane": 2,
+    "allocation_profiles_per_application_mode_and_revision": 3,
+    "cpu_profiles_per_application_mode_and_revision": 10,
+    "cpu": 9,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "all_outputs_verified": true,
+    "strict_dependency_graphs_omit_interpreter": true
+  },
+  "verification": {
+    "focused_semantic_and_source_seconds": 2.578,
+    "broader_error_interface_pattern_seconds": 8.853,
+    "cmd_ablec_seconds": 6.111,
+    "stdlib_changed": false,
+    "runtime_changed": false,
+    "interpreter_changed": false,
+    "bytecode_vm_changed": false,
+    "language_changed": false,
+    "wasm_changed": false
+  },
+  "artifact_root": "/tmp/able-static-interface-errors-20260725.fkwojK",
+  "raw_wall_time_data": "/tmp/able-static-interface-errors-20260725.fkwojK/final-wall-time-cohorts.json",
+  "narrative_record": "2026-07-25-compiled-named-struct-positional-encoding-retained.md"
+}

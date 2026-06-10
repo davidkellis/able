@@ -1,0 +1,81 @@
+package exec_14_17_regex_set
+
+import able.kernel.{Array}
+import able.text.regex.{RegexOptions, RegexSet}
+import able.text.string.{String}
+
+fn patterns(first: String, second: String, third: String) -> Array String {
+  result: Array String := Array.with_capacity(3)
+  result.push(first)
+  result.push(second)
+  result.push(third)
+  result
+}
+
+fn show_matches(label: String, set: RegexSet, haystack: String) -> void {
+  matches := set.matches(haystack)
+  text := ""
+  idx := 0
+  loop {
+    if idx >= matches.len() { break }
+    if idx > 0 { text = `${text}|` }
+    text = `${text}${matches.read_slot(idx)}`
+    idx = idx + 1
+  }
+  print(`${label} ${set.is_match(haystack)} ${matches.len()} [${text}]`)
+}
+
+fn main() -> void {
+  RegexSet.compile(patterns("(c)(a)t", "dog", "c.t")) match {
+    case set: RegexSet => {
+      show_matches("ordered", set, "dog cat")
+      show_matches("repeat", set, "dog dog")
+      show_matches("none", set, "bird")
+    },
+    case _ => print("basic compile error")
+  }
+
+  empty: Array String := Array.new()
+  RegexSet.compile(empty) match {
+    case set: RegexSet => show_matches("empty-set", set, "anything"),
+    case _ => print("empty compile error")
+  }
+
+  RegexSet.compile(patterns("", "x", "z")) match {
+    case set: RegexSet => show_matches("zero-width", set, "é"),
+    case _ => print("zero-width compile error")
+  }
+
+  case_options := RegexOptions.default()
+  case_options.case_insensitive = true
+  RegexSet.compile_with_options(patterns("k", "dog", "cat"), case_options) match {
+    case set: RegexSet => show_matches("case-fold", set, "K"),
+    case _ => print("case-fold compile error")
+  }
+
+  line_options := RegexOptions.default()
+  line_options.multiline = true
+  RegexSet.compile_with_options(patterns("^cat$", "^dog$", "mouse"), line_options) match {
+    case set: RegexSet => show_matches("multiline", set, "x\ncat\ny"),
+    case _ => print("multiline compile error")
+  }
+
+  anchored_options := RegexOptions.default()
+  anchored_options.anchored = true
+  RegexSet.compile_with_options(patterns("cat", "dog", "bird"), anchored_options) match {
+    case set: RegexSet => show_matches("anchored", set, "bobcat"),
+    case _ => print("anchored compile error")
+  }
+
+  RegexSet.compile(patterns("cat", "[", "dog")) match {
+    case _: RegexSet => print("invalid accepted"),
+    case _ => print("invalid rejected")
+  }
+
+  unsupported_options := RegexOptions.default()
+  unsupported_options.unicode = false
+  RegexSet.compile_with_options(patterns("cat", "dog", "bird"), unsupported_options) match {
+    case _: RegexSet => print("unsupported accepted"),
+    case _ => print("unsupported rejected")
+  }
+}

@@ -39,7 +39,7 @@ func (g *generator) renderCompiledImportSeedingFile() ([]byte, error) {
 }
 
 func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageList []string) {
-	if g == nil || buf == nil || len(packageList) == 0 || len(g.staticImports) == 0 {
+	if g == nil || buf == nil || len(packageList) == 0 || (len(g.staticImports) == 0 && len(g.sourceReexports) == 0) {
 		return
 	}
 	targetPackages := make([]string, 0, len(packageList))
@@ -57,6 +57,23 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 	}
 	sort.Strings(targetPackages)
 	sourceSet := make(map[string]struct{})
+	addReexportSources := func(pkgName string) {}
+	addReexportSources = func(pkgName string) {
+		for _, binding := range g.sourceReexportsForPackage(pkgName) {
+			sourcePkg := strings.TrimSpace(binding.SourcePackage)
+			if sourcePkg == "" {
+				continue
+			}
+			if _, ok := g.packageEnvVar(sourcePkg); !ok {
+				continue
+			}
+			if _, seen := sourceSet[sourcePkg]; seen {
+				continue
+			}
+			sourceSet[sourcePkg] = struct{}{}
+			addReexportSources(sourcePkg)
+		}
+	}
 	for _, pkgName := range targetPackages {
 		for _, binding := range g.staticImportsForPackage(pkgName) {
 			if binding.SourcePackage == "" {
@@ -67,6 +84,12 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 			}
 			sourceSet[binding.SourcePackage] = struct{}{}
 		}
+	}
+	for _, pkgName := range targetPackages {
+		addReexportSources(pkgName)
+	}
+	for _, pkgName := range sourcePackagesFromSet(sourceSet) {
+		addReexportSources(pkgName)
 	}
 	if len(sourceSet) == 0 {
 		return
@@ -191,6 +214,38 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 		fmt.Fprintf(buf, "\t\t_ = %s\n", publicVar)
 	}
 
+	// Re-exported entries retain the source map's runtime value. Repeating the
+	// small forwarding pass resolves arbitrarily ordered re-export chains while
+	// leaving a package's own public declarations authoritative.
+	for pass := 0; pass < len(sourcePackages); pass++ {
+		for _, targetPkg := range sourcePackages {
+			targetPublic, ok := sourcePublicVars[targetPkg]
+			if !ok {
+				continue
+			}
+			for _, binding := range g.sourceReexportsForPackage(targetPkg) {
+				sourcePublic, ok := sourcePublicVars[binding.SourcePackage]
+				if !ok {
+					continue
+				}
+				switch binding.Kind {
+				case staticImportBindingSelector:
+					fmt.Fprintf(buf, "\t\tif _, exists := %s[%q]; !exists {\n", targetPublic, binding.LocalName)
+					fmt.Fprintf(buf, "\t\t\tif val, ok := %s[%q]; ok && val != nil {\n", sourcePublic, binding.SourceName)
+					fmt.Fprintf(buf, "\t\t\t\t%s[%q] = val\n", targetPublic, binding.LocalName)
+					fmt.Fprintf(buf, "\t\t\t}\n")
+					fmt.Fprintf(buf, "\t\t}\n")
+				case staticImportBindingWildcard:
+					fmt.Fprintf(buf, "\t\tfor name, val := range %s {\n", sourcePublic)
+					fmt.Fprintf(buf, "\t\t\tif _, exists := %s[name]; !exists && val != nil {\n", targetPublic)
+					fmt.Fprintf(buf, "\t\t\t\t%s[name] = val\n", targetPublic)
+					fmt.Fprintf(buf, "\t\t\t}\n")
+					fmt.Fprintf(buf, "\t\t}\n")
+				}
+			}
+		}
+	}
+
 	for _, targetPkg := range targetPackages {
 		targetEnvVar, ok := g.packageEnvVar(targetPkg)
 		if !ok {
@@ -232,6 +287,18 @@ func (g *generator) renderNoBootstrapImportSeeding(buf *bytes.Buffer, packageLis
 		}
 	}
 	fmt.Fprintf(buf, "\t}\n")
+}
+
+func sourcePackagesFromSet(sourceSet map[string]struct{}) []string {
+	if len(sourceSet) == 0 {
+		return nil
+	}
+	packages := make([]string, 0, len(sourceSet))
+	for pkgName := range sourceSet {
+		packages = append(packages, pkgName)
+	}
+	sort.Strings(packages)
+	return packages
 }
 
 func (g *generator) hasPublicPackageMethodCallableGroups() bool {

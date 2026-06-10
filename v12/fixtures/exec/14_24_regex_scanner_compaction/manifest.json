@@ -1,0 +1,12 @@
+{
+  "description": "incremental regex scanners compact consumed input without changing later absolute spans or capture values",
+  "expect": {
+    "stdout": [
+      "literal-first ab 0-2",
+      "literal-second ab 6-8",
+      "unicode-first éé 0-4",
+      "unicode-second é 7-9",
+      "capture 1-4 aaa 1-4"
+    ]
+  }
+}

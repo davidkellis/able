@@ -1,0 +1,46 @@
+package bench_tree_set_i32_small
+
+import able.collections.tree_set.{TreeSet}
+
+fn build(size: i32) -> TreeSet i32 {
+  values: TreeSet i32 = TreeSet.new()
+  i := 0
+  loop {
+    if i >= size { break }
+    values.insert(((i * 29) + 5) % (size * 3))
+    i = i + 1
+  }
+  values
+}
+
+fn score(values: TreeSet i32, size: i32) -> i64 {
+  total: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= size * 2 { break }
+    key := ((i * 17) + 9) % (size * 3)
+    if values.contains(key) {
+      total = total + (key as i64)
+    } else {
+      values.insert(key)
+    }
+    if i % 5 == 0 {
+      values.remove((i * 11) % (size * 3))
+    }
+    i = i + 1
+  }
+  values.each(fn(value: i32) -> void { total = total + (value as i64) })
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  values := build(150)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 3 { break }
+    total = total + score(values, 150)
+    rounds = rounds + 1
+  }
+  print(total)
+}

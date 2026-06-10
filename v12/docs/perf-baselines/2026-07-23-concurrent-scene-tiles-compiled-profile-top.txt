@@ -1,0 +1,28 @@
+File: concurrent_scene_tiles
+Build ID: 3f3ee629de1b78bf82002d9dcab8afd8c2fdebfb
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_scene_tiles/compiled_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_scene_tiles/compiled_merged.cpu.pprof
+Duration: 1.24s, Total samples = 2.33s (187.51%)
+
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      2.28s 97.85%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%     0%      2.28s 97.85%  main.__able_compiled_fn_render_tile
+         0     0%     0%      2.28s 97.85%  main.__able_run_compiled_task
+         0     0%     0%      2.28s 97.85%  runtime.systemstack
+     0.01s  0.43%  0.43%      2.25s 96.57%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%  0.43%      2.23s 95.71%  runtime.Stack
+     0.01s  0.43%  0.86%      2.23s 95.71%  runtime.Stack.func1
+         0     0%  0.86%      2.15s 92.27%  runtime.traceback
+         0     0%  0.86%      2.15s 92.27%  runtime.traceback1
+         0     0%  0.86%      1.95s 83.69%  runtime.traceback1.func1
+     0.01s  0.43%  1.29%      1.94s 83.26%  runtime.traceback2
+     0.01s  0.43%  1.72%      1.45s 62.23%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%  1.72%      1.15s 49.36%  main.__able_compiled_entry_impl_DistanceField_sample_0_a
+         0     0%  1.72%      1.15s 49.36%  main.__able_iface_DistanceField_adapter_ptr_BoxField.sample
+         0     0%  1.72%      1.12s 48.07%  main.__able_compiled_entry_impl_DistanceField_sample_0
+         0     0%  1.72%      1.12s 48.07%  main.__able_iface_DistanceField_adapter_ptr_OctagonField.sample
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_scene_tiles/compiled_merged.cpu.pprof

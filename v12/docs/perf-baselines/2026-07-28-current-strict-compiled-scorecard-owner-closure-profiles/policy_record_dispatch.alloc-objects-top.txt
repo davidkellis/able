@@ -1,0 +1,54 @@
+File: compiled
+Build ID: 2eac6349adea176b2534d916029edc79c913e4b5
+Type: alloc_objects
+Time: 2026-07-28 09:43:55 CDT
+Showing nodes accounting for 469264, 97.78% of 479896 total
+Dropped 197 nodes (cum <= 2399)
+      flat  flat%   sum%        cum   cum%
+     94464 19.68% 19.68%      94464 19.68%  main.__able_compiled_fn_regex_nfa_clone_captures_ctx
+     86305 17.98% 37.67%     130586 27.21%  main.__able_compiled_fn_regex_codepoints_ctx
+     58610 12.21% 49.88%      58610 12.21%  runtime/pprof.allFrames
+     43008  8.96% 58.84%      43008  8.96%  main.__able_compiled_fn_regex_nfa_threads_new_ctx
+     38134  7.95% 66.79%      38134  7.95%  main.__able_compiled_fn_utf8_decode_ctx
+     36480  7.60% 74.39%     109440 22.80%  main.__able_compiled_fn_regex_nfa_capture_end_ctx
+     26112  5.44% 79.83%      42107  8.77%  main.__able_compiled_fn_build_capture_groups_ctx
+     15921  3.32% 83.15%      15921  3.32%  main.__able_compiled_fn_slice_bytes_a_ctx
+     15690  3.27% 86.42%      15717  3.28%  runtime/pprof.(*profileBuilder).emitLocation
+     14336  2.99% 89.41%      14336  2.99%  main.__able_compiled_fn_regex_nfa_new_captures_ctx
+      9216  1.92% 91.33%      27648  5.76%  main.__able_compiled_fn_regex_nfa_capture_start_ctx
+      8685  1.81% 93.14%      83114 17.32%  runtime/pprof.writeHeapProto
+      6147  1.28% 94.42%       6147  1.28%  main.__able_compiled_method_String_chars_ctx
+      4682  0.98% 95.39%       4682  0.98%  main.__able_string_to_builtin_native
+      4096  0.85% 96.25%     394275 82.16%  main.__able_compiled_fn_evaluate_ctx
+      3072  0.64% 96.89%      53530 11.15%  main.__able_compiled_fn_build_match_ctx
+      2109  0.44% 97.33%     331017 68.98%  main.__able_compiled_fn_find_nfa_span_ctx
+      1536  0.32% 97.65%     388131 80.88%  main.__able_compiled_fn_parse_record_ctx
+       650  0.14% 97.78%       3743  0.78%  main.__able_compiled_fn_build_named_capture_groups_ctx
+         6 0.0013% 97.78%      74340 15.49%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         2 0.00042% 97.78%     396774 82.68%  main.__able_compiled_fn_main_ctx
+         1 0.00021% 97.78%      83120 17.32%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00021% 97.78%     396776 82.68%  main.RunRegisteredMain
+         1 0.00021% 97.78%      83115 17.32%  runtime/pprof.writeHeapInternal
+         0     0% 97.78%      83120 17.32%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 97.78%      83120 17.32%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 97.78%     396775 82.68%  main.RunRegisteredMain.func1
+         0     0% 97.78%      38134  7.95%  main.__able_compiled_entry_impl_Iterator_next_0_c_spec_ctx
+         0     0% 97.78%       6147  1.28%  main.__able_compiled_entry_method_String_chars_ctx
+         0     0% 97.78%     331017 68.98%  main.__able_compiled_fn_find_token_match_ctx
+         0     0% 97.78%     396775 82.68%  main.__able_compiled_fn_main
+         0     0% 97.78%     137088 28.57%  main.__able_compiled_fn_regex_nfa_add_closure_ctx
+         0     0% 97.78%     130944 27.29%  main.__able_compiled_fn_regex_nfa_move_ctx
+         0     0% 97.78%      38134  7.95%  main.__able_compiled_impl_Iterator_next_0_c_spec_ctx
+         0     0% 97.78%       3093  0.64%  main.__able_compiled_method_HashMap_new_spec_ctx_into
+         0     0% 97.78%     384547 80.13%  main.__able_compiled_method_Regex_match_ctx
+         0     0% 97.78%       3092  0.64%  main.__able_hash_map_new_ctx (inline)
+         0     0% 97.78%       3092  0.64%  main.__able_hash_map_new_impl
+         0     0% 97.78%      38134  7.95%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.__able_ctx_next
+         0     0% 97.78%     396775 82.68%  main.__able_register_compiled_call.func1
+         0     0% 97.78%     396775 82.68%  main.__able_wrap_fn_main
+         0     0% 97.78%     479896   100%  main.main
+         0     0% 97.78%     479896   100%  main.runMain
+         0     0% 97.78%      83120 17.32%  main.startMainProfilePhase (inline)
+         0     0% 97.78%     479896   100%  runtime.main
+         0     0% 97.78%      83115 17.32%  runtime/pprof.(*Profile).WriteTo
+         0     0% 97.78%      83115 17.32%  runtime/pprof.writeAlloc

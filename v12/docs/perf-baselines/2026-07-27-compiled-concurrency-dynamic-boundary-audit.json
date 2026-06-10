@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-07-28T03:12:32.495691Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "await_channel_mux",
+    "mutex_await_journal",
+    "mutex_work_queue"
+  ],
+  "timeout_seconds": 120,
+  "telemetry_build": true,
+  "telemetry_mode": "dynamic-boundary",
+  "rows": [
+    {
+      "benchmark": "await_channel_mux",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1538,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 1025,
+        "runtime_service_call": 2560
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 2049,
+        "runtime_service_call": 2052
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 4097,
+        "runtime_service_call": 4100
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "explicit_dynamic_call": 1540,
+    "residual_polymorphic_call": 7171,
+    "host_abi_call": 3,
+    "runtime_service_call": 8712
+  }
+}

@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 )
@@ -93,19 +94,31 @@ func (g *generator) compileStaticIteratorControllerBoundMethodValue(ctx *compile
 		if !ok {
 			return nil, "", "", false
 		}
-		callableExpr := fmt.Sprintf("%s(func(%s %s) (%s, *__ableControl) { __able_yield_err := %s.emit(%s); __able_yield_control := __able_control_from_error(__able_yield_err); if __able_yield_control != nil { return struct{}{}, __able_yield_control }; return struct{}{}, nil })", callableInfo.GoType, argName, callableInfo.ParamGoTypes[0], callableInfo.ReturnGoType, receiverTemp, argValueExpr)
+		paramParts := []string{fmt.Sprintf("%s %s", argName, callableInfo.ParamGoTypes[0])}
+		if g.callableExecutionContextsEnabled() {
+			paramParts = append(paramParts, "_ "+executionContextType)
+		}
+		callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { __able_yield_err := %s.emit(%s); __able_yield_control := __able_control_from_error(__able_yield_err); if __able_yield_control != nil { return struct{}{}, __able_yield_control }; return struct{}{}, nil })", callableInfo.GoType, strings.Join(paramParts, ", "), callableInfo.ReturnGoType, receiverTemp, argValueExpr)
 		return lines, callableExpr, callableInfo.GoType, true
 	case "stop":
 		if len(callableInfo.ParamGoTypes) != 0 || !g.isVoidType(callableInfo.ReturnGoType) {
 			return nil, "", "", false
 		}
-		callableExpr := fmt.Sprintf("%s(func() (%s, *__ableControl) { __able_stop_err := %s.stop(); __able_stop_control := __able_control_from_error(__able_stop_err); if __able_stop_control != nil { return struct{}{}, __able_stop_control }; return struct{}{}, nil })", callableInfo.GoType, callableInfo.ReturnGoType, receiverTemp)
+		paramPart := ""
+		if g.callableExecutionContextsEnabled() {
+			paramPart = "_ " + executionContextType
+		}
+		callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { __able_stop_err := %s.stop(); __able_stop_control := __able_control_from_error(__able_stop_err); if __able_stop_control != nil { return struct{}{}, __able_stop_control }; return struct{}{}, nil })", callableInfo.GoType, paramPart, callableInfo.ReturnGoType, receiverTemp)
 		return lines, callableExpr, callableInfo.GoType, true
 	case "close":
 		if len(callableInfo.ParamGoTypes) != 0 || !g.isVoidType(callableInfo.ReturnGoType) {
 			return nil, "", "", false
 		}
-		callableExpr := fmt.Sprintf("%s(func() (%s, *__ableControl) { %s.close(); return struct{}{}, nil })", callableInfo.GoType, callableInfo.ReturnGoType, receiverTemp)
+		paramPart := ""
+		if g.callableExecutionContextsEnabled() {
+			paramPart = "_ " + executionContextType
+		}
+		callableExpr := fmt.Sprintf("%s(func(%s) (%s, *__ableControl) { %s.close(); return struct{}{}, nil })", callableInfo.GoType, paramPart, callableInfo.ReturnGoType, receiverTemp)
 		return lines, callableExpr, callableInfo.GoType, true
 	default:
 		return nil, "", "", false

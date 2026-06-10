@@ -1,0 +1,114 @@
+{
+  "date": "2026-07-26",
+  "decision": "retain_diagnostics_reject_production_candidate",
+  "scope": "all_54_rankable_bytecode_applications",
+  "environment": {
+    "cpu": 6,
+    "GOMAXPROCS": 1,
+    "GOGC": 50,
+    "GOMEMLIMIT": "1GiB",
+    "stdlib": "../able-stdlib/src",
+    "source_root_only": true,
+    "temporary_storage": "/var/tmp"
+  },
+  "artifacts": {
+    "baseline_cli_sha256": "f68f4e7314300999f257395da2a34d0c0d14e20557757f6535da89aa6466095c",
+    "restored_cli_sha256": "f68f4e7314300999f257395da2a34d0c0d14e20557757f6535da89aa6466095c",
+    "candidate_cli_sha256": "e1d8d63d3e32b2259ecde74be1d8552321df85b96944de67271786bb5822e845",
+    "baseline_interpreter_test_sha256": "aa525490df683d83e9b26f59723e2122139cbf209023829e89ed9475bbf7dad2",
+    "restored_interpreter_test_sha256": "aa525490df683d83e9b26f59723e2122139cbf209023829e89ed9475bbf7dad2",
+    "candidate_interpreter_test_sha256": "a6129932197e1e738918a4811f502866e50c81990112bc2f08fa36dec76e454a",
+    "raw_census_sha256": "f5aa75f216df9288a4bcc31f866822547446c8176ea9b31ab5099bcc575eb501",
+    "census_summary_sha256": "04a75bb4f73ea59bf36e8e4e54121df8a2fdbaa54e81a97ca989a29c7d01aedc",
+    "runtime_ab_sha256": "0bffbb5f447b8c9d2563065b00740242423c6169922d608dd92cee88c114e1bf"
+  },
+  "census": {
+    "applications": 54,
+    "verified": 54,
+    "wall_seconds": 1034.6184343399946,
+    "materializations": 18696646,
+    "candidate_static": 13306959,
+    "required_dynamic": 5389687,
+    "dropped": 0,
+    "zero_transition_controls": [
+      "base64",
+      "distance_field",
+      "i_before_e",
+      "json",
+      "monte_carlo_pi",
+      "rms_norm"
+    ],
+    "reasons": [
+      {"class": "candidate_static", "reason": "collection_value", "count": 11088674, "applications": 37, "applications_ge_1000": 30},
+      {"class": "required_dynamic", "reason": "interface_union", "count": 3917679, "applications": 14, "applications_ge_1000": 14},
+      {"class": "candidate_static", "reason": "static_return", "count": 1678255, "applications": 39, "applications_ge_1000": 32},
+      {"class": "required_dynamic", "reason": "environment", "count": 1472008, "applications": 30, "applications_ge_1000": 20},
+      {"class": "candidate_static", "reason": "cast", "count": 536001, "applications": 2, "applications_ge_1000": 2},
+      {"class": "candidate_static", "reason": "static_call", "count": 4029, "applications": 1, "applications_ge_1000": 1}
+    ],
+    "largest_collection_shapes": [
+      {"opcode": "StructLiteralNamedFast", "carrier": "i32_slot_value", "suffix": "i32", "count": 5597919, "applications": 31},
+      {"opcode": "CallMemberArraySlot", "carrier": "i32_slot_value", "suffix": "i32", "count": 2731820, "applications": 9},
+      {"opcode": "StructLiteralNamedFast", "carrier": "integer_result", "suffix": "u64", "count": 999999, "applications": 1},
+      {"opcode": "StructLiteralNamedFast", "carrier": "i64_slot_cell", "suffix": "i64", "count": 846269, "applications": 10},
+      {"opcode": "StructLiteralNamedFast", "carrier": "integer_result", "suffix": "i64", "count": 835739, "applications": 15}
+    ]
+  },
+  "candidate": {
+    "description": "Store immutable raw primitive snapshots in generic nominal struct fields and materialize only at later dynamic consumers.",
+    "runtime_ab_runs_per_language": 5,
+    "runtime_ab": [
+      {"benchmark": "sensor_calibration", "baseline_seconds": 3.3577427664, "candidate_seconds": 3.5905273700, "change_percent": 6.9328, "python_ratio": 97.4564, "ruby_ratio": 36.0945},
+      {"benchmark": "word_frequency", "baseline_seconds": 1.4610850650, "candidate_seconds": 1.4625163644, "change_percent": 0.0980, "python_ratio": 79.2577, "ruby_ratio": 27.7342},
+      {"benchmark": "concurrent_audio_voices", "baseline_seconds": 1.3730500170, "candidate_seconds": 1.3600675862, "change_percent": -0.9455, "python_ratio": 10.6676, "ruby_ratio": 11.3393},
+      {"benchmark": "policy_record_dispatch", "baseline_seconds": 7.5975002458, "candidate_seconds": 7.2539957192, "change_percent": -4.5213, "python_ratio": 347.9404, "ruby_ratio": 156.9228},
+      {"benchmark": "rational_series", "baseline_seconds": 4.2386679248, "candidate_seconds": 4.4202218436, "change_percent": 4.2833, "python_ratio": 40.9902, "ruby_ratio": 31.3176},
+      {"benchmark": "fixed_width_128", "baseline_seconds": 8.3480022152, "candidate_seconds": 8.0397260442, "change_percent": -3.6928, "python_ratio": 21.9696, "ruby_ratio": 12.3759},
+      {"benchmark": "array_slice_window", "baseline_seconds": 0.7532346004, "candidate_seconds": 0.7472802418, "change_percent": -0.7905, "python_ratio": 24.1619, "ruby_ratio": 10.2372}
+    ],
+    "exact_allocation_runs_per_variant": 3,
+    "exact_allocation_partial": [
+      {"benchmark": "sensor_calibration", "bytes_change_percent": -2.3610, "allocations_change_percent": -0.0021},
+      {"benchmark": "word_frequency", "bytes_change_percent": -2.2588, "allocations_change_percent": 0.0004},
+      {"benchmark": "concurrent_audio_voices", "bytes_change_percent": -2.5632, "allocations_change_percent": -2.3578}
+    ],
+    "exact_allocation_note": "The reusable-main allocation harness stopped at Policy because its warmup encountered an existing ambiguous map overload; the completed unlike rows were sufficient because the verifier-backed runtime cohort had already rejected the candidate.",
+    "rejection_reasons": [
+      "Sensor Calibration regressed 6.9328 percent.",
+      "Rational Series regressed 4.2833 percent.",
+      "Word Frequency was neutral rather than broadly improved.",
+      "The modest memory reductions did not compensate for unlike-program runtime regressions."
+    ],
+    "fully_reverted": true,
+    "restored_artifacts_byte_identical": true
+  },
+  "retained": [
+    "Opt-in reason-aware primitive-materialization counters.",
+    "Candidate-static versus required-dynamic classification.",
+    "Carrier, suffix, opcode, instruction, program, and source-origin attribution.",
+    "Focused counter lifecycle and zero-drop regression coverage."
+  ],
+  "verification": {
+    "focused_tests_count": 3,
+    "focused_tests_passed": true,
+    "full_handoff": "./run_all_tests.sh",
+    "full_handoff_passed": true,
+    "final_bytecode_fixture_seconds": 108.207
+  },
+  "not_changed": [
+    "runtime semantics",
+    "tree-walker semantics",
+    "compiler lowering",
+    "stdlib",
+    "benchmarks",
+    "language",
+    "dependencies",
+    "WASM"
+  ],
+  "next": {
+    "tranche": "bytecode_primitive_array_element_boundary_reconciliation",
+    "why": "CallMemberArraySlot i32 materialization is the largest remaining concrete avoidable collection boundary after rejecting raw primitives in generic nominal fields.",
+    "entails": "Reconcile 2731820 transitions across nine applications with existing Array raw caches and direct stores, profile at least three unlike material applications plus a control, and admit a general primitive-Array carrier experiment only if CPU or allocation cost repeats.",
+    "importance": "Static Arrays are required to use native carriers, and this route can reduce boxing without weakening the shared nominal representation or crossing more dynamic boundaries."
+  }
+}

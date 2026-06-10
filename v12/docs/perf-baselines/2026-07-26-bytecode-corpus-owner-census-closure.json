@@ -1,0 +1,230 @@
+{
+  "kind": "bytecode-corpus-owner-census-closure",
+  "date": "2026-07-26",
+  "decision": "retain-no-change-local-profile-driven-vm-optimization-exhausted",
+  "artifacts": {
+    "repository_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+    "repository_dirty": true,
+    "go_version": "go1.26.4",
+    "able_cli_sha256": "5f1108bc9596e74dd37e29fdb863bf8fa517e91935fd7db83ceecc940b896666",
+    "interpreter_test_sha256": "5069b6dff944d7e68aeb38fb9b85dab990b4d29c842a6cfed04fe66897cb01ab",
+    "restored_artifacts_match_baseline": true,
+    "stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+    "stdlib_dirty": true,
+    "stdlib_able_source_files": 70,
+    "stdlib_relative_path_hash_sha256": "97ce89a04cace9e6075655723dc79a1928f1743ae887716a6c7bebda36e5a23b"
+  },
+  "scoreboard": {
+    "path": "v12/docs/perf-baselines/external-scoreboard-current.json",
+    "sha256": "032a01afa314cb7f42e5d3dfa457b45fff8c28dd36b46c8e841fdf5c12704e2e",
+    "rankable_selection_sha256": "1dc70106786a7e668982f070428fed3a81f77ba2abb4adf72d97848265f9dead",
+    "rankable_rows": 54,
+    "semantic_families": 22,
+    "target_miss_rows": 51,
+    "total_target_excess_seconds": 147.326947368421
+  },
+  "execution_contract": {
+    "cpu_affinity": "6",
+    "logical_cpu_budget": 1,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "source_root_only": true,
+    "normal_typechecking": true,
+    "warmup_main_calls": 1,
+    "cpu_target_sample_seconds": 1.5,
+    "cpu_max_measured_calls": 10,
+    "allocation_profile_rate_bytes": 65536,
+    "normal_timeout_seconds": 59,
+    "k_nucleotide_timeout_seconds": 180,
+    "stdlib_root": "/home/david/sync/projects/able-stdlib/src"
+  },
+  "profile_refresh": {
+    "cpu_processes_passed": 54,
+    "allocation_profile_processes_passed": 54,
+    "independent_counter_processes_passed": 54,
+    "cpu_wall_seconds": 333.275475,
+    "allocation_wall_seconds": 295.95575,
+    "counter_wall_seconds": 284.425286,
+    "longest_row": "k_nucleotide",
+    "longest_cpu_seconds": 84.86681,
+    "longest_allocation_seconds": 85.94609,
+    "longest_counter_seconds": 83.272243,
+    "material_flat_percent": 1,
+    "material_cpu_exact_symbols": 407,
+    "material_allocation_exact_lines": 133,
+    "raw_manifest_sha256": "30756c0a34c7d1b706daf4c2af5b763e8971ca79426f8daf2f19b2ad54718882",
+    "mechanical_census_sha256": "51d85177e512e4c998f870c682a2b8d366f743f3c57aee73836ae4df53e22bb2"
+  },
+  "representative_closed_cpu_owners": [
+    {
+      "owner": "(*bytecodeVM).runResumable",
+      "family_reach": 20,
+      "miss_reach": 47,
+      "disposition": "aggregate-dispatcher"
+    },
+    {
+      "owner": "runtime.tryDeferToSpanScan",
+      "family_reach": 19,
+      "miss_reach": 41,
+      "disposition": "gc-symptom-over-different-semantic-allocations"
+    },
+    {
+      "owner": "(*bytecodeVM).appendSlotStackValueChecked",
+      "family_reach": 16,
+      "miss_reach": 27,
+      "disposition": "completed-stack-carrier-route"
+    },
+    {
+      "owner": "bytecodeRawIntegerValueInfo",
+      "family_reach": 13,
+      "miss_reach": 34,
+      "disposition": "completed-typed-integer-lane"
+    },
+    {
+      "owner": "(*bytecodeVM).popCallFrameFields",
+      "family_reach": 13,
+      "miss_reach": 25,
+      "disposition": "closed-broad-frame-abi-route"
+    },
+    {
+      "owner": "(*bytecodeVM).lookupCachedStaticMemberCall",
+      "family_reach": 3,
+      "miss_reach": 3,
+      "disposition": "required-already-retained-cache-identity-and-lexical-invalidation"
+    },
+    {
+      "owner": "bytecodeStaticMemberReceiverIdentityForValue",
+      "family_reach": 3,
+      "miss_reach": 3,
+      "disposition": "required-polymorphic-cache-key-with-different-concrete-receivers"
+    }
+  ],
+  "candidate": {
+    "owner": "bindMemberMethodTemplate",
+    "allocation_line": "pkg/interpreter/bytecode_vm_member_cache.go:637",
+    "row_reach": 12,
+    "miss_reach": 12,
+    "family_reach": 4,
+    "families": [
+      "binary-nominal",
+      "concurrency",
+      "generic-union",
+      "wide-numeric"
+    ],
+    "total_target_excess_seconds": 21.480947368421052,
+    "flat_weighted_target_excess_seconds": 1.397318852631579,
+    "change": "Validate an unbound cacheable member template without allocating a temporary bound wrapper that storeCachedMemberMethod immediately unwraps.",
+    "candidate_interpreter_test_sha256": "b448dba2c123f09a7393a9dbd3f9d28a7398ab66e0e9d14a88d7bb36b6250760",
+    "candidate_able_cli_sha256": "1d92c3245ea02509cfaf773225ea2246a8164ef75657a4a6ff320b5f76a5f6d2",
+    "runtime_ab_sha256": "fa59664ab4d1f272e5d892bfa8015a6da5bfde8c804bdf26895faaa9d44049fe",
+    "runtime_ab": [
+      {
+        "benchmark": "binary_event_log",
+        "time_change_percent": -0.242704,
+        "bytes_change_percent": -1.257504,
+        "allocations_change_percent": -1.985022
+      },
+      {
+        "benchmark": "rational_series",
+        "time_change_percent": 1.386895,
+        "bytes_change_percent": -4.924851,
+        "allocations_change_percent": -14.228385
+      },
+      {
+        "benchmark": "manifest_normalization",
+        "time_change_percent": 2.019539,
+        "bytes_change_percent": -0.482737,
+        "allocations_change_percent": -1.830692
+      },
+      {
+        "benchmark": "concurrent_signal_dispatch",
+        "time_change_percent": -0.609525,
+        "bytes_change_percent": -0.0607,
+        "allocations_change_percent": -0.045985
+      },
+      {
+        "benchmark": "rms_norm",
+        "time_change_percent": 0.828647,
+        "bytes_change_percent": -0.000003,
+        "allocations_change_percent": 0
+      },
+      {
+        "benchmark": "word_frequency",
+        "time_change_percent": 1.323328,
+        "bytes_change_percent": 0.158766,
+        "allocations_change_percent": -0.001789
+      }
+    ],
+    "external_ab_sha256": "b938d76a5079b69cf0a1e1eb82617720a243915802619f54937011b65dd60540",
+    "external_ab": [
+      {
+        "benchmark": "binary_event_log",
+        "baseline_mean_seconds": 5.428122,
+        "candidate_mean_seconds": 5.571209,
+        "candidate_change_percent": 2.636032,
+        "python_mean_seconds": 0.165919,
+        "ruby_mean_seconds": 0.240318,
+        "candidate_python_ratio": 33.577961,
+        "candidate_ruby_ratio": 23.182637
+      },
+      {
+        "benchmark": "rational_series",
+        "baseline_mean_seconds": 3.817998,
+        "candidate_mean_seconds": 3.952458,
+        "candidate_change_percent": 3.521725,
+        "python_mean_seconds": 0.098433,
+        "ruby_mean_seconds": 0.134999,
+        "candidate_python_ratio": 40.153934,
+        "candidate_ruby_ratio": 29.277603
+      },
+      {
+        "benchmark": "manifest_normalization",
+        "baseline_mean_seconds": 1.441295,
+        "candidate_mean_seconds": 1.446937,
+        "candidate_change_percent": 0.39145,
+        "python_mean_seconds": 0.016514,
+        "ruby_mean_seconds": 0.04948,
+        "candidate_python_ratio": 87.61691,
+        "candidate_ruby_ratio": 29.243004
+      },
+      {
+        "benchmark": "concurrent_signal_dispatch",
+        "baseline_mean_seconds": 1.456677,
+        "candidate_mean_seconds": 1.396159,
+        "candidate_change_percent": -4.154486,
+        "python_mean_seconds": 0.061312,
+        "ruby_mean_seconds": 0.08033,
+        "candidate_python_ratio": 22.771332,
+        "candidate_ruby_ratio": 17.380335
+      }
+    ],
+    "decision": "rejected-and-fully-reverted",
+    "reason": "The allocation saving is real, but verifier-backed external timing regresses Binary Event Log by 2.64% and Rational Series by 3.52%; the candidate remains far outside both external targets and fails the broad unlike-program bar."
+  },
+  "verification": {
+    "candidate_focused_tests": "passed",
+    "restored_focused_command": "GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 go test ./pkg/interpreter -run 'TestBytecodeVM_(StaticMember|MemberMethod)|TestBytecode.*Member|Test.*Member.*Cache' -count=1 -timeout 60s",
+    "restored_focused_result": "ok",
+    "restored_focused_seconds": 0.445,
+    "restored_interpreter_artifact_matches_baseline": true,
+    "restored_cli_artifact_matches_baseline": true,
+    "full_handoff_command": "./run_all_tests.sh",
+    "full_handoff_result": "all-tests-completed-successfully",
+    "non_compiler_interpreter_package_seconds": 93.323,
+    "compiler_batches_passed": 32,
+    "long_compiler_batch_seconds": [
+      69.611,
+      183.124,
+      102.96,
+      110.409
+    ],
+    "bytecode_fixture_pass_seconds": 86.235
+  },
+  "next": {
+    "tranche": "refresh-current-strict-compiled-scorecard-and-interpreter-free-graphs",
+    "why": "The corpus-wide bytecode search has exhausted admissible local leaves, while compiled native lowering is the primary route to Go parity and received retained bridge/runtime changes after the last full scorecard.",
+    "entails": "Rebuild and verify every strict compiled row, audit final dependency graphs for pkg/interpreter, refresh repeated Go comparisons, then rank only shared generated/native owners or explicit runtime.Value boundaries.",
+    "importance": "This directly measures whether static Able values remain on equivalent native Go carriers and whether any residual compiled/interpreted boundary still prevents Go-native performance."
+  }
+}

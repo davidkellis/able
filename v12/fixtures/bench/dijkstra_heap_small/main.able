@@ -1,0 +1,100 @@
+package bench_dijkstra_heap_small
+
+import able.collections.heap.{Heap}
+import able.kernel.{Array}
+
+DIST_INF: i32 := 1_000_000_000
+
+fn build_edges(node: i32, size: i32) -> Array i32 {
+  edges: Array i32 = Array.with_capacity(4)
+  next0 := (node + 1) % size
+  next1 := ((node * 3) + 7) % size
+  next2 := ((node * 5) + 11) % size
+  next3 := (node + (size // 2) + 3) % size
+  edges.push((next0 * 100) + (1 + (node % 7)))
+  edges.push((next1 * 100) + (2 + (node % 11)))
+  edges.push((next2 * 100) + (3 + (node % 13)))
+  edges.push((next3 * 100) + (4 + (node % 5)))
+  edges
+}
+
+fn build_graph(size: i32) -> Array (Array i32) {
+  graph: Array (Array i32) = Array.with_capacity(size)
+  node := 0
+  loop {
+    if node >= size { break }
+    graph.push(build_edges(node, size))
+    node = node + 1
+  }
+  graph
+}
+
+fn encode_state(distance: i32, node: i32, size: i32) -> i64 {
+  ((distance as i64) * (size as i64)) + (node as i64)
+}
+
+fn decode_node(state: i64, size: i32) -> i32 {
+  (state % (size as i64)) as i32
+}
+
+fn decode_distance(state: i64, size: i32) -> i32 {
+  (state // (size as i64)) as i32
+}
+
+fn shortest_path_score(graph: Array (Array i32), start: i32) -> i64 {
+  size := graph.len()
+  distances: Array i32 = Array.with_capacity(size)
+  idx := 0
+  loop {
+    if idx >= size { break }
+    distances.push(DIST_INF)
+    idx = idx + 1
+  }
+
+  frontier: Heap i64 = Heap.new()
+  distances[start] = 0
+  frontier.push(encode_state(0, start, size))
+  total: i64 = 0_i64
+
+  loop {
+    frontier.pop() match {
+      case nil => { break },
+      case packed: i64 => {
+        node := decode_node(packed, size)
+        distance := decode_distance(packed, size)
+        if distance == distances[node]! {
+          total = total + (node as i64) + (distance as i64)
+          neighbors := graph[node]!
+          edge_idx := 0
+          loop {
+            if edge_idx >= neighbors.len() { break }
+            edge := neighbors[edge_idx]!
+            next := edge // 100
+            weight := edge % 100
+            candidate := distance + weight
+            if candidate < distances[next]! {
+              distances[next] = candidate
+              frontier.push(encode_state(candidate, next, size))
+            }
+            edge_idx = edge_idx + 1
+          }
+        }
+      }
+    }
+  }
+
+  total
+}
+
+fn main() -> void {
+  graph := build_graph(192)
+  starts: Array i32 = [0, 5, 17, 33, 91, 127]
+  idx := 0
+  total: i64 = 0_i64
+  loop {
+    if idx >= starts.len() { break }
+    total = total + shortest_path_score(graph, starts[idx]!)
+    idx = idx + 1
+  }
+  print(total)
+}

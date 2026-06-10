@@ -1,0 +1,881 @@
+{
+  "generated_at": "2026-07-11T10:10:26.116858Z",
+  "suite": "generality",
+  "benchmarks": [
+    "fib",
+    "binarytrees",
+    "matrixmultiply",
+    "quicksort",
+    "sudoku",
+    "i_before_e",
+    "base64",
+    "json",
+    "monte_carlo_pi",
+    "pidigits",
+    "mandelbrot",
+    "reverse_complement",
+    "k_nucleotide",
+    "nbody",
+    "tapelang_alphabet"
+  ],
+  "modes": [
+    "compiled",
+    "bytecode"
+  ],
+  "languages": [
+    "go",
+    "ruby",
+    "python"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "cpu_affinity": "2-3",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "fib",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "fib",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 3.33,
+        "avg_user_seconds": 3.23,
+        "avg_sys_seconds": 0.03,
+        "avg_gc": 5.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 2.84,
+          "reference_implementation": "go-1.26",
+          "ratio": 1.1725352112676057
+        },
+        "ruby": {
+          "reference_real_seconds": 46.64,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.07139794168096054
+        },
+        "python": {
+          "reference_real_seconds": 60.67,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.05488709411570793
+        }
+      }
+    },
+    {
+      "benchmark": "fib",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "fib",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.14,
+        "avg_user_seconds": 0.14,
+        "avg_sys_seconds": 0.03,
+        "avg_gc": 6.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 2.84,
+          "reference_implementation": "go-1.26",
+          "ratio": 0.04929577464788733
+        },
+        "ruby": {
+          "reference_real_seconds": 46.64,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.0030017152658662095
+        },
+        "python": {
+          "reference_real_seconds": 60.67,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.0023075655183781114
+        }
+      }
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "binarytrees",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 17.16,
+        "avg_user_seconds": 33.53,
+        "avg_sys_seconds": 0.26,
+        "avg_gc": 149.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 3.83,
+          "reference_implementation": "go-1.26",
+          "ratio": 4.48041775456919
+        },
+        "ruby": {
+          "reference_real_seconds": 20.39,
+          "reference_implementation": "ruby-4.0-parallel",
+          "ratio": 0.8415890142226582
+        },
+        "python": {
+          "reference_real_seconds": 12.25,
+          "reference_implementation": "python-3.14",
+          "ratio": 1.4008163265306122
+        }
+      }
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "binarytrees",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 3.83,
+          "reference_implementation": "go-1.26",
+          "ratio": null
+        },
+        "ruby": {
+          "reference_real_seconds": 20.39,
+          "reference_implementation": "ruby-4.0-parallel",
+          "ratio": null
+        },
+        "python": {
+          "reference_real_seconds": 12.25,
+          "reference_implementation": "python-3.14",
+          "ratio": null
+        }
+      }
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "matrixmultiply",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.3,
+        "avg_user_seconds": 1.2,
+        "avg_sys_seconds": 0.05,
+        "avg_gc": 7.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.88,
+          "reference_implementation": "go-1.22",
+          "ratio": 1.4772727272727273
+        },
+        "ruby": {
+          "reference_real_seconds": 42.93,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.03028185418122525
+        },
+        "python": {
+          "reference_real_seconds": 56.29,
+          "reference_implementation": "python-3.12",
+          "ratio": 0.023094688221709007
+        }
+      }
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "matrixmultiply",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 4.0,
+        "avg_user_seconds": 4.14,
+        "avg_sys_seconds": 0.08,
+        "avg_gc": 21.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.88,
+          "reference_implementation": "go-1.22",
+          "ratio": 4.545454545454546
+        },
+        "ruby": {
+          "reference_real_seconds": 42.93,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.09317493594223154
+        },
+        "python": {
+          "reference_real_seconds": 56.29,
+          "reference_implementation": "python-3.12",
+          "ratio": 0.07106057914372002
+        }
+      }
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "quicksort",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.89,
+        "avg_user_seconds": 1.84,
+        "avg_sys_seconds": 0.09,
+        "avg_gc": 8.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 2.01,
+          "reference_implementation": "go-1.26",
+          "ratio": 0.9402985074626866
+        },
+        "ruby": {
+          "reference_real_seconds": 14.58,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.12962962962962962
+        },
+        "python": {
+          "reference_real_seconds": 20.32,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.09301181102362203
+        }
+      }
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "quicksort",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 2.01,
+          "reference_implementation": "go-1.26",
+          "ratio": null
+        },
+        "ruby": {
+          "reference_real_seconds": 14.58,
+          "reference_implementation": "ruby-4.0",
+          "ratio": null
+        },
+        "python": {
+          "reference_real_seconds": 20.32,
+          "reference_implementation": "python-3.14",
+          "ratio": null
+        }
+      }
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "sudoku",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.19,
+        "avg_user_seconds": 0.13,
+        "avg_sys_seconds": 0.03,
+        "avg_gc": 7.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.13,
+          "reference_implementation": "go-1.22",
+          "ratio": 1.4615384615384615
+        },
+        "ruby": {
+          "reference_real_seconds": 5.67,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.03350970017636684
+        },
+        "python": {
+          "reference_real_seconds": 3.02,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.06291390728476821
+        }
+      }
+    },
+    {
+      "benchmark": "sudoku",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "sudoku",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.43,
+        "avg_user_seconds": 0.47,
+        "avg_sys_seconds": 0.04,
+        "avg_gc": 10.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.13,
+          "reference_implementation": "go-1.22",
+          "ratio": 3.3076923076923075
+        },
+        "ruby": {
+          "reference_real_seconds": 5.67,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.07583774250440917
+        },
+        "python": {
+          "reference_real_seconds": 3.02,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.1423841059602649
+        }
+      }
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "i_before_e",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.1,
+        "avg_user_seconds": 0.09,
+        "avg_sys_seconds": 0.03,
+        "avg_gc": 5.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.05,
+          "reference_implementation": "go-1.22",
+          "ratio": 2.0
+        },
+        "ruby": {
+          "reference_real_seconds": 0.1,
+          "reference_implementation": "ruby-4.0-jit",
+          "ratio": 1.0
+        },
+        "python": {
+          "reference_real_seconds": 0.13,
+          "reference_implementation": "python-3.12",
+          "ratio": 0.7692307692307693
+        }
+      }
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "i_before_e",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.51,
+        "avg_user_seconds": 0.51,
+        "avg_sys_seconds": 0.05,
+        "avg_gc": 9.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.05,
+          "reference_implementation": "go-1.22",
+          "ratio": 10.2
+        },
+        "ruby": {
+          "reference_real_seconds": 0.1,
+          "reference_implementation": "ruby-4.0-jit",
+          "ratio": 5.1
+        },
+        "python": {
+          "reference_real_seconds": 0.13,
+          "reference_implementation": "python-3.12",
+          "ratio": 3.923076923076923
+        }
+      }
+    },
+    {
+      "benchmark": "base64",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "base64",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 2.27,
+        "avg_user_seconds": 2.15,
+        "avg_sys_seconds": 0.36,
+        "avg_gc": 24.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 2.2,
+          "reference_implementation": "go-1.26",
+          "ratio": 1.0318181818181817
+        },
+        "ruby": {
+          "reference_real_seconds": 2.21,
+          "reference_implementation": "ruby-3.3",
+          "ratio": 1.0271493212669685
+        },
+        "python": {
+          "reference_real_seconds": 3.31,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.6858006042296072
+        }
+      }
+    },
+    {
+      "benchmark": "base64",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "base64",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 3.01,
+        "avg_user_seconds": 2.98,
+        "avg_sys_seconds": 0.69,
+        "avg_gc": 33.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 2.2,
+          "reference_implementation": "go-1.26",
+          "ratio": 1.368181818181818
+        },
+        "ruby": {
+          "reference_real_seconds": 2.21,
+          "reference_implementation": "ruby-3.3",
+          "ratio": 1.3619909502262442
+        },
+        "python": {
+          "reference_real_seconds": 3.31,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.9093655589123866
+        }
+      }
+    },
+    {
+      "benchmark": "json",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "json",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.68,
+        "avg_user_seconds": 0.62,
+        "avg_sys_seconds": 0.14,
+        "avg_gc": 8.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 1.36,
+          "reference_implementation": "go-1.26",
+          "ratio": 0.5
+        },
+        "ruby": {
+          "reference_real_seconds": 1.56,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.4358974358974359
+        },
+        "python": {
+          "reference_real_seconds": 2.87,
+          "reference_implementation": "python-3.12",
+          "ratio": 0.23693379790940766
+        }
+      }
+    },
+    {
+      "benchmark": "json",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "json",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.79,
+        "avg_user_seconds": 0.78,
+        "avg_sys_seconds": 0.08,
+        "avg_gc": 9.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 1.36,
+          "reference_implementation": "go-1.26",
+          "ratio": 0.5808823529411764
+        },
+        "ruby": {
+          "reference_real_seconds": 1.56,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.5064102564102564
+        },
+        "python": {
+          "reference_real_seconds": 2.87,
+          "reference_implementation": "python-3.12",
+          "ratio": 0.27526132404181186
+        }
+      }
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "monte_carlo_pi",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.2,
+        "avg_user_seconds": 0.2,
+        "avg_sys_seconds": 0.02,
+        "avg_gc": 6.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.18,
+          "reference_implementation": "go-1.26",
+          "ratio": 1.1111111111111112
+        },
+        "ruby": {
+          "reference_real_seconds": 1.42,
+          "reference_implementation": "ruby-3.3",
+          "ratio": 0.14084507042253522
+        },
+        "python": {
+          "reference_real_seconds": 1.68,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.11904761904761905
+        }
+      }
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "monte_carlo_pi",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 2.49,
+        "avg_user_seconds": 2.63,
+        "avg_sys_seconds": 0.04,
+        "avg_gc": 17.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.18,
+          "reference_implementation": "go-1.26",
+          "ratio": 13.833333333333336
+        },
+        "ruby": {
+          "reference_real_seconds": 1.42,
+          "reference_implementation": "ruby-3.3",
+          "ratio": 1.7535211267605637
+        },
+        "python": {
+          "reference_real_seconds": 1.68,
+          "reference_implementation": "python-3.14",
+          "ratio": 1.4821428571428574
+        }
+      }
+    },
+    {
+      "benchmark": "pidigits",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "pidigits",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.16,
+        "avg_user_seconds": 1.35,
+        "avg_sys_seconds": 0.04,
+        "avg_gc": 24.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.74,
+          "reference_implementation": "go-1.26-gmp",
+          "ratio": 1.5675675675675675
+        },
+        "ruby": {
+          "reference_real_seconds": 9.18,
+          "reference_implementation": "ruby-3.3",
+          "ratio": 0.12636165577342048
+        }
+      }
+    },
+    {
+      "benchmark": "pidigits",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "pidigits",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 2.12,
+        "avg_user_seconds": 2.37,
+        "avg_sys_seconds": 0.06,
+        "avg_gc": 26.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.74,
+          "reference_implementation": "go-1.26-gmp",
+          "ratio": 2.864864864864865
+        },
+        "ruby": {
+          "reference_real_seconds": 9.18,
+          "reference_implementation": "ruby-3.3",
+          "ratio": 0.2309368191721133
+        }
+      }
+    },
+    {
+      "benchmark": "mandelbrot",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "mandelbrot",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.12,
+        "avg_user_seconds": 0.12,
+        "avg_sys_seconds": 0.02,
+        "avg_gc": 6.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.04,
+          "reference_implementation": "go-1.22",
+          "ratio": 3.0
+        }
+      }
+    },
+    {
+      "benchmark": "mandelbrot",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "mandelbrot",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 6.37,
+        "avg_user_seconds": 6.84,
+        "avg_sys_seconds": 0.06,
+        "avg_gc": 40.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.04,
+          "reference_implementation": "go-1.22",
+          "ratio": 159.25
+        }
+      }
+    },
+    {
+      "benchmark": "reverse_complement",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "reverse_complement",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.09,
+        "avg_user_seconds": 0.08,
+        "avg_sys_seconds": 0.04,
+        "avg_gc": 6.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.01,
+          "reference_implementation": "go-1.22",
+          "ratio": 9.0
+        }
+      }
+    },
+    {
+      "benchmark": "reverse_complement",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "reverse_complement",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 5.7,
+        "avg_user_seconds": 6.26,
+        "avg_sys_seconds": 0.15,
+        "avg_gc": 28.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.01,
+          "reference_implementation": "go-1.22",
+          "ratio": 570.0
+        }
+      }
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "k_nucleotide",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 3.57,
+        "avg_user_seconds": 4.74,
+        "avg_sys_seconds": 0.32,
+        "avg_gc": 21.0
+      },
+      "comparisons": {}
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "k_nucleotide",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 38.58,
+        "avg_user_seconds": 39.47,
+        "avg_sys_seconds": 0.39,
+        "avg_gc": 22.0
+      },
+      "comparisons": {}
+    },
+    {
+      "benchmark": "nbody",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "nbody",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.48,
+        "avg_user_seconds": 0.41,
+        "avg_sys_seconds": 0.02,
+        "avg_gc": 6.0
+      },
+      "comparisons": {}
+    },
+    {
+      "benchmark": "nbody",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "nbody",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null
+      },
+      "comparisons": {}
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "tapelang_alphabet",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 3.85,
+        "avg_user_seconds": 3.75,
+        "avg_sys_seconds": 0.03,
+        "avg_gc": 6.0
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 1.75,
+          "reference_implementation": "go-1.22",
+          "ratio": 2.2
+        },
+        "ruby": {
+          "reference_real_seconds": 67.83,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.056759545923632616
+        },
+        "python": {
+          "reference_real_seconds": 58.99,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.06526529920325479
+        }
+      }
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "tapelang_alphabet",
+        "mode": "bytecode",
+        "ok_runs": 0,
+        "timeouts": 1,
+        "failures": 0,
+        "avg_real_seconds": null,
+        "avg_user_seconds": null,
+        "avg_sys_seconds": null,
+        "avg_gc": null
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 1.75,
+          "reference_implementation": "go-1.22",
+          "ratio": null
+        },
+        "ruby": {
+          "reference_real_seconds": 67.83,
+          "reference_implementation": "ruby-4.0",
+          "ratio": null
+        },
+        "python": {
+          "reference_real_seconds": 58.99,
+          "reference_implementation": "python-3.14",
+          "ratio": null
+        }
+      }
+    }
+  ]
+}

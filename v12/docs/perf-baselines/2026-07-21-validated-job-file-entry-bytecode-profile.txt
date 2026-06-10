@@ -1,0 +1,68 @@
+File: able-bytecode
+Build ID: f18bd17c4b78af9c80682ceafebd019dd4e79c8a
+Type: cpu
+Time: 2026-07-21 23:53:04 CDT
+Duration: 900.26ms, Total samples = 940ms (104.41%)
+Showing nodes accounting for 940ms, 100% of 940ms total
+Showing top 60 nodes out of 320
+      flat  flat%   sum%        cum   cum%
+     190ms 20.21% 20.21%      230ms 24.47%  runtime.cgocall
+      60ms  6.38% 26.60%      110ms 11.70%  runtime.tryDeferToSpanScan
+      30ms  3.19% 29.79%       30ms  3.19%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+      30ms  3.19% 32.98%       30ms  3.19%  sync/atomic.(*Int32).Add (inline)
+      20ms  2.13% 35.11%       50ms  5.32%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).lookupCachedMemberMethodEntry
+      20ms  2.13% 37.23%      380ms 40.43%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+      20ms  2.13% 39.36%       20ms  2.13%  able/interpreter-go/pkg/interpreter.bytecodeRawIntegerValueInfo
+      20ms  2.13% 41.49%       20ms  2.13%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+      20ms  2.13% 43.62%       20ms  2.13%  runtime.findObject
+      20ms  2.13% 45.74%       30ms  3.19%  runtime.heapArenaOf (inline)
+      20ms  2.13% 47.87%       40ms  4.26%  runtime.mallocgcSmallScanNoHeader
+      20ms  2.13% 50.00%       50ms  5.32%  runtime.mapaccess2
+      20ms  2.13% 52.13%       20ms  2.13%  runtime.save
+      20ms  2.13% 54.26%      100ms 10.64%  runtime.scanObject
+      20ms  2.13% 56.38%       70ms  7.45%  runtime.scanSpan
+      20ms  2.13% 58.51%       20ms  2.13%  runtime.spanClass.noscan (inline)
+      10ms  1.06% 59.57%       30ms  3.19%  able/interpreter-go/pkg/ast.NewUnionTypeExpression (inline)
+      10ms  1.06% 60.64%       10ms  1.06%  able/interpreter-go/pkg/interpreter.(*Interpreter).matchesErrorValue
+      10ms  1.06% 61.70%       10ms  1.06%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendStackValue (inline)
+      10ms  1.06% 62.77%       10ms  1.06%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStringLenBytesMemberFast
+      10ms  1.06% 63.83%       10ms  1.06%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodCacheIdentity
+      10ms  1.06% 64.89%       10ms  1.06%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).pushCallFrame
+      10ms  1.06% 65.96%       10ms  1.06%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).storeCachedMemberMethod
+      10ms  1.06% 67.02%       40ms  4.26%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineResolvedCallFromStack
+      10ms  1.06% 68.09%       10ms  1.06%  able/interpreter-go/pkg/interpreter.bytecodeCanDirectMemberCall
+      10ms  1.06% 69.15%       10ms  1.06%  able/interpreter-go/pkg/interpreter.bytecodeMaterializeRawFloatValue (inline)
+      10ms  1.06% 70.21%       10ms  1.06%  able/interpreter-go/pkg/interpreter.bytecodeNominalNamedStructDefinitionForExpr
+      10ms  1.06% 71.28%       10ms  1.06%  able/interpreter-go/pkg/interpreter.bytecodeQuickenBinaryCompareJumps
+      10ms  1.06% 72.34%       20ms  2.13%  able/interpreter-go/pkg/interpreter.mergeNodeOrigins
+      10ms  1.06% 73.40%       10ms  1.06%  able/interpreter-go/pkg/interpreter.normalizeKernelAliasName (inline)
+      10ms  1.06% 74.47%       10ms  1.06%  able/interpreter-go/pkg/interpreter.structUsesNamedFieldStorage (inline)
+      10ms  1.06% 75.53%       90ms  9.57%  able/interpreter-go/pkg/parser.(*parseContext).parseExpression
+      10ms  1.06% 76.60%       80ms  8.51%  github.com/tree-sitter/go-tree-sitter.(*Node).KindId.func1 (inline)
+      10ms  1.06% 77.66%       20ms  2.13%  github.com/tree-sitter/go-tree-sitter._Cfunc_ts_node_named_child
+      10ms  1.06% 78.72%       10ms  1.06%  github.com/tree-sitter/go-tree-sitter._Cfunc_ts_node_named_child_count
+      10ms  1.06% 79.79%       10ms  1.06%  github.com/tree-sitter/go-tree-sitter._Cfunc_ts_node_start_point
+      10ms  1.06% 80.85%       10ms  1.06%  internal/abi.Name.IsExported (inline)
+      10ms  1.06% 81.91%       10ms  1.06%  internal/runtime/gc/scan.scanSpanPackedAVX512
+      10ms  1.06% 82.98%       20ms  2.13%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+      10ms  1.06% 84.04%       10ms  1.06%  internal/runtime/maps.(*ctrlGroup).setEmpty (inline)
+      10ms  1.06% 85.11%       10ms  1.06%  internal/runtime/maps.(*groupReference).ctrls (inline)
+      10ms  1.06% 86.17%       10ms  1.06%  runtime.(*spanSet).push
+      10ms  1.06% 87.23%       10ms  1.06%  runtime.arenaIndex (inline)
+      10ms  1.06% 88.30%       10ms  1.06%  runtime.asyncPreempt
+      10ms  1.06% 89.36%       10ms  1.06%  runtime.cgoCheckPointer
+      10ms  1.06% 90.43%       10ms  1.06%  runtime.getMCache (inline)
+      10ms  1.06% 91.49%       10ms  1.06%  runtime.getitab
+      10ms  1.06% 92.55%       10ms  1.06%  runtime.heapSetTypeSmallHeader (inline)
+      10ms  1.06% 93.62%       20ms  2.13%  runtime.makeslice
+      10ms  1.06% 94.68%      130ms 13.83%  runtime.mallocgc
+      10ms  1.06% 95.74%       10ms  1.06%  runtime.memhash32
+      10ms  1.06% 96.81%       10ms  1.06%  runtime.typePointers.next
+      10ms  1.06% 97.87%       10ms  1.06%  runtime.typehash
+      10ms  1.06% 98.94%       20ms  2.13%  runtime.wbMove
+      10ms  1.06%   100%       10ms  1.06%  sync.(*Pool).Get
+         0     0%   100%       10ms  1.06%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0%   100%       10ms  1.06%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+         0     0%   100%       10ms  1.06%  able/interpreter-go/pkg/ast.SetSpan (inline)
+         0     0%   100%       30ms  3.19%  able/interpreter-go/pkg/ast.Walk
+         0     0%   100%       30ms  3.19%  able/interpreter-go/pkg/ast.walkNode

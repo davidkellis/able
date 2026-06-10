@@ -1,0 +1,237 @@
+{
+  "architecture_bounds": {
+    "bytecode": {
+      "application_count": 6,
+      "decision": "no-go-register-representation-only",
+      "maximum_optimistic_speedup": 1.796096,
+      "minimum_remaining_target_speedup": 7.788121,
+      "optimistic_model": "make all stack-transport operations free at uniform average operation cost",
+      "unlike_family_count": 6
+    },
+    "compiled": {
+      "application_count": 5,
+      "decision": "no-go-current-compiled-architecture-mechanism",
+      "eligible_mechanisms": [],
+      "minimum_remaining_target_speedup": 3.5962281476002094,
+      "minimum_required_speedup": 6.416609132322247,
+      "optimistic_model": "make each application's largest exact attributed owner free",
+      "unlike_family_count": 5
+    }
+  },
+  "group_budgets": [
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "bytecode-text-map",
+      "maximum_ratio": 114.62235649546828,
+      "miss_count": 9,
+      "mode": "bytecode",
+      "row_count": 9,
+      "total_excess_seconds": 66.61526315789474
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "compiled-concurrency",
+      "maximum_ratio": 1257.846153846154,
+      "miss_count": 23,
+      "mode": "compiled",
+      "row_count": 23,
+      "total_excess_seconds": 24.776947368421055
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "bytecode-regex",
+      "maximum_ratio": 234.3396226415094,
+      "miss_count": 6,
+      "mode": "bytecode",
+      "row_count": 6,
+      "total_excess_seconds": 23.455052631578948
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "bytecode-wide-numeric",
+      "maximum_ratio": 71.43222506393862,
+      "miss_count": 3,
+      "mode": "bytecode",
+      "row_count": 3,
+      "total_excess_seconds": 17.783368421052632
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "bytecode-concurrency",
+      "maximum_ratio": 96.9047619047619,
+      "miss_count": 22,
+      "mode": "bytecode",
+      "row_count": 23,
+      "total_excess_seconds": 17.442315789473685
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "bytecode-float-numeric",
+      "maximum_ratio": 15.25406241939644,
+      "miss_count": 4,
+      "mode": "bytecode",
+      "row_count": 4,
+      "total_excess_seconds": 15.540842105263158
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "bytecode-iterator-control",
+      "maximum_ratio": 43.66492146596859,
+      "miss_count": 6,
+      "mode": "bytecode",
+      "row_count": 6,
+      "total_excess_seconds": 7.286631578947368
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "bytecode-byte-output",
+      "maximum_ratio": 99.15567282321899,
+      "miss_count": 3,
+      "mode": "bytecode",
+      "row_count": 3,
+      "total_excess_seconds": 5.617157894736842
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "compiled-text-map",
+      "maximum_ratio": 50.19607843137255,
+      "miss_count": 8,
+      "mode": "compiled",
+      "row_count": 8,
+      "total_excess_seconds": 4.05978947368421
+    },
+    {
+      "disposition": "target-guard",
+      "id": "compiled-target-guards",
+      "maximum_ratio": 1.4468783906630305,
+      "miss_count": 1,
+      "mode": "compiled",
+      "row_count": 4,
+      "total_excess_seconds": 1.3444210526315796
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "compiled-iterator-control",
+      "maximum_ratio": 59.555555555555564,
+      "miss_count": 7,
+      "mode": "compiled",
+      "row_count": 7,
+      "total_excess_seconds": 1.1329473684210527
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "compiled-regex",
+      "maximum_ratio": 27.659574468085108,
+      "miss_count": 6,
+      "mode": "compiled",
+      "row_count": 6,
+      "total_excess_seconds": 0.9311578947368421
+    },
+    {
+      "disposition": "closed-insufficient-breadth",
+      "id": "compiled-sudoku-quotient",
+      "maximum_ratio": 2.2399316920449697,
+      "miss_count": 1,
+      "mode": "compiled",
+      "row_count": 1,
+      "total_excess_seconds": 0.8343157894736843
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "compiled-current-control",
+      "maximum_ratio": 1.2499578400620595,
+      "miss_count": 2,
+      "mode": "compiled",
+      "row_count": 2,
+      "total_excess_seconds": 0.6696842105263159
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "compiled-wide-numeric",
+      "maximum_ratio": 35.51724137931035,
+      "miss_count": 3,
+      "mode": "compiled",
+      "row_count": 3,
+      "total_excess_seconds": 0.4685263157894737
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "compiled-float-numeric",
+      "maximum_ratio": 7.394957983193276,
+      "miss_count": 4,
+      "mode": "compiled",
+      "row_count": 5,
+      "total_excess_seconds": 0.3562105263157894
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "compiled-byte-output",
+      "maximum_ratio": 6.666666666666667,
+      "miss_count": 3,
+      "mode": "compiled",
+      "row_count": 4,
+      "total_excess_seconds": 0.13694736842105282
+    },
+    {
+      "disposition": "target-guard",
+      "id": "bytecode-target-guards",
+      "maximum_ratio": 0.5620319263449604,
+      "miss_count": 0,
+      "mode": "bytecode",
+      "row_count": 2,
+      "total_excess_seconds": 0.0
+    }
+  ],
+  "kind": "able-cross-engine-architecture-budget",
+  "modes": [
+    {
+      "mode": "compiled",
+      "row_count": 63,
+      "target_meets": 5,
+      "target_misses": 58,
+      "total_excess_seconds": 34.71094736842105
+    },
+    {
+      "mode": "bytecode",
+      "row_count": 56,
+      "target_meets": 3,
+      "target_misses": 53,
+      "total_excess_seconds": 153.74063157894736
+    }
+  ],
+  "next_architecture_lane": {
+    "admission": "Advance one route only when a concrete mechanism is applicable to at least three unlike verifier-backed applications, an optimistic end-to-end model removes at least 25% of target excess in every governing row, and the route is not equivalent to a completed rejection.",
+    "guards": "Preserve bytecode JSON and PiDigits established target guards plus compiled Binary Trees, JSON, and QuickSort guards.",
+    "id": "cross-engine-structural-strategy-reconciliation",
+    "scope": "Compare materially different remaining structural routes against the complete target budget before building more local candidates: typed bytecode specialization that removes dynamic semantic work, a lower-level portable VM backend, and further general compiled nominal-ABI simplification. Explicitly exclude completed Go-level region/register executors and the unadmitted native leaf tier."
+  },
+  "schema_version": 1,
+  "sources": {
+    "bytecode_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
+      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+    },
+    "compiled_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
+      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+    },
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-cross-engine-architecture-budget.json",
+      "sha256": "39cec726218c695013d92fabb512729fd27727f08e06f2940edac3bd9a0cf27b"
+    },
+    "frontier": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+    }
+  },
+  "summary": {
+    "bytecode_excess_share_percent": 81.580973,
+    "candidate_eligible": false,
+    "decision": "no-go-current-cross-engine-local-mechanism",
+    "minimum_unlike_families": 3,
+    "selected_rows": 119,
+    "target_meets": 8,
+    "target_misses": 111,
+    "total_excess_seconds": 188.4515789473684
+  }
+}

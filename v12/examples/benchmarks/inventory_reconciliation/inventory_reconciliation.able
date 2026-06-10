@@ -1,0 +1,68 @@
+package inventory_reconciliation
+
+import able.collections.hash_map.*
+import able.collections.map.*
+
+ITEM_COUNT: i32 := 8_192
+UPDATE_ROUNDS: i32 := 32
+
+fn initial_quantity(key: i64) -> i64 {
+  ((key * 17_i64 + 23_i64) % 101_i64) + 50_i64
+}
+
+fn lookup(inventory: Map i64 i64, key: i64) -> i64 {
+  inventory.get(key) match {
+    case quantity: i64 => quantity,
+    case nil => 0_i64
+  }
+}
+
+fn build_inventory() -> HashMap i64 i64 {
+  inventory: HashMap i64 i64 = HashMap.with_capacity(ITEM_COUNT)
+  index := 0
+  loop {
+    if index >= ITEM_COUNT { break }
+    key := index as i64
+    inventory.set(key, initial_quantity(key))
+    index = index + 1
+  }
+  inventory
+}
+
+fn apply_updates(inventory: HashMap i64 i64) -> i64 {
+  event_checksum: i64 = 0_i64
+  round := 0
+  loop {
+    if round >= UPDATE_ROUNDS { break }
+    event := 0
+    loop {
+      if event >= ITEM_COUNT { break }
+      key := (((event as i64) * 48_271_i64) + ((round as i64) * 131_i64) + 17_i64) % (ITEM_COUNT as i64)
+      delta := ((((event as i64) * 31_i64) + ((round as i64) * 7_i64)) % 19_i64) - 9_i64
+      updated := lookup(inventory, key) + delta
+      inventory.set(key, updated)
+      event_checksum = event_checksum + ((key + 1_i64) * (updated + 101_i64)) + (round as i64)
+      event = event + 1
+    }
+    round = round + 1
+  }
+  event_checksum
+}
+
+fn inventory_checksum(inventory: Map i64 i64) -> i64 {
+  checksum: i64 = 0_i64
+  index := 0
+  loop {
+    if index >= ITEM_COUNT { break }
+    key := index as i64
+    checksum = checksum + ((key + 11_i64) * lookup(inventory, key))
+    index = index + 1
+  }
+  checksum
+}
+
+fn main() -> void {
+  inventory := build_inventory()
+  event_checksum := apply_updates(inventory)
+  print(`${ITEM_COUNT}:${UPDATE_ROUNDS}:${inventory_checksum(inventory)}:${event_checksum}`)
+}

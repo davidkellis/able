@@ -18,6 +18,7 @@ func runCompiledTests(config TestCliConfig, testFiles []string) int {
 		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
 		return 2
 	}
+	cacheSearchPaths := append([]driver.SearchPath(nil), searchPaths...)
 	packages, err := collectTestPackages(testFiles, searchPaths)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
@@ -34,14 +35,20 @@ func runCompiledTests(config TestCliConfig, testFiles []string) int {
 		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
 		return 2
 	}
-	workDir, err := os.MkdirTemp(tmpRoot, "able-test-")
+	workRoot, err := os.MkdirTemp(tmpRoot, "able-test-work-")
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+		return 2
+	}
+	workDir := filepath.Join(workRoot, "compiled-test-runner")
+	if err := os.Mkdir(workDir, 0o700); err != nil {
+		_ = os.RemoveAll(workRoot)
 		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
 		return 2
 	}
 	keepWorkDir := os.Getenv("ABLE_TEST_KEEP_WORKDIR") != ""
 	if !keepWorkDir {
-		defer func() { _ = os.RemoveAll(workDir) }()
+		defer func() { _ = os.RemoveAll(workRoot) }()
 	}
 
 	entryPath := filepath.Join(workDir, "runner.able")
@@ -82,33 +89,108 @@ func runCompiledTests(config TestCliConfig, testFiles []string) int {
 		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
 		return 2
 	}
-	result, err := compiler.New(compiler.Options{
-		PackageName:               "main",
-		RequireNoFallbacks:        requireNoFallbacks,
-		ExperimentalMonoArrays:    experimentalMonoArrays,
-		ExperimentalMonoArraysSet: true,
-	}).Compile(program)
+	typedBoundaryTelemetry, err := resolveCompilerTypedBoundaryTelemetryFromEnv()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "able test --compiled: compile: %v\n", err)
+		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
 		return 2
 	}
-	if err := result.Write(workDir); err != nil {
-		fmt.Fprintf(os.Stderr, "able test --compiled: write output: %v\n", err)
-		return 2
+	compilerOptions := compiler.Options{
+		PackageName:                "main",
+		RequireNoFallbacks:         requireNoFallbacks,
+		ExperimentalMonoArrays:     experimentalMonoArrays,
+		ExperimentalMonoArraysSet:  true,
+		EmitTypedBoundaryTelemetry: typedBoundaryTelemetry,
 	}
-
 	harness := compiledTestHarnessSource(config, entryPath, searchPaths, packages)
-	if err := os.WriteFile(filepath.Join(workDir, "main.go"), []byte(harness), 0o600); err != nil {
-		fmt.Fprintf(os.Stderr, "able test --compiled: write harness: %v\n", err)
+	cache, err := openCompiledTestCache()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
 		return 2
 	}
-
+	if cache != nil {
+		cacheLock, acquired, err := acquireCompiledTestCacheFileLock(cache.root, false, false)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+			return 2
+		}
+		if !acquired {
+			fmt.Fprintln(os.Stderr, "able test --compiled: failed to acquire compiled-test cache lifecycle lock")
+			return 2
+		}
+		defer func() { _ = cacheLock.release() }()
+		normalizeCompiledTestRunnerOrigins(program, entryPath)
+	}
+	cacheKey := ""
 	binPath := filepath.Join(workDir, "able-test")
-	build := exec.Command("go", "build", "-o", binPath, ".")
-	build.Dir = workDir
-	if output, err := build.CombinedOutput(); err != nil {
-		fmt.Fprintf(os.Stderr, "able test --compiled: go build failed: %v\n%s\n", err, string(output))
-		return 2
+	if cache != nil {
+		buildIdentity, err := compiledTestBuildIdentity(moduleRoot)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+			return 2
+		}
+		cacheInput := compiledTestCacheKeyInput{
+			Program:         program,
+			EntryPath:       entryPath,
+			RunnerSource:    compiledTestRunnerSource(config),
+			HarnessSource:   harness,
+			SearchPaths:     cacheSearchPaths,
+			Packages:        packages,
+			CompilerOptions: compilerOptions,
+			ModuleRoot:      moduleRoot,
+			BuildIdentity:   buildIdentity,
+			Salt:            os.Getenv(compiledTestCacheSaltEnv),
+		}
+		cacheKey, err = compiledTestCacheKey(cacheInput)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+			return 2
+		}
+		if cachedBinary, ok := cache.lookup(cacheKey); ok {
+			if err := cache.markUsed(cacheKey); err != nil {
+				fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+				return 2
+			}
+			binPath = cachedBinary
+			cache.trace("hit", cacheKey)
+		}
+	}
+	if binPath == filepath.Join(workDir, "able-test") {
+		result, err := compiler.New(compilerOptions).Compile(program)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "able test --compiled: compile: %v\n", err)
+			return 2
+		}
+		if err := result.Write(workDir); err != nil {
+			fmt.Fprintf(os.Stderr, "able test --compiled: write output: %v\n", err)
+			return 2
+		}
+		if err := os.WriteFile(filepath.Join(workDir, "main.go"), []byte(harness), 0o600); err != nil {
+			fmt.Fprintf(os.Stderr, "able test --compiled: write harness: %v\n", err)
+			return 2
+		}
+		buildArgs := []string{"build", "-o", binPath, "."}
+		if cache != nil {
+			if err := prepareBuildModule(workDir); err != nil {
+				fmt.Fprintf(os.Stderr, "able test --compiled: prepare Go module: %v\n", err)
+				return 2
+			}
+			buildArgs = []string{"build", "-mod=mod", "-trimpath", "-o", binPath, "."}
+		}
+		build := exec.Command("go", buildArgs...)
+		build.Dir = workDir
+		if output, err := build.CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "able test --compiled: go build failed: %v\n%s\n", err, string(output))
+			return 2
+		}
+		if cache != nil {
+			cachedBinary, err := cache.publish(cacheKey, binPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "able test --compiled: %v\n", err)
+				return 2
+			}
+			binPath = cachedBinary
+			cache.trace("miss", cacheKey)
+		}
 	}
 
 	cmd := exec.Command(binPath)

@@ -1,0 +1,43 @@
+File: interpreter.test
+Build ID: 044a9b0b6ab0a7cea7a9fd0b0e025b79e2156ccb
+Type: cpu
+Profiles: v12/.profiles/20260723_concurrent_packet_codecs/bytecode_runtime_run{1,2,3}.cpu.pprof
+Merged: v12/.profiles/20260723_concurrent_packet_codecs/bytecode_runtime_merged.cpu.pprof
+Time: 2026-07-23 23:55:22 CDT
+Duration: 1.59s, Total samples = 1.64s (102.94%)
+Showing nodes accounting for 0.34s, 20.73% of 1.64s total
+Showing top 25 nodes out of 214
+      flat  flat%   sum%        cum   cum%
+     0.11s  6.71%  6.71%      1.52s 92.68%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+         0     0%  6.71%      1.40s 85.37%  able/interpreter-go/pkg/interpreter.(*GoroutineExecutor).runTask
+         0     0%  6.71%      1.40s 85.37%  able/interpreter-go/pkg/interpreter.(*Interpreter).runAsyncBytecodeProgram
+         0     0%  6.71%      1.40s 85.37%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execSpawn.func1
+         0     0%  6.71%      1.40s 85.37%  able/interpreter-go/pkg/interpreter.(*executorBase).safeInvoke
+     0.01s  0.61%  7.32%      0.63s 38.41%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+         0     0%  7.32%      0.39s 23.78%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallName
+         0     0%  7.32%      0.28s 17.07%  runtime.systemstack
+     0.01s  0.61%  7.93%      0.26s 15.85%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedCallName
+     0.01s  0.61%  8.54%      0.25s 15.24%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineCachedCallNameDirectFromStack
+     0.01s  0.61%  9.15%      0.25s 15.24%  runtime.mallocgc
+     0.04s  2.44% 11.59%      0.23s 14.02%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+         0     0% 11.59%      0.21s 12.80%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).bytecodeCalleeEnv
+         0     0% 11.59%      0.20s 12.20%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMember
+     0.01s  0.61% 12.20%      0.18s 10.98%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishInlineReturn
+     0.14s  8.54% 20.73%      0.18s 10.98%  runtime.tryDeferToSpanScan
+         0     0% 20.73%      0.13s  7.93%  runtime.newobject
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCachedResolvedMemberCall
+         0     0% 20.73%      0.12s  7.32%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotOpcode
+
+Three runtime measurements are 538402302, 570493405, and 537938054
+ns/op, averaging 548944587 ns/op. They average 85525547 B/op and
+2023219 allocations/op.
+
+Command:
+  go tool pprof -top -cum -nodecount=25 \
+    v12/.profiles/20260723_concurrent_packet_codecs/bytecode_runtime_merged.cpu.pprof

@@ -1,0 +1,82 @@
+{
+  "kind": "able-bytecode-array-semantic-boundary-evidence",
+  "schema_version": 1,
+  "frozen_test_binary_sha256": "7da8b987dde05d2e7d986999192b1ca856cb32e6f63eb9f05f8f00cc0d3df459",
+  "applications": [
+    {
+      "benchmark": "array_slice_window",
+      "family": "array-iterator",
+      "source": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+      "total_operations": 8751239,
+      "array_slot": {"lookups": 888266, "len": 312002, "read": 288004, "write": 1, "push": 288259, "cache_hits": 888257, "fast_hits": 888257, "fallbacks": 9, "fast_path_misses": 0},
+      "runtime_ns": [567528315, 583252102],
+      "allocated_bytes": [14186512, 14186496],
+      "allocations": [422243, 422243],
+      "merged_cpu_samples_seconds": 1.14,
+      "array_slot_cumulative_percent": 15.79,
+      "push_cumulative_percent": 4.39,
+      "dominant_push_descendant": "required independent slice backing, lease tracking, and Array size/read work",
+      "target_status": "miss"
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "family": "float-matrix",
+      "source": "v12/examples/benchmarks/matrixmultiply.able",
+      "total_operations": 61117147,
+      "array_slot": {"lookups": 4004001, "len": 1, "read": 0, "write": 0, "push": 4004000, "cache_hits": 4003994, "fast_hits": 4003994, "fallbacks": 7, "fast_path_misses": 0},
+      "runtime_ns": [4617641248, 4712041073],
+      "allocated_bytes": [308629896, 308624368],
+      "allocations": [14032470, 14032467],
+      "merged_cpu_samples_seconds": 9.29,
+      "array_slot_cumulative_percent": 28.85,
+      "push_cumulative_percent": 26.70,
+      "dominant_push_descendant": "monomorphic f64 ArrayStore size/write/synchronization; the separate dot-loop owns 26.26% cumulative",
+      "target_status": "meets"
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "byte-text",
+      "source": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+      "total_operations": 60602670,
+      "array_slot": {"lookups": 8067000, "len": 2033361, "read": 2000000, "write": 32, "push": 4033607, "cache_hits": 8066986, "fast_hits": 8066986, "fallbacks": 14, "fast_path_misses": 0},
+      "runtime_ns": [2893576347, 3099269179],
+      "allocated_bytes": [213605504, 213605248],
+      "allocations": [3542860, 3542848],
+      "merged_cpu_samples_seconds": 5.98,
+      "array_slot_cumulative_percent": 28.26,
+      "push_cumulative_percent": 8.03,
+      "dominant_push_descendant": "retained raw-u8 extraction and ArrayStoreAppendU8Promote",
+      "target_status": "miss"
+    }
+  ],
+  "guards": [
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "source": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+      "total_operations": 60446436,
+      "array_slot": {"lookups": 0, "len": 0, "read": 0, "write": 0, "push": 0, "cache_hits": 0, "fast_hits": 0, "fallbacks": 0, "fast_path_misses": 0}
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "source": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+      "total_operations": 17591889,
+      "array_slot": {"lookups": 140761, "len": 9688, "read": 0, "write": 0, "push": 131073, "cache_hits": 140752, "fast_hits": 140752, "fallbacks": 9, "fast_path_misses": 0}
+    }
+  ],
+  "prior_generic_candidate": {
+    "id": "validated-array-push-shell",
+    "result": "rejected",
+    "evidence": "v12/docs/perf-baselines/2026-07-17-bytecode-call-execution-reconciliation.md",
+    "reason": "The general wrapper split regressed String Split/Join 13.49% and Iterator Collect 3.42% in repeated order-balanced processes."
+  },
+  "target_budget_context": {
+    "array_slice_window_required_speedup": 20.94,
+    "reverse_complement_required_speedup": 117.50,
+    "matrixmultiply_status": "meets",
+    "evidence": "v12/docs/perf-baselines/external-scoreboard-current.json"
+  },
+  "decision": "no-go-array-wrapper-or-storage-generalization",
+  "next": "Return to the compiled residual frontier and select a shared generated-code semantic owner across at least three unlike applications."
+}

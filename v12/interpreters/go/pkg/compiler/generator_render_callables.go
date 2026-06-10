@@ -3,6 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 func (g *generator) renderNativeCallables(buf *bytes.Buffer) {
@@ -21,17 +22,26 @@ func (g *generator) renderNativeCallables(buf *bytes.Buffer) {
 
 func (g *generator) renderNativeCallableType(buf *bytes.Buffer, info *nativeCallableInfo) {
 	fmt.Fprintf(buf, "type %s func(", info.GoType)
-	for idx, paramType := range info.ParamGoTypes {
+	parts := g.nativeCallableParamParts(info.ParamGoTypes, "arg")
+	for idx, part := range parts {
 		if idx > 0 {
 			fmt.Fprintf(buf, ", ")
 		}
-		fmt.Fprintf(buf, "arg%d %s", idx, paramType)
+		fmt.Fprintf(buf, "%s", part)
 	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl)\n\n", info.ReturnGoType)
 }
 
 func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info *nativeCallableInfo) {
 	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, bool, error) {\n", info.TryFromRuntimeHelper, info.GoType)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "callable_from_runtime",
+		GeneratedFunction: info.TryFromRuntimeHelper,
+		AbleSource:        g.typedBoundaryAbleSource(info.PackageName, info.TypeExpr, info.TypeString),
+		Carrier:           "runtime.Value",
+		ImmediateConsumer: info.GoType,
+		Reason:            "adapt a runtime callable to its static native signature",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, false, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -55,11 +65,12 @@ func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info 
 	fmt.Fprintf(buf, "\t\treturn nil, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn func(")
-	for idx, paramType := range info.ParamGoTypes {
+	paramParts := g.nativeCallableParamParts(info.ParamGoTypes, "arg")
+	for idx, part := range paramParts {
 		if idx > 0 {
 			fmt.Fprintf(buf, ", ")
 		}
-		fmt.Fprintf(buf, "arg%d %s", idx, paramType)
+		fmt.Fprintf(buf, "%s", part)
 	}
 	fmt.Fprintf(buf, ") (%s, *__ableControl) {\n", info.ReturnGoType)
 	zeroExpr, zeroOK := g.zeroValueExpr(info.ReturnGoType)
@@ -77,7 +88,12 @@ func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info 
 	} else {
 		fmt.Fprintf(buf, "\t\tvar args []runtime.Value\n")
 	}
-	fmt.Fprintf(buf, "\t\tresult, control := __able_call_value(value, args, nil)\n")
+	if g.callableExecutionContextsEnabled() {
+		fmt.Fprintf(buf, "\t\tresult, err := __able_call_value_fast_ctx(value, args, __able_exec_ctx)\n")
+		fmt.Fprintf(buf, "\t\tcontrol := __able_control_from_error(err)\n")
+	} else {
+		fmt.Fprintf(buf, "\t\tresult, control := __able_call_value(value, args, nil)\n")
+	}
 	fmt.Fprintf(buf, "\t\tif control != nil {\n")
 	fmt.Fprintf(buf, "\t\t\treturn %s, control\n", zeroExpr)
 	fmt.Fprintf(buf, "\t\t}\n")
@@ -94,6 +110,14 @@ func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info 
 	fmt.Fprintf(buf, "\treturn converted\n")
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value %s) (runtime.Value, error) {\n", info.ToRuntimeHelper, info.GoType)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "callable_to_runtime",
+		GeneratedFunction: info.ToRuntimeHelper,
+		AbleSource:        g.typedBoundaryAbleSource(info.PackageName, info.TypeExpr, info.TypeString),
+		Carrier:           info.GoType,
+		ImmediateConsumer: "runtime.Value",
+		Reason:            "expose a static native callable through the runtime callable ABI",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -101,7 +125,9 @@ func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info 
 	fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, nil\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\treturn runtime.NativeFunctionValue{Name: %q, Arity: %d, Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {\n", info.TypeString, len(info.ParamGoTypes))
-	writeRuntimeEnvSwapIfNeeded(buf, "\t\t", "__able_runtime", "callCtx.Env", "callCtx != nil")
+	if !g.callableExecutionContextsEnabled() {
+		writeRuntimeEnvSwapIfNeeded(buf, "\t\t", "__able_runtime", "callCtx.Env", "callCtx != nil")
+	}
 	fmt.Fprintf(buf, "\t\tif len(args) != %d {\n", len(info.ParamGoTypes))
 	fmt.Fprintf(buf, "\t\t\treturn nil, fmt.Errorf(\"callable expects %d arguments, got %%d\", len(args))\n", len(info.ParamGoTypes))
 	fmt.Fprintf(buf, "\t\t}\n")
@@ -110,14 +136,14 @@ func (g *generator) renderNativeCallableBoundaryHelpers(buf *bytes.Buffer, info 
 		target := fmt.Sprintf("arg%d", idx)
 		g.renderNativeInterfaceRuntimeToGoValueError(buf, target, valueVar, paramType, "\t\t")
 	}
-	argList := ""
+	callArgs := make([]string, 0, len(info.ParamGoTypes)+1)
 	for idx := range info.ParamGoTypes {
-		if idx > 0 {
-			argList += ", "
-		}
-		argList += fmt.Sprintf("arg%d", idx)
+		callArgs = append(callArgs, fmt.Sprintf("arg%d", idx))
 	}
-	fmt.Fprintf(buf, "\t\tresult, control := value(%s)\n", argList)
+	if g.callableExecutionContextsEnabled() {
+		callArgs = append(callArgs, "__able_context_from_native(callCtx)")
+	}
+	fmt.Fprintf(buf, "\t\tresult, control := value(%s)\n", strings.Join(callArgs, ", "))
 	fmt.Fprintf(buf, "\t\tif control != nil {\n")
 	fmt.Fprintf(buf, "\t\t\treturn nil, __able_control_to_error(__able_runtime, callCtx, control)\n")
 	fmt.Fprintf(buf, "\t\t}\n")

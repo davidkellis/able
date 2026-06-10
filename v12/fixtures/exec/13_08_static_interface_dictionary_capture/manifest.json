@@ -1,0 +1,10 @@
+{
+  "description": "interface values retain factory-package dictionaries across static imports",
+  "setup": ["iface_defs.able", "factory.able"],
+  "expect": {
+    "stdout": [
+      "Ada"
+    ],
+    "exit": 0
+  }
+}

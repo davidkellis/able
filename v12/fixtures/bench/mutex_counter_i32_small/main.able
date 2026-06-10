@@ -1,0 +1,31 @@
+package bench_mutex_counter_i32_small
+
+import able.kernel.{Mutex}
+import able.concurrency.{with_lock}
+
+fn bump(mutex: Mutex, count: i32) -> i64 {
+  counter: i64 = 0_i64
+  i := 0
+  loop {
+    if i >= count { break }
+    delta := ((i % 7) + 1) as i64
+    with_lock(mutex, fn() -> i64 {
+      counter = counter + delta
+      counter
+    })
+    i = i + 1
+  }
+  counter
+}
+
+fn main() -> void {
+  mutex := Mutex.new()
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 8 { break }
+    total = total + bump(mutex, 20_000)
+    rounds = rounds + 1
+  }
+  print(total)
+}

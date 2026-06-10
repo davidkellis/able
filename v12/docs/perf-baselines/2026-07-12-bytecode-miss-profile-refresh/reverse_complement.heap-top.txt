@@ -1,0 +1,27 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: inuse_space
+Time: 2026-07-11 23:24:16 CDT
+Showing nodes accounting for 91.89MB, 100% of 91.89MB total
+Showing top 20 nodes out of 48
+      flat  flat%   sum%        cum   cum%
+   59.30MB 64.54% 64.54%    59.30MB 64.54%  able/interpreter-go/pkg/runtime.ArrayEnsureCapacity
+   25.45MB 27.70% 92.24%    25.45MB 27.70%  able/interpreter-go/pkg/interpreter.initBytecodeSmallIntBoxCache
+    1.99MB  2.16% 94.40%     1.99MB  2.16%  able/interpreter-go/pkg/runtime.ArrayStorePromoteHandleToMonoTypeIfPossible
+    1.99MB  2.16% 96.56%     1.99MB  2.16%  os.readFileContents
+    1.16MB  1.26% 97.82%     1.16MB  1.26%  runtime/pprof.StartCPUProfile
+       1MB  1.09% 98.91%        1MB  1.09%  able/interpreter-go/pkg/interpreter.init.func1
+    0.50MB  0.55% 99.46%     0.50MB  0.55%  runtime/pprof.(*profMap).lookup
+    0.50MB  0.54%   100%     0.50MB  0.54%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).memberMethodFastPathForFunction
+         0     0%   100%    63.78MB 69.41%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%   100%    63.78MB 69.41%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%   100%    63.78MB 69.41%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%   100%    63.78MB 69.41%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%   100%    63.78MB 69.41%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%   100%     1.99MB  2.16%  able/interpreter-go/pkg/interpreter.(*Interpreter).coerceValueToType
+         0     0%   100%     1.99MB  2.16%  able/interpreter-go/pkg/interpreter.(*Interpreter).evaluateExternFunctionBody.(*Interpreter).makeExternNative.func1
+         0     0%   100%     1.99MB  2.16%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeExternHostFunction
+         0     0%   100%    63.78MB 69.41%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%   100%     1.99MB  2.16%  able/interpreter-go/pkg/interpreter.(*Interpreter).tryFastArrayTypeCoercion
+         0     0%   100%    59.30MB 64.54%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendTrackedArrayValueFast
+         0     0%   100%     1.99MB  2.16%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execAndFinishExactNativeCall

@@ -297,7 +297,10 @@ func (i *Interpreter) evaluatePlaceholderExpression(expr *ast.PlaceholderExpress
 }
 
 func (i *Interpreter) tryBuildPlaceholderFunction(node ast.Expression, env *runtime.Environment) (runtime.Value, bool, error) {
-	state := i.stateFromEnv(env)
+	return i.tryBuildPlaceholderFunctionWithState(node, env, i.stateFromEnv(env))
+}
+
+func (i *Interpreter) tryBuildPlaceholderFunctionWithState(node ast.Expression, env *runtime.Environment, state *evalState) (runtime.Value, bool, error) {
 	if state.hasPlaceholderFrame() {
 		return nil, false, nil
 	}

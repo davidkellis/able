@@ -255,11 +255,17 @@ func TestCompilerPersistentSortedQueueMethodsStayNative(t *testing.T) {
 	for _, fragment := range []string{
 		"var set *PersistentSortedSet_i32 =",
 		"var queue *PersistentQueue_i32 =",
-		"__able_compiled_method_PersistentSortedSet_insert_spec",
-		"__able_compiled_method_PersistentQueue_enqueue_spec",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected native persistent container locals to contain %q:\n%s", fragment, body)
+		}
+	}
+	for _, call := range []string{
+		"__able_compiled_method_PersistentSortedSet_insert_spec",
+		"__able_compiled_method_PersistentQueue_enqueue_spec",
+	} {
+		if !bodyCallsCompiledDirect(body, call) {
+			t.Fatalf("expected native persistent container locals to contain a direct %q call:\n%s", call, body)
 		}
 	}
 

@@ -1,0 +1,13 @@
+{
+  "description": "anchored regex options lower through shared absolute start/end NFA predicates",
+  "expect": {
+    "stdout": [
+      "substring nil",
+      "exact cat 0-3",
+      "unicode éé 0-4",
+      "unicode_prefix nil",
+      "empty  0-0",
+      "nonmatching nil"
+    ]
+  }
+}

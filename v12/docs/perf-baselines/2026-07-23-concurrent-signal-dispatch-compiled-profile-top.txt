@@ -1,0 +1,48 @@
+File: compiled
+Build ID: 60a6dee58fcbb5e02bba2e7cf3f7799691b04623
+Type: cpu
+Time: 2026-07-23 08:17:04 CDT
+Duration: 602.68ms, Total samples = 1.44s (238.93%)
+Showing nodes accounting for 1.40s, 97.22% of 1.44s total
+Showing top 40 nodes out of 151
+      flat  flat%   sum%        cum   cum%
+     0.33s 22.92% 22.92%      0.33s 22.92%  runtime.procyieldAsm
+     0.19s 13.19% 36.11%      0.19s 13.19%  runtime.futex
+     0.14s  9.72% 45.83%      0.62s 43.06%  runtime.lock2
+     0.09s  6.25% 52.08%      0.10s  6.94%  runtime.step
+     0.08s  5.56% 57.64%      0.24s 16.67%  runtime.pcvalue
+     0.06s  4.17% 61.81%      0.15s 10.42%  runtime.gwrite
+     0.05s  3.47% 65.28%      0.14s  9.72%  runtime.unlock2
+     0.04s  2.78% 68.06%      0.04s  2.78%  runtime.memmove
+     0.03s  2.08% 70.14%      0.03s  2.08%  runtime.(*moduledata).textAddr
+     0.03s  2.08% 72.22%      0.08s  5.56%  runtime.recordForPanic
+     0.02s  1.39% 73.61%      0.02s  1.39%  indexbytebody
+     0.02s  1.39% 75.00%      0.02s  1.39%  internal/strconv.formatBase10
+     0.02s  1.39% 76.39%      0.02s  1.39%  runtime.funcfile
+     0.02s  1.39% 77.78%      0.16s 11.11%  runtime.printunlock (partial-inline)
+     0.02s  1.39% 79.17%      0.02s  1.39%  runtime.tryDeferToSpanScan
+     0.02s  1.39% 80.56%      0.09s  6.25%  runtime.unlock2Wake
+     0.01s  0.69% 81.25%      0.01s  0.69%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.01s  0.69% 81.94%      0.01s  0.69%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.01s  0.69% 82.64%      0.01s  0.69%  internal/sync.(*Mutex).Lock
+     0.01s  0.69% 83.33%      0.01s  0.69%  main.__able_checked_add_signed
+     0.01s  0.69% 84.03%      0.01s  0.69%  main.__able_checked_mul_signed
+     0.01s  0.69% 84.72%      0.02s  1.39%  main.__able_compiled_impl_SignalKernel_evaluate_0
+     0.01s  0.69% 85.42%      0.03s  2.08%  main.__able_compiled_impl_SignalKernel_evaluate_0_a
+     0.01s  0.69% 86.11%      0.01s  0.69%  main.__able_divmod_signed
+     0.01s  0.69% 86.81%      0.01s  0.69%  runtime.bytes
+     0.01s  0.69% 87.50%      0.01s  0.69%  runtime.cheaprand (inline)
+     0.01s  0.69% 88.19%      0.01s  0.69%  runtime.convT
+     0.01s  0.69% 88.89%      0.01s  0.69%  runtime.cputicks
+     0.01s  0.69% 89.58%      0.01s  0.69%  runtime.findfunc
+     0.01s  0.69% 90.28%      0.04s  2.78%  runtime.funcInfo.entry (inline)
+     0.01s  0.69% 90.97%      0.01s  0.69%  runtime.funcdata
+     0.01s  0.69% 91.67%      0.13s  9.03%  runtime.funcline1
+     0.01s  0.69% 92.36%      0.01s  0.69%  runtime.newobject
+     0.01s  0.69% 93.06%      0.01s  0.69%  runtime.pMask.set
+     0.01s  0.69% 93.75%      0.01s  0.69%  runtime.pcvalueCacheKey (inline)
+     0.01s  0.69% 94.44%      0.33s 22.92%  runtime.printArgs
+     0.01s  0.69% 95.14%      0.19s 13.19%  runtime.printArgs.func2 (inline)
+     0.01s  0.69% 95.83%      0.63s 43.75%  runtime.printlock
+     0.01s  0.69% 96.53%      0.01s  0.69%  runtime.readvarint (inline)
+     0.01s  0.69% 97.22%      0.02s  1.39%  runtime.scanSpan

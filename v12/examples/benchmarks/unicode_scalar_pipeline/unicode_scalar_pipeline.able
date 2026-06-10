@@ -1,0 +1,58 @@
+package unicode_scalar_pipeline
+
+import able.core.interfaces.{Error}
+import able.core.iteration.{IteratorEnd}
+import able.kernel.{__able_char_from_codepoint, __able_char_to_codepoint}
+import able.text.string.{String, StringBuilder}
+
+fn finish_builder(builder: StringBuilder) -> String {
+  builder.finish() match {
+    case value: String => value,
+    case err: Error => { raise err }
+  }
+}
+
+fn build_text(repetitions: i32) -> String {
+  builder := StringBuilder.with_capacity(repetitions * 48)
+  i := 0
+  loop {
+    if i >= repetitions { break }
+    builder.push_string("Able café Καλημέρα 日本語 😀 K\n")
+    i = i + 1
+  }
+  finish_builder(builder)
+}
+
+fn scalar_checksum(text: String) -> String {
+  iter := text.chars()
+  count: i64 = 0_i64
+  checksum: i64 = 0_i64
+  loop {
+    iter.next() match {
+      case _: IteratorEnd => { break },
+      case value: char => {
+        codepoint := __able_char_to_codepoint(value)
+        if __able_char_from_codepoint(codepoint) != value {
+          return "roundtrip-error"
+        }
+        weight := count % 97_i64 + 1_i64
+        checksum = (checksum + (codepoint as i64) * weight) % 1_000_000_007_i64
+        count = count + 1_i64
+      }
+    }
+  }
+  `${count}:${checksum}`
+}
+
+fn main() -> void {
+  text := build_text(4_096)
+  round := 0
+  result := ""
+  loop {
+    if round >= 16 { break }
+    result = scalar_checksum(text)
+    round = round + 1
+  }
+  print(result)
+  print(text.len_bytes())
+}

@@ -5,7 +5,10 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-const bytecodeArrayGetCallHotEntries = 4
+const (
+	bytecodeArrayGetCallHotEntries    = 4
+	bytecodeArrayGetCallDirectEntries = 16
+)
 
 type bytecodeArrayGetCallCacheEntry struct {
 	env                *runtime.Environment
@@ -42,7 +45,7 @@ func (vm *bytecodeVM) canUseCanonicalArrayGetCallCache(instr bytecodeInstruction
 	if !ok || arr == nil {
 		return false
 	}
-	return vm.env.RuntimeData() == nil
+	return !vm.hasRuntimeData()
 }
 
 func (vm *bytecodeVM) canUseCanonicalArrayGetCallCacheForArray(arr *runtime.ArrayValue) bool {
@@ -50,18 +53,20 @@ func (vm *bytecodeVM) canUseCanonicalArrayGetCallCacheForArray(arr *runtime.Arra
 		vm.interp != nil &&
 		vm.env != nil &&
 		arr != nil &&
-		vm.env.RuntimeData() == nil
+		!vm.hasRuntimeData()
 }
 
-func (entry bytecodeInlineArrayGetCallCacheEntry) matchesCanonicalArrayGetCallIdentity(program *bytecodeProgram, ip int, env *runtime.Environment) bool {
-	return entry.valid &&
+func (entry *bytecodeInlineArrayGetCallCacheEntry) matchesCanonicalArrayGetCallIdentity(program *bytecodeProgram, ip int, env *runtime.Environment) bool {
+	return entry != nil &&
+		entry.valid &&
 		entry.program == program &&
 		entry.ip == ip &&
 		entry.env == env
 }
 
-func (entry bytecodeInlineArrayGetCallCacheEntry) matchesCanonicalArrayGetCallVersions(envVersion uint64, globalRev uint64, methodVersion uint64) bool {
-	return entry.envVersion == envVersion &&
+func (entry *bytecodeInlineArrayGetCallCacheEntry) matchesCanonicalArrayGetCallVersions(envVersion uint64, globalRev uint64, methodVersion uint64) bool {
+	return entry != nil &&
+		entry.envVersion == envVersion &&
 		entry.globalRevision == globalRev &&
 		entry.methodCacheVersion == methodVersion
 }
@@ -71,7 +76,7 @@ func (vm *bytecodeVM) promoteCanonicalArrayGetCallHot(entry bytecodeInlineArrayG
 		return
 	}
 	for i := 0; i < len(vm.arrayGetCallHot); i++ {
-		if vm.arrayGetCallHot[i].matchesCanonicalArrayGetCallIdentity(entry.program, entry.ip, entry.env) {
+		if (&vm.arrayGetCallHot[i]).matchesCanonicalArrayGetCallIdentity(entry.program, entry.ip, entry.env) {
 			copy(vm.arrayGetCallHot[1:i+1], vm.arrayGetCallHot[0:i])
 			vm.arrayGetCallHot[0] = entry
 			return
@@ -82,7 +87,18 @@ func (vm *bytecodeVM) promoteCanonicalArrayGetCallHot(entry bytecodeInlineArrayG
 }
 
 func (vm *bytecodeVM) canonicalArrayGetCallVersions(env *runtime.Environment) (uint64, uint64, uint64) {
-	return vm.bytecodeEnvRevision(env), vm.bytecodeGlobalRevision(), vm.bytecodeMethodCacheVersion()
+	return vm.bytecodeEnvGlobalAndMethodVersions(env)
+}
+
+func bytecodeArrayGetCallDirectIndex(ip int) int {
+	return int(uint(ip) & uint(bytecodeArrayGetCallDirectEntries-1))
+}
+
+func (vm *bytecodeVM) storeCanonicalArrayGetCallDirect(entry bytecodeInlineArrayGetCallCacheEntry) {
+	if vm == nil || !entry.valid {
+		return
+	}
+	vm.arrayGetCallDirect[bytecodeArrayGetCallDirectIndex(entry.ip)] = entry
 }
 
 func (vm *bytecodeVM) lookupCachedCanonicalArrayGetCall(program *bytecodeProgram, ip int, instr bytecodeInstruction, receiver runtime.Value) bool {
@@ -103,8 +119,14 @@ func (vm *bytecodeVM) lookupCachedCanonicalArrayGetCallForArray(program *bytecod
 		methodVersion uint64
 		haveVersions  bool
 	)
+	direct := &vm.arrayGetCallDirect[bytecodeArrayGetCallDirectIndex(ip)]
+	if direct.matchesCanonicalArrayGetCallIdentity(program, ip, env) {
+		envVersion, globalRev, methodVersion = vm.canonicalArrayGetCallVersions(env)
+		haveVersions = true
+		return direct.matchesCanonicalArrayGetCallVersions(envVersion, globalRev, methodVersion)
+	}
 	for i := 0; i < len(vm.arrayGetCallHot); i++ {
-		hot := vm.arrayGetCallHot[i]
+		hot := &vm.arrayGetCallHot[i]
 		if !hot.matchesCanonicalArrayGetCallIdentity(program, ip, env) {
 			continue
 		}
@@ -115,6 +137,7 @@ func (vm *bytecodeVM) lookupCachedCanonicalArrayGetCallForArray(program *bytecod
 		if !hot.matchesCanonicalArrayGetCallVersions(envVersion, globalRev, methodVersion) {
 			return false
 		}
+		vm.storeCanonicalArrayGetCallDirect(*hot)
 		return true
 	}
 	if vm.arrayGetCallCache == nil {
@@ -132,7 +155,7 @@ func (vm *bytecodeVM) lookupCachedCanonicalArrayGetCallForArray(program *bytecod
 		entry.methodCacheVersion != methodVersion {
 		return false
 	}
-	vm.promoteCanonicalArrayGetCallHot(bytecodeInlineArrayGetCallCacheEntry{
+	inlineEntry := bytecodeInlineArrayGetCallCacheEntry{
 		valid:              true,
 		program:            program,
 		ip:                 ip,
@@ -140,7 +163,9 @@ func (vm *bytecodeVM) lookupCachedCanonicalArrayGetCallForArray(program *bytecod
 		envVersion:         entry.envVersion,
 		globalRevision:     entry.globalRevision,
 		methodCacheVersion: entry.methodCacheVersion,
-	})
+	}
+	vm.promoteCanonicalArrayGetCallHot(inlineEntry)
+	vm.storeCanonicalArrayGetCallDirect(inlineEntry)
 	return true
 }
 
@@ -160,7 +185,7 @@ func (vm *bytecodeVM) storeCachedCanonicalArrayGetCall(program *bytecodeProgram,
 	}
 	key := bytecodeGlobalLookupCacheKey{program: program, ip: ip}
 	vm.arrayGetCallCache[key] = entry
-	vm.promoteCanonicalArrayGetCallHot(bytecodeInlineArrayGetCallCacheEntry{
+	inlineEntry := bytecodeInlineArrayGetCallCacheEntry{
 		valid:              true,
 		program:            program,
 		ip:                 ip,
@@ -168,7 +193,9 @@ func (vm *bytecodeVM) storeCachedCanonicalArrayGetCall(program *bytecodeProgram,
 		envVersion:         entry.envVersion,
 		globalRevision:     entry.globalRevision,
 		methodCacheVersion: entry.methodCacheVersion,
-	})
+	}
+	vm.promoteCanonicalArrayGetCallHot(inlineEntry)
+	vm.storeCanonicalArrayGetCallDirect(inlineEntry)
 }
 
 func (vm *bytecodeVM) isCanonicalNullableArrayGetOverload(callable runtime.Value) bool {

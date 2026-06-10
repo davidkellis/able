@@ -3,55 +3,29 @@ package runtime
 import "fmt"
 
 func ArrayStoreMonoReadF64(handle int64, index int) (float64, error) {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
-		return 0, err
+	value, kind, err := arrayStoreMonoReadValue(handle, index, monoArrayKindF64, monoArrayF64States)
+	if err != nil || kind == monoArrayKindF64 {
+		return value, err
 	}
 	if kind == monoArrayKindDynamic {
-		value, err := ArrayStoreRead(handle, index)
+		boxed, err := ArrayStoreRead(handle, index)
 		if err != nil {
 			return 0, err
 		}
-		return float64FromValue(value)
+		return float64FromValue(boxed)
 	}
-	if kind != monoArrayKindF64 {
-		return 0, fmt.Errorf("array handle %d is not mono f64", handle)
-	}
-	state, ok := monoArrayF64States[handle]
-	if !ok {
-		return 0, fmt.Errorf("array handle %d is not defined", handle)
-	}
-	if index < 0 || index >= len(state.Values) {
-		return 0, fmt.Errorf("index out of bounds")
-	}
-	return state.Values[index], nil
+	return 0, fmt.Errorf("array handle %d is not mono f64", handle)
 }
 
 func ArrayStoreMonoWriteF64(handle int64, index int, value float64) error {
-	kind, err := arrayHandleKind(handle)
-	if err != nil {
+	kind, err := arrayStoreMonoWriteValue(handle, index, value, monoArrayKindF64, monoArrayF64States, true)
+	if err != nil || kind == monoArrayKindF64 {
 		return err
-	}
-	if index < 0 {
-		return fmt.Errorf("index must be non-negative")
 	}
 	if kind == monoArrayKindDynamic {
 		return ArrayStoreWrite(handle, index, f64ToValue(value))
 	}
-	if kind != monoArrayKindF64 {
-		return fmt.Errorf("array handle %d is not mono f64", handle)
-	}
-	state, ok := monoArrayF64States[handle]
-	if !ok {
-		return fmt.Errorf("array handle %d is not defined", handle)
-	}
-	monoEnsureCapacity(state, index+1)
-	if index >= len(state.Values) {
-		monoSetLength(state, index+1)
-	}
-	state.Values[index] = value
-	state.Revision++
-	return nil
+	return fmt.Errorf("array handle %d is not mono f64", handle)
 }
 
 func ArrayStoreMonoF64ValuesIfAvailable(handle int64) ([]float64, bool, error) {
@@ -63,7 +37,9 @@ func ArrayStoreMonoF64ValuesRevisionIfAvailable(handle int64) ([]float64, uint64
 	if handle == 0 {
 		return nil, 0, false, nil
 	}
-	kind, err := arrayHandleKind(handle)
+	arrayStoreMu.RLock()
+	defer arrayStoreMu.RUnlock()
+	kind, err := arrayHandleKindLocked(handle)
 	if err != nil {
 		return nil, 0, false, err
 	}
@@ -78,15 +54,17 @@ func ArrayStoreMonoF64ValuesRevisionIfAvailable(handle int64) ([]float64, uint64
 }
 
 func ArrayStoreAppendF64Promote(handle int64, value float64) (bool, error) {
+	arrayStoreMu.Lock()
+	defer arrayStoreMu.Unlock()
 	if handle == 0 {
 		return false, nil
 	}
-	kind, err := arrayHandleKind(handle)
+	kind, err := arrayHandleKindLocked(handle)
 	if err != nil {
 		return false, err
 	}
 	if kind == monoArrayKindF64 {
-		state, ok := monoArrayF64States[handle]
+		state, ok := cachedMonoArrayF64ReadState(handle)
 		if !ok {
 			return false, fmt.Errorf("array handle %d is not defined", handle)
 		}
@@ -116,15 +94,18 @@ func ArrayStoreAppendF64Promote(handle int64, value float64) (bool, error) {
 	appendMonoF64Value(mono, value)
 	delete(arrayStates, handle)
 	monoArrayF64States[handle] = mono
-	arrayHandleKinds[handle] = monoArrayKindF64
+	recordArrayHandleKind(handle, monoArrayKindF64)
+	cacheArrayHandleRevision(handle, &mono.Revision)
 	return true, nil
 }
 
 func ArrayStoreAppendF64ValuesPromote(handle int64, values []float64) (bool, error) {
+	arrayStoreMu.Lock()
+	defer arrayStoreMu.Unlock()
 	if handle == 0 {
 		return false, nil
 	}
-	kind, err := arrayHandleKind(handle)
+	kind, err := arrayHandleKindLocked(handle)
 	if err != nil {
 		return false, err
 	}
@@ -132,7 +113,7 @@ func ArrayStoreAppendF64ValuesPromote(handle int64, values []float64) (bool, err
 		return kind == monoArrayKindF64 || kind == monoArrayKindDynamic, nil
 	}
 	if kind == monoArrayKindF64 {
-		state, ok := monoArrayF64States[handle]
+		state, ok := cachedMonoArrayF64ReadState(handle)
 		if !ok {
 			return false, fmt.Errorf("array handle %d is not defined", handle)
 		}
@@ -164,16 +145,20 @@ func ArrayStoreAppendF64ValuesPromote(handle int64, values []float64) (bool, err
 	}
 	converted = append(converted, values...)
 	delete(arrayStates, handle)
-	monoArrayF64States[handle] = &monoArrayF64State{Values: converted, Capacity: cap(converted)}
-	arrayHandleKinds[handle] = monoArrayKindF64
+	mono := &monoArrayF64State{Values: converted, Capacity: cap(converted)}
+	monoArrayF64States[handle] = mono
+	recordArrayHandleKind(handle, monoArrayKindF64)
+	cacheArrayHandleRevision(handle, &mono.Revision)
 	return true, nil
 }
 
 func ArrayStoreAppendF64UninitializedPromote(handle int64, count int) ([]float64, bool, error) {
+	arrayStoreMu.Lock()
+	defer arrayStoreMu.Unlock()
 	if handle == 0 || count < 0 {
 		return nil, false, nil
 	}
-	kind, err := arrayHandleKind(handle)
+	kind, err := arrayHandleKindLocked(handle)
 	if err != nil {
 		return nil, false, err
 	}
@@ -226,8 +211,10 @@ func ArrayStoreAppendF64UninitializedPromote(handle int64, count int) ([]float64
 	oldLen := len(converted)
 	converted = converted[:minCapacity]
 	delete(arrayStates, handle)
-	monoArrayF64States[handle] = &monoArrayF64State{Values: converted, Capacity: cap(converted), Revision: state.Revision + 1}
-	arrayHandleKinds[handle] = monoArrayKindF64
+	mono := &monoArrayF64State{Values: converted, Capacity: cap(converted), Revision: state.Revision + 1}
+	monoArrayF64States[handle] = mono
+	recordArrayHandleKind(handle, monoArrayKindF64)
+	cacheArrayHandleRevision(handle, &mono.Revision)
 	return converted[oldLen:minCapacity], true, nil
 }
 

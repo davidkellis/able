@@ -1,0 +1,132 @@
+{
+  "kind": "able-compiled-native-awaitable-carrier-retained",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "cpu_pool": "0-15",
+  "instrument_sha256": "299dd873696822f8f5ed8aba257ef7d3fa3d854972746ca94a5c2b99b1bb8b87",
+  "baseline_census_sha256": "280cd141b3ec3eddfd2861fa852db7c21a8a2167dd0d7ba76de39d0ca52b6a7d",
+  "candidate_census_sha256": "52e926267ab4aa083b2aaa5ee0f8e8efd276aabb43b018881190abebc497e650",
+  "timing_samples_sha256": "67f38930311a1bfb15e062974d4f08b6bc170c039915caafc10cecfced7c6eef",
+  "runs": {
+    "counter_per_side_per_application": 5,
+    "allocation_per_side_per_application": 5,
+    "timing_cohorts_per_application": 15
+  },
+  "benchmarks": [
+    {
+      "benchmark": "await_channel_mux",
+      "source_sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+      "baseline_binary_sha256": "342ab880d2b84e6f1307988331b52819a9620b2bbbd888226bdd4023e1774bb2",
+      "candidate_binary_sha256": "a409041e9410df1e003233e2fcd4deba4b183c0be9815c487d3d7afbc7e84d57",
+      "stdout_sha256": "0a32fa2e9481ecb635562079d993288d911326d9f36aeea0d9d3058d1a494693",
+      "interpreter_free": true,
+      "counters": {
+        "produced": 2048,
+        "baseline_materialized": 2048,
+        "candidate_materialized": 0,
+        "interface_each_direction": 2560,
+        "array_conversions": 1024,
+        "awaited_elements": 2560
+      },
+      "allocation": {
+        "baseline_bytes": [8519104, 8517232, 8512008, 8517312, 8512488],
+        "candidate_bytes": [6604408, 6612984, 6613528, 6604696, 6611496],
+        "baseline_objects": [144396, 144383, 144383, 144387, 144384],
+        "candidate_objects": [112622, 112672, 112677, 112618, 112663],
+        "bytes_change_percent": -22.38,
+        "objects_change_percent": -21.98
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0994670849,
+        "candidate_mean_seconds": 0.0902267414,
+        "go_mean_seconds": 0.0047781293,
+        "candidate_change_percent": -9.29,
+        "paired_change_percent": -9.062,
+        "paired_ci95_percent": [-13.611, -4.513],
+        "candidate_go_time_ratio": 18.8833,
+        "candidate_as_go_performance_percent": 5.2957
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "source_sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696",
+      "baseline_binary_sha256": "0361d0df8caf70ab1727abd9e58340a3cbf4ae4516f2d52412bfff644381a2af",
+      "candidate_binary_sha256": "a2e59d6c1430ec465784384b3b21b98889d672ef8faaa12354157f6f6eb1cbdd",
+      "stdout_sha256": "e6f87830a6a1bb1bf3889a6b77eae053bfd3630055a06dd8fd500201586bf61e",
+      "interpreter_free": true,
+      "counters": {
+        "produced": 2048,
+        "baseline_materialized": 2048,
+        "candidate_materialized": 0,
+        "interface_each_direction": 2048,
+        "array_conversions": 2048,
+        "awaited_elements": 2048
+      },
+      "allocation": {
+        "baseline_bytes": [4401784, 4413944, 4399952, 4397616, 4434504],
+        "candidate_bytes": [2847848, 2841880, 2839256, 2843248, 2835872],
+        "baseline_objects": [73446, 73657, 73320, 73378, 73999],
+        "candidate_objects": [46501, 46401, 46360, 46430, 46312],
+        "bytes_change_percent": -35.56,
+        "objects_change_percent": -36.92
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0120179122,
+        "candidate_mean_seconds": 0.0104725981,
+        "go_mean_seconds": 0.0040144545,
+        "candidate_change_percent": -12.86,
+        "paired_change_percent": -12.365,
+        "paired_ci95_percent": [-16.660, -8.069],
+        "candidate_go_time_ratio": 2.6087,
+        "candidate_as_go_performance_percent": 38.3329
+      }
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "source_sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113",
+      "baseline_binary_sha256": "c381b89eb03a877d09cdabc89a238c64da3aca84c551409fd444d7a354ab6bba",
+      "candidate_binary_sha256": "fc13e7b7ab2180802cd6df7278ce6c2b1d5213c94d17558d37c33815cb7b8ecb",
+      "stdout_sha256": "57d3c0d15899da95d375a749cfe34dcc6942eb82a45427f197b9244b85ff8e58",
+      "interpreter_free": true,
+      "counters": {
+        "produced": 4096,
+        "baseline_materialized": 4096,
+        "candidate_materialized": 0,
+        "interface_each_direction": 4096,
+        "array_conversions": 4096,
+        "awaited_elements": 4096
+      },
+      "allocation": {
+        "baseline_bytes": [9025872, 9028416, 9003656, 9022616, 9016176],
+        "candidate_bytes": [5878272, 5888248, 5891024, 5893168, 5883168],
+        "baseline_objects": [151549, 151587, 151078, 151490, 151301],
+        "candidate_objects": [96851, 97009, 97052, 97076, 96927],
+        "bytes_change_percent": -34.73,
+        "objects_change_percent": -35.94
+      },
+      "timing": {
+        "baseline_mean_seconds": 0.0228406063,
+        "candidate_mean_seconds": 0.0186981297,
+        "go_mean_seconds": 0.0044064136,
+        "candidate_change_percent": -18.14,
+        "paired_change_percent": -17.667,
+        "paired_ci95_percent": [-23.048, -12.286],
+        "candidate_go_time_ratio": 4.2434,
+        "candidate_as_go_performance_percent": 23.5661
+      }
+    }
+  ],
+  "verification": {
+    "counter_processes": 30,
+    "allocation_processes": 30,
+    "timing_processes": 135,
+    "public_verifier_failures": 0,
+    "strict_interpreter_dependencies": 0,
+    "focused_tests": "pass",
+    "performance_ledger_current_closures": 21,
+    "performance_ledger_invalidations": 0
+  },
+  "next": "Measure a general typed Awaitable Array input path that avoids runtime Array and per-element interface conversion before compiled await selection."
+}

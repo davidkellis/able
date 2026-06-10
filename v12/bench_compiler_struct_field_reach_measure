@@ -1,0 +1,294 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+
+workdir=""
+output_prefix=""
+benchmark_repo="$(realpath "$SCRIPT_DIR/../../benchmarks")"
+benchmarks_csv="future_await_race,await_channel_mux,mutex_await_journal,mutex_work_queue"
+runs=7
+timeout_seconds=60
+cpu_affinity="${ABLE_BENCH_CPU_AFFINITY:-}"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_compiler_struct_field_reach_measure \
+    --workdir DIR \
+    --output-prefix PATH \
+    [--runs N] \
+    [--cpu-affinity CPUSET]
+
+Measures the census-reached pre-audit baseline, retained candidate, and
+equivalent Go applications in rotating verifier-backed cohorts.
+EOF
+}
+
+die() {
+  echo "bench_compiler_struct_field_reach_measure: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --output-prefix)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-prefix"
+      output_prefix="$1"
+      ;;
+    --benchmark-repo)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmark-repo"
+      benchmark_repo="$1"
+      ;;
+    --benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      ;;
+    --runs)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --runs"
+      runs="$1"
+      ;;
+    --timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    --cpu-affinity)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --cpu-affinity"
+      cpu_affinity="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$workdir" ]] || die "--workdir is required"
+[[ -n "$output_prefix" ]] || die "--output-prefix is required"
+[[ "$runs" =~ ^[1-9][0-9]*$ ]] || die "--runs must be positive"
+((runs >= 5)) || die "--runs must be at least five"
+workdir="$(realpath "$workdir")"
+output_prefix="$(realpath -m "$output_prefix")"
+benchmark_repo="$(realpath "$benchmark_repo")"
+mkdir -p "$workdir/measurement" "$(dirname "$output_prefix")"
+
+cpu_pool="$(bench_external_effective_cpu_pool "$cpu_affinity")" ||
+  die "cannot resolve benchmark CPU pool"
+taskset -c "$cpu_pool" true >/dev/null 2>&1 ||
+  die "invalid CPU pool: $cpu_pool"
+
+samples="${output_prefix}-samples.tsv"
+tmp_samples="$(mktemp "$workdir/measurement/samples.XXXXXX")"
+printf '%s\n' \
+  $'benchmark\tcohort\tposition\tlane\tduration_ns\tstatus\tstdout_sha256\tbinary_sha256' \
+  >"$tmp_samples"
+
+go_source_for_suite() {
+  local suite_dir="$1"
+  if [[ -f "$suite_dir/go-1.26/app.go" ]]; then
+    printf '%s\n' "$suite_dir/go-1.26/app.go"
+    return 0
+  fi
+  if [[ -f "$suite_dir/app.go" ]]; then
+    printf '%s\n' "$suite_dir/app.go"
+    return 0
+  fi
+  return 1
+}
+
+IFS=',' read -r -a benchmarks <<<"$benchmarks_csv"
+for benchmark in "${benchmarks[@]}"; do
+  echo ">>> Measuring $benchmark"
+  app_root="$workdir/generated/$benchmark"
+  baseline_root="$workdir/baseline/$benchmark"
+  candidate="$app_root/compiled"
+  baseline="$baseline_root/compiled"
+  [[ -x "$candidate" && -x "$baseline" ]] ||
+    die "candidate/baseline binary missing for $benchmark"
+
+  suite_dir="$(bench_external_suite_dir "$benchmark_repo" "$benchmark")"
+  run_dir="$(bench_external_run_dir "$benchmark_repo" "$benchmark")"
+  verifier="$suite_dir/verify.rb"
+  go_source="$(go_source_for_suite "$suite_dir")" ||
+    die "Go source missing for $benchmark"
+  [[ -f "$verifier" ]] || die "verifier missing for $benchmark"
+  if [[ -f "$suite_dir/setup.rb" ]]; then
+    (cd "$suite_dir" && ruby setup.rb >/dev/null)
+  fi
+
+  bench_measure_root="$workdir/measurement/$benchmark"
+  mkdir -p "$bench_measure_root"
+  go_binary="$bench_measure_root/reference-go"
+  GOCACHE="$workdir/gocache" go build -o "$go_binary" "$go_source"
+
+  args=()
+  while IFS= read -r argument; do
+    [[ -n "$argument" ]] || continue
+    args+=("$argument")
+  done < <(bench_external_program_args "$benchmark")
+  if [[ "$benchmark" == "binarytrees" ]]; then
+    args+=("21")
+  fi
+
+  logical_cpus="$(bench_external_logical_cpu_budget "$benchmark" compiled)"
+  resolved_affinity="$(bench_external_resolve_cpu_affinity "$cpu_pool" "$logical_cpus")" ||
+    die "CPU pool cannot satisfy $benchmark"
+  executor="$(bench_external_executor_policy "$benchmark")"
+  lanes=(baseline candidate go)
+  binaries=("$baseline" "$candidate" "$go_binary")
+
+  for ((cohort = 1; cohort <= runs; cohort++)); do
+    offset=$(((cohort - 1) % 3))
+    for ((position = 0; position < 3; position++)); do
+      lane_index=$(((position + offset) % 3))
+      lane="${lanes[$lane_index]}"
+      binary="${binaries[$lane_index]}"
+      stdout="$bench_measure_root/${cohort}-${position}-${lane}.stdout"
+      stderr="$bench_measure_root/${cohort}-${position}-${lane}.stderr"
+      start_ns="$(date +%s%N)"
+      set +e
+      (
+        cd "$run_dir"
+        env \
+          ABLE_EXECUTOR="$executor" \
+          GOMEMLIMIT=1GiB \
+          GOGC=50 \
+          GOMAXPROCS="$logical_cpus" \
+          taskset -c "$resolved_affinity" \
+          timeout --signal=INT --kill-after=5 "$timeout_seconds" \
+          "$binary" "${args[@]}"
+      ) >"$stdout" 2>"$stderr"
+      status=$?
+      set -e
+      end_ns="$(date +%s%N)"
+      duration_ns=$((end_ns - start_ns))
+      result=ok
+      if [[ "$status" -ne 0 ]]; then
+        result="exit-$status"
+      elif ! ruby "$verifier" <"$stdout"; then
+        result=verification-failed
+      fi
+      [[ "$result" == ok ]] ||
+        die "$benchmark cohort $cohort $lane failed: $result"
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$benchmark" \
+        "$cohort" \
+        "$((position + 1))" \
+        "$lane" \
+        "$duration_ns" \
+        "$result" \
+        "$(sha256sum "$stdout" | cut -d' ' -f1)" \
+        "$(sha256sum "$binary" | cut -d' ' -f1)" \
+        >>"$tmp_samples"
+    done
+  done
+done
+
+mv "$tmp_samples" "$samples"
+python3 - "$samples" "${output_prefix}.json" "${output_prefix}.md" \
+  "$runs" "$cpu_pool" "$(go version)" <<'PY'
+import csv
+import hashlib
+import json
+import statistics
+import sys
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+
+samples_path, json_path, markdown_path, raw_runs, cpu_pool, go_version = sys.argv[1:]
+runs = int(raw_runs)
+rows = list(csv.DictReader(open(samples_path, encoding="utf-8"), delimiter="\t"))
+grouped = defaultdict(lambda: defaultdict(list))
+hashes = defaultdict(lambda: defaultdict(set))
+for row in rows:
+    grouped[row["benchmark"]][row["lane"]].append(int(row["duration_ns"]) / 1e9)
+    hashes[row["benchmark"]][row["lane"]].add(row["stdout_sha256"])
+
+summaries = []
+for benchmark in sorted(grouped):
+    lanes = {}
+    for lane in ("baseline", "candidate", "go"):
+        values = grouped[benchmark][lane]
+        lanes[lane] = {
+            "samples_seconds": values,
+            "mean_seconds": statistics.fmean(values),
+            "median_seconds": statistics.median(values),
+            "min_seconds": min(values),
+            "max_seconds": max(values),
+            "stdout_sha256": sorted(hashes[benchmark][lane]),
+        }
+    baseline = lanes["baseline"]["mean_seconds"]
+    candidate = lanes["candidate"]["mean_seconds"]
+    go = lanes["go"]["mean_seconds"]
+    summaries.append({
+        "benchmark": benchmark,
+        "lanes": lanes,
+        "candidate_vs_baseline_percent": (candidate / baseline - 1.0) * 100.0,
+        "candidate_as_percent_of_go_performance": go / candidate * 100.0,
+        "candidate_go_time_ratio": candidate / go,
+    })
+
+samples_sha = hashlib.sha256(Path(samples_path).read_bytes()).hexdigest()
+report = {
+    "kind": "able-compiler-struct-field-reach-balanced-measurement",
+    "schema_version": 1,
+    "generated_at": datetime.now(timezone.utc).isoformat(),
+    "runs_per_lane": runs,
+    "cohort_order": [
+        ["baseline", "candidate", "go"],
+        ["candidate", "go", "baseline"],
+        ["go", "baseline", "candidate"],
+    ],
+    "cpu_pool": cpu_pool,
+    "go_version": go_version,
+    "samples_path": str(Path(samples_path).resolve()),
+    "samples_sha256": samples_sha,
+    "benchmarks": summaries,
+}
+Path(json_path).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+
+lines = [
+    "# Compiler struct-field reach balanced measurement",
+    "",
+    f"`{runs}` rotating cohorts produced `{runs}` independent processes per lane.",
+    "Every successful stdout was checked by the application's public verifier.",
+    "",
+    "| Application | Baseline mean | Candidate mean | Candidate vs baseline | Go mean | Candidate/Go time | Candidate as Go performance |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+]
+for item in summaries:
+    lanes = item["lanes"]
+    lines.append(
+        f"| `{item['benchmark']}` | {lanes['baseline']['mean_seconds']:.6f}s | "
+        f"{lanes['candidate']['mean_seconds']:.6f}s | "
+        f"{item['candidate_vs_baseline_percent']:+.2f}% | "
+        f"{lanes['go']['mean_seconds']:.6f}s | "
+        f"{item['candidate_go_time_ratio']:.2f}x | "
+        f"{item['candidate_as_percent_of_go_performance']:.2f}% |"
+    )
+lines += [
+    "",
+    f"Raw samples: `{Path(samples_path).name}` (`{samples_sha}`).",
+    "",
+]
+Path(markdown_path).write_text("\n".join(lines), encoding="utf-8")
+PY
+
+echo "wrote balanced measurement to ${output_prefix}.{json,md}"

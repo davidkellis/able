@@ -1,0 +1,1519 @@
+{
+  "architecture": {
+    "backend_options": [
+      {
+        "disposition": "reject-as-hot-tier-backend",
+        "id": "generated-go-plugin",
+        "reason": "The current extern path invokes the Go toolchain and buildmode=plugin, while the completed PGO gate records exact-profile/toolchain coupling and regression. It is not a portable low-latency in-process tier.",
+        "selected": false
+      },
+      {
+        "disposition": "closed-existing-gates",
+        "id": "second-go-ir-executor",
+        "reason": "A Go-level typed-region executor and whole-function register executor already failed broad wall-time gates and do not remove host-language dispatch.",
+        "selected": false
+      },
+      {
+        "disposition": "defer-until-reach-gate",
+        "id": "custom-machine-code-emitters",
+        "reason": "No machine-code backend or stable trampoline exists in the repository; per-architecture emitters would add the largest implementation and security burden.",
+        "selected": false
+      },
+      {
+        "disposition": "defer-until-reach-gate-and-adr",
+        "id": "external-c-abi-jit-library",
+        "reason": "A C-ABI JIT can satisfy pointer-free leaf execution, but the repository has no selected dependency, distribution policy, compile-latency evidence, or supported-platform decision.",
+        "selected": false
+      }
+    ],
+    "candidate_class": "typed-primitive-hot-function-or-natural-loop",
+    "constraints": {
+      "application_special_cases_forbidden": true,
+      "benchmark_special_cases_forbidden": true,
+      "container_special_cases_forbidden": true,
+      "named_nominal_special_cases_forbidden": true,
+      "wasm_deferred": true
+    },
+    "eligible_hot_function_classes": [],
+    "execution_contract": [
+      {
+        "id": "pointer-free-native-state",
+        "requirement": "Native memory contains only primitive scalars, tags, root-table indices, instruction identities, and exit records; it never contains runtime.Value or other Go pointers."
+      },
+      {
+        "id": "go-owned-boxed-roots",
+        "requirement": "All boxed values and identity-bearing nominal objects remain strongly reachable in a Go-owned root table for the entire native activation."
+      },
+      {
+        "id": "coarse-entry-atomic-commit",
+        "requirement": "Entry snapshots proved primitive inputs; successful exit commits primitive slot updates atomically, while a side exit resumes the ordinary VM at the exact original instruction before any uncommitted effect."
+      },
+      {
+        "id": "no-native-go-callback",
+        "requirement": "Initial native code is leaf code: allocation, calls, dynamic lookup, member/index semantics, boxing, externs, and all other effects side-exit to Go instead of calling Go from native code."
+      },
+      {
+        "id": "source-exact-errors",
+        "requirement": "Overflow, division, cast, type, and guard failures return an original bytecode instruction identity so the ordinary VM produces the canonical source-attached Able error."
+      },
+      {
+        "id": "structured-unwind",
+        "requirement": "Raise, rescue, ensure, rethrow, propagation, break/continue cleanup, iterator cleanup, and return coercion remain ordinary-VM boundaries in the first tier."
+      },
+      {
+        "id": "cooperative-suspension",
+        "requirement": "Spawn, await, yield, Future cancellation, serial scheduling, and goroutine scheduling remain ordinary-VM boundaries; native loops have a bounded backedge poll that side-exits for cancellation or fairness."
+      },
+      {
+        "id": "extern-abi-independence",
+        "requirement": "The tier does not embed Go plugin symbols, Go ABI entry points, runtime.Value layouts, or a training-profile identity; extern calls always occur after an ordinary-VM side exit."
+      },
+      {
+        "id": "portable-fallback",
+        "requirement": "Unsupported operating-system/architecture pairs, disabled executable memory, compilation failure, and code-cache eviction retain byte-for-byte ordinary VM behavior."
+      },
+      {
+        "id": "bounded-code-cache",
+        "requirement": "Code is process-local, content-addressed by program and semantic ABI identities, write-xor-execute, bounded by bytes and entries, and never reclaimed while an activation can execute it."
+      }
+    ]
+  },
+  "array_slot_value_role_census": {
+    "candidate_gate": {
+      "admitted": false,
+      "reason": "The shared shape is a u8 value already consumed by the monomorphic Array.push kernel path, not an index requiring generic integer extraction. Push CPU is unsampled in Concurrent Event Routing, 0.81% cumulative in Word Frequency, and 6.99% only in Reverse Complement, so no same material removable wall reaches all three unlike applications."
+    },
+    "date": "2026-07-22",
+    "decision": "retain-diagnostics-no-runtime-candidate",
+    "execution_contract": {
+      "census_runs_per_application": 1,
+      "gogc": 50,
+      "gomaxprocs": 1,
+      "gomemlimit": "1GiB",
+      "main_only": true,
+      "profile_runs_per_application": 1,
+      "timeout_seconds": 55,
+      "trace_runs_per_application": 1,
+      "verified": true
+    },
+    "kind": "able-bytecode-array-slot-value-role-census",
+    "next_measurement": "Refresh the broad six-application clean CPU owner matrix and select the largest exact non-closed VM leaf that is material in at least three unlike families.",
+    "reconciliation": {
+      "index_count": 0,
+      "prior_shape_count": 2241366,
+      "push_value_count": 2241334,
+      "receiver_count": 0,
+      "role_attributed_count": 2241366,
+      "unknown_count": 0,
+      "write_slot_value_count": 32
+    },
+    "rows": [
+      {
+        "array_push_u8_mono_fast_hits": 136192,
+        "benchmark": "concurrent_event_routing",
+        "family": "concurrency-text",
+        "profile_sha256": "1a6a3d791e0f08c14fcd47730ec9eb28319ee32a0e24f1f27c0df448304d4ffa",
+        "programs_dropped": 0,
+        "push_profile_cumulative_percent": 0.0,
+        "push_profile_cumulative_seconds": 0.0,
+        "push_profile_total_samples_seconds": 2.79,
+        "roles": {
+          "push_value": 136192
+        },
+        "shape_count": 136192,
+        "stats_sha256": "fbea36642e966ec9ff635898d4b3482881b455d70b717f1c7a66232fc4b8cdc9",
+        "trace_sha256": "36b832e451d36915bdf0354f4c4866bd16b525afe952458fdc40f0f3abf0b632"
+      },
+      {
+        "array_push_u8_mono_fast_hits": 4033607,
+        "benchmark": "reverse_complement",
+        "family": "bio-text-array",
+        "profile_sha256": "80af282481878fd49f74d2b8c91409a826877721b552ef63ff533850c8fc02bf",
+        "programs_dropped": 0,
+        "push_profile_cumulative_percent": 6.99,
+        "push_profile_cumulative_seconds": 0.23,
+        "push_profile_total_samples_seconds": 3.29,
+        "roles": {
+          "push_value": 2000017,
+          "write_slot_value": 32
+        },
+        "shape_count": 2000049,
+        "stats_sha256": "c16fbac4ab78d113fc9a57225c1f9d0c230bf3d8a1648bbefca3639cdc983b94",
+        "trace_sha256": "1f354ec45ea4fcaa9e1f5a6455b0dcd513b7c84fdbe4be0329e9396775cc1e26"
+      },
+      {
+        "array_push_u8_mono_fast_hits": 105125,
+        "benchmark": "word_frequency",
+        "family": "text-map",
+        "profile_sha256": "aee3e538b211379751b7222c0d77d28eb58c851e42985e63ccb3927340b4ca10",
+        "programs_dropped": 0,
+        "push_profile_cumulative_percent": 0.81,
+        "push_profile_cumulative_seconds": 0.01,
+        "push_profile_total_samples_seconds": 1.23,
+        "roles": {
+          "push_value": 105125
+        },
+        "shape_count": 105125,
+        "stats_sha256": "76f8692d46f60c4f78bbd1ff4272cc871c2bd914d316725b60064518e6de597d",
+        "trace_sha256": "c475d7078a7395f14fe565448e89c54ffcef6a6c76af993a0e22315c8f0d33d6"
+      }
+    ],
+    "schema_version": 1,
+    "sources": {
+      "array_push_sha256": "b573e91f537a9d339db54788105f363c2bfb9f864832d183452723f5dbd86c57",
+      "integer_load_shape_sha256": "8f7b41c171e2e83e0886c49425756a76d48f8f71a837f3ee9a06495c754a5fd0",
+      "program_reach_sha256": "c53e6d70f35411f45a5587353539cbd5052fac3695001c7881443aa29c0bc31a",
+      "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+    }
+  },
+  "hot_function_reach_budget": [
+    {
+      "benchmark": "fixed_width_128",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "contract_eligible": false,
+      "dropped_programs": 0,
+      "dynamic_instructions": 60446436,
+      "family": "wide-numeric",
+      "hottest_program": {
+        "backedges": 1000000,
+        "boxed_param_count": 0,
+        "boxed_return": true,
+        "dynamic_instructions": 28250055,
+        "effect_boundary_instructions": 15125029,
+        "entries": 1,
+        "max_static_primitive_span": 7,
+        "name": "ordered_select_checksum",
+        "origin": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+        "primitive_eligible_instructions": 13125026,
+        "requires_environment": false,
+        "static_instructions": 48
+      },
+      "hottest_program_compiled_equivalent_model_seconds": 4.635460562,
+      "hottest_program_instruction_share_percent": 46.735683,
+      "hottest_program_material_reduction_in_model": true,
+      "hottest_program_modeled_target_excess_reduction_percent": 47.66913,
+      "primitive_eligible_instruction_share_percent": 34.376023,
+      "primitive_eligible_instructions": 20779081,
+      "primitive_pool_compiled_equivalent_model_seconds": 5.663289892,
+      "primitive_pool_material_reduction_in_model": true,
+      "primitive_pool_modeled_target_excess_reduction_percent": 35.062612,
+      "program_count": 7,
+      "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+      "verified": true
+    },
+    {
+      "benchmark": "distance_field",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "contract_eligible": false,
+      "dropped_programs": 0,
+      "dynamic_instructions": 78000165,
+      "family": "float-numeric",
+      "hottest_program": {
+        "backedges": 2000000,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "dynamic_instructions": 44000165,
+        "effect_boundary_instructions": 22000058,
+        "entries": 1,
+        "max_static_primitive_span": 4,
+        "name": "main",
+        "origin": "v12/examples/benchmarks/distance_field/distance_field.able",
+        "primitive_eligible_instructions": 22000107,
+        "requires_environment": false,
+        "static_instructions": 58
+      },
+      "hottest_program_compiled_equivalent_model_seconds": 2.628661296,
+      "hottest_program_instruction_share_percent": 56.410349,
+      "hottest_program_material_reduction_in_model": true,
+      "hottest_program_modeled_target_excess_reduction_percent": 59.669479,
+      "primitive_eligible_instruction_share_percent": 35.897497,
+      "primitive_eligible_instructions": 28000107,
+      "primitive_pool_compiled_equivalent_model_seconds": 3.823329767,
+      "primitive_pool_material_reduction_in_model": true,
+      "primitive_pool_modeled_target_excess_reduction_percent": 37.971489,
+      "program_count": 3,
+      "stdout_sha256": "cdaaf4451b236346af59b6a407f3136da96004e0c7c39c165546b7b9b21eda94",
+      "verified": true
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "contract_eligible": false,
+      "dropped_programs": 0,
+      "dynamic_instructions": 21367576,
+      "family": "concurrency-text",
+      "hottest_program": {
+        "backedges": 168704,
+        "boxed_param_count": 2,
+        "boxed_return": false,
+        "dynamic_instructions": 8227328,
+        "effect_boundary_instructions": 5159680,
+        "entries": 4096,
+        "max_static_primitive_span": 4,
+        "name": "split",
+        "origin": "../able-stdlib/src/text/string.able",
+        "primitive_eligible_instructions": 3067648,
+        "requires_environment": false,
+        "static_instructions": 179
+      },
+      "hottest_program_compiled_equivalent_model_seconds": 3.124317016,
+      "hottest_program_instruction_share_percent": 38.503797,
+      "hottest_program_material_reduction_in_model": false,
+      "hottest_program_modeled_target_excess_reduction_percent": 4.088732,
+      "primitive_eligible_instruction_share_percent": 35.161387,
+      "primitive_eligible_instructions": 7513136,
+      "primitive_pool_compiled_equivalent_model_seconds": 3.135748058,
+      "primitive_pool_material_reduction_in_model": false,
+      "primitive_pool_modeled_target_excess_reduction_percent": 3.7338,
+      "program_count": 42,
+      "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39",
+      "verified": true
+    },
+    {
+      "benchmark": "word_frequency",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "contract_eligible": false,
+      "dropped_programs": 0,
+      "dynamic_instructions": 17591889,
+      "family": "text-map",
+      "hottest_program": {
+        "backedges": 153147,
+        "boxed_param_count": 2,
+        "boxed_return": false,
+        "dynamic_instructions": 7077414,
+        "effect_boundary_instructions": 4428635,
+        "entries": 1937,
+        "max_static_primitive_span": 4,
+        "name": "split",
+        "origin": "../able-stdlib/src/text/string.able",
+        "primitive_eligible_instructions": 2648779,
+        "requires_environment": false,
+        "static_instructions": 179
+      },
+      "hottest_program_compiled_equivalent_model_seconds": 0.917547977,
+      "hottest_program_instruction_share_percent": 40.23112,
+      "hottest_program_material_reduction_in_model": true,
+      "hottest_program_modeled_target_excess_reduction_percent": 35.732209,
+      "primitive_eligible_instruction_share_percent": 35.092201,
+      "primitive_eligible_instructions": 6173381,
+      "primitive_pool_compiled_equivalent_model_seconds": 0.980962243,
+      "primitive_pool_material_reduction_in_model": true,
+      "primitive_pool_modeled_target_excess_reduction_percent": 31.167957,
+      "program_count": 19,
+      "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+      "verified": true
+    },
+    {
+      "benchmark": "array_slice_window",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "contract_eligible": false,
+      "dropped_programs": 0,
+      "dynamic_instructions": 8751239,
+      "family": "array-iterator",
+      "hottest_program": {
+        "backedges": 300000,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "dynamic_instructions": 5556024,
+        "effect_boundary_instructions": 3564014,
+        "entries": 1,
+        "max_static_primitive_span": 6,
+        "name": "rolling_checksum",
+        "origin": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+        "primitive_eligible_instructions": 1992010,
+        "requires_environment": false,
+        "static_instructions": 103
+      },
+      "hottest_program_compiled_equivalent_model_seconds": 0.33386476,
+      "hottest_program_instruction_share_percent": 63.488427,
+      "hottest_program_material_reduction_in_model": true,
+      "hottest_program_modeled_target_excess_reduction_percent": 60.332685,
+      "primitive_eligible_instruction_share_percent": 34.710445,
+      "primitive_eligible_instructions": 3037594,
+      "primitive_pool_compiled_equivalent_model_seconds": 0.519770525,
+      "primitive_pool_material_reduction_in_model": true,
+      "primitive_pool_modeled_target_excess_reduction_percent": 32.985135,
+      "program_count": 7,
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "verified": true
+    },
+    {
+      "benchmark": "reverse_complement",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "contract_eligible": false,
+      "dropped_programs": 0,
+      "dynamic_instructions": 60602670,
+      "family": "byte-text",
+      "hottest_program": {
+        "backedges": 2033351,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "dynamic_instructions": 32366999,
+        "effect_boundary_instructions": 18200223,
+        "entries": 1,
+        "max_static_primitive_span": 4,
+        "name": "reverse_complement_fasta",
+        "origin": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+        "primitive_eligible_instructions": 14166776,
+        "requires_environment": false,
+        "static_instructions": 94
+      },
+      "hottest_program_compiled_equivalent_model_seconds": 1.811792938,
+      "hottest_program_instruction_share_percent": 53.408536,
+      "hottest_program_material_reduction_in_model": true,
+      "hottest_program_modeled_target_excess_reduction_percent": 52.344055,
+      "primitive_eligible_instruction_share_percent": 43.399156,
+      "primitive_eligible_instructions": 26301047,
+      "primitive_pool_compiled_equivalent_model_seconds": 2.176534773,
+      "primitive_pool_material_reduction_in_model": true,
+      "primitive_pool_modeled_target_excess_reduction_percent": 42.53417,
+      "program_count": 14,
+      "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+      "verified": true
+    }
+  ],
+  "kind": "able-bytecode-native-hot-tier-design-budget",
+  "known_region_budget": [
+    {
+      "benchmark": "monte_carlo_pi",
+      "compiled_equivalent_region_model_seconds": 1.619216024,
+      "compiled_equivalent_region_model_target_ratio": 0.901462,
+      "family": "stochastic-numeric",
+      "instruction_share_percent": 41.7938,
+      "material_reduction_in_model": true,
+      "model_reaches_target": true,
+      "modeled_target_excess_reduction_percent": 100.0,
+      "region_entries": 11111000,
+      "required_compiled_equivalent_fraction_to_target": 0.345754,
+      "transition_headroom_ns_per_entry_if_target_met": 15.929665
+    },
+    {
+      "benchmark": "rms_norm",
+      "compiled_equivalent_region_model_seconds": 4.205059098,
+      "compiled_equivalent_region_model_target_ratio": 5.161915,
+      "family": "float-array",
+      "instruction_share_percent": 11.7647,
+      "material_reduction_in_model": false,
+      "model_reaches_target": false,
+      "modeled_target_excess_reduction_percent": 13.934744,
+      "region_entries": 2000000,
+      "required_compiled_equivalent_fraction_to_target": 0.844271,
+      "transition_headroom_ns_per_entry_if_target_met": 0.0
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "compiled_equivalent_region_model_seconds": 7.971697016,
+      "compiled_equivalent_region_model_target_ratio": 21.612763,
+      "family": "wide-numeric",
+      "instruction_share_percent": 6.6174,
+      "material_reduction_in_model": false,
+      "model_reaches_target": false,
+      "modeled_target_excess_reduction_percent": 6.749569,
+      "region_entries": 1000000,
+      "required_compiled_equivalent_fraction_to_target": 0.980418,
+      "transition_headroom_ns_per_entry_if_target_met": 0.0
+    },
+    {
+      "benchmark": "future_await_race",
+      "compiled_equivalent_region_model_seconds": 0.129827402,
+      "compiled_equivalent_region_model_target_ratio": 3.714941,
+      "family": "concurrency",
+      "instruction_share_percent": 48.2013,
+      "material_reduction_in_model": false,
+      "model_reaches_target": false,
+      "modeled_target_excess_reduction_percent": 18.942417,
+      "region_entries": 18432,
+      "required_compiled_equivalent_fraction_to_target": 2.544622,
+      "transition_headroom_ns_per_entry_if_target_met": 0.0
+    }
+  ],
+  "native_proxy_rows": [
+    {
+      "benchmark": "array_slice_window",
+      "bytecode_seconds": 0.744,
+      "bytecode_to_proxy_speedup": 7.591837,
+      "compiled_native_proxy_seconds": 0.098,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.033789474,
+      "compiled_proxy_target_ratio": 1.52623,
+      "current_target_excess_seconds": 0.679789474,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.263076,
+      "required_compiled_equivalent_fraction_to_target": 1.052306,
+      "target_budget_seconds": 0.06421052631578947
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "bytecode_seconds": 0.2,
+      "bytecode_to_proxy_speedup": 0.555556,
+      "compiled_native_proxy_seconds": 0.36,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.134210526,
+      "compiled_proxy_target_ratio": 1.594406,
+      "current_target_excess_seconds": 0.0,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.2257894736842105
+    },
+    {
+      "benchmark": "backup_dedup",
+      "bytecode_seconds": 1.916,
+      "bytecode_to_proxy_speedup": 31.933333,
+      "compiled_native_proxy_seconds": 0.06,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.488014,
+      "current_target_excess_seconds": 1.793052632,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.241521,
+      "required_compiled_equivalent_fraction_to_target": 0.966084,
+      "target_budget_seconds": 0.12294736842105262
+    },
+    {
+      "benchmark": "base64",
+      "bytecode_seconds": 2.84,
+      "bytecode_to_proxy_speedup": 1.160131,
+      "compiled_native_proxy_seconds": 2.448,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.911678,
+      "current_target_excess_seconds": 0.154842105,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.098751,
+      "required_compiled_equivalent_fraction_to_target": 0.395005,
+      "target_budget_seconds": 2.6851578947368417
+    },
+    {
+      "benchmark": "binary_event_log",
+      "bytecode_seconds": 7.026,
+      "bytecode_to_proxy_speedup": 13.108209,
+      "compiled_native_proxy_seconds": 0.536,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.348736842,
+      "compiled_proxy_target_ratio": 2.862282,
+      "current_target_excess_seconds": 6.838736842,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.263434,
+      "required_compiled_equivalent_fraction_to_target": 1.053734,
+      "target_budget_seconds": 0.18726315789473683
+    },
+    {
+      "benchmark": "channel_rollup",
+      "bytecode_seconds": 0.538,
+      "bytecode_to_proxy_speedup": 0.899666,
+      "compiled_native_proxy_seconds": 0.598,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.548421053,
+      "compiled_proxy_target_ratio": 12.061571,
+      "current_target_excess_seconds": 0.488421053,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.049578947368421056
+    },
+    {
+      "benchmark": "concurrent_audio_voices",
+      "bytecode_seconds": 1.29,
+      "bytecode_to_proxy_speedup": 1.393089,
+      "compiled_native_proxy_seconds": 0.926,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.795473684,
+      "compiled_proxy_target_ratio": 7.094355,
+      "current_target_excess_seconds": 1.159473684,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.796342,
+      "required_compiled_equivalent_fraction_to_target": 3.185367,
+      "target_budget_seconds": 0.13052631578947368
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "bytecode_seconds": 0.29,
+      "bytecode_to_proxy_speedup": 1.021127,
+      "compiled_native_proxy_seconds": 0.284,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.259894737,
+      "compiled_proxy_target_ratio": 11.781659,
+      "current_target_excess_seconds": 0.265894737,
+      "required_compiled_equivalent_fraction_for_material_reduction": 11.078947,
+      "required_compiled_equivalent_fraction_to_target": 44.315789,
+      "target_budget_seconds": 0.024105263157894737
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "bytecode_seconds": 3.256,
+      "bytecode_to_proxy_speedup": 1.117364,
+      "compiled_native_proxy_seconds": 2.914,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 2.878631579,
+      "compiled_proxy_target_ratio": 82.389881,
+      "current_target_excess_seconds": 3.220631579,
+      "required_compiled_equivalent_fraction_for_material_reduction": 2.354263,
+      "required_compiled_equivalent_fraction_to_target": 9.417051,
+      "target_budget_seconds": 0.03536842105263158
+    },
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "bytecode_seconds": 0.954,
+      "bytecode_to_proxy_speedup": 3.697674,
+      "compiled_native_proxy_seconds": 0.258,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.201263158,
+      "compiled_proxy_target_ratio": 4.54731,
+      "current_target_excess_seconds": 0.897263158,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.322293,
+      "required_compiled_equivalent_fraction_to_target": 1.289171,
+      "target_budget_seconds": 0.056736842105263155
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "bytecode_seconds": 0.882,
+      "bytecode_to_proxy_speedup": 1.743083,
+      "compiled_native_proxy_seconds": 0.506,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.423368421,
+      "compiled_proxy_target_ratio": 6.123567,
+      "current_target_excess_seconds": 0.799368421,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.531495,
+      "required_compiled_equivalent_fraction_to_target": 2.12598,
+      "target_budget_seconds": 0.08263157894736842
+    },
+    {
+      "benchmark": "concurrent_policy_callbacks",
+      "bytecode_seconds": 0.382,
+      "bytecode_to_proxy_speedup": 0.704797,
+      "compiled_native_proxy_seconds": 0.542,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.481578947,
+      "compiled_proxy_target_ratio": 8.970383,
+      "current_target_excess_seconds": 0.321578947,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.060421052631578945
+    },
+    {
+      "benchmark": "concurrent_scene_tiles",
+      "bytecode_seconds": 0.672,
+      "bytecode_to_proxy_speedup": 1.541284,
+      "compiled_native_proxy_seconds": 0.436,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.355473684,
+      "compiled_proxy_target_ratio": 5.414379,
+      "current_target_excess_seconds": 0.591473684,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.626561,
+      "required_compiled_equivalent_fraction_to_target": 2.506244,
+      "target_budget_seconds": 0.08052631578947368
+    },
+    {
+      "benchmark": "concurrent_signal_dispatch",
+      "bytecode_seconds": 1.614,
+      "bytecode_to_proxy_speedup": 5.977778,
+      "compiled_native_proxy_seconds": 0.27,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.205578947,
+      "compiled_proxy_target_ratio": 4.191176,
+      "current_target_excess_seconds": 1.549578947,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.28824,
+      "required_compiled_equivalent_fraction_to_target": 1.152961,
+      "target_budget_seconds": 0.06442105263157893
+    },
+    {
+      "benchmark": "concurrent_state_machines",
+      "bytecode_seconds": 0.302,
+      "bytecode_to_proxy_speedup": 1.143939,
+      "compiled_native_proxy_seconds": 0.264,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.206315789,
+      "compiled_proxy_target_ratio": 4.576642,
+      "current_target_excess_seconds": 0.244315789,
+      "required_compiled_equivalent_fraction_for_material_reduction": 1.607341,
+      "required_compiled_equivalent_fraction_to_target": 6.429363,
+      "target_budget_seconds": 0.05768421052631579
+    },
+    {
+      "benchmark": "concurrent_stateful_pipeline",
+      "bytecode_seconds": 0.35,
+      "bytecode_to_proxy_speedup": 0.429975,
+      "compiled_native_proxy_seconds": 0.814,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.762210526,
+      "compiled_proxy_target_ratio": 15.71748,
+      "current_target_excess_seconds": 0.298210526,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.051789473684210524
+    },
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "bytecode_seconds": 1.862,
+      "bytecode_to_proxy_speedup": 8.700935,
+      "compiled_native_proxy_seconds": 0.214,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.112631579,
+      "compiled_proxy_target_ratio": 2.111111,
+      "current_target_excess_seconds": 1.760631579,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.267086,
+      "required_compiled_equivalent_fraction_to_target": 1.068344,
+      "target_budget_seconds": 0.10136842105263157
+    },
+    {
+      "benchmark": "concurrent_text_index",
+      "bytecode_seconds": 0.768,
+      "bytecode_to_proxy_speedup": 0.771084,
+      "compiled_native_proxy_seconds": 0.996,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.893578947,
+      "compiled_proxy_target_ratio": 9.724563,
+      "current_target_excess_seconds": 0.665578947,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.10242105263157894
+    },
+    {
+      "benchmark": "concurrent_transform_chain",
+      "bytecode_seconds": 2.83,
+      "bytecode_to_proxy_speedup": 0.346135,
+      "compiled_native_proxy_seconds": 8.176,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 8.004631579,
+      "compiled_proxy_target_ratio": 47.710074,
+      "current_target_excess_seconds": 2.658631579,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.17136842105263156
+    },
+    {
+      "benchmark": "concurrent_tree_folds",
+      "bytecode_seconds": 0.38,
+      "bytecode_to_proxy_speedup": 0.989583,
+      "compiled_native_proxy_seconds": 0.384,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.325578947,
+      "compiled_proxy_target_ratio": 6.572973,
+      "current_target_excess_seconds": 0.321578947,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.05842105263157894
+    },
+    {
+      "benchmark": "config_validation_extraction",
+      "bytecode_seconds": 1.38,
+      "bytecode_to_proxy_speedup": 10.615385,
+      "compiled_native_proxy_seconds": 0.13,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.107052632,
+      "compiled_proxy_target_ratio": 5.665138,
+      "current_target_excess_seconds": 1.357052632,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.271411,
+      "required_compiled_equivalent_fraction_to_target": 1.085642,
+      "target_budget_seconds": 0.02294736842105263
+    },
+    {
+      "benchmark": "dependency_plan",
+      "bytecode_seconds": 0.556,
+      "bytecode_to_proxy_speedup": 5.914894,
+      "compiled_native_proxy_seconds": 0.094,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.073684211,
+      "compiled_proxy_target_ratio": 4.626943,
+      "current_target_excess_seconds": 0.535684211,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.289872,
+      "required_compiled_equivalent_fraction_to_target": 1.15949,
+      "target_budget_seconds": 0.02031578947368421
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "bytecode_seconds": 0.562,
+      "bytecode_to_proxy_speedup": 0.389197,
+      "compiled_native_proxy_seconds": 1.444,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 1.406842105,
+      "compiled_proxy_target_ratio": 38.86119,
+      "current_target_excess_seconds": 0.524842105,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.0371578947368421
+    },
+    {
+      "benchmark": "discrete_event_simulation",
+      "bytecode_seconds": 4.736,
+      "bytecode_to_proxy_speedup": 81.655172,
+      "compiled_native_proxy_seconds": 0.058,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.324499,
+      "current_target_excess_seconds": 4.557263158,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.243548,
+      "required_compiled_equivalent_fraction_to_target": 0.97419,
+      "target_budget_seconds": 0.17873684210526317
+    },
+    {
+      "benchmark": "distance_field",
+      "bytecode_seconds": 5.914,
+      "bytecode_to_proxy_speedup": 65.711111,
+      "compiled_native_proxy_seconds": 0.09,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.220531,
+      "current_target_excess_seconds": 5.505894737,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.236345,
+      "required_compiled_equivalent_fraction_to_target": 0.94538,
+      "target_budget_seconds": 0.4081052631578947
+    },
+    {
+      "benchmark": "document_audit",
+      "bytecode_seconds": 0.296,
+      "bytecode_to_proxy_speedup": 2.901961,
+      "compiled_native_proxy_seconds": 0.102,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.086315789,
+      "compiled_proxy_target_ratio": 6.503356,
+      "current_target_excess_seconds": 0.280315789,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.361232,
+      "required_compiled_equivalent_fraction_to_target": 1.444927,
+      "target_budget_seconds": 0.01568421052631579
+    },
+    {
+      "benchmark": "fasta_generation",
+      "bytecode_seconds": 1.958,
+      "bytecode_to_proxy_speedup": 46.619048,
+      "compiled_native_proxy_seconds": 0.042,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.196455,
+      "current_target_excess_seconds": 1.744210526,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.227585,
+      "required_compiled_equivalent_fraction_to_target": 0.91034,
+      "target_budget_seconds": 0.21378947368421053
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "bytecode_seconds": 8.522,
+      "bytecode_to_proxy_speedup": 41.368932,
+      "compiled_native_proxy_seconds": 0.206,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.558505,
+      "current_target_excess_seconds": 8.153157895,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.245105,
+      "required_compiled_equivalent_fraction_to_target": 0.980418,
+      "target_budget_seconds": 0.36884210526315786
+    },
+    {
+      "benchmark": "future_await_race",
+      "bytecode_seconds": 0.152,
+      "bytecode_to_proxy_speedup": 1.433962,
+      "compiled_native_proxy_seconds": 0.106,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.071052632,
+      "compiled_proxy_target_ratio": 3.033133,
+      "current_target_excess_seconds": 0.117052632,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.636156,
+      "required_compiled_equivalent_fraction_to_target": 2.544622,
+      "target_budget_seconds": 0.03494736842105263
+    },
+    {
+      "benchmark": "future_pipeline",
+      "bytecode_seconds": 0.458,
+      "bytecode_to_proxy_speedup": 1.156566,
+      "compiled_native_proxy_seconds": 0.396,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.330105263,
+      "compiled_proxy_target_ratio": 6.009585,
+      "current_target_excess_seconds": 0.392105263,
+      "required_compiled_equivalent_fraction_for_material_reduction": 1.58107,
+      "required_compiled_equivalent_fraction_to_target": 6.324278,
+      "target_budget_seconds": 0.06589473684210526
+    },
+    {
+      "benchmark": "i_before_e",
+      "bytecode_seconds": 0.534,
+      "bytecode_to_proxy_speedup": 4.377049,
+      "compiled_native_proxy_seconds": 0.122,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.033473684,
+      "compiled_proxy_target_ratio": 1.378121,
+      "current_target_excess_seconds": 0.445473684,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.270312,
+      "required_compiled_equivalent_fraction_to_target": 1.081247,
+      "target_budget_seconds": 0.08852631578947368
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "bytecode_seconds": 2.624,
+      "bytecode_to_proxy_speedup": 12.377358,
+      "compiled_native_proxy_seconds": 0.212,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.133052632,
+      "compiled_proxy_target_ratio": 2.685333,
+      "current_target_excess_seconds": 2.545052632,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.263791,
+      "required_compiled_equivalent_fraction_to_target": 1.055163,
+      "target_budget_seconds": 0.07894736842105263
+    },
+    {
+      "benchmark": "json",
+      "bytecode_seconds": 0.894,
+      "bytecode_to_proxy_speedup": 1.204852,
+      "compiled_native_proxy_seconds": 0.742,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.365745,
+      "current_target_excess_seconds": 0.0,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 2.028736842105263
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "bytecode_seconds": 46.53,
+      "bytecode_to_proxy_speedup": 16.055901,
+      "compiled_native_proxy_seconds": 2.898,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 1.357052632,
+      "compiled_proxy_target_ratio": 1.880661,
+      "current_target_excess_seconds": 44.989052632,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.257776,
+      "required_compiled_equivalent_fraction_to_target": 1.031102,
+      "target_budget_seconds": 1.5409473684210526
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "bytecode_seconds": 0.448,
+      "bytecode_to_proxy_speedup": 3.733333,
+      "compiled_native_proxy_seconds": 0.12,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.091684211,
+      "compiled_proxy_target_ratio": 4.237918,
+      "current_target_excess_seconds": 0.419684211,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.319881,
+      "required_compiled_equivalent_fraction_to_target": 1.279525,
+      "target_budget_seconds": 0.02831578947368421
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "bytecode_seconds": 3.128,
+      "bytecode_to_proxy_speedup": 21.722222,
+      "compiled_native_proxy_seconds": 0.144,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.120947368,
+      "compiled_proxy_target_ratio": 6.246575,
+      "current_target_excess_seconds": 3.104947368,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.260133,
+      "required_compiled_equivalent_fraction_to_target": 1.040532,
+      "target_budget_seconds": 0.023052631578947366
+    },
+    {
+      "benchmark": "mandelbrot",
+      "bytecode_seconds": 6.814,
+      "bytecode_to_proxy_speedup": 53.234375,
+      "compiled_native_proxy_seconds": 0.128,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.081726,
+      "current_target_excess_seconds": 5.247789474,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.196223,
+      "required_compiled_equivalent_fraction_to_target": 0.784892,
+      "target_budget_seconds": 1.5662105263157895
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "bytecode_seconds": 1.582,
+      "bytecode_to_proxy_speedup": 7.0,
+      "compiled_native_proxy_seconds": 0.226,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.199789474,
+      "compiled_proxy_target_ratio": 8.62249,
+      "current_target_excess_seconds": 1.555789474,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.286834,
+      "required_compiled_equivalent_fraction_to_target": 1.147337,
+      "target_budget_seconds": 0.026210526315789472
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "bytecode_seconds": 2.644,
+      "bytecode_to_proxy_speedup": 13.770833,
+      "compiled_native_proxy_seconds": 0.192,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.106892,
+      "current_target_excess_seconds": 0.847789474,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.086439,
+      "required_compiled_equivalent_fraction_to_target": 0.345754,
+      "target_budget_seconds": 1.7962105263157893
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "bytecode_seconds": 0.196,
+      "bytecode_to_proxy_speedup": 0.241379,
+      "compiled_native_proxy_seconds": 0.812,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.780210526,
+      "compiled_proxy_target_ratio": 25.543046,
+      "current_target_excess_seconds": 0.164210526,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.03178947368421053
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "bytecode_seconds": 0.376,
+      "bytecode_to_proxy_speedup": 0.458537,
+      "compiled_native_proxy_seconds": 0.82,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.783684211,
+      "compiled_proxy_target_ratio": 22.57971,
+      "current_target_excess_seconds": 0.339684211,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.03631578947368421
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "bytecode_seconds": 0.34,
+      "bytecode_to_proxy_speedup": 0.145923,
+      "compiled_native_proxy_seconds": 2.33,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 2.299473684,
+      "compiled_proxy_target_ratio": 76.327586,
+      "current_target_excess_seconds": 0.309473684,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.030526315789473683
+    },
+    {
+      "benchmark": "option_result_config",
+      "bytecode_seconds": 0.834,
+      "bytecode_to_proxy_speedup": 4.738636,
+      "compiled_native_proxy_seconds": 0.176,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.155894737,
+      "compiled_proxy_target_ratio": 8.753927,
+      "current_target_excess_seconds": 0.813894737,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.309231,
+      "required_compiled_equivalent_fraction_to_target": 1.236922,
+      "target_budget_seconds": 0.020105263157894734
+    },
+    {
+      "benchmark": "pidigits",
+      "bytecode_seconds": 2.454,
+      "bytecode_to_proxy_speedup": 1.859091,
+      "compiled_native_proxy_seconds": 1.32,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.2872,
+      "current_target_excess_seconds": 0.0,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 4.596105263157894
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "bytecode_seconds": 7.452,
+      "bytecode_to_proxy_speedup": 32.973451,
+      "compiled_native_proxy_seconds": 0.226,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.192526316,
+      "compiled_proxy_target_ratio": 6.751572,
+      "current_target_excess_seconds": 7.418526316,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.256661,
+      "required_compiled_equivalent_fraction_to_target": 1.026644,
+      "target_budget_seconds": 0.033473684210526315
+    },
+    {
+      "benchmark": "rational_series",
+      "bytecode_seconds": 4.326,
+      "bytecode_to_proxy_speedup": 33.796875,
+      "compiled_native_proxy_seconds": 0.128,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.641689,
+      "current_target_excess_seconds": 4.126526316,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.245744,
+      "required_compiled_equivalent_fraction_to_target": 0.982974,
+      "target_budget_seconds": 0.1994736842105263
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "bytecode_seconds": 4.518,
+      "bytecode_to_proxy_speedup": 31.375,
+      "compiled_native_proxy_seconds": 0.144,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.116842105,
+      "compiled_proxy_target_ratio": 5.302326,
+      "current_target_excess_seconds": 4.490842105,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.256678,
+      "required_compiled_equivalent_fraction_to_target": 1.026713,
+      "target_budget_seconds": 0.027157894736842103
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "bytecode_seconds": 3.596,
+      "bytecode_to_proxy_speedup": 22.475,
+      "compiled_native_proxy_seconds": 0.16,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.129263158,
+      "compiled_proxy_target_ratio": 5.205479,
+      "current_target_excess_seconds": 3.565263158,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.259405,
+      "required_compiled_equivalent_fraction_to_target": 1.03762,
+      "target_budget_seconds": 0.030736842105263156
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "bytecode_seconds": 3.552,
+      "bytecode_to_proxy_speedup": 21.142857,
+      "compiled_native_proxy_seconds": 0.168,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.134421053,
+      "compiled_proxy_target_ratio": 5.003135,
+      "current_target_excess_seconds": 3.518421053,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.259931,
+      "required_compiled_equivalent_fraction_to_target": 1.039723,
+      "target_budget_seconds": 0.03357894736842105
+    },
+    {
+      "benchmark": "reverse_complement",
+      "bytecode_seconds": 3.758,
+      "bytecode_to_proxy_speedup": 32.964912,
+      "compiled_native_proxy_seconds": 0.114,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.074105263,
+      "compiled_proxy_target_ratio": 2.85752,
+      "current_target_excess_seconds": 3.718105263,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.255084,
+      "required_compiled_equivalent_fraction_to_target": 1.020336,
+      "target_budget_seconds": 0.03989473684210527
+    },
+    {
+      "benchmark": "rms_norm",
+      "bytecode_seconds": 4.754,
+      "bytecode_to_proxy_speedup": 54.022727,
+      "compiled_native_proxy_seconds": 0.088,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.108024,
+      "current_target_excess_seconds": 3.939368421,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.211068,
+      "required_compiled_equivalent_fraction_to_target": 0.844271,
+      "target_budget_seconds": 0.8146315789473684
+    },
+    {
+      "benchmark": "sensor_calibration",
+      "bytecode_seconds": 3.794,
+      "bytecode_to_proxy_speedup": 14.820312,
+      "compiled_native_proxy_seconds": 0.256,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.221157895,
+      "compiled_proxy_target_ratio": 7.347432,
+      "current_target_excess_seconds": 3.759157895,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.265627,
+      "required_compiled_equivalent_fraction_to_target": 1.062509,
+      "target_budget_seconds": 0.03484210526315789
+    },
+    {
+      "benchmark": "unicode_scalar_pipeline",
+      "bytecode_seconds": 3.65,
+      "bytecode_to_proxy_speedup": 11.928105,
+      "compiled_native_proxy_seconds": 0.306,
+      "compiled_proxy_reaches_target": true,
+      "compiled_proxy_target_excess_seconds": 0.0,
+      "compiled_proxy_target_ratio": 0.873235,
+      "current_target_excess_seconds": 3.299578947,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.246679,
+      "required_compiled_equivalent_fraction_to_target": 0.986716,
+      "target_budget_seconds": 0.3504210526315789
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "bytecode_seconds": 0.38,
+      "bytecode_to_proxy_speedup": 0.363289,
+      "compiled_native_proxy_seconds": 1.046,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 1.018315789,
+      "compiled_proxy_target_ratio": 37.78327,
+      "current_target_excess_seconds": 0.352315789,
+      "required_compiled_equivalent_fraction_for_material_reduction": null,
+      "required_compiled_equivalent_fraction_to_target": null,
+      "target_budget_seconds": 0.027684210526315787
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "bytecode_seconds": 5.586,
+      "bytecode_to_proxy_speedup": 30.358696,
+      "compiled_native_proxy_seconds": 0.184,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.101684211,
+      "compiled_proxy_target_ratio": 2.235294,
+      "current_target_excess_seconds": 5.503684211,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.254706,
+      "required_compiled_equivalent_fraction_to_target": 1.018823,
+      "target_budget_seconds": 0.08231578947368422
+    },
+    {
+      "benchmark": "word_frequency",
+      "bytecode_seconds": 1.414,
+      "bytecode_to_proxy_speedup": 7.855556,
+      "compiled_native_proxy_seconds": 0.18,
+      "compiled_proxy_reaches_target": false,
+      "compiled_proxy_target_excess_seconds": 0.155368421,
+      "compiled_proxy_target_ratio": 7.307692,
+      "current_target_excess_seconds": 1.389368421,
+      "required_compiled_equivalent_fraction_for_material_reduction": 0.281477,
+      "required_compiled_equivalent_fraction_to_target": 1.125906,
+      "target_budget_seconds": 0.02463157894736842
+    }
+  ],
+  "next_measurement": {
+    "admission": "Implement a candidate only when one exact non-closed VM leaf is CPU-material in at least three unlike applications and the same removable operation improves repeated averages without regressing established guards.",
+    "fields": [
+      "bounded runtime-only profiles for Fixed Width 128, Distance Field, Concurrent Event Routing, Word Frequency, Array Slice Window, and Reverse Complement",
+      "exact source and call-path attribution for owners that repeat across at least three unlike families",
+      "closure filtering against retained and broadly rejected mechanisms",
+      "repeated averaged A/B wall-time guards plus a zero-reach control for any admitted candidate"
+    ],
+    "id": "bytecode-six-application-clean-cpu-owner-refresh",
+    "scope": "Refresh the broad clean CPU owner matrix and choose the largest exact non-closed VM leaf that is material in at least three unlike applications."
+  },
+  "scalar_proof_gap_census": [
+    {
+      "benchmark": "fixed_width_128",
+      "dropped_programs": 0,
+      "dynamic_instructions": 60446436,
+      "family": "wide-numeric",
+      "program_count": 7,
+      "proof_rows": [
+        {
+          "dynamic_instructions": 6816906,
+          "instruction_share_percent": 11.277598,
+          "opcode": "LoadSlotStructField",
+          "proof": "primitive-field-integer"
+        },
+        {
+          "dynamic_instructions": 5000006,
+          "instruction_share_percent": 8.271796,
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 3283452,
+          "instruction_share_percent": 5.432003,
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare"
+        },
+        {
+          "dynamic_instructions": 3000000,
+          "instruction_share_percent": 4.963072,
+          "opcode": "Cast",
+          "proof": "primitive-numeric-cast"
+        },
+        {
+          "dynamic_instructions": 2000002,
+          "instruction_share_percent": 3.308718,
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer"
+        }
+      ],
+      "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+      "verified": true
+    },
+    {
+      "benchmark": "distance_field",
+      "dropped_programs": 0,
+      "dynamic_instructions": 78000165,
+      "family": "float-numeric",
+      "program_count": 3,
+      "proof_rows": [
+        {
+          "dynamic_instructions": 22000024,
+          "instruction_share_percent": 28.205099,
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-float"
+        },
+        {
+          "dynamic_instructions": 8000000,
+          "instruction_share_percent": 10.256389,
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-float-compare"
+        },
+        {
+          "dynamic_instructions": 2000024,
+          "instruction_share_percent": 2.564128,
+          "opcode": "StoreSlot",
+          "proof": "primitive-slot-float"
+        }
+      ],
+      "stdout_sha256": "cdaaf4451b236346af59b6a407f3136da96004e0c7c39c165546b7b9b21eda94",
+      "verified": true
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "dropped_programs": 0,
+      "dynamic_instructions": 21367576,
+      "family": "concurrency-text",
+      "program_count": 42,
+      "proof_rows": [
+        {
+          "dynamic_instructions": 1086208,
+          "instruction_share_percent": 5.08344,
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 373888,
+          "instruction_share_percent": 1.749791,
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 202507,
+          "instruction_share_percent": 0.94773,
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare"
+        },
+        {
+          "dynamic_instructions": 191368,
+          "instruction_share_percent": 0.8956,
+          "opcode": "LoadSlotStructField",
+          "proof": "primitive-field-integer"
+        }
+      ],
+      "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39",
+      "verified": true
+    },
+    {
+      "benchmark": "word_frequency",
+      "dropped_programs": 0,
+      "dynamic_instructions": 17591889,
+      "family": "text-map",
+      "program_count": 19,
+      "proof_rows": [
+        {
+          "dynamic_instructions": 944384,
+          "instruction_share_percent": 5.368292,
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 333976,
+          "instruction_share_percent": 1.898466,
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 157215,
+          "instruction_share_percent": 0.893679,
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare"
+        },
+        {
+          "dynamic_instructions": 130879,
+          "instruction_share_percent": 0.743974,
+          "opcode": "LoadSlotStructField",
+          "proof": "primitive-field-integer"
+        }
+      ],
+      "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+      "verified": true
+    },
+    {
+      "benchmark": "array_slice_window",
+      "dropped_programs": 0,
+      "dynamic_instructions": 8751239,
+      "family": "array-slice",
+      "program_count": 7,
+      "proof_rows": [
+        {
+          "dynamic_instructions": 1020268,
+          "instruction_share_percent": 11.658555,
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 612002,
+          "instruction_share_percent": 6.993318,
+          "opcode": "Cast",
+          "proof": "primitive-numeric-cast"
+        },
+        {
+          "dynamic_instructions": 312259,
+          "instruction_share_percent": 3.568169,
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare"
+        },
+        {
+          "dynamic_instructions": 312001,
+          "instruction_share_percent": 3.565221,
+          "opcode": "LoadImplicitSlot",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 312001,
+          "instruction_share_percent": 3.565221,
+          "opcode": "StoreImplicitSlot",
+          "proof": "primitive-slot-integer"
+        }
+      ],
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "verified": true
+    },
+    {
+      "benchmark": "reverse_complement",
+      "dropped_programs": 0,
+      "dynamic_instructions": 60602670,
+      "family": "bio-text-array",
+      "program_count": 14,
+      "proof_rows": [
+        {
+          "dynamic_instructions": 6033694,
+          "instruction_share_percent": 9.956152,
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 4033365,
+          "instruction_share_percent": 6.655425,
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer"
+        },
+        {
+          "dynamic_instructions": 2033356,
+          "instruction_share_percent": 3.355225,
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare"
+        },
+        {
+          "dynamic_instructions": 2000288,
+          "instruction_share_percent": 3.30066,
+          "opcode": "Cast",
+          "proof": "primitive-numeric-cast"
+        }
+      ],
+      "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+      "verified": true
+    }
+  ],
+  "scalar_slot_hint_rejection": {
+    "candidate": "lowering-time integer hint plus guarded known-integer LoadSlot path",
+    "disposition": "Rejected after all three unlike guard workloads regressed; the extra hint branch cost more than the narrower type switch saved.",
+    "retained": false,
+    "rows": [
+      {
+        "baseline_seconds": 2.99,
+        "benchmark": "concurrent_event_routing",
+        "candidate_seconds": 3.0833,
+        "change_percent": 3.120401
+      },
+      {
+        "baseline_seconds": 1.3967,
+        "benchmark": "word_frequency",
+        "candidate_seconds": 1.41,
+        "change_percent": 0.952245
+      },
+      {
+        "baseline_seconds": 0.7033,
+        "benchmark": "array_slice_window",
+        "candidate_seconds": 0.8233,
+        "change_percent": 17.06242
+      }
+    ],
+    "runs_per_row": 3
+  },
+  "schema_version": 1,
+  "sources": {
+    "architecture_budget": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
+      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+    },
+    "array_slot_value_role_census": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-array-slot-value-role-census.json",
+      "sha256": "1302c2cd3f6ca5bcf04b91c11406a387b500bc27074a9da08f9ac7736b456d19"
+    },
+    "evidence": {
+      "path": "/home/david/sync/projects/able/v12/bench-bytecode-native-hot-tier-design.json",
+      "sha256": "508f6b7884e0213b32aa6597059f9aa5bb4aba5391420edc230213e91e1aa390"
+    },
+    "executor": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/executor.go",
+      "sha256": "8305b83ecc9504360d9fe53a66c45771f0be1bbc91f968440d5b7b6defc68ef1"
+    },
+    "extern_builder": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/extern_host_builder.go",
+      "sha256": "5f4df30aedb25aa08451279f3c20f1882bcd591ddbb6dc6aae660cbdce1f87bd"
+    },
+    "frontier": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+    },
+    "go_pgo_gate": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-18-bytecode-cross-suite-go-pgo-rejection.md",
+      "sha256": "e817246351d442772ca07b97c46e8a625f993c1ce5e0b53a92b96fae91b9a59d"
+    },
+    "integer_load_shape": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_integer_load_shape.go",
+      "sha256": "8f7b41c171e2e83e0886c49425756a76d48f8f71a837f3ee9a06495c754a5fd0"
+    },
+    "integer_load_shape_census": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-integer-load-carrier-consumer-census.json",
+      "sha256": "576c04297f2a63e4d4e863b9a92f92f3d5c44b73d6dec9b2ad34f5e361758a7e"
+    },
+    "program_reach": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_program_reach.go",
+      "sha256": "c53e6d70f35411f45a5587353539cbd5052fac3695001c7881443aa29c0bc31a"
+    },
+    "raw_values": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/raw_value.go",
+      "sha256": "279c69be032ff3877a839fe8bf5e654e148b20e89a1585276bd99a1ee8ed4fd9"
+    },
+    "region_feasibility": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-semantic-region-tier-feasibility.json",
+      "sha256": "ec05a39277f57e0a3b4de5931c547967c6ccb2a04c98b1ce90d331eef1adb0db"
+    },
+    "runtime_values": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/values.go",
+      "sha256": "871f0a4735ce0660c902e356c2a47c5fd0886c0e42f3641338677110e8301280"
+    },
+    "scalar_proof": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_scalar_proof.go",
+      "sha256": "97923402725f43f0272328754e1e6f6f6e8eb7545addfdb68f7450de75e87d5f"
+    },
+    "spec": {
+      "path": "/home/david/sync/projects/able/spec/full_spec_v12.md",
+      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+    },
+    "typed_region_gate": {
+      "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-18-bytecode-typed-loop-block-gate.md",
+      "sha256": "7ecaf9d2f77501ceed9ce836acc1836a4cb72dc39f7a7c036c1c52b90c8408f2"
+    },
+    "vm_dispatch": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go",
+      "sha256": "1710cb15a38a50bf5097c89ecf441e27f49240c9389b8a824b9b5986033a7f23"
+    },
+    "vm_types": {
+      "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go",
+      "sha256": "f6dbf296c8f28673546b03250f12eab1471227309e90e6c08e0db5c10147855f"
+    }
+  },
+  "summary": {
+    "array_slot_value_role_candidate_closed": true,
+    "common_bytecode_compiled_application_count": 56,
+    "compiled_native_proxy_excess_reduction_percent": 82.3434,
+    "compiled_native_proxy_target_excess_seconds": 27.145368421,
+    "compiled_native_proxy_target_meets": 13,
+    "compiled_native_proxy_target_misses": 43,
+    "current_target_excess_seconds": 153.74063158,
+    "decision": "no-go-native-tier-prototype-current-evidence",
+    "eligible_hot_function_class_count": 0,
+    "hot_function_census_application_count": 6,
+    "hot_function_contract_eligible_count": 0,
+    "known_region_application_count": 4,
+    "known_region_material_reduction_count": 1,
+    "known_region_target_closure_count": 1,
+    "minimum_target_excess_reduction_percent": 25.0,
+    "minimum_unlike_families": 3,
+    "prototype_admitted": false,
+    "proven_integer_load_application_count": 5,
+    "scalar_proof_census_application_count": 6,
+    "scalar_slot_hint_rejected": true,
+    "selected_backend_count": 0
+  }
+}

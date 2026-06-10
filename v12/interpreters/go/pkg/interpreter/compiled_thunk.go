@@ -8,9 +8,8 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-// CompiledThunk executes a compiled function/method body using the provided environment.
-// It should return a runtime.Value or an error.
-type CompiledThunk func(env *runtime.Environment, args []runtime.Value) (runtime.Value, error)
+// CompiledThunk remains as an alias for interpreter API compatibility.
+type CompiledThunk = runtime.CompiledThunk
 
 // RegisterCompiledMethod wires a compiled thunk to an existing inherent method entry.
 func (i *Interpreter) RegisterCompiledMethod(typeName, methodName string, expectsSelf bool, thunk CompiledThunk) error {
@@ -138,6 +137,7 @@ func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, t
 	if interfaceName == "" || methodName == "" {
 		return fmt.Errorf("interpreter: missing impl method registration target")
 	}
+	interfaceName = i.canonicalCompiledThunkInterfaceName(interfaceName)
 	if thunk == nil {
 		return fmt.Errorf("interpreter: missing compiled impl method thunk")
 	}
@@ -175,7 +175,7 @@ func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, t
 		if entry == nil || entry.definition == nil {
 			continue
 		}
-		if entry.interfaceName != interfaceName {
+		if i.canonicalCompiledThunkInterfaceName(entry.interfaceName) != interfaceName {
 			continue
 		}
 		if implName != "" {
@@ -254,6 +254,21 @@ func (i *Interpreter) RegisterCompiledImplMethodOverload(interfaceName string, t
 		)
 	}
 	return nil
+}
+
+// Compiled metadata uses canonical package identities, while bootstrap-time
+// implementations can retain a public type-alias spelling such as Clone.
+// Expand that alias before comparing identities so both registrations refer
+// to the same language interface without equating unrelated short names.
+func (i *Interpreter) canonicalCompiledThunkInterfaceName(name string) string {
+	if i == nil || name == "" {
+		return name
+	}
+	expanded := expandTypeAliases(ast.NewSimpleTypeExpression(ast.ID(name)), i.typeAliases, nil)
+	if expandedName, ok := simpleTypeName(expanded); ok && expandedName != "" {
+		name = expandedName
+	}
+	return i.canonicalInterfaceName(name)
 }
 
 func (i *Interpreter) matchCompiledImplTarget(entry *implEntry, target ast.TypeExpression) (ast.TypeExpression, bool) {

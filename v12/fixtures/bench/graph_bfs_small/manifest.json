@@ -1,0 +1,6 @@
+{
+  "description": "graph breadth-first traversal benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

@@ -1,9 +1,11 @@
 package bridge
 
 import (
+	"fmt"
 	"math/big"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"able/interpreter-go/pkg/ast"
@@ -70,6 +72,34 @@ func TestAsStringAcceptsInterfaceWrappedArrayBytes(t *testing.T) {
 	}
 	if out != "Hi" {
 		t.Fatalf("AsString = %q, want %q", out, "Hi")
+	}
+}
+
+func TestArrayValueFromRuntimeTracksCanonicalArrayStructOwner(t *testing.T) {
+	handle := runtime.ArrayStoreNew()
+	definition := &runtime.StructDefinitionValue{
+		Node: ast.StructDef("Array", nil, ast.StructKindNamed, nil, nil, false),
+	}
+	inst := &runtime.StructInstanceValue{
+		Definition: definition,
+		Fields: map[string]runtime.Value{
+			"storage_handle": runtime.NewSmallInt(handle, runtime.IntegerI64),
+		},
+	}
+
+	arr, err := arrayValueFromRuntime(inst)
+	if err != nil {
+		t.Fatalf("arrayValueFromRuntime: %v", err)
+	}
+	stats := runtime.ArrayStoreLeaseStatsSnapshot()
+	if stats.OwnersByHandle[handle] != 2 {
+		t.Fatalf("canonical Array bridge leases = %#v, want struct and view owners", stats)
+	}
+	if err := runtime.ArrayStoreReleaseArrayValueLease(arr); err != nil {
+		t.Fatalf("release ArrayValue view: %v", err)
+	}
+	if err := runtime.ArrayStoreReleaseStructInstanceLease(inst); err != nil {
+		t.Fatalf("release canonical Array struct: %v", err)
 	}
 }
 
@@ -150,6 +180,67 @@ func TestSwapEnvIfNeededConcurrentUsesGoroutineLocalEnvironment(t *testing.T) {
 	}
 }
 
+func TestSwapEnvIfNeededConcurrentNestedRestorationIsIsolated(t *testing.T) {
+	rt := New(interpreter.New())
+	base := runtime.NewEnvironment(nil)
+	rt.SetEnv(base)
+	rt.MarkConcurrent()
+
+	type environmentStack struct {
+		outer *runtime.Environment
+		inner *runtime.Environment
+	}
+	stacks := []environmentStack{
+		{outer: runtime.NewEnvironment(nil), inner: runtime.NewEnvironment(nil)},
+		{outer: runtime.NewEnvironment(nil), inner: runtime.NewEnvironment(nil)},
+	}
+
+	start := make(chan struct{})
+	var ready sync.WaitGroup
+	ready.Add(len(stacks))
+	errs := make(chan error, len(stacks))
+	var done sync.WaitGroup
+	done.Add(len(stacks))
+	for _, stack := range stacks {
+		stack := stack
+		go func() {
+			defer done.Done()
+			outerPrev, outerSwapped := SwapEnvIfNeeded(rt, stack.outer)
+			ready.Done()
+			if !outerSwapped || outerPrev != base || rt.Env() != stack.outer {
+				errs <- fmt.Errorf("outer swap = (prev=%p swapped=%t current=%p), want (%p true %p)", outerPrev, outerSwapped, rt.Env(), base, stack.outer)
+				return
+			}
+			<-start
+
+			innerPrev, innerSwapped := SwapEnvIfNeeded(rt, stack.inner)
+			if !innerSwapped || innerPrev != stack.outer || rt.Env() != stack.inner {
+				errs <- fmt.Errorf("inner swap = (prev=%p swapped=%t current=%p), want (%p true %p)", innerPrev, innerSwapped, rt.Env(), stack.outer, stack.inner)
+				return
+			}
+			RestoreEnvIfNeeded(rt, innerPrev, innerSwapped)
+			if rt.Env() != stack.outer {
+				errs <- fmt.Errorf("inner restore current = %p, want %p", rt.Env(), stack.outer)
+				return
+			}
+			RestoreEnvIfNeeded(rt, outerPrev, outerSwapped)
+			if rt.Env() != base {
+				errs <- fmt.Errorf("outer restore current = %p, want %p", rt.Env(), base)
+			}
+		}()
+	}
+	ready.Wait()
+	close(start)
+	done.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	if got := rt.Env(); got != base {
+		t.Fatalf("main goroutine Env() = %p, want base %p", got, base)
+	}
+}
+
 func TestBridgeCallFramesSingleThreadSnapshot(t *testing.T) {
 	rt := New(interpreter.New())
 	callA := ast.Call("a")
@@ -187,6 +278,60 @@ func TestBridgeCallFramesConcurrentSnapshot(t *testing.T) {
 	}()
 	<-done
 
+	if got := rt.snapshotBridgeCallFrames(); len(got) != 0 {
+		t.Fatalf("main goroutine snapshotBridgeCallFrames = %#v, want empty", got)
+	}
+}
+
+func TestBridgeCallFramesConcurrentNestedSnapshotsAreIsolated(t *testing.T) {
+	rt := New(interpreter.New())
+	rt.MarkConcurrent()
+
+	type frames struct {
+		outer *ast.FunctionCall
+		inner *ast.FunctionCall
+	}
+	stacks := []frames{
+		{outer: ast.Call("first_outer"), inner: ast.Call("first_inner")},
+		{outer: ast.Call("second_outer"), inner: ast.Call("second_inner")},
+	}
+
+	start := make(chan struct{})
+	var ready sync.WaitGroup
+	ready.Add(len(stacks))
+	errs := make(chan error, len(stacks))
+	var done sync.WaitGroup
+	done.Add(len(stacks))
+	for _, stack := range stacks {
+		stack := stack
+		go func() {
+			defer done.Done()
+			PushCallFrame(rt, stack.outer)
+			PushCallFrame(rt, stack.inner)
+			ready.Done()
+			<-start
+
+			got := rt.snapshotBridgeCallFrames()
+			if len(got) != 2 || got[0] != stack.outer || got[1] != stack.inner {
+				errs <- fmt.Errorf("snapshot = %#v, want [%p %p]", got, stack.outer, stack.inner)
+				return
+			}
+			PopCallFrame(rt)
+			got = rt.snapshotBridgeCallFrames()
+			if len(got) != 1 || got[0] != stack.outer {
+				errs <- fmt.Errorf("snapshot after pop = %#v, want [%p]", got, stack.outer)
+				return
+			}
+			PopCallFrame(rt)
+		}()
+	}
+	ready.Wait()
+	close(start)
+	done.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
 	if got := rt.snapshotBridgeCallFrames(); len(got) != 0 {
 		t.Fatalf("main goroutine snapshotBridgeCallFrames = %#v, want empty", got)
 	}
@@ -275,6 +420,27 @@ func TestStructDefinitionCacheScopesByEnvironment(t *testing.T) {
 	}
 }
 
+func TestStructDefinitionCachedLookupDoesNotAllocate(t *testing.T) {
+	rt := New(nil)
+	env := runtime.NewEnvironment(nil)
+	def := &runtime.StructDefinitionValue{Node: ast.StructDef("String", nil, ast.StructKindNamed, nil, nil, false)}
+	env.DefineStruct("String", def)
+	rt.SetEnv(env)
+
+	if got, err := rt.StructDefinition("String"); err != nil || got != def {
+		t.Fatalf("prime StructDefinition = (%p, %v), want (%p, nil)", got, err, def)
+	}
+	allocations := testing.AllocsPerRun(1000, func() {
+		got, err := rt.StructDefinition("String")
+		if err != nil || got != def {
+			t.Fatalf("cached StructDefinition = (%p, %v), want (%p, nil)", got, err, def)
+		}
+	})
+	if allocations > 0.1 {
+		t.Fatalf("cached StructDefinition allocations/run = %f, want <= 0.1", allocations)
+	}
+}
+
 func TestStructDefinitionHydratesFromInterpreterLookupWithoutFallbackCounters(t *testing.T) {
 	interp := interpreter.New()
 	def := &runtime.StructDefinitionValue{Node: ast.StructDef("Thing", nil, ast.StructKindNamed, nil, nil, false)}
@@ -317,6 +483,30 @@ func TestStructDefinitionFallsBackFromQualifiedVisibleAliasToLocalStruct(t *test
 	}
 	if got != def {
 		t.Fatalf("StructDefinition qualified visible alias = %p, want %p", got, def)
+	}
+}
+
+func TestStructDefinitionUsesRegisteredQualifiedPackageStructWithoutInterpreter(t *testing.T) {
+	def := &runtime.StructDefinitionValue{Node: ast.StructDef("Span", nil, ast.StructKindNamed, nil, nil, false)}
+	rt := New(nil)
+	rt.SetGlobalLookupFallbackEnabled(false)
+	rt.RegisterQualifiedStructDefinition("able.text.regex", "Span", def)
+
+	got, err := rt.StructDefinition("able.text.regex.Span")
+	if err != nil {
+		t.Fatalf("StructDefinition error: %v", err)
+	}
+	if got != def {
+		t.Fatalf("StructDefinition = %p, want %p", got, def)
+	}
+	allocations := testing.AllocsPerRun(1000, func() {
+		got, err := rt.StructDefinition("able.text.regex.Span")
+		if err != nil || got != def {
+			t.Fatalf("qualified StructDefinition = (%p, %v), want (%p, nil)", got, err, def)
+		}
+	})
+	if allocations > 0.1 {
+		t.Fatalf("qualified StructDefinition allocations/run = %f, want <= 0.1", allocations)
 	}
 }
 

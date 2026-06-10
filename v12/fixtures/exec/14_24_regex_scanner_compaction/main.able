@@ -1,0 +1,62 @@
+package exec_14_24_regex_scanner_compaction
+
+import able.text.regex.{Match, Regex, RegexScanner}
+
+fn show_next(label: String, scanner: RegexScanner) -> void {
+  scanner.next() match {
+    case found: Match => print(`${label} ${found.matched} ${found.span.start}-${found.span.end}`),
+    case _ => print(`${label} none`)
+  }
+}
+
+fn show_capture(label: String, scanner: RegexScanner) -> void {
+  scanner.next() match {
+    case found: Match => {
+      group := found.groups.read_slot(0)
+      group.value match {
+        case value: String => group.span match {
+          case span => print(`${label} ${found.span.start}-${found.span.end} ${value} ${span.start}-${span.end}`)
+        },
+        case _ => print(`${label} missing`)
+      }
+    },
+    case _ => print(`${label} none`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("ab") match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("abx")
+      scanner.feed("---abx")
+      show_next("literal-first", scanner)
+      show_next("literal-second", scanner)
+      scanner.flush()
+    },
+    case _ => print("literal compile error")
+  }
+
+  Regex.compile("é+") match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("ééx")
+      scanner.feed("zzéx")
+      show_next("unicode-first", scanner)
+      show_next("unicode-second", scanner)
+      scanner.flush()
+    },
+    case _ => print("unicode compile error")
+  }
+
+  Regex.compile("(?P<word>a+)") match {
+    case regex: Regex => {
+      scanner := regex.scan("")
+      scanner.feed("za")
+      scanner.feed("aaY")
+      show_capture("capture", scanner)
+      scanner.flush()
+    },
+    case _ => print("capture compile error")
+  }
+}

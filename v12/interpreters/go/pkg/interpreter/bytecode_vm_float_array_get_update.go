@@ -25,15 +25,15 @@ func (vm *bytecodeVM) execStoreSlotFloatAddMulArrayGet(program **bytecodeProgram
 	if instr.target < 0 || instr.target >= len(vm.slots) {
 		return false, fmt.Errorf("bytecode slot out of range")
 	}
-	if len(vm.stack) < 4 {
+	if vm.stackDepth() < 4 {
 		return false, fmt.Errorf("bytecode stack underflow")
 	}
-	baseIdx := len(vm.stack) - 4
-	base := vm.slots[instr.target]
-	leftReceiver := vm.stack[baseIdx]
-	leftIndex := vm.stack[baseIdx+1]
-	rightReceiver := vm.stack[baseIdx+2]
-	rightIndex := vm.stack[baseIdx+3]
+	baseIdx := vm.stackDepth() - 4
+	base := vm.slotStoredValue(instr.target)
+	leftReceiver := vm.stackValue(baseIdx)
+	leftIndex := vm.stackValue(baseIdx + 1)
+	rightReceiver := vm.stackValue(baseIdx + 2)
+	rightIndex := vm.stackValue(baseIdx + 3)
 
 	if handled, ok, err := vm.tryStoreSlotFloatAddMulRawArrayGet(program, instructions, validatedIntConsts, slotConstIntImmTable, instr, baseIdx, base, leftReceiver, leftIndex, rightReceiver, rightIndex); handled || ok || err != nil {
 		return handled, err
@@ -49,13 +49,10 @@ func (vm *bytecodeVM) execStoreSlotFloatAddMulArrayGet(program **bytecodeProgram
 	}
 
 	if result, ok := bytecodeDirectFloatAddMulValue(base, left, right); ok {
-		vm.stack = vm.stack[:baseIdx]
-		vm.storeOwnedFloatSlot(instr.target, result)
-		if instr.target == 0 {
-			vm.clearSelfFastSlot0I32()
-		}
+		vm.truncateStack(baseIdx)
+		storedValue := vm.storeFloatSlotValue(instr.target, result)
 		if !instr.discardResult {
-			vm.stack = append(vm.stack, result)
+			vm.appendStackValue(bytecodeStackSnapshotValue(storedValue))
 		}
 		vm.ip++
 		return false, nil
@@ -65,14 +62,10 @@ func (vm *bytecodeVM) execStoreSlotFloatAddMulArrayGet(program **bytecodeProgram
 	if err != nil {
 		return false, vm.wrapFloatAddMulArrayGetError(instr, err)
 	}
-	result = bytecodeStackResultValue(result)
-	vm.stack = vm.stack[:baseIdx]
-	vm.slots[instr.target] = result
-	if instr.target == 0 {
-		vm.setSelfFastSlot0I32Value(result)
-	}
+	vm.truncateStack(baseIdx)
+	storedValue := vm.storeFloatSlotValue(instr.target, result)
 	if !instr.discardResult {
-		vm.stack = append(vm.stack, result)
+		vm.appendStackValue(bytecodeStackSnapshotValue(storedValue))
 	}
 	vm.ip++
 	return false, nil
@@ -95,20 +88,16 @@ func (vm *bytecodeVM) tryStoreSlotFloatAddMulRawArrayGet(program **bytecodeProgr
 	if handled || err != nil || !ok {
 		return handled, false, err
 	}
-	result, ok := bytecodeDirectFloatAddMulRaw(base, left.value, left.kind, right.value, right.kind)
+	baseVal, baseKind, ok := bytecodeDirectFloatValue(base)
 	if !ok {
 		return false, false, nil
 	}
-	vm.stack = vm.stack[:stackBase]
-	vm.storeOwnedFloatSlot(instr.target, result)
-	if instr.target == 0 {
-		vm.clearSelfFastSlot0I32()
+	resultVal, resultKind, ok := bytecodeDirectFloatAddMulOperandsRawValue(baseVal, baseKind, left.value, left.kind, right.value, right.kind)
+	if !ok {
+		return false, false, nil
 	}
-	if !instr.discardResult {
-		vm.stack = append(vm.stack, result)
-	}
-	vm.ip++
-	return false, true, nil
+	vm.truncateStack(stackBase)
+	return false, true, vm.finishStoreSlotFloatRawResult(instr, resultVal, resultKind)
 }
 
 func (vm *bytecodeVM) wrapFloatAddMulArrayGetError(instr *bytecodeInstruction, err error) error {
@@ -133,7 +122,7 @@ func (vm *bytecodeVM) fusedCanonicalArrayGetPropagatedFloat(program **bytecodePr
 		return bytecodeFusedArrayGetFloat{}, false, false, nil
 	}
 	if isNilRuntimeValue(value) {
-		vm.stack = vm.stack[:stackBase]
+		vm.truncateStack(stackBase)
 		val := runtime.NilValue{}
 		if vm.hasCallFrames() {
 			if err := vm.finishInlineReturn(program, instructions, validatedIntConsts, slotConstIntImmTable, instr, val, bytecodeSimpleTypeCheckUnknown); err != nil {
@@ -159,7 +148,7 @@ func (vm *bytecodeVM) fusedArrayGetPropagatedValue(program **bytecodeProgram, in
 		return nil, false, err
 	}
 	if isNilRuntimeValue(result.value) {
-		vm.stack = vm.stack[:stackBase]
+		vm.truncateStack(stackBase)
 		val := runtime.NilValue{}
 		if vm.hasCallFrames() {
 			if err := vm.finishInlineReturn(program, instructions, validatedIntConsts, slotConstIntImmTable, instr, val, bytecodeSimpleTypeCheckUnknown); err != nil {
@@ -171,7 +160,7 @@ func (vm *bytecodeVM) fusedArrayGetPropagatedValue(program **bytecodeProgram, in
 	}
 	if !vm.fusedArrayGetCanSkipPropagationCheck(result) {
 		if errVal, ok := vm.interp.propagationErrorValue(result.value, vm.env); ok {
-			vm.stack = vm.stack[:stackBase]
+			vm.truncateStack(stackBase)
 			return nil, false, raiseSignal{value: errVal}
 		}
 	}
@@ -196,6 +185,9 @@ func bytecodeFusedArrayGetFloatForToken(value runtime.Value, token uint16, token
 	}
 	switch token {
 	case bytecodeIndexTypeF32:
+		if raw, kind, ok := bytecodeDirectRawFloatValue(value); ok && kind == runtime.FloatF32 {
+			return bytecodeFusedArrayGetFloat{value: raw, kind: runtime.FloatF32}, true
+		}
 		switch fv := value.(type) {
 		case runtime.FloatValue:
 			if fv.TypeSuffix == runtime.FloatF32 {
@@ -207,6 +199,9 @@ func bytecodeFusedArrayGetFloatForToken(value runtime.Value, token uint16, token
 			}
 		}
 	case bytecodeIndexTypeF64:
+		if raw, kind, ok := bytecodeDirectRawFloatValue(value); ok && kind == runtime.FloatF64 {
+			return bytecodeFusedArrayGetFloat{value: raw, kind: runtime.FloatF64}, true
+		}
 		switch fv := value.(type) {
 		case runtime.FloatValue:
 			if fv.TypeSuffix == runtime.FloatF64 {
@@ -219,17 +214,6 @@ func bytecodeFusedArrayGetFloatForToken(value runtime.Value, token uint16, token
 		}
 	}
 	return bytecodeFusedArrayGetFloat{}, false
-}
-
-func (vm *bytecodeVM) arrayGetPrimitiveNoErrorToken(token uint16) bool {
-	switch token {
-	case bytecodeIndexTypeF32:
-		return vm.arrayGetPrimitiveNoError("f32")
-	case bytecodeIndexTypeF64:
-		return vm.arrayGetPrimitiveNoError("f64")
-	default:
-		return false
-	}
 }
 
 func (vm *bytecodeVM) fusedArrayGetCanSkipPropagationCheck(result bytecodeFusedArrayGetValue) bool {
@@ -319,7 +303,7 @@ func (vm *bytecodeVM) readCanonicalArrayGetValue(arr *runtime.ArrayValue, idx in
 	if size < 0 || size > 1<<31-1 {
 		return nil, bytecodeIndexTypeUnknown, false, false, nil
 	}
-	token, tokenKnown := bytecodeArrayElementTypeToken(arr)
+	token, tokenKnown := vm.arrayElementTypeTokenForPropagation(arr)
 	if idx < 0 || idx >= int64(size) {
 		return runtime.NilValue{}, token, tokenKnown, true, nil
 	}
@@ -335,7 +319,7 @@ func (vm *bytecodeVM) callArrayGetFallback(receiver runtime.Value, index runtime
 	if err != nil {
 		return nil, err
 	}
-	return vm.interp.callCallableValueMutable(callee, []runtime.Value{index}, vm.env, nil)
+	return vm.callCallableValueMutable(callee, []runtime.Value{index}, nil)
 }
 
 func programValue(program **bytecodeProgram) *bytecodeProgram {

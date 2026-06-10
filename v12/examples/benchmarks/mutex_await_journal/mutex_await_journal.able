@@ -1,0 +1,57 @@
+package mutex_await_journal
+
+import able.kernel.{Mutex}
+
+struct Journal {
+  total: i64,
+  commits: i64,
+  checksum: i64
+}
+
+fn entry_score(lane: i64, index: i64) -> i64 {
+  value := (lane * 2029_i64) + index + 29_i64
+  step := 0_i64
+  loop {
+    if step >= 32_i64 { break }
+    value = ((value * 48271_i64) + (lane * 113_i64) + step) % 1_000_003_i64
+    step = step + 1_i64
+  }
+  value
+}
+
+fn run_lane(lane: i64, rounds: i64, journal: Journal, mutex: Mutex) -> i64 {
+  subtotal := 0_i64
+  index := 0_i64
+  loop {
+    if index >= rounds { break }
+    amount := entry_score(lane, index)
+    committed := await [mutex.await_lock(fn() -> i64 {
+      do {
+        journal.total = journal.total + amount
+        journal.commits = journal.commits + 1_i64
+        journal.checksum = (journal.checksum + (amount * (lane + 19_i64))) % 1_000_003_i64
+        amount
+      } ensure {
+        mutex.unlock()
+      }
+    })]
+    subtotal = subtotal + committed
+    index = index + 1_i64
+  }
+  subtotal
+}
+
+fn main() -> void {
+  lanes := 4_i64
+  rounds := 512_i64
+  journal := Journal { total: 0_i64, commits: 0_i64, checksum: 0_i64 }
+  mutex := Mutex.new()
+
+  first := spawn { run_lane(0_i64, rounds, journal, mutex) }
+  second := spawn { run_lane(1_i64, rounds, journal, mutex) }
+  third := spawn { run_lane(2_i64, rounds, journal, mutex) }
+  fourth := spawn { run_lane(3_i64, rounds, journal, mutex) }
+
+  worker_total := (first.value()! as i64) + (second.value()! as i64) + (third.value()! as i64) + (fourth.value()! as i64)
+  print(`${lanes}:${rounds}:${journal.commits}:${journal.total}:${journal.checksum}:${worker_total}`)
+}

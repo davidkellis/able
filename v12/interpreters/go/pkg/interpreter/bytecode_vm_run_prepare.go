@@ -2,8 +2,15 @@ package interpreter
 
 func (vm *bytecodeVM) prepareRunProgram(program *bytecodeProgram, resume bool) *bytecodeProgram {
 	if !resume {
-		vm.stack = vm.stack[:0]
+		vm.interp.recordBytecodeProgramEntry(program)
+		vm.truncateStack(0)
+		vm.bytecodeStatsStackCapacity = 0
+		vm.bytecodeStatsStackCapacityObserved = false
+		vm.bytecodeStatsPendingOpObserved = false
+		vm.bytecodeStatsStackPeakDepth = 0
 		vm.i32Stack = vm.i32Stack[:0]
+		vm.i32UnboxFallbackValue = nil
+		vm.i32UnboxFallbackSet = false
 		vm.clearSelfFastSlot0I32()
 		vm.iterStack = vm.iterStack[:0]
 		vm.loopStack = vm.loopStack[:0]
@@ -15,7 +22,10 @@ func (vm *bytecodeVM) prepareRunProgram(program *bytecodeProgram, resume bool) *
 		// call frames were in use).
 		program = vm.currentProgram
 	}
+	vm.setActiveLookupProgram(program)
 	vm.currentProgram = program
 	vm.activateI32RegisterFrame(program)
+	vm.prepareValueSlotI32Frame(program)
+	vm.prepareValueSlotFloatFrame(program)
 	return program
 }

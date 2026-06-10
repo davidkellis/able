@@ -1,0 +1,71 @@
+{
+  "kind": "able-truthiness-cast-control-closure-reach",
+  "schema_version": 1,
+  "source_state": {
+    "v12_spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "canonical_stdlib_tree_sha256": "43ff2e68e59c8be7fb1024c86a1f61a0eea84596279b4f0e146511d66c5308d8"
+  },
+  "compiled": [
+    {
+      "benchmark": "matrixmultiply",
+      "generated_application_truthiness_or_cast_calls": 0,
+      "main_profile_sha256": "685631f4150f8233c922eff98d09cae1d29d2a366119c09da5b293b883679ab8",
+      "main_profile_samples_seconds": 1.44,
+      "top_exact_owner": "main.__able_compiled_fn_matmul",
+      "top_exact_owner_flat_percent": 99.31,
+      "shared_truthiness_or_cast_profile_samples": 0
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "generated_application_truthiness_or_cast_calls": 0,
+      "main_profile_sha256": "a920b0b9834b080cfa73e7228d51e0a68bd1fa29ce99900fbbf447a91e8ed9a9",
+      "main_profile_samples_seconds": 5.08,
+      "top_exact_owner": "main.__able_compiled_fn_execute",
+      "top_exact_owner_flat_percent": 64.57,
+      "shared_truthiness_or_cast_profile_samples": 0
+    }
+  ],
+  "bytecode": [
+    {
+      "benchmark": "array_slice_window",
+      "census_processes": 2,
+      "primitive_truthiness_checks_per_process": 12001,
+      "changed_nonprimitive_error_fallbacks_per_process": 0,
+      "explicit_runtime_casts_per_process": 0,
+      "explicit_runtime_cast_failures_per_process": 0
+    },
+    {
+      "benchmark": "dependency_plan",
+      "census_processes": 2,
+      "primitive_truthiness_checks_per_process": 14143,
+      "changed_nonprimitive_error_fallbacks_per_process": 0,
+      "explicit_runtime_casts_per_process": 0,
+      "explicit_runtime_cast_failures_per_process": 0
+    },
+    {
+      "benchmark": "document_audit",
+      "census_processes": 2,
+      "primitive_truthiness_checks_per_process": 8062,
+      "changed_nonprimitive_error_fallbacks_per_process": 0,
+      "explicit_runtime_casts_per_process": 0,
+      "explicit_runtime_cast_failures_per_process": 0
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "census_processes": 2,
+      "primitive_truthiness_checks_per_process": 83196,
+      "changed_nonprimitive_error_fallbacks_per_process": 0,
+      "explicit_runtime_casts_per_process": 0,
+      "explicit_runtime_cast_failures_per_process": 0
+    },
+    {
+      "benchmark": "option_result_config",
+      "census_processes": 2,
+      "primitive_truthiness_checks_per_process": 24576,
+      "changed_nonprimitive_error_fallbacks_per_process": 0,
+      "explicit_runtime_casts_per_process": 0,
+      "explicit_runtime_cast_failures_per_process": 0
+    }
+  ],
+  "decision": "changed-shared-semantics-not-reached-no-candidate"
+}

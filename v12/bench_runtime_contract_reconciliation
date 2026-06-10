@@ -1,0 +1,466 @@
+#!/usr/bin/env python3
+"""Check the evidence used to reconcile a shared-runtime scope change."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+BASELINES = SCRIPT_DIR / "docs/perf-baselines"
+DEFAULT_COMPILED = BASELINES / (
+    "2026-07-22-runtime-contract-reconciliation-preserved-compiled-iterator.json"
+)
+DEFAULT_BYTECODE_FORWARD = BASELINES / (
+    "2026-07-22-runtime-contract-reconciliation-bytecode-iterator.json"
+)
+DEFAULT_BYTECODE_REVERSE = BASELINES / (
+    "2026-07-22-runtime-contract-reconciliation-bytecode-iterator-reverse.json"
+)
+DEFAULT_INVALIDATION = BASELINES / (
+    "2026-07-22-runtime-contract-pre-reconciliation-invalidation.json"
+)
+DEFAULT_JSON = BASELINES / (
+    "2026-07-22-runtime-contract-performance-evidence-reconciliation.json"
+)
+DEFAULT_MARKDOWN = BASELINES / (
+    "2026-07-22-runtime-contract-performance-evidence-reconciliation.md"
+)
+EXPECTED_BENCHMARKS = [
+    "array_slice_window",
+    "binary_event_log",
+    "dependency_plan",
+    "document_audit",
+    "lexical_rollup",
+    "option_result_config",
+]
+EXPECTED_REASON = "scope-content-drift:runtime-production"
+NEW_RUNTIME_APIS = [
+    "HostDriverSnapshot",
+    "NewHasherValueFromState",
+    "NewIteratorValueFromHostDriver",
+    "RestoreHostDriver",
+    "SemanticState",
+]
+
+
+def load(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be an object")
+    return value
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def display(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path.resolve())
+
+
+def input_record(path: Path) -> dict[str, str]:
+    return {"path": display(path), "sha256": sha256(path)}
+
+
+def require_benchmarks(rows: list[dict[str, Any]], label: str) -> None:
+    actual = sorted(row.get("benchmark") for row in rows)
+    if actual != EXPECTED_BENCHMARKS:
+        raise ValueError(f"{label} benchmark set is not the selected iterator/control set")
+
+
+def mean(values: list[float]) -> float:
+    if not values:
+        raise ValueError("cannot average an empty sample set")
+    return sum(values) / len(values)
+
+
+def spread_percent(values: list[float]) -> float:
+    low = min(values)
+    if low <= 0:
+        raise ValueError("cohort means must be positive")
+    return (max(values) / low - 1.0) * 100.0
+
+
+def compiled_rows(value: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = value.get("rows")
+    if value.get("kind") != "able-preserved-compiled-cohorts":
+        raise ValueError("compiled evidence has an unexpected kind")
+    if not isinstance(rows, list):
+        raise ValueError("compiled evidence needs rows")
+    require_benchmarks(rows, "compiled evidence")
+    result = []
+    for row in rows:
+        cohorts = row.get("cohorts")
+        if not isinstance(cohorts, list) or len(cohorts) != 2:
+            raise ValueError(f"{row.get('benchmark')} needs two compiled cohorts")
+        samples: list[float] = []
+        cohort_means: list[float] = []
+        for cohort in cohorts:
+            runs = cohort.get("samples")
+            validation = cohort.get("validation")
+            if (
+                cohort.get("requested_runs") != 5
+                or cohort.get("ok_runs") != 5
+                or cohort.get("timeouts") != 0
+                or cohort.get("failures") != 0
+                or not cohort.get("complete_and_verified")
+                or not isinstance(runs, list)
+                or len(runs) != 5
+                or not isinstance(validation, dict)
+                or validation.get("status") != "verified"
+                or validation.get("verified_runs") != 5
+                or validation.get("failed_runs") != 0
+            ):
+                raise ValueError(f"{row.get('benchmark')} has an incomplete compiled cohort")
+            times = [float(sample["real_seconds"]) for sample in runs if sample.get("status") == "ok"]
+            if len(times) != 5:
+                raise ValueError(f"{row.get('benchmark')} has a failed compiled sample")
+            samples.extend(times)
+            cohort_means.append(mean(times))
+        reference = row.get("go_reference")
+        if not isinstance(reference, dict) or not reference.get("contract_compatible"):
+            raise ValueError(f"{row.get('benchmark')} lacks a compatible Go reference")
+        pooled = mean(samples)
+        ref_time = float(reference["real_seconds"])
+        spread = spread_percent(cohort_means)
+        result.append(
+            {
+                "benchmark": row["benchmark"],
+                "mode": "compiled",
+                "sample_count": len(samples),
+                "cohort_count": len(cohorts),
+                "cohort_means_seconds": cohort_means,
+                "pooled_mean_seconds": pooled,
+                "cohort_spread_percent": spread,
+                "volatile": spread > 15.0,
+                "reference": "go",
+                "reference_mean_seconds": ref_time,
+                "ratio_to_reference": pooled / ref_time,
+                "all_outputs_verified": True,
+            }
+        )
+    return sorted(result, key=lambda row: row["benchmark"])
+
+
+def bytecode_map(value: dict[str, Any], label: str) -> dict[str, dict[str, Any]]:
+    rows = value.get("rows")
+    if not isinstance(rows, list):
+        raise ValueError(f"{label} needs rows")
+    require_benchmarks(rows, label)
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        able = row.get("able")
+        validation = able.get("validation") if isinstance(able, dict) else None
+        samples = able.get("samples") if isinstance(able, dict) else None
+        if (
+            row.get("mode") != "bytecode"
+            or not isinstance(able, dict)
+            or able.get("ok_runs") != 5
+            or able.get("timeouts") != 0
+            or able.get("failures") != 0
+            or not isinstance(samples, list)
+            or len(samples) != 5
+            or not isinstance(validation, dict)
+            or validation.get("status") != "verified"
+            or validation.get("verified_runs") != 5
+            or validation.get("failed_runs") != 0
+        ):
+            raise ValueError(f"{row.get('benchmark')} has an incomplete {label} cohort")
+        if any(sample.get("status") != "ok" for sample in samples):
+            raise ValueError(f"{row.get('benchmark')} has a failed {label} sample")
+        result[row["benchmark"]] = row
+    return result
+
+
+def bytecode_rows(forward: dict[str, Any], reverse: dict[str, Any]) -> list[dict[str, Any]]:
+    first = bytecode_map(forward, "forward bytecode evidence")
+    second = bytecode_map(reverse, "reverse bytecode evidence")
+    if list(first) != EXPECTED_BENCHMARKS or list(second) != list(reversed(EXPECTED_BENCHMARKS)):
+        raise ValueError("bytecode evidence does not preserve the forward/reverse order guard")
+    result = []
+    for benchmark in EXPECTED_BENCHMARKS:
+        rows = [first[benchmark], second[benchmark]]
+        cohort_means = [float(row["able"]["avg_real_seconds"]) for row in rows]
+        samples = [
+            float(sample["real_seconds"])
+            for row in rows
+            for sample in row["able"]["samples"]
+        ]
+        comparisons = rows[0].get("comparisons")
+        if not isinstance(comparisons, dict) or set(comparisons) != {"python", "ruby"}:
+            raise ValueError(f"{benchmark} lacks both interpreter references")
+        references = {
+            language: float(comparisons[language]["reference_real_seconds"])
+            for language in ("python", "ruby")
+        }
+        pooled = mean(samples)
+        spread = spread_percent(cohort_means)
+        result.append(
+            {
+                "benchmark": benchmark,
+                "mode": "bytecode",
+                "sample_count": len(samples),
+                "cohort_count": 2,
+                "cohort_means_seconds": cohort_means,
+                "pooled_mean_seconds": pooled,
+                "cohort_spread_percent": spread,
+                "volatile": spread > 15.0,
+                "references": references,
+                "ratios_to_references": {
+                    language: pooled / reference
+                    for language, reference in references.items()
+                },
+                "all_outputs_verified": True,
+            }
+        )
+    return result
+
+
+def new_api_production_calls() -> list[dict[str, Any]]:
+    root = SCRIPT_DIR / "interpreters/go"
+    declaration_files = {
+        (root / "pkg/runtime/iterator_value.go").resolve(),
+        (root / "pkg/runtime/values.go").resolve(),
+    }
+    patterns = {name: re.compile(rf"\b{re.escape(name)}\s*\(") for name in NEW_RUNTIME_APIS}
+    calls = []
+    for path in sorted(root.rglob("*.go")):
+        resolved = path.resolve()
+        relative = path.relative_to(root).as_posix()
+        if (
+            path.name.endswith("_test.go")
+            or relative.startswith("internal/semanticabi/")
+            or resolved in declaration_files
+        ):
+            continue
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for name, pattern in patterns.items():
+                if pattern.search(line):
+                    calls.append(
+                        {"api": name, "path": display(path), "line": line_number}
+                    )
+    return calls
+
+
+def validate_invalidation(value: dict[str, Any]) -> dict[str, Any]:
+    summary = value.get("summary")
+    closures = value.get("closures")
+    if (
+        value.get("kind") != "able-performance-evidence-invalidation-report"
+        or not isinstance(summary, dict)
+        or not isinstance(closures, list)
+        or summary.get("closure_count") != 21
+        or summary.get("invalidated_count") != 21
+        or summary.get("current_count") != 0
+        or summary.get("reason_counts") != {EXPECTED_REASON: 21}
+    ):
+        raise ValueError("pre-reconciliation invalidation evidence is not the 21-closure runtime drift")
+    if any(row.get("reasons") != [EXPECTED_REASON] for row in closures):
+        raise ValueError("a closure was invalidated for more than the shared runtime scope")
+    return summary
+
+
+def build_report(
+    compiled_path: Path,
+    forward_path: Path,
+    reverse_path: Path,
+    invalidation_path: Path,
+) -> dict[str, Any]:
+    compiled = compiled_rows(load(compiled_path, "compiled evidence"))
+    bytecode = bytecode_rows(
+        load(forward_path, "forward bytecode evidence"),
+        load(reverse_path, "reverse bytecode evidence"),
+    )
+    invalidation = validate_invalidation(load(invalidation_path, "invalidation evidence"))
+    api_calls = new_api_production_calls()
+    if api_calls:
+        raise ValueError("new semantic reconstruction APIs reached ordinary production execution")
+    measurements = compiled + bytecode
+    return {
+        "kind": "able-runtime-contract-performance-evidence-reconciliation",
+        "schema_version": 1,
+        "decision": "rebaseline-reviewed-shared-runtime-scope",
+        "inputs": {
+            "compiled": input_record(compiled_path),
+            "bytecode_forward": input_record(forward_path),
+            "bytecode_reverse": input_record(reverse_path),
+            "pre_reconciliation_invalidation": input_record(invalidation_path),
+            "runtime_iterator": input_record(
+                SCRIPT_DIR / "interpreters/go/pkg/runtime/iterator_value.go"
+            ),
+            "runtime_values": input_record(
+                SCRIPT_DIR / "interpreters/go/pkg/runtime/values.go"
+            ),
+        },
+        "scope_review": {
+            "invalidated_closure_count": invalidation["invalidated_count"],
+            "reviewed_closure_count": invalidation["closure_count"],
+            "sole_invalidation_reason": EXPECTED_REASON,
+            "semanticabi_in_runtime_production_scope": False,
+            "new_runtime_api_ordinary_production_call_count": len(api_calls),
+            "new_runtime_api_ordinary_production_calls": api_calls,
+            "live_shape_change": (
+                "IteratorValue adds one retained-root slice header. Legacy constructors leave it nil, "
+                "so they add no backing allocation and preserve driver behavior; only wrapper size changes."
+            ),
+            "cold_api_change": (
+                "Hasher reconstruction/state and iterator host-driver reconstruction/snapshot are called "
+                "only by the excluded semanticabi conformance package and tests."
+            ),
+        },
+        "measurement_policy": {
+            "selected_benchmarks": EXPECTED_BENCHMARKS,
+            "selection_reason": (
+                "union of compiled and bytecode iterator/control governing rows, the direct consumers "
+                "of the only live runtime storage-shape change"
+            ),
+            "processes_per_benchmark_mode": 10,
+            "cohorts_per_benchmark_mode": 2,
+            "processes_per_cohort": 5,
+            "bytecode_order_guard": "forward-then-reverse",
+            "volatile_above_cohort_spread_percent": 15.0,
+            "arithmetic_mean_used": True,
+        },
+        "summary": {
+            "benchmark_mode_rows": len(measurements),
+            "compiled_verified_processes": sum(row["sample_count"] for row in compiled),
+            "bytecode_verified_processes": sum(row["sample_count"] for row in bytecode),
+            "total_verified_processes": sum(row["sample_count"] for row in measurements),
+            "failed_processes": 0,
+            "timed_out_processes": 0,
+            "volatile_rows": sum(bool(row["volatile"]) for row in measurements),
+            "stable_rows": sum(not row["volatile"] for row in measurements),
+            "performance_candidate_admitted": False,
+            "causal_regression_inferred": False,
+            "closure_rebaseline_admitted": True,
+        },
+        "measurements": measurements,
+        "conclusion": (
+            "The tree-wide runtime hash invalidated every closure, but the semanticabi package is outside "
+            "that scope and its new runtime APIs have zero ordinary production call sites. The only live "
+            "shape effect is one nil retained-root slice header per legacy iterator wrapper. Two independent "
+            "five-process cohorts in six direct iterator/control applications produced 120 verified runs. "
+            "Six rows are workstation-volatile, so these data admit neither a speedup nor a causal regression; "
+            "they do admit rebasing the reviewed scope without changing any prior closure disposition."
+        ),
+        "next_lane": "shared-value-heap-production-pilot",
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    lines = [
+        "# Runtime-contract performance-evidence reconciliation",
+        "",
+        "## Decision",
+        "",
+        f"**{report['decision']}**.",
+        "",
+        report["conclusion"],
+        "",
+        "This is an evidence rebase, not a performance win. It retains every prior closure disposition and admits no optimization candidate.",
+        "",
+        "## Scope review",
+        "",
+        f"- Pre-reconciliation closures: {report['scope_review']['reviewed_closure_count']} reviewed, all invalidated only by `{report['scope_review']['sole_invalidation_reason']}`.",
+        "- `internal/semanticabi` remains outside `runtime-production`.",
+        f"- New reconstruction/snapshot API calls in ordinary production execution: {report['scope_review']['new_runtime_api_ordinary_production_call_count']}.",
+        f"- Live shape effect: {report['scope_review']['live_shape_change']}",
+        "",
+        "## Repeated-process evidence",
+        "",
+        f"All {summary['total_verified_processes']} Able processes passed their output verifiers; zero failed or timed out. Each benchmark/mode has two independent five-process cohorts. Bytecode used forward and reverse orders. `volatile` means the two cohort means differ by more than 15%.",
+        "",
+        "| Benchmark | Mode | Pooled mean (s) | Cohort spread | Volatile | Reference ratio |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in report["measurements"]:
+        if row["mode"] == "compiled":
+            ratios = f"{row['ratio_to_reference']:.2f}x Go"
+        else:
+            ratios = (
+                f"{row['ratios_to_references']['python']:.2f}x Python / "
+                f"{row['ratios_to_references']['ruby']:.2f}x Ruby"
+            )
+        lines.append(
+            f"| {row['benchmark']} | {row['mode']} | {row['pooled_mean_seconds']:.4f} | "
+            f"{row['cohort_spread_percent']:.2f}% | {'yes' if row['volatile'] else 'no'} | {ratios} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Interpretation",
+            "",
+            "The measurements are deliberately descriptive. They are not paired before/after trials, and half the rows show substantial workstation load sensitivity. Arithmetic means across repeated processes prevent one noisy sample from governing the decision, while the spread flag prevents noisy means from being presented as an optimization result.",
+            "",
+            "The reviewed runtime change does not add work to iterator stepping, calls, maps, numeric operations, return handling, or type matching. Existing iterator constructors leave the new retained-root slice nil. The new Hasher and host-driver APIs are cold outside conformance code. Consequently the scope can be rebased while every earlier performance closure remains closed on its existing rationale.",
+            "",
+            "## Next recommendation",
+            "",
+            "Begin one bounded `shared-value-heap-production-pilot` at a generic call/return boundary shared by both interpreters.",
+            "",
+            "Why: the semantic contract is exact and the performance ledger is current again. A live generic boundary is the smallest step that can test whether the shared representation removes duplicated conversion/ownership work without committing to a foreign runtime or a wholesale migration.",
+            "",
+            "What it entails: add an opt-in internal path at one broadly used call/return boundary; preserve aliases, identity, errors, effects, and exact ordinary-runtime fallback; exercise both interpreters with semantic conformance tests; then use repeated verifier-backed cohorts over unlike applications. Revert unless one shared mechanism improves broad guards. No WASM, foreign heap, executable memory, benchmark branch, named-container rule, or non-primitive nominal special case is admitted.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def write_or_check(path: Path, content: str, check: bool, label: str) -> None:
+    if check:
+        try:
+            existing = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            raise SystemExit(f"checked {label} artifact is missing") from None
+        if existing != content:
+            raise SystemExit(f"checked {label} artifact is stale")
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--compiled", type=Path, default=DEFAULT_COMPILED)
+    parser.add_argument("--bytecode-forward", type=Path, default=DEFAULT_BYTECODE_FORWARD)
+    parser.add_argument("--bytecode-reverse", type=Path, default=DEFAULT_BYTECODE_REVERSE)
+    parser.add_argument("--pre-invalidation", type=Path, default=DEFAULT_INVALIDATION)
+    parser.add_argument("--json-out", type=Path, default=DEFAULT_JSON)
+    parser.add_argument("--markdown-out", type=Path, default=DEFAULT_MARKDOWN)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        report = build_report(
+            args.compiled.resolve(),
+            args.bytecode_forward.resolve(),
+            args.bytecode_reverse.resolve(),
+            args.pre_invalidation.resolve(),
+        )
+    except ValueError as error:
+        raise SystemExit(str(error)) from None
+    json_text = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    markdown_text = markdown(report)
+    write_or_check(args.json_out, json_text, args.check, "reconciliation JSON")
+    write_or_check(args.markdown_out, markdown_text, args.check, "reconciliation Markdown")
+    print(report["decision"])
+
+
+if __name__ == "__main__":
+    main()

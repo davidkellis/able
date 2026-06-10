@@ -22,6 +22,9 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 				return nil, "&" + info.GoName + "{}", structType, true
 			}
 		}
+		if ctx.environmentEffect != nil {
+			ctx.environmentEffect.localIndependent = false
+		}
 		nodeName := g.diagNodeName(ident, "*ast.Identifier", "ident")
 		valueExpr := fmt.Sprintf("__able_env_get(%q, %s)", ident.Name, nodeName)
 		if expected == "" || expected == "runtime.Value" {

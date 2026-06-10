@@ -4,7 +4,7 @@ set -o pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GO_DIR="$ROOT/v12/interpreters/go"
-GO_CACHE="$GO_DIR/.gocache"
+GO_CACHE="${GOCACHE:-$GO_DIR/.gocache}"
 BIN_DIR="$(mktemp -d)"
 ABLE_BIN="$BIN_DIR/able"
 TEMP_ABLE_HOME=""

@@ -29,7 +29,7 @@ func (vm *bytecodeVM) execStringInterpolation(instr *bytecodeInstruction) error 
 	if instr.argCount < 0 {
 		return fmt.Errorf("bytecode string interpolation count invalid")
 	}
-	if len(vm.stack) < instr.argCount {
+	if vm.stackDepth() < instr.argCount {
 		return fmt.Errorf("bytecode stack underflow")
 	}
 	if handled, err := vm.execStringInterpolationFast(instr); handled {
@@ -38,10 +38,10 @@ func (vm *bytecodeVM) execStringInterpolation(instr *bytecodeInstruction) error 
 	parts := vm.stringInterpolationPartsBuffer(instr.argCount)
 	defer clear(parts)
 
-	start := len(vm.stack) - instr.argCount
-	copy(parts, vm.stack[start:])
-	clear(vm.stack[start:])
-	vm.stack = vm.stack[:start]
+	start := vm.stackDepth() - instr.argCount
+	copy(parts, vm.stackValuesFrom(start))
+	vm.clearStackFrom(start)
+	vm.truncateStack(start)
 
 	var builder strings.Builder
 	for _, part := range parts {
@@ -51,7 +51,7 @@ func (vm *bytecodeVM) execStringInterpolation(instr *bytecodeInstruction) error 
 		}
 		builder.WriteString(str)
 	}
-	vm.stack = append(vm.stack, runtime.StringValue{Val: builder.String()})
+	vm.appendStackValue(runtime.StringValue{Val: builder.String()})
 	vm.ip++
 	return nil
 }
@@ -60,9 +60,9 @@ func (vm *bytecodeVM) execStringInterpolationFast(instr *bytecodeInstruction) (b
 	if instr.argCount != 2 {
 		return false, nil
 	}
-	start := len(vm.stack) - 2
-	left := vm.stack[start]
-	right := vm.stack[start+1]
+	start := vm.stackDepth() - 2
+	left := vm.stackValue(start)
+	right := vm.stackValue(start + 1)
 	if leftString, ok := left.(runtime.StringValue); ok {
 		if rightInt, ok := right.(runtime.IntegerValue); ok {
 			vm.finishStringIntegerInterpolationFast(start, leftString.Val, rightInt)
@@ -79,9 +79,9 @@ func (vm *bytecodeVM) execStringInterpolationFast(instr *bytecodeInstruction) (b
 	if !leftOK || !rightOK {
 		return false, nil
 	}
-	vm.stack[start] = runtime.StringValue{Val: leftStr + rightStr}
-	clear(vm.stack[start+1:])
-	vm.stack = vm.stack[:start+1]
+	vm.setStackValue(start, runtime.StringValue{Val: leftStr + rightStr})
+	vm.clearStackFrom(start + 1)
+	vm.truncateStack(start + 1)
 	vm.ip++
 	return true, nil
 }
@@ -90,9 +90,9 @@ func (vm *bytecodeVM) finishStringIntegerInterpolationFast(start int, prefix str
 	var builder strings.Builder
 	if raw, ok := value.ToInt64(); ok {
 		if raw >= 0 && raw <= 9 {
-			vm.stack[start] = runtime.StringValue{Val: prefix + bytecodeInterpolationDigitSuffixes[raw]}
-			clear(vm.stack[start+1:])
-			vm.stack = vm.stack[:start+1]
+			vm.setStackValue(start, runtime.StringValue{Val: prefix + bytecodeInterpolationDigitSuffixes[raw]})
+			vm.clearStackFrom(start + 1)
+			vm.truncateStack(start + 1)
 			vm.ip++
 			return
 		} else {
@@ -108,9 +108,9 @@ func (vm *bytecodeVM) finishStringIntegerInterpolationFast(start int, prefix str
 		builder.WriteString(prefix)
 		builder.WriteString(suffix)
 	}
-	vm.stack[start] = runtime.StringValue{Val: builder.String()}
-	clear(vm.stack[start+1:])
-	vm.stack = vm.stack[:start+1]
+	vm.setStackValue(start, runtime.StringValue{Val: builder.String()})
+	vm.clearStackFrom(start + 1)
+	vm.truncateStack(start + 1)
 	vm.ip++
 }
 
@@ -144,16 +144,21 @@ func (vm *bytecodeVM) execArrayLiteral(instr *bytecodeInstruction) error {
 	if instr.argCount < 0 {
 		return fmt.Errorf("bytecode array literal count invalid")
 	}
-	if len(vm.stack) < instr.argCount {
+	if vm.stackDepth() < instr.argCount {
 		return fmt.Errorf("bytecode stack underflow")
 	}
-	start := len(vm.stack) - instr.argCount
+	start := vm.stackDepth() - instr.argCount
 	values := make([]runtime.Value, instr.argCount)
-	copy(values, vm.stack[start:])
-	clear(vm.stack[start:])
-	vm.stack = vm.stack[:start]
+	for idx := range values {
+		// Array elements outlive the temporary VM stack positions from which
+		// they are built.
+		values[idx] = vm.materializePrimitiveValue(bytecodeMaterializationCandidateStatic, bytecodeMaterializationReasonCollection, vm.stackValue(start+idx))
+	}
+	vm.clearStackFrom(start)
+	vm.truncateStack(start)
 	arr := vm.interp.newArrayValue(values, len(values))
-	vm.stack = append(vm.stack, arr)
+	vm.trackBytecodeArrayOwnershipCreation(arr)
+	vm.appendStackValue(arr)
 	vm.ip++
 	return nil
 }

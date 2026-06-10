@@ -1,0 +1,437 @@
+{
+  "kind": "able-bytecode-native-hot-tier-design-evidence",
+  "schema_version": 1,
+  "minimum_unlike_families": 3,
+  "minimum_target_excess_reduction_percent": 25.0,
+  "sources": {
+    "spec": {
+      "path": "spec/full_spec_v12.md",
+      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+    },
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+    },
+  "architecture_budget": {
+    "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
+      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+    },
+  "region_feasibility": {
+    "path": "v12/docs/perf-baselines/2026-07-22-bytecode-semantic-region-tier-feasibility.json",
+      "sha256": "ec05a39277f57e0a3b4de5931c547967c6ccb2a04c98b1ce90d331eef1adb0db"
+    },
+    "typed_region_gate": {
+      "path": "v12/docs/perf-baselines/2026-07-18-bytecode-typed-loop-block-gate.md",
+      "sha256": "7ecaf9d2f77501ceed9ce836acc1836a4cb72dc39f7a7c036c1c52b90c8408f2"
+    },
+    "go_pgo_gate": {
+      "path": "v12/docs/perf-baselines/2026-07-18-bytecode-cross-suite-go-pgo-rejection.md",
+      "sha256": "e817246351d442772ca07b97c46e8a625f993c1ce5e0b53a92b96fae91b9a59d"
+    },
+    "vm_types": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go",
+      "sha256": "f6dbf296c8f28673546b03250f12eab1471227309e90e6c08e0db5c10147855f"
+    },
+    "vm_dispatch": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go",
+      "sha256": "1710cb15a38a50bf5097c89ecf441e27f49240c9389b8a824b9b5986033a7f23"
+    },
+    "program_reach": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_program_reach.go",
+      "sha256": "c53e6d70f35411f45a5587353539cbd5052fac3695001c7881443aa29c0bc31a"
+    },
+    "scalar_proof": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_scalar_proof.go",
+      "sha256": "97923402725f43f0272328754e1e6f6f6e8eb7545addfdb68f7450de75e87d5f"
+    },
+    "integer_load_shape": {
+      "path": "v12/interpreters/go/pkg/interpreter/bytecode_integer_load_shape.go",
+      "sha256": "8f7b41c171e2e83e0886c49425756a76d48f8f71a837f3ee9a06495c754a5fd0"
+    },
+    "integer_load_shape_census": {
+      "path": "v12/docs/perf-baselines/2026-07-22-bytecode-integer-load-carrier-consumer-census.json",
+      "sha256": "576c04297f2a63e4d4e863b9a92f92f3d5c44b73d6dec9b2ad34f5e361758a7e"
+    },
+    "array_slot_value_role_census": {
+      "path": "v12/docs/perf-baselines/2026-07-22-bytecode-array-slot-value-role-census.json",
+      "sha256": "1302c2cd3f6ca5bcf04b91c11406a387b500bc27074a9da08f9ac7736b456d19"
+    },
+    "runtime_values": {
+      "path": "v12/interpreters/go/pkg/runtime/values.go",
+      "sha256": "871f0a4735ce0660c902e356c2a47c5fd0886c0e42f3641338677110e8301280"
+    },
+    "raw_values": {
+      "path": "v12/interpreters/go/pkg/runtime/raw_value.go",
+      "sha256": "279c69be032ff3877a839fe8bf5e654e148b20e89a1585276bd99a1ee8ed4fd9"
+    },
+    "extern_builder": {
+      "path": "v12/interpreters/go/pkg/interpreter/extern_host_builder.go",
+      "sha256": "5f4df30aedb25aa08451279f3c20f1882bcd591ddbb6dc6aae660cbdce1f87bd"
+    },
+    "executor": {
+      "path": "v12/interpreters/go/pkg/interpreter/executor.go",
+      "sha256": "8305b83ecc9504360d9fe53a66c45771f0be1bbc91f968440d5b7b6defc68ef1"
+    }
+  },
+  "candidate_class": "typed-primitive-hot-function-or-natural-loop",
+  "hot_function_reach_evidence": [
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "verified": true,
+      "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+      "program_count": 7,
+      "dropped_programs": 0,
+      "dynamic_instructions": 60446436,
+      "primitive_eligible_instructions": 20779081,
+      "contract_eligible": false,
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "hottest_program": {
+        "name": "ordered_select_checksum",
+        "origin": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+        "entries": 1,
+        "dynamic_instructions": 28250055,
+        "primitive_eligible_instructions": 13125026,
+        "effect_boundary_instructions": 15125029,
+        "backedges": 1000000,
+        "static_instructions": 48,
+        "max_static_primitive_span": 7,
+        "boxed_param_count": 0,
+        "boxed_return": true,
+        "requires_environment": false
+      }
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "verified": true,
+      "stdout_sha256": "cdaaf4451b236346af59b6a407f3136da96004e0c7c39c165546b7b9b21eda94",
+      "program_count": 3,
+      "dropped_programs": 0,
+      "dynamic_instructions": 78000165,
+      "primitive_eligible_instructions": 28000107,
+      "contract_eligible": false,
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "hottest_program": {
+        "name": "main",
+        "origin": "v12/examples/benchmarks/distance_field/distance_field.able",
+        "entries": 1,
+        "dynamic_instructions": 44000165,
+        "primitive_eligible_instructions": 22000107,
+        "effect_boundary_instructions": 22000058,
+        "backedges": 2000000,
+        "static_instructions": 58,
+        "max_static_primitive_span": 4,
+        "boxed_param_count": 0,
+        "boxed_return": false,
+        "requires_environment": false
+      }
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency-text",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "verified": true,
+      "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39",
+      "program_count": 42,
+      "dropped_programs": 0,
+      "dynamic_instructions": 21367576,
+      "primitive_eligible_instructions": 7513136,
+      "contract_eligible": false,
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "hottest_program": {
+        "name": "split",
+        "origin": "../able-stdlib/src/text/string.able",
+        "entries": 4096,
+        "dynamic_instructions": 8227328,
+        "primitive_eligible_instructions": 3067648,
+        "effect_boundary_instructions": 5159680,
+        "backedges": 168704,
+        "static_instructions": 179,
+        "max_static_primitive_span": 4,
+        "boxed_param_count": 2,
+        "boxed_return": false,
+        "requires_environment": false
+      }
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "verified": true,
+      "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+      "program_count": 19,
+      "dropped_programs": 0,
+      "dynamic_instructions": 17591889,
+      "primitive_eligible_instructions": 6173381,
+      "contract_eligible": false,
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "hottest_program": {
+        "name": "split",
+        "origin": "../able-stdlib/src/text/string.able",
+        "entries": 1937,
+        "dynamic_instructions": 7077414,
+        "primitive_eligible_instructions": 2648779,
+        "effect_boundary_instructions": 4428635,
+        "backedges": 153147,
+        "static_instructions": 179,
+        "max_static_primitive_span": 4,
+        "boxed_param_count": 2,
+        "boxed_return": false,
+        "requires_environment": false
+      }
+    },
+    {
+      "benchmark": "array_slice_window",
+      "family": "array-iterator",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "verified": true,
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "program_count": 7,
+      "dropped_programs": 0,
+      "dynamic_instructions": 8751239,
+      "primitive_eligible_instructions": 3037594,
+      "contract_eligible": false,
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "hottest_program": {
+        "name": "rolling_checksum",
+        "origin": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+        "entries": 1,
+        "dynamic_instructions": 5556024,
+        "primitive_eligible_instructions": 1992010,
+        "effect_boundary_instructions": 3564014,
+        "backedges": 300000,
+        "static_instructions": 103,
+        "max_static_primitive_span": 6,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "requires_environment": false
+      }
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "byte-text",
+      "candidate_class": "effect-interleaved-primitive-hot-function",
+      "verified": true,
+      "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+      "program_count": 14,
+      "dropped_programs": 0,
+      "dynamic_instructions": 60602670,
+      "primitive_eligible_instructions": 26301047,
+      "contract_eligible": false,
+      "contract_disposition": "The hottest function interleaves primitive work with boxed, call, collection, allocation, or other runtime-effect instructions; the pointer-free leaf contract cannot compile the whole function and the measured primitive spans are too fragmented to define a coarse natural loop.",
+      "hottest_program": {
+        "name": "reverse_complement_fasta",
+        "origin": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+        "entries": 1,
+        "dynamic_instructions": 32366999,
+        "primitive_eligible_instructions": 14166776,
+        "effect_boundary_instructions": 18200223,
+        "backedges": 2033351,
+        "static_instructions": 94,
+        "max_static_primitive_span": 4,
+        "boxed_param_count": 1,
+        "boxed_return": false,
+        "requires_environment": false
+      }
+    }
+  ],
+  "known_region_entry_counts": {
+    "monte_carlo_pi": 11111000,
+    "rms_norm": 2000000,
+    "fixed_width_128": 1000000,
+    "future_await_race": 18432
+  },
+  "execution_contract": [
+    {
+      "id": "pointer-free-native-state",
+      "requirement": "Native memory contains only primitive scalars, tags, root-table indices, instruction identities, and exit records; it never contains runtime.Value or other Go pointers."
+    },
+    {
+      "id": "go-owned-boxed-roots",
+      "requirement": "All boxed values and identity-bearing nominal objects remain strongly reachable in a Go-owned root table for the entire native activation."
+    },
+    {
+      "id": "coarse-entry-atomic-commit",
+      "requirement": "Entry snapshots proved primitive inputs; successful exit commits primitive slot updates atomically, while a side exit resumes the ordinary VM at the exact original instruction before any uncommitted effect."
+    },
+    {
+      "id": "no-native-go-callback",
+      "requirement": "Initial native code is leaf code: allocation, calls, dynamic lookup, member/index semantics, boxing, externs, and all other effects side-exit to Go instead of calling Go from native code."
+    },
+    {
+      "id": "source-exact-errors",
+      "requirement": "Overflow, division, cast, type, and guard failures return an original bytecode instruction identity so the ordinary VM produces the canonical source-attached Able error."
+    },
+    {
+      "id": "structured-unwind",
+      "requirement": "Raise, rescue, ensure, rethrow, propagation, break/continue cleanup, iterator cleanup, and return coercion remain ordinary-VM boundaries in the first tier."
+    },
+    {
+      "id": "cooperative-suspension",
+      "requirement": "Spawn, await, yield, Future cancellation, serial scheduling, and goroutine scheduling remain ordinary-VM boundaries; native loops have a bounded backedge poll that side-exits for cancellation or fairness."
+    },
+    {
+      "id": "extern-abi-independence",
+      "requirement": "The tier does not embed Go plugin symbols, Go ABI entry points, runtime.Value layouts, or a training-profile identity; extern calls always occur after an ordinary-VM side exit."
+    },
+    {
+      "id": "portable-fallback",
+      "requirement": "Unsupported operating-system/architecture pairs, disabled executable memory, compilation failure, and code-cache eviction retain byte-for-byte ordinary VM behavior."
+    },
+    {
+      "id": "bounded-code-cache",
+      "requirement": "Code is process-local, content-addressed by program and semantic ABI identities, write-xor-execute, bounded by bytes and entries, and never reclaimed while an activation can execute it."
+    }
+  ],
+  "backend_options": [
+    {
+      "id": "generated-go-plugin",
+      "selected": false,
+      "disposition": "reject-as-hot-tier-backend",
+      "reason": "The current extern path invokes the Go toolchain and buildmode=plugin, while the completed PGO gate records exact-profile/toolchain coupling and regression. It is not a portable low-latency in-process tier."
+    },
+    {
+      "id": "second-go-ir-executor",
+      "selected": false,
+      "disposition": "closed-existing-gates",
+      "reason": "A Go-level typed-region executor and whole-function register executor already failed broad wall-time gates and do not remove host-language dispatch."
+    },
+    {
+      "id": "custom-machine-code-emitters",
+      "selected": false,
+      "disposition": "defer-until-reach-gate",
+      "reason": "No machine-code backend or stable trampoline exists in the repository; per-architecture emitters would add the largest implementation and security burden."
+    },
+    {
+      "id": "external-c-abi-jit-library",
+      "selected": false,
+      "disposition": "defer-until-reach-gate-and-adr",
+      "reason": "A C-ABI JIT can satisfy pointer-free leaf execution, but the repository has no selected dependency, distribution policy, compile-latency evidence, or supported-platform decision."
+    }
+  ],
+  "scalar_proof_gap_census": [
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "verified": true,
+      "stdout_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+      "program_count": 7,
+      "dropped_programs": 0,
+      "dynamic_instructions": 60446436,
+      "proof_rows": [
+        {"opcode": "LoadSlotStructField", "proof": "primitive-field-integer", "dynamic_instructions": 6816906},
+        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 5000006},
+        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 3283452},
+        {"opcode": "Cast", "proof": "primitive-numeric-cast", "dynamic_instructions": 3000000},
+        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 2000002}
+      ]
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "verified": true,
+      "stdout_sha256": "cdaaf4451b236346af59b6a407f3136da96004e0c7c39c165546b7b9b21eda94",
+      "program_count": 3,
+      "dropped_programs": 0,
+      "dynamic_instructions": 78000165,
+      "proof_rows": [
+        {"opcode": "LoadSlot", "proof": "primitive-slot-float", "dynamic_instructions": 22000024},
+        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-float-compare", "dynamic_instructions": 8000000},
+        {"opcode": "StoreSlot", "proof": "primitive-slot-float", "dynamic_instructions": 2000024}
+      ]
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency-text",
+      "verified": true,
+      "stdout_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39",
+      "program_count": 42,
+      "dropped_programs": 0,
+      "dynamic_instructions": 21367576,
+      "proof_rows": [
+        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 1086208},
+        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 373888},
+        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 202507},
+        {"opcode": "LoadSlotStructField", "proof": "primitive-field-integer", "dynamic_instructions": 191368}
+      ]
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "verified": true,
+      "stdout_sha256": "7dc1dae393e2c070eb0b9c9e611e154b2e6cce1b4a4268aa1bc73f8ff0e2fd07",
+      "program_count": 19,
+      "dropped_programs": 0,
+      "dynamic_instructions": 17591889,
+      "proof_rows": [
+        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 944384},
+        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 333976},
+        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 157215},
+        {"opcode": "LoadSlotStructField", "proof": "primitive-field-integer", "dynamic_instructions": 130879}
+      ]
+    },
+    {
+      "benchmark": "array_slice_window",
+      "family": "array-slice",
+      "verified": true,
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "program_count": 7,
+      "dropped_programs": 0,
+      "dynamic_instructions": 8751239,
+      "proof_rows": [
+        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 1020268},
+        {"opcode": "Cast", "proof": "primitive-numeric-cast", "dynamic_instructions": 612002},
+        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 312259},
+        {"opcode": "LoadImplicitSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 312001},
+        {"opcode": "StoreImplicitSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 312001}
+      ]
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "bio-text-array",
+      "verified": true,
+      "stdout_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7",
+      "program_count": 14,
+      "dropped_programs": 0,
+      "dynamic_instructions": 60602670,
+      "proof_rows": [
+        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 6033694},
+        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 4033365},
+        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 2033356},
+        {"opcode": "Cast", "proof": "primitive-numeric-cast", "dynamic_instructions": 2000288}
+      ]
+    }
+  ],
+  "scalar_slot_hint_rejection": {
+    "candidate": "lowering-time integer hint plus guarded known-integer LoadSlot path",
+    "runs_per_row": 3,
+    "retained": false,
+    "rows": [
+      {"benchmark": "concurrent_event_routing", "baseline_seconds": 2.99, "candidate_seconds": 3.0833, "change_percent": 3.120401},
+      {"benchmark": "word_frequency", "baseline_seconds": 1.3967, "candidate_seconds": 1.41, "change_percent": 0.952245},
+      {"benchmark": "array_slice_window", "baseline_seconds": 0.7033, "candidate_seconds": 0.8233, "change_percent": 17.06242}
+    ],
+    "disposition": "Rejected after all three unlike guard workloads regressed; the extra hint branch cost more than the narrower type switch saved."
+  },
+  "next_measurement": {
+    "id": "bytecode-six-application-clean-cpu-owner-refresh",
+    "scope": "Refresh the broad clean CPU owner matrix and choose the largest exact non-closed VM leaf that is material in at least three unlike applications.",
+    "fields": [
+      "bounded runtime-only profiles for Fixed Width 128, Distance Field, Concurrent Event Routing, Word Frequency, Array Slice Window, and Reverse Complement",
+      "exact source and call-path attribution for owners that repeat across at least three unlike families",
+      "closure filtering against retained and broadly rejected mechanisms",
+      "repeated averaged A/B wall-time guards plus a zero-reach control for any admitted candidate"
+    ],
+    "admission": "Implement a candidate only when one exact non-closed VM leaf is CPU-material in at least three unlike applications and the same removable operation improves repeated averages without regressing established guards."
+  },
+  "constraints": {
+    "wasm_deferred": true,
+    "benchmark_special_cases_forbidden": true,
+    "application_special_cases_forbidden": true,
+    "named_nominal_special_cases_forbidden": true,
+    "container_special_cases_forbidden": true
+  }
+}

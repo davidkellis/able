@@ -110,11 +110,13 @@ func TestStructLiteralNamed(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected struct instance, got %#v", structVal)
 	}
-	if instance.Fields == nil {
-		t.Fatalf("expected named struct fields map")
+	if !structUsesNamedFieldStorage(instance) {
+		t.Fatalf("expected named struct storage")
 	}
-	if field, ok := instance.Fields["y"].(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(4)) != 0 {
-		t.Fatalf("expected struct field y == 4, got %#v", instance.Fields["y"])
+	if raw, ok := structNamedFieldValue(instance, "y"); !ok {
+		t.Fatalf("expected named field y")
+	} else if field, ok := raw.(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(4)) != 0 {
+		t.Fatalf("expected struct field y == 4, got %#v", raw)
 	}
 }
 
@@ -205,8 +207,10 @@ func TestStructMemberAssignmentMutation(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected struct instance, got %#v", structVal)
 	}
-	if field, ok := inst.Fields["y"].(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(0)) != 0 {
-		t.Fatalf("unexpected change to y field: %#v", inst.Fields["y"])
+	if raw, ok := structNamedFieldValue(inst, "y"); !ok {
+		t.Fatalf("expected named field y")
+	} else if field, ok := raw.(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(0)) != 0 {
+		t.Fatalf("unexpected change to y field: %#v", raw)
 	}
 }
 
@@ -310,8 +314,10 @@ func TestCompoundAssignments(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected struct instance, got %#v", pVal)
 	}
-	if field, ok := inst.Fields["x"].(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(5)) != 0 {
-		t.Fatalf("expected struct field x == 5, got %#v", inst.Fields["x"])
+	if raw, ok := structNamedFieldValue(inst, "x"); !ok {
+		t.Fatalf("expected named field x")
+	} else if field, ok := raw.(runtime.IntegerValue); !ok || field.BigInt().Cmp(bigInt(5)) != 0 {
+		t.Fatalf("expected struct field x == 5, got %#v", raw)
 	}
 	arrVal, err := env.Get("arr")
 	if err != nil {
@@ -451,11 +457,13 @@ func TestStructFunctionalUpdate(t *testing.T) {
 		t.Fatalf("expected binding for base: %v", err)
 	}
 	baseStruct, ok := baseVal.(*runtime.StructInstanceValue)
-	if !ok || baseStruct.Fields == nil {
+	if !ok || !structUsesNamedFieldStorage(baseStruct) {
 		t.Fatalf("expected named struct base, got %#v", baseVal)
 	}
-	if field, ok := baseStruct.Fields["name"].(runtime.StringValue); !ok || field.Val != "Alice" {
-		t.Fatalf("base struct mutated unexpectedly: %#v", baseStruct.Fields["name"])
+	if raw, ok := structNamedFieldValue(baseStruct, "name"); !ok {
+		t.Fatalf("expected named field name")
+	} else if field, ok := raw.(runtime.StringValue); !ok || field.Val != "Alice" {
+		t.Fatalf("base struct mutated unexpectedly: %#v", raw)
 	}
 }
 
@@ -522,11 +530,13 @@ func TestStructFunctionalUpdateMultipleSources(t *testing.T) {
 		t.Fatalf("expected merged binding: %v", err)
 	}
 	mergedStruct, ok := mergedVal.(*runtime.StructInstanceValue)
-	if !ok || mergedStruct.Fields == nil {
+	if !ok || !structUsesNamedFieldStorage(mergedStruct) {
 		t.Fatalf("expected named struct merged, got %#v", mergedVal)
 	}
-	if field, ok := mergedStruct.Fields["x"].(runtime.IntegerValue); !ok || field.BigInt().Int64() != 99 {
-		t.Fatalf("merged.x incorrect, got %#v", mergedStruct.Fields["x"])
+	if raw, ok := structNamedFieldValue(mergedStruct, "x"); !ok {
+		t.Fatalf("expected named field x")
+	} else if field, ok := raw.(runtime.IntegerValue); !ok || field.BigInt().Int64() != 99 {
+		t.Fatalf("merged.x incorrect, got %#v", raw)
 	}
 }
 

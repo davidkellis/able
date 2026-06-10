@@ -42,6 +42,13 @@ type generator struct {
 	normalizedTypeExprCache             map[string]ast.TypeExpression
 	normalizedTypeExprPackageCache      map[string]string
 	normalizedTypeExprPackagesByExpr    map[ast.TypeExpression]string
+	typeExprPackageCache                map[typeExprPackageCacheKey]typeExprPackageCacheEntry
+	normalizedTypeExprStringCache       map[ast.TypeExpression]string
+	importedSelectorTypeAliasCache      map[importResolutionCacheKey]importedSelectorTypeAliasCacheEntry
+	sourceReexportResolutionCache       map[importResolutionCacheKey]sourceReexportResolutionCacheEntry
+	importableNameSetCache              map[string]map[string]struct{}
+	structInfoByNameCache               map[string]structInfoByNameCacheEntry
+	structInfoByNameCacheCount          int
 	nativeInterfaceImplCandidateCache   []nativeInterfaceImplCandidate
 	nativeInterfaceImplCandidateCounts  [2]int
 	nativeInterfaceAdapterVersion       int
@@ -50,6 +57,7 @@ type generator struct {
 	interfacesByPackage                 map[string]map[string]*ast.InterfaceDefinition
 	interfacePackages                   map[string]string
 	staticImports                       map[string][]staticImportBinding
+	sourceReexports                     map[string][]staticImportBinding
 	functions                           map[string]map[string]*functionInfo
 	overloads                           map[string]map[string]*overloadInfo
 	packages                            []string
@@ -62,6 +70,7 @@ type generator struct {
 	implMethodsBySignature              map[string][]*implMethodInfo
 	specializedFunctions                []*functionInfo
 	specializedFunctionIndex            map[string]*functionInfo
+	staticCallTargets                   map[*functionInfo]struct{}
 	nominalCoercions                    map[string]*nominalCoercionInfo
 	warnings                            []string
 	fallbacks                           []FallbackInfo
@@ -70,10 +79,13 @@ type generator struct {
 	needsIterator                       bool
 	needsStrconv                        bool
 	needsStringFromByteArray            bool
+	needsCallableExecutionContext       bool
 	awaitExprs                          []string
 	awaitNames                          map[*ast.AwaitExpression]string
 	diagNodes                           []diagNodeInfo
 	diagNames                           map[ast.Node]string
+	staticCallReceiverTypeHints         map[*ast.FunctionCall]ast.TypeExpression
+	staticGenericUnionMethodTargets     map[*ast.FunctionCall]string
 	nodeOrigins                         map[ast.Node]string
 	packageEnvVars                      map[string]string
 	packageBootstrappedVars             map[string]string
@@ -93,6 +105,11 @@ type generator struct {
 	goPreludeImports                    []string
 	goPreludeDecls                      []string
 	inferredTypes                       map[string]typechecker.InferenceMap
+	callerOwnedResults                  map[*functionInfo]*structInfo
+	environmentIndependent              map[*functionInfo]bool
+	environmentIndependentGoNames       map[string]bool
+	typedBoundaryShapes                 []typedBoundaryShape
+	typedBoundaryShapeIndexes           map[typedBoundaryShape]int
 }
 
 func newGenerator(opts Options) *generator {
@@ -131,20 +148,30 @@ func newGenerator(opts Options) *generator {
 		normalizedTypeExprCache:             make(map[string]ast.TypeExpression),
 		normalizedTypeExprPackageCache:      make(map[string]string),
 		normalizedTypeExprPackagesByExpr:    make(map[ast.TypeExpression]string),
+		typeExprPackageCache:                make(map[typeExprPackageCacheKey]typeExprPackageCacheEntry),
+		normalizedTypeExprStringCache:       make(map[ast.TypeExpression]string),
+		importedSelectorTypeAliasCache:      make(map[importResolutionCacheKey]importedSelectorTypeAliasCacheEntry),
+		sourceReexportResolutionCache:       make(map[importResolutionCacheKey]sourceReexportResolutionCacheEntry),
+		importableNameSetCache:              make(map[string]map[string]struct{}),
+		structInfoByNameCache:               make(map[string]structInfoByNameCacheEntry),
 		nativeInterfaceImplCandidateCounts:  [2]int{-1, -1},
 		nativeInterfaceAdapterVersion:       1,
 		interfaces:                          make(map[string]*ast.InterfaceDefinition),
 		interfacesByPackage:                 make(map[string]map[string]*ast.InterfaceDefinition),
 		interfacePackages:                   make(map[string]string),
 		staticImports:                       make(map[string][]staticImportBinding),
+		sourceReexports:                     make(map[string][]staticImportBinding),
 		functions:                           make(map[string]map[string]*functionInfo),
 		overloads:                           make(map[string]map[string]*overloadInfo),
 		methods:                             make(map[string]map[string][]*methodInfo),
 		mangler:                             newNameMangler(),
 		awaitNames:                          make(map[*ast.AwaitExpression]string),
+		staticCallReceiverTypeHints:         make(map[*ast.FunctionCall]ast.TypeExpression),
+		staticGenericUnionMethodTargets:     make(map[*ast.FunctionCall]string),
 		implMethodByInfo:                    make(map[*functionInfo]*implMethodInfo),
 		implMethodsBySignature:              make(map[string][]*implMethodInfo),
 		specializedFunctionIndex:            make(map[string]*functionInfo),
+		staticCallTargets:                   make(map[*functionInfo]struct{}),
 		nominalCoercions:                    make(map[string]*nominalCoercionInfo),
 		packageInitStatements:               make(map[string][]ast.Statement),
 		packageInitCompiled:                 make(map[string][]string),
@@ -153,6 +180,10 @@ func newGenerator(opts Options) *generator {
 		externCallables:                     make(map[string]map[string]struct{}),
 		externBodies:                        make(map[string]map[string][]*ast.ExternFunctionBody),
 		goPreludes:                          make(map[string][]string),
+		callerOwnedResults:                  make(map[*functionInfo]*structInfo),
+		environmentIndependent:              make(map[*functionInfo]bool),
+		environmentIndependentGoNames:       make(map[string]bool),
+		typedBoundaryShapeIndexes:           make(map[typedBoundaryShape]int),
 	}
 }
 
@@ -163,6 +194,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.entryPackage = program.Entry.Package
 	g.packages = nil
 	g.staticImports = make(map[string][]staticImportBinding)
+	g.sourceReexports = make(map[string][]staticImportBinding)
 	g.specializedStructs = make(map[string]*structInfo)
 	g.typeAliases = make(map[string]map[string]ast.TypeExpression)
 	g.typeAliasGenericParams = make(map[string]map[string][]*ast.GenericParameter)
@@ -192,6 +224,13 @@ func (g *generator) collect(program *driver.Program) error {
 	g.normalizedTypeExprCache = make(map[string]ast.TypeExpression)
 	g.normalizedTypeExprPackageCache = make(map[string]string)
 	g.normalizedTypeExprPackagesByExpr = make(map[ast.TypeExpression]string)
+	g.typeExprPackageCache = make(map[typeExprPackageCacheKey]typeExprPackageCacheEntry)
+	g.normalizedTypeExprStringCache = make(map[ast.TypeExpression]string)
+	g.importedSelectorTypeAliasCache = make(map[importResolutionCacheKey]importedSelectorTypeAliasCacheEntry)
+	g.sourceReexportResolutionCache = make(map[importResolutionCacheKey]sourceReexportResolutionCacheEntry)
+	g.importableNameSetCache = make(map[string]map[string]struct{})
+	g.structInfoByNameCache = make(map[string]structInfoByNameCacheEntry)
+	g.structInfoByNameCacheCount = 0
 	g.nativeInterfaceImplCandidateCache = nil
 	g.nativeInterfaceImplCandidateCounts = [2]int{-1, -1}
 	g.nativeInterfaceAdapterVersion = 1
@@ -204,6 +243,11 @@ func (g *generator) collect(program *driver.Program) error {
 	g.goPreludes = make(map[string][]string)
 	g.goPreludeImports = nil
 	g.goPreludeDecls = nil
+	g.callerOwnedResults = make(map[*functionInfo]*structInfo)
+	g.environmentIndependent = make(map[*functionInfo]bool)
+	g.environmentIndependentGoNames = make(map[string]bool)
+	g.typedBoundaryShapes = nil
+	g.typedBoundaryShapeIndexes = make(map[typedBoundaryShape]int)
 	g.implMethodsBySignature = make(map[string][]*implMethodInfo)
 	g.specializedFunctions = nil
 	g.specializedFunctionIndex = make(map[string]*functionInfo)
@@ -211,6 +255,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.packageInitOrder = nil
 	g.packageInitStatements = make(map[string][]ast.Statement)
 	g.packageInitCompiled = make(map[string][]string)
+	g.needsCallableExecutionContext = false
 	g.invalidatePackageEnvVars()
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
@@ -249,7 +294,7 @@ func (g *generator) collect(program *driver.Program) error {
 		seenModules[module] = struct{}{}
 		uniqueModules = append(uniqueModules, module)
 	}
-
+	g.needsCallableExecutionContext = g.programNeedsCallableExecutionContext(uniqueModules)
 	for _, module := range uniqueModules {
 		for _, stmt := range module.AST.Body {
 			def, ok := stmt.(*ast.UnionDefinition)
@@ -409,6 +454,7 @@ func (g *generator) collect(program *driver.Program) error {
 	seenPackages := make(map[string]struct{})
 	for _, module := range uniqueModules {
 		g.collectStaticImportsForPackage(module.Package, module.AST.Imports)
+		g.collectSourceReexportsForPackage(module.Package, module.AST.Exports)
 		pkgName := module.Package
 		if _, ok := seenPackages[pkgName]; !ok {
 			seenPackages[pkgName] = struct{}{}
@@ -627,6 +673,9 @@ func (g *generator) fillFunctionInfo(info *functionInfo, mapper *TypeMapper) {
 	}
 	retExpr := g.functionDeclaredOrInferredReturnTypeExpr(info)
 	retType, ok := mapper.Map(retExpr)
+	if info.Definition.ReturnType == nil && isNilTypeExpression(retExpr) {
+		retType, ok = "runtime.NilValue", true
+	}
 	retType, ok = g.recoverRepresentableCarrierType(info.Package, retExpr, retType)
 	if !ok || retType == "" {
 		supported = false
@@ -658,6 +707,9 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 	if len(statements) == 0 {
 		if g.isVoidType(info.ReturnType) {
 			return nil, "struct{}{}", true
+		}
+		if g.isNilType(info.ReturnType) {
+			return nil, "runtime.NilValue{}", true
 		}
 		if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, info.ReturnType); ok {
 			return nil, successExpr, true
@@ -711,6 +763,14 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 				lines = append(lines, stmtLines...)
 				return lines, "struct{}{}", true
 			}
+			if g.isNilType(info.ReturnType) {
+				stmtLines, ok := g.compileStatement(ctx, stmt)
+				if !ok {
+					return nil, "", false
+				}
+				lines = append(lines, stmtLines...)
+				return lines, "runtime.NilValue{}", true
+			}
 			if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, info.ReturnType); ok {
 				stmtLines, ok := g.compileStatement(ctx, stmt)
 				if !ok {
@@ -731,138 +791,11 @@ func (g *generator) compileBody(ctx *compileContext, info *functionInfo) ([]stri
 	if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, info.ReturnType); ok {
 		return lines, successExpr, true
 	}
+	if g.isNilType(info.ReturnType) {
+		return lines, "runtime.NilValue{}", true
+	}
 	ctx.setReason("missing return expression")
 	return nil, "", false
-}
-
-func (g *generator) compileReturnStatement(ctx *compileContext, returnType string, ret *ast.ReturnStatement, lines []string) ([]string, string, bool) {
-	if ret == nil {
-		ctx.setReason("missing return")
-		return nil, "", false
-	}
-	if ret.Argument == nil {
-		if g.isVoidType(returnType) {
-			return lines, "struct{}{}", true
-		}
-		if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, returnType); ok {
-			return lines, successExpr, true
-		}
-		ctx.setReason("missing return expression")
-		return nil, "", false
-	}
-	if g.isVoidType(returnType) {
-		stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", ret.Argument)
-		if !ok {
-			return nil, "", false
-		}
-		lines = append(lines, stmtLines...)
-		if valueExpr != "" {
-			lines, ok = g.discardStatementResult(ctx, lines, valueExpr, valueType)
-			if !ok {
-				return nil, "", false
-			}
-		}
-		return lines, "struct{}{}", true
-	}
-	previousExpectedTypeExpr := ctx.expectedTypeExpr
-	ctx.expectedTypeExpr = g.concretizedExpectedTypeExpr(ctx, returnType, ctx.returnTypeExpr)
-	exprLines, expr, exprType, ok := g.compileTailExpression(ctx, returnType, ret.Argument)
-	ctx.expectedTypeExpr = previousExpectedTypeExpr
-	if !ok {
-		return nil, "", false
-	}
-	if returnType == "runtime.Value" {
-		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
-			if exprType != "runtime.Value" {
-				convLines, converted, ok := g.lowerRuntimeValue(ctx, expr, exprType)
-				if !ok {
-					ctx.setReason("return type mismatch")
-					return nil, "", false
-				}
-				exprLines = append(exprLines, convLines...)
-				expr = converted
-			}
-			ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, expr, ifaceType, ctx.genericNames)
-			if !ok {
-				ctx.setReason("return type mismatch")
-				return nil, "", false
-			}
-			exprLines = append(exprLines, ifaceLines...)
-			expr = coerced
-		}
-	}
-	lines = append(lines, exprLines...)
-	return lines, expr, true
-}
-
-func (g *generator) compileImplicitReturn(ctx *compileContext, returnType string, expr ast.Expression, lines []string) ([]string, string, bool) {
-	if g.isVoidType(returnType) {
-		stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", expr)
-		if !ok {
-			return nil, "", false
-		}
-		lines = append(lines, stmtLines...)
-		if valueExpr != "" {
-			lines, ok = g.discardStatementResult(ctx, lines, valueExpr, valueType)
-			if !ok {
-				return nil, "", false
-			}
-		}
-		return lines, "struct{}{}", true
-	}
-	previousExpectedTypeExpr := ctx.expectedTypeExpr
-	ctx.expectedTypeExpr = g.concretizedExpectedTypeExpr(ctx, returnType, ctx.returnTypeExpr)
-	stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, returnType, expr)
-	ctx.expectedTypeExpr = previousExpectedTypeExpr
-	if !ok {
-		return nil, "", false
-	}
-	if returnType == "runtime.Value" && valueType != "runtime.Value" {
-		convLines, converted, ok := g.lowerRuntimeValue(ctx, valueExpr, valueType)
-		if !ok {
-			ctx.setReason("return type mismatch")
-			return nil, "", false
-		}
-		stmtLines = append(stmtLines, convLines...)
-		valueExpr = converted
-		valueType = "runtime.Value"
-	} else if returnType != "" && returnType != "runtime.Value" && returnType != "any" && returnType != valueType && g.canCoerceStaticExpr(returnType, valueType) {
-		coercedLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
-		if !ok {
-			ctx.setReason("assignment return type mismatch")
-			return nil, "", false
-		}
-		stmtLines = coercedLines
-		valueExpr = coercedExpr
-		valueType = coercedType
-	} else if !g.typeMatches(returnType, valueType) {
-		if returnType != "" && returnType != "runtime.Value" && returnType != "any" && g.canCoerceStaticExpr(returnType, valueType) {
-			coercedLines, coercedExpr, coercedType, ok := g.lowerCoerceExpectedStaticExpr(ctx, stmtLines, valueExpr, valueType, returnType)
-			if !ok {
-				ctx.setReason("assignment return type mismatch")
-				return nil, "", false
-			}
-			stmtLines = coercedLines
-			valueExpr = coercedExpr
-			valueType = coercedType
-		} else {
-			ctx.setReason("assignment return type mismatch")
-			return nil, "", false
-		}
-	}
-	if returnType == "runtime.Value" {
-		if ifaceType, ok := g.interfaceTypeExpr(ctx.returnTypeExpr); ok {
-			ifaceLines, coerced, ok := g.interfaceReturnExprLines(ctx, valueExpr, ifaceType, ctx.genericNames)
-			if !ok {
-				ctx.setReason("return type mismatch")
-				return nil, "", false
-			}
-			stmtLines = append(stmtLines, ifaceLines...)
-			valueExpr = coerced
-		}
-	}
-	lines = append(lines, stmtLines...)
-	return lines, valueExpr, true
 }
 
 func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([]string, bool) {
@@ -872,7 +805,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 	}
 	switch s := stmt.(type) {
 	case *ast.AssignmentExpression:
-		lines, valueExpr, valueType, ok := g.compileAssignment(ctx, s)
+		lines, valueExpr, valueType, ok := g.compileAssignmentMode(ctx, s, true)
 		if !ok {
 			return nil, false
 		}
@@ -913,7 +846,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 			}
 		}
 		if expr, ok := stmt.(ast.Expression); ok {
-			valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", expr)
+			valueLines, valueExpr, valueType, ok := g.compileDiscardedTailExpression(ctx, expr)
 			if !ok {
 				return nil, false
 			}
@@ -934,7 +867,10 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		if lines, ok := g.compileCountedLoopStatement(ctx, s); ok {
 			return lines, true
 		}
-		valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", s)
+		if lines, ok := g.compileLoopStatement(ctx, s); ok {
+			return lines, true
+		}
+		valueLines, valueExpr, valueType, ok := g.compileDiscardedTailExpression(ctx, s)
 		if !ok {
 			return nil, false
 		}
@@ -966,6 +902,8 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		return g.compileLocalMethodsDefinitionStatement(ctx, s)
 	case *ast.ImplementationDefinition:
 		return g.compileLocalImplementationDefinitionStatement(ctx, s)
+	case *ast.DynImportStatement:
+		return g.compileDynImportStatement(ctx, s)
 	case *ast.RaiseStatement:
 		return g.compileRaiseStatement(ctx, s)
 	case *ast.RethrowStatement:
@@ -978,6 +916,9 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 			return nil, false
 		}
 		if s.Argument == nil {
+			if g.isNilType(ctx.returnType) {
+				return []string{"return runtime.NilValue{}, nil"}, true
+			}
 			if !g.isVoidType(ctx.returnType) {
 				if successExpr, ok := g.nativeResultVoidSuccessExpr(ctx, ctx.returnType); ok {
 					return []string{fmt.Sprintf("return %s, nil", successExpr)}, true
@@ -998,7 +939,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		}
 		if g.isVoidType(ctx.returnType) {
 			var lines []string
-			stmtLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", s.Argument)
+			stmtLines, valueExpr, valueType, ok := g.compileDiscardedTailExpression(ctx, s.Argument)
 			if !ok {
 				return nil, false
 			}
@@ -1031,7 +972,7 @@ func (g *generator) compileStatement(ctx *compileContext, stmt ast.Statement) ([
 		return g.compileBlockStatement(ctx, s)
 	default:
 		if expr, ok := stmt.(ast.Expression); ok {
-			valueLines, valueExpr, valueType, ok := g.compileTailExpression(ctx, "", expr)
+			valueLines, valueExpr, valueType, ok := g.compileDiscardedTailExpression(ctx, expr)
 			if !ok {
 				return nil, false
 			}

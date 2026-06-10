@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-23T21:14:32Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 60,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "concurrent_scene_tiles",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-scene-tiles/go-1.26/app.go",
+      "source_sha256": "ed49208100202d9390b5f7dad3d895cf475dcb444c8e60c137411f0c12828eff",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0045,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.005328077,
+          "stdout_sha256": "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.003532553,
+          "stdout_sha256": "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.004004849,
+          "stdout_sha256": "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.00436739,
+          "stdout_sha256": "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.005118868,
+          "stdout_sha256": "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    }
+  ]
+}

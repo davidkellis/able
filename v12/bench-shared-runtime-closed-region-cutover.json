@@ -1,0 +1,233 @@
+{
+  "kind": "able-shared-runtime-closed-region-cutover-evidence",
+  "schema_version": 1,
+  "sources": {
+    "semantic_abi_feasibility": "v12/docs/perf-baselines/2026-07-22-shared-runtime-semantic-abi-feasibility.json",
+    "shadow_flow": "v12/docs/perf-baselines/2026-07-22-semantic-abi-shadow-image-lowering.json",
+    "native_hot_tier": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
+    "production_pilot": "v12/docs/perf-baselines/2026-07-22-shared-value-heap-production-pilot.json",
+    "portable_frontier": "v12/docs/perf-baselines/2026-07-22-sensor-calibration-interaction-triple-frontier.json",
+    "runtime_values": "v12/interpreters/go/pkg/runtime/values.go",
+    "runtime_environment": "v12/interpreters/go/pkg/runtime/environment.go",
+    "interpreter_state": "v12/interpreters/go/pkg/interpreter/interpreter.go",
+    "bytecode_state": "v12/interpreters/go/pkg/interpreter/bytecode_vm_types.go",
+    "fixed_width_128": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+    "distance_field": "v12/examples/benchmarks/distance_field/distance_field.able",
+    "word_frequency": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+    "array_slice_window": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+    "reverse_complement": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+    "stdlib_string": "../able-stdlib/src/text/string.able",
+    "stdlib_math": "../able-stdlib/src/math.able"
+  },
+  "cut_contract": {
+    "minimum_unlike_families": 3,
+    "minimum_target_excess_reduction_percent": 25.0,
+    "required": {
+      "single_semantic_owner": true,
+      "exact_pre_entry_fallback": true,
+      "no_live_frame_conversion": true,
+      "no_identity_graph_conversion": true,
+      "no_call_return_cell_veneer": true,
+      "no_per_operation_go_transition": true,
+      "no_duplicate_language_runtime": true,
+      "bounded_below_interpreter_instance": true
+    }
+  },
+  "ownership_domains": [
+    {
+      "id": "value-representation-and-object-identity",
+      "source": "runtime_values",
+      "markers": [
+        "type Value interface",
+        "type StructInstanceValue struct",
+        "Underlying      Value"
+      ]
+    },
+    {
+      "id": "collections-mutation-and-alias-storage",
+      "source": "runtime_values",
+      "markers": [
+        "type ArrayValue struct",
+        "Elements       []Value",
+        "type HashMapEntry struct"
+      ]
+    },
+    {
+      "id": "environments-closures-and-globals",
+      "source": "runtime_environment",
+      "markers": [
+        "type Environment struct",
+        "values       map[string]Value",
+        "inlineValues [environmentInlineBindingCapacity]Value"
+      ]
+    },
+    {
+      "id": "calls-native-boundaries-and-host-roots",
+      "source": "runtime_values",
+      "markers": [
+        "type NativeFunc func",
+        "type NativeFunctionValue struct",
+        "type FutureValue struct"
+      ]
+    },
+    {
+      "id": "control-errors-and-evaluation-state",
+      "source": "interpreter_state",
+      "markers": [
+        "raiseStack        []runtime.Value",
+        "implicitReceivers []runtime.Value",
+        "result runtime.Value"
+      ]
+    },
+    {
+      "id": "bytecode-slots-stacks-and-call-frames",
+      "source": "bytecode_state",
+      "markers": [
+        "type bytecodeCallFrame struct",
+        "slots                []runtime.Value",
+        "type bytecodeOperandStack []runtime.Value"
+      ]
+    },
+    {
+      "id": "definitions-types-and-dynamic-dispatch",
+      "source": "runtime_values",
+      "markers": [
+        "type StructDefinitionValue struct",
+        "type InterfaceDefinitionValue struct",
+        "Methods         map[string]Value"
+      ]
+    }
+  ],
+  "applications": [
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "function": "ordered_select_checksum",
+      "source": "fixed_width_128",
+      "source_markers": [
+        "fn ordered_select_checksum() -> UInt128",
+        "candidate := UInt128.new(high, low)",
+        "print_words(ordered_select_checksum())"
+      ],
+      "transitive_internalization_bounded": false,
+      "minimum_closed_scope": "interpreter-instance-runtime",
+      "required_ownership_domains": [
+        "value-representation-and-object-identity",
+        "environments-closures-and-globals",
+        "calls-native-boundaries-and-host-roots",
+        "control-errors-and-evaluation-state",
+        "bytecode-slots-stacks-and-call-frames",
+        "definitions-types-and-dynamic-dispatch"
+      ],
+      "reason": "The hot function creates and returns a nominal UInt128 object into a legacy caller. Preserving its exact identity without a return veneer requires the caller, nominal constructors, dispatch metadata, environments, and frames to share the new owner."
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "function": "main",
+      "source": "distance_field",
+      "source_markers": [
+        "fn main()",
+        "math.hypot(dx, dy)",
+        "print(total)"
+      ],
+      "transitive_internalization_bounded": true,
+      "minimum_closed_scope": "function-plus-transitive-primitive-kernel",
+      "required_ownership_domains": [
+        "value-representation-and-object-identity",
+        "calls-native-boundaries-and-host-roots",
+        "control-errors-and-evaluation-state"
+      ],
+      "reason": "The entry has no identity-bearing arguments or result. A bounded cut is possible only if hypot, sqrt, and the f64 sqrt kernel operation execute inside the semantic runtime; print remains one declared terminal host effect."
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map",
+      "function": "split",
+      "source": "stdlib_string",
+      "source_markers": [
+        "fn split(self: Self, delimiter: String) -> Array String",
+        "result: Array String",
+        "result.push"
+      ],
+      "context_source": "word_frequency",
+      "context_markers": [
+        "for word in lines.get(i)!.split(\" \")",
+        "counts.set(word, next)"
+      ],
+      "transitive_internalization_bounded": false,
+      "minimum_closed_scope": "interpreter-instance-runtime",
+      "required_ownership_domains": [
+        "value-representation-and-object-identity",
+        "collections-mutation-and-alias-storage",
+        "environments-closures-and-globals",
+        "calls-native-boundaries-and-host-roots",
+        "control-errors-and-evaluation-state",
+        "bytecode-slots-stacks-and-call-frames",
+        "definitions-types-and-dynamic-dispatch"
+      ],
+      "reason": "Each hot split call receives legacy String identities and constructs an Array of Strings consumed by iterator and map logic. Avoiding per-call or graph adapters expands ownership through strings, arrays, iterators, maps, dispatch, environments, and frames."
+    },
+    {
+      "benchmark": "array_slice_window",
+      "family": "array-iterator",
+      "function": "rolling_checksum",
+      "source": "array_slice_window",
+      "source_markers": [
+        "fn rolling_checksum(values: Array i32) -> i64",
+        "values.slice(start, end) match",
+        "batch.read_slot(index)"
+      ],
+      "transitive_internalization_bounded": false,
+      "minimum_closed_scope": "interpreter-instance-runtime",
+      "required_ownership_domains": [
+        "value-representation-and-object-identity",
+        "collections-mutation-and-alias-storage",
+        "environments-closures-and-globals",
+        "calls-native-boundaries-and-host-roots",
+        "control-errors-and-evaluation-state",
+        "bytecode-slots-stacks-and-call-frames",
+        "definitions-types-and-dynamic-dispatch"
+      ],
+      "reason": "The legacy caller owns the input Array and the function repeatedly slices, reads, type-matches, and may raise IndexError. A borrowed handle would cause per-operation exits; conversion would break alias and error identity."
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "byte-text",
+      "function": "reverse_complement_fasta",
+      "source": "reverse_complement",
+      "source_markers": [
+        "fn reverse_complement_fasta(data: Array u8) -> Array u8",
+        "table := build_complement_table()",
+        "write_all(stdout(), reverse_complement_fasta(data))"
+      ],
+      "transitive_internalization_bounded": false,
+      "minimum_closed_scope": "interpreter-instance-runtime",
+      "required_ownership_domains": [
+        "value-representation-and-object-identity",
+        "collections-mutation-and-alias-storage",
+        "environments-closures-and-globals",
+        "calls-native-boundaries-and-host-roots",
+        "control-errors-and-evaluation-state",
+        "bytecode-slots-stacks-and-call-frames",
+        "definitions-types-and-dynamic-dispatch"
+      ],
+      "reason": "The function receives a file-owned Array and returns a newly allocated Array to write_all while mutating several nested arrays. Exact identity and mutation require the I/O roots, containers, calls, environments, and frames to share one owner."
+    }
+  ],
+  "transitive_primitive_kernel": {
+    "source": "stdlib_math",
+    "markers": [
+      "fn hypot(a: f64, b: f64) -> f64",
+      "fn sqrt(value: f64) -> f64",
+      "__able_f64_sqrt(value)"
+    ]
+  },
+  "next_lane": {
+    "id": "portable-concurrent-numeric-application-frontier",
+    "scope": "Add one deterministic numeric/data-parallel portable application covering concurrency, control flow, and arrays/files, with Able tree-walker, bytecode, compiled, Go, Python, and Ruby implementations and verifier-backed outputs.",
+    "why": "The current interaction frontier's highest-ranked minimum-depth triple is concurrency plus control flow plus arrays/text/files. Existing members are text-heavy; a numeric workload can distinguish scheduler cost from string, map, and dispatch costs.",
+    "admission": "Take five independent samples per timed lane, pool additional cohorts when volatile, profile both Able engines, and admit an optimization only when the same generic owner recurs across at least three unlike applications with a modeled material target reduction.",
+    "exclusions": "No WASM work, benchmark-name branches, named-container lowering rules, non-primitive nominal special cases, or retry of a closed shared-runtime/backend mechanism."
+  }
+}

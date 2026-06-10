@@ -20,8 +20,10 @@ func (i *Interpreter) hasherMember(hasher *runtime.HasherValue, member ast.Expre
 	switch ident.Name {
 	case "finish":
 		fn := runtime.NativeFunctionValue{
-			Name:  "hasher.finish",
-			Arity: 0,
+			Name:        "hasher.finish",
+			Arity:       0,
+			BorrowArgs:  true,
+			SkipContext: true,
 			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 1 {
 					return nil, fmt.Errorf("finish expects only a receiver")
@@ -37,8 +39,10 @@ func (i *Interpreter) hasherMember(hasher *runtime.HasherValue, member ast.Expre
 		return &runtime.NativeBoundMethodValue{Receiver: hasher, Method: fn}, nil
 	case "write_bytes":
 		fn := runtime.NativeFunctionValue{
-			Name:  "hasher.write_bytes",
-			Arity: 1,
+			Name:        "hasher.write_bytes",
+			Arity:       1,
+			BorrowArgs:  true,
+			SkipContext: true,
 			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 2 {
 					return nil, fmt.Errorf("write_bytes expects a receiver and a string")
@@ -58,8 +62,10 @@ func (i *Interpreter) hasherMember(hasher *runtime.HasherValue, member ast.Expre
 		return &runtime.NativeBoundMethodValue{Receiver: hasher, Method: fn}, nil
 	case "write_string":
 		fn := runtime.NativeFunctionValue{
-			Name:  "hasher.write_string",
-			Arity: 1,
+			Name:        "hasher.write_string",
+			Arity:       1,
+			BorrowArgs:  true,
+			SkipContext: true,
 			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 2 {
 					return nil, fmt.Errorf("write_string expects a receiver and a string")
@@ -79,8 +85,10 @@ func (i *Interpreter) hasherMember(hasher *runtime.HasherValue, member ast.Expre
 		return &runtime.NativeBoundMethodValue{Receiver: hasher, Method: fn}, nil
 	case "write_bool":
 		fn := runtime.NativeFunctionValue{
-			Name:  "hasher.write_bool",
-			Arity: 1,
+			Name:        "hasher.write_bool",
+			Arity:       1,
+			BorrowArgs:  true,
+			SkipContext: true,
 			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 2 {
 					return nil, fmt.Errorf("write_bool expects a receiver and a bool")
@@ -100,8 +108,10 @@ func (i *Interpreter) hasherMember(hasher *runtime.HasherValue, member ast.Expre
 		return &runtime.NativeBoundMethodValue{Receiver: hasher, Method: fn}, nil
 	case "write_u64":
 		fn := runtime.NativeFunctionValue{
-			Name:  "hasher.write_u64",
-			Arity: 1,
+			Name:        "hasher.write_u64",
+			Arity:       1,
+			BorrowArgs:  true,
+			SkipContext: true,
 			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 2 {
 					return nil, fmt.Errorf("write_u64 expects a receiver and an integer")
@@ -121,8 +131,10 @@ func (i *Interpreter) hasherMember(hasher *runtime.HasherValue, member ast.Expre
 		return &runtime.NativeBoundMethodValue{Receiver: hasher, Method: fn}, nil
 	case "write_i64":
 		fn := runtime.NativeFunctionValue{
-			Name:  "hasher.write_i64",
-			Arity: 1,
+			Name:        "hasher.write_i64",
+			Arity:       1,
+			BorrowArgs:  true,
+			SkipContext: true,
 			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 				if len(args) != 2 {
 					return nil, fmt.Errorf("write_i64 expects a receiver and an integer")
@@ -167,12 +179,5 @@ func integerToUint64(val runtime.Value) (uint64, error) {
 }
 
 func integerToInt64(val runtime.Value) (int64, error) {
-	iv, ok := val.(runtime.IntegerValue)
-	if !ok {
-		return 0, fmt.Errorf("expected integer value")
-	}
-	if n, ok := iv.ToInt64(); ok {
-		return n, nil
-	}
-	return 0, fmt.Errorf("integer out of range for i64")
+	return hostIntegerToInt64(val)
 }

@@ -1,0 +1,241 @@
+{
+  "generated_at": "2026-07-22T05:59:20.973255Z",
+  "suite": "custom",
+  "benchmarks": [
+    "binary_event_log"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-binary-event-log-interpreter-reference-b.json",
+  "go_reference_json": null,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "binary_event_log",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "binary_event_log",
+        "mode": "bytecode",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 6.896,
+        "avg_user_seconds": 6.68,
+        "avg_sys_seconds": 0.174,
+        "avg_gc": 15.2,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 6.64,
+            "user_seconds": 6.43,
+            "sys_seconds": 0.18,
+            "gc_count": 15.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 6.64,
+            "user_seconds": 6.41,
+            "sys_seconds": 0.18,
+            "gc_count": 15.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 7.65,
+            "user_seconds": 7.42,
+            "sys_seconds": 0.19,
+            "gc_count": 16.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 6.84,
+            "user_seconds": 6.64,
+            "sys_seconds": 0.15,
+            "gc_count": 15.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 6.71,
+            "user_seconds": 6.5,
+            "sys_seconds": 0.17,
+            "gc_count": 15.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/binary-event-log/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/binary_event_log/binary_event_log.able",
+          "sha256": "658bf062ac063af7302544b1e9d2bc30d21c5c3b535e48634f40c20ba2c8d2ea"
+        },
+        "execution_contract": {
+          "mode": "bytecode",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "0",
+          "executor_policy": "serial"
+        }
+      },
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "0",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [
+          {
+            "argument": "events.bin",
+            "path": "/home/david/sync/projects/benchmarks/binary-event-log/events.bin",
+            "sha256": "b1a8e4b24ab6f0ae169112d22fc9fe44ae5c2c604bfda22168084d34ab861bc9"
+          }
+        ],
+        "program_args": [
+          "events.bin"
+        ],
+        "provenance": "measured",
+        "sha256": "d55abb81e0d279f61fd4aebc671770ede1c48bfe61d0b21db4cfdad4a81c26c6",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/binary-event-log/verify.rb",
+          "sha256": "aa1146cc5702cdc8fc0695960c84883a91d2c42fcdd6790f1115e4408366cfe6"
+        }
+      },
+      "comparisons": {
+        "ruby": {
+          "reference_real_seconds": 0.3194,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 21.59048215403882,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/binary-event-log/ruby-4.0/run.rb",
+            "sha256": "423a4b7dc89e049315e8f7dd7efd47d6554356166048e23de36026fb2dba0a59",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.301126674,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.350353364,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.302269287,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.294711254,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.348319219,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "serial"
+          }
+        },
+        "python": {
+          "reference_real_seconds": 0.2385,
+          "reference_implementation": "python-3.14",
+          "ratio": 28.91404612159329,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/binary-event-log/python-3.14/run.py",
+            "sha256": "d2ee02735398e5717b2112985f5ec1cd7a203330b1cf1a09a0cf6c15e304e9e2",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.21334223,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.200118134,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.216516844,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.210034172,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.352394861,
+              "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"
+            }
+          ],
+          "execution_contract": {
+            "mode": "bytecode",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "0",
+            "executor_policy": "serial"
+          }
+        }
+      }
+    }
+  ]
+}

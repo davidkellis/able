@@ -25,7 +25,7 @@ func (vm *bytecodeVM) tryExecF64MatrixRowLoop(program *bytecodeProgram, plan byt
 		return false, nil
 	}
 	if index >= bound {
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.appendStackValue(runtime.NilValue{})
 		vm.ip = plan.successTarget
 		return true, nil
 	}
@@ -87,7 +87,7 @@ func (vm *bytecodeVM) tryExecF64MatrixRowLoop(program *bytecodeProgram, plan byt
 			segmentIdx++
 		}
 		vm.storeI32Slot(plan.indexSlot, int64(end))
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.appendStackValue(runtime.NilValue{})
 		vm.ip = plan.successTarget
 		return true, nil
 	}
@@ -117,7 +117,7 @@ func (vm *bytecodeVM) tryExecF64MatrixRowLoop(program *bytecodeProgram, plan byt
 		return false, nil
 	}
 	vm.storeI32Slot(plan.indexSlot, int64(end))
-	vm.stack = append(vm.stack, runtime.NilValue{})
+	vm.appendStackValue(runtime.NilValue{})
 	vm.ip = plan.successTarget
 	return true, nil
 }

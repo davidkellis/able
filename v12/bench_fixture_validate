@@ -1,0 +1,612 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/bench_fixture_catalog.sh"
+
+DEFAULT_SUITE="fixture-core"
+DEFAULT_MODES="compiled,treewalker,bytecode"
+FIELD_SEP=$'\x1f'
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+GO_CACHE="$GO_DIR/.gocache"
+INTERPRETER_BIN=""
+
+suite_name="$DEFAULT_SUITE"
+benchmarks_csv=""
+benchmarks_override=false
+modes_csv="$DEFAULT_MODES"
+timeout_seconds=30
+build_timeout_seconds=180
+timeout_kill_grace_seconds=5
+build_timeout_kill_grace_seconds=10
+go_mem_limit="1GiB"
+go_gc="50"
+output_json=""
+output_md=""
+keep_workdir=false
+workdir=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_fixture_validate [options]
+
+Examples:
+  v12/bench_fixture_validate --suite fixture-external-small
+  v12/bench_fixture_validate --suite fixture-numeric --timeout 20
+  v12/bench_fixture_validate --benchmarks tapelang_small,lazy_seq_take_i32_small
+  v12/bench_fixture_validate --output-json /tmp/fixture-validate.json --output-md /tmp/fixture-validate.md
+
+Options:
+      --suite NAME        Fixture suite preset (default: fixture-core)
+      --list-suites       Print available suite names and members
+  -b, --benchmarks CSV    Explicit fixture benchmark list
+  -m, --modes CSV         Modes: compiled,treewalker,bytecode (default: all)
+  -t, --timeout SEC       Timeout per benchmark run in seconds (default: 30)
+      --build-timeout SEC Timeout for compiled-mode build in seconds (default: 180)
+      --go-mem-limit VAL  GOMEMLIMIT for build/run processes (default: 1GiB)
+      --go-gc N           GOGC for build/run processes (default: 50)
+      --output-json PATH  Optional JSON report path
+      --output-md PATH    Optional Markdown summary path
+      --workdir DIR       Working directory for artifacts
+      --keep              Keep working directory after completion
+  -h, --help              Show this help
+
+Notes:
+  - Runs one benchmark at a time to keep peak memory bounded.
+  - Compares normalized stdout hashes across modes and keeps a readable display
+    value when the output is small text.
+  - Reports per-mode status plus peak RSS in KB from /usr/bin/time.
+EOF
+}
+
+die() {
+  echo "bench_fixture_validate: $*" >&2
+  exit 1
+}
+
+is_int() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+sanitize_tsv_field() {
+  local s="$1"
+  s="${s//$'\t'/ }"
+  s="${s//$'\n'/ }"
+  s="${s//$'\r'/ }"
+  printf '%s' "$s"
+}
+
+print_fields() {
+  local first=true
+  local field
+  for field in "$@"; do
+    if [[ "$first" == true ]]; then
+      printf '%s' "$field"
+      first=false
+    else
+      printf '%s%s' "$FIELD_SEP" "$field"
+    fi
+  done
+  printf '\n'
+}
+
+last_nonempty_line() {
+  awk 'NF { line = $0 } END { print line }' "$1"
+}
+
+has_nul_bytes() {
+  if cmp -s <(LC_ALL=C tr -d '\000' <"$1") "$1"; then
+    return 1
+  fi
+  return 0
+}
+
+display_value_for_file() {
+  local file="$1"
+  local hash="$2"
+  local byte_count line_count
+  byte_count="$(wc -c <"$file" | tr -d '[:space:]')"
+  line_count="$(wc -l <"$file" | tr -d '[:space:]')"
+
+  if [[ ! -s "$file" ]]; then
+    printf '%s' ""
+    return
+  fi
+
+  if has_nul_bytes "$file"; then
+    printf 'sha256:%s' "$hash"
+    return
+  fi
+
+  if (( byte_count > 256 || line_count > 8 )); then
+    printf 'sha256:%s' "$hash"
+    return
+  fi
+
+  sanitize_tsv_field "$(last_nonempty_line "$file")"
+}
+
+list_suites() {
+  local suite
+  for suite in $(bench_fixture_suite_names); do
+    printf '%s\t%s\n' "$suite" "$(bench_fixture_suite_csv "$SCRIPT_DIR" "$suite")"
+  done
+}
+
+resolve_output_paths() {
+  if [[ -n "$output_json" ]]; then
+    output_json="$(realpath -m "$output_json")"
+    mkdir -p "$(dirname "$output_json")"
+  fi
+  if [[ -n "$output_md" ]]; then
+    output_md="$(realpath -m "$output_md")"
+    mkdir -p "$(dirname "$output_md")"
+  fi
+}
+
+parse_modes() {
+  IFS=',' read -r -a requested_modes <<<"$modes_csv"
+  modes=()
+  local mode
+  for mode in "${requested_modes[@]}"; do
+    [[ -n "$mode" ]] || continue
+    case "$mode" in
+      compiled|treewalker|bytecode)
+        modes+=("$mode")
+        ;;
+      *)
+        die "unknown mode: $mode"
+        ;;
+    esac
+  done
+  [[ ${#modes[@]} -gt 0 ]] || die "no modes selected"
+}
+
+parse_benchmarks() {
+  if [[ "$benchmarks_override" == false ]]; then
+    benchmarks_csv="$(bench_fixture_suite_csv "$SCRIPT_DIR" "$suite_name" 2>/dev/null)" || die "unknown suite: $suite_name"
+  fi
+  IFS=',' read -r -a requested_benchmarks <<<"$benchmarks_csv"
+  benchmarks=()
+  local bench
+  for bench in "${requested_benchmarks[@]}"; do
+    [[ -n "$bench" ]] || continue
+    bench_fixture_dir "$SCRIPT_DIR" "$bench" >/dev/null 2>&1 || die "unknown fixture benchmark: $bench"
+    benchmarks+=("$bench")
+  done
+  [[ ${#benchmarks[@]} -gt 0 ]] || die "no benchmarks selected"
+}
+
+prepare_workdir() {
+  if [[ -n "$workdir" ]]; then
+    WORK_DIR="$(realpath -m "$workdir")"
+    mkdir -p "$WORK_DIR"
+  else
+    mkdir -p "$SCRIPT_DIR/tmp/perf"
+    WORK_DIR="$(mktemp -d "$SCRIPT_DIR/tmp/perf/fixture-validate.XXXXXX")"
+  fi
+  TSV_FILE="$WORK_DIR/results.tsv"
+  print_fields \
+    "benchmark" "parity" "baseline_value" \
+    "compiled_status" "compiled_value" "compiled_rss_kb" "compiled_sha256" \
+    "treewalker_status" "treewalker_value" "treewalker_rss_kb" "treewalker_sha256" \
+    "bytecode_status" "bytecode_value" "bytecode_rss_kb" "bytecode_sha256" >"$TSV_FILE"
+}
+
+build_interpreter_bin() {
+  local need_bin=false
+  local mode
+  for mode in "${modes[@]}"; do
+    if [[ "$mode" == "treewalker" || "$mode" == "bytecode" ]]; then
+      need_bin=true
+      break
+    fi
+  done
+  [[ "$need_bin" == true ]] || return 0
+
+  mkdir -p "$GO_CACHE"
+  INTERPRETER_BIN="$WORK_DIR/able-interpreter"
+
+  set +e
+  env GOCACHE="$GO_CACHE" GOMEMLIMIT="$go_mem_limit" GOGC="$go_gc" \
+    timeout -k "$build_timeout_kill_grace_seconds" "$build_timeout_seconds" \
+      go build -C "$GO_DIR" -o "$INTERPRETER_BIN" ./cmd/able \
+      >"$WORK_DIR/interpreter.build.stdout" 2>"$WORK_DIR/interpreter.build.stderr"
+  local rc=$?
+  set -e
+
+  if ((rc != 0)); then
+    if ((rc == 124)); then
+      die "interpreter build timed out"
+    fi
+    die "interpreter build failed; see $WORK_DIR/interpreter.build.stderr"
+  fi
+}
+
+cleanup() {
+  if [[ "$keep_workdir" == false ]]; then
+    rm -rf "$WORK_DIR"
+  fi
+}
+
+run_mode() {
+  local bench="$1"
+  local bench_dir="$2"
+  local entry_abs="$3"
+  local mode="$4"
+  local bench_tmp="$5"
+  shift 5
+  local -a program_args=("$@")
+
+  local stdout_file stderr_file rss_file build_stderr build_stdout bin_path normalized_file
+  stdout_file="$bench_tmp/$mode.stdout"
+  stderr_file="$bench_tmp/$mode.stderr"
+  rss_file="$bench_tmp/$mode.rss"
+  build_stdout="$bench_tmp/$mode.build.stdout"
+  build_stderr="$bench_tmp/$mode.build.stderr"
+  bin_path="$bench_tmp/$bench.bin"
+  normalized_file="$bench_tmp/$mode.normalized"
+
+  local -a cmd
+  local run_rc=0
+
+  case "$mode" in
+    compiled)
+      set +e
+      (
+        cd "$bench_dir"
+        env GOMEMLIMIT="$go_mem_limit" GOGC="$go_gc" \
+          timeout -k "$build_timeout_kill_grace_seconds" "$build_timeout_seconds" \
+            "$SCRIPT_DIR/able" build --bin "$bin_path" "$entry_abs"
+      ) >"$build_stdout" 2>"$build_stderr"
+      run_rc=$?
+      set -e
+
+      if ((run_rc != 0)); then
+        if ((run_rc == 124)); then
+          print_fields "build_timeout" "-" "-" "-"
+        else
+          print_fields "build_error" "-" "-" "-"
+        fi
+        return 0
+      fi
+
+      cmd=(env GOMEMLIMIT="$go_mem_limit" GOGC="$go_gc" timeout -k "$timeout_kill_grace_seconds" "$timeout_seconds" "$bin_path" "${program_args[@]}")
+      ;;
+    treewalker)
+      cmd=(env GOMEMLIMIT="$go_mem_limit" GOGC="$go_gc" timeout -k "$timeout_kill_grace_seconds" "$timeout_seconds" "$INTERPRETER_BIN" --exec-mode=treewalker "$entry_abs" "${program_args[@]}")
+      ;;
+    bytecode)
+      cmd=(env GOMEMLIMIT="$go_mem_limit" GOGC="$go_gc" timeout -k "$timeout_kill_grace_seconds" "$timeout_seconds" "$INTERPRETER_BIN" --exec-mode=bytecode "$entry_abs" "${program_args[@]}")
+      ;;
+  esac
+
+  set +e
+  (
+    cd "$bench_dir"
+    /usr/bin/time -q -f '%M' -o "$rss_file" "${cmd[@]}"
+  ) >"$stdout_file" 2>"$stderr_file"
+  run_rc=$?
+  set -e
+
+  if [[ "$mode" == "treewalker" || "$mode" == "bytecode" ]]; then
+    if head -n 1 "$stdout_file" | grep -q '^\[Able v12 '; then
+      tail -n +2 "$stdout_file" >"$normalized_file"
+    else
+      cp "$stdout_file" "$normalized_file"
+    fi
+  else
+    cp "$stdout_file" "$normalized_file"
+  fi
+
+  local status value rss hash
+  rss=""
+  [[ -f "$rss_file" ]] && rss="$(tr -d '[:space:]' <"$rss_file")"
+  if [[ -f "$normalized_file" ]]; then
+    hash="$(sha256sum "$normalized_file" | awk '{print $1}')"
+    value="$(display_value_for_file "$normalized_file" "$hash")"
+  else
+    hash=""
+    value=""
+  fi
+
+  if ((run_rc == 0)); then
+    status="ok"
+  elif ((run_rc == 124)); then
+    status="timeout"
+  else
+    status="error"
+    if [[ -z "$value" ]]; then
+      value="$(sanitize_tsv_field "$(last_nonempty_line "$stderr_file")")"
+    fi
+  fi
+
+  [[ -n "$value" ]] || value="-"
+  [[ -n "$rss" ]] || rss="-"
+  [[ -n "$hash" ]] || hash="-"
+
+  print_fields "$status" "$value" "$rss" "$hash"
+}
+
+write_json_report() {
+  [[ -n "$output_json" ]] || return 0
+
+  {
+    printf '{\n'
+    printf '  "suite": "%s",\n' "$(json_escape "$suite_name")"
+    printf '  "benchmarks_csv": "%s",\n' "$(json_escape "$benchmarks_csv")"
+    printf '  "modes_csv": "%s",\n' "$(json_escape "$modes_csv")"
+    printf '  "timeout_seconds": %s,\n' "$timeout_seconds"
+    printf '  "build_timeout_seconds": %s,\n' "$build_timeout_seconds"
+    printf '  "go_mem_limit": "%s",\n' "$(json_escape "$go_mem_limit")"
+    printf '  "go_gc": "%s",\n' "$(json_escape "$go_gc")"
+    printf '  "results": [\n'
+
+    local first=true
+    local benchmark parity baseline_value compiled_status compiled_value compiled_rss_kb compiled_sha256
+    local treewalker_status treewalker_value treewalker_rss_kb treewalker_sha256
+    local bytecode_status bytecode_value bytecode_rss_kb bytecode_sha256
+    while IFS="$FIELD_SEP" read -r benchmark parity baseline_value compiled_status compiled_value compiled_rss_kb compiled_sha256 treewalker_status treewalker_value treewalker_rss_kb treewalker_sha256 bytecode_status bytecode_value bytecode_rss_kb bytecode_sha256; do
+      [[ "$benchmark" == "benchmark" ]] && continue
+      if [[ "$first" == true ]]; then
+        first=false
+      else
+        printf ',\n'
+      fi
+      printf '    {\n'
+      printf '      "benchmark": "%s",\n' "$(json_escape "$benchmark")"
+      printf '      "parity": "%s",\n' "$(json_escape "$parity")"
+      printf '      "baseline_value": "%s",\n' "$(json_escape "$baseline_value")"
+      printf '      "compiled": {"status": "%s", "value": "%s", "rss_kb": "%s", "sha256": "%s"},\n' \
+        "$(json_escape "$compiled_status")" "$(json_escape "$compiled_value")" "$(json_escape "$compiled_rss_kb")" "$(json_escape "$compiled_sha256")"
+      printf '      "treewalker": {"status": "%s", "value": "%s", "rss_kb": "%s", "sha256": "%s"},\n' \
+        "$(json_escape "$treewalker_status")" "$(json_escape "$treewalker_value")" "$(json_escape "$treewalker_rss_kb")" "$(json_escape "$treewalker_sha256")"
+      printf '      "bytecode": {"status": "%s", "value": "%s", "rss_kb": "%s", "sha256": "%s"}\n' \
+        "$(json_escape "$bytecode_status")" "$(json_escape "$bytecode_value")" "$(json_escape "$bytecode_rss_kb")" "$(json_escape "$bytecode_sha256")"
+      printf '    }'
+    done <"$TSV_FILE"
+
+    printf '\n  ]\n'
+    printf '}\n'
+  } >"$output_json"
+}
+
+write_markdown_report() {
+  [[ -n "$output_md" ]] || return 0
+
+  {
+    printf '# Fixture Validation\n\n'
+    printf -- '- Suite: `%s`\n' "$suite_name"
+    printf -- '- Benchmarks: `%s`\n' "$benchmarks_csv"
+    printf -- '- Modes: `%s`\n' "$modes_csv"
+    printf -- '- Timeout: `%ss`\n' "$timeout_seconds"
+    printf -- '- Build timeout: `%ss`\n' "$build_timeout_seconds"
+    printf -- '- GOMEMLIMIT: `%s`\n' "$go_mem_limit"
+    printf -- '- GOGC: `%s`\n\n' "$go_gc"
+    printf '| Benchmark | Parity | Value | Compiled | Treewalker | Bytecode |\n'
+    printf '| --- | --- | --- | --- | --- | --- |\n'
+
+    local benchmark parity baseline_value compiled_status compiled_value compiled_rss_kb compiled_sha256
+    local treewalker_status treewalker_value treewalker_rss_kb treewalker_sha256
+    local bytecode_status bytecode_value bytecode_rss_kb bytecode_sha256
+    while IFS="$FIELD_SEP" read -r benchmark parity baseline_value compiled_status compiled_value compiled_rss_kb compiled_sha256 treewalker_status treewalker_value treewalker_rss_kb treewalker_sha256 bytecode_status bytecode_value bytecode_rss_kb bytecode_sha256; do
+      [[ "$benchmark" == "benchmark" ]] && continue
+      printf '| `%s` | `%s` | `%s` | `%s / %s KB` | `%s / %s KB` | `%s / %s KB` |\n' \
+        "$benchmark" "$parity" "$baseline_value" \
+        "$compiled_status" "${compiled_rss_kb:-}" \
+        "$treewalker_status" "${treewalker_rss_kb:-}" \
+        "$bytecode_status" "${bytecode_rss_kb:-}"
+    done <"$TSV_FILE"
+  } >"$output_md"
+}
+
+summarize_stdout() {
+  local total=0 match_count=0 mismatch_count=0 partial_count=0
+  local benchmark parity baseline_value compiled_status compiled_value compiled_rss_kb compiled_sha256
+  local treewalker_status treewalker_value treewalker_rss_kb treewalker_sha256
+  local bytecode_status bytecode_value bytecode_rss_kb bytecode_sha256
+
+  echo ">>> Suite: $suite_name"
+  echo ">>> Benchmarks: $benchmarks_csv"
+  echo ">>> Modes: $modes_csv"
+  echo ">>> GOMEMLIMIT=$go_mem_limit GOGC=$go_gc"
+  echo
+
+  while IFS="$FIELD_SEP" read -r benchmark parity baseline_value compiled_status compiled_value compiled_rss_kb compiled_sha256 treewalker_status treewalker_value treewalker_rss_kb treewalker_sha256 bytecode_status bytecode_value bytecode_rss_kb bytecode_sha256; do
+    [[ "$benchmark" == "benchmark" ]] && continue
+    total=$((total + 1))
+    case "$parity" in
+      match) match_count=$((match_count + 1)) ;;
+      mismatch) mismatch_count=$((mismatch_count + 1)) ;;
+      *) partial_count=$((partial_count + 1)) ;;
+    esac
+    printf '%s parity=%s value=%s mem_kb=%s/%s/%s statuses=%s/%s/%s\n' \
+      "$benchmark" "$parity" "$baseline_value" \
+      "${compiled_rss_kb:-}" "${treewalker_rss_kb:-}" "${bytecode_rss_kb:-}" \
+      "$compiled_status" "$treewalker_status" "$bytecode_status"
+  done <"$TSV_FILE"
+
+  echo
+  printf '>>> Summary: total=%s match=%s mismatch=%s partial=%s\n' \
+    "$total" "$match_count" "$mismatch_count" "$partial_count"
+  echo ">>> Workdir: $WORK_DIR"
+  if [[ -n "$output_json" ]]; then
+    echo ">>> JSON: $output_json"
+  fi
+  if [[ -n "$output_md" ]]; then
+    echo ">>> Markdown: $output_md"
+  fi
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --suite)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --suite"
+      suite_name="$1"
+      ;;
+    --list-suites)
+      list_suites
+      exit 0
+      ;;
+    -b|--benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      benchmarks_override=true
+      ;;
+    -m|--modes)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --modes"
+      modes_csv="$1"
+      ;;
+    -t|--timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --timeout"
+      timeout_seconds="$1"
+      ;;
+    --build-timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --build-timeout"
+      build_timeout_seconds="$1"
+      ;;
+    --go-mem-limit)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --go-mem-limit"
+      go_mem_limit="$1"
+      ;;
+    --go-gc)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --go-gc"
+      go_gc="$1"
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-json"
+      output_json="$1"
+      ;;
+    --output-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-md"
+      output_md="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --workdir"
+      workdir="$1"
+      ;;
+    --keep)
+      keep_workdir=true
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+is_int "$timeout_seconds" || die "--timeout must be an integer"
+is_int "$build_timeout_seconds" || die "--build-timeout must be an integer"
+is_int "$go_gc" || die "--go-gc must be an integer"
+
+parse_modes
+parse_benchmarks
+resolve_output_paths
+prepare_workdir
+trap cleanup EXIT
+build_interpreter_bin
+
+for local_bench in "${benchmarks[@]}"; do
+  bench_dir="$(bench_fixture_dir "$SCRIPT_DIR" "$local_bench")"
+  entry_rel="$(bench_fixture_entry "$SCRIPT_DIR" "$local_bench")"
+  entry_abs="$bench_dir/$entry_rel"
+  bench_tmp="$(mktemp -d "$WORK_DIR/${local_bench}.XXXXXX")"
+  mapfile -t program_args < <(bench_fixture_program_args "$SCRIPT_DIR" "$local_bench" 2>/dev/null || true)
+
+  compiled_status="skipped"
+  compiled_value=""
+  compiled_rss_kb=""
+  compiled_sha256=""
+  treewalker_status="skipped"
+  treewalker_value=""
+  treewalker_rss_kb=""
+  treewalker_sha256=""
+  bytecode_status="skipped"
+  bytecode_value=""
+  bytecode_rss_kb=""
+  bytecode_sha256=""
+
+  for mode in "${modes[@]}"; do
+    IFS="$FIELD_SEP" read -r mode_status mode_value mode_rss_kb mode_sha256 < <(run_mode "$local_bench" "$bench_dir" "$entry_abs" "$mode" "$bench_tmp" "${program_args[@]}")
+    case "$mode" in
+      compiled)
+        compiled_status="$mode_status"
+        compiled_value="$mode_value"
+        compiled_rss_kb="$mode_rss_kb"
+        compiled_sha256="$mode_sha256"
+        ;;
+      treewalker)
+        treewalker_status="$mode_status"
+        treewalker_value="$mode_value"
+        treewalker_rss_kb="$mode_rss_kb"
+        treewalker_sha256="$mode_sha256"
+        ;;
+      bytecode)
+        bytecode_status="$mode_status"
+        bytecode_value="$mode_value"
+        bytecode_rss_kb="$mode_rss_kb"
+        bytecode_sha256="$mode_sha256"
+        ;;
+    esac
+  done
+
+  baseline_value=""
+  baseline_sha256=""
+  if [[ "$compiled_status" == "ok" ]]; then
+    baseline_value="$compiled_value"
+    baseline_sha256="$compiled_sha256"
+  elif [[ "$treewalker_status" == "ok" ]]; then
+    baseline_value="$treewalker_value"
+    baseline_sha256="$treewalker_sha256"
+  elif [[ "$bytecode_status" == "ok" ]]; then
+    baseline_value="$bytecode_value"
+    baseline_sha256="$bytecode_sha256"
+  fi
+
+  parity="partial"
+  if [[ -n "$baseline_sha256" && "$compiled_status" == "ok" && "$treewalker_status" == "ok" && "$bytecode_status" == "ok" ]]; then
+    if [[ "$compiled_sha256" == "$treewalker_sha256" && "$compiled_sha256" == "$bytecode_sha256" ]]; then
+      parity="match"
+    else
+      parity="mismatch"
+    fi
+  fi
+
+  print_fields \
+    "$local_bench" "$parity" "$baseline_value" \
+    "$compiled_status" "$compiled_value" "$compiled_rss_kb" "$compiled_sha256" \
+    "$treewalker_status" "$treewalker_value" "$treewalker_rss_kb" "$treewalker_sha256" \
+    "$bytecode_status" "$bytecode_value" "$bytecode_rss_kb" "$bytecode_sha256" >>"$TSV_FILE"
+done
+
+write_json_report
+write_markdown_report
+summarize_stdout

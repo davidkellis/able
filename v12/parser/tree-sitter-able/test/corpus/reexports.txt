@@ -1,0 +1,17 @@
+==================
+Source Re-exports
+==================
+
+export Array;
+export * from able.collections.array;
+
+---
+
+(source_file
+  (export_statement
+    name: (identifier))
+  (export_statement
+    path: (import_path
+      (identifier)
+      (identifier)
+      (identifier))))

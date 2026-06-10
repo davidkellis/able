@@ -388,7 +388,7 @@ Able mirrors Go-style semantics with shared interfaces across runtimes.
 
 ```able
 handle: Future String = spawn fetch(url)
-future_flush(32) ## advance cooperative scheduler (TS runtime exposes this helper)
+future_flush() ## drain currently runnable spawned work
 
 handle.status() match {
   case Pending => log("waiting..."),
@@ -400,7 +400,7 @@ handle.status() match {
 body = handle.value() else { "fallback" }
 ```
 
-`Future` exposes `status()`, `value() -> !T`, and `cancel()`. Helpers inside async bodies: `future_yield()`, `future_cancelled()`, `future_flush(limit?)`, `future_pending_tasks()` (diagnostic).
+`Future` exposes `status()`, `value() -> !T`, and `cancel()`. Helpers inside async bodies: `future_yield()`, `future_cancelled()`, `future_flush()`, `future_pending_tasks()` (diagnostic).
 
 ### 9.2 Future handle vs value view
 
@@ -417,7 +417,7 @@ body = handle.value() else { "fallback" }
 
 ### 9.5 Cancellation & Re-entrancy
 
-Blocking operations must observe task cancellation. `value()` calls are re-entrant: nested waits must continue to make progress in both runtimes.
+Blocking operations must observe task cancellation. `value()` calls are re-entrant: nested waits must continue to make progress in every conforming runtime.
 
 ## 10. Modules & Packages
 
@@ -473,7 +473,12 @@ Helpers: `size`, `push`, `pop`, `get`, `set`, `clear` with `IndexError` on inval
 
 ### 11.3 Text Regex (`able.text.regex`)
 
-Deterministic (RE2-style) regexes with compile/match/split/replace helpers, regex sets, streaming scanner, and grapheme-aware options. Literal-only compile/match/find_all are available; metacharacters and the advanced helpers still raise `RegexUnsupportedFeature` until the full engine lands.
+Deterministic, RE2-style regexes provide compile/match/split/replace helpers,
+regex sets, streaming scanners, capture groups, builders/program snapshots, and
+grapheme-aware options. Supported expressions run without unbounded
+backtracking; constructs requiring it (such as backreferences) return a
+`RegexError` rather than changing matching semantics. See spec §14.2 for the
+complete API and option contract.
 
 ### 11.4 Interface Catalogue (language-supported)
 
@@ -511,6 +516,12 @@ Embed host-language code via package-scope `prelude <target> { ... }` and `exter
   - targeted fixture paths are supported too, so focused checks like
     `v12/export_fixtures.sh --check expressions/int_addition` do not need to
     walk the whole tree
-- User-facing testing (Able programs): `able test` plus the `able.spec` DSL (backed by `able.test.*`) are planned for end-user test suites and are separate from fixture/parity work.
+- User-facing testing (Able programs): `able test` plus the `able.spec` DSL
+  (backed by `able.test.*`) are implemented and remain separate from
+  fixture/parity work. `.test.able` and `.spec.able` modules share package
+  scope with production code; normal build/run/check ignore them unless
+  `--with-tests` is supplied, while `able test` enables the test profile.
+  See spec §17 and `v12/design/testing-cli-protocol.md` for command options,
+  reporters, and compiled-mode behavior.
 
 Able emphasises clarity, parity between interpreters, and spec-first behaviour. When in doubt, check the v12 spec, add fixtures, and validate in both runtimes.

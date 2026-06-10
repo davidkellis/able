@@ -1,0 +1,21 @@
+package exec_06_03_cast_unproven_interface
+
+## Semantics: an explicit interface cast without static implementation proof is
+## accepted, then rejected by the runtime check when it executes.
+
+interface Display for Self {
+  fn render(self: Self) -> String
+}
+
+struct Opaque {}
+
+fn main() -> void {
+  status := do {
+    Opaque {} as Display
+    "unexpected"
+  } rescue {
+    case _: Error => "runtime-rejected"
+  }
+
+  print(status)
+}

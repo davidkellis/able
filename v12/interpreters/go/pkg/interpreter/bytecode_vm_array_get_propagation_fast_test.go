@@ -41,8 +41,8 @@ func TestBytecodeVM_ArrayGetF64SuccessSkipsFollowingPropagation(t *testing.T) {
 	if len(vm.stack) != 1 {
 		t.Fatalf("stack length = %d, want 1", len(vm.stack))
 	}
-	got, ok := vm.stack[0].(runtime.FloatValue)
-	if !ok || got.Val != 2.5 || got.TypeSuffix != runtime.FloatF64 {
+	result, ok := vm.stack[0].(runtime.FloatValue)
+	if !ok || result.Val != 2.5 || result.TypeSuffix != runtime.FloatF64 {
 		t.Fatalf("Array.get result = %#v, want f64 2.5", vm.stack[0])
 	}
 }

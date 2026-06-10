@@ -13,6 +13,7 @@ func TestBuildTargetFromManifest(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go toolchain not available")
 	}
+	configureBuildTestStdlib(t)
 
 	projectDir := t.TempDir()
 	writeFile(t, filepath.Join(projectDir, "package.yml"), `
@@ -46,6 +47,7 @@ func TestBuildOutputOutsideModuleRoot(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go toolchain not available")
 	}
+	configureBuildTestStdlib(t)
 
 	moduleRoot, err := filepath.Abs(filepath.Join(".", "..", ".."))
 	if err != nil {
@@ -124,6 +126,40 @@ fn main() -> void {
 	}
 }
 
+// configureBuildTestStdlib keeps build tests self-contained. The build command
+// normally bootstraps the canonical stdlib into ABLE_HOME when it is absent;
+// unit tests must instead use the checked-out canonical source and never wait
+// on a network fetch.
+func configureBuildTestStdlib(t *testing.T) {
+	t.Helper()
+
+	_, current, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(current), "..", "..", "..", "..", ".."))
+	stdlibRoot := ""
+	for _, candidate := range []string{
+		filepath.Join(repoRoot, "able-stdlib"),
+		filepath.Join(filepath.Dir(repoRoot), "able-stdlib"),
+	} {
+		if info, err := os.Stat(filepath.Join(candidate, "src")); err == nil && info.IsDir() {
+			stdlibRoot = candidate
+			break
+		}
+	}
+	if stdlibRoot == "" {
+		t.Fatal("checked-out canonical stdlib not found")
+	}
+
+	t.Setenv("ABLE_HOME", t.TempDir())
+	if err := saveGlobalOverrides(map[string]string{
+		normalizeGitURL(defaultStdlibGitURL): stdlibRoot,
+	}); err != nil {
+		t.Fatalf("configure local stdlib override: %v", err)
+	}
+}
+
 func TestBuildNoFallbacksFlagFailsWhenFallbackRequired(t *testing.T) {
 	enterTempWorkingDir(t)
 	entryPath := writeFallbackBuildEntry(t)
@@ -168,25 +204,25 @@ func TestParseBuildArgumentsMonoArraysFromEnv(t *testing.T) {
 	}
 }
 
-func TestParseBuildArgumentsMonoArraysDisabledFromEnv(t *testing.T) {
+func TestParseBuildArgumentsLegacyMonoArraysDisableEnvCannotOptOut(t *testing.T) {
 	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "false")
 	config, _, err := parseBuildArguments([]string{"main.able"})
 	if err != nil {
 		t.Fatalf("parse args: %v", err)
 	}
-	if config.ExperimentalMonoArrays {
-		t.Fatalf("expected mono array experiment disabled from env")
+	if !config.ExperimentalMonoArrays {
+		t.Fatalf("legacy environment setting must not disable native static arrays")
 	}
 }
 
-func TestParseBuildArgumentsMonoArraysFlagOverridesEnv(t *testing.T) {
+func TestParseBuildArgumentsLegacyMonoArraysFlagsCannotOptOut(t *testing.T) {
 	t.Setenv("ABLE_EXPERIMENTAL_MONO_ARRAYS", "true")
 	config, _, err := parseBuildArguments([]string{"--no-experimental-mono-arrays", "main.able"})
 	if err != nil {
 		t.Fatalf("parse args: %v", err)
 	}
-	if config.ExperimentalMonoArrays {
-		t.Fatalf("expected --no-experimental-mono-arrays to override env")
+	if !config.ExperimentalMonoArrays {
+		t.Fatalf("legacy --no-experimental-mono-arrays must not disable native static arrays")
 	}
 
 	config, _, err = parseBuildArguments([]string{"--experimental-mono-arrays", "main.able"})
@@ -195,6 +231,52 @@ func TestParseBuildArgumentsMonoArraysFlagOverridesEnv(t *testing.T) {
 	}
 	if !config.ExperimentalMonoArrays {
 		t.Fatalf("expected --experimental-mono-arrays to enable flag")
+	}
+}
+
+func TestParseBuildArgumentsExperimentalExecutionContextFlag(t *testing.T) {
+	config, remaining, err := parseBuildArguments([]string{"--experimental-execution-context", "main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0] != "main.able" {
+		t.Fatalf("unexpected remaining args: %#v", remaining)
+	}
+	if !config.ExperimentalExecutionContext {
+		t.Fatalf("expected --experimental-execution-context to enable candidate ABI")
+	}
+}
+
+func TestParseBuildArgumentsTypedBoundaryTelemetryFlag(t *testing.T) {
+	config, remaining, err := parseBuildArguments([]string{"--typed-boundary-telemetry", "main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0] != "main.able" {
+		t.Fatalf("unexpected remaining args: %#v", remaining)
+	}
+	if !config.EmitTypedBoundaryTelemetry {
+		t.Fatalf("expected --typed-boundary-telemetry to enable report-only observer")
+	}
+}
+
+func TestParseBuildArgumentsTypedBoundaryTelemetryEnv(t *testing.T) {
+	t.Setenv("ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY", "true")
+	config, _, err := parseBuildArguments([]string{"main.able"})
+	if err != nil {
+		t.Fatalf("parse args: %v", err)
+	}
+	if !config.EmitTypedBoundaryTelemetry {
+		t.Fatalf("expected environment to enable report-only typed-boundary observer")
+	}
+}
+
+func TestParseBuildArgumentsTypedBoundaryTelemetryInvalidEnv(t *testing.T) {
+	t.Setenv("ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY", "maybe")
+	if _, _, err := parseBuildArguments([]string{"main.able"}); err == nil {
+		t.Fatalf("expected invalid ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY to fail parsing")
+	} else if !strings.Contains(err.Error(), "invalid ABLE_COMPILER_TYPED_BOUNDARY_TELEMETRY value") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

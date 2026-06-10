@@ -1,0 +1,43 @@
+package bench_persistent_set_i32_small
+
+import able.collections.persistent_map.{PersistentSet}
+
+fn build(seed: i32, size: i32) -> PersistentSet i32 {
+  values: PersistentSet i32 = PersistentSet.empty()
+  i := 0
+  loop {
+    if i >= size { break }
+    key := ((i * 31) + (seed * 17) + 9) % (size * 4)
+    values = values.insert(key)
+    i = i + 1
+  }
+  values
+}
+
+fn score(left: PersistentSet i32, right: PersistentSet i32, size: i32) -> i64 {
+  merged := left.union(right)
+  values := merged.intersect(left)
+  total: i64 = (merged.len() as i64) + (values.len() as i64)
+  i := 0
+  loop {
+    if i >= size * 2 { break }
+    key := ((i * 19) + 5) % (size * 4)
+    if values.contains(key) {
+      total = total + (key as i64)
+    } else {
+      values = values.insert(key)
+    }
+    if i % 7 == 0 {
+      values = values.remove((i * 11) % (size * 4))
+    }
+    i = i + 1
+  }
+  values.for_each(fn(value: i32) -> void { total = total + (value as i64) })
+  total + (values.len() as i64)
+}
+
+fn main() -> void {
+  left := build(1, 800)
+  right := build(2, 800)
+  print(score(left, right, 800))
+}

@@ -308,6 +308,40 @@ func TestCompilerGenericInterfaceExistentialExecutes(t *testing.T) {
 	compileAndRunSource(t, "ablec-native-generic-iface-", source)
 }
 
+func TestCompilerGenericIteratorRuntimeAdapterDispatchBuilds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping canonical-stdlib generic iterator build regression in short mode")
+	}
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"import able.collections.array",
+		"import able.collections.enumerable",
+		"import able.kernel.{Array}",
+		"",
+		"fn main() -> void {",
+		"  source: Array String = [\"ok\"]",
+		"  mapped := source.lazy().map<i64>({ value => value.len_bytes() as i64 }).collect<Array i64>()",
+		"  print(mapped.len())",
+		"}",
+		"",
+	}, "\n")
+	result := compileNoFallbackSourceWithCanonicalStdlibPaths(t, source)
+	mainBody, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	if strings.Contains(mainBody, `__able_static_generic_union_method_call(`) {
+		t.Fatalf("expected generic Iterator.map to retain interface dispatch instead of a named-union call:\n%s", mainBody)
+	}
+
+	compileAndBuildCanonicalStdlibSource(t, "ablec-generic-iterator-runtime-adapter-", source)
+}
+
 func TestCompilerInterfaceLookupGenericMethodFixturesRegression(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping generic interface fixture regression in short mode")
@@ -848,6 +882,13 @@ func TestCompilerIteratorInterfaceBoundaryAcceptsRuntimeIteratorDirectly(t *test
 	}
 	if !strings.Contains(tryBody, "return __able_iface_Iterator_i32_wrap_runtime(iter), true, nil") {
 		t.Fatalf("expected Iterator<i32> matcher helper to wrap raw runtime iterators directly:\n%s", tryBody)
+	}
+	if iterIdx := strings.Index(tryBody, "__able_runtime_iterator_value(value)"); iterIdx < 0 {
+		t.Fatalf("could not find Iterator<i32> raw runtime-iterator fast path:\n%s", tryBody)
+	} else if rtIdx := strings.Index(tryBody, "missing runtime bridge"); rtIdx < 0 {
+		t.Fatalf("could not find Iterator<i32> runtime bridge guard:\n%s", tryBody)
+	} else if iterIdx > rtIdx {
+		t.Fatalf("expected Iterator<i32> raw runtime-iterator fast path to run before the runtime bridge guard:\n%s", tryBody)
 	}
 	body, ok := findCompiledFunction(result, "__able_iface_Iterator_i32_from_value")
 	if !ok {

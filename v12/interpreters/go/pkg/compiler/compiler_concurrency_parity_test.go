@@ -62,6 +62,36 @@ func TestCompilerConcurrencyParityFixtures(t *testing.T) {
 	}
 }
 
+func TestCompilerGoroutineAwaitFutureFixtureParity(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler goroutine await parity fixture in short mode")
+	}
+	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		root = filepath.Join("..", "..", "fixtures", "exec")
+	}
+	for _, fixture := range []string{
+		"06_01_compiler_await_future",
+		"12_06_await_fairness_cancellation",
+	} {
+		fixture := fixture
+		t.Run(fixture, func(t *testing.T) {
+			dir := filepath.Join(root, fixture)
+			manifest, err := interpreter.LoadFixtureManifest(dir)
+			if err != nil {
+				t.Fatalf("read manifest: %v", err)
+			}
+			if shouldSkipTarget(manifest.SkipTargets, "go") {
+				return
+			}
+			manifest.Executor = "goroutine"
+			tree := runTreewalkerFixtureOutcome(t, dir, manifest)
+			compiled := runCompiledFixtureOutcome(t, dir, manifest)
+			assertCompilerFixtureOutcomeParity(t, tree, compiled)
+		})
+	}
+}
+
 func resolveCompilerConcurrencyParityFixtures() []string {
 	if raw := strings.TrimSpace(os.Getenv(compilerConcurrencyParityFixtureEnv)); raw != "" {
 		parts := strings.FieldsFunc(raw, func(r rune) bool {
@@ -96,6 +126,7 @@ func resolveCompilerConcurrencyParityFixtures() []string {
 		"12_06_await_fairness_cancellation",
 		"12_07_channel_mutex_error_types",
 		"12_08_blocking_io_concurrency",
+		"12_09_nested_spawn_native_context",
 		"15_04_background_work_flush",
 	}
 }
@@ -120,6 +151,7 @@ fn main() -> void {
   future_flush()
   print(` + "`pending ${future_pending_tasks()}`" + `)
 }
+
 `
 	entryPath := filepath.Join(workDir, "main.able")
 	if err := os.WriteFile(entryPath, []byte(source), 0o600); err != nil {
@@ -214,5 +246,91 @@ fn main() -> void {
 	}
 	if treePending < 1 {
 		t.Fatalf("expected blocked task to remain pending after treewalker flush, got %d", treePending)
+	}
+}
+
+func TestCompilerGoroutineMutexContentionCompletes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping compiler goroutine mutex contention test in short mode")
+	}
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not available")
+	}
+
+	moduleRoot, workDir := compilerTestWorkDir(t, "ablec-goroutine-mutex")
+	source := `package compiler_mutex_contention
+
+fn worker(handle: i64) -> i64 {
+  __able_mutex_lock(handle)
+  __able_mutex_unlock(handle)
+  1_i64
+}
+
+fn main() -> void {
+  handle := __able_mutex_new()
+  __able_mutex_lock(handle)
+  first := spawn { worker(handle) }
+  second := spawn { worker(handle) }
+  third := spawn { worker(handle) }
+  fourth := spawn { worker(handle) }
+  future_flush()
+  __able_mutex_unlock(handle)
+  total := (first.value()! as i64) + (second.value()! as i64) + (third.value()! as i64) + (fourth.value()! as i64)
+  print(` + "`" + `${total}` + "`" + `)
+}
+`
+	entryPath := filepath.Join(workDir, "main.able")
+	if err := os.WriteFile(entryPath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	loader, err := driver.NewLoader(nil)
+	if err != nil {
+		t.Fatalf("loader init: %v", err)
+	}
+	t.Cleanup(func() { loader.Close() })
+	program, err := loader.Load(entryPath)
+	if err != nil {
+		t.Fatalf("load program: %v", err)
+	}
+
+	result, err := New(Options{
+		PackageName:        "main",
+		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
+	}).Compile(program)
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	if err := result.Write(workDir); err != nil {
+		t.Fatalf("write output: %v", err)
+	}
+	harness := compilerHarnessSource(entryPath, nil, "goroutine")
+	if err := os.WriteFile(filepath.Join(workDir, "main.go"), []byte(harness), 0o600); err != nil {
+		t.Fatalf("write harness: %v", err)
+	}
+
+	binPath := filepath.Join(workDir, "compiled-goroutine-mutex")
+	if goruntime.GOOS == "windows" {
+		binPath += ".exe"
+	}
+	build := exec.Command("go", "build", "-o", binPath, ".")
+	build.Dir = workDir
+	build.Env = withEnv(os.Environ(), "GOCACHE", compilerExecGocache(moduleRoot))
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("go build failed: %v\n%s", err, string(output))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	run := exec.CommandContext(ctx, binPath)
+	output, err := run.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("compiled run timed out; mutex waiters did not make progress\n%s", string(output))
+	}
+	if err != nil {
+		t.Fatalf("compiled run failed: %v\n%s", err, string(output))
+	}
+	if got := strings.TrimSpace(string(output)); got != "4" {
+		t.Fatalf("compiled mutex contention output = %q, want 4", got)
 	}
 }

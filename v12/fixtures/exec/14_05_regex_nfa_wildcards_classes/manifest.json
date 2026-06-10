@@ -1,0 +1,13 @@
+{
+  "description": "wildcard and character-class NFA transitions honor Unicode code points and byte spans",
+  "expect": {
+    "stdout": [
+      "wildcard aéc 1-5",
+      "newline nil",
+      "class abc 1-4",
+      "unicode_class éê 1-5",
+      "negated Able 2-6",
+      "range_error rejected"
+    ]
+  }
+}

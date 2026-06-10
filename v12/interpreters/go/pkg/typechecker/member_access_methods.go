@@ -6,12 +6,18 @@ import (
 )
 
 func (c *Checker) lookupMethod(object Type, name string, allowMethodSets bool, allowTypeQualified bool) (FunctionType, bool, string) {
+	c.lastMethodSelection = MethodSelection{}
 	bestFn, bestScore, found, detail := c.lookupMethodInMethodSets(object, name, allowMethodSets, allowTypeQualified)
+	methodSetSelection := c.lastMethodSelection
+	c.lastMethodSelection = MethodSelection{}
 	implFn, implScore, implFound, implDetail := c.lookupMethodInImplementations(object, name, true)
+	implementationSelection := c.lastMethodSelection
 	if implFound && (!found || implScore > bestScore) {
+		c.recordActiveMethodSelection(implementationSelection)
 		return implFn, true, ""
 	}
 	if found {
+		c.recordActiveMethodSelection(methodSetSelection)
 		return bestFn, true, ""
 	}
 	if detail != "" {
@@ -25,8 +31,9 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 		return FunctionType{}, -1, false, ""
 	}
 	type candidate struct {
-		fn    FunctionType
-		score int
+		fn        FunctionType
+		score     int
+		selection MethodSelection
 	}
 	var candidates []candidate
 	for _, spec := range c.methodSets {
@@ -88,7 +95,16 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 		if shouldBindSelfParam(method, object) && !isTypeQualified {
 			method = bindMethodType(method)
 		}
-		candidates = append(candidates, candidate{fn: method, score: score})
+		candidates = append(candidates, candidate{
+			fn:    method,
+			score: score,
+			selection: MethodSelection{
+				Kind:              MethodSelectionMethodSet,
+				MethodSet:         spec.Definition,
+				Target:            spec.Target,
+				GenericNamedUnion: methodSetTargetsGenericNamedUnion(spec),
+			},
+		})
 	}
 	if len(candidates) == 0 {
 		return FunctionType{}, -1, false, ""
@@ -111,6 +127,7 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 			return FunctionType{}, -1, false, fmt.Sprintf("ambiguous overload for %s", name)
 		}
 	}
+	c.lastMethodSelection = best.selection
 	return best.fn, best.score, true, ""
 }
 
@@ -288,6 +305,7 @@ func (c *Checker) lookupMethodInImplementations(object Type, name string, allow 
 	}
 	if len(candidates) == 1 {
 		cand := candidates[0]
+		c.lastMethodSelection = methodSelectionForImplementation(cand.match.spec)
 		return cand.method, cand.score, true, ""
 	}
 	best := candidates[0]
@@ -310,6 +328,7 @@ func (c *Checker) lookupMethodInImplementations(object Type, name string, allow 
 		}
 	}
 	if len(contenders) == 1 {
+		c.lastMethodSelection = methodSelectionForImplementation(best.match.spec)
 		return best.method, best.score, true, ""
 	}
 	iface := InterfaceType{InterfaceName: contenders[0].match.spec.InterfaceName}

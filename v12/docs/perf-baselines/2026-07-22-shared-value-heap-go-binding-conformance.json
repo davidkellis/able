@@ -1,0 +1,64 @@
+{
+  "schema": "able.semanticabi.go-binding-conformance.v1",
+  "decision": "hold-production-migration-reconcile-go-binding-gaps",
+  "manifest_identity": "66eb191a3d8de42de420ef479fdd659b76c657f1347065ae9edc2fb14f5559d2",
+  "runtime_kinds": 31,
+  "exact_kinds": 24,
+  "conditional_kinds": 1,
+  "opaque_host_kinds": 4,
+  "blocked_kinds": 2,
+  "package_layout_reconciled": true,
+  "two_phase_graph_construction": true,
+  "vectors": [
+    {
+      "name": "array-cycle-alias",
+      "detail": "shared child and self-cycle preserve identity"
+    },
+    {
+      "name": "treewalker-alias",
+      "detail": "ordinary execution graph round-trips with alias identity"
+    },
+    {
+      "name": "treewalker-recursive-closure",
+      "detail": "captured binding and self-cycle restore; call returns 41"
+    },
+    {
+      "name": "bytecode-alias",
+      "detail": "ordinary execution graph round-trips with alias identity"
+    },
+    {
+      "name": "bytecode-recursive-closure",
+      "detail": "captured binding and self-cycle restore; call returns 41"
+    },
+    {
+      "name": "nominal-error-future",
+      "detail": "package, Error, and Future retain one StructInstance identity"
+    }
+  ],
+  "blockers": [
+    {
+      "kind": "KindInteger",
+      "reason": "wide integers exceed the 64-bit payload and lack an immutable scalar arena"
+    },
+    {
+      "kind": "KindHasher",
+      "reason": "evolving hash state is private to pkg/runtime"
+    },
+    {
+      "kind": "KindIterator",
+      "reason": "driver/finalizer closures are private Go functions rather than semantic state"
+    }
+  ],
+  "production_migration_admitted": false,
+  "next_lane": "shared-value-heap-contract-reconciliation",
+  "exclusions": [
+    "production runtime migration",
+    "foreign heap",
+    "cgo runtime",
+    "JIT or backend",
+    "executable memory",
+    "benchmark branch",
+    "named-container or non-primitive nominal special case",
+    "WASM"
+  ]
+}

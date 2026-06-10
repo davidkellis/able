@@ -1,0 +1,58 @@
+package bench_json_means_small
+
+import able.collections.array
+import able.core.interfaces.{Error}
+import able.json
+import able.kernel.{Array}
+
+fn coordinate_fields() -> Array String {
+  fields: Array String := Array.with_capacity(3)
+  fields.push("x")
+  fields.push("y")
+  fields.push("z")
+  fields
+}
+
+fn build_sample(count: i32) -> String {
+  text := "{\"coordinates\":["
+  i := 0
+  loop {
+    if i >= count { break }
+    if i > 0 {
+      text = `${text},`
+    }
+    text = `${text}{"x":${i},"y":${(i * 2) % 101},"z":${(i * 3) % 103}}`
+    i = i + 1
+  }
+  `${text}]}`
+}
+
+fn means_or_raise(text: String) -> Array f64 {
+  json.f64_field_means(text, "coordinates", coordinate_fields()) match {
+    case means: Array f64 => means,
+    case err: Error => { raise err }
+  }
+}
+
+fn sum(values: Array f64) -> f64 {
+  total := 0.0
+  i := 0
+  loop {
+    if i >= values.len() { break }
+    total = total + values[i]!
+    i = i + 1
+  }
+  total
+}
+
+fn main() {
+  text := build_sample(2_000)
+  rounds := 0
+  total := 0.0
+  loop {
+    if rounds >= 6 { break }
+    total = total + sum(means_or_raise(text))
+    rounds = rounds + 1
+  }
+  print(total)
+}

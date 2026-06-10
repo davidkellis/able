@@ -1,0 +1,20 @@
+{
+  "description": "named regex captures use the shared tagged NFA and populate both ordinal and name-indexed group results",
+  "expect": {
+    "stdout": [
+      "repeat abab 1-5 groups=1 named=1",
+      "repeat-index word ab 3-5",
+      "repeat-name word ab 3-5",
+      "nested-outer outer ab 1-3",
+      "nested-inner inner a 1-2",
+      "alternation choice ab 1-3",
+      "optional maybe nil",
+      "find-all word aaa 1-4",
+      "scanner word aaa 1-4",
+      "duplicate rejected",
+      "empty rejected",
+      "numeric rejected",
+      "alternate rejected"
+    ]
+  }
+}

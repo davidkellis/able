@@ -1,0 +1,6 @@
+{
+  "description": "queue enqueue/dequeue churn benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

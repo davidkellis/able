@@ -1,0 +1,199 @@
+{
+  "kind": "able-current-strict-compiled-scorecard-owner-closure",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain-no-production-change",
+  "repository_commit": "cbba634af6c5766e5b8aa162e8e66643654f620e",
+  "compiler_sha256": "55c7e9cb6f911406510b67a9f09ccece55cc4cb9a111cf8ceebb234adfc13871",
+  "compiler_production_scope_sha256": "8d69533a81ce44f58ec8921abbd9867cbeb935aeab3ec9b39312f10aee1f7433",
+  "canonical_stdlib": {
+    "commit": "219eff222c28406487231713753641bc49ee5b9a",
+    "source_files": 70,
+    "tree_sha256": "382d256e2fb380220dcdd62a5cf83109fa72297f23d70bdd1ffe2d8daebed047",
+    "changed_by_tranche": false
+  },
+  "measurement": {
+    "flags": [
+      "--no-fallbacks",
+      "--experimental-execution-context"
+    ],
+    "environment": {
+      "GOMEMLIMIT": "1GiB",
+      "GOGC": "50"
+    },
+    "cpu_affinity_pool": "4,6,5,11",
+    "runs_per_application": 5,
+    "applications": 63,
+    "able_executions": 315,
+    "go_executions": 315,
+    "able_verified": 315,
+    "go_verified": 315,
+    "timeouts": 0,
+    "failures": 0,
+    "interpreter_free_graphs": 63
+  },
+  "scorecard": {
+    "target_max_ratio": 1.0526315789473684,
+    "passes": 9,
+    "misses": 54,
+    "geometric_mean_ratio": 5.257906511132682,
+    "median_ratio": 6.9230769230769225,
+    "minimum_ratio": 0.41789893275041795,
+    "maximum_ratio": 28.303886925795055,
+    "positive_target_excess_seconds": 5.425368421052632,
+    "target_passes": [
+      "json",
+      "quicksort",
+      "monte_carlo_pi",
+      "i_before_e",
+      "binarytrees",
+      "base64",
+      "pidigits",
+      "fib",
+      "matrixmultiply"
+    ],
+    "top_absolute_target_excess": [
+      {
+        "application": "k_nucleotide",
+        "seconds": 1.5424210526315791
+      },
+      {
+        "application": "sudoku_masks",
+        "seconds": 0.8525263157894737
+      },
+      {
+        "application": "tapelang_alphabet",
+        "seconds": 0.7395789473684209
+      },
+      {
+        "application": "binary_event_log",
+        "seconds": 0.15368421052631578
+      },
+      {
+        "application": "inventory_reconciliation",
+        "seconds": 0.12305263157894737
+      }
+    ]
+  },
+  "profile_refresh": {
+    "applications": [
+      "binary_event_log",
+      "inventory_reconciliation",
+      "unicode_scalar_pipeline",
+      "fixed_width_128",
+      "policy_record_dispatch",
+      "validated_job_pipeline",
+      "rational_series",
+      "wide_integer_records",
+      "regex_suffix_audit",
+      "word_frequency"
+    ],
+    "cpu_profiles_per_application": 15,
+    "allocation_profiles_per_application": 3,
+    "verified_outputs": 180,
+    "output_mismatches": 0,
+    "open_owner_material_in_three_unlike_applications": null,
+    "prototype_admitted": false
+  },
+  "cleanup": {
+    "workspace": "/var/tmp/able-compiled-broad-refresh-20260728-lb0k6j",
+    "size": "5.8 GiB",
+    "deleted": true,
+    "pointer_deleted": true
+  },
+  "owner_dispositions": [
+    {
+      "owner": "checked arithmetic",
+      "applications": [
+        "binary_event_log",
+        "fixed_width_128",
+        "unicode_scalar_pipeline"
+      ],
+      "disposition": "closed-prior-broad-ab"
+    },
+    {
+      "owner": "ordinary bridge.ToInt boxing",
+      "applications": [
+        "binary_event_log",
+        "validated_job_pipeline"
+      ],
+      "disposition": "closed-global-cache-regressed-control"
+    },
+    {
+      "owner": "utf8 decode result and iterator-end union",
+      "applications": [
+        "unicode_scalar_pipeline",
+        "policy_record_dispatch",
+        "regex_suffix_audit"
+      ],
+      "disposition": "closed-insufficient-unlike-family-breadth"
+    },
+    {
+      "owner": "generic map hash equality and materialization",
+      "applications": [
+        "inventory_reconciliation",
+        "word_frequency"
+      ],
+      "disposition": "semantic-boundary-named-container-specialization-forbidden"
+    },
+    {
+      "owner": "nominal construction",
+      "applications": [
+        "binary_event_log",
+        "fixed_width_128",
+        "validated_job_pipeline",
+        "wide_integer_records"
+      ],
+      "disposition": "required-type-specific-descendants-nominal-specialization-forbidden"
+    },
+    {
+      "owner": "native arithmetic regex parsing concurrency and application work",
+      "applications": [
+        "rational_series",
+        "wide_integer_records",
+        "policy_record_dispatch",
+        "regex_suffix_audit",
+        "validated_job_pipeline"
+      ],
+      "disposition": "separate-native-families"
+    }
+  ],
+  "evidence": {
+    "scorecard_tsv": {
+      "path": "v12/docs/perf-baselines/2026-07-28-current-strict-compiled-scorecard-owner-closure.tsv",
+      "sha256": "77f1f29ee765d960881dfa93404139e873d8afc8fd3488c4d3d8e305d287e552"
+    },
+    "allocation_summary_tsv": {
+      "path": "v12/docs/perf-baselines/2026-07-28-current-strict-compiled-scorecard-owner-closure-allocation-summary.tsv",
+      "sha256": "7224104387ecc52e23c6e0a2cbd7eea57c4a7e464f47dff4feebfa8f5cf168cb"
+    },
+    "dependency_audit_tsv": {
+      "path": "v12/docs/perf-baselines/2026-07-28-current-strict-compiled-scorecard-owner-closure-dependency-audit.tsv",
+      "sha256": "388bfe8eb7fcd6b4177549ef2dbba80b1c9b2ab16474103a22a26231db1e6474"
+    },
+    "profile_output_audit_tsv": {
+      "path": "v12/docs/perf-baselines/2026-07-28-current-strict-compiled-scorecard-owner-closure-profile-output-audit.tsv",
+      "sha256": "d5e154b68f427aea757e46d68671fa5fb1f4a96a69a64c84014baf5d6e277a6a"
+    },
+    "profile_manifest": {
+      "path": "v12/docs/perf-baselines/2026-07-28-current-strict-compiled-scorecard-owner-closure-profiles/SHA256SUMS",
+      "sha256": "3a6ae08c94ef9cb0f3263b720fb37317e04130378b65a765c02f54c9ef2d620e"
+    },
+    "raw_go_reference_json_sha256": "b3f5fff7392ddad7007e137637967a7ba06748b1921dd1114b7a8899a3bcc6d3",
+    "raw_comparison_json_sha256": "7d2b7f555b71387925945ab83c49bd2a9a1aca9dee3ce45bddbf985283eaa061"
+  },
+  "next": {
+    "tranche": "compiled-native-semantic-work-equivalence",
+    "applications": [
+      "tapelang_alphabet",
+      "sudoku_masks",
+      "nbody"
+    ],
+    "controls": [
+      "matrixmultiply",
+      "pidigits"
+    ],
+    "why": "Remaining sustained gaps are inside native generated application bodies, not an interpreter or open shared boundary.",
+    "entails": "Compare Able, generated Go, reference Go, and assembly; count work and admit only a proof-backed redundant operation repeated in three unlike applications."
+  }
+}

@@ -86,6 +86,15 @@ func asErrorValue(val runtime.Value) (runtime.ErrorValue, bool) {
 
 // IsErrorValue reports whether a value is an Error or implements the Error interface.
 func (i *Interpreter) IsErrorValue(val runtime.Value) bool {
+	return i.matchesErrorValue(val)
+}
+
+// matchesErrorValue recognizes the language's Error protocol independently of
+// whether it is the bootstrap definition or the canonical stdlib definition.
+// The bootstrap is available before imports are evaluated, while the stdlib
+// definition has a package-qualified identity. Both describe the same
+// language-level Error protocol used by Result values and propagation.
+func (i *Interpreter) matchesErrorValue(val runtime.Value) bool {
 	if val == nil {
 		return false
 	}
@@ -95,5 +104,52 @@ func (i *Interpreter) IsErrorValue(val runtime.Value) bool {
 	if i == nil {
 		return false
 	}
-	return i.matchesType(cachedSimpleTypeExpression("Error"), val)
+	switch value := val.(type) {
+	case runtime.InterfaceValue:
+		if value.Interface != nil && value.Interface.Node != nil && value.Interface.Node.ID != nil && value.Interface.Node.ID.Name == "Error" {
+			return true
+		}
+	case *runtime.InterfaceValue:
+		if value != nil && value.Interface != nil && value.Interface.Node != nil && value.Interface.Node.ID != nil && value.Interface.Node.ID.Name == "Error" {
+			return true
+		}
+	}
+	info, ok := i.getTypeInfoForValue(val)
+	if !ok {
+		return false
+	}
+	for _, interfaceName := range i.errorInterfaceNames() {
+		implements, err := i.typeImplementsInterface(info, interfaceName, nil, make(map[interfaceImplCacheKey]struct{}))
+		if err == nil && implements {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *Interpreter) errorInterfaceNames() []string {
+	names := []string{"Error"}
+	if i == nil {
+		return names
+	}
+	const canonicalError = "able.core.interfaces.Error"
+	if _, ok := i.interfaces[canonicalError]; ok {
+		names = append(names, canonicalError)
+	}
+	return names
+}
+
+func (i *Interpreter) coerceToErrorInterfaceValue(value runtime.Value) (runtime.Value, error) {
+	var lastErr error
+	for _, interfaceName := range i.errorInterfaceNames() {
+		coerced, err := i.coerceToInterfaceValue(interfaceName, value, nil)
+		if err == nil {
+			return coerced, nil
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("Error interface is not defined")
+	}
+	return nil, lastErr
 }

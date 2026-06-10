@@ -1,0 +1,868 @@
+{
+  "kind": "able-feature-interaction-matrix",
+  "schema_version": 1,
+  "manifest": "/home/david/sync/projects/able/v12/bench-feature-coverage.json",
+  "excluded_families": [
+    "packages_modules_imports"
+  ],
+  "baseline_without": [
+    "manifest_normalization"
+  ],
+  "baseline_removed_memberships": [],
+  "family_count": 11,
+  "pair_count": 55,
+  "baseline_zero_pairs": 0,
+  "current_zero_pairs": 0,
+  "baseline_min_depth": 3,
+  "current_min_depth": 3,
+  "baseline_depth_one_pairs": 0,
+  "current_depth_one_pairs": 0,
+  "improved_pairs": 36,
+  "pairs": [
+    {
+      "left": "concurrency",
+      "right": "control_flow",
+      "baseline_count": 4,
+      "current_count": 4,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "expressions_arrays_text_files",
+      "baseline_count": 3,
+      "current_count": 3,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "functions_closures_callables",
+      "baseline_count": 4,
+      "current_count": 4,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "inherent_methods",
+      "baseline_count": 6,
+      "current_count": 6,
+      "delta": 0,
+      "portable_benchmarks": [
+        "binarytrees",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "interfaces_implementations_dispatch",
+      "baseline_count": 4,
+      "current_count": 4,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "lexical_blocks_bindings_patterns",
+      "baseline_count": 4,
+      "current_count": 4,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "option_result_exceptions",
+      "baseline_count": 4,
+      "current_count": 4,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "program_entry",
+      "baseline_count": 3,
+      "current_count": 3,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 5,
+      "current_count": 5,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "concurrency",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 6,
+      "current_count": 6,
+      "delta": 0,
+      "portable_benchmarks": [
+        "binarytrees",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "expressions_arrays_text_files",
+      "baseline_count": 7,
+      "current_count": 8,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "distance_field",
+        "fasta_generation",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "rms_norm"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "functions_closures_callables",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "inherent_methods",
+      "baseline_count": 5,
+      "current_count": 5,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "interfaces_implementations_dispatch",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "lexical_blocks_bindings_patterns",
+      "baseline_count": 8,
+      "current_count": 9,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "fib",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "quicksort",
+        "sudoku_masks"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "option_result_exceptions",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "program_entry",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "quicksort",
+        "sudoku_masks"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "fasta_generation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "control_flow",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 5,
+      "current_count": 6,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "functions_closures_callables",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "document_audit",
+        "lexical_rollup",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "word_frequency"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "inherent_methods",
+      "baseline_count": 4,
+      "current_count": 4,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "interfaces_implementations_dispatch",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "document_audit",
+        "lexical_rollup",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "word_frequency"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "lexical_blocks_bindings_patterns",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "option_result_exceptions",
+      "baseline_count": 7,
+      "current_count": 8,
+      "delta": 1,
+      "portable_benchmarks": [
+        "base64",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "config_validation_extraction",
+        "json",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "program_entry",
+      "baseline_count": 9,
+      "current_count": 10,
+      "delta": 1,
+      "portable_benchmarks": [
+        "base64",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "config_validation_extraction",
+        "i_before_e",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "reverse_complement"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 13,
+      "current_count": 14,
+      "delta": 1,
+      "portable_benchmarks": [
+        "array_slice_window",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "config_validation_extraction",
+        "document_audit",
+        "fasta_generation",
+        "lexical_rollup",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "regex_stream_audit",
+        "unicode_scalar_pipeline",
+        "word_frequency"
+      ]
+    },
+    {
+      "left": "expressions_arrays_text_files",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "functions_closures_callables",
+      "right": "inherent_methods",
+      "baseline_count": 5,
+      "current_count": 5,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "functions_closures_callables",
+      "right": "interfaces_implementations_dispatch",
+      "baseline_count": 7,
+      "current_count": 8,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "document_audit",
+        "lexical_rollup",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "validated_job_pipeline",
+        "word_frequency"
+      ]
+    },
+    {
+      "left": "functions_closures_callables",
+      "right": "lexical_blocks_bindings_patterns",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "functions_closures_callables",
+      "right": "option_result_exceptions",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "functions_closures_callables",
+      "right": "program_entry",
+      "baseline_count": 3,
+      "current_count": 4,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "functions_closures_callables",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 9,
+      "current_count": 10,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "document_audit",
+        "lexical_rollup",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "regex_suffix_audit",
+        "validated_job_pipeline",
+        "word_frequency"
+      ]
+    },
+    {
+      "left": "functions_closures_callables",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 5,
+      "current_count": 6,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "inherent_methods",
+      "right": "interfaces_implementations_dispatch",
+      "baseline_count": 7,
+      "current_count": 7,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "option_result_config",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "inherent_methods",
+      "right": "lexical_blocks_bindings_patterns",
+      "baseline_count": 5,
+      "current_count": 5,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "inherent_methods",
+      "right": "option_result_exceptions",
+      "baseline_count": 6,
+      "current_count": 6,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "option_result_config",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "inherent_methods",
+      "right": "program_entry",
+      "baseline_count": 4,
+      "current_count": 4,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "inherent_methods",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 7,
+      "current_count": 7,
+      "delta": 0,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "inherent_methods",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 12,
+      "current_count": 12,
+      "delta": 0,
+      "portable_benchmarks": [
+        "binarytrees",
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "fixed_width_128",
+        "option_result_config",
+        "policy_record_dispatch",
+        "rational_series",
+        "validated_job_pipeline",
+        "wide_integer_records"
+      ]
+    },
+    {
+      "left": "interfaces_implementations_dispatch",
+      "right": "lexical_blocks_bindings_patterns",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "interfaces_implementations_dispatch",
+      "right": "option_result_exceptions",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "option_result_config",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "interfaces_implementations_dispatch",
+      "right": "program_entry",
+      "baseline_count": 3,
+      "current_count": 4,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "interfaces_implementations_dispatch",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 11,
+      "current_count": 12,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "document_audit",
+        "inventory_reconciliation",
+        "k_nucleotide",
+        "lexical_rollup",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "validated_job_pipeline",
+        "word_frequency"
+      ]
+    },
+    {
+      "left": "interfaces_implementations_dispatch",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 9,
+      "current_count": 10,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "inventory_reconciliation",
+        "k_nucleotide",
+        "manifest_normalization",
+        "option_result_config",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "lexical_blocks_bindings_patterns",
+      "right": "option_result_exceptions",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "lexical_blocks_bindings_patterns",
+      "right": "program_entry",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "quicksort",
+        "sudoku_masks"
+      ]
+    },
+    {
+      "left": "lexical_blocks_bindings_patterns",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 5,
+      "current_count": 6,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "lexical_blocks_bindings_patterns",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 5,
+      "current_count": 6,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "option_result_exceptions",
+      "right": "program_entry",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "base64",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "config_validation_extraction",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "option_result_exceptions",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 7,
+      "current_count": 8,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "config_validation_extraction",
+        "dependency_wave_validation",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "option_result_exceptions",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_wave_validation",
+        "manifest_normalization",
+        "option_result_config",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    },
+    {
+      "left": "program_entry",
+      "right": "stdlib_protocols_regex",
+      "baseline_count": 6,
+      "current_count": 7,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "config_validation_extraction",
+        "log_routing_redaction",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "program_entry",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 4,
+      "current_count": 5,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ]
+    },
+    {
+      "left": "stdlib_protocols_regex",
+      "right": "types_nominals_generics_unions",
+      "baseline_count": 9,
+      "current_count": 10,
+      "delta": 1,
+      "portable_benchmarks": [
+        "concurrent_document_pipeline",
+        "concurrent_event_routing",
+        "concurrent_text_index",
+        "dependency_plan",
+        "dependency_wave_validation",
+        "inventory_reconciliation",
+        "k_nucleotide",
+        "manifest_normalization",
+        "policy_record_dispatch",
+        "validated_job_pipeline"
+      ]
+    }
+  ]
+}

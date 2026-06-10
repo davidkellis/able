@@ -181,14 +181,36 @@ func structInstancesEqual(a *runtime.StructInstanceValue, b *runtime.StructInsta
 		return true
 	}
 	if len(a.Fields) != len(b.Fields) {
-		return false
+		if !(structUsesNamedFieldStorage(a) && structUsesNamedFieldStorage(b)) {
+			return false
+		}
+	}
+	if structUsesNamedFieldStorage(a) && structUsesNamedFieldStorage(b) {
+		if structNamedFieldCount(a) != structNamedFieldCount(b) {
+			return false
+		}
+		def := a.Definition
+		if def == nil || def.Node == nil {
+			return false
+		}
+		for _, field := range def.Node.Fields {
+			if field == nil || field.Name == nil {
+				continue
+			}
+			av, ok := structNamedFieldValue(a, field.Name.Name)
+			if !ok {
+				return false
+			}
+			bv, ok := structNamedFieldValue(b, field.Name.Name)
+			if !ok || !valuesEqual(av, bv) {
+				return false
+			}
+		}
+		return true
 	}
 	for key, av := range a.Fields {
 		bv, ok := b.Fields[key]
-		if !ok {
-			return false
-		}
-		if !valuesEqual(av, bv) {
+		if !ok || !valuesEqual(av, bv) {
 			return false
 		}
 	}
@@ -264,8 +286,8 @@ func evaluateComparison(op string, left runtime.Value, right runtime.Value) (run
 	if !isNumericValue(left) || !isNumericValue(right) {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
-	if li, ok := left.(runtime.IntegerValue); ok {
-		if ri, ok := right.(runtime.IntegerValue); ok {
+	if li, ok := bytecodeDirectIntegerValue(left); ok {
+		if ri, ok := bytecodeDirectIntegerValue(right); ok {
 			return runtime.BoolValue{Val: integerComparisonResult(op, li, ri)}, nil
 		}
 	}

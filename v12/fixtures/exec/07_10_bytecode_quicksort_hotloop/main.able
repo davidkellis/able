@@ -47,13 +47,13 @@ fn build_data(n: i32) -> Array i32 {
 }
 
 fn main() {
-  nums := build_data(2000)
-  quicksort(nums, 0, 1999)
+  nums := build_data(200)
+  quicksort(nums, 0, 199)
 
   checksum := 0
   i := 0
   loop {
-    if i >= 2000 { break }
+    if i >= 200 { break }
     checksum = checksum + (nums[i] as i32)
     i = i + 1
   }

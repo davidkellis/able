@@ -1,0 +1,100 @@
+package future_pipeline
+
+import able.kernel.{Channel}
+
+fn block_score(job: i64) -> i64 {
+  offset := job * 64_i64
+  index := 0_i64
+  total := 0_i64
+  loop {
+    if index >= 64_i64 { break }
+    value := offset + index
+    total = total + (value * ((value % 17_i64) + 3_i64))
+    index = index + 1_i64
+  }
+  total
+}
+
+fn produce(jobs: Channel i64, count: i64) -> i64 {
+  index := 0_i64
+  loop {
+    if index >= count { break }
+    jobs.send(index)
+    index = index + 1_i64
+  }
+  jobs.close()
+  index
+}
+
+fn work(jobs: Channel i64, results: Channel i64) -> i64 {
+  processed := 0_i64
+  loop {
+    jobs.receive() match {
+      case nil => {
+        results.send(-1_i64)
+        break
+      },
+      case job: i64 => {
+        results.send(block_score(job))
+        processed = processed + 1_i64
+      }
+    }
+  }
+  processed
+}
+
+fn main() -> void {
+  job_count := 8192_i64
+  worker_count := 4_i64
+  jobs: Channel i64 = Channel.new(8192)
+  results: Channel i64 = Channel.new(8196)
+  cancellation_ready: Channel i64 = Channel.new(1)
+
+  producer := spawn { produce(jobs, job_count) }
+  first := spawn { work(jobs, results) }
+  second := spawn { work(jobs, results) }
+  third := spawn { work(jobs, results) }
+  fourth := spawn { work(jobs, results) }
+  cancelled := spawn {
+    cancellation_ready.send(1_i64)
+    loop {
+      if future_cancelled() { break }
+      future_yield()
+    }
+    0_i64
+  }
+  canceller := spawn {
+    cancellation_ready.receive()
+    cancelled.cancel()
+    0_i64
+  }
+
+  future_flush()
+
+  completed := 0_i64
+  finished := 0_i64
+  total := 0_i64
+  loop {
+    if finished >= worker_count { break }
+    results.receive() match {
+      case nil => { break },
+      case value: i64 => {
+        if value == -1_i64 {
+          finished = finished + 1_i64
+        } else {
+          completed = completed + 1_i64
+          total = total + value
+        }
+      }
+    }
+  }
+
+  produced: i64 = producer.value()! as i64
+  worker_total: i64 = (first.value()! as i64) + (second.value()! as i64) + (third.value()! as i64) + (fourth.value()! as i64)
+  canceller.value()
+  cancellation_state := cancelled.status() match {
+    case Cancelled {} => 1_i64,
+    case _ => 0_i64
+  }
+  print(`${job_count}:${completed}:${total}:${produced}:${worker_total}:${cancellation_state}`)
+}

@@ -1,0 +1,35 @@
+package bench_list_i32_small
+
+import able.collections.list.{List}
+
+fn build(size: i32) -> List i32 {
+  values: List i32 = List.empty()
+  i := 0
+  loop {
+    if i >= size { break }
+    values = values.prepend(((i * 19) + 7) % 20_011)
+    i = i + 1
+  }
+  values
+}
+
+fn score(values: List i32) -> i64 {
+  ordered := values.reverse()
+  total: i64 = 0_i64
+  for value in ordered {
+    total = total + (value as i64)
+  }
+  total + (ordered.len() as i64)
+}
+
+fn main() -> void {
+  values := build(8_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 8 { break }
+    total = total + score(values)
+    rounds = rounds + 1
+  }
+  print(total)
+}

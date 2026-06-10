@@ -1,0 +1,133 @@
+{
+  "kind": "external-application-variance-report",
+  "measurement_source": "Independent verifier-backed one-process external scorecards. This report describes variability only; it is not a timing threshold gate.",
+  "sources": [
+    {
+      "path": "v12/tmp/perf/2026-07-13-compiled-json-threshold-protocol/compiled-r1.json",
+      "generated_at": "2026-07-13T21:04:34.218864Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-compiled-json-threshold-protocol/compiled-r2.json",
+      "generated_at": "2026-07-13T21:05:37.653389Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-compiled-json-threshold-protocol/compiled-r3.json",
+      "generated_at": "2026-07-13T21:06:41.151844Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-compiled-json-threshold-protocol/compiled-r4.json",
+      "generated_at": "2026-07-13T21:07:49.787474Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    },
+    {
+      "path": "v12/tmp/perf/2026-07-13-compiled-json-threshold-protocol/compiled-r5.json",
+      "generated_at": "2026-07-13T21:09:03.573818Z",
+      "suite": "core",
+      "cpu_affinity": "15",
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "json",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 0.75,
+          "ratios": {
+            "go": 0.4421127092666824
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.94,
+          "ratios": {
+            "go": 0.6344920688491393
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 0.92,
+          "ratios": {
+            "go": 0.47812077746595993
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 1.19,
+          "ratios": {
+            "go": 0.6742591648252025
+          }
+        },
+        {
+          "status": "verified",
+          "able_seconds": 1.46,
+          "ratios": {
+            "go": 0.6668493651228647
+          }
+        }
+      ],
+      "able_seconds": {
+        "samples": 5,
+        "mean": 1.052,
+        "median": 0.94,
+        "minimum": 0.75,
+        "maximum": 1.46,
+        "range": 0.71,
+        "half_spread_pct": 33.74524714828897,
+        "sample_stdev": 0.27689348132449776,
+        "coefficient_of_variation_pct": 26.320673129705106
+      },
+      "ratios": {
+        "go": {
+          "samples": 5,
+          "mean": 0.5791668171059697,
+          "median": 0.6344920688491393,
+          "minimum": 0.4421127092666824,
+          "maximum": 0.6742591648252025,
+          "range": 0.23214645555852015,
+          "half_spread_pct": 20.041415417973134,
+          "sample_stdev": 0.11043753653591824,
+          "coefficient_of_variation_pct": 19.068346679072874
+        }
+      }
+    }
+  ]
+}

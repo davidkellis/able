@@ -1,0 +1,103 @@
+package exec_06_12_27_stdlib_iterator_close
+
+import able.collections.array.{Array}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+
+## Semantics: Iterator.close is public, idempotent, and propagated by default combinators.
+
+struct CountingIterator {
+  values: Array i32,
+  index: i32,
+  closed: bool,
+  closes: Array i32
+}
+
+impl Iterator i32 for CountingIterator {
+  fn next(self: Self) -> i32 | IteratorEnd {
+    if self.closed || self.index >= self.values.len() { return IteratorEnd {} }
+    value := self.values.read_slot(self.index)
+    self.index = self.index + 1
+    value
+  }
+
+  fn close(self: Self) -> void {
+    if self.closed { return }
+    self.closed = true
+    self.closes.write_slot(0, self.closes.read_slot(0) + 1)
+  }
+}
+
+impl Iterable i32 for CountingIterator {
+  fn iterator(self: Self) -> Iterator i32 { self }
+}
+
+fn counter(values: Array i32, closes: Array i32) -> CountingIterator {
+  CountingIterator { values: values, index: 0, closed: false, closes: closes }
+}
+
+fn is_end(value: i32 | IteratorEnd) -> bool {
+  value match {
+    case IteratorEnd {} => true,
+    case _: i32 => false
+  }
+}
+
+fn keep(value: i32) -> bool { value > 0 }
+fn increment(value: i32) -> i32 { value + 1 }
+fn keep_even(value: i32) -> ?i32 { if value % 2 == 0 { value } else { nil } }
+
+fn main() -> void {
+  typed_closes := [0]
+  typed: Iterator i32 := counter([1, 2], typed_closes)
+  typed.close()
+  typed.close()
+  print(`typed_close_count ${typed_closes.read_slot(0)}`)
+  print(`typed_closed ${is_end(typed.next())}`)
+
+  literal := Iterator i32 { gen =>
+    gen.yield(1)
+    gen.yield(2)
+  }
+  literal.close()
+  literal.close()
+  print(`literal_closed ${is_end(literal.next())}`)
+
+  for_break_closes := [0]
+  for value in counter([1, 2], for_break_closes) {
+    _ = value
+    break
+  }
+  print(`for_break_closes ${for_break_closes.read_slot(0)}`)
+
+  filter_closes := [0]
+  filtered := counter([1, 2], filter_closes).filter(keep)
+  filtered.next()
+  filtered.next()
+  filtered.next()
+  print(`filter_closes ${filter_closes.read_slot(0)}`)
+
+  map_closes := [0]
+  mapped := counter([1, 2], map_closes).map(increment)
+  mapped.next()
+  mapped.next()
+  mapped.next()
+  print(`map_closes ${map_closes.read_slot(0)}`)
+
+  filter_map_closes := [0]
+  filter_mapped := counter([1, 2, 3], filter_map_closes).filter_map(keep_even)
+  filter_mapped.next()
+  filter_mapped.next()
+  print(`filter_map_closes ${filter_map_closes.read_slot(0)}`)
+
+  collect_closes := [0]
+  collected: Array i32 := counter([1, 2], collect_closes).collect<Array i32>()
+  print(`collect_values ${collected.len()}`)
+  print(`collect_closes ${collect_closes.read_slot(0)}`)
+
+  each_closes := [0]
+  each_iter := counter([1, 2], each_closes)
+  sum := 0
+  each_iter.each { value => sum = sum + value }
+  print(`each_sum ${sum}`)
+  print(`each_closes ${each_closes.read_slot(0)}`)
+}

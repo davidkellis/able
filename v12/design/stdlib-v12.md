@@ -1,13 +1,30 @@
-# Able v12 Standard Library Plan
+# Able v12 Standard Library Blueprint (Historical)
 
-Last updated: 2025-11-01
+**Status:** historical design record, reconciled 2026-07-14.
 
-This document consolidates the earlier “stdlib notes” and “stdlib vision” drafts into a single plan that stays aligned with `spec/full_spec_v12.md`. The specification remains authoritative; everything below either satisfies an explicit spec requirement or is flagged as future work that must never contradict the spec.
+This document preserves the 2025 “stdlib notes” and “stdlib vision” drafts.
+It is not the v12 standard-library implementation plan or a source of current
+language behavior.
 
-> Note: v12 is Go-first. References to TypeScript in this document are historical
-> and should be treated as guidance for any future non-Go runtimes.
+Current sources of truth, in order, are:
 
-## 1. Purpose & Scope
+1. `spec/full_spec_v12.md` for required language semantics and APIs.
+2. The canonical external `able-stdlib` repository (`../able-stdlib/src` in
+   this checkout) for Able standard-library source.
+3. The Go tree-walker, bytecode VM, compiler, and their shared executable
+   fixtures for implementation evidence. See
+   `design/stdlib-protocol-contract-audit.md` and
+   `docs/perf-baselines/2026-07-14-fs-io-text-roadmap-reconciliation.md` for
+   focused reconciliations.
+
+The in-tree `v12/stdlib-deprecated-do-not-use/` tree is archival and must not
+be treated as canonical source. References below to `stdlib/`, TypeScript,
+Bun, proposed package names, “current → target” transitions, implementation
+phases, and outstanding tasks are historical. They neither authorize work nor
+describe an active backlog; validate any possible future work against the spec,
+canonical source, executable coverage, and `PLAN.md` instead.
+
+## 1. Historical Purpose & Scope
 
 - Define the canonical Able v12 standard library packaged under `stdlib/`.
 - Capture a cohesive vision that aligns with the language specification and ongoing interpreter work.
@@ -38,11 +55,11 @@ This document consolidates the earlier “stdlib notes” and “stdlib vision�
 - Collections and protocols must cooperate with Able’s cooperative scheduler and Go’s goroutines.
 - Respect cancellation semantics for iterators and async constructs (e.g., `Sequence#each_future` must yield).
 
-## 2. Alignment With the v12 Specification
+## 2. Historical Alignment With the v12 Specification
 
 | Spec section | Requirement | Stdlib obligation |
 | --- | --- | --- |
-| 6.8 Arrays | Mutable `Array T` with literals, indexing, `size() -> u64`, `get`, `set`, `slice`, `push`, `pop`; indexing raises `IndexError`. | `able.collections.mutable.array` must provide these APIs, raising the right errors and exposing `Index`/`IndexMut`. |
+| 6.8 Arrays | Mutable `Array T` with literals, indexing, `size() -> u64`, `get`, `set`, end-exclusive `slice`, `push`, and `pop`; indexing and invalid slice bounds raise `IndexError`. | `able.collections.array` provides these APIs and `Index`/`IndexMut`; `slice` returns a fresh exact-capacity shallow copy rather than a view. |
 | 6.10 Dynamic metaprogramming | Host helpers drive dynamic packages. | Expose bridge modules under `able.core.host` without diverging semantics. |
 | 11.2 Option/Result | `Option T = nil | T`, `Result T = Error | T`, `!` propagation helpers. | `able.core.option_result` supplies unions and helper methods consistent with the spec. |
 | 11.3 Errors | `DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`, `FutureError` (plus message contracts). | Core error structs live in `able.core.errors`; runtimes raise them as described. |
@@ -55,7 +72,7 @@ This document consolidates the earlier “stdlib notes” and “stdlib vision�
 
 Everything else in this document is layered on top of that baseline and must never invalidate an item in the table.
 
-## 3. Package Layout & Module Tiers
+## 3. Historical Package Layout & Module Tiers
 
 | Tier | Package path | Summary |
 | --- | --- | --- |
@@ -69,7 +86,7 @@ Everything else in this document is layered on top of that baseline and must nev
 | Functional | `able.fn.*` | Higher-order utilities, partial application helpers, memoisation, functional optics. |
 | IO & Time | `able.io.*`, `able.time.*` | Streams, filesystem/network shims (host-provided), `Duration`, `Instant`. |
 
-## 4. Baseline Deliverables (Spec Parity)
+## 4. Historical Baseline Deliverables (Spec Parity)
 
 ### 4.1 Core Interfaces (able.core.interfaces)
 
@@ -83,7 +100,11 @@ Everything else in this document is layered on top of that baseline and must nev
 ### 4.2 Core Data Types
 
 - `Option T` and `Result T` unions ship with helper methods (`unwrap`, `map`, `ok_or`, etc.) that follow the semantics in Section 11.2, raising `OptionUnwrapError` / `ResultUnwrapError` which implement `Error`.
-- `Array T` must provide runtime backing for `size() -> u64`, `capacity()`, `is_empty()`, `push`, `pop -> ?T`, `get -> ?T`, `set -> !nil`, `slice -> Array T`. `arr[i]` / `arr[i] = value` raise `IndexError` on out-of-bounds.
+- `Array T` provides runtime backing for `size() -> u64`, `capacity()`,
+  `is_empty()`, `push`, `pop -> ?T`, `get -> ?T`, `set -> !nil`, and
+  `slice(start: u64, end: u64) -> !Array T`. `arr[i]` / `arr[i] = value` and
+  invalid slice bounds raise `IndexError`. Slice uses end-exclusive bounds and
+  returns a fresh exact-capacity shallow copy; it is never a borrowed view.
 - `Map K V` exists as an interface; `HashMap K V` is the first concrete implementation. Minimal surface: `new`, `get`, `set`, `remove`, `contains`, `size`, `is_empty`, obeying `Hash` + `Eq`.
 - `Range` helpers at least cover integer stepping for inclusive/exclusive operators; future work generalises via numeric interfaces.
 - Spec-mandated error types (`DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`) and channel errors (`ClosedChannelError`, `SendOnClosedChannelError`, `NilChannelError`) must be present.
@@ -108,12 +129,16 @@ Everything else in this document is layered on top of that baseline and must nev
 - Runtimes continue running `bun run scripts/run-fixtures.ts` and `go test ./pkg/interpreter`.
 - Whenever stdlib behaviour changes, update `spec/todo.md` if wording adjustments are required and extend both interpreters’ test suites.
 
-### 4.6 Kernel vs stdlib split (current → target)
+### 4.6 Historical Kernel vs stdlib split (current → target)
 
 **Current kernel (native, baked into interpreters)**
 - Scheduler primitives: `future_yield`, `future_cancelled`, `future_flush`, `future_pending_tasks`.
 - Concurrency bridges: channel helpers (`__able_channel_new/send/receive/try_send/try_receive/await_try_send/await_try_recv/close/is_closed`), mutex helpers (`__able_mutex_new/lock/unlock`), await wakers.
 - String bridges: `__able_string_from_builtin`, `__able_string_to_builtin`, `__able_char_from_codepoint`.
+- Numeric bridges: primitive bit conversion, `u64` multiply, ratio conversion,
+  and correctly rounded `f64` square root. Public domain/error semantics remain
+  in canonical `able.math`; only the primitive operation crosses the host
+  boundary.
 - **Native helpers that should migrate to stdlib:** array methods (`size`, `push`, `pop`, `get`, `set`, `clear`, `iterator`) and string helpers (`len_*`, `substring`, `split`, `replace`, `starts_with`, `ends_with`, `chars`/`graphemes` iterators) are currently implemented as host natives inside both interpreters.
 
 **Target minimal kernel (host-only)**
@@ -129,7 +154,7 @@ Everything else in this document is layered on top of that baseline and must nev
   `able.core.interfaces` will re-export the kernel definitions. See
   `v12/design/kernel-interfaces-hash-eq.md` for the detailed plan.
 
-## 5. Extended Roadmap (Vision, Spec-Consistent)
+## 5. Historical Extended Roadmap (Vision, Spec-Consistent)
 
 These items expand the stdlib once the baseline is green. They reuse material from the earlier vision draft and remain compatible with the spec.
 
@@ -148,7 +173,7 @@ These items expand the stdlib once the baseline is green. They reuse material fr
 | `Collection` | Sized aggregate with eager ops | `len`, `is_empty`, `contains`, `count`, `each`, eager `map` returning `Self` |
 | `MutableCollection` | In-place mutation | `clear`, `reserve`, `retain` (extends `Collection`) |
 | `Indexable` | Random access | `get`, `get_mut?`, `set`, plus safe optional variants |
-| `Sliceable` | Views | `slice(range) -> Self`, `split_at(idx) -> (Self, Self)` |
+| `Sliceable` | Future range-selection protocol | Copying `slice(range) -> !Self`, `split_at(idx) -> !(Self, Self)` |
 | `Collectable C` | Realise iterators | `collect(source: Iterator Item) -> C` |
 | `Builder C` | Efficient construction | `push`, `extend`, `finish -> C` |
 | `Serializable` | Structured persistence | `serialize`, `deserialize` (phase 2 goal) |
@@ -227,7 +252,12 @@ The mutable `TreeMap` mirrors Java/Scala style ordered maps: it uses an intrusiv
 | `BitSet` | Dynamic bitset | `set`, `reset`, `flip`, `contains` | `O(1)` per word |
 | `SmallVec T const N` | Inline small vector | `push`, `pop` with inline storage | `O(1)` amortised |
 
-Mutable collections implement `MutableCollection`, `Indexable`, and optionally `Sliceable` (e.g., `Array`, `Deque`). Conversion helpers (`Array#to_vector`, `HashMap#to_persistent_map`) bridge to persistent counterparts.
+Mutable collections implement `MutableCollection` and `Indexable`; the generic
+`Sliceable` protocol remains a roadmap target. `Array.slice(start, end)` is a
+concrete copying API: it returns an independently-backed, end-exclusive,
+exact-capacity shallow copy rather than a view. Conversion helpers
+(`Array#to_vector`, `HashMap#to_persistent_map`) bridge to persistent
+counterparts.
 
 By convention `import able.collections.Map` resolves to the mutable `HashMap K V`; persistent map variants must be imported explicitly (e.g., `able.collections.immutable.Map`).
 
@@ -410,7 +440,7 @@ Implementation considerations:
 - Track coverage via `run_all_tests.sh` (Bun + Go) and integrate new modules into CI.
 - Produce interface/type matrices (Go vs TypeScript) for parity audits.
 
-## 6. Runtime Integration Guidelines
+## 6. Historical Runtime Integration Guidelines
 
 - Arrays, hash maps, strings, channels, and mutexes use opaque handles managed by the interpreters to guarantee deterministic behaviour.
 - All host-specific shims live in `able.core.host.*`, keeping dependencies explicit for future targets.
@@ -436,7 +466,7 @@ The goal is to keep the interpreter-provided surface area tiny and fast while im
 
 Everything else—including persistent collections (`Vector`, `List`, `PersistentMap`), iterator adapters, numeric/type-class scaffolding, regex helpers, etc.—lives entirely in Able source. The plan is to progressively shrink the native surface to “just the primitives” so the shared stdlib remains mostly host-independent.
 
-## 7. Array-Backed Data Structures (Initial Design)
+## 7. Historical Array-Backed Data Structures (Initial Design)
 
 ### 7.1 Common Building Blocks
 
@@ -486,7 +516,7 @@ Implementation strategy:
 - `Vector T` (persistent): tree of array chunks (RRB) once mutable structures are solid.
 - `Heap T`: binary heap stored in Array with comparator via `Ord`.
 
-## 8. Implementation Phases
+## 8. Historical Implementation Phases
 
 1. **Foundations**
    - Finalise interfaces in `able.core.interfaces`, adopting Crystal-style layering.
@@ -503,7 +533,7 @@ Implementation strategy:
    - Generate API references, cookbook examples, and integrate into `run_all_tests.sh`.
    - Update spec Section 14 when interfaces stabilise; tick items off in `PLAN.md`.
 
-## 9. Outstanding Work & Open Decisions
+## 9. Historical Outstanding Work & Open Decisions
 
 ### 9.1 Near-Term Tasks
 
@@ -536,7 +566,7 @@ Implementation strategy:
 **Pending**
 - None at present.
 
-## 10. Brainstorm Backlog
+## 10. Historical Brainstorm Backlog
 
 - Implement persistent collections once in Able and share across runtimes.
 - Explore Ruby-style `Enumerator` objects to bridge synchronous iteration with `spawn`-based concurrency.

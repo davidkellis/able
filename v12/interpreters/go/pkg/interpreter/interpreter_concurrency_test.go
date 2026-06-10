@@ -133,6 +133,53 @@ func TestSpawnFutureValue(t *testing.T) {
 	}
 }
 
+func TestTreewalkerGoroutineExecutorConcurrentArrayTasks(t *testing.T) {
+	interp := NewWithExecutor(NewGoroutineExecutor(nil))
+	global := interp.GlobalEnvironment()
+
+	shared, err := interp.evaluateExpression(ast.Arr(ast.Int(7), ast.Int(11), ast.Int(13)), global)
+	if err != nil {
+		t.Fatalf("create shared array: %v", err)
+	}
+	global.Define("shared", shared)
+
+	const workers = 16
+	handles := make([]*runtime.FutureValue, 0, workers)
+	for worker := 0; worker < workers; worker++ {
+		value, err := interp.evaluateExpression(
+			ast.Spawn(ast.Block(
+				ast.Arr(ast.Int(int64(worker)), ast.Int(int64(worker+1))),
+				ast.Index(ast.ID("shared"), ast.Int(int64(worker%3))),
+			)),
+			global,
+		)
+		if err != nil {
+			t.Fatalf("spawn worker %d: %v", worker, err)
+		}
+		handle, ok := value.(*runtime.FutureValue)
+		if !ok {
+			t.Fatalf("spawn worker %d returned %T, want *runtime.FutureValue", worker, value)
+		}
+		handles = append(handles, handle)
+	}
+
+	interp.executor.Flush()
+	for worker, handle := range handles {
+		value, failure, status := handle.Snapshot()
+		if status != runtime.FutureResolved || failure != nil {
+			t.Fatalf("worker %d status = %v, failure = %#v", worker, status, failure)
+		}
+		integer, ok := value.(runtime.IntegerValue)
+		if !ok {
+			t.Fatalf("worker %d value = %T, want runtime.IntegerValue", worker, value)
+		}
+		want := int64([]int{7, 11, 13}[worker%3])
+		if integer.BigInt().Int64() != want {
+			t.Fatalf("worker %d value = %d, want %d", worker, integer.BigInt().Int64(), want)
+		}
+	}
+}
+
 func TestFutureCancelBeforeStart(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {

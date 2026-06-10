@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-22",
+  "kind": "compiled-post-abi-current-profile-refresh",
+  "decision": "no_candidate",
+  "production_changes": false,
+  "stdlib_changes": false,
+  "bytecode_changes": false,
+  "wasm_changes": false,
+  "artifact_identity": {
+    "source": "v12/tmp/struct-definition-key-candidate-rebuild-20260722/artifacts",
+    "reason": "These binaries contain the retained lazy native-environment ABI and retained typed struct-definition cache key after the static match-type candidate was reverted.",
+    "binaries": [
+      {"benchmark":"binary_event_log","bytes":20331928,"sha256":"cb2cb7d02b01744f81dae9c7752660b3be5ea5a6ae7d044a6d20bbac18545964"},
+      {"benchmark":"option_result_config","bytes":14968320,"sha256":"384fa23210eab97e5aba6bb70af5357cca6808a621ff5ded371b0fc5afaa5b8e"},
+      {"benchmark":"manifest_normalization","bytes":20301480,"sha256":"bc478e737d1a899f45bc729111302f108fae174507deeadda44d109d1e0dfee7"},
+      {"benchmark":"policy_record_dispatch","bytes":29811760,"sha256":"eab6e74ddff24b3dc4408cb61ebf8f93b6bf2f59231cd169d05329d53efdef78"},
+      {"benchmark":"nbody","bytes":17618832,"sha256":"0aa1534971d264506c92e03c629bf7f1972b9fef5767decf52006577bc249193"},
+      {"benchmark":"k_nucleotide","bytes":22148992,"sha256":"f5a3f4e7ee9a89ec121f68bf03af53cd965e8d4ef68d8fa98ad4e9a5da4c145f"},
+      {"benchmark":"matrixmultiply","bytes":15513856,"sha256":"1ab8f959a9bd2d33b0159266bd11dc75f7e75360e983b7c16557207de786de73"},
+      {"benchmark":"mutex_ledger","bytes":15466648,"sha256":"81ae218d0d645692d42e557676d7474de8f4a95f13e3f0851e7625dd57e5ddaf"}
+    ],
+    "excluded_diagnostic": {
+      "source": "v12/tmp/lazy-native-context-candidate-20260722/artifacts",
+      "verified_processes": 59,
+      "reason": "The first diagnostic pass revealed allocating fmt.Sprintf-based structCacheKey frames, proving those preserved binaries predated the retained typed cache-key change. Their measurements did not govern selection."
+    }
+  },
+  "protocol": {
+    "cpu_affinity": "0",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timeout_seconds": 55,
+    "successful_governing_verified_processes": 139,
+    "governing_failures": 0,
+    "governing_timeouts": 0,
+    "excluded_diagnostic_timeouts": 1,
+    "union_timing_processes": 20,
+    "union_cpu_profile_processes": 50,
+    "nonunion_cpu_profile_processes": 21,
+    "lightweight_exact_counter_processes": 40,
+    "allocation_owner_processes": 8,
+    "all_samples_retained": true
+  },
+  "union_timing": [
+    {"benchmark":"binary_event_log","seconds":[0.58,0.51,0.53,0.54,0.55],"mean_seconds":0.542,"mean_user_seconds":0.486,"mean_sys_seconds":0.038,"mean_gc":15.4,"stdout_sha256":"fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9"},
+    {"benchmark":"option_result_config","seconds":[0.18,0.18,0.18,0.17,0.18],"mean_seconds":0.178,"mean_user_seconds":0.138,"mean_sys_seconds":0.030,"mean_gc":5.0,"stdout_sha256":"28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112"},
+    {"benchmark":"manifest_normalization","seconds":[0.19,0.18,0.18,0.18,0.18],"mean_seconds":0.182,"mean_user_seconds":0.142,"mean_sys_seconds":0.028,"mean_gc":5.0,"stdout_sha256":"2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"},
+    {"benchmark":"policy_record_dispatch","seconds":[0.19,0.21,0.22,0.23,0.24],"mean_seconds":0.218,"mean_user_seconds":0.180,"mean_sys_seconds":0.030,"mean_gc":7.8,"stdout_sha256":"f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"}
+  ],
+  "cpu_profiles": [
+    {"benchmark":"binary_event_log","processes":5,"total_samples_seconds":2.49,"classification":"allocation/GC plus bridge.ToInt and generated EventRecord conversion"},
+    {"benchmark":"option_result_config","processes":15,"total_samples_seconds":1.60,"classification":"allocation/GC plus already-rejected immutable match-type AST construction"},
+    {"benchmark":"manifest_normalization","processes":15,"total_samples_seconds":1.60,"classification":"allocation/GC plus String/byte conversion"},
+    {"benchmark":"policy_record_dispatch","processes":15,"total_samples_seconds":1.75,"classification":"allocation/GC plus regex NFA bodies"},
+    {"benchmark":"nbody","processes":10,"total_samples_seconds":0.77,"classification":"direct generated floating-point advance/sqrt bodies"},
+    {"benchmark":"k_nucleotide","processes":3,"total_samples_seconds":8.34,"classification":"primitive HashMap equality/hash and allocation/GC"},
+    {"benchmark":"matrixmultiply","processes":3,"total_samples_seconds":3.20,"classification":"direct generated matmul body"},
+    {"benchmark":"mutex_ledger","processes":5,"total_samples_seconds":2.36,"classification":"already-closed currentGID/runtime.Stack environment tracking"}
+  ],
+  "exact_main_counters": [
+    {"benchmark":"binary_event_log","objects":[3457793,3457793,3457793,3457793,3457793],"mean_objects":3457793.0,"bytes":[244031240,244031256,244031224,244031256,244031240],"mean_bytes":244031243.2},
+    {"benchmark":"option_result_config","objects":[1052543,1052544,1052543,1052544,1052544],"mean_objects":1052543.6,"bytes":[37768552,37768696,37768552,37768696,37768680],"mean_bytes":37768635.2},
+    {"benchmark":"manifest_normalization","objects":[917555,917509,917496,917469,917531],"mean_objects":917512.0,"bytes":[43839848,43416992,43306104,43066448,43637232],"mean_bytes":43453324.8},
+    {"benchmark":"policy_record_dispatch","objects":[921371,921368,921371,921369,921370],"mean_objects":921369.8,"bytes":[47323992,47323728,47323992,47323768,47323880],"mean_bytes":47323872.0},
+    {"benchmark":"nbody","objects":[41,41,41,41,41],"mean_objects":41.0,"bytes":[1096,1096,1096,1096,1096],"mean_bytes":1096.0},
+    {"benchmark":"matrixmultiply","objects":[8016,8018,8018,8018,8018],"mean_objects":8017.6,"bytes":[32897120,32897352,32897352,32897352,32897352],"mean_bytes":32897305.6},
+    {"benchmark":"mutex_ledger","objects":[147664,147664,147664,147665,147665],"mean_objects":147664.4,"bytes":[8270696,8270696,8270696,8270856,8270856],"mean_bytes":8270760.0},
+    {"benchmark":"k_nucleotide","objects":[27734581,27734581,27734581,27734581,27734581],"mean_objects":27734581.0,"bytes":[1224424352,1224424368,1224424368,1224424432,1224424368],"mean_bytes":1224424377.6}
+  ],
+  "allocation_owner_summary": [
+    {"benchmark":"binary_event_log","owners":["bridge.ToInt","generated EventRecord conversion","closed static match-type AST construction"]},
+    {"benchmark":"option_result_config","owners":["closed static match-type AST construction","generated union/value conversion closures"]},
+    {"benchmark":"manifest_normalization","owners":["String/byte conversion","bridge.ToUint","generated record conversion"]},
+    {"benchmark":"policy_record_dispatch","owners":["regex NFA capture/thread storage","bridge.ToUint","String/byte conversion"]},
+    {"benchmark":"nbody","owners":["no material application allocation owner"]},
+    {"benchmark":"matrixmultiply","owners":["matrix construction backing and per-row slices"]},
+    {"benchmark":"mutex_ledger","owners":["closed currentGID/environment tracking","sync.Map nodes","mutex waiter notifications"]},
+    {"benchmark":"k_nucleotide","profile_kind":"64KiB sampled cumulative allocs","owners":["bridge.ToUint at primitive map boundary","String/byte conversion","bridge.ToInt at dynamic boundary"]}
+  ],
+  "closed_intersections": [
+    {"owner":"NewIdentifier/NewSimpleTypeExpression","reason":"The immutable static match-type table removed the objects but failed the broad wall gate and was reverted."},
+    {"owner":"bridge.ToInt","reason":"The retained dynamic-i64 boundary helper already covers proven escaping common values; a global i64 cache failed an unrelated averaged guard, and remaining ordinary boxing is semantic boundary materialization."},
+    {"owner":"bridge.ToUint","reason":"The eight-application unsigned census found material reach only in K-Nucleotide, so a cache would be a map-workload specialization."},
+    {"owner":"primitive HashMap equality/hash","reason":"Material only in K-Nucleotide and cannot authorize a named non-primitive container lowering."},
+    {"owner":"bridge.currentGID/runtime.Stack","reason":"The fixed execution-context designs already failed broad compiled concurrency guards."},
+    {"owner":"runtime allocation/GC parents","reason":"Caller reconciliation splits them among nominal conversion, union conversion, String/bytes, regex, map boxing, matrix storage, and concurrency."}
+  ],
+  "next_recommendation": {
+    "action": "refresh and reconcile the verifier-backed compiled-versus-Go scorecard from the retained current binaries before selecting another compiler candidate",
+    "why": "The current eight-application owner screen has no open concrete leaf, while several checked-in frontier entries still describe pre-ABI or now-completed candidates.",
+    "entails": "rebuild or freeze current binaries for the portable compiled suite, run repeated averaged Able and Go cohorts, update target ratios and evidence dispositions, then profile only a materially missing group whose same concrete generic descendant appears in at least three unlike programs"
+  }
+}

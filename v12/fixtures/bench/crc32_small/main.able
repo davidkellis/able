@@ -1,0 +1,47 @@
+package bench_crc32_small
+
+import able.kernel.{Array}
+
+fn build_bytes(size: i32) -> Array u8 {
+  bytes: Array u8 = Array.with_capacity(size)
+  i := 0
+  loop {
+    if i >= size { break }
+    bytes.push((((i * 31) + (i // 7) + 13) % 251) as u8)
+    i = i + 1
+  }
+  bytes
+}
+
+fn crc32(bytes: Array u8) -> u32 {
+  crc := 4_294_967_295_u32
+  i := 0
+  loop {
+    if i >= bytes.len() { break }
+    crc = crc .^ (bytes[i]! as u32)
+    bit := 0
+    loop {
+      if bit >= 8 { break }
+      if (crc .& 1_u32) == 1_u32 {
+        crc = (crc .>> 1_u32) .^ 3_988_292_384_u32
+      } else {
+        crc = crc .>> 1_u32
+      }
+      bit = bit + 1
+    }
+    i = i + 1
+  }
+  crc .^ 4_294_967_295_u32
+}
+
+fn main() -> void {
+  bytes := build_bytes(12_000)
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 24 { break }
+    total = total + (crc32(bytes) as i64)
+    rounds = rounds + 1
+  }
+  print(total)
+}

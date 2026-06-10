@@ -1,0 +1,131 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain-no-code",
+  "compiler_sha256": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e",
+  "generation": {
+    "applications": 7,
+    "telemetry_modules": 7,
+    "normal_modules": 7,
+    "dependency_packages_per_module": 96,
+    "interpreter_dependencies": 0
+  },
+  "processes": {
+    "telemetry": 35,
+    "cpu_profile": 140,
+    "allocation_profile": 21,
+    "verified": 196,
+    "failed": 0
+  },
+  "applications": [
+    {
+      "name": "concurrent-scene-tiles",
+      "stdout_sha256": "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe",
+      "telemetry_binary_sha256": "4c52f0c5ecd0c79865ba9be960385f73a08415e3da43a9d34e055dca493814d3",
+      "normal_binary_sha256": "0d4fa70d2707e2962b1f643414f72385348ae81868b49dbc4c51525bf8a83ebd",
+      "telemetry": {
+        "array_from_runtime": 1,
+        "struct_from_runtime": 4,
+        "struct_to_runtime": 4,
+        "control_from_error": 9
+      },
+      "cpu_samples_ms": 80,
+      "allocated_bytes_mean": 1192512,
+      "allocations_mean": 37058
+    },
+    {
+      "name": "option-result-config",
+      "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+      "telemetry_binary_sha256": "f18087748da112a4d64081ed37d4b5656d220df406a0578e08f0014804044a8f",
+      "normal_binary_sha256": "96207bbf0f5649e64bce1c6f4ea395d0f14a90e572b1596c3665401c6cb7e9d9",
+      "telemetry": {
+        "struct_to_runtime": 6432,
+        "union_from_runtime": 24384,
+        "control_from_error": 55200
+      },
+      "cpu_samples_ms": 280,
+      "allocated_bytes_mean": 9936637.333333334,
+      "allocations_mean": 182896
+    },
+    {
+      "name": "sensor-calibration",
+      "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb",
+      "telemetry_binary_sha256": "7134a1792f10cb7c33ea65d873d31d8ef2a4e4a7427eba7ee0f13a99119b9210",
+      "normal_binary_sha256": "a248410f4f5487aed2ee0805d947914f2e824070a897d8cfd19f53098fb65bf8",
+      "telemetry": {
+        "array_from_runtime": 1,
+        "struct_to_runtime": 1280,
+        "union_from_runtime": 1,
+        "control_from_error": 25089
+      },
+      "cpu_samples_ms": 120,
+      "allocated_bytes_mean": 3609397.3333333335,
+      "allocations_mean": 57535.666666666664
+    },
+    {
+      "name": "dependency-plan",
+      "stdout_sha256": "96dc74508d9b7a476bafdef453b11e11f2f70279c58ccaa5dcb6d85c529c4a38",
+      "telemetry_binary_sha256": "76820a207b86d74b0e51eaba1a9ecea7778ef8522852c9104c34e306d8f93a05",
+      "normal_binary_sha256": "f3fba13896fe9cdac6f1268ab600cf745d0430b6e756ef9cd731cccca6b6d831",
+      "telemetry": {},
+      "cpu_samples_ms": 10,
+      "allocated_bytes_mean": 199072,
+      "allocations_mean": 14410
+    },
+    {
+      "name": "document-audit",
+      "stdout_sha256": "0dad030a80c8a883cbb56fbcfebfd530d521075e15d5d91ba538bc93e66c0aab",
+      "telemetry_binary_sha256": "9f73121092bfbe9ccca65d57af51467555c755219b7cc84075aab0a0f2a56a9c",
+      "normal_binary_sha256": "f96497621fe6ad6ee6a5ceae7a560ad73107f7ea64869be3ae984d9166d2ed7a",
+      "telemetry": {
+        "array_from_runtime": 1,
+        "struct_from_runtime": 2,
+        "interface_from_runtime": 2,
+        "control_from_error": 207
+      },
+      "cpu_samples_ms": 20,
+      "allocated_bytes_mean": 373840,
+      "allocations_mean": 1956.3333333333333
+    },
+    {
+      "name": "manifest-normalization",
+      "stdout_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb",
+      "telemetry_binary_sha256": "18ab6b3010992e44a91977b79a5a84e1a34b962de90b24eac1b70547442adf40",
+      "normal_binary_sha256": "36830629743beb0494d493c4c390633396bde775a6a90b944bdf3a455e8578f0",
+      "telemetry": {
+        "array_from_runtime": 1,
+        "struct_from_runtime": 3072,
+        "struct_to_runtime": 7168,
+        "union_from_runtime": 1,
+        "control_from_error": 16385
+      },
+      "cpu_samples_ms": 180,
+      "allocated_bytes_mean": 3907373.3333333335,
+      "allocations_mean": 84933.33333333333
+    },
+    {
+      "name": "array-slice-window",
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "telemetry_binary_sha256": "9c7f326ce99a3312949e7570faab700ff04f08f758dea1c7490ff018663cf9b6",
+      "normal_binary_sha256": "a8550018ebfa4d079c94c31d855327ffe602364a4dc1191171071372fccd63dd",
+      "telemetry": {},
+      "cpu_samples_ms": 80,
+      "allocated_bytes_mean": 1441720,
+      "allocations_mean": 24016
+    }
+  ],
+  "shared_exact_owner": {
+    "name": "runtime.NewStructInstancePositionalSized",
+    "material_applications": [
+      "option-result-config",
+      "sensor-calibration",
+      "manifest-normalization"
+    ],
+    "disposition": "semantic escaping runtime representation; further elimination requires excluded broad Result/control ABI or caller-owned nominal architecture"
+  },
+  "single_application_owner": {
+    "name": "generated generic-union AST type-expression construction",
+    "application": "option-result-config",
+    "disposition": "insufficient unlike-program breadth"
+  },
+  "next": "refresh and close strict-compiled scorecard availability for the eight failed July 25 repair rows"
+}

@@ -7,6 +7,7 @@ import (
 )
 
 func (g *generator) renderRuntimeInterfaceDispatch(buf *bytes.Buffer) {
+	registrationCapacities := g.interfaceDispatchRegistrationCapacities()
 	fmt.Fprintf(buf, "type __able_interface_constraint_spec struct {\n")
 	fmt.Fprintf(buf, "\tsubject ast.TypeExpression\n")
 	fmt.Fprintf(buf, "\tiface   ast.TypeExpression\n")
@@ -30,6 +31,34 @@ func (g *generator) renderRuntimeInterfaceDispatch(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "}\n\n")
 	fmt.Fprintf(buf, "var __able_interface_dispatch map[string]map[string][]__able_interface_dispatch_entry\n")
 	fmt.Fprintf(buf, "var __able_interface_dispatch_strict bool\n\n")
+	fmt.Fprintf(buf, "func __able_new_interface_dispatch() map[string]map[string][]__able_interface_dispatch_entry {\n")
+	fmt.Fprintf(buf, "\treturn make(map[string]map[string][]__able_interface_dispatch_entry, %d)\n", len(registrationCapacities))
+	fmt.Fprintf(buf, "}\n\n")
+	fmt.Fprintf(buf, "func __able_new_interface_dispatch_methods(ifaceName string) map[string][]__able_interface_dispatch_entry {\n")
+	fmt.Fprintf(buf, "\tswitch ifaceName {\n")
+	interfaceNames := make([]string, 0, len(registrationCapacities))
+	for ifaceName := range registrationCapacities {
+		interfaceNames = append(interfaceNames, ifaceName)
+	}
+	sort.Strings(interfaceNames)
+	for _, ifaceName := range interfaceNames {
+		methods := registrationCapacities[ifaceName]
+		methodNames := make([]string, 0, len(methods))
+		for methodName := range methods {
+			methodNames = append(methodNames, methodName)
+		}
+		sort.Strings(methodNames)
+		fmt.Fprintf(buf, "\tcase %q:\n", ifaceName)
+		fmt.Fprintf(buf, "\t\tmethods := make(map[string][]__able_interface_dispatch_entry, %d)\n", len(methodNames))
+		for _, methodName := range methodNames {
+			fmt.Fprintf(buf, "\t\tmethods[%q] = make([]__able_interface_dispatch_entry, 0, %d)\n", methodName, methods[methodName])
+		}
+		fmt.Fprintf(buf, "\t\treturn methods\n")
+	}
+	fmt.Fprintf(buf, "\tdefault:\n")
+	fmt.Fprintf(buf, "\t\treturn make(map[string][]__able_interface_dispatch_entry)\n")
+	fmt.Fprintf(buf, "\t}\n")
+	fmt.Fprintf(buf, "}\n\n")
 
 	search := g.interfaceSearchMap()
 	if len(search) > 0 {
@@ -503,11 +532,11 @@ func (g *generator) renderRuntimeInterfaceDispatch(buf *bytes.Buffer) {
 	fmt.Fprintf(buf, "\t\treturn\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tif __able_interface_dispatch == nil {\n")
-	fmt.Fprintf(buf, "\t\t__able_interface_dispatch = make(map[string]map[string][]__able_interface_dispatch_entry)\n")
+	fmt.Fprintf(buf, "\t\t__able_interface_dispatch = __able_new_interface_dispatch()\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tperIface := __able_interface_dispatch[ifaceName]\n")
 	fmt.Fprintf(buf, "\tif perIface == nil {\n")
-	fmt.Fprintf(buf, "\t\tperIface = make(map[string][]__able_interface_dispatch_entry)\n")
+	fmt.Fprintf(buf, "\t\tperIface = __able_new_interface_dispatch_methods(ifaceName)\n")
 	fmt.Fprintf(buf, "\t\t__able_interface_dispatch[ifaceName] = perIface\n")
 	fmt.Fprintf(buf, "\t}\n")
 	fmt.Fprintf(buf, "\tgenericSet := __able_generic_name_set(genericNames)\n")

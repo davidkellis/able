@@ -1,0 +1,114 @@
+File: compiled
+Build ID: 2f1e13ec0e165ac95c86693cb046abe0738b02b3
+Type: cpu
+Time: 2026-07-27 22:20:22 CDT
+Duration: 508.84ms, Total samples = 580ms (113.98%)
+Showing nodes accounting for 580ms, 100% of 580ms total
+      flat  flat%   sum%        cum   cum%
+      80ms 13.79% 13.79%       80ms 13.79%  main.laneScore (inline)
+      60ms 10.34% 24.14%      110ms 18.97%  runtime.selectgo
+      50ms  8.62% 32.76%       50ms  8.62%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+      30ms  5.17% 37.93%       30ms  5.17%  runtime.unlock2
+      20ms  3.45% 41.38%       20ms  3.45%  indexbytebody
+      20ms  3.45% 44.83%       20ms  3.45%  runtime.futex
+      20ms  3.45% 48.28%       20ms  3.45%  runtime.releaseSudog
+      20ms  3.45% 51.72%       30ms  5.17%  runtime.sellock
+      20ms  3.45% 55.17%       20ms  3.45%  runtime.tryDeferToSpanScan
+      10ms  1.72% 56.90%       10ms  1.72%  runtime.(*consistentHeapStats).acquire
+      10ms  1.72% 58.62%       10ms  1.72%  runtime.(*gList).push (inline)
+      10ms  1.72% 60.34%       30ms  5.17%  runtime.(*mcache).refill
+      10ms  1.72% 62.07%       10ms  1.72%  runtime.(*mspan).base (inline)
+      10ms  1.72% 63.79%       10ms  1.72%  runtime.(*mspan).writeHeapBitsSmall
+      10ms  1.72% 65.52%       10ms  1.72%  runtime.(*spanInlineMarkBits).init
+      10ms  1.72% 67.24%       10ms  1.72%  runtime.(*stkframe).getStackMap
+      10ms  1.72% 68.97%       10ms  1.72%  runtime.(*waitq).dequeue (inline)
+      10ms  1.72% 70.69%       10ms  1.72%  runtime.acquirem (inline)
+      10ms  1.72% 72.41%       60ms 10.34%  runtime.casgstatus
+      10ms  1.72% 74.14%       20ms  3.45%  runtime.chanparkcommit
+      10ms  1.72% 75.86%       20ms  3.45%  runtime.chansend
+      10ms  1.72% 77.59%       20ms  3.45%  runtime.execute
+      10ms  1.72% 79.31%       10ms  1.72%  runtime.findfunc
+      10ms  1.72% 81.03%       30ms  5.17%  runtime.findnull
+      10ms  1.72% 82.76%       40ms  6.90%  runtime.gdestroy
+      10ms  1.72% 84.48%       10ms  1.72%  runtime.gfget
+      10ms  1.72% 86.21%       10ms  1.72%  runtime.gopark
+      10ms  1.72% 87.93%       10ms  1.72%  runtime.lock2
+      10ms  1.72% 89.66%       60ms 10.34%  runtime.makechan
+      10ms  1.72% 91.38%       60ms 10.34%  runtime.newproc.func1
+      10ms  1.72% 93.10%       10ms  1.72%  runtime.nextFreeFast (inline)
+      10ms  1.72% 94.83%       10ms  1.72%  runtime.pidleput
+      10ms  1.72% 96.55%       10ms  1.72%  runtime.runqgrab
+      10ms  1.72% 98.28%       10ms  1.72%  runtime.scanObject
+      10ms  1.72%   100%      110ms 18.97%  runtime.systemstack
+         0     0%   100%       10ms  1.72%  gcWriteBarrier
+         0     0%   100%       20ms  3.45%  main.awaitDefault
+         0     0%   100%      170ms 29.31%  main.benchmarkMain
+         0     0%   100%      170ms 29.31%  main.benchmarkMain.func1
+         0     0%   100%       10ms  1.72%  main.benchmarkMain.func2
+         0     0%   100%       30ms  5.17%  main.benchmarkMain.func3
+         0     0%   100%      170ms 29.31%  main.main
+         0     0%   100%       10ms  1.72%  runtime.(*m).clearAllpSnapshot
+         0     0%   100%       30ms  5.17%  runtime.(*mcache).nextFree
+         0     0%   100%       10ms  1.72%  runtime.(*mcentral).cacheSpan
+         0     0%   100%       10ms  1.72%  runtime.(*mcentral).grow
+         0     0%   100%       30ms  5.17%  runtime.(*moduledata).funcName
+         0     0%   100%       10ms  1.72%  runtime.(*mspan).initHeapBits
+         0     0%   100%       10ms  1.72%  runtime.(*mspan).initInlineMarkBits (inline)
+         0     0%   100%       10ms  1.72%  runtime.bgsweep
+         0     0%   100%       30ms  5.17%  runtime.chanrecv
+         0     0%   100%       30ms  5.17%  runtime.chanrecv1
+         0     0%   100%       20ms  3.45%  runtime.chansend1
+         0     0%   100%       30ms  5.17%  runtime.findRunnable
+         0     0%   100%       10ms  1.72%  runtime.freeDeadSpanSPMCs
+         0     0%   100%       30ms  5.17%  runtime.funcname (inline)
+         0     0%   100%       10ms  1.72%  runtime.futexsleep
+         0     0%   100%       10ms  1.72%  runtime.futexwakeup
+         0     0%   100%       30ms  5.17%  runtime.gcBgMarkWorker
+         0     0%   100%       30ms  5.17%  runtime.gcBgMarkWorker.func2
+         0     0%   100%       30ms  5.17%  runtime.gcDrain
+         0     0%   100%       20ms  3.45%  runtime.gcDrainMarkWorkerDedicated (inline)
+         0     0%   100%       10ms  1.72%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0%   100%       10ms  1.72%  runtime.gcmarknewobject
+         0     0%   100%       10ms  1.72%  runtime.gfput
+         0     0%   100%       70ms 12.07%  runtime.goexit0
+         0     0%   100%       10ms  1.72%  runtime.goready (inline)
+         0     0%   100%       30ms  5.17%  runtime.goschedImpl
+         0     0%   100%       30ms  5.17%  runtime.gosched_m
+         0     0%   100%       30ms  5.17%  runtime.gostringnocopy (inline)
+         0     0%   100%       10ms  1.72%  runtime.heapSetTypeNoHeader (inline)
+         0     0%   100%       40ms  6.90%  runtime.isSystemGoroutine
+         0     0%   100%       10ms  1.72%  runtime.lock (inline)
+         0     0%   100%       10ms  1.72%  runtime.lockWithRank (inline)
+         0     0%   100%       10ms  1.72%  runtime.mPark (inline)
+         0     0%   100%      170ms 29.31%  runtime.main
+         0     0%   100%       70ms 12.07%  runtime.mallocgc
+         0     0%   100%       50ms  8.62%  runtime.mallocgcSmallNoscan
+         0     0%   100%       20ms  3.45%  runtime.mallocgcSmallScanNoHeader
+         0     0%   100%       10ms  1.72%  runtime.markroot
+         0     0%   100%       10ms  1.72%  runtime.markroot.func1
+         0     0%   100%      150ms 25.86%  runtime.mcall
+         0     0%   100%       20ms  3.45%  runtime.newobject
+         0     0%   100%       60ms 10.34%  runtime.newproc
+         0     0%   100%       40ms  6.90%  runtime.newproc1
+         0     0%   100%       10ms  1.72%  runtime.notesleep
+         0     0%   100%       10ms  1.72%  runtime.notewakeup
+         0     0%   100%       50ms  8.62%  runtime.park_m
+         0     0%   100%       10ms  1.72%  runtime.ready
+         0     0%   100%       10ms  1.72%  runtime.runqsteal
+         0     0%   100%       10ms  1.72%  runtime.scanObjectsSmall
+         0     0%   100%       10ms  1.72%  runtime.scanSpan
+         0     0%   100%       10ms  1.72%  runtime.scanframeworker
+         0     0%   100%       10ms  1.72%  runtime.scanstack
+         0     0%   100%       60ms 10.34%  runtime.schedule
+         0     0%   100%       10ms  1.72%  runtime.selunlock
+         0     0%   100%       10ms  1.72%  runtime.send
+         0     0%   100%       10ms  1.72%  runtime.send.goready.func1
+         0     0%   100%       10ms  1.72%  runtime.startm
+         0     0%   100%       10ms  1.72%  runtime.stealWork
+         0     0%   100%       10ms  1.72%  runtime.stopm
+         0     0%   100%       30ms  5.17%  runtime.unlock (inline)
+         0     0%   100%       30ms  5.17%  runtime.unlockWithRank (inline)
+         0     0%   100%       10ms  1.72%  runtime.wakep
+         0     0%   100%       10ms  1.72%  runtime.wbBufFlush
+         0     0%   100%       10ms  1.72%  runtime.wbBufFlush.func1
+         0     0%   100%       10ms  1.72%  runtime.wbBufFlush1

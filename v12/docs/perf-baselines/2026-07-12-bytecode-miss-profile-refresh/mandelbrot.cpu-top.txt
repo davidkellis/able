@@ -1,0 +1,29 @@
+File: interpreter.test
+Build ID: 660f7a6586d0c20fa14c8246b686314c066749cd
+Type: cpu
+Time: 2026-07-11 23:28:18 CDT
+Duration: 7.82s, Total samples = 7.70s (98.47%)
+Showing nodes accounting for 2.21s, 28.70% of 7.70s total
+Dropped 98 nodes (cum <= 0.04s)
+Showing top 20 nodes out of 111
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      7.34s 95.32%  able/interpreter-go/pkg/interpreter.BenchmarkBytecodeProgramRuntime
+         0     0%     0%      7.34s 95.32%  testing.(*B).run1.func1
+         0     0%     0%      7.34s 95.32%  testing.(*B).runN
+         0     0%     0%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*Interpreter).CallFunction
+         0     0%     0%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValue (inline)
+         0     0%     0%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithMutability (inline)
+         0     0%     0%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*Interpreter).callCallableValueWithOptionalInjectedReceiver
+         0     0%     0%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*Interpreter).callResolvedFunctionValue
+         0     0%     0%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*Interpreter).invokeFunction
+         0     0%     0%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runDetached
+     1.11s 14.42% 14.42%      7.33s 95.19%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+     0.15s  1.95% 16.36%      2.01s 26.10%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+     0.07s  0.91% 17.27%      1.71s 22.21%  able/interpreter-go/pkg/interpreter.bytecodeNormalizedRawFloatSlotValue (inline)
+     0.03s  0.39% 17.66%      1.64s 21.30%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execJumpOpcode
+     0.08s  1.04% 18.70%      1.64s 21.30%  runtime.convT64
+     0.26s  3.38% 22.08%      1.59s 20.65%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execJumpIfFloatMulAddMulCompareConstFalse
+     0.22s  2.86% 24.94%      1.57s 20.39%  runtime.mallocgc
+     0.02s  0.26% 25.19%      1.45s 18.83%  able/interpreter-go/pkg/interpreter.bytecodeSetNormalizedRawFloatValue (inline)
+     0.06s  0.78% 25.97%      1.14s 14.81%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlotOpcode
+     0.21s  2.73% 28.70%      1.14s 14.81%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).storeReusableNormalizedFloatSlotRawDiscard

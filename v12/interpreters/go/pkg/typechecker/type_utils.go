@@ -148,20 +148,22 @@ func unsignedBounds(bits int) intBounds {
 	return intBounds{min: big.NewInt(0), max: max, bits: bits, signed: false}
 }
 
-var signedIntegerOrder = []string{"i8", "i16", "i32", "i64", "i128"}
-var unsignedIntegerOrder = []string{"u8", "u16", "u32", "u64", "u128"}
+var signedIntegerOrder = []string{"i8", "i16", "i32", "i64", "isize", "i128"}
+var unsignedIntegerOrder = []string{"u8", "u16", "u32", "u64", "usize", "u128"}
 
 var integerBounds = map[string]intBounds{
-	"i8":   signedBounds(8),
-	"i16":  signedBounds(16),
-	"i32":  signedBounds(32),
-	"i64":  signedBounds(64),
-	"i128": signedBounds(128),
-	"u8":   unsignedBounds(8),
-	"u16":  unsignedBounds(16),
-	"u32":  unsignedBounds(32),
-	"u64":  unsignedBounds(64),
-	"u128": unsignedBounds(128),
+	"i8":    signedBounds(8),
+	"i16":   signedBounds(16),
+	"i32":   signedBounds(32),
+	"i64":   signedBounds(64),
+	"isize": signedBounds(64),
+	"i128":  signedBounds(128),
+	"u8":    unsignedBounds(8),
+	"u16":   unsignedBounds(16),
+	"u32":   unsignedBounds(32),
+	"u64":   unsignedBounds(64),
+	"usize": unsignedBounds(64),
+	"u128":  unsignedBounds(128),
 }
 
 func integerInfo(name string) (intBounds, bool) {

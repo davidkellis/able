@@ -1,0 +1,79 @@
+{
+  "date": "2026-07-22",
+  "decision": "no_new_removable_shared_allocation_owner",
+  "retained_change": false,
+  "profile_binary_sha256": "883a6ff6eaa828076a32dd5738f8844e2bec1803778bf2be86fb7e19ec650a00",
+  "guardrails": {
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "gomaxprocs": 1,
+    "timeout_seconds": 59,
+    "warmup_calls": 1,
+    "normal_typechecking": true,
+    "source_root_only": true,
+    "canonical_external_stdlib": true,
+    "high_resolution_memprofile_rate_bytes": 65536,
+    "pprof_focus": "BenchmarkBytecodeProgramRuntime"
+  },
+  "profile_sha256": {
+    "binary_event_log": "44050e1c1fedfd7e6b64998c77f6d484cdbc331e2a6f279ebf4363ac50c0b767",
+    "matrix_multiply": "a56f0b4acdf9bc24919ed4b577799e7d668a4ee659b74832aa864d2038d22d3c",
+    "linked_list_iterator_collect": "93a0bfa93bcce593941276359ef3be44c89b77867f24664be226448c78347c7f",
+    "option_result_config": "e294760b9a55cc26de8d42c64d6ff60dddeebc898f29a1c1561fef16b04dfc05",
+    "validated_job_pipeline": "760eb71da36efc21c586ae23135192f54cad8929fcd1585befe597aade25912f"
+  },
+  "excluded_harness_errors": [
+    {
+      "stage": "first high-resolution binary launch",
+      "cause": "omitted explicit ABLE_BENCH_SKIP_TYPECHECK=0 override",
+      "result": "warmup failure before measured main; no profile or counter admitted"
+    }
+  ],
+  "exact_counter_four_process_means": [
+    {"workload":"binary_event_log","mean_bytes_per_op":465574830,"byte_span":37368,"mean_objects_per_op":8361450.5,"object_span":62},
+    {"workload":"matrix_multiply","mean_bytes_per_op":308613900,"byte_span":31696,"mean_objects_per_op":14032580.75,"object_span":59},
+    {"workload":"linked_list_iterator_collect","mean_bytes_per_op":8709922,"byte_span":32264,"mean_objects_per_op":193021.25,"object_span":61},
+    {"workload":"option_result_config","mean_bytes_per_op":67922822,"byte_span":31320,"mean_objects_per_op":1167830.5,"object_span":54},
+    {"workload":"validated_job_pipeline","mean_bytes_per_op":13793654,"byte_span":37304,"mean_objects_per_op":201420.25,"object_span":61}
+  ],
+  "focused_sampled_object_denominators": {
+    "binary_event_log": 7044342,
+    "matrix_multiply": 12394974,
+    "linked_list_iterator_collect": 118573,
+    "option_result_config": 1080238,
+    "validated_job_pipeline": 21830
+  },
+  "focused_flat_object_percent": {
+    "bytecodeBoxedIntegerValue": [10.35,0,8.06,1.77,31.28],
+    "NewSimpleTypeExpression": [9.15,0,0,10.24,9.39],
+    "NewIdentifier": [8.80,0,0,9.58,18.77],
+    "errorInterfaceNames": [4.39,0,0,13.08,18.77],
+    "newEnvironmentBase": [1.60,0,0,4.65,1.56],
+    "bytecodeStackSnapshotValue": [2.85,25.45,38.00,0.38,0],
+    "NewUnionTypeExpression": [11.16,0,0,6.37,0],
+    "NewStructInstancePositionalSized": [3.13,0,6.05,0,0]
+  },
+  "line_reconciliation": {
+    "bytecodeStackSnapshotValue": {
+      "binary_event_log": "line 122: mutable raw-i64 slot cell to immutable raw-i64 result",
+      "matrix_multiply": "line 139: mutable FloatValue pointer to copied FloatValue",
+      "linked_list_iterator_collect": "line 122: mutable raw-i64 slot cell to immutable raw-i64 result"
+    },
+    "bytecodeBoxedIntegerValue": "line 249 in all four owners: direct large-i64 materialization"
+  },
+  "closed_mechanisms": [
+    "dynamic boxed integer cache lock/map variants",
+    "raw integer carrier escape across observable boundaries",
+    "immutable type-expression copy-on-write/global reuse",
+    "immutable Error-interface name arrays",
+    "generic environment pooling/elision across different lifetime classes",
+    "generic positional nominal pooling/scalar replacement",
+    "pointer or owned-cell operand stack snapshots"
+  ],
+  "verification": {
+    "command": "GOMEMLIMIT=1GiB GOGC=50 GOMAXPROCS=1 go test ./pkg/interpreter -run TestBytecode -count=1 -timeout 60s",
+    "result": "pass",
+    "seconds": 29.205
+  },
+  "next": "refresh compiled main-only CPU and exact allocation profiles after the retained lazy native environment/direct ABI"
+}

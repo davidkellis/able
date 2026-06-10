@@ -1,0 +1,95 @@
+{
+  "kind": "external-application-variance-report",
+  "measurement_source": "Verifier-backed external scorecards. Embedded successful per-run samples are used when available; legacy reports contribute one aggregate sample per input. This report describes variability only; it is not a timing threshold gate.",
+  "sources": [
+    {
+      "path": "v12/docs/perf-baselines/2026-07-16-primitive-kernel-helper-controls.json",
+      "generated_at": "2026-07-16T11:18:39.294277Z",
+      "suite": "custom",
+      "cpu_affinity": null,
+      "modes": [
+        "compiled"
+      ],
+      "languages": [
+        "go"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "document_audit",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 0.062,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 5,
+        "mean": 0.062,
+        "median": 0.05,
+        "minimum": 0.05,
+        "maximum": 0.11,
+        "range": 0.06,
+        "half_spread_pct": 48.387096774193544,
+        "sample_stdev": 0.026832815729997475,
+        "coefficient_of_variation_pct": 43.27873504838303
+      },
+      "reference_seconds": {},
+      "ratios": {}
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 2.052,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 5,
+        "mean": 2.052,
+        "median": 2.05,
+        "minimum": 2.03,
+        "maximum": 2.08,
+        "range": 0.050000000000000266,
+        "half_spread_pct": 1.2183235867446458,
+        "sample_stdev": 0.01923538406167143,
+        "coefficient_of_variation_pct": 0.9373968840970482
+      },
+      "reference_seconds": {},
+      "ratios": {}
+    },
+    {
+      "benchmark": "word_frequency",
+      "mode": "compiled",
+      "samples": [
+        {
+          "status": "verified",
+          "able_seconds": 0.162,
+          "ratios": {},
+          "reference_samples": {}
+        }
+      ],
+      "able_seconds": {
+        "samples": 5,
+        "mean": 0.16199999999999998,
+        "median": 0.15,
+        "minimum": 0.15,
+        "maximum": 0.21,
+        "range": 0.06,
+        "half_spread_pct": 18.51851851851852,
+        "sample_stdev": 0.026832815729997475,
+        "coefficient_of_variation_pct": 16.563466499998444
+      },
+      "reference_seconds": {},
+      "ratios": {}
+    }
+  ]
+}

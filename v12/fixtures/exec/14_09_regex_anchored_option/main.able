@@ -1,0 +1,47 @@
+package exec_14_09_regex_anchored_option
+
+import able.text.regex.{Regex, RegexOptions, Match}
+
+## Semantics: anchored=true requires the complete haystack to match the pattern.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn main() -> void {
+  options := RegexOptions.default()
+  options.anchored = true
+
+  Regex.compile_with_options("cat", options) match {
+    case regex: Regex => show_match("substring", regex.match("bobcat")),
+    case _ => print("substring compile error")
+  }
+
+  Regex.compile_with_options("cat", options) match {
+    case regex: Regex => show_match("exact", regex.match("cat")),
+    case _ => print("exact compile error")
+  }
+
+  Regex.compile_with_options("é+", options) match {
+    case regex: Regex => show_match("unicode", regex.match("éé")),
+    case _ => print("unicode compile error")
+  }
+
+  Regex.compile_with_options("é+", options) match {
+    case regex: Regex => show_match("unicode_prefix", regex.match("xéé")),
+    case _ => print("unicode_prefix compile error")
+  }
+
+  Regex.compile_with_options("a*", options) match {
+    case regex: Regex => show_match("empty", regex.match("")),
+    case _ => print("empty compile error")
+  }
+
+  Regex.compile_with_options("a*", options) match {
+    case regex: Regex => show_match("nonmatching", regex.match("b")),
+    case _ => print("nonmatching compile error")
+  }
+}

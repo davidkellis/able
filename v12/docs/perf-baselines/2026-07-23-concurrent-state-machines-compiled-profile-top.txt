@@ -1,0 +1,88 @@
+File: run
+Build ID: 5276afd95d6576a1a2b50984532f5dd481f3d2b2
+Type: cpu
+Time: 2026-07-23 12:46:09 CDT
+Duration: 576.67ms, Total samples = 1.50s (260.11%)
+Showing nodes accounting for 1.50s, 100% of 1.50s total
+Showing top 80 nodes out of 95
+      flat  flat%   sum%        cum   cum%
+     0.53s 35.33% 35.33%      0.53s 35.33%  runtime.procyieldAsm
+     0.19s 12.67% 48.00%      0.19s 12.67%  runtime.futex
+     0.16s 10.67% 58.67%      0.84s 56.00%  runtime.lock2
+     0.10s  6.67% 65.33%      0.11s  7.33%  runtime.step
+     0.09s  6.00% 71.33%      0.11s  7.33%  runtime.recordForPanic
+     0.07s  4.67% 76.00%      0.15s 10.00%  runtime.unlock2
+     0.06s  4.00% 80.00%      0.21s 14.00%  runtime.pcvalue
+     0.03s  2.00% 82.00%      0.03s  2.00%  runtime.(*moduledata).textAddr
+     0.02s  1.33% 83.33%      0.86s 57.33%  runtime.printlock
+     0.02s  1.33% 84.67%      0.17s 11.33%  runtime.printunlock
+     0.02s  1.33% 86.00%      0.08s  5.33%  runtime.semawakeup (inline)
+     0.02s  1.33% 87.33%      0.03s  2.00%  runtime.tryDeferToSpanScan
+     0.01s  0.67% 88.00%      1.45s 96.67%  able/interpreter-go/pkg/compiler/bridge.currentGID
+     0.01s  0.67% 88.67%      0.01s  0.67%  runtime.cheaprand (inline)
+     0.01s  0.67% 89.33%      0.01s  0.67%  runtime.cputicks
+     0.01s  0.67% 90.00%      0.04s  2.67%  runtime.funcInfo.entry (inline)
+     0.01s  0.67% 90.67%      0.01s  0.67%  runtime.funcNamePiecesForPrint
+     0.01s  0.67% 91.33%      0.11s  7.33%  runtime.funcline1
+     0.01s  0.67% 92.00%      0.07s  4.67%  runtime.funcspdelta (inline)
+     0.01s  0.67% 92.67%      0.12s  8.00%  runtime.gwrite
+     0.01s  0.67% 93.33%      0.01s  0.67%  runtime.heapArenaOf (inline)
+     0.01s  0.67% 94.00%      0.01s  0.67%  runtime.nilinterhash
+     0.01s  0.67% 94.67%      0.01s  0.67%  runtime.osyield
+     0.01s  0.67% 95.33%      0.23s 15.33%  runtime.printArgs.func2 (inline)
+     0.01s  0.67% 96.00%      0.02s  1.33%  runtime.printhexopts
+     0.01s  0.67% 96.67%      0.02s  1.33%  runtime.printint
+     0.01s  0.67% 97.33%      0.11s  7.33%  runtime.printstring
+     0.01s  0.67% 98.00%      0.01s  0.67%  runtime.readvarint (inline)
+     0.01s  0.67% 98.67%      0.01s  0.67%  runtime.scanblock
+     0.01s  0.67% 99.33%      1.37s 91.33%  runtime.traceback2
+     0.01s  0.67%   100%      0.01s  0.67%  runtime.traceback2.func1 (inline)
+         0     0%   100%      0.36s 24.00%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%      0.36s 24.00%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%      1.10s 73.33%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      0.01s  0.67%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0%   100%      0.01s  0.67%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0%   100%      1.46s 97.33%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%      0.73s 48.67%  main.__able_compiled_entry_impl_StateHandler_apply_0
+         0     0%   100%      0.72s 48.00%  main.__able_compiled_entry_impl_StateHandler_apply_0_a
+         0     0%   100%      0.16s 10.67%  main.__able_compiled_fn_main.__able_compiled_fn_make_adjuster.func5
+         0     0%   100%      0.17s 11.33%  main.__able_compiled_fn_main.__able_compiled_fn_make_adjuster.func6
+         0     0%   100%      0.17s 11.33%  main.__able_compiled_fn_main.__able_compiled_fn_make_adjuster.func7
+         0     0%   100%      0.13s  8.67%  main.__able_compiled_fn_main.__able_compiled_fn_make_adjuster.func8
+         0     0%   100%      0.36s 24.00%  main.__able_compiled_fn_main.func1
+         0     0%   100%      0.37s 24.67%  main.__able_compiled_fn_main.func2
+         0     0%   100%      0.37s 24.67%  main.__able_compiled_fn_main.func3
+         0     0%   100%      0.35s 23.33%  main.__able_compiled_fn_main.func4
+         0     0%   100%      1.45s 96.67%  main.__able_compiled_fn_run_machine
+         0     0%   100%      0.33s 22.00%  main.__able_compiled_impl_StateHandler_apply_0
+         0     0%   100%      0.30s 20.00%  main.__able_compiled_impl_StateHandler_apply_0_a
+         0     0%   100%      0.72s 48.00%  main.__able_iface_StateHandler_adapter_ptr_CycleHandler.apply
+         0     0%   100%      0.73s 48.67%  main.__able_iface_StateHandler_adapter_ptr_GateHandler.apply
+         0     0%   100%      1.46s 97.33%  main.__able_run_compiled_task
+         0     0%   100%      0.11s  7.33%  runtime.(*inlineUnwinder).fileLine (inline)
+         0     0%   100%      0.02s  1.33%  runtime.(*inlineUnwinder).resolveInternal (inline)
+         0     0%   100%      0.07s  4.67%  runtime.(*unwinder).next
+         0     0%   100%      0.07s  4.67%  runtime.(*unwinder).resolveInternal
+         0     0%   100%      0.01s  0.67%  runtime.(*unwinder).symPC
+         0     0%   100%      1.44s 96.00%  runtime.Stack
+         0     0%   100%      1.44s 96.00%  runtime.Stack.func1
+         0     0%   100%      0.01s  0.67%  runtime.cheaprandn (inline)
+         0     0%   100%      0.13s  8.67%  runtime.futexsleep
+         0     0%   100%      0.06s  4.00%  runtime.futexwakeup
+         0     0%   100%      0.04s  2.67%  runtime.gcBgMarkWorker
+         0     0%   100%      0.04s  2.67%  runtime.gcBgMarkWorker.func2
+         0     0%   100%      0.04s  2.67%  runtime.gcDrain
+         0     0%   100%      0.01s  0.67%  runtime.gcDrainMarkWorkerDedicated (inline)
+         0     0%   100%      0.03s  2.00%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0%   100%      0.04s  2.67%  runtime.goroutineheader
+         0     0%   100%      0.84s 56.00%  runtime.lock (inline)
+         0     0%   100%      0.84s 56.00%  runtime.lockWithRank (inline)
+         0     0%   100%      0.01s  0.67%  runtime.markroot
+         0     0%   100%      0.01s  0.67%  runtime.markrootBlock
+         0     0%   100%      0.02s  1.33%  runtime.newInlineUnwinder
+         0     0%   100%      0.03s  2.00%  runtime.pcdatavalue
+         0     0%   100%      0.02s  1.33%  runtime.pcdatavalue1
+         0     0%   100%      0.39s 26.00%  runtime.printArgs
+         0     0%   100%      0.08s  5.33%  runtime.printArgs.func3 (inline)
+         0     0%   100%      0.39s 26.00%  runtime.printFuncName
+         0     0%   100%      0.03s  2.00%  runtime.printcreatedby

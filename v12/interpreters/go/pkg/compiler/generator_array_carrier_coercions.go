@@ -116,6 +116,11 @@ func (g *generator) directRuntimeArrayValueToGenericArrayLines(ctx *compileConte
 		"} else {",
 		fmt.Sprintf("\t%s = fmt.Errorf(\"expected Array value\")", errTemp),
 		"}",
+		fmt.Sprintf("if %s != nil {", resultTemp),
+		fmt.Sprintf("\tif trackErr := __able_struct_Array_track_handle(%s); trackErr != nil {", resultTemp),
+		fmt.Sprintf("\t\t%s = trackErr", errTemp),
+		"\t}",
+		"}",
 		fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
 	}
 	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
@@ -181,11 +186,18 @@ func (g *generator) runtimeValueToGenericArrayBoundaryLines(targetVar string, er
 			fmt.Sprintf("\t%s = fmt.Errorf(\"expected Array value\")", errVar),
 			"}",
 		)
-		return lines
+	} else {
+		lines = append(lines,
+			"} else {",
+			fmt.Sprintf("\t%s = fmt.Errorf(\"expected Array value\")", errVar),
+			"}",
+		)
 	}
 	lines = append(lines,
-		"} else {",
-		fmt.Sprintf("\t%s = fmt.Errorf(\"expected Array value\")", errVar),
+		fmt.Sprintf("if %s != nil {", targetVar),
+		fmt.Sprintf("\tif trackErr := __able_struct_Array_track_handle(%s); trackErr != nil {", targetVar),
+		fmt.Sprintf("\t\t%s = trackErr", errVar),
+		"\t}",
 		"}",
 	)
 	return lines
@@ -206,6 +218,23 @@ func (g *generator) runtimeValueToGenericArrayPanicExpr(valueExpr string, allowS
 		"return result",
 	)
 	return fmt.Sprintf("func() *Array {\n%s\n}()", strings.Join(indentLines(lines, 1), "\n"))
+}
+
+func (g *generator) appendArrayCarrierMoveControlLines(ctx *compileContext, targetExpr string, sourceExpr string) ([]string, bool) {
+	if g == nil || ctx == nil || targetExpr == "" || sourceExpr == "" {
+		return nil, false
+	}
+	errTemp := ctx.newTemp()
+	controlTemp := ctx.newTemp()
+	lines := []string{
+		fmt.Sprintf("%s := __able_struct_Array_move(%s, %s)", errTemp, targetExpr, sourceExpr),
+		fmt.Sprintf("%s := __able_control_from_error(%s)", controlTemp, errTemp),
+	}
+	controlLines, ok := g.lowerControlCheck(ctx, controlTemp)
+	if !ok {
+		return nil, false
+	}
+	return append(lines, controlLines...), true
 }
 
 func (g *generator) coerceStaticArrayCarrierLines(ctx *compileContext, expr string, actual string, expected string) ([]string, string, bool) {

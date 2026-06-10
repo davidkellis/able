@@ -1,0 +1,160 @@
+{
+  "date": "2026-07-26",
+  "decision": "retain_no_code",
+  "reason": "No exact compiler or generated-runtime CPU or allocation owner is material in at least three unlike target misses and absent or non-material in both controls.",
+  "compiler_sha256": "6ea26d6ee1e9b6b5447371bb01adc8052738ec08b13177db28b972b8c30c7bcc",
+  "settings": {
+    "build_arguments": [
+      "--no-fallbacks"
+    ],
+    "workspace": "/var/tmp/able-main-owner-intersection-20260726",
+    "serial": {
+      "cpu_affinity": "5",
+      "gomaxprocs": 1,
+      "executor": "serial"
+    },
+    "concurrent": {
+      "cpu_affinity": "5,10,15,11",
+      "gomaxprocs": 4,
+      "executor": "goroutine"
+    },
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "cpu_runs_per_application": 10,
+    "allocation_runs_per_application": 3,
+    "allocation_profile_rate": 1
+  },
+  "verification": {
+    "strict_builds": 6,
+    "smoke_processes": 6,
+    "cpu_profile_processes": 60,
+    "exact_allocation_profile_processes": 15,
+    "lightweight_memstats_processes": 3,
+    "retained_evidence_processes": 84,
+    "all_retained_processes_publicly_verified": true,
+    "dependency_packages_per_application": 96,
+    "interpreter_dependency_present": false,
+    "binary_trees_allocation_profile_timeout": "The exact end-snapshot observer exceeded the one-minute per-process guard; its incomplete profile was excluded and three exact main MemStats deltas were retained instead."
+  },
+  "applications": [
+    {
+      "name": "tapelang_alphabet",
+      "role": "target",
+      "scorecard_able_seconds": 3.794,
+      "scorecard_go_seconds": 2.0119,
+      "scorecard_excess_seconds": 1.7821,
+      "cpu_total_seconds": 37.16,
+      "cpu_owner": "__able_compiled_fn_execute plus Tape.inc/get/move",
+      "cpu_evidence": "execute 64.16% flat; Tape.inc 27.13%; Tape.get 6.73%; Tape.move 1.29%",
+      "allocation_bytes_mean": 282984,
+      "allocations_mean": 4277,
+      "gc_mean": 0,
+      "allocation_owner": "bridge.initCommonI32Boxes",
+      "allocation_owner_objects": 4225,
+      "disposition": "native primitive loop, Array access, and checked mutation; no shared target leaf"
+    },
+    {
+      "name": "k_nucleotide",
+      "role": "target",
+      "scorecard_able_seconds": 1.726,
+      "scorecard_go_seconds": 0.0556,
+      "scorecard_excess_seconds": 1.6704,
+      "cpu_total_seconds": 16.72,
+      "cpu_owner": "runtime-backed generic map storage and primitive key/value encoding",
+      "cpu_evidence": "primitiveHashMapKeyEqual 15.85% flat; primitiveHashMapHash 7.60%; mallocgc 30.98% cumulative",
+      "allocation_bytes_mean": 614264368,
+      "allocations_mean": 16232599,
+      "gc_mean": 337,
+      "allocation_owner": "bridge.ToUint and bridge.ToInt",
+      "allocation_owner_objects": {
+        "bridge.ToUint": 7999998,
+        "bridge.ToInt": 3961373
+      },
+      "disposition": "the same named-container storage route was already closed; a general typed-storage architecture is not established across unlike nominal families"
+    },
+    {
+      "name": "sudoku_masks",
+      "role": "target",
+      "scorecard_able_seconds": 1.826,
+      "scorecard_go_seconds": 0.6382,
+      "scorecard_excess_seconds": 1.1878,
+      "cpu_total_seconds": 17.65,
+      "cpu_owner": "find_best_empty search plus checked arithmetic",
+      "cpu_evidence": "find_best_empty 30.71% flat; checked_mul_signed 13.26%; divmod_signed 11.78%; bit_count 11.33%",
+      "allocation_bytes_mean": 156389341.33,
+      "allocations_mean": 7802767,
+      "gc_mean": 125.67,
+      "allocation_owner": "__able_compiled_fn_find_best_empty",
+      "allocation_owner_objects": 7787560,
+      "disposition": "generated caller allocates a native three-element position Array when a new best cell is found; application semantic work, not a general lowering rule"
+    },
+    {
+      "name": "mutex_work_queue",
+      "role": "target",
+      "scorecard_able_seconds": 0.944,
+      "scorecard_go_seconds": 0.0044,
+      "scorecard_excess_seconds": 0.9396,
+      "cpu_total_seconds": 19.08,
+      "cpu_owner": "bridge.currentGID to runtime.Stack",
+      "cpu_evidence": "currentGID 92.35% cumulative; runtime.procyieldAsm 30.92% flat; lock2 43.50% cumulative",
+      "allocation_bytes_mean": 17443352,
+      "allocations_mean": 314845,
+      "gc_mean": 13.67,
+      "allocation_owner": "bridge.currentGID and generated await/method bridge machinery",
+      "allocation_owner_objects_run_1": {
+        "bridge.currentGID": 60046,
+        "__able_call_value_fast": 53737,
+        "mutex_awaitable.toStruct": 40960
+      },
+      "disposition": "material only in this cohort target and belongs to the repeatedly rejected broad execution-context ABI family"
+    },
+    {
+      "name": "pidigits",
+      "role": "serial_control",
+      "scorecard_able_seconds": 1.174,
+      "scorecard_go_seconds": 1.1715,
+      "scorecard_excess_seconds": 0.0025,
+      "cpu_total_seconds": 11.67,
+      "cpu_owner": "math/big native arithmetic",
+      "cpu_evidence": "mulAddVWW 43.10% flat; lshVU 12.85%; subVV 8.31%; addVV 7.37%",
+      "allocation_bytes_mean": 298929032,
+      "allocations_mean": 25218,
+      "gc_mean": 272.67,
+      "allocation_owner": "math/big.nat.make",
+      "allocation_owner_objects_run_1": 9081
+    },
+    {
+      "name": "binarytrees",
+      "role": "concurrent_control",
+      "scorecard_able_seconds": 10.4,
+      "scorecard_go_seconds": 10.8498,
+      "scorecard_excess_seconds": -0.4498,
+      "cpu_total_seconds": 393.2,
+      "cpu_owner": "native tree allocation and Go GC",
+      "cpu_evidence": "tryDeferToSpanScan 25.49% flat; mallocgc 71.37% cumulative; make_tree 77.74% cumulative",
+      "allocation_bytes_mean": 9820588397.33,
+      "allocations_mean": 613771228,
+      "gc_mean": 205,
+      "allocation_owner": "exact main MemStats only; end-snapshot allocation attribution excluded after timeout"
+    }
+  ],
+  "exact_owner_intersection": {
+    "cpu": [],
+    "allocation": [],
+    "admission_gate_passed": false,
+    "prototype_built": false,
+    "ab_measurements_required": false
+  },
+  "artifacts": {
+    "binary_sha256": {
+      "tapelang_alphabet": "762ac2241bb76072ffb9198e36a3256235a3c6ab08d11c0b903cdc0504c78be6",
+      "k_nucleotide": "431269dc2eb51dda5b9bbe60bdccb4c1f9320c686de3aac5d2a771c70f3da539",
+      "sudoku_masks": "6104c744d5e03ca35245f05343df312db452274b458e8a99528fbe6ebef11637",
+      "mutex_work_queue": "5c6bae479606c6c959cb22498c0ae4dfb98069fa0ad62a34f7aae7d82e922e86",
+      "pidigits": "b3b95a76e14b853312f083acab32dc4b1cfcf731767774a6eaef9ac37aa112e0",
+      "binarytrees": "a92e956f57ebb4080f9a488d59f3f152f9dcf8e265f1c6c931f71dda14c7a388"
+    },
+    "raw_workspace_disposable": true
+  },
+  "next": "Build a corpus-wide exact-owner frequency census over current strict compiled misses, reusing compatible current main profiles and refreshing only missing or stale evidence. Admit only a non-closed exact owner material in at least three unlike applications; if none exists, close profile-driven compiled local optimization work and advance to the typed bytecode slot roadmap."
+}

@@ -1,0 +1,44 @@
+File: compiled
+Build ID: fdee98027b840eba7fc76a87f018acc637a5786a
+Type: alloc_objects
+Time: 2026-07-28 09:43:19 CDT
+Showing nodes accounting for 449377, 100% of 449533 total
+Dropped 98 nodes (cum <= 2247)
+      flat  flat%   sum%        cum   cum%
+    270336 60.14% 60.14%     274432 61.05%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+    135172 30.07% 90.21%     135173 30.07%  main.__able_nullable_i64_from_value
+     25371  5.64% 95.85%      25371  5.64%  runtime/pprof.allFrames
+      6700  1.49% 97.34%       6742  1.50%  runtime/pprof.(*profileBuilder).emitLocation
+      4162  0.93% 98.27%       4162  0.93%  able/interpreter-go/pkg/runtime.(*HashMapValue).AppendEntry (inline)
+      4096  0.91% 99.18%       4096  0.91%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64.func1
+      3528  0.78%   100%      35727  7.95%  runtime/pprof.writeHeapProto
+         6 0.0013%   100%      32126  7.15%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         2 0.00044%   100%     413798 92.05%  main.__able_compiled_fn_main_ctx
+         1 0.00022%   100%      35733  7.95%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00022%   100%     413800 92.05%  main.RunRegisteredMain
+         1 0.00022%   100%      12373  2.75%  main.__able_compiled_fn_build_inventory_ctx
+         1 0.00022%   100%      35728  7.95%  runtime/pprof.writeHeapInternal
+         0     0%   100%      35733  7.95%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0%   100%      35733  7.95%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0%   100%     413799 92.05%  main.RunRegisteredMain.func1
+         0     0%   100%     393221 87.47%  main.__able_compiled_fn_apply_updates_ctx
+         0     0%   100%       8192  1.82%  main.__able_compiled_fn_inventory_checksum_ctx
+         0     0%   100%     270341 60.14%  main.__able_compiled_fn_lookup_ctx
+         0     0%   100%     413799 92.05%  main.__able_compiled_fn_main
+         0     0%   100%     270341 60.14%  main.__able_compiled_impl_Map_get_0_spec_ctx
+         0     0%   100%     270341 60.14%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0%   100%     143438 31.91%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0%   100%     143438 31.91%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0%   100%       4174  0.93%  main.__able_hash_map_set_ctx (inline)
+         0     0%   100%       4174  0.93%  main.__able_hash_map_set_impl
+         0     0%   100%     270341 60.14%  main.__able_iface_Map_i64_i64_adapter_ptr_HashMap_i64_i64.__able_ctx_get
+         0     0%   100%     413799 92.05%  main.__able_register_compiled_call.func1
+         0     0%   100%     413799 92.05%  main.__able_wrap_fn_main
+         0     0%   100%     449533   100%  main.main
+         0     0%   100%     449533   100%  main.runMain
+         0     0%   100%      35733  7.95%  main.startMainProfilePhase (inline)
+         0     0%   100%     449533   100%  runtime.main
+         0     0%   100%      35728  7.95%  runtime/pprof.(*Profile).WriteTo
+         0     0%   100%      35728  7.95%  runtime/pprof.writeAlloc
+         0     0%   100%       4096  0.91%  sync.(*Once).Do (inline)
+         0     0%   100%       4096  0.91%  sync.(*Once).doSlow

@@ -7,8 +7,20 @@ import (
 type bytecodeStoreSlotFloatAddMulLoweringPlan struct {
 	instr      bytecodeInstruction
 	targetSlot int
+	baseSlot   int
+	baseName   string
 	mulLeft    ast.Expression
 	mulRight   ast.Expression
+}
+
+type bytecodeStoreSlotFloatAddMulSlotLoweringPlan struct {
+	instr      bytecodeInstruction
+	targetSlot int
+	baseSlot   int
+	baseName   string
+	mulSlot    int
+	mulName    string
+	stackExpr  ast.Expression
 }
 
 type bytecodeArrayGetPropagationOperandPlan struct {
@@ -57,6 +69,9 @@ func bytecodeStoreSlotFloatAddMulArrayGetPlan(ctx *bytecodeLoweringContext, targ
 	}
 	slot, found := ctx.lookupSlot(targetName)
 	if !found {
+		return bytecodeStoreSlotFloatAddMulArrayGetLoweringPlan{}, false
+	}
+	if ctx.slotKind(slot) != bytecodeCellKindValue {
 		return bytecodeStoreSlotFloatAddMulArrayGetLoweringPlan{}, false
 	}
 	return bytecodeStoreSlotFloatAddMulArrayGetLoweringPlan{
@@ -124,16 +139,40 @@ func bytecodeStoreSlotFloatAddMulPlan(ctx *bytecodeLoweringContext, targetName s
 	if !ok || add == nil || add.Operator != "+" {
 		return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
 	}
-	left, ok := add.Left.(*ast.Identifier)
-	if !ok || left == nil || left.Name != targetName {
-		return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
+	var (
+		baseIdent *ast.Identifier
+		mul       *ast.BinaryExpression
+	)
+	if candidate, ok := add.Left.(*ast.Identifier); ok && candidate != nil {
+		if mulCandidate, ok := add.Right.(*ast.BinaryExpression); ok && mulCandidate != nil && mulCandidate.Operator == "*" && mulCandidate.Left != nil && mulCandidate.Right != nil {
+			baseIdent = candidate
+			mul = mulCandidate
+		}
 	}
-	mul, ok := add.Right.(*ast.BinaryExpression)
-	if !ok || mul == nil || mul.Operator != "*" || mul.Left == nil || mul.Right == nil {
-		return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
+	if baseIdent == nil {
+		candidate, ok := add.Right.(*ast.Identifier)
+		if !ok || candidate == nil {
+			return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
+		}
+		mulCandidate, ok := add.Left.(*ast.BinaryExpression)
+		if !ok || mulCandidate == nil || mulCandidate.Operator != "*" || mulCandidate.Left == nil || mulCandidate.Right == nil {
+			return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
+		}
+		baseIdent = candidate
+		mul = mulCandidate
 	}
 	slot, found := ctx.lookupSlot(targetName)
 	if !found {
+		return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
+	}
+	if ctx.slotKind(slot) != bytecodeCellKindValue || !bytecodeExpressionIsKnownFloat(ctx, expr) {
+		return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
+	}
+	baseSlot, found := ctx.lookupSlot(baseIdent.Name)
+	if !found {
+		return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
+	}
+	if ctx.slotKind(baseSlot) != bytecodeCellKindValue {
 		return bytecodeStoreSlotFloatAddMulLoweringPlan{}, false
 	}
 	return bytecodeStoreSlotFloatAddMulLoweringPlan{
@@ -145,7 +184,102 @@ func bytecodeStoreSlotFloatAddMulPlan(ctx *bytecodeLoweringContext, targetName s
 			node:     node,
 		},
 		targetSlot: slot,
+		baseSlot:   baseSlot,
+		baseName:   baseIdent.Name,
 		mulLeft:    mul.Left,
 		mulRight:   mul.Right,
+	}, true
+}
+
+func bytecodeStoreSlotFloatAddMulSlotPlan(ctx *bytecodeLoweringContext, targetName string, expr ast.Expression, node ast.Node) (bytecodeStoreSlotFloatAddMulSlotLoweringPlan, bool) {
+	if ctx == nil || ctx.frameLayout == nil || targetName == "" {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+	add, ok := expr.(*ast.BinaryExpression)
+	if !ok || add == nil || add.Operator != "+" {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+
+	var (
+		baseIdent *ast.Identifier
+		mul       *ast.BinaryExpression
+	)
+	if candidate, ok := add.Left.(*ast.Identifier); ok && candidate != nil {
+		if mulCandidate, ok := add.Right.(*ast.BinaryExpression); ok && mulCandidate != nil && mulCandidate.Operator == "*" && mulCandidate.Left != nil && mulCandidate.Right != nil {
+			baseIdent = candidate
+			mul = mulCandidate
+		}
+	}
+	if baseIdent == nil {
+		candidate, ok := add.Right.(*ast.Identifier)
+		if !ok || candidate == nil {
+			return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+		}
+		mulCandidate, ok := add.Left.(*ast.BinaryExpression)
+		if !ok || mulCandidate == nil || mulCandidate.Operator != "*" || mulCandidate.Left == nil || mulCandidate.Right == nil {
+			return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+		}
+		baseIdent = candidate
+		mul = mulCandidate
+	}
+
+	var (
+		mulIdent  *ast.Identifier
+		stackExpr ast.Expression
+	)
+	if candidate, ok := mul.Left.(*ast.Identifier); ok && candidate != nil {
+		mulIdent = candidate
+		stackExpr = mul.Right
+	}
+	if mulIdent == nil {
+		candidate, ok := mul.Right.(*ast.Identifier)
+		if !ok || candidate == nil {
+			return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+		}
+		mulIdent = candidate
+		stackExpr = mul.Left
+	}
+	if stackExpr == nil {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+
+	slot, found := ctx.lookupSlot(targetName)
+	if !found {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+	if ctx.slotKind(slot) != bytecodeCellKindValue || !bytecodeExpressionIsKnownFloat(ctx, expr) {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+	baseSlot, found := ctx.lookupSlot(baseIdent.Name)
+	if !found {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+	if ctx.slotKind(baseSlot) != bytecodeCellKindValue {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+	mulSlot, found := ctx.lookupSlot(mulIdent.Name)
+	if !found {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+	if ctx.slotKind(mulSlot) != bytecodeCellKindValue {
+		return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{}, false
+	}
+
+	return bytecodeStoreSlotFloatAddMulSlotLoweringPlan{
+		instr: bytecodeInstruction{
+			op:        bytecodeOpStoreSlotFloatAddMulSlot,
+			target:    slot,
+			name:      targetName,
+			operator:  "+",
+			argCount:  baseSlot,
+			loopBreak: mulSlot,
+			node:      node,
+		},
+		targetSlot: slot,
+		baseSlot:   baseSlot,
+		baseName:   baseIdent.Name,
+		mulSlot:    mulSlot,
+		mulName:    mulIdent.Name,
+		stackExpr:  stackExpr,
 	}, true
 }

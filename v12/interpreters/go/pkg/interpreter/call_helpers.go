@@ -1,6 +1,8 @@
 package interpreter
 
 import (
+	"fmt"
+
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
@@ -183,6 +185,12 @@ func typeExprUsesGeneric(typeExpr ast.TypeExpression, generics map[string]struct
 }
 
 func describeRuntimeValue(val runtime.Value) string {
+	if kind, _, ok := bytecodeRawIntegerValueInfo(val); ok {
+		return string(kind)
+	}
+	if _, kind, ok := bytecodeDirectRawFloatValue(val); ok {
+		return string(kind)
+	}
 	switch v := val.(type) {
 	case runtime.StringValue:
 		return "String"
@@ -238,6 +246,32 @@ func prependReceiverCallArgs(receiver runtime.Value, args []runtime.Value, argsM
 	return merged
 }
 
+func (i *Interpreter) callResolvedFunctionValue(fn *runtime.FunctionValue, partialTarget runtime.Value, evalArgs []runtime.Value, env *runtime.Environment, call *ast.FunctionCall, argsMutable bool) (runtime.Value, error) {
+	if fn == nil {
+		return nil, fmt.Errorf("function is nil")
+	}
+	if partialTarget == nil {
+		partialTarget = fn
+	}
+	minRequired := minArgsForFunctionValue(fn)
+	if len(evalArgs) < minRequired {
+		return makePartialFunctionValue(partialTarget, evalArgs, call), nil
+	}
+	if fn.TypeQualified {
+		if mismatchErr := i.reportOverloadMismatch(fn, evalArgs, call); mismatchErr != nil {
+			return nil, mismatchErr
+		}
+	}
+	result, err := i.invokeFunction(fn, evalArgs, env, call, argsMutable)
+	if err != nil {
+		if mismatchErr := i.reportOverloadMismatch(fn, evalArgs, call); mismatchErr != nil {
+			return nil, mismatchErr
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
 func (i *Interpreter) acquireNativeCallContext(env *runtime.Environment, state any) *runtime.NativeCallContext {
 	if i == nil {
 		return &runtime.NativeCallContext{Env: env, State: state}
@@ -259,6 +293,29 @@ func (i *Interpreter) releaseNativeCallContext(ctx *runtime.NativeCallContext) {
 	ctx.Env = nil
 	ctx.State = nil
 	i.nativeCallContextPool.Put(ctx)
+}
+
+func (i *Interpreter) acquireNativeBorrowCallArgScratch() *nativeBorrowCallArgScratch {
+	if i == nil {
+		return &nativeBorrowCallArgScratch{}
+	}
+	raw := i.nativeBorrowCallArgScratchPool.Get()
+	scratch, _ := raw.(*nativeBorrowCallArgScratch)
+	if scratch == nil {
+		scratch = &nativeBorrowCallArgScratch{}
+	}
+	return scratch
+}
+
+func (i *Interpreter) releaseNativeBorrowCallArgScratch(scratch *nativeBorrowCallArgScratch) {
+	if scratch == nil {
+		return
+	}
+	scratch.reset()
+	if i == nil {
+		return
+	}
+	i.nativeBorrowCallArgScratchPool.Put(scratch)
 }
 
 func (i *Interpreter) invokeNativeFunctionValue(native runtime.NativeFunctionValue, env *runtime.Environment, state any, args []runtime.Value) (runtime.Value, error) {

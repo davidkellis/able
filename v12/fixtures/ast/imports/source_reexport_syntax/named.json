@@ -1,0 +1,21 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [{ "type": "Identifier", "name": "source_reexport_named" }]
+  },
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [{ "type": "Identifier", "name": "source_reexport_source" }],
+      "isWildcard": false,
+      "selectors": [{ "type": "ImportSelector", "name": { "type": "Identifier", "name": "value" } }]
+    }
+  ],
+  "exports": [{
+    "type": "ExportStatement",
+    "name": { "type": "Identifier", "name": "value" },
+    "isWildcard": false
+  }],
+  "body": []
+}

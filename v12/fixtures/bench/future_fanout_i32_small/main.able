@@ -1,0 +1,39 @@
+package bench_future_fanout_i32_small
+
+import able.kernel.{Array}
+
+fn main() -> void {
+  rounds := 0
+  total: i64 = 0_i64
+  loop {
+    if rounds >= 4 { break }
+    handles = Array.new()
+    i := 0
+    loop {
+      if i >= 96 { break }
+      seed := i + (rounds * 17)
+      handles.push(spawn {
+        acc := seed
+        step := 0
+        loop {
+          if step >= 48 { break }
+          acc = ((acc * 31) + (step * 7) + 3) % 1_000_003
+          step = step + 1
+        }
+        acc
+      })
+      i = i + 1
+    }
+
+    future_flush()
+
+    j := 0
+    loop {
+      if j >= handles.length { break }
+      total = total + (handles[j].value()! as i64)
+      j = j + 1
+    }
+    rounds = rounds + 1
+  }
+  print(total)
+}

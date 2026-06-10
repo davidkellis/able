@@ -190,6 +190,10 @@ func runTreewalkerFixtureOutcome(t *testing.T, dir string, manifest interpreter.
 }
 
 func runCompiledFixtureOutcome(t *testing.T, dir string, manifest interpreter.FixtureManifest) compilerFixtureOutcome {
+	return runCompiledFixtureOutcomeWithOptions(t, dir, manifest, Options{})
+}
+
+func runCompiledFixtureOutcomeWithOptions(t *testing.T, dir string, manifest interpreter.FixtureManifest, opts Options) compilerFixtureOutcome {
 	t.Helper()
 	entry := manifest.Entry
 	if entry == "" {
@@ -212,10 +216,13 @@ func runCompiledFixtureOutcome(t *testing.T, dir string, manifest interpreter.Fi
 
 	moduleRoot, workDir := compilerTestWorkDir(t, "ablec-diag-parity")
 
-	comp := New(Options{
-		PackageName:        "main",
-		RequireNoFallbacks: requireNoFallbacksForFixtureGates(t),
-	})
+	if opts.PackageName == "" {
+		opts.PackageName = "main"
+	}
+	if !opts.RequireNoFallbacks {
+		opts.RequireNoFallbacks = requireNoFallbacksForFixtureGates(t)
+	}
+	comp := New(compilerFixtureOptions(t, opts))
 	result, err := comp.Compile(program)
 	if err != nil {
 		t.Fatalf("compile: %v", err)

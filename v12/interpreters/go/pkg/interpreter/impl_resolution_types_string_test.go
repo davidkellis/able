@@ -15,6 +15,7 @@ func TestTypeExpressionToStringStableForms(t *testing.T) {
 		{name: "simple", expr: ast.Ty("i32"), want: "i32"},
 		{name: "generic", expr: ast.Gen(ast.Ty("Array"), ast.Ty("i64")), want: "Array<i64>"},
 		{name: "nullable", expr: ast.Nullable(ast.Ty("String")), want: "String?"},
+		{name: "result", expr: ast.Result(ast.Ty("void")), want: "!void"},
 		{name: "union", expr: ast.UnionT(ast.Ty("i32"), ast.Ty("String")), want: "i32 | String"},
 		{name: "function", expr: ast.FnType([]ast.TypeExpression{ast.Ty("i32"), ast.Ty("i32")}, ast.Ty("i32")), want: "fn(i32, i32) -> i32"},
 		{name: "nil", expr: nil, want: "<?>"},

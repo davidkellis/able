@@ -110,15 +110,15 @@ type FunctionDefinition struct {
 	nodeImpl
 	statementMarker
 
-	ID                     *Identifier              `json:"id"`
-	GenericParams          []*GenericParameter      `json:"genericParams,omitempty"`
-	InferredGenericParams  []*GenericParameter      `json:"inferredGenericParams,omitempty"`
-	Params                 []*FunctionParameter     `json:"params"`
-	ReturnType             TypeExpression           `json:"returnType,omitempty"`
-	Body                   *BlockExpression         `json:"body"`
-	WhereClause            []*WhereClauseConstraint `json:"whereClause,omitempty"`
-	IsMethodShorthand      bool                     `json:"isMethodShorthand"`
-	IsPrivate              bool                     `json:"isPrivate"`
+	ID                    *Identifier              `json:"id"`
+	GenericParams         []*GenericParameter      `json:"genericParams,omitempty"`
+	InferredGenericParams []*GenericParameter      `json:"inferredGenericParams,omitempty"`
+	Params                []*FunctionParameter     `json:"params"`
+	ReturnType            TypeExpression           `json:"returnType,omitempty"`
+	Body                  *BlockExpression         `json:"body"`
+	WhereClause           []*WhereClauseConstraint `json:"whereClause,omitempty"`
+	IsMethodShorthand     bool                     `json:"isMethodShorthand"`
+	IsPrivate             bool                     `json:"isPrivate"`
 }
 
 func NewFunctionDefinition(id *Identifier, params []*FunctionParameter, body *BlockExpression, returnType TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, isMethodShorthand, isPrivate bool) *FunctionDefinition {
@@ -235,6 +235,22 @@ func NewImportStatement(packagePath []*Identifier, isWildcard bool, selectors []
 	return &ImportStatement{nodeImpl: newNodeImpl(NodeImportStatement), PackagePath: packagePath, IsWildcard: isWildcard, Selectors: selectors, Alias: alias}
 }
 
+// ExportStatement exposes an existing public binding under this package's
+// public surface. A named export re-exports a binding already in scope; a
+// wildcard export exposes the public surface of PackagePath unchanged.
+type ExportStatement struct {
+	nodeImpl
+	statementMarker
+
+	Name        *Identifier   `json:"name,omitempty"`
+	PackagePath []*Identifier `json:"packagePath,omitempty"`
+	IsWildcard  bool          `json:"isWildcard"`
+}
+
+func NewExportStatement(name *Identifier, packagePath []*Identifier, isWildcard bool) *ExportStatement {
+	return &ExportStatement{nodeImpl: newNodeImpl(NodeExportStatement), Name: name, PackagePath: packagePath, IsWildcard: isWildcard}
+}
+
 // Module root
 
 type Module struct {
@@ -242,11 +258,16 @@ type Module struct {
 
 	Package *PackageStatement  `json:"package,omitempty"`
 	Imports []*ImportStatement `json:"imports"`
+	Exports []*ExportStatement `json:"exports,omitempty"`
 	Body    []Statement        `json:"body"`
 }
 
 func NewModule(body []Statement, imports []*ImportStatement, pkg *PackageStatement) *Module {
 	return &Module{nodeImpl: newNodeImpl(NodeModule), Package: pkg, Imports: imports, Body: body}
+}
+
+func NewModuleWithExports(body []Statement, imports []*ImportStatement, exports []*ExportStatement, pkg *PackageStatement) *Module {
+	return &Module{nodeImpl: newNodeImpl(NodeModule), Package: pkg, Imports: imports, Exports: exports, Body: body}
 }
 
 // Statements

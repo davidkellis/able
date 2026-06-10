@@ -6,8 +6,9 @@ const (
 	// Reduced recursive bytecode benchmarks repeatedly churn very small slot
 	// frames. A larger batch keeps those hot pools populated across the common
 	// recursion depth instead of rebuilding them every run.
-	bytecodeSlotFrameBatchSize     = 32
-	bytecodeSlotFrameBatchMaxSlots = 16
+	bytecodeSlotFrameBatchSize        = 32
+	bytecodeSlotFrameBatchMaxSlots    = 16
+	bytecodeSlotFrameSmallHotMaxSlots = 4
 )
 
 func (vm *bytecodeVM) spillHotSlotFrames() {
@@ -26,6 +27,9 @@ func (vm *bytecodeVM) acquireSlotFrame(slotCount int) []runtime.Value {
 		return nil
 	}
 	if vm != nil {
+		if slotCount <= bytecodeSlotFrameSmallHotMaxSlots {
+			return vm.acquireSmallHotSlotFrame(slotCount)
+		}
 		if vm.slotFrameHotSize == slotCount && len(vm.slotFrameHotPool) > 0 {
 			idx := len(vm.slotFrameHotPool) - 1
 			slots := vm.slotFrameHotPool[idx]
@@ -62,30 +66,26 @@ func (vm *bytecodeVM) acquireSlotFrame2() []runtime.Value {
 	if vm == nil {
 		return make([]runtime.Value, 2)
 	}
-	if vm.slotFrameHotSize == 2 && len(vm.slotFrameHotPool) > 0 {
-		idx := len(vm.slotFrameHotPool) - 1
-		slots := vm.slotFrameHotPool[idx]
-		vm.slotFrameHotPool = vm.slotFrameHotPool[:idx]
+	return vm.acquireSmallHotSlotFrame(2)
+}
+
+func (vm *bytecodeVM) acquireSmallHotSlotFrame(slotCount int) []runtime.Value {
+	if vm == nil || slotCount <= 0 || slotCount > bytecodeSlotFrameSmallHotMaxSlots {
+		return make([]runtime.Value, slotCount)
+	}
+	pool := vm.slotFrameSmallHotPools[slotCount]
+	if len(pool) > 0 {
+		idx := len(pool) - 1
+		slots := pool[idx]
+		vm.slotFrameSmallHotPools[slotCount] = pool[:idx]
 		return slots
 	}
-	if vm.slotFramePool != nil {
-		if frames := vm.slotFramePool[2]; len(frames) > 0 {
-			idx := len(frames) - 1
-			slots := frames[idx]
-			vm.slotFramePool[2] = frames[:idx]
-			return slots
-		}
-	}
-	if vm.slotFrameHotSize != 0 && vm.slotFrameHotSize != 2 {
-		vm.spillHotSlotFrames()
-	}
-	backing := make([]runtime.Value, 2*bytecodeSlotFrameBatchSize)
-	first := backing[:2:2]
-	vm.slotFrameHotSize = 2
+	backing := make([]runtime.Value, slotCount*bytecodeSlotFrameBatchSize)
+	first := backing[:slotCount:slotCount]
 	for idx := bytecodeSlotFrameBatchSize - 1; idx >= 1; idx-- {
-		start := idx * 2
-		slots := backing[start : start+2 : start+2]
-		vm.slotFrameHotPool = append(vm.slotFrameHotPool, slots)
+		start := idx * slotCount
+		slots := backing[start : start+slotCount : start+slotCount]
+		vm.slotFrameSmallHotPools[slotCount] = append(vm.slotFrameSmallHotPools[slotCount], slots)
 	}
 	return first
 }
@@ -94,17 +94,22 @@ func (vm *bytecodeVM) releaseSlotFrame2(slots []runtime.Value) {
 	if vm == nil {
 		return
 	}
+	vm.releaseSlotFrameRawCells(slots)
 	slots[0] = nil
 	slots[1] = nil
-	if vm.slotFrameHotSize == 0 || vm.slotFrameHotSize == 2 {
-		vm.slotFrameHotSize = 2
-		vm.slotFrameHotPool = append(vm.slotFrameHotPool, slots)
+	vm.slotFrameSmallHotPools[2] = append(vm.slotFrameSmallHotPools[2], slots)
+}
+
+func (vm *bytecodeVM) releaseSlotFrame4(slots []runtime.Value) {
+	if vm == nil {
 		return
 	}
-	if vm.slotFramePool == nil {
-		vm.slotFramePool = make(map[int][][]runtime.Value, 1)
-	}
-	vm.slotFramePool[2] = append(vm.slotFramePool[2], slots)
+	vm.releaseSlotFrameRawCells(slots)
+	slots[0] = nil
+	slots[1] = nil
+	slots[2] = nil
+	slots[3] = nil
+	vm.slotFrameSmallHotPools[4] = append(vm.slotFrameSmallHotPools[4], slots)
 }
 
 func (vm *bytecodeVM) releaseSlotFrame(slots []runtime.Value) {
@@ -112,6 +117,7 @@ func (vm *bytecodeVM) releaseSlotFrame(slots []runtime.Value) {
 		return
 	}
 	size := len(slots)
+	vm.releaseSlotFrameRawCells(slots)
 	switch size {
 	case 1:
 		slots[0] = nil
@@ -130,6 +136,10 @@ func (vm *bytecodeVM) releaseSlotFrame(slots []runtime.Value) {
 	default:
 		clear(slots)
 	}
+	if size <= bytecodeSlotFrameSmallHotMaxSlots {
+		vm.slotFrameSmallHotPools[size] = append(vm.slotFrameSmallHotPools[size], slots)
+		return
+	}
 	if vm.slotFrameHotSize == 0 || vm.slotFrameHotSize == size {
 		vm.slotFrameHotSize = size
 		vm.slotFrameHotPool = append(vm.slotFrameHotPool, slots)
@@ -139,4 +149,72 @@ func (vm *bytecodeVM) releaseSlotFrame(slots []runtime.Value) {
 		vm.slotFramePool = make(map[int][][]runtime.Value, 1)
 	}
 	vm.slotFramePool[size] = append(vm.slotFramePool[size], slots)
+}
+
+func (vm *bytecodeVM) releaseSlotFrameRawCells(slots []runtime.Value) {
+	if vm == nil {
+		return
+	}
+	for idx, value := range slots {
+		switch raw := value.(type) {
+		case *bytecodeRawI64SlotCell:
+			if vm.rawI64CellOwnedByStack(raw) || bytecodeRawI64CellSeen(slots[:idx], raw) {
+				continue
+			}
+			vm.releaseRawI64SlotCell(raw)
+		case *bytecodeRawIntegerSlotCell:
+			if vm.rawIntegerCellOwnedByStack(raw) || bytecodeRawIntegerCellSeen(slots[:idx], raw) {
+				continue
+			}
+			vm.releaseRawIntegerSlotCell(raw)
+		}
+	}
+}
+
+func (vm *bytecodeVM) rawI64CellOwnedByStack(cell *bytecodeRawI64SlotCell) bool {
+	if vm == nil || cell == nil {
+		return false
+	}
+	for _, stackCell := range vm.stackI64Cells {
+		if stackCell == cell {
+			return true
+		}
+	}
+	return false
+}
+
+func bytecodeRawI64CellSeen(values []runtime.Value, cell *bytecodeRawI64SlotCell) bool {
+	if cell == nil {
+		return false
+	}
+	for _, value := range values {
+		if value == cell {
+			return true
+		}
+	}
+	return false
+}
+
+func (vm *bytecodeVM) rawIntegerCellOwnedByStack(cell *bytecodeRawIntegerSlotCell) bool {
+	if vm == nil || cell == nil {
+		return false
+	}
+	for _, stackCell := range vm.stackIntegerCells {
+		if stackCell == cell {
+			return true
+		}
+	}
+	return false
+}
+
+func bytecodeRawIntegerCellSeen(values []runtime.Value, cell *bytecodeRawIntegerSlotCell) bool {
+	if cell == nil {
+		return false
+	}
+	for _, value := range values {
+		if value == cell {
+			return true
+		}
+	}
+	return false
 }

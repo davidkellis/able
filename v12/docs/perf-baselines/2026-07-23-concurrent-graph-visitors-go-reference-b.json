@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-07-23T18:38:12Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.4 linux/amd64",
+  "runs": 5,
+  "timeout_seconds": 45,
+  "cpu_affinity": "0-15",
+  "cpu_affinity_pool": "0-15",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "source": "/home/david/sync/projects/benchmarks/concurrent-graph-visitors/go-1.26/app.go",
+      "source_sha256": "43bd8daf0556f88913cb7e883d7afbaf51247523ffe25152bf239c80761630d4",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.0041,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.003941817,
+          "stdout_sha256": "399e7fd8eae623db1fb6fe83ba5d08b46a747fca2d7e51ec6536aab65b50c9ee"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.004240647,
+          "stdout_sha256": "399e7fd8eae623db1fb6fe83ba5d08b46a747fca2d7e51ec6536aab65b50c9ee"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.004299962,
+          "stdout_sha256": "399e7fd8eae623db1fb6fe83ba5d08b46a747fca2d7e51ec6536aab65b50c9ee"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.00392935,
+          "stdout_sha256": "399e7fd8eae623db1fb6fe83ba5d08b46a747fca2d7e51ec6536aab65b50c9ee"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.003840386,
+          "stdout_sha256": "399e7fd8eae623db1fb6fe83ba5d08b46a747fca2d7e51ec6536aab65b50c9ee"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "399e7fd8eae623db1fb6fe83ba5d08b46a747fca2d7e51ec6536aab65b50c9ee"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 4,
+        "cpu_affinity": "0,1,2,3",
+        "executor_policy": "goroutine"
+      }
+    }
+  ]
+}

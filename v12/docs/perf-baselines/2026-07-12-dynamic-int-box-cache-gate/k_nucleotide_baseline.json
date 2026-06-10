@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-07-12T04:52:28.260660Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/k_nucleotide/k_nucleotide.able",
+  "run_from": "/home/david/sync/projects/benchmarks/k-nucleotide",
+  "runs": 1,
+  "timeout_seconds": 55,
+  "modes": [
+    "bytecode"
+  ],
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "2",
+  "results": [
+    {
+      "mode": "bytecode",
+      "ok_runs": 1,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 44.66,
+      "avg_user_seconds": 43.45,
+      "avg_sys_seconds": 0.2,
+      "avg_gc": 38.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/k-nucleotide/verify.rb",
+        "verified_runs": 1,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "d628623daa677c00673df8d4961d14eb271b4112cdcb65b8233f07b69d7b49b8"
+        ]
+      }
+    }
+  ]
+}

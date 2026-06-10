@@ -15,7 +15,7 @@ fn parse_board(line: String) -> Array (Array i32) {
       if col >= 9 { break }
       b := bytes.next()
       digit := b match {
-        case byte: u8 => (byte as i32) - 48,
+        case byte: u8 => if byte == 46_u8 { 0 } else { (byte as i32) - 48 },
         case nil => 0
       }
       r.push(digit)

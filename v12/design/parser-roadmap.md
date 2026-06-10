@@ -1,9 +1,29 @@
-# Able v12 Parser Roadmap
+# Able v12 Parser Roadmap (Historical Completion Record)
 
-Date: 2025‑10‑19  
+**Status:** historical rollout record, reconciled 2026-07-14.
+
+The grammar, Go AST mapper, corpus, and default fixture round-trip harness are
+complete for the active v12 specification. This document preserves the 2025
+implementation sequence; it is not an active parser backlog or a license to
+add syntax from an older proposal.
+
+Current authorities are, in order:
+
+1. `spec/full_spec_v12.md` for language syntax and semantics.
+2. `parser/tree-sitter-able/grammar.js`, its generated artifacts, and
+   `pkg/parser/` for the implementation.
+3. `design/parser-ast-coverage.md` for the current feature/fixture/test matrix.
+4. `go test ./pkg/parser` for the default source-to-canonical-AST corpus gate.
+
+New syntax must first be specified, then receive a grammar corpus assertion,
+a canonical AST fixture, focused mapper coverage, and interpreter/compiler
+semantic coverage as applicable. Safe navigation (`?.`) is not active v12
+syntax; do not add it without a new specification change.
+
+Date: 2025-10-19
 Owner: Able Agents
 
-## Preconditions
+## Historical Preconditions
 
 - AST contract documented in `design/ast-contract.md`.
 - Typechecker plan established (`design/typechecker-plan.md`); any structural
@@ -12,7 +32,7 @@ Owner: Able Agents
 - Safe navigation (`?.`) is deferred to the v12 language cycle; the v12 parser
   must only recognise the existing `.` member access operator.
 
-## Objectives
+## Historical Objectives
 
 1. Parse Able v12 source into the existing AST without introducing new node
    shapes.
@@ -21,7 +41,7 @@ Owner: Able Agents
 3. Share fixtures with the Go interpreter by emitting JSON identical to the
    current `fixtures/ast` layout.
 
-## High-level phases
+## Historical High-level Phases
 
 1. **Grammar definition**
    - Derive a formal grammar from `spec/full_spec_v12.md` and validate it
@@ -44,7 +64,7 @@ Owner: Able Agents
    - Add end-to-end tests that take sample programs through `parser -> AST ->
      interpreter` to ensure behaviour matches the current hand-crafted ASTs.
 
-## Testing strategy
+## Historical Testing Strategy
 
 - Maintain three independent layers:
   1. Tree-sitter corpus tests that assert the concrete syntax tree for each
@@ -65,7 +85,7 @@ Owner: Able Agents
 - When the typechecker becomes available, integrate it into the pipeline to
   catch semantic issues early.
 
-## Open questions / future work
+## Recorded Future Ideas (Not an Active Work Queue)
 
 - **Source spans on AST** – Tree-sitter supplies byte/row/column information; we
   should consider extending `nodeImpl` with span data once the binding layer is
@@ -75,3 +95,12 @@ Owner: Able Agents
   ambiguous constructs.
 - **Tooling integration** – Plan how the parser will be invoked by the CLI and
   future language server efforts once typechecking is in place.
+
+## Current Maintenance Rule
+
+The active parser surface is coverage-complete. Do not reopen a grammar,
+mapper, or parser-performance tranche merely because this historical document
+contains an earlier phase or open question. Reopen parser implementation only
+when a newly specified v12 feature requires it; update the active coverage
+matrix and run the default Go parser corpus before moving to interpreter or
+compiler work.

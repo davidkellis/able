@@ -9,9 +9,17 @@ import (
 )
 
 type forLoopIterator struct {
-	values []runtime.Value
-	index  int
-	iter   *runtime.IteratorValue
+	values          []runtime.Value
+	index           int
+	iter            *runtime.IteratorValue
+	nextCallable    runtime.Value
+	closeCallable   runtime.Value
+	nextFn          *runtime.FunctionValue
+	nextPartial     runtime.Value
+	nextReceiver    runtime.Value
+	nextHasReceiver bool
+	nextArgs        [1]runtime.Value
+	nextBytecode    *forLoopIteratorBytecodeCall
 }
 
 func (vm *bytecodeVM) pushForIterator(value runtime.Value) error {
@@ -27,11 +35,11 @@ func (vm *bytecodeVM) pushForIterator(value runtime.Value) error {
 		vm.iterStack = append(vm.iterStack, forLoopIterator{iter: it})
 		return nil
 	default:
-		iterator, err := vm.interp.resolveIteratorValue(value, vm.env)
+		frame, err := vm.resolveForLoopIteratorFrame(value)
 		if err != nil {
 			return err
 		}
-		vm.iterStack = append(vm.iterStack, forLoopIterator{iter: iterator})
+		vm.iterStack = append(vm.iterStack, frame)
 		return nil
 	}
 }
@@ -53,12 +61,16 @@ func (vm *bytecodeVM) nextForIterator() (runtime.Value, bool, error) {
 		return val, false, nil
 	}
 	if frame.iter == nil {
+		if frame.nextCallable != nil {
+			return vm.nextForLoopIteratorFrame(frame)
+		}
 		return runtime.NilValue{}, true, nil
 	}
-	val, done, err := frame.iter.Next()
+	raw, done, err := frame.iter.NextRaw()
 	if err != nil {
 		return nil, true, err
 	}
+	val := bytecodeValueFromRuntimeRawValue(raw)
 	if val == nil {
 		val = runtime.NilValue{}
 	}
@@ -71,17 +83,13 @@ func (vm *bytecodeVM) closeForIterator() error {
 	}
 	last := vm.iterStack[len(vm.iterStack)-1]
 	vm.iterStack = vm.iterStack[:len(vm.iterStack)-1]
-	if last.iter != nil {
-		last.iter.Close()
-	}
+	vm.closeForLoopIterator(&last)
 	return nil
 }
 
 func (vm *bytecodeVM) closeAllIterators() {
 	for idx := len(vm.iterStack) - 1; idx >= 0; idx-- {
-		if iter := vm.iterStack[idx].iter; iter != nil {
-			iter.Close()
-		}
+		vm.closeForLoopIterator(&vm.iterStack[idx])
 	}
 	vm.iterStack = vm.iterStack[:0]
 }
@@ -91,6 +99,7 @@ func (vm *bytecodeVM) execSpawn(instr bytecodeInstruction) error {
 	if !ok || spawnExpr == nil {
 		return fmt.Errorf("bytecode spawn expects node")
 	}
+	vm.markAllBytecodeArrayOwnershipEscaped(bytecodeArrayOwnershipEscapeFuture)
 	vm.interp.ensureConcurrencyBuiltins()
 	vm.interp.ensureMultiThread()
 	capturedEnv := runtime.NewEnvironment(vm.env)
@@ -113,9 +122,9 @@ func (vm *bytecodeVM) execSpawn(instr bytecodeInstruction) error {
 	}
 	future := vm.interp.executor.RunFuture(task)
 	if future == nil {
-		vm.stack = append(vm.stack, runtime.NilValue{})
+		vm.appendStackValue(runtime.NilValue{})
 	} else {
-		vm.stack = append(vm.stack, future)
+		vm.appendStackValue(future)
 	}
 	vm.ip++
 	return nil
@@ -133,6 +142,13 @@ func (vm *bytecodeVM) evalExpressionBytecodeWithOptions(expr ast.Expression, env
 	if err != nil {
 		return nil, err
 	}
+	return vm.evalExpressionBytecodeProgram(program, env)
+}
+
+func (vm *bytecodeVM) evalExpressionBytecodeProgram(program *bytecodeProgram, env *runtime.Environment) (runtime.Value, error) {
+	if program == nil {
+		return runtime.NilValue{}, nil
+	}
 	innerVM := vm.interp.acquireBytecodeVM(env)
 	defer vm.interp.releaseBytecodeVM(innerVM)
 	val, err := innerVM.run(program)
@@ -146,24 +162,42 @@ func (vm *bytecodeVM) evalExpressionBytecodeWithOptions(expr ast.Expression, env
 }
 
 func (vm *bytecodeVM) runMatchExpression(expr *ast.MatchExpression, subject runtime.Value) (runtime.Value, error) {
-	for _, clause := range expr.Clauses {
+	plans := vm.interp.matchExpressionClausePlans(expr)
+	programs := vm.interp.matchExpressionBytecodePrograms(expr)
+	for idx, clause := range expr.Clauses {
 		if clause == nil {
 			continue
 		}
-		clauseEnv, matched := vm.interp.matchPattern(clause.Pattern, subject, vm.env)
+		plan := plans[idx]
+		clauseEnv, matched, transientEnv, transientBindings := vm.interp.matchPatternForClauseTransient(clause.Pattern, subject, vm.env, plan)
 		if !matched {
+			vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
 			continue
 		}
 		if clause.Guard != nil {
-			guardVal, err := vm.evalExpressionBytecode(clause.Guard, clauseEnv)
+			guardProgram, err := vm.interp.matchExpressionClauseBytecodeProgram(programs, idx, clause.Guard, bytecodeMatchClauseProgramGuard)
 			if err != nil {
+				vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
+				return nil, err
+			}
+			guardVal, err := vm.evalExpressionBytecodeProgram(guardProgram, clauseEnv)
+			if err != nil {
+				vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
 				return nil, err
 			}
 			if !vm.interp.isTruthy(guardVal) {
+				vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
 				continue
 			}
 		}
-		return vm.evalExpressionBytecode(clause.Body, clauseEnv)
+		bodyProgram, err := vm.interp.matchExpressionClauseBytecodeProgram(programs, idx, clause.Body, bytecodeMatchClauseProgramBody)
+		if err != nil {
+			vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
+			return nil, err
+		}
+		result, err := vm.evalExpressionBytecodeProgram(bodyProgram, clauseEnv)
+		vm.interp.releaseTransientClauseMatch(transientEnv, transientBindings)
+		return result, err
 	}
 	return nil, fmt.Errorf("Non-exhaustive match")
 }
@@ -202,36 +236,34 @@ func (vm *bytecodeVM) runBreakpointExpression(expr *ast.BreakpointExpression) (r
 }
 
 func (vm *bytecodeVM) runIteratorLiteral(expr *ast.IteratorLiteral, program *bytecodeProgram) (runtime.Value, error) {
-	iterEnv := runtime.NewEnvironment(vm.env)
+	bindingNames := iteratorLiteralBindingNames(expr)
+	iterCapacity := len(bindingNames)
+	iterEnv := runtime.NewEnvironmentWithValueCapacity(vm.env, iterCapacity)
 	if program == nil && expr != nil {
-		module := ast.NewModule(expr.Body, nil, nil)
-		lowered, err := vm.interp.lowerModuleToBytecode(module)
+		lowered, loweredBindingNames, err := vm.interp.lowerIteratorLiteralBodyToBytecode(expr, vm.env)
 		if err != nil {
 			return nil, err
 		}
 		program = lowered
+		bindingNames = loweredBindingNames
 	}
 	instance := newGeneratorInstanceWithBytecode(vm.interp, iterEnv, expr.Body, program)
 	controller := instance.controllerValue()
-	bindingName := "gen"
-	if expr.Binding != nil && expr.Binding.Name != "" {
-		bindingName = expr.Binding.Name
+	if len(bindingNames) > 0 {
+		instance.bytecodeSlotArg = controller
+		instance.bytecodeSlotArgCount = len(bindingNames)
 	}
-	iterEnv.Define(bindingName, controller)
-	if bindingName != "gen" {
-		iterEnv.Define("gen", controller)
+	for _, name := range bindingNames {
+		iterEnv.DefineWithoutMerge(name, controller)
 	}
-	return runtime.NewIteratorValue(func() (runtime.Value, bool, error) {
-		return instance.next()
+	return runtime.NewIteratorValueWithRaw(func() (runtime.RawValue, bool, error) {
+		return instance.nextRaw()
 	}, instance.close), nil
 }
 
 func (vm *bytecodeVM) runAwaitExpression(expr *ast.AwaitExpression, iterable runtime.Value) (runtime.Value, error) {
-	payload, err := payloadFromEnv(vm.env)
-	if err != nil {
-		return nil, err
-	}
-	if payload.kind != asyncContextFuture {
+	payload := payloadFromState(vm.runtimeData())
+	if payload == nil || payload.kind != asyncContextFuture {
 		return nil, fmt.Errorf("await expressions must run inside an asynchronous task")
 	}
 
@@ -287,21 +319,19 @@ func (vm *bytecodeVM) runAwaitExpression(expr *ast.AwaitExpression, iterable run
 			vm.interp.cleanupAwaitState(payload, expr, state, vm.env)
 			return nil, context.Canceled
 		}
-		if state.wakePending {
-			state.waiting = false
-			state.wakePending = false
+		if state.consumeWakePending() {
+			vm.interp.clearAwaitRegistrations(state, vm.env)
 			continue
 		}
-		if !state.waiting {
+		if state.beginWaiting() {
 			if err := vm.interp.registerAwaitState(state, vm.env); err != nil {
+				state.clearWaiting()
 				return nil, err
 			}
-			state.waiting = true
-			state.wakePending = false
 		}
 
 		waitCh := state.ensureWaitCh()
-		payload.awaitBlocked = true
+		payload.setAwaitBlocked(true)
 
 		if _, ok := vm.interp.executor.(*SerialExecutor); ok {
 			return nil, errSerialYield
@@ -320,13 +350,13 @@ func (vm *bytecodeVM) runAwaitExpression(expr *ast.AwaitExpression, iterable run
 		case <-waitCh:
 		case <-ctx.Done():
 			vm.interp.markUnblocked(handle)
-			payload.awaitBlocked = false
+			payload.setAwaitBlocked(false)
 			vm.interp.cleanupAwaitState(payload, expr, state, vm.env)
 			return nil, ctx.Err()
 		}
 		vm.interp.markUnblocked(handle)
-		payload.awaitBlocked = false
-		state.waiting = false
-		state.wakePending = false
+		payload.setAwaitBlocked(false)
+		vm.interp.clearAwaitRegistrations(state, vm.env)
+		state.clearWaiting()
 	}
 }

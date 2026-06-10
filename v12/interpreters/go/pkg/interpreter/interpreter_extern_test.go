@@ -2,11 +2,231 @@ package interpreter
 
 import (
 	"math"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/driver"
 	"able/interpreter-go/pkg/runtime"
 )
+
+const externPluginTestChildEnv = "ABLE_EXTERN_PLUGIN_TEST_CHILD"
+
+const externPluginInitialBuildHelperEnv = "ABLE_EXTERN_PLUGIN_INITIAL_BUILD_HELPER"
+
+// runExternPluginTestInChild runs one plugin-loading case in an otherwise
+// fresh process. Go plugins are process-global and cannot be unloaded, so this
+// keeps independent integration cases from sharing loader state while their
+// direct host-boundary behavior remains covered.
+func runExternPluginTestInChild(t *testing.T) bool {
+	t.Helper()
+	if os.Getenv(externPluginTestChildEnv) == t.Name() {
+		return false
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^"+regexp.QuoteMeta(t.Name())+"$")
+	cmd.Env = append(os.Environ(), externPluginTestChildEnv+"="+t.Name())
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("run isolated extern plugin test: %v\n%s", err, output)
+	}
+	return true
+}
+
+func TestExternHostCacheRootUsesConfiguredDirectory(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(externCacheDirEnv, dir)
+	if got := externHostCacheRoot(); got != dir {
+		t.Fatalf("extern cache root = %q, want %q", got, dir)
+	}
+}
+
+func TestExternHostCacheRootNormalizesRelativeDirectory(t *testing.T) {
+	workingDir := t.TempDir()
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	defer os.Chdir(previousDir)
+	if err := os.Chdir(workingDir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Setenv(externCacheDirEnv, "relative-extern-cache")
+	if got, want := externHostCacheRoot(), filepath.Join(workingDir, "relative-extern-cache"); got != want {
+		t.Fatalf("extern cache root = %q, want %q", got, want)
+	}
+}
+
+func TestPrewarmExternHostModulesBuildsWithoutEvaluatingModule(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
+	cacheDir := t.TempDir()
+	t.Setenv(externCacheDirEnv, cacheDir)
+
+	extern := ast.Extern(
+		ast.HostTargetGo,
+		ast.Fn("cached_value", nil, nil, ast.Ty("i32"), nil, nil, false, false),
+		"return int32(7)",
+	)
+	module := ast.Mod([]ast.Statement{extern}, nil, ast.Pkg([]interface{}{"sample", "host"}, false))
+	program := &driver.Program{Modules: []*driver.Module{{
+		Package: "sample.host",
+		AST:     module,
+	}}}
+
+	result, err := New().PrewarmExternHostModules(program)
+	if err != nil {
+		t.Fatalf("PrewarmExternHostModules: %v", err)
+	}
+	if result.Modules != 1 {
+		t.Fatalf("prewarmed modules = %d, want 1", result.Modules)
+	}
+	foundPlugin := false
+	err = filepath.WalkDir(cacheDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !entry.IsDir() && filepath.Ext(path) == ".so" {
+			foundPlugin = true
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk extern cache: %v", err)
+	}
+	if !foundPlugin {
+		t.Fatalf("prewarm did not build a plugin under %s", cacheDir)
+	}
+}
+
+func TestProgramExternHostImageSharesOnePluginAcrossPackages(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
+	cacheDir := t.TempDir()
+	t.Setenv(externCacheDirEnv, cacheDir)
+
+	left := &driver.Module{
+		Package: "sample.left",
+		AST: ast.Mod([]ast.Statement{
+			ast.Prelude(ast.HostTargetGo, `import "strings"`),
+			ast.Extern(ast.HostTargetGo, ast.Fn("value", nil, nil, ast.Ty("i32"), nil, nil, false, false), `return int32(len(strings.Repeat("x", 17)))`),
+		}, nil, ast.Pkg([]interface{}{"sample", "left"}, false)),
+	}
+	right := &driver.Module{
+		Package: "sample.right",
+		AST: ast.Mod([]ast.Statement{
+			ast.Extern(ast.HostTargetGo, ast.Fn("value", nil, nil, ast.Ty("i32"), nil, nil, false, false), "return int32(29)"),
+		}, nil, ast.Pkg([]interface{}{"sample", "right"}, false)),
+	}
+	program := &driver.Program{Entry: right, Modules: []*driver.Module{left, right}}
+	interp := New()
+	result, err := interp.PrewarmExternHostModules(program)
+	if err != nil {
+		t.Fatalf("PrewarmExternHostModules: %v", err)
+	}
+	if result.Modules != 1 {
+		t.Fatalf("prewarmed host images = %d, want 1", result.Modules)
+	}
+
+	leftModule := interp.externHostPackages["sample.left"].modules[ast.HostTargetGo]
+	rightModule := interp.externHostPackages["sample.right"].modules[ast.HostTargetGo]
+	if leftModule == nil || rightModule == nil || leftModule.plugin != rightModule.plugin {
+		t.Fatal("expected both packages to share one host image plugin")
+	}
+
+	_, leftEnv, err := interp.EvaluateModule(left.AST)
+	if err != nil {
+		t.Fatalf("evaluate left module: %v", err)
+	}
+	leftValue, err := interp.evaluateExpression(ast.Call("value"), leftEnv)
+	if err != nil {
+		t.Fatalf("call left extern: %v", err)
+	}
+	_, rightEnv, err := interp.EvaluateModule(right.AST)
+	if err != nil {
+		t.Fatalf("evaluate right module: %v", err)
+	}
+	rightValue, err := interp.evaluateExpression(ast.Call("value"), rightEnv)
+	if err != nil {
+		t.Fatalf("call right extern: %v", err)
+	}
+	for name, value := range map[string]runtime.Value{"left": leftValue, "right": rightValue} {
+		integer, ok := value.(runtime.IntegerValue)
+		if !ok {
+			t.Fatalf("%s extern value type = %T, want IntegerValue", name, value)
+		}
+		want := int64(17)
+		if name == "right" {
+			want = 29
+		}
+		if integer.Int64Fast() != want {
+			t.Fatalf("%s extern value = %d, want %d", name, integer.Int64Fast(), want)
+		}
+	}
+}
+
+func TestExternHostPluginRebuildsInvalidArtifact(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
+	cacheDir := os.Getenv("ABLE_EXTERN_PLUGIN_REBUILD_CACHE")
+	if cacheDir == "" {
+		cacheDir = t.TempDir()
+		t.Setenv("ABLE_EXTERN_PLUGIN_REBUILD_CACHE", cacheDir)
+	}
+	t.Setenv(externCacheDirEnv, cacheDir)
+
+	state := &externTargetState{
+		externs: []*ast.ExternFunctionBody{ast.Extern(
+			ast.HostTargetGo,
+			ast.Fn("rebuild_cached_value", nil, nil, ast.Ty("i32"), nil, nil, false, false),
+			"return int32(9)",
+		)},
+		externByID: map[string]int{"rebuild_cached_value": 0},
+	}
+	hash := cachedExternStateHash(ast.HostTargetGo, state, externHostCacheScope())
+	if os.Getenv(externPluginInitialBuildHelperEnv) == "1" {
+		if _, err := buildExternModule("rebuild.host", ast.HostTargetGo, state, hash); err != nil {
+			t.Fatalf("build initial plugin: %v", err)
+		}
+		return
+	}
+	if os.Getenv("ABLE_EXTERN_PLUGIN_REBUILD_HELPER") == "1" {
+		if _, err := buildExternModule("rebuild.host", ast.HostTargetGo, state, hash); err != nil {
+			t.Fatalf("rebuild invalid plugin: %v", err)
+		}
+		return
+	}
+
+	initialCmd := exec.Command(os.Args[0], "-test.run=^TestExternHostPluginRebuildsInvalidArtifact$")
+	initialCmd.Env = append(os.Environ(), externPluginInitialBuildHelperEnv+"=1")
+	if output, err := initialCmd.CombinedOutput(); err != nil {
+		t.Fatalf("run initial-plugin build helper: %v\n%s", err, output)
+	}
+	pluginPath := filepath.Join(cacheDir, "rebuild_host", hash, "extern.so")
+	if err := os.WriteFile(pluginPath, []byte("not a Go plugin"), 0o644); err != nil {
+		t.Fatalf("corrupt plugin artifact: %v", err)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestExternHostPluginRebuildsInvalidArtifact$")
+	cmd.Env = append(os.Environ(), "ABLE_EXTERN_PLUGIN_REBUILD_HELPER=1")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("run invalid-plugin rebuild helper: %v\n%s", err, output)
+	}
+	marker, err := os.ReadFile(filepath.Join(cacheDir, "rebuild_host", hash, "plugin-artifact"))
+	if err != nil {
+		t.Fatalf("read rebuilt plugin marker: %v", err)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(string(marker)), "extern-rebuilt-") {
+		t.Fatalf("rebuilt plugin marker = %q, want extern-rebuilt-*", marker)
+	}
+}
 
 func TestExternHandlersRegisterNativeFunctions(t *testing.T) {
 	interp := New()
@@ -76,6 +296,9 @@ func TestExternPreservesExistingBinding(t *testing.T) {
 }
 
 func TestExternStructArrayFieldCoercesIntoHostMap(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
 	interp := New()
 
 	specDef := ast.StructDef("Spec", []*ast.StructFieldDefinition{
@@ -130,6 +353,9 @@ return int32(len(args))
 }
 
 func TestExternStructNullableArrayFieldCoercesIntoHostMap(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
 	interp := New()
 
 	specDef := ast.StructDef("Spec", []*ast.StructFieldDefinition{
@@ -212,14 +438,14 @@ func TestExternTargetHashCacheReusesAndInvalidates(t *testing.T) {
 		t.Fatalf("hash should start invalid before first cached lookup")
 	}
 
-	firstHash := cachedExternStateHash(ast.HostTargetGo, state, interp.externSession)
+	firstHash := cachedExternStateHash(ast.HostTargetGo, state, externHostCacheScope())
 	if firstHash == "" {
 		t.Fatalf("expected cached hash")
 	}
 	if !state.hashValid {
 		t.Fatalf("hash should be valid after caching")
 	}
-	if got := cachedExternStateHash(ast.HostTargetGo, state, interp.externSession); got != firstHash {
+	if got := cachedExternStateHash(ast.HostTargetGo, state, externHostCacheScope()); got != firstHash {
 		t.Fatalf("cached hash mismatch: got %q want %q", got, firstHash)
 	}
 
@@ -231,7 +457,7 @@ func TestExternTargetHashCacheReusesAndInvalidates(t *testing.T) {
 	if state.hashValid {
 		t.Fatalf("hash should be invalidated after extern re-registration")
 	}
-	secondHash := cachedExternStateHash(ast.HostTargetGo, state, interp.externSession)
+	secondHash := cachedExternStateHash(ast.HostTargetGo, state, externHostCacheScope())
 	if secondHash == "" {
 		t.Fatalf("expected recomputed hash")
 	}
@@ -241,6 +467,9 @@ func TestExternTargetHashCacheReusesAndInvalidates(t *testing.T) {
 }
 
 func TestExternModuleBuildsFastInvokerForHotStringSignatures(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
 	interp := New()
 	replaceSig := ast.Fn(
 		"replace_like",
@@ -332,6 +561,9 @@ func TestExternModuleBuildsFastInvokerForHotStringSignatures(t *testing.T) {
 }
 
 func TestExternSmallUnsignedResultsStaySmallInt(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
 	interp := New()
 	sig := ast.Fn("read_u64", nil, nil, ast.Ty("u64"), nil, nil, false, false)
 	mod := ast.Mod([]ast.Statement{
@@ -360,6 +592,9 @@ func TestExternSmallUnsignedResultsStaySmallInt(t *testing.T) {
 }
 
 func TestExternSmallUnsignedArrayElementsStaySmallInt(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
 	interp := New()
 	sig := ast.Fn("read_bytes", nil, nil, ast.Gen(ast.Ty("Array"), ast.Ty("u8")), nil, nil, false, false)
 	mod := ast.Mod([]ast.Statement{
@@ -410,6 +645,9 @@ func TestExternSmallUnsignedArrayElementsStaySmallInt(t *testing.T) {
 }
 
 func TestExternLargeU64StillFallsBackToBigInt(t *testing.T) {
+	if runExternPluginTestInChild(t) {
+		return
+	}
 	interp := New()
 	sig := ast.Fn("read_large_u64", nil, nil, ast.Ty("u64"), nil, nil, false, false)
 	mod := ast.Mod([]ast.Statement{

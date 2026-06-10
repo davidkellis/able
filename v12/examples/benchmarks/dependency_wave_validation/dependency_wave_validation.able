@@ -1,0 +1,192 @@
+package dependency_wave_validation
+
+import able.collections.hash_map.*
+import able.collections.map.*
+import able.core.interfaces.{Error}
+import able.core.options.*
+import able.kernel.{Channel}
+
+WIDTH: i64 := 128_i64
+WAVE_COUNT: i64 := 32_i64
+NODE_COUNT: i64 := WIDTH * WAVE_COUNT
+WORKER_COUNT: i64 := 4_i64
+
+struct DependencyError { code: i32 }
+
+impl Error for DependencyError {
+  fn message(self: Self) -> String { "dependency validation failed" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct Accepted { value: i64 }
+struct Recovered { value: i64 }
+union NodeState = Accepted | Recovered
+
+struct WaveTask {
+  id: i64,
+  dependency_total: i64,
+  failed_dependencies: i64
+}
+
+struct WaveResult {
+  id: i64,
+  state: NodeState
+}
+
+methods WaveResult {
+  fn accepted(self: Self) -> bool {
+    self.state match {
+      case Accepted { value: _ } => true,
+      case Recovered { value: _ } => false
+    }
+  }
+
+  fn value(self: Self) -> i64 {
+    self.state match {
+      case Accepted { value } => value,
+      case Recovered { value } => value
+    }
+  }
+
+  fn checksum(self: Self) -> i64 {
+    self.state match {
+      case Accepted { value } => value * 7_i64 + self.id * 3_i64 + 1_i64,
+      case Recovered { value } => value * 11_i64 + self.id * 5_i64 + 2_i64
+    }
+  }
+}
+
+fn dependency_error(code: i32) -> Error {
+  error: Error = DependencyError { code }
+  error
+}
+
+fn lookup(results: Map i64 WaveResult, id: i64) -> WaveResult {
+  results.get(id)!
+}
+
+fn include_dependency(task: WaveTask, dependency: WaveResult) -> WaveTask {
+  WaveTask {
+    id: task.id,
+    dependency_total: task.dependency_total + dependency.value(),
+    failed_dependencies: task.failed_dependencies + if dependency.accepted() { 0_i64 } else { 1_i64 }
+  }
+}
+
+fn build_task(id: i64, completed: Map i64 WaveResult) -> WaveTask {
+  column := id % WIDTH
+  task := WaveTask { id, dependency_total: 0_i64, failed_dependencies: 0_i64 }
+  if id >= WIDTH {
+    task = include_dependency(task, lookup(completed, id - WIDTH))
+    if column > 0_i64 {
+      task = include_dependency(task, lookup(completed, id - WIDTH - 1_i64))
+    }
+  }
+  if id >= WIDTH * 2_i64 && (column % 3_i64) == 0_i64 {
+    task = include_dependency(task, lookup(completed, id - WIDTH * 2_i64))
+  }
+  task
+}
+
+fn validate(task: WaveTask) -> Result i64 {
+  if task.failed_dependencies > 1_i64 {
+    dependency_error(1)
+  } elsif task.id > 0_i64 && (task.id % 97_i64) == 0_i64 {
+    dependency_error(2)
+  } else {
+    task.dependency_total + task.id * 17_i64 + 23_i64
+  }
+}
+
+fn evaluate(task: WaveTask) -> WaveResult {
+  resolved := validate(task).map<i64>({ seed => {
+    state := seed % 1_000_003_i64
+    step := 0_i64
+    loop {
+      if step >= 6_i64 { break }
+      if (step % 2_i64) == 0_i64 {
+        state = (state * 131_i64 + task.id + step) % 1_000_003_i64
+      } else {
+        state = (state * 67_i64 + task.failed_dependencies + step) % 1_000_003_i64
+      }
+      step = step + 1_i64
+    }
+    state
+  } })
+  if resolved.is_ok() {
+    WaveResult { id: task.id, state: Accepted { value: resolved.unwrap_or(0_i64) } }
+  } else {
+    fallback := 101_i64 + (task.id % 89_i64) + task.failed_dependencies * 13_i64
+    WaveResult { id: task.id, state: Recovered { value: fallback } }
+  }
+}
+
+fn work(jobs: Channel WaveTask, results: Channel WaveResult) -> i64 {
+  processed := 0_i64
+  loop {
+    jobs.receive() match {
+      case nil => {
+        results.send(WaveResult { id: -1_i64, state: Recovered { value: processed } })
+        break
+      },
+      case task: WaveTask => {
+        results.send(evaluate(task))
+        processed = processed + 1_i64
+      }
+    }
+  }
+  processed
+}
+
+fn main() -> void {
+  jobs: Channel WaveTask = Channel.new(NODE_COUNT as i32)
+  results: Channel WaveResult = Channel.new((NODE_COUNT + WORKER_COUNT) as i32)
+  first := spawn { work(jobs, results) }
+  second := spawn { work(jobs, results) }
+  third := spawn { work(jobs, results) }
+  fourth := spawn { work(jobs, results) }
+
+  completed: HashMap i64 WaveResult = HashMap.with_capacity(NODE_COUNT as i32)
+  accepted := 0_i64
+  recovered := 0_i64
+  total := 0_i64
+  checksum := 0_i64
+  wave := 0_i64
+  loop {
+    if wave >= WAVE_COUNT { break }
+    offset := 0_i64
+    loop {
+      if offset >= WIDTH { break }
+      id := wave * WIDTH + offset
+      jobs.send(build_task(id, completed))
+      offset = offset + 1_i64
+    }
+
+    received := 0_i64
+    loop {
+      if received >= WIDTH { break }
+      result := results.receive()!
+      completed.set(result.id, result)
+      if result.accepted() { accepted = accepted + 1_i64 } else { recovered = recovered + 1_i64 }
+      total = total + result.value()
+      checksum = (checksum + result.checksum()) % 1_000_003_i64
+      received = received + 1_i64
+    }
+    wave = wave + 1_i64
+  }
+
+  jobs.close()
+  future_flush()
+  finished := 0_i64
+  worker_messages := 0_i64
+  loop {
+    if finished >= WORKER_COUNT { break }
+    result := results.receive()!
+    if result.id < 0_i64 {
+      worker_messages = worker_messages + result.value()
+      finished = finished + 1_i64
+    }
+  }
+
+  print(`${NODE_COUNT}:${WAVE_COUNT}:${worker_messages}:${worker_messages}:${accepted}:${recovered}:${total}:${checksum}`)
+}

@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-07-22T02:58:05.141611Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "sudoku_masks"
+  ],
+  "timeout_seconds": 55,
+  "telemetry_build": true,
+  "telemetry_mode": "dynamic-boundary",
+  "rows": [
+    {
+      "benchmark": "sudoku_masks",
+      "command_exit": 0,
+      "status": "ok",
+      "telemetry": {
+        "explicit_dynamic_call": 100,
+        "host_abi_call": 100,
+        "residual_polymorphic_call": 100,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "explicit_dynamic_call": 100,
+    "residual_polymorphic_call": 100,
+    "host_abi_call": 100,
+    "runtime_service_call": 0
+  }
+}

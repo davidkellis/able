@@ -68,6 +68,67 @@ func castIntegerValueToTargetKindFast(val runtime.IntegerValue, targetKind runti
 	return nil, false
 }
 
+func coerceIntegerValueToTargetKindIfInRange(rawValue runtime.Value, targetKind runtime.IntegerType) (runtime.Value, bool) {
+	if coerced, ok := coerceRawIntegerCarrierToTargetKindIfInRange(rawValue, targetKind); ok {
+		return coerced, true
+	}
+	rawValue = bytecodeMaterializeRawValue(bytecodeSlotReadValue(rawValue))
+	switch val := rawValue.(type) {
+	case runtime.IntegerValue:
+		if val.TypeSuffix == targetKind {
+			return rawValue, true
+		}
+		if val.IsSmall() {
+			intVal := val.Int64Fast()
+			if err := ensureFitsInt64Type(targetKind, intVal); err == nil {
+				return boxedOrSmallIntegerValue(targetKind, intVal), true
+			}
+			return nil, false
+		}
+		if integerValueWithinRange(val.BigInt(), targetKind) {
+			return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetKind), true
+		}
+	case *runtime.IntegerValue:
+		if val == nil {
+			return nil, false
+		}
+		if val.TypeSuffix == targetKind {
+			return rawValue, true
+		}
+		if val.IsSmallRef() {
+			intVal := val.Int64FastRef()
+			if err := ensureFitsInt64Type(targetKind, intVal); err == nil {
+				return boxedOrSmallIntegerValue(targetKind, intVal), true
+			}
+			return nil, false
+		}
+		if integerValueWithinRange(val.BigInt(), targetKind) {
+			return runtime.NewBigIntValue(new(big.Int).Set(val.BigInt()), targetKind), true
+		}
+	}
+	return nil, false
+}
+
+func coerceRawIntegerCarrierToTargetKindIfInRange(rawValue runtime.Value, targetKind runtime.IntegerType) (runtime.Value, bool) {
+	if !bytecodeIsRawIntegerCarrier(rawValue) {
+		return nil, false
+	}
+	sourceKind, raw, ok := bytecodeRawIntegerValueInfo(rawValue)
+	if !ok {
+		return nil, false
+	}
+	if sourceKind == targetKind {
+		return bytecodeBoxRawIntegerValue(sourceKind, raw), true
+	}
+	if raw < 0 && (sourceKind == runtime.IntegerU64 || sourceKind == runtime.IntegerUsize) {
+		return nil, false
+	}
+	if err := ensureFitsInt64Type(targetKind, raw); err != nil {
+		return nil, false
+	}
+	return boxedOrSmallIntegerValue(targetKind, raw), true
+}
+
 func integerValueToFloat64Fast(val runtime.IntegerValue) float64 {
 	if val.IsSmall() {
 		return float64(val.Int64Fast())
@@ -83,6 +144,7 @@ func integerRefToFloat64Fast(val *runtime.IntegerValue) float64 {
 }
 
 func castValueToCanonicalSimpleTypeFast(typeName string, rawValue runtime.Value) (runtime.Value, bool, error) {
+	rawValue = bytecodeMaterializeRawValue(bytecodeSlotReadValue(rawValue))
 	switch val := rawValue.(type) {
 	case runtime.IntegerValue:
 		if string(val.TypeSuffix) == typeName {
@@ -196,4 +258,53 @@ func castValueToCanonicalSimpleTypeFast(typeName string, rawValue runtime.Value)
 	}
 
 	return nil, false, nil
+}
+
+func tryFastSimpleTypeCoercionByName(i *Interpreter, simpleName string, value runtime.Value) (runtime.Value, bool, error) {
+	typeName := normalizeKernelAliasName(simpleName)
+	if typeName == "" {
+		return nil, false, nil
+	}
+	if !fastNamedStructTypeNameIsNonNominal(i, typeName) {
+		if coerced, ok := exactNamedStructCoercionValueForName(value, typeName); ok {
+			return coerced, true, nil
+		}
+	}
+	if inlineCoercionUnnecessaryBySimpleTypeWithInterpreter(i, typeName, value) {
+		return bytecodeMaterializeRawValue(bytecodeSlotReadValue(value)), true, nil
+	}
+	if coerced, ok, err := inlineCoerceValueBySimpleType(typeName, value); ok {
+		return coerced, true, err
+	}
+	switch typeName {
+	case "String":
+		switch value := bytecodeMaterializeRawValue(bytecodeSlotReadValue(value)).(type) {
+		case runtime.StringValue, *runtime.StringValue:
+			return value, true, nil
+		}
+	case "bool":
+		switch value := bytecodeMaterializeRawValue(bytecodeSlotReadValue(value)).(type) {
+		case runtime.BoolValue, *runtime.BoolValue:
+			return value, true, nil
+		}
+	case "char":
+		switch value := bytecodeMaterializeRawValue(bytecodeSlotReadValue(value)).(type) {
+		case runtime.CharValue, *runtime.CharValue:
+			return value, true, nil
+		}
+	case "Error":
+		switch value := bytecodeMaterializeRawValue(bytecodeSlotReadValue(value)).(type) {
+		case runtime.ErrorValue, *runtime.ErrorValue:
+			return value, true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+func (i *Interpreter) tryFastSimpleTypeCoercion(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, bool, error) {
+	simpleName := cachedSimpleTypeName(typeExpr)
+	if simpleName == "" {
+		return nil, false, nil
+	}
+	return tryFastSimpleTypeCoercionByName(i, simpleName, value)
 }

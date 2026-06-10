@@ -156,8 +156,136 @@ func cachedArrayTypeInfo(elemType ast.TypeExpression) typeInfo {
 	return created
 }
 
+func arrayElementTypeExpressionFromIndexToken(token uint16) (ast.TypeExpression, bool) {
+	switch token {
+	case bytecodeIndexTypeI8:
+		return cachedIntegerTypeExpression(runtime.IntegerI8), true
+	case bytecodeIndexTypeI16:
+		return cachedIntegerTypeExpression(runtime.IntegerI16), true
+	case bytecodeIndexTypeI32:
+		return cachedIntegerTypeExpression(runtime.IntegerI32), true
+	case bytecodeIndexTypeI64:
+		return cachedIntegerTypeExpression(runtime.IntegerI64), true
+	case bytecodeIndexTypeI128:
+		return cachedIntegerTypeExpression(runtime.IntegerI128), true
+	case bytecodeIndexTypeU8:
+		return cachedIntegerTypeExpression(runtime.IntegerU8), true
+	case bytecodeIndexTypeU16:
+		return cachedIntegerTypeExpression(runtime.IntegerU16), true
+	case bytecodeIndexTypeU32:
+		return cachedIntegerTypeExpression(runtime.IntegerU32), true
+	case bytecodeIndexTypeU64:
+		return cachedIntegerTypeExpression(runtime.IntegerU64), true
+	case bytecodeIndexTypeU128:
+		return cachedIntegerTypeExpression(runtime.IntegerU128), true
+	case bytecodeIndexTypeIsize:
+		return cachedIntegerTypeExpression(runtime.IntegerIsize), true
+	case bytecodeIndexTypeUsize:
+		return cachedIntegerTypeExpression(runtime.IntegerUsize), true
+	case bytecodeIndexTypeF32:
+		return cachedFloatTypeExpression(runtime.FloatF32), true
+	case bytecodeIndexTypeF64:
+		return cachedFloatTypeExpression(runtime.FloatF64), true
+	case bytecodeIndexTypeString:
+		return cachedSimpleTypeExpression("String"), true
+	case bytecodeIndexTypeBool:
+		return cachedSimpleTypeExpression("bool"), true
+	case bytecodeIndexTypeChar:
+		return cachedSimpleTypeExpression("char"), true
+	case bytecodeIndexTypeNil:
+		return cachedSimpleTypeExpression("nil"), true
+	case bytecodeIndexTypeVoid:
+		return cachedSimpleTypeExpression("void"), true
+	default:
+		return nil, false
+	}
+}
+
+func (i *Interpreter) arrayElementTypeExpressionWithoutMaterializing(arr *runtime.ArrayValue, seen map[*runtime.StructInstanceValue]struct{}) (ast.TypeExpression, bool) {
+	if arr == nil {
+		return nil, false
+	}
+	if arr.State != nil && arr.State.ElementTypeTokenKnown {
+		if expr, ok := arrayElementTypeExpressionFromIndexToken(arr.State.ElementTypeToken); ok {
+			return expr, true
+		}
+	}
+	values := arr.Elements
+	if len(values) == 0 && arr.State != nil {
+		values = arr.State.Values
+	}
+	if len(values) > 0 {
+		if inferred := i.typeExpressionFromValueWithSeen(values[0], seen); inferred != nil {
+			return inferred, true
+		}
+	}
+	for _, handle := range []int64{arr.Handle, arr.TrackedHandle} {
+		if handle == 0 {
+			continue
+		}
+		typeName, ok, err := runtime.ArrayStoreMonoElementTypeNameIfKnown(handle)
+		if err == nil && ok {
+			return cachedSimpleTypeExpression(typeName), true
+		}
+	}
+	return nil, false
+}
+
+func (i *Interpreter) arrayValuesForTypeInspection(arr *runtime.ArrayValue) []runtime.Value {
+	if arr == nil {
+		return nil
+	}
+	if len(arr.Elements) > 0 {
+		return arr.Elements
+	}
+	if i == nil {
+		return nil
+	}
+	state, err := i.ensureArrayState(arr, 0)
+	if err != nil || state == nil || len(state.Values) == 0 {
+		return nil
+	}
+	return state.Values
+}
+
 func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) {
+	value = bytecodeSlotReadValue(value)
 	switch v := value.(type) {
+	case bytecodeRawI32SlotValue:
+		return typeInfo{name: string(runtime.IntegerI32)}, true
+	case *bytecodeRawI32StackCell:
+		if v == nil {
+			return typeInfo{}, false
+		}
+		return typeInfo{name: string(runtime.IntegerI32)}, true
+	case bytecodeRawU8ResultValue:
+		return typeInfo{name: string(runtime.IntegerU8)}, true
+	case bytecodeRawU16ResultValue:
+		return typeInfo{name: string(runtime.IntegerU16)}, true
+	case bytecodeRawU32ResultValue:
+		return typeInfo{name: string(runtime.IntegerU32)}, true
+	case bytecodeRawU64ResultValue:
+		return typeInfo{name: string(runtime.IntegerU64)}, true
+	case bytecodeRawUsizeResultValue:
+		return typeInfo{name: string(runtime.IntegerUsize)}, true
+	case bytecodeRawI64ResultValue:
+		return typeInfo{name: string(runtime.IntegerI64)}, true
+	case bytecodeRawIntegerValue:
+		return typeInfo{name: string(v.TypeSuffix)}, true
+	case *bytecodeRawIntegerSlotCell:
+		if v == nil {
+			return typeInfo{}, false
+		}
+		return typeInfo{name: string(v.TypeSuffix)}, true
+	case *bytecodeRawI64SlotCell:
+		if v == nil {
+			return typeInfo{}, false
+		}
+		return typeInfo{name: string(runtime.IntegerI64)}, true
+	case bytecodeRawF32SlotValue:
+		return typeInfo{name: string(runtime.FloatF32)}, true
+	case bytecodeRawF64SlotValue:
+		return typeInfo{name: string(runtime.FloatF64)}, true
 	case *runtime.StructDefinitionValue:
 		if v == nil || v.Node == nil || v.Node.ID == nil || !isSingletonStructDef(v.Node) {
 			return typeInfo{}, false
@@ -169,6 +297,19 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 		return i.typeInfoFromStructInstance(v)
 	case *runtime.InterfaceValue:
 		return i.getTypeInfoForValue(v.Underlying)
+	case *runtime.ArrayValue:
+		if v == nil {
+			return typeInfo{}, false
+		}
+		elemType := cachedWildcardTypeExpression
+		if inferred, ok := i.arrayElementTypeExpressionWithoutMaterializing(v, nil); ok {
+			elemType = inferred
+		} else if values := i.arrayValuesForTypeInspection(v); len(values) > 0 {
+			if inferred := i.typeExpressionFromValueWithSeen(values[0], nil); inferred != nil {
+				elemType = inferred
+			}
+		}
+		return cachedArrayTypeInfo(elemType), true
 	case runtime.StringValue, *runtime.StringValue:
 		if ptr, ok := v.(*runtime.StringValue); ok && ptr == nil {
 			return typeInfo{}, false
@@ -196,17 +337,6 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 			return typeInfo{}, false
 		}
 		return typeInfo{name: string(v.TypeSuffix)}, true
-	case *runtime.ArrayValue:
-		if v == nil {
-			return typeInfo{}, false
-		}
-		elemType := cachedWildcardTypeExpression
-		if len(v.Elements) > 0 {
-			if inferred := i.typeExpressionFromValueWithSeen(v.Elements[0], nil); inferred != nil {
-				elemType = inferred
-			}
-		}
-		return cachedArrayTypeInfo(elemType), true
 	case *runtime.IteratorValue:
 		if v == nil {
 			return typeInfo{}, false
@@ -247,6 +377,13 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 }
 
 func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen map[*runtime.StructInstanceValue]struct{}) ast.TypeExpression {
+	value = bytecodeSlotReadValue(value)
+	if kind, _, ok := bytecodeRawIntegerValueInfo(value); ok {
+		return cachedIntegerTypeExpression(kind)
+	}
+	if _, kind, ok := bytecodeDirectRawFloatValue(value); ok {
+		return cachedFloatTypeExpression(kind)
+	}
 	switch v := value.(type) {
 	case *runtime.StructDefinitionValue:
 		if v == nil || v.Node == nil || v.Node.ID == nil || !isSingletonStructDef(v.Node) {
@@ -298,7 +435,9 @@ func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen 
 		if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil {
 			return nil
 		}
-		base := cachedSimpleTypeExpression(v.Definition.Node.ID.Name)
+		name := v.Definition.Node.ID.Name
+		base := cachedSimpleTypeExpression(name)
+		memoizeTypeArgs := seen == nil
 		if seen == nil {
 			seen = make(map[*runtime.StructInstanceValue]struct{})
 		}
@@ -306,46 +445,27 @@ func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen 
 			return base
 		}
 		seen[v] = struct{}{}
-		defer delete(seen, v)
-		if v.Definition.Node.ID.Name == "Array" {
-			if arr, err := i.arrayValueFromStructFields(v.Fields); err == nil && arr != nil {
+		result := base
+		if name == "Array" {
+			if arr, err := i.arrayValueFromStructInstance(v); err == nil && arr != nil {
 				if inferred := i.typeExpressionFromValueWithSeen(arr, seen); inferred != nil {
-					return inferred
+					result = inferred
+					delete(seen, v)
+					return result
 				}
 			}
-			return cachedArrayTypeExpression(cachedWildcardTypeExpression)
-		}
-		generics := v.Definition.Node.GenericParams
-		if len(generics) > 0 {
-			typeArgs := v.TypeArguments
-			needsInference := len(typeArgs) != len(generics)
-			if !needsInference {
-				genericNames := genericNameSet(generics)
-				for _, arg := range typeArgs {
-					if arg == nil {
-						needsInference = true
-						break
-					}
-					if _, ok := arg.(*ast.WildcardTypeExpression); ok {
-						needsInference = true
-						break
-					}
-					if simple, ok := arg.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
-						if _, ok := genericNames[simple.Name.Name]; ok {
-							needsInference = true
-							break
-						}
-					}
-				}
-			}
-			if needsInference {
-				typeArgs = i.inferStructTypeArgumentsWithSeen(v.Definition.Node, v.Fields, v.Positional, seen)
-			}
+			result = cachedArrayTypeExpression(cachedWildcardTypeExpression)
+		} else if len(v.Definition.Node.GenericParams) > 0 {
+			typeArgs := i.resolvedStructInstanceTypeArgumentsWithSeenMemo(v, seen, memoizeTypeArgs)
 			if len(typeArgs) > 0 {
-				return ast.Gen(base, typeArgs...)
+				result = i.cachedTypeExpressionFromInfo(typeInfo{
+					name:     name,
+					typeArgs: typeArgs,
+				})
 			}
 		}
-		return base
+		delete(seen, v)
+		return result
 	case *runtime.InterfaceValue:
 		if v == nil || v.Interface == nil || v.Interface.Node == nil || v.Interface.Node.ID == nil {
 			return nil
@@ -357,9 +477,11 @@ func (i *Interpreter) typeExpressionFromValueWithSeen(value runtime.Value, seen 
 		if v == nil {
 			return nil
 		}
-		var elemType ast.TypeExpression
-		if len(v.Elements) > 0 {
-			elemType = i.typeExpressionFromValueWithSeen(v.Elements[0], seen)
+		elemType, ok := i.arrayElementTypeExpressionWithoutMaterializing(v, seen)
+		if !ok {
+			if values := i.arrayValuesForTypeInspection(v); len(values) > 0 {
+				elemType = i.typeExpressionFromValueWithSeen(values[0], seen)
+			}
 		}
 		if elemType == nil {
 			elemType = cachedWildcardTypeExpression
@@ -413,6 +535,26 @@ func (i *Interpreter) canonicalTypeNames(name string) []string {
 	i.typeAliasBaseCache[name] = result
 	i.typeAliasCacheMu.Unlock()
 	return result
+}
+
+func (i *Interpreter) canonicalTypeNamePair(name string) (string, string) {
+	if name == "" {
+		return "", ""
+	}
+	if i == nil || len(i.typeAliases) == 0 {
+		return name, ""
+	}
+	if _, ok := i.typeAliases[name]; !ok {
+		return name, ""
+	}
+	names := i.canonicalTypeNames(name)
+	if len(names) == 0 {
+		return "", ""
+	}
+	if len(names) == 1 {
+		return names[0], ""
+	}
+	return names[0], names[1]
 }
 
 func aliasBaseTypeName(name string, aliases map[string]*ast.TypeAliasDefinition) string {

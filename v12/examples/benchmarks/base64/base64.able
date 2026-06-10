@@ -1,10 +1,8 @@
 package base64_benchmark
 
-import able.collections.array
 import able.core.interfaces.{Error}
 import able.crypto.md5
 import able.encoding.base64
-import able.io
 import able.kernel.{Array}
 
 fn repeat_byte(byte: u8, count: i32) -> Array u8 {
@@ -18,30 +16,30 @@ fn repeat_byte(byte: u8, count: i32) -> Array u8 {
   bytes
 }
 
-fn decode_or_raise(value: String) -> String {
-  base64.decode_string(value) match {
-    case decoded: String => decoded,
-    case err: Error => { raise err }
+fn decode_or_raise(value: Array u8) -> Array u8 {
+  base64.decode_bytes(value) match {
+    case decoded: Array u8 => decoded,
+      case err: Error => { raise err }
   }
 }
 
 fn main() {
-  str := io.bytes_to_string(repeat_byte(97_u8, 1000000))
-  print(md5.hex_string(str))
+  bytes := repeat_byte(97_u8, 1000000)
+  print(md5.hex(bytes))
 
   i := 0
   loop {
     if i >= 20 { break }
-    str = base64.encode_string(str)
+    bytes = base64.encode_bytes(bytes)
     i = i + 1
   }
-  print(md5.hex_string(str))
+  print(md5.hex(bytes))
 
   i = 0
   loop {
     if i >= 20 { break }
-    str = decode_or_raise(str)
+    bytes = decode_or_raise(bytes)
     i = i + 1
   }
-  print(md5.hex_string(str))
+  print(md5.hex(bytes))
 }

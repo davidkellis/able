@@ -117,3 +117,35 @@ func TestBytecodeVMExecArrayLiteralCopiesStackSegment(t *testing.T) {
 		t.Fatalf("unexpected array literal elements: %#v", arr.Elements)
 	}
 }
+
+func TestBytecodeVMExecArrayLiteralMaterializesReusableRawCells(t *testing.T) {
+	interp := NewBytecode()
+	vm := newBytecodeVM(interp, interp.GlobalEnvironment())
+	instr := &bytecodeInstruction{op: bytecodeOpArrayLiteral, argCount: 3}
+
+	vm.stack = append(vm.stack,
+		vm.stackRawI64Value(0, 37),
+		vm.stackRawI64Value(1, 1),
+		vm.stackRawI64Value(2, 481),
+	)
+	if err := vm.execArrayLiteral(instr); err != nil {
+		t.Fatalf("execArrayLiteral failed: %v", err)
+	}
+	arr, ok := vm.stack[0].(*runtime.ArrayValue)
+	if !ok || arr == nil {
+		t.Fatalf("expected array literal result, got %#v", vm.stack[0])
+	}
+
+	vm.stackRawI64Value(0, 999)
+	vm.stackRawI64Value(1, 999)
+	vm.stackRawI64Value(2, 999)
+	for idx, want := range []int64{37, 1, 481} {
+		got, ok := arr.Elements[idx].(runtime.IntegerValue)
+		if !ok {
+			t.Fatalf("array element %d retained raw stack cell: %#v", idx, arr.Elements[idx])
+		}
+		if raw, ok := got.ToInt64(); !ok || raw != want {
+			t.Fatalf("array element %d = %#v, want %d_i64", idx, arr.Elements[idx], want)
+		}
+	}
+}

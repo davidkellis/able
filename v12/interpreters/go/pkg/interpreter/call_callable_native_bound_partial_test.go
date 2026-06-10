@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
@@ -74,6 +75,49 @@ func TestCallCallableValue_NativeSkipContextPassesNilContext(t *testing.T) {
 		t.Fatalf("expected native impl to be called")
 	}
 	want := runtime.NewSmallInt(1, runtime.IntegerI32)
+	if !valuesEqual(result, want) {
+		t.Fatalf("unexpected result: got=%#v want=%#v", result, want)
+	}
+}
+
+func TestCallCallableValue_BoundMethodValueInjectsReceiverIntoDirectFunction(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	receiver := runtime.NewSmallInt(7, runtime.IntegerI32)
+	argA := runtime.NewSmallInt(11, runtime.IntegerI32)
+	argB := runtime.NewSmallInt(13, runtime.IntegerI32)
+
+	fn := &runtime.FunctionValue{
+		Declaration: ast.Fn(
+			"sum3",
+			[]*ast.FunctionParameter{
+				ast.Param("self", ast.Ty("i32")),
+				ast.Param("a", ast.Ty("i32")),
+				ast.Param("b", ast.Ty("i32")),
+			},
+			[]ast.Statement{
+				ast.Ret(ast.Bin("+", ast.Bin("+", ast.ID("self"), ast.ID("a")), ast.ID("b"))),
+			},
+			ast.Ty("i32"),
+			nil,
+			nil,
+			false,
+			false,
+		),
+		Closure: env,
+	}
+
+	result, err := interp.callCallableValue(
+		runtime.BoundMethodValue{Receiver: receiver, Method: fn},
+		[]runtime.Value{argA, argB},
+		env,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("bound direct-function invocation failed: %v", err)
+	}
+
+	want := runtime.NewSmallInt(31, runtime.IntegerI32)
 	if !valuesEqual(result, want) {
 		t.Fatalf("unexpected result: got=%#v want=%#v", result, want)
 	}

@@ -1,19 +1,31 @@
-# Compiler Go Lowering Specification
+# Compiler Go Lowering Guardrails and Target Shapes
 
 ## Status
 
-This document is the canonical lowering specification for the v12 Go compiler.
-It defines how Able language constructs map to Go code, which semantic helpers
-are allowed, and where the explicit dynamic boundary begins.
+This document is the active, language-independent lowering guardrail for the
+v12 Go compiler. It defines the allowed direction for mapping Able constructs
+to Go, reusable lowering responsibilities, and the explicit dynamic boundary.
+It is not a description of a separate current compiler IR or a permission slip
+for an architectural rewrite or a benchmark-specific optimization.
 
-This document is intentionally stricter than the current implementation. It
-captures the target architecture the compiler must satisfy.
+The current compiler typechecks the shared AST, collects the program and static
+module graph, classifies dynamic features, validates fallback policy, and emits
+Go directly from that AST. It has no standalone typed semantic graph and no
+required public `Synthesize*` API. Source and focused compiler tests settle the
+current implementation; the rules below constrain changes to it and describe
+target shapes where a shared lowering concern is extended.
+
+`PLAN.md` selects performance work. Nothing in this document selects a
+candidate: an optimization still needs the same recurring non-nominal leaf in
+unlike verified applications, plus generated-source and behavioral proof.
 
 Related documents:
-- `v12/design/compiler-go-lowering-plan.md`: ordered work plan from the current
-  compiler to the target architecture described here.
-- `v12/design/compiler-native-lowering.md`: short-form contract and guardrails.
-- `v12/design/compiler-aot.md`: correctness-first AOT scope.
+- `v12/design/compiler-go-lowering-plan.md`: historical milestone completion
+  record and active high-level guardrails.
+- `v12/design/compiler-native-lowering-guardrails.md`: short-form active
+  contract and guardrails.
+- `v12/design/compiler-native-lowering.md`: historical completion record.
+- `v12/docs/compiler-full-matrix.md`: long-running confidence workflow.
 - `spec/full_spec_v12.md`: language semantics.
 
 ## Purpose
@@ -64,20 +76,27 @@ Everything else must be handled by shared lowering machinery.
 
 ## Architectural Model
 
-The compiler architecture must be organized around reusable lowering stages.
-These stages are the only places where lowering knowledge is allowed to live.
+The following are conceptual reusable lowering responsibilities, not a required
+pipeline of concrete IR objects or exported APIs. The direct generator may
+implement them through shared helpers, provided it keeps lowering knowledge out
+of emitter-local and named-nominal branches. A structural extraction is justified
+only by a semantic or broadly measured maintenance/performance need.
 
 ### 1. Semantic Input
 
-Input to codegen is not raw syntax.
-
-It is a typed, resolved semantic graph containing at least:
+Current codegen starts with the shared AST plus ProgramChecker inference,
+generator collection, and dynamic-feature classification. Those inputs must
+provide the equivalent information needed for a lowering decision, including:
 - normalized type expressions
 - resolved bindings
 - resolved overloads and impls
 - resolved interface/default-method targets where statically knowable
 - explicit dynamic-feature markers
 - explicit evaluation order
+
+A future internal semantic graph may be introduced only when it preserves these
+contracts and pays for itself across the compiler; it is not a current required
+intermediate representation.
 
 ### 2. Canonical Type Normalization
 
@@ -168,10 +187,18 @@ carriers and interpreter/runtime carriers.
 A boundary must be explicit in the source semantics or explicit in the host ABI.
 If there is no such boundary, native compiled code must stay native.
 
-## Canonical Reusable Lowering Units
+This closure property includes discard sites. `_ = expression` evaluates the
+expression and preserves its control/error behavior, but a statically
+representable primitive, String, Array, nominal, interface, union, or callable
+result remains on its native carrier until it is discarded. Discard is not a
+dynamic boundary and must not introduce `runtime.Value`, bridge scalar boxing,
+or an Array-store conversion.
 
-The compiler must expose one reusable synthesis path for each of the following.
-No emitter-local alternatives are allowed.
+## Conceptual reusable lowering units
+
+The compiler must have one reusable synthesis path for each concern below. The
+names are conceptual labels, not required Go function/type names. No
+emitter-local alternatives are allowed.
 
 1. `NormalizeTypeExpr`
    - input: spec-level Able type expression
@@ -201,9 +228,11 @@ No emitter-local alternatives are allowed.
 If a new lowering change cannot be expressed as a change to one of these shared
 synthesis points, it is almost certainly the wrong fix.
 
-## Canonical Go Shapes
+## Target Go shapes
 
-The exact generated names may differ, but the architectural shapes are fixed.
+The exact generated names and implementation details may differ. These are
+target/conceptual shapes, not a generated-source ABI; source-backed audits and
+fixtures decide the current shape.
 
 ### Nominal Struct Carrier
 

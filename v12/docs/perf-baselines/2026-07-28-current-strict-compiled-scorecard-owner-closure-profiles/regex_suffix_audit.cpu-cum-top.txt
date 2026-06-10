@@ -1,0 +1,75 @@
+File: compiled
+Build ID: 9fdeaa5403f794e4a542e68e79d832e17abd2daf
+Type: cpu
+Time: 2026-07-28 09:45:14 CDT
+Duration: 19.17ms, Total samples = 220ms (1147.36%)
+Showing nodes accounting for 220ms, 100% of 220ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      220ms   100%  main.main
+         0     0%     0%      220ms   100%  main.runMain
+         0     0%     0%      220ms   100%  runtime.main
+         0     0%     0%      210ms 95.45%  main.RunRegisteredMain
+         0     0%     0%      210ms 95.45%  main.RunRegisteredMain.func1
+         0     0%     0%      210ms 95.45%  main.__able_compiled_fn_main
+         0     0%     0%      210ms 95.45%  main.__able_compiled_fn_main_ctx
+         0     0%     0%      210ms 95.45%  main.__able_compiled_method_Regex_match_ctx
+         0     0%     0%      210ms 95.45%  main.__able_register_compiled_call.func1
+         0     0%     0%      210ms 95.45%  main.__able_wrap_fn_main
+      20ms  9.09%  9.09%      190ms 86.36%  main.__able_compiled_fn_find_nfa_span_ctx
+         0     0%  9.09%      190ms 86.36%  main.__able_compiled_fn_find_token_match_ctx
+      30ms 13.64% 22.73%      100ms 45.45%  main.__able_compiled_fn_regex_nfa_move_ctx
+         0     0% 22.73%       80ms 36.36%  runtime.mallocgc
+      50ms 22.73% 45.45%       70ms 31.82%  main.__able_compiled_fn_regex_nfa_add_closure_ctx
+         0     0% 45.45%       50ms 22.73%  main.__able_compiled_fn_regex_codepoints_ctx
+         0     0% 45.45%       50ms 22.73%  runtime.newobject
+      10ms  4.55% 50.00%       40ms 18.18%  runtime.deductAssistCredit
+         0     0% 50.00%       30ms 13.64%  runtime.gcAssistAlloc
+         0     0% 50.00%       30ms 13.64%  runtime.gcAssistAlloc.func2
+         0     0% 50.00%       30ms 13.64%  runtime.gcAssistAlloc1
+         0     0% 50.00%       30ms 13.64%  runtime.gcDrainN
+         0     0% 50.00%       30ms 13.64%  runtime.makeslice
+         0     0% 50.00%       30ms 13.64%  runtime.systemstack
+         0     0% 50.00%       20ms  9.09%  main.__able_compiled_entry_impl_Iterator_next_0_c_spec_ctx
+         0     0% 50.00%       20ms  9.09%  main.__able_compiled_fn_build_match_ctx
+         0     0% 50.00%       20ms  9.09%  main.__able_compiled_fn_build_named_capture_groups_ctx
+         0     0% 50.00%       20ms  9.09%  main.__able_compiled_fn_regex_nfa_threads_new_ctx
+         0     0% 50.00%       20ms  9.09%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0% 50.00%       20ms  9.09%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0% 50.00%       20ms  9.09%  main.__able_hash_map_set_ctx (inline)
+         0     0% 50.00%       20ms  9.09%  main.__able_hash_map_set_impl
+         0     0% 50.00%       20ms  9.09%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.__able_ctx_next
+      10ms  4.55% 54.55%       20ms  9.09%  runtime.mallocgcTiny
+      20ms  9.09% 63.64%       20ms  9.09%  runtime.nextFreeFast (inline)
+         0     0% 63.64%       20ms  9.09%  runtime.scanSpan
+         0     0% 63.64%       10ms  4.55%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0% 63.64%       10ms  4.55%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 63.64%       10ms  4.55%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 63.64%       10ms  4.55%  able/interpreter-go/pkg/runtime.HashMapStoreState
+      10ms  4.55% 68.18%       10ms  4.55%  able/interpreter-go/pkg/runtime.IntegerValue.ToInt64
+      10ms  4.55% 72.73%       10ms  4.55%  internal/runtime/gc/scan.FilterNilAVX512
+         0     0% 72.73%       10ms  4.55%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 72.73%       10ms  4.55%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+      10ms  4.55% 77.27%       10ms  4.55%  internal/runtime/maps.ctrlGroup.matchEmpty (inline)
+         0     0% 77.27%       10ms  4.55%  main.__able_compiled_fn_regex_nfa_capture_start_ctx
+         0     0% 77.27%       10ms  4.55%  main.__able_compiled_fn_regex_nfa_clone_captures_ctx
+      10ms  4.55% 81.82%       10ms  4.55%  main.__able_compiled_fn_regex_nfa_upsert_thread_ctx
+         0     0% 81.82%       10ms  4.55%  main.__able_compiled_fn_utf8_decode_ctx
+         0     0% 81.82%       10ms  4.55%  main.__able_compiled_impl_Iterator_next_0_c_spec_ctx
+         0     0% 81.82%       10ms  4.55%  main.__able_hash_map_handle_from_value
+         0     0% 81.82%       10ms  4.55%  main.startMainProfilePhase (inline)
+         0     0% 81.82%       10ms  4.55%  runtime.(*mcache).nextFree
+         0     0% 81.82%       10ms  4.55%  runtime.(*mcache).refill
+         0     0% 81.82%       10ms  4.55%  runtime.(*mcentral).cacheSpan
+         0     0% 81.82%       10ms  4.55%  runtime.(*mcentral).grow
+         0     0% 81.82%       10ms  4.55%  runtime.(*mspan).initHeapBits
+         0     0% 81.82%       10ms  4.55%  runtime.mallocgcSmallNoscan
+         0     0% 81.82%       10ms  4.55%  runtime.mallocgcSmallScanNoHeader
+         0     0% 81.82%       10ms  4.55%  runtime.mapaccess2_fast64
+         0     0% 81.82%       10ms  4.55%  runtime.markroot
+         0     0% 81.82%       10ms  4.55%  runtime.markrootBlock
+      10ms  4.55% 86.36%       10ms  4.55%  runtime.memclrNoHeapPointers
+      10ms  4.55% 90.91%       10ms  4.55%  runtime.scanblock
+      10ms  4.55% 95.45%       10ms  4.55%  runtime.tryDeferToSpanScan
+         0     0% 95.45%       10ms  4.55%  runtime/pprof.StartCPUProfile
+         0     0% 95.45%       10ms  4.55%  sync/atomic.(*Pointer[go.shape.6477419bcce6179f3692f359f4a6666cc468ad4d11128ea8679268f32a77de0f]).Store (inline)
+      10ms  4.55%   100%       10ms  4.55%  sync/atomic.StorePointer

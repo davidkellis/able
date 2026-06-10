@@ -1,0 +1,449 @@
+{
+  "kind": "able-compiled-architecture-budget",
+  "schema_version": 1,
+  "sources": {
+    "residual_report": {
+      "path": "v12/docs/perf-baselines/2026-07-21-cross-mode-residual-cost-model.json",
+      "sha256": "499c96e9949a7828bf6dc4df4b257257f6d8fcaa95006c5edb87e23c3e05ee7e"
+    },
+    "allocation_report": {
+      "path": "v12/docs/perf-baselines/2026-07-21-compiled-generated-allocation-shape.json",
+      "sha256": "cda0c1910fddff33f13a785e5de0b096122ad033dd8cdb1efffb4bb1339b1d8f"
+    },
+    "architecture_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-audit.md",
+      "sha256": "d41d9d0f78adb7b3753c015fafdf9bda09a92bf03bcf42ab169d1052defce18d"
+    },
+    "architecture_census": {
+      "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",
+      "sha256": "d2673c1762a3ab122435d0a08d6be3f6e01e45b23a83a4d879d6c7225ccd576a"
+    },
+    "exact_leaf_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-compiled-exact-leaf-seven-application-selection.md",
+      "sha256": "4257f311b79dea17da1e345c871580b6e61dc6e90ad9e39ddb36a12dd2d87ae7"
+    },
+    "range_effect_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-compiled-primitive-range-effect-closure-census.md",
+      "sha256": "2e0972601d6e551059a841432961aaa232f281937407e9ed4ebc52805d9883a9"
+    },
+    "concurrency_audit": {
+      "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md",
+      "sha256": "71bace357608106555721f49bc0be1050674b6a97527f8eb52cca23837b35a88"
+    }
+  },
+  "current_timing_sources": {
+    "k_nucleotide": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "fixed_width_128": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "distance_field": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "policy_record_dispatch": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    },
+    "concurrent_event_routing": {
+      "able": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
+          "sha256": "49559d73bf353291f9b202b7d46ded729e56fc6f6dbd8f285cb3447c4d504d67"
+        }
+      ],
+      "go": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-go-reference.json",
+          "sha256": "4e55ccdf0f8e1af1d82a3da3a974e609befded1a9aa0f6ab55b9dd49496241dc"
+        }
+      ]
+    }
+  },
+  "applications": [
+    {
+      "benchmark": "k_nucleotide",
+      "family": "text-map",
+      "logical_units": 2000000.0,
+      "logical_unit": "target-sequence bases",
+      "able_seconds": 2.898,
+      "go_seconds": 0.0809383108,
+      "able_samples": 5,
+      "go_samples": 5,
+      "target_budget_seconds": 0.08519822189473684,
+      "required_speedup": 34.014794388320745,
+      "able_bytes_per_unit": 612.212216,
+      "able_objects_per_unit": 13.86729075,
+      "go_bytes_per_unit": 2.479604,
+      "go_objects_per_unit": 4.25e-05,
+      "byte_amplification": 246.89918874142808,
+      "object_amplification": 326289.1941176471,
+      "dominant_exact_owner": "builtin-string-conversion",
+      "dominant_exact_owner_cpu_percent": 22.03,
+      "dominant_exact_owner_disposition": "insufficient-three-family-cpu-leverage",
+      "perfect_owner_removal_speedup": 1.2825445684237529,
+      "remaining_target_speedup_after_perfect_owner_removal": 26.521335184573683
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "logical_units": 2000000.0,
+      "logical_unit": "checksum loop iterations",
+      "able_seconds": 0.20600000000000002,
+      "go_seconds": 0.0058281814,
+      "able_samples": 5,
+      "go_samples": 5,
+      "target_budget_seconds": 0.006134927789473684,
+      "required_speedup": 33.57822733520271,
+      "able_bytes_per_unit": 17.76798,
+      "able_objects_per_unit": 1.110491,
+      "go_bytes_per_unit": 0.0002,
+      "go_objects_per_unit": 3.5e-06,
+      "byte_amplification": 88839.9,
+      "object_amplification": 317283.14285714284,
+      "dominant_exact_owner": "loop-carried-nominal-result",
+      "dominant_exact_owner_cpu_percent": 89.29,
+      "dominant_exact_owner_disposition": "single-family",
+      "perfect_owner_removal_speedup": 9.337068160597575,
+      "remaining_target_speedup_after_perfect_owner_removal": 3.5962281476002094
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "logical_units": 2000000.0,
+      "logical_unit": "numeric loop iterations",
+      "able_seconds": 0.09,
+      "go_seconds": 0.013324794800000001,
+      "able_samples": 5,
+      "go_samples": 5,
+      "target_budget_seconds": 0.014026099789473686,
+      "required_speedup": 6.416609132322247,
+      "able_bytes_per_unit": 7.2e-05,
+      "able_objects_per_unit": 3.5e-06,
+      "go_bytes_per_unit": 0.000192,
+      "go_objects_per_unit": 2.5e-06,
+      "byte_amplification": 0.375,
+      "object_amplification": 1.4,
+      "dominant_exact_owner": null,
+      "dominant_exact_owner_cpu_percent": 0.0,
+      "dominant_exact_owner_disposition": "no-material-exact-owner",
+      "perfect_owner_removal_speedup": 1.0,
+      "remaining_target_speedup_after_perfect_owner_removal": 6.416609132322247
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "family": "regex-dispatch",
+      "logical_units": 2048.0,
+      "logical_unit": "records processed",
+      "able_seconds": 0.22599999999999998,
+      "go_seconds": 0.0086840738,
+      "able_samples": 5,
+      "go_samples": 5,
+      "target_budget_seconds": 0.009141130315789475,
+      "required_speedup": 24.72341955454132,
+      "able_bytes_per_unit": 24007.423828125,
+      "able_objects_per_unit": 473.891357421875,
+      "go_bytes_per_unit": 157.5859375,
+      "go_objects_per_unit": 1.6435546875,
+      "byte_amplification": 152.3449630657875,
+      "object_amplification": 288.33318478906716,
+      "dominant_exact_owner": "regex-nfa-storage",
+      "dominant_exact_owner_cpu_percent": 46.15,
+      "dominant_exact_owner_disposition": "single-family",
+      "perfect_owner_removal_speedup": 1.8570102135561746,
+      "remaining_target_speedup_after_perfect_owner_removal": 13.3135614301205
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency",
+      "logical_units": 4096.0,
+      "logical_unit": "routed tasks",
+      "able_seconds": 2.914,
+      "go_seconds": 0.0056201684,
+      "able_samples": 5,
+      "go_samples": 5,
+      "target_budget_seconds": 0.0059159667368421055,
+      "required_speedup": 492.56531174403955,
+      "able_bytes_per_unit": 18987.177734375,
+      "able_objects_per_unit": 366.76904296875,
+      "go_bytes_per_unit": 147.697265625,
+      "go_objects_per_unit": 1.01611328125,
+      "byte_amplification": 128.5547004139062,
+      "object_amplification": 360.9529072561269,
+      "dominant_exact_owner": "goroutine-identity-discovery",
+      "dominant_exact_owner_cpu_percent": 91.26,
+      "dominant_exact_owner_disposition": "single-family-and-causally-closed",
+      "perfect_owner_removal_speedup": 11.441647597254015,
+      "remaining_target_speedup_after_perfect_owner_removal": 43.050208246429015
+    }
+  ],
+  "mechanisms": [
+    {
+      "id": "builtin-string-conversion",
+      "applications": [
+        "k_nucleotide",
+        "policy_record_dispatch",
+        "concurrent_event_routing"
+      ],
+      "material_applications": [
+        "k_nucleotide",
+        "policy_record_dispatch"
+      ],
+      "material_unlike_family_count": 2,
+      "eligible": false,
+      "disposition": "insufficient-three-family-cpu-leverage",
+      "perfect_removal_bounds": [
+        {
+          "benchmark": "k_nucleotide",
+          "cpu_percent": 22.03,
+          "perfect_removal_speedup": 1.2825445684237529,
+          "remaining_target_speedup": 26.521335184573683
+        },
+        {
+          "benchmark": "policy_record_dispatch",
+          "cpu_percent": 15.38,
+          "perfect_removal_speedup": 1.181753722524226,
+          "remaining_target_speedup": 20.920957627052864
+        },
+        {
+          "benchmark": "concurrent_event_routing",
+          "cpu_percent": 0.64,
+          "perfect_removal_speedup": 1.0064412238325282,
+          "remaining_target_speedup": 489.4128937488777
+        }
+      ]
+    },
+    {
+      "id": "bridge-to-uint",
+      "applications": [
+        "k_nucleotide",
+        "policy_record_dispatch",
+        "concurrent_event_routing"
+      ],
+      "material_applications": [
+        "k_nucleotide",
+        "policy_record_dispatch"
+      ],
+      "material_unlike_family_count": 2,
+      "eligible": false,
+      "disposition": "causally-closed-and-insufficient-three-family-cpu-leverage",
+      "perfect_removal_bounds": [
+        {
+          "benchmark": "k_nucleotide",
+          "cpu_percent": 14.75,
+          "perfect_removal_speedup": 1.1730205278592374,
+          "remaining_target_speedup": 28.997612216043436
+        },
+        {
+          "benchmark": "policy_record_dispatch",
+          "cpu_percent": 3.85,
+          "perfect_removal_speedup": 1.0400416016640666,
+          "remaining_target_speedup": 23.77156790169148
+        },
+        {
+          "benchmark": "concurrent_event_routing",
+          "cpu_percent": 0.0,
+          "perfect_removal_speedup": 1.0,
+          "remaining_target_speedup": 492.56531174403955
+        }
+      ]
+    },
+    {
+      "id": "loop-carried-nominal-result",
+      "applications": [
+        "fixed_width_128"
+      ],
+      "material_applications": [
+        "fixed_width_128"
+      ],
+      "material_unlike_family_count": 1,
+      "eligible": false,
+      "disposition": "single-family",
+      "perfect_removal_bounds": [
+        {
+          "benchmark": "fixed_width_128",
+          "cpu_percent": 89.29,
+          "perfect_removal_speedup": 9.337068160597575,
+          "remaining_target_speedup": 3.5962281476002094
+        }
+      ]
+    },
+    {
+      "id": "regex-nfa-storage",
+      "applications": [
+        "policy_record_dispatch"
+      ],
+      "material_applications": [
+        "policy_record_dispatch"
+      ],
+      "material_unlike_family_count": 1,
+      "eligible": false,
+      "disposition": "single-family",
+      "perfect_removal_bounds": [
+        {
+          "benchmark": "policy_record_dispatch",
+          "cpu_percent": 46.15,
+          "perfect_removal_speedup": 1.8570102135561746,
+          "remaining_target_speedup": 13.3135614301205
+        }
+      ]
+    },
+    {
+      "id": "goroutine-identity-discovery",
+      "applications": [
+        "concurrent_event_routing"
+      ],
+      "material_applications": [
+        "concurrent_event_routing"
+      ],
+      "material_unlike_family_count": 1,
+      "eligible": false,
+      "disposition": "single-family-and-causally-closed",
+      "perfect_removal_bounds": [
+        {
+          "benchmark": "concurrent_event_routing",
+          "cpu_percent": 91.26,
+          "perfect_removal_speedup": 11.441647597254015,
+          "remaining_target_speedup": 43.050208246429015
+        }
+      ]
+    }
+  ],
+  "architecture_areas": [
+    {
+      "id": "primitive-check-control-abi",
+      "kind": "concrete-compiler-boundary",
+      "material_families": [
+        "primitive-recursion"
+      ],
+      "disposition": "closed-insufficient-breadth",
+      "reason": "Control-free and range/effect closure found material removable nil-control propagation only in Fib; the seven-application call-site specialization census found no second material family.",
+      "material_family_count": 1
+    },
+    {
+      "id": "nominal-representation",
+      "kind": "concrete-compiler-boundary",
+      "material_families": [
+        "wide-numeric"
+      ],
+      "disposition": "single-family",
+      "reason": "Loop-carried escaping nominal results dominate Fixed Width, but exact allocation and CPU attribution do not reproduce the same lifetime in unlike families.",
+      "material_family_count": 1
+    },
+    {
+      "id": "bridge-conversion",
+      "kind": "concrete-compiler-boundary",
+      "material_families": [
+        "text-map",
+        "regex-dispatch"
+      ],
+      "disposition": "closed-insufficient-breadth",
+      "reason": "String and unsigned bridge conversions are CPU-material in two unlike families; Event Routing allocates there but spends less than one percent of CPU.",
+      "material_family_count": 2
+    },
+    {
+      "id": "environment-control-values",
+      "kind": "concrete-runtime-boundary",
+      "material_families": [
+        "concurrency"
+      ],
+      "disposition": "single-family-and-causally-closed",
+      "reason": "Goroutine identity discovery dominates concurrency, but the generic execution-context ABI regressed Event Routing, Mutex Ledger, and serial guards.",
+      "material_family_count": 1
+    },
+    {
+      "id": "allocation-gc",
+      "kind": "aggregate-parent",
+      "material_families": [
+        "text-map",
+        "wide-numeric",
+        "regex-dispatch",
+        "concurrency"
+      ],
+      "disposition": "observational-split-owners",
+      "reason": "Allocation amplification is broad, but exact owners split among map/text conversion, escaping nominal results, regex state, and concurrency state.",
+      "material_family_count": 4
+    },
+    {
+      "id": "direct-generated-application-bodies",
+      "kind": "aggregate-parent",
+      "material_families": [
+        "text-map",
+        "wide-numeric",
+        "float-numeric",
+        "regex-dispatch",
+        "concurrency"
+      ],
+      "disposition": "not-one-mechanism",
+      "reason": "Generated bodies are broad only as an ancestry label; their concrete work is source-equivalent arithmetic, hashing, regex execution, or concurrency behavior.",
+      "material_family_count": 5
+    },
+    {
+      "id": "host-library-boundaries",
+      "kind": "semantic-boundary",
+      "material_families": [
+        "byte-transformation",
+        "arbitrary-width-integer"
+      ],
+      "disposition": "different-required-kernels",
+      "reason": "Base64/MD5 and math/big are already direct Go kernels with unrelated contracts and do not define a removable compiler mechanism.",
+      "material_family_count": 2
+    }
+  ],
+  "summary": {
+    "decision": "no-go-current-compiled-architecture-mechanism",
+    "application_count": 5,
+    "unlike_family_count": 5,
+    "minimum_unlike_families": 3,
+    "target_throughput_fraction": 0.95,
+    "eligible_mechanisms": [],
+    "minimum_required_speedup": 6.416609132322247,
+    "maximum_required_speedup": 492.56531174403955,
+    "minimum_remaining_speedup_after_perfect_local_owner_removal": 3.5962281476002094,
+    "maximum_remaining_speedup_after_perfect_local_owner_removal": 43.050208246429015
+  },
+  "recommendation": "Keep no compiler candidate from this evidence. Select future compiler work only from a newly measured concrete mechanism that is material in three unlike applications; do not treat aggregate allocation, direct generated bodies, or host-library ancestry as one optimization."
+}

@@ -49,6 +49,14 @@ func (g *generator) renderNativeUnions(buf *bytes.Buffer) {
 
 func (g *generator) renderNativeUnionTryFromRuntimeHelper(buf *bytes.Buffer, info *nativeUnionInfo) {
 	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value runtime.Value) (%s, bool, error) {\n", info.TryFromRuntimeHelper, info.GoType)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "union_from_runtime",
+		GeneratedFunction: info.TryFromRuntimeHelper,
+		AbleSource:        g.typedBoundaryAbleSource(info.PackageName, info.TypeExpr, info.TypeString),
+		Carrier:           "runtime.Value",
+		ImmediateConsumer: info.GoType,
+		Reason:            "recover a statically represented union with runtime type matching",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, false, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")
@@ -99,11 +107,28 @@ func (g *generator) renderNativeUnionTryFromRuntimeHelper(buf *bytes.Buffer, inf
 			continue
 		}
 		fmt.Fprintf(buf, "\t{\n")
-		fmt.Fprintf(buf, "\t\tcoerced, ok, err := bridge.MatchType(rt, %s, value)\n", renderedType)
-		fmt.Fprintf(buf, "\t\tif err != nil {\n")
-		fmt.Fprintf(buf, "\t\t\treturn nil, false, err\n")
-		fmt.Fprintf(buf, "\t\t}\n")
-		fmt.Fprintf(buf, "\t\tif ok {\n")
+		switch {
+		case g.typeCategory(member.GoType) == "struct":
+			helperName, ok := g.structHelperName(member.GoType)
+			if !ok || helperName == "" {
+				helperName = member.Token
+			}
+			fmt.Fprintf(buf, "\t\tconverted, ok, err := __able_struct_%s_try_from(value)\n", helperName)
+			fmt.Fprintf(buf, "\t\tif err != nil {\n")
+			fmt.Fprintf(buf, "\t\t\treturn nil, false, err\n")
+			fmt.Fprintf(buf, "\t\t}\n")
+			fmt.Fprintf(buf, "\t\tif ok {\n")
+			fmt.Fprintf(buf, "\t\t\treturn %s(converted), true, nil\n", member.WrapHelper)
+			fmt.Fprintf(buf, "\t\t}\n")
+			fmt.Fprintf(buf, "\t}\n")
+			continue
+		default:
+			fmt.Fprintf(buf, "\t\tcoerced, ok, err := bridge.MatchType(rt, %s, value)\n", renderedType)
+			fmt.Fprintf(buf, "\t\tif err != nil {\n")
+			fmt.Fprintf(buf, "\t\t\treturn nil, false, err\n")
+			fmt.Fprintf(buf, "\t\t}\n")
+			fmt.Fprintf(buf, "\t\tif ok {\n")
+		}
 		switch {
 		case g.isMonoArrayType(member.GoType):
 			spec, _ := g.monoArraySpecForGoType(member.GoType)
@@ -111,12 +136,6 @@ func (g *generator) renderNativeUnionTryFromRuntimeHelper(buf *bytes.Buffer, inf
 		case member.GoType == "struct{}":
 			fmt.Fprintf(buf, "\t\t\tconverted := struct{}{}\n")
 			fmt.Fprintf(buf, "\t\t\t_ = coerced\n")
-		case g.typeCategory(member.GoType) == "struct":
-			helperName, ok := g.structHelperName(member.GoType)
-			if !ok || helperName == "" {
-				helperName = member.Token
-			}
-			fmt.Fprintf(buf, "\t\t\tconverted, err := __able_struct_%s_from(coerced)\n", helperName)
 		case g.nativeUnionInfoForGoType(member.GoType) != nil:
 			inner := g.nativeUnionInfoForGoType(member.GoType)
 			fmt.Fprintf(buf, "\t\t\tconverted, err := %s(rt, coerced)\n", inner.FromRuntimeHelper)
@@ -192,6 +211,14 @@ func (g *generator) renderNativeUnionFromRuntimeHelper(buf *bytes.Buffer, info *
 
 func (g *generator) renderNativeUnionToRuntimeHelper(buf *bytes.Buffer, info *nativeUnionInfo) {
 	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value %s) (runtime.Value, error) {\n", info.ToRuntimeHelper, info.GoType)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "union_to_runtime",
+		GeneratedFunction: info.ToRuntimeHelper,
+		AbleSource:        g.typedBoundaryAbleSource(info.PackageName, info.TypeExpr, info.TypeString),
+		Carrier:           info.GoType,
+		ImmediateConsumer: "runtime.Value",
+		Reason:            "encode a statically represented union for runtime-visible semantics",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")

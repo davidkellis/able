@@ -1,0 +1,102 @@
+File: run
+Build ID: 0543ccece82313c82c665f11ef0045dc5717cfa7
+Type: cpu
+Time: 2026-07-23 13:40:51 CDT
+Duration: 481.48ms, Total samples = 600ms (124.62%)
+Showing nodes accounting for 600ms, 100% of 600ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      590ms 98.33%  runtime.systemstack
+         0     0%     0%      570ms 95.00%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%     0%      570ms 95.00%  main.__able_compiled_fn_traverse
+         0     0%     0%      570ms 95.00%  main.__able_run_compiled_task
+         0     0%     0%      560ms 93.33%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%     0%      560ms 93.33%  runtime.Stack
+         0     0%     0%      560ms 93.33%  runtime.Stack.func1
+         0     0%     0%      550ms 91.67%  runtime.traceback (inline)
+         0     0%     0%      550ms 91.67%  runtime.traceback1
+         0     0%     0%      510ms 85.00%  runtime.traceback1.func1
+      10ms  1.67%  1.67%      510ms 85.00%  runtime.traceback2
+         0     0%  1.67%      370ms 61.67%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%  1.67%      290ms 48.33%  main.__able_compiled_entry_impl_GraphVisitor_inspect_0
+         0     0%  1.67%      290ms 48.33%  main.__able_iface_GraphVisitor_adapter_ptr_ThresholdVisitor.inspect
+         0     0%  1.67%      270ms 45.00%  main.__able_compiled_entry_impl_GraphVisitor_inspect_0_a
+         0     0%  1.67%      270ms 45.00%  main.__able_iface_GraphVisitor_adapter_ptr_StripeVisitor.inspect
+         0     0%  1.67%      190ms 31.67%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%  1.67%      190ms 31.67%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%  1.67%      150ms 25.00%  main.__able_compiled_fn_main.func1
+         0     0%  1.67%      150ms 25.00%  main.__able_compiled_fn_main.func4
+      70ms 11.67% 13.33%      150ms 25.00%  runtime.pcvalue
+         0     0% 13.33%      140ms 23.33%  main.__able_compiled_fn_main.func3
+      20ms  3.33% 16.67%      140ms 23.33%  runtime.printlock
+         0     0% 16.67%      130ms 21.67%  main.__able_compiled_fn_main.func2
+         0     0% 16.67%      130ms 21.67%  main.__able_compiled_impl_GraphVisitor_inspect_0
+         0     0% 16.67%      120ms 20.00%  runtime.lock (inline)
+      60ms 10.00% 26.67%      120ms 20.00%  runtime.lock2
+         0     0% 26.67%      120ms 20.00%  runtime.lockWithRank (inline)
+         0     0% 26.67%      120ms 20.00%  runtime.printArgs
+         0     0% 26.67%      110ms 18.33%  main.__able_compiled_impl_GraphVisitor_inspect_0_a
+         0     0% 26.67%      100ms 16.67%  runtime.funcline1
+      40ms  6.67% 33.33%      100ms 16.67%  runtime.gwrite
+         0     0% 33.33%       80ms 13.33%  main.__able_compiled_fn_main.__able_compiled_fn_make_scorer.func8
+         0     0% 33.33%       80ms 13.33%  runtime.(*inlineUnwinder).fileLine (inline)
+         0     0% 33.33%       70ms 11.67%  main.__able_compiled_fn_main.__able_compiled_fn_make_scorer.func7
+         0     0% 33.33%       70ms 11.67%  runtime.printArgs.func2 (inline)
+      20ms  3.33% 36.67%       70ms 11.67%  runtime.printstring
+         0     0% 36.67%       60ms 10.00%  main.__able_compiled_fn_main.__able_compiled_fn_make_scorer.func5
+         0     0% 36.67%       60ms 10.00%  runtime.printFuncName
+         0     0% 36.67%       60ms 10.00%  runtime.procyield (inline)
+      60ms 10.00% 46.67%       60ms 10.00%  runtime.procyieldAsm
+      40ms  6.67% 53.33%       60ms 10.00%  runtime.recordForPanic
+      40ms  6.67% 60.00%       40ms  6.67%  indexbytebody
+         0     0% 60.00%       40ms  6.67%  runtime.(*unwinder).next
+         0     0% 60.00%       40ms  6.67%  runtime.printcreatedby
+         0     0% 60.00%       40ms  6.67%  runtime.printcreatedby1
+         0     0% 60.00%       40ms  6.67%  runtime.printhex
+      10ms  1.67% 61.67%       40ms  6.67%  runtime.printhexopts
+         0     0% 61.67%       40ms  6.67%  runtime.printunlock
+      40ms  6.67% 68.33%       40ms  6.67%  runtime.step
+         0     0% 68.33%       40ms  6.67%  runtime.unlock (inline)
+      20ms  3.33% 71.67%       40ms  6.67%  runtime.unlock2
+         0     0% 71.67%       40ms  6.67%  runtime.unlockWithRank (inline)
+         0     0% 71.67%       30ms  5.00%  main.__able_compiled_fn_main.__able_compiled_fn_make_scorer.func6
+         0     0% 71.67%       30ms  5.00%  runtime.(*moduledata).funcName
+         0     0% 71.67%       30ms  5.00%  runtime.(*unwinder).resolveInternal
+         0     0% 71.67%       30ms  5.00%  runtime.findnull
+         0     0% 71.67%       30ms  5.00%  runtime.funcspdelta (inline)
+         0     0% 71.67%       30ms  5.00%  runtime.gcBgMarkWorker
+         0     0% 71.67%       30ms  5.00%  runtime.gcBgMarkWorker.func2
+         0     0% 71.67%       30ms  5.00%  runtime.gcDrain
+         0     0% 71.67%       30ms  5.00%  runtime.gcDrainMarkWorkerDedicated (inline)
+         0     0% 71.67%       30ms  5.00%  runtime.gostringnocopy (inline)
+         0     0% 71.67%       30ms  5.00%  runtime.printint
+      30ms  5.00% 76.67%       30ms  5.00%  runtime.tryDeferToSpanScan
+         0     0% 76.67%       20ms  3.33%  runtime.(*inlineUnwinder).resolveInternal (inline)
+      10ms  1.67% 78.33%       20ms  3.33%  runtime.cheaprandn (inline)
+         0     0% 78.33%       20ms  3.33%  runtime.funcline (inline)
+         0     0% 78.33%       20ms  3.33%  runtime.newInlineUnwinder
+         0     0% 78.33%       20ms  3.33%  runtime.pcdatavalue1
+         0     0% 78.33%       20ms  3.33%  runtime.printArgs.func3 (inline)
+         0     0% 78.33%       20ms  3.33%  runtime.scanObject
+         0     0% 78.33%       20ms  3.33%  runtime.showframe
+         0     0% 78.33%       20ms  3.33%  runtime.showfuncinfo
+         0     0% 78.33%       20ms  3.33%  runtime.srcFunc.name (inline)
+         0     0% 78.33%       10ms  1.67%  internal/strconv.RuntimeFormatBase10 (inline)
+      10ms  1.67% 80.00%       10ms  1.67%  internal/strconv.formatBase10
+      10ms  1.67% 81.67%       10ms  1.67%  main.__able_compiled_method_GraphNode_edge_count (inline)
+      10ms  1.67% 83.33%       10ms  1.67%  runtime.(*mLockProfile).store (inline)
+      10ms  1.67% 85.00%       10ms  1.67%  runtime.acquirem (inline)
+      10ms  1.67% 86.67%       10ms  1.67%  runtime.cheaprand (inline)
+      10ms  1.67% 88.33%       10ms  1.67%  runtime.findfunc
+      10ms  1.67% 90.00%       10ms  1.67%  runtime.funcInfo.entry (inline)
+      10ms  1.67% 91.67%       10ms  1.67%  runtime.funcNamePiecesForPrint
+      10ms  1.67% 93.33%       10ms  1.67%  runtime.funcdata (inline)
+      10ms  1.67% 95.00%       10ms  1.67%  runtime.funcfile
+         0     0% 95.00%       10ms  1.67%  runtime.funcname (inline)
+         0     0% 95.00%       10ms  1.67%  runtime.goroutineheader
+         0     0% 95.00%       10ms  1.67%  runtime.markroot
+         0     0% 95.00%       10ms  1.67%  runtime.markrootBlock
+      10ms  1.67% 96.67%       10ms  1.67%  runtime.memmove
+         0     0% 96.67%       10ms  1.67%  runtime.pcdatavalue
+         0     0% 96.67%       10ms  1.67%  runtime.scanblock
+      10ms  1.67% 98.33%       10ms  1.67%  runtime.traceback2.func1 (inline)
+      10ms  1.67%   100%       10ms  1.67%  runtime.unlock2Wake

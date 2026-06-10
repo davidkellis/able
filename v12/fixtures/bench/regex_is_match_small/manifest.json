@@ -1,0 +1,6 @@
+{
+  "description": "regex literal-plus match benchmark",
+  "expect": {
+    "exit": 0
+  }
+}

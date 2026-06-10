@@ -19,17 +19,17 @@ func (vm *bytecodeVM) execTryArrayPushF64AffineProduct(program *bytecodeProgram,
 		vm.ip++
 		return nil
 	}
-	scale, ok := bytecodeDirectF64Value(vm.slots[plan.scaleSlot])
+	scale, ok := vm.slotDirectF64Value(plan.scaleSlot)
 	if !ok {
 		vm.ip++
 		return nil
 	}
-	left, ok := bytecodeF64DotLoopI32Value(vm.slots[plan.leftSlot])
+	left, ok := vm.slotI32Value(plan.leftSlot)
 	if !ok {
 		vm.ip++
 		return nil
 	}
-	right, ok := bytecodeF64DotLoopI32Value(vm.slots[plan.rightSlot])
+	right, ok := vm.slotI32Value(plan.rightSlot)
 	if !ok {
 		vm.ip++
 		return nil
@@ -43,7 +43,7 @@ func (vm *bytecodeVM) execTryArrayPushF64AffineProduct(program *bytecodeProgram,
 		if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 			vm.interp.recordBytecodeCallTrace("call_member", "push", "resolved_method", "array_push_f64_mono_fast", instr.node)
 		}
-		vm.stack = append(vm.stack, runtime.VoidValue{})
+		vm.appendStackValue(runtime.VoidValue{})
 		vm.ip = instr.target
 		return nil
 	}
@@ -63,7 +63,7 @@ func (vm *bytecodeVM) execTryArrayPushF64AffineProduct(program *bytecodeProgram,
 	if vm.interp != nil && vm.interp.bytecodeTraceEnabled {
 		vm.interp.recordBytecodeCallTrace("call_member", "push", "resolved_method", "array_push_f64_affine_fast", instr.node)
 	}
-	vm.stack = append(vm.stack, runtime.VoidValue{})
+	vm.appendStackValue(runtime.VoidValue{})
 	vm.ip = instr.target
 	return nil
 }
@@ -107,7 +107,7 @@ func (vm *bytecodeVM) canUseCanonicalArrayPushAt(program *bytecodeProgram, ip in
 		return false
 	}
 	const kind = bytecodeMemberMethodFastPathArrayPush
-	if vm.lookupCachedCanonicalArraySlotCallForArray(program, ip, kind) {
+	if vm.lookupCachedCanonicalArraySlotCallForArrayValidated(program, ip, kind) {
 		return true
 	}
 	callable, found, err := vm.interp.resolveMethodCallableFromPool(vm.env, "push", arr, "")

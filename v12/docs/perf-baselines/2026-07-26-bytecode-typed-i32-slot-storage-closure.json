@@ -1,0 +1,90 @@
+{
+  "schema": "able-v12-bytecode-typed-i32-slot-storage-closure-v1",
+  "date": "2026-07-26",
+  "decision": "retain no production change; typed i32 slot storage is existing completed infrastructure and no uncovered material transition reaches three unlike applications",
+  "repository_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+  "stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+  "artifacts": {
+    "interpreter_test_sha256": "5069b6dff944d7e68aeb38fb9b85dab990b4d29c842a6cfed04fe66897cb01ab",
+    "able_cli_sha256": "5f1108bc9596e74dd37e29fdb863bf8fa517e91935fd7db83ceecc940b896666",
+    "matches_2026_07_26_bytecode_corpus_census": true
+  },
+  "applications": [
+    {
+      "benchmark": "array_slice_window",
+      "family": "array-slice",
+      "source_sha256": "64c65a525023e5fc7000f13b9d36875716b7d8b936060fede904381b58156b4e",
+      "stats_sha256": "961dd878337dffdc809787f9cb40c9343f98b3f24bdb5098e5a7b9005d407c7e",
+      "merged_cpu_sha256": "af029c83deca5169c3e9bbf1d645b3ddfcc3c18960c33868a4a646733622558d",
+      "integer_loads": 1020268,
+      "carrier_counts": {"raw-i32-slot-value":624260,"small-integer-value":396008},
+      "mean_main_ns": 556945758.3333334,
+      "mean_main_allocated_bytes": 14190688,
+      "mean_main_allocations": 422243.3333333333,
+      "cpu_flat_percent": {"raw_integer_info":2.41,"append_slot_stack":0.60},
+      "sampled_alloc_object_percent": {"boxed_integer":0.87,"raw_integer_result":41.77},
+      "scoreboard": {"able_seconds":0.744,"python_ratio":12.19672131147541,"ruby_ratio":5.749613601236477}
+    },
+    {
+      "benchmark": "word_frequency",
+      "family": "text-map-result",
+      "source_sha256": "ad6e5d39c1685931dfb7b86fb7ce2afe783a1088ffc646a5482540606cd79a3f",
+      "stats_sha256": "76f8692d46f60c4f78bbd1ff4272cc871c2bd914d316725b60064518e6de597d",
+      "merged_cpu_sha256": "99d04caee8b22dc1f42947d1b3baa67a2a830f9e6a63538111d03362a5642c54",
+      "integer_loads": 944384,
+      "carrier_counts": {"raw-i32-slot-value":576412,"small-integer-value":367897,"raw-i64-slot-cell":75},
+      "mean_main_ns": 1248759462,
+      "mean_main_allocated_bytes": 48545546.666666664,
+      "mean_main_allocations": 637236.6666666666,
+      "cpu_flat_percent": {"raw_integer_info":1.08,"append_slot_stack":2.96},
+      "sampled_alloc_object_percent": {"boxed_integer":2.49,"raw_integer_result":"below 1 percent"},
+      "scoreboard": {"able_seconds":1.414,"python_ratio":60.427350427350426,"ruby_ratio":27.350096711798837}
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric-nominal",
+      "source_sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e",
+      "stats_sha256": "228a10cd0a57705fbc505023ba6de12845f3bba9692c0d2f41ff3e2c3300b8cf",
+      "merged_cpu_sha256": "155b9ec0959679f2c75b55149af0e3daa37ea89a97533c4f17bbf39ef796470f",
+      "integer_loads": 5000006,
+      "carrier_counts": {"small-integer-value":2000006,"raw-integer-slot-cell":999999,"raw-integer-value":999999,"small-integer-pointer":737856,"raw-i32-slot-value":262144,"big-integer":2},
+      "mean_main_ns": 8297743093,
+      "mean_main_allocated_bytes": 1242275800,
+      "mean_main_allocations": 30858402.666666668,
+      "cpu_flat_percent": {"raw_integer_info":2.62,"append_slot_stack":0.57},
+      "sampled_alloc_object_percent": {"boxed_integer":7.35,"raw_integer_result":3.80},
+      "scoreboard": {"able_seconds":8.522,"python_ratio":24.320776255707763,"ruby_ratio":12.602780242531795}
+    }
+  ],
+  "control": {
+    "benchmark": "distance_field",
+    "family": "float-numeric",
+    "proven_integer_loads": 0,
+    "public_verifier": "pass"
+  },
+  "admission": [
+    {"candidate":"new typed i32 slot storage","material_applications":"already implemented","decision":"close as completed infrastructure"},
+    {"candidate":"generic raw-integer inspection","material_applications":3,"decision":"reject broad parent; no common concrete caller"},
+    {"candidate":"slot-to-stack transport","material_applications":1,"decision":"reject"},
+    {"candidate":"boxed integer allocation","material_applications":2,"decision":"reject"},
+    {"candidate":"raw integer result allocation","material_applications":2,"decision":"reject"}
+  ],
+  "changes": {
+    "vm": false,
+    "runtime": false,
+    "compiler": false,
+    "tree_walker": false,
+    "stdlib": false,
+    "benchmarks": false,
+    "fixtures": false,
+    "language": false,
+    "dependencies": false,
+    "wasm": false
+  },
+  "verification": {
+    "focused_three_run_tests": "pass in 0.070 seconds",
+    "carrier_process_public_verifiers": "pass",
+    "run_all_tests": "pass; final bytecode fixture corpus 107.961 seconds"
+  },
+  "next": "run a report-only primitive-materialization boundary census across all 54 rankable bytecode applications"
+}

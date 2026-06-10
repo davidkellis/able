@@ -1,0 +1,77 @@
+package exec_14_11_regex_case_insensitive
+
+import able.text.regex.{Regex, RegexOptions, Match}
+import able.kernel.{Array}
+import able.text.automata.{NFA}
+import able.text.automata_dsl.{AutomataCharRange, AutomataDSL, AutomataExpr}
+import able.text.string.{String, StringBuilder}
+
+## Semantics: case_insensitive uses Unicode simple-fold equivalence with no multi-code-point expansion.
+
+fn show_match(label: String, value: ?Match) -> void {
+  value match {
+    case nil => print(`${label} nil`),
+    case m: Match => print(`${label} ${m.matched} ${m.span.start}-${m.span.end}`)
+  }
+}
+
+fn show_shared_fold_nfa() -> void {
+  chars: Array char := ['a']
+  ranges: Array AutomataCharRange := Array.new()
+  expression: AutomataExpr := AutomataDSL.simple_fold_char_class(chars, ranges, false)
+  nfa: NFA := expression.to_nfa()
+
+  matching := StringBuilder.with_capacity(1)
+  matching.push_char('A')
+  failing := StringBuilder.with_capacity(1)
+  failing.push_char('b')
+  matching.finish() match {
+    case text: String => failing.finish() match {
+      case invalid: String => print(`shared_fold_nfa ${nfa.matches(text)} ${nfa.matches(invalid)}`),
+      case _ => print("shared_fold_nfa build error")
+    },
+    case _ => print("shared_fold_nfa build error")
+  }
+}
+
+fn main() -> void {
+  Regex.compile("k") match {
+    case regex: Regex => show_match("default", regex.match("K")),
+    case _ => print("default compile error")
+  }
+
+  options := RegexOptions.default()
+  options.case_insensitive = true
+  Regex.compile_with_options("k", options) match {
+    case regex: Regex => show_match("kelvin", regex.match("K")),
+    case _ => print("kelvin compile error")
+  }
+
+  Regex.compile_with_options("Σ", options) match {
+    case regex: Regex => show_match("sigma", regex.match("ς")),
+    case _ => print("sigma compile error")
+  }
+
+  Regex.compile_with_options("[a-z]+", options) match {
+    case regex: Regex => show_match("range", regex.match("AbZ")),
+    case _ => print("range compile error")
+  }
+
+  Regex.compile_with_options("[^a]+", options) match {
+    case regex: Regex => show_match("negated", regex.match("A")),
+    case _ => print("negated compile error")
+  }
+
+  Regex.compile_with_options("ß", options) match {
+    case regex: Regex => show_match("no_expansion", regex.match("SS")),
+    case _ => print("no_expansion compile error")
+  }
+
+  options.anchored = true
+  Regex.compile_with_options("k+", options) match {
+    case regex: Regex => show_match("anchored", regex.match("KKk")),
+    case _ => print("anchored compile error")
+  }
+
+  show_shared_fold_nfa()
+}

@@ -12,10 +12,14 @@ func (g *generator) runtimeHelperResultTypeExpr(name string) ast.TypeExpression 
 		return ast.Ty("char")
 	case "__able_char_to_codepoint":
 		return ast.Ty("i32")
+	case "__able_char_simple_fold_next":
+		return ast.Ty("char")
 	case "__able_f32_bits":
 		return ast.Ty("u32")
 	case "__able_f64_bits":
 		return ast.Ty("u64")
+	case "__able_f64_sqrt":
+		return ast.Ty("f64")
 	case "__able_u64_mul":
 		return ast.Ty("u64")
 	case "__able_ratio_from_float":

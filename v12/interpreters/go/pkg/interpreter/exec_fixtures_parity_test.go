@@ -80,6 +80,7 @@ func runExecFixtureParity(t *testing.T, dir string, execMode testExecMode) execF
 	}
 
 	executor := selectFixtureExecutor(t, manifest.Executor)
+	defer closeFixtureExecutor(executor)
 	interp := newTestInterpreter(t, execMode, executor)
 	outcome.TypecheckMode = configureFixtureTypechecker(interp)
 	var stdout []string

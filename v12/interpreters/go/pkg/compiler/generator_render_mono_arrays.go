@@ -36,6 +36,14 @@ func (g *generator) renderMonoArrayConverters(buf *bytes.Buffer) {
 
 func (g *generator) renderMonoArrayFrom(buf *bytes.Buffer, spec monoArraySpec) {
 	fmt.Fprintf(buf, "func %s(value runtime.Value) (*%s, error) {\n", spec.FromRuntimeHelper, spec.GoName)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "array_from_runtime",
+		GeneratedFunction: spec.FromRuntimeHelper,
+		AbleSource:        g.typedBoundaryAbleSource("core", nil, "Array<"+spec.ElemGoType+">"),
+		Carrier:           "runtime.Value",
+		ImmediateConsumer: spec.GoType,
+		Reason:            "recover a static primitive Array carrier from runtime representation",
+	}, "\t")
 	fmt.Fprintf(buf, "\tcurrent := __able_unwrap_interface(value)\n")
 	fmt.Fprintf(buf, "\tif _, isNil := current.(runtime.NilValue); isNil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, nil\n")
@@ -75,6 +83,14 @@ func (g *generator) renderMonoArrayFrom(buf *bytes.Buffer, spec monoArraySpec) {
 
 func (g *generator) renderMonoArrayTo(buf *bytes.Buffer, spec monoArraySpec) {
 	fmt.Fprintf(buf, "func %s(rt *bridge.Runtime, value *%s) (runtime.Value, error) {\n", spec.ToRuntimeHelper, spec.GoName)
+	g.emitTypedBoundaryTelemetryShape(buf, typedBoundaryShape{
+		Category:          "array_to_runtime",
+		GeneratedFunction: spec.ToRuntimeHelper,
+		AbleSource:        g.typedBoundaryAbleSource("core", nil, "Array<"+spec.ElemGoType+">"),
+		Carrier:           spec.GoType,
+		ImmediateConsumer: "runtime.Value",
+		Reason:            "encode a static primitive Array for runtime-visible semantics",
+	}, "\t")
 	fmt.Fprintf(buf, "\tif rt == nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, fmt.Errorf(\"missing runtime bridge\")\n")
 	fmt.Fprintf(buf, "\t}\n")

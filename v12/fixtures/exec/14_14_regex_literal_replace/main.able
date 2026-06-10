@@ -1,0 +1,59 @@
+package exec_14_14_regex_literal_replace
+
+import able.text.regex.{Regex, Replacement, ReplacementLiteral}
+import able.core.options.{Result}
+
+fn show_result(label: String, value: Result String) -> void {
+  value match {
+    case text: String => print(`${label} ${text}`),
+    case _ => print(`${label} error`)
+  }
+}
+
+fn main() -> void {
+  Regex.compile("(?P<word>ab)") match {
+    case regex: Regex => show_result(
+      "named",
+      regex.replace("zab ab", ReplacementLiteral { value: "<$0:$1:\\k<word>>" })
+    ),
+    case _ => print("named compile error")
+  }
+
+  Regex.compile("(?P<maybe>a)?b") match {
+    case regex: Regex => show_result(
+      "optional",
+      regex.replace("b", ReplacementLiteral { value: "<$1:\\k<maybe>>" })
+    ),
+    case _ => print("optional compile error")
+  }
+
+  Regex.compile("x") match {
+    case regex: Regex => show_result("no-match", regex.replace("é", ReplacementLiteral { value: "<$0>" })),
+    case _ => print("no-match compile error")
+  }
+
+  Regex.compile("a") match {
+    case regex: Regex => show_result("escapes", regex.replace("a", ReplacementLiteral { value: "<$$\\\\>" })),
+    case _ => print("escapes compile error")
+  }
+
+  Regex.compile("(?P<empty>a*)") match {
+    case regex: Regex => show_result("zero", regex.replace("é", ReplacementLiteral { value: "<$0>" })),
+    case _ => print("zero compile error")
+  }
+
+  Regex.compile("(a)") match {
+    case regex: Regex => show_result("ordinal-invalid", regex.replace("a", ReplacementLiteral { value: "$2" })),
+    case _ => print("ordinal-invalid compile error")
+  }
+
+  Regex.compile("(?P<word>a)") match {
+    case regex: Regex => show_result("name-invalid", regex.replace("a", ReplacementLiteral { value: "\\k<other>" })),
+    case _ => print("name-invalid compile error")
+  }
+
+  Regex.compile("a") match {
+    case regex: Regex => show_result("dollar-invalid", regex.replace("a", ReplacementLiteral { value: "$" })),
+    case _ => print("dollar-invalid compile error")
+  }
+}

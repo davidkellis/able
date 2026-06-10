@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-07-14T16:54:13.723738Z",
+  "suite": "custom",
+  "benchmarks": [
+    "i_before_e",
+    "base64",
+    "json"
+  ],
+  "modes": [
+    "bytecode"
+  ],
+  "languages": [
+    "python",
+    "ruby"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-14-full-scorecard-generality-interpreter-reference.json",
+  "go_reference_json": null,
+  "cpu_affinity": "15",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "i_before_e",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "i_before_e",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.62,
+        "avg_user_seconds": 0.5,
+        "avg_sys_seconds": 0.04,
+        "avg_gc": 8.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/i-before-e/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+          ]
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 0.0939,
+          "reference_implementation": "python-3.14",
+          "ratio": 6.602768903088392
+        },
+        "ruby": {
+          "reference_real_seconds": 0.1464,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 4.2349726775956285
+        }
+      }
+    },
+    {
+      "benchmark": "base64",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "base64",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 3.49,
+        "avg_user_seconds": 2.71,
+        "avg_sys_seconds": 0.74,
+        "avg_gc": 23.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/base64/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "5f4c00cd811078942fc98cd5dbca3b47fac2f8d8210f07ea116c1a7c0d6ac316"
+          ]
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 4.4688,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.7809702828499822
+        },
+        "ruby": {
+          "reference_real_seconds": 2.8551,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 1.222373997408147
+        }
+      }
+    },
+    {
+      "benchmark": "json",
+      "mode": "bytecode",
+      "able": {
+        "benchmark": "json",
+        "mode": "bytecode",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.44,
+        "avg_user_seconds": 1.22,
+        "avg_sys_seconds": 0.2,
+        "avg_gc": 9.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/json/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "7cbf9736119f7683d59646bea566591a2ef278db54286b8e2525aa39e907839e"
+          ]
+        }
+      },
+      "comparisons": {
+        "python": {
+          "reference_real_seconds": 2.9429,
+          "reference_implementation": "python-3.14",
+          "ratio": 0.4893132624282171
+        },
+        "ruby": {
+          "reference_real_seconds": 1.997,
+          "reference_implementation": "ruby-4.0",
+          "ratio": 0.7210816224336504
+        }
+      }
+    }
+  ]
+}

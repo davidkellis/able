@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-07-24T22:57:45.852283Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "validated_job_pipeline"
+  ],
+  "timeout_seconds": 60,
+  "telemetry_build": true,
+  "telemetry_mode": "dynamic-boundary",
+  "rows": [
+    {
+      "benchmark": "validated_job_pipeline",
+      "command_exit": 0,
+      "interpreter_dependency": true,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 3,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 5
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "explicit_dynamic_call": 3,
+    "residual_polymorphic_call": 2,
+    "host_abi_call": 1,
+    "runtime_service_call": 5
+  }
+}

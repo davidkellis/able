@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-07-24T22:35:31.628472Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able",
+  "run_from": "/home/david/sync/projects/benchmarks/validated-job-pipeline",
+  "runs": 3,
+  "timeout_seconds": 10,
+  "build_timeout_seconds": 10,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [],
+  "experimental_execution_context": false,
+  "source_root_only": false,
+  "program_args": [
+    "jobs.txt"
+  ],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": "goroutine",
+  "cpu_affinity": null,
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 3,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 1.1367,
+      "avg_user_seconds": 2.3567,
+      "avg_sys_seconds": 0.4033,
+      "avg_gc": 4.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 1.15,
+          "user_seconds": 2.32,
+          "sys_seconds": 0.35,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 1.12,
+          "user_seconds": 2.35,
+          "sys_seconds": 0.45,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 1.14,
+          "user_seconds": 2.4,
+          "sys_seconds": 0.41,
+          "gc_count": 4.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/validated-job-pipeline/verify.rb",
+        "verified_runs": 3,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "ee5a3553094de6253bd71daaafd30e1db3eb9a17d11d3411b18ca652feafc40a"
+        ]
+      }
+    }
+  ]
+}

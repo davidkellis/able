@@ -23,6 +23,19 @@ func decodeModuleNodes(node map[string]any, typ string) (ast.Node, bool, error) 
 			}
 			imports = append(imports, imp)
 		}
+		exportsVal, _ := node["exports"].([]any)
+		exports := make([]*ast.ExportStatement, 0, len(exportsVal))
+		for _, raw := range exportsVal {
+			child, ok := raw.(map[string]any)
+			if !ok {
+				return nil, true, fmt.Errorf("invalid export entry %T", raw)
+			}
+			export, err := decodeExportStatement(child)
+			if err != nil {
+				return nil, true, err
+			}
+			exports = append(exports, export)
+		}
 		bodyVal, _ := node["body"].([]any)
 		stmts := make([]ast.Statement, 0, len(bodyVal))
 		for _, raw := range bodyVal {
@@ -44,7 +57,7 @@ func decodeModuleNodes(node map[string]any, typ string) (ast.Node, bool, error) 
 			}
 			pkg = decoded
 		}
-		return ast.NewModule(stmts, imports, pkg), true, nil
+		return ast.NewModuleWithExports(stmts, imports, exports, pkg), true, nil
 	case "PreludeStatement":
 		target, _ := node["target"].(string)
 		code, _ := node["code"].(string)
@@ -67,6 +80,12 @@ func decodeModuleNodes(node map[string]any, typ string) (ast.Node, bool, error) 
 		return ast.NewExternFunctionBody(ast.HostTarget(target), signature, body), true, nil
 	case "ImportStatement":
 		stmt, err := decodeImportStatement(node)
+		if err != nil {
+			return nil, true, err
+		}
+		return stmt, true, nil
+	case "ExportStatement":
+		stmt, err := decodeExportStatement(node)
 		if err != nil {
 			return nil, true, err
 		}

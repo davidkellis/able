@@ -13,43 +13,20 @@ func bytecodeBoxedIntegerI32Value(value int64) runtime.Value {
 	if value >= bytecodeI32ExtendedBoxMin && value <= bytecodeI32ExtendedBoxMax {
 		return bytecodeBoxedI32Extended[int(value-bytecodeI32ExtendedBoxMin)]
 	}
-
-	bytecodeIntBoxDynamicMu.RLock()
-	if bytecodeDynamicBoxedI32 != nil {
-		if boxed, ok := bytecodeDynamicBoxedI32[value]; ok {
-			bytecodeIntBoxDynamicMu.RUnlock()
-			return boxed
-		}
-	}
-	bytecodeIntBoxDynamicMu.RUnlock()
-
-	boxed := runtime.NewSmallInt(value, runtime.IntegerI32)
-
-	bytecodeIntBoxDynamicMu.Lock()
-	cache := bytecodeDynamicBoxedI32
-	if cache == nil {
-		cache = make(map[int64]runtime.Value, 256)
-		bytecodeDynamicBoxedI32 = cache
-	}
-	if existing, ok := cache[value]; ok {
-		bytecodeIntBoxDynamicMu.Unlock()
-		return existing
-	}
-	if len(cache) < bytecodeIntBoxDynamicCacheLimit {
-		cache[value] = boxed
-	}
-	bytecodeIntBoxDynamicMu.Unlock()
-	return boxed
+	return runtime.NewSmallInt(value, runtime.IntegerI32)
 }
 
 func bytecodeDirectSmallI32Value(val runtime.Value) (int64, bool) {
 	switch iv := val.(type) {
 	case bytecodeRawI32SlotValue:
 		return int64(iv), true
+	case *bytecodeRawI32StackCell:
+		if iv != nil {
+			return int64(iv.Val), true
+		}
 	case runtime.IntegerValue:
-		ivRef := &iv
-		if iv.TypeSuffix == runtime.IntegerI32 && ivRef.IsSmallRef() {
-			return ivRef.Int64FastRef(), true
+		if iv.TypeSuffix == runtime.IntegerI32 && iv.IsSmall() {
+			return iv.Int64Fast(), true
 		}
 	case *runtime.IntegerValue:
 		if iv != nil && iv.TypeSuffix == runtime.IntegerI32 && iv.IsSmallRef() {
@@ -83,7 +60,7 @@ func bytecodeAddSmallI32PairFast(left runtime.Value, right runtime.Value) (runti
 	if sum < math.MinInt32 || sum > math.MaxInt32 {
 		return nil, true, newOverflowError("integer overflow")
 	}
-	return bytecodeBoxedIntegerI32Value(sum), true, nil
+	return bytecodeRawI32ResultValue(sum), true, nil
 }
 
 func bytecodeReturnAddSmallI32ValuePairFast(left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
@@ -109,7 +86,7 @@ func bytecodeReturnAddSmallI32ValuePairFast(left runtime.Value, right runtime.Va
 	if sum < math.MinInt32 || sum > math.MaxInt32 {
 		return nil, true, newOverflowError("integer overflow")
 	}
-	return bytecodeBoxedIntegerI32Value(sum), true, nil
+	return bytecodeRawI32ResultValue(sum), true, nil
 }
 
 func bytecodeSubtractSmallI32PairFast(left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
@@ -128,7 +105,7 @@ func bytecodeSubtractSmallI32PairFast(left runtime.Value, right runtime.Value) (
 	if diff < math.MinInt32 || diff > math.MaxInt32 {
 		return nil, true, newOverflowError("integer overflow")
 	}
-	return bytecodeBoxedIntegerI32Value(diff), true, nil
+	return bytecodeRawI32ResultValue(diff), true, nil
 }
 
 func bytecodeSubtractIntegerImmediateI32Fast(left runtime.Value, right runtime.IntegerValue) (runtime.Value, bool, error) {
@@ -147,7 +124,7 @@ func bytecodeSubtractIntegerImmediateI32Fast(left runtime.Value, right runtime.I
 	if diff < math.MinInt32 || diff > math.MaxInt32 {
 		return nil, true, newOverflowError("integer overflow")
 	}
-	return bytecodeBoxedIntegerI32Value(diff), true, nil
+	return bytecodeRawI32ResultValue(diff), true, nil
 }
 
 func bytecodeSelfCallSubtractIntegerImmediateI32Fast(left runtime.Value, right runtime.IntegerValue) (runtime.Value, bool, error) {
@@ -179,7 +156,7 @@ func bytecodeSelfCallSubtractIntegerImmediateI32Fast(left runtime.Value, right r
 	if diff < math.MinInt32 || diff > math.MaxInt32 {
 		return nil, true, newOverflowError("integer overflow")
 	}
-	return bytecodeBoxedIntegerI32Value(diff), true, nil
+	return bytecodeRawI32ResultValue(diff), true, nil
 }
 
 func bytecodeSelfCallSubtractIntegerImmediateI32RawFast(left runtime.Value, rightVal int64) (runtime.Value, bool, error) {
@@ -206,5 +183,5 @@ func bytecodeSelfCallSubtractIntegerImmediateI32RawFast(left runtime.Value, righ
 	if diff < math.MinInt32 || diff > math.MaxInt32 {
 		return nil, true, newOverflowError("integer overflow")
 	}
-	return bytecodeBoxedIntegerI32Value(diff), true, nil
+	return bytecodeRawI32ResultValue(diff), true, nil
 }

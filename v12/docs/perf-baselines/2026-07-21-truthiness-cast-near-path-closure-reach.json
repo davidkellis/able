@@ -1,0 +1,35 @@
+{
+  "kind": "truthiness-cast-near-path-closure-reach",
+  "date": "2026-07-21",
+  "diagnostic_only": true,
+  "production_instrumentation_retained": false,
+  "compiled": {
+    "processes_per_application": 1,
+    "verified_processes": 5,
+    "rows": [
+      {"benchmark": "array_slice_window", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "dependency_plan", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "document_audit", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "lexical_rollup", "semantic_truthy_checks": 0, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 0},
+      {"benchmark": "option_result_config", "semantic_truthy_checks": 24576, "semantic_truthy_error_fallbacks": 0, "explicit_cast_checks": 24384}
+    ],
+    "reached_profile_gate": {
+      "benchmark": "option_result_config",
+      "main_cpu_profiles": 2,
+      "total_cpu_samples_ms": 230,
+      "explicit_cast_leaf_samples_ms": 0,
+      "explicit_cast_cumulative_samples_ms": 0,
+      "semantic_truthy_error_fallback_samples_ms": 0
+    }
+  },
+  "bytecode": {
+    "processes_per_application": 2,
+    "verified_processes": 8,
+    "rows": [
+      {"benchmark": "distance_field", "semantic_truthy_checks_per_process": [0, 0], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "mandelbrot", "semantic_truthy_checks_per_process": [1280000, 1280000], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "monte_carlo_pi", "semantic_truthy_checks_per_process": [0, 0], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]},
+      {"benchmark": "rms_norm", "semantic_truthy_checks_per_process": [0, 0], "semantic_truthy_error_fallbacks_per_process": [0, 0], "explicit_cast_checks_per_process": [0, 0], "explicit_cast_failures_per_process": [0, 0]}
+    ]
+  }
+}

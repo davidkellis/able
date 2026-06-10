@@ -1,0 +1,120 @@
+{
+  "kind": "able-v12-documentation-benchmark-evidence-release-boundary-review",
+  "schema_version": 1,
+  "date": "2026-07-27",
+  "decision": "reviewed-no-performance-candidate",
+  "inventory": {
+    "pre_record_visible_paths": 5080,
+    "previous_boundary_paths": 1086,
+    "deferred_wasm_paths_total": 34,
+    "deferred_wasm_paths_already_held_by_runtime_boundary": 8,
+    "deferred_wasm_paths_excluded_here": 26,
+    "final_boundary_paths": 3968,
+    "tracked_modified_paths": 52,
+    "untracked_paths": 3916
+  },
+  "manifest": {
+    "combined_rows": 3968,
+    "combined_sha256": "8bc063622617d82a04e644a62d21b4ec56a4b24faed163a3d0a7319670c1c0cc",
+    "index": "v12/docs/perf-baselines/2026-07-27-documentation-benchmark-evidence-release-boundary-manifest-index.tsv",
+    "parts": [
+      {
+        "path": "v12/docs/perf-baselines/2026-07-27-documentation-benchmark-evidence-release-boundary-manifest-part-01.tsv",
+        "rows": 850,
+        "sha256": "45990748cbcdc6331074f079b3cd5609cdfb99d6deadd331a4bd3ca0b15f960c"
+      },
+      {
+        "path": "v12/docs/perf-baselines/2026-07-27-documentation-benchmark-evidence-release-boundary-manifest-part-02.tsv",
+        "rows": 850,
+        "sha256": "d28ba8a74d1394ca13b9a4461d2f19ca9abf528f721a0ca770379db916157f29"
+      },
+      {
+        "path": "v12/docs/perf-baselines/2026-07-27-documentation-benchmark-evidence-release-boundary-manifest-part-03.tsv",
+        "rows": 850,
+        "sha256": "46d96a8c1516d44bb6c60cf5f30bea28045f90e12d6f62b68068e24c784055ed"
+      },
+      {
+        "path": "v12/docs/perf-baselines/2026-07-27-documentation-benchmark-evidence-release-boundary-manifest-part-04.tsv",
+        "rows": 850,
+        "sha256": "f5ae39b7af3c7006df050222a8c3624adb85ae6a11c94f84f5a3c0698a1aa9d8"
+      },
+      {
+        "path": "v12/docs/perf-baselines/2026-07-27-documentation-benchmark-evidence-release-boundary-manifest-part-05.tsv",
+        "rows": 568,
+        "sha256": "db6ff3e16a6942c33b30742cb0ec8ec6545880ea62e379803e22f41fd664e71c"
+      }
+    ]
+  },
+  "families": {
+    "benchmark-application": 56,
+    "benchmark-contract": 21,
+    "benchmark-fixture": 195,
+    "benchmark-tool": 76,
+    "current-scoreboard": 2,
+    "design-documentation": 69,
+    "governing-decision-record": 258,
+    "manual-documentation": 9,
+    "profile-archive": 102,
+    "raw-performance-evidence": 1685,
+    "release-handoff": 3,
+    "release-tooling": 5,
+    "shared-contract": 2,
+    "shared-kernel-source": 1,
+    "supporting-performance-report": 1484
+  },
+  "dispositions": {
+    "archive-profile": 102,
+    "archive-raw": 1685,
+    "archive-supporting": 1484,
+    "reviewed-current": 2,
+    "reviewed-documentation": 81,
+    "reviewed-governing": 258,
+    "reviewed-source": 356
+  },
+  "integrity": {
+    "json_artifacts_validated": 1798,
+    "gzip_artifacts_validated": 2,
+    "markdown_files_checked": 1828,
+    "local_markdown_links_checked": 3029,
+    "missing_local_markdown_links": 0,
+    "governing_log_records_checked": 285,
+    "missing_governing_log_records": 0,
+    "portable_coverage_applications": 61,
+    "selection_rows": 115,
+    "selection_sha256": "1dc70106786a7e668982f070428fed3a81f77ba2abb4adf72d97848265f9dead",
+    "kernel_sha256": "e126225c3064348d49229baab2a6987bc4c77e85b4a67ad6778f726d734d50e0"
+  },
+  "performance_frontier": {
+    "selected_rows": 115,
+    "target_meets": 8,
+    "target_misses": 107,
+    "actionable_groups": 0,
+    "total_excess_seconds": 182.01157894736843,
+    "compiled_excess_seconds": 34.68463157894737,
+    "bytecode_excess_seconds": 147.326947369,
+    "closure_ledger_current": 21,
+    "closure_ledger_invalidated": 0,
+    "candidate_advanced": false
+  },
+  "verification": {
+    "top_level_python_test_programs": 28,
+    "top_level_python_test_failures": 0,
+    "full_suite_wall_seconds": 838.84,
+    "full_suite_peak_rss_kb": 4679628,
+    "full_suite_log_sha256": "d55d14c29fdfdfb0886929af9329acaf376994ed904bdf479bc7f0d9c8770be9",
+    "bytecode_fixture_seconds": 87.323,
+    "stdlib_wall_seconds": 57.22,
+    "stdlib_peak_rss_kb": 852252,
+    "stdlib_log_sha256": "dd5641b844048fa63ec60040a41be502eecdcb2583ad0e89a336b79825ff5153",
+    "stdlib_treewalker_reported_seconds": 19,
+    "stdlib_bytecode_reported_seconds": 16,
+    "git_diff_check": "pass",
+    "post_verification_generated_cleanup_bytes_approximate": 224395264
+  },
+  "next": {
+    "id": "maintainer-manifest-review-and-staging-authorization",
+    "why": "All four dependency-ordered final states are audited, but the dirty worktree must not be staged or committed by assumption.",
+    "entails": "Review the language, runtime, compiler, and final evidence manifests; confirm deferred WASM and generated-local exclusions; then explicitly authorize an exact staging boundary.",
+    "importance": "This preserves provenance and prevents unrelated, generated, deferred, or stale paths from entering history."
+  }
+}

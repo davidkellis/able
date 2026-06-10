@@ -1,0 +1,387 @@
+package concurrent_audio_voices
+
+import able.kernel.{Array}
+import able.os
+
+DEFAULT_SAMPLES: i32 := 8192
+PROFILE_SAMPLES: i32 := 2048
+LANE_COUNT: i64 := 4_i64
+PHASE_MODULUS: i64 := 65_536_i64
+CHECKSUM_MODULUS: i64 := 1_000_003_i64
+
+fn abs_i64(value: i64) -> i64 {
+  if value < 0_i64 { -value } else { value }
+}
+
+fn max_i64(left: i64, right: i64) -> i64 {
+  if left > right { left } else { right }
+}
+
+fn min_i64(left: i64, right: i64) -> i64 {
+  if left < right { left } else { right }
+}
+
+fn positive_mod(value: i64, modulus: i64) -> i64 {
+  remainder := value % modulus
+  if remainder < 0_i64 { remainder + modulus } else { remainder }
+}
+
+struct PhaseState {
+  phase: i64,
+  step: i64,
+  drift: i64
+}
+
+methods PhaseState {
+  fn signature(self: Self, lane: i64) -> i64 {
+    (self.phase * 31_i64
+      + self.step * 43_i64
+      + abs_i64(self.drift) * 47_i64
+      + lane * 59_i64
+      + 17_i64) % CHECKSUM_MODULUS
+  }
+
+  fn advance(self: Self, sample_index: i64, lane: i64) -> PhaseState {
+    delta := (sample_index + lane * 3_i64) % 9_i64 - 4_i64
+    next_step := 64_i64
+      + positive_mod(self.step + self.drift + delta, 4096_i64)
+    PhaseState {
+      phase: positive_mod(self.phase + next_step, PHASE_MODULUS),
+      step: next_step,
+      drift: self.drift
+    }
+  }
+}
+
+struct VoiceSample {
+  amplitude: i64,
+  envelope: i64,
+  phase: i64
+}
+
+struct MixState {
+  samples: i64,
+  positive: i64,
+  crossings: i64,
+  last_amplitude: i64,
+  peak: i64,
+  energy: i64,
+  checksum: i64,
+  phase_checksum: i64
+}
+
+struct VoiceReport {
+  lane: i64,
+  samples: i64,
+  positive: i64,
+  crossings: i64,
+  peak: i64,
+  energy: i64,
+  checksum: i64,
+  phase_checksum: i64,
+  final_phase: i64,
+  final_step: i64
+}
+
+methods MixState {
+  fn record(
+    self: Self,
+    phase: PhaseState,
+    sample: VoiceSample,
+    sample_index: i64,
+    lane: i64
+  ) -> MixState {
+    magnitude := abs_i64(sample.amplitude)
+    crossed := if self.samples > 0_i64 && (
+      (self.last_amplitude < 0_i64 && sample.amplitude >= 0_i64)
+      || (self.last_amplitude > 0_i64 && sample.amplitude <= 0_i64)
+    ) {
+      1_i64
+    } else {
+      0_i64
+    }
+    next_energy := positive_mod(
+      self.energy
+        + magnitude * 7_i64
+        + sample.envelope * 11_i64
+        + phase.signature(lane) * 13_i64,
+      CHECKSUM_MODULUS
+    )
+    next_checksum := positive_mod(
+      self.checksum * 131_i64
+        + next_energy * 17_i64
+        + sample.amplitude * 19_i64
+        + sample_index * 23_i64
+        + sample.phase * 29_i64,
+      CHECKSUM_MODULUS
+    )
+    next_phase_checksum := positive_mod(
+      self.phase_checksum * 137_i64
+        + phase.phase * 31_i64
+        + phase.step * 37_i64
+        + sample.envelope * 41_i64,
+      CHECKSUM_MODULUS
+    )
+    MixState {
+      samples: self.samples + 1_i64,
+      positive: self.positive + if sample.amplitude > 0_i64 {
+        1_i64
+      } else {
+        0_i64
+      },
+      crossings: self.crossings + crossed,
+      last_amplitude: sample.amplitude,
+      peak: max_i64(self.peak, magnitude),
+      energy: next_energy,
+      checksum: next_checksum,
+      phase_checksum: next_phase_checksum
+    }
+  }
+
+  fn report(self: Self, lane: i64, phase: PhaseState) -> VoiceReport {
+    VoiceReport {
+      lane,
+      samples: self.samples,
+      positive: self.positive,
+      crossings: self.crossings,
+      peak: self.peak,
+      energy: self.energy,
+      checksum: self.checksum,
+      phase_checksum: self.phase_checksum,
+      final_phase: phase.phase,
+      final_step: phase.step
+    }
+  }
+}
+
+interface Oscillator {
+  fn emit(
+    self: Self,
+    phase: PhaseState,
+    sample_index: i64,
+    lane: i64,
+    envelope: (i64, i64, i64) -> i64
+  ) -> VoiceSample
+}
+
+struct PulseOscillator {
+  threshold: i64,
+  high: i64,
+  low: i64,
+  bias: i64
+}
+
+struct TriangleOscillator {
+  center: i64,
+  scale: i64,
+  bias: i64
+}
+
+impl Oscillator for PulseOscillator {
+  fn emit(
+    self: Self,
+    phase: PhaseState,
+    sample_index: i64,
+    lane: i64,
+    envelope: (i64, i64, i64) -> i64
+  ) -> VoiceSample {
+    raw := if phase.phase < self.threshold { self.high } else { self.low }
+    level := envelope(sample_index, phase.phase, lane)
+    VoiceSample {
+      amplitude: raw * level // 1024_i64 + self.bias,
+      envelope: level,
+      phase: phase.phase
+    }
+  }
+}
+
+impl Oscillator for TriangleOscillator {
+  fn emit(
+    self: Self,
+    phase: PhaseState,
+    sample_index: i64,
+    lane: i64,
+    envelope: (i64, i64, i64) -> i64
+  ) -> VoiceSample {
+    folded := phase.phase % 32_768_i64
+    distance := abs_i64(folded - 16_384_i64)
+    raw := (16_384_i64 - distance) * self.scale // 64_i64 - self.center
+    level := envelope(sample_index, phase.phase, lane)
+    VoiceSample {
+      amplitude: raw * level // 1024_i64 + self.bias,
+      envelope: level,
+      phase: phase.phase
+    }
+  }
+}
+
+fn make_envelope(
+  attack: i64,
+  decay: i64,
+  sustain: i64,
+  wobble: i64
+) -> (i64, i64, i64) -> i64 {
+  { sample_index, phase, lane =>
+    attack_level := if sample_index >= attack {
+      1024_i64
+    } else {
+      sample_index * 1024_i64 // attack
+    }
+    decay_level := if sample_index >= decay {
+      sustain
+    } else {
+      1024_i64 - (1024_i64 - sustain) * sample_index // decay
+    }
+    base := min_i64(attack_level, decay_level)
+    modulation := (
+      phase // 512_i64
+        + lane * 17_i64
+        + sample_index * wobble
+    ) % 97_i64
+    max_i64(64_i64, min_i64(1024_i64, base + 48_i64 - modulation))
+  }
+}
+
+fn synthesize_voice(
+  lane: i64,
+  sample_count: i32,
+  oscillator: Oscillator,
+  envelope: (i64, i64, i64) -> i64,
+  initial_phase: PhaseState
+) -> VoiceReport {
+  state := MixState {
+    samples: 0_i64,
+    positive: 0_i64,
+    crossings: 0_i64,
+    last_amplitude: 0_i64,
+    peak: 0_i64,
+    energy: lane * 71_i64 + 19_i64,
+    checksum: lane * 97_i64 + 23_i64,
+    phase_checksum: lane * 101_i64 + 29_i64
+  }
+  phase := initial_phase
+  sample_index := 0
+  loop {
+    if sample_index >= sample_count { break }
+    index_i64 := sample_index as i64
+    sample := oscillator.emit(phase, index_i64, lane, envelope)
+    state = state.record(phase, sample, index_i64, lane)
+    phase = phase.advance(index_i64, lane)
+    sample_index = sample_index + 1
+  }
+  state.report(lane, phase)
+}
+
+fn audio_samples(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--profile" {
+    PROFILE_SAMPLES
+  } else {
+    DEFAULT_SAMPLES
+  }
+}
+
+fn main() -> void {
+  sample_count := audio_samples(os.args())
+  first_oscillator: Oscillator = PulseOscillator {
+    threshold: 21_000_i64,
+    high: 1400_i64,
+    low: -1100_i64,
+    bias: 7_i64
+  }
+  second_oscillator: Oscillator = TriangleOscillator {
+    center: 1350_i64,
+    scale: 11_i64,
+    bias: -13_i64
+  }
+  third_oscillator: Oscillator = PulseOscillator {
+    threshold: 39_000_i64,
+    high: 900_i64,
+    low: -1600_i64,
+    bias: 19_i64
+  }
+  fourth_oscillator: Oscillator = TriangleOscillator {
+    center: 1750_i64,
+    scale: 15_i64,
+    bias: 23_i64
+  }
+  first_envelope := make_envelope(521_i64, 4096_i64, 640_i64, 3_i64)
+  second_envelope := make_envelope(733_i64, 5120_i64, 576_i64, 5_i64)
+  third_envelope := make_envelope(911_i64, 6144_i64, 704_i64, 7_i64)
+  fourth_envelope := make_envelope(1103_i64, 7168_i64, 512_i64, 11_i64)
+
+  first := spawn {
+    synthesize_voice(
+      0_i64,
+      sample_count,
+      first_oscillator,
+      first_envelope,
+      PhaseState { phase: 101_i64, step: 173_i64, drift: 3_i64 }
+    )
+  }
+  second := spawn {
+    synthesize_voice(
+      1_i64,
+      sample_count,
+      second_oscillator,
+      second_envelope,
+      PhaseState { phase: 4093_i64, step: 257_i64, drift: 5_i64 }
+    )
+  }
+  third := spawn {
+    synthesize_voice(
+      2_i64,
+      sample_count,
+      third_oscillator,
+      third_envelope,
+      PhaseState { phase: 8191_i64, step: 331_i64, drift: 7_i64 }
+    )
+  }
+  fourth := spawn {
+    synthesize_voice(
+      3_i64,
+      sample_count,
+      fourth_oscillator,
+      fourth_envelope,
+      PhaseState { phase: 12_289_i64, step: 419_i64, drift: 11_i64 }
+    )
+  }
+  future_flush()
+
+  first_report := first.value()!
+  second_report := second.value()!
+  third_report := third.value()!
+  fourth_report := fourth.value()!
+  expected := (sample_count as i64) * LANE_COUNT
+  samples := first_report.samples
+    + second_report.samples
+    + third_report.samples
+    + fourth_report.samples
+  positive := first_report.positive
+    + second_report.positive
+    + third_report.positive
+    + fourth_report.positive
+  crossings := first_report.crossings
+    + second_report.crossings
+    + third_report.crossings
+    + fourth_report.crossings
+  energy := positive_mod(
+    first_report.energy
+      + second_report.energy
+      + third_report.energy
+      + fourth_report.energy,
+    CHECKSUM_MODULUS
+  )
+  checksum := positive_mod(
+    first_report.checksum * 3_i64
+      + second_report.checksum * 5_i64
+      + third_report.checksum * 7_i64
+      + fourth_report.checksum * 11_i64
+      + first_report.phase_checksum * 13_i64
+      + second_report.phase_checksum * 17_i64
+      + third_report.phase_checksum * 19_i64
+      + fourth_report.phase_checksum * 23_i64,
+    CHECKSUM_MODULUS
+  )
+
+  print(`${expected}:${samples}:${positive}:${crossings}:${first_report.peak},${second_report.peak},${third_report.peak},${fourth_report.peak}:${first_report.energy},${second_report.energy},${third_report.energy},${fourth_report.energy}:${first_report.checksum},${second_report.checksum},${third_report.checksum},${fourth_report.checksum}:${first_report.phase_checksum},${second_report.phase_checksum},${third_report.phase_checksum},${fourth_report.phase_checksum}:${first_report.final_phase},${second_report.final_phase},${third_report.final_phase},${fourth_report.final_phase}:${first_report.final_step},${second_report.final_step},${third_report.final_step},${fourth_report.final_step}:${energy}:${checksum}`)
+}

@@ -198,6 +198,52 @@ func TestHashMapBuiltins(t *testing.T) {
 	}
 }
 
+func TestHashMapBuiltinCallMetadata(t *testing.T) {
+	interp := New()
+	loadKernelModule(t, interp)
+	global := interp.GlobalEnvironment()
+
+	for _, name := range []string{
+		"__able_hash_map_new",
+		"__able_hash_map_with_capacity",
+		"__able_hash_map_get",
+		"__able_hash_map_set",
+		"__able_hash_map_remove",
+		"__able_hash_map_contains",
+		"__able_hash_map_size",
+		"__able_hash_map_clear",
+		"__able_hash_map_for_each",
+		"__able_hash_map_clone",
+	} {
+		fn := mustNativeFunction(t, global, name)
+		if !fn.BorrowArgs {
+			t.Fatalf("%s should borrow args", name)
+		}
+	}
+
+	for _, name := range []string{
+		"__able_hash_map_new",
+		"__able_hash_map_with_capacity",
+		"__able_hash_map_get",
+		"__able_hash_map_set",
+		"__able_hash_map_remove",
+		"__able_hash_map_contains",
+		"__able_hash_map_size",
+		"__able_hash_map_clear",
+		"__able_hash_map_clone",
+	} {
+		fn := mustNativeFunction(t, global, name)
+		if !fn.SkipContext {
+			t.Fatalf("%s should skip native call context", name)
+		}
+	}
+
+	forEach := mustNativeFunction(t, global, "__able_hash_map_for_each")
+	if forEach.SkipContext {
+		t.Fatalf("__able_hash_map_for_each should keep native call context")
+	}
+}
+
 func TestHasherNativeMethods(t *testing.T) {
 	interp := New()
 	hasher := runtime.NewHasherValue()
@@ -297,6 +343,30 @@ func TestHasherNativeMethods(t *testing.T) {
 	control.WriteBool(true)
 	if finalInt.BigInt().Uint64() != control.Finish() {
 		t.Fatalf("finish produced %s, want %d", finalInt.BigInt().String(), control.Finish())
+	}
+
+	for _, memberName := range []string{
+		"finish",
+		"write_bytes",
+		"write_string",
+		"write_bool",
+		"write_u64",
+		"write_i64",
+	} {
+		methodVal, err := interp.hasherMember(hasher, ast.NewIdentifier(memberName))
+		if err != nil {
+			t.Fatalf("%s lookup failed: %v", memberName, err)
+		}
+		bound, ok := methodVal.(*runtime.NativeBoundMethodValue)
+		if !ok {
+			t.Fatalf("%s binding unexpected type %T", memberName, methodVal)
+		}
+		if !bound.Method.BorrowArgs {
+			t.Fatalf("%s should borrow args", memberName)
+		}
+		if !bound.Method.SkipContext {
+			t.Fatalf("%s should skip native call context", memberName)
+		}
 	}
 }
 
@@ -455,6 +525,31 @@ func TestHashMapCustomHash(t *testing.T) {
 	strVal, ok := retrieved.(runtime.StringValue)
 	if !ok || strVal.Val != "value" {
 		t.Fatalf("get returned unexpected value %#v", retrieved)
+	}
+}
+
+func TestHashMapPrimitiveU64HashMatchesKernelHasher(t *testing.T) {
+	interp := New()
+	loadKernelModule(t, interp)
+
+	key := runtime.NewSmallInt(0x1234567890abcdef, runtime.IntegerU64)
+	hash, err := interp.HashMapHashValue(key)
+	if err != nil {
+		t.Fatalf("HashMapHashValue failed: %v", err)
+	}
+
+	control := runtime.NewHasherValue()
+	control.WriteUint64(0x1234567890abcdef)
+	if want := control.Finish(); hash != want {
+		t.Fatalf("hash = %d, want %d", hash, want)
+	}
+
+	equal, err := interp.HashMapKeysEqual(key, runtime.NewSmallInt(0x1234567890abcdef, runtime.IntegerU64))
+	if err != nil {
+		t.Fatalf("HashMapKeysEqual failed: %v", err)
+	}
+	if !equal {
+		t.Fatalf("expected equal u64 keys")
 	}
 }
 

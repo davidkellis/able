@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/bench_external_catalog.sh"
+source "$SCRIPT_DIR/bench_fixture_catalog.sh"
+
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+GO_CACHE="$GO_DIR/.gocache"
+
+suite_name="corpus-full"
+benchmarks_csv=""
+benchmarks_override=false
+output_json=""
+output_md=""
+
+usage() {
+  cat <<'EOF'
+Usage:
+  v12/bench_bytecode_audit [options]
+
+Examples:
+  v12/bench_bytecode_audit
+  v12/bench_bytecode_audit --suite corpus-full
+  v12/bench_bytecode_audit --suite fixture-text
+  v12/bench_bytecode_audit --benchmarks mandelbrot,matrixmultiply --output-md /tmp/bytecode-audit.md
+
+Options:
+      --suite NAME        Benchmark suite preset: core,full,generality,coverage,
+                          numeric-structural,fixed-width,nominal-numeric,wide-integer-records,text-bytes,regex-text,regex-stream,log-routing-redaction,config-validation-extraction,mutex-ledger,mutex-await-journal,mutex-work-queue,
+                          array-slice-window,dependency-plan,option-result-config,sudoku-masks,
+                          fixture-core,fixture-generality,
+                          fixture-full,fixture-collections,fixture-text,
+                          fixture-algorithms,fixture-concurrency,
+                          fixture-numeric,fixture-external-small,corpus-full
+      --list-suites       Print available suite names and benchmark members
+  -b, --benchmarks CSV    Explicit benchmark list
+      --output-json PATH  Write machine-readable audit output
+      --output-md PATH    Write Markdown summary
+  -h, --help              Show this help
+
+Notes:
+  - This is a lowering audit, not a runtime benchmark. It parses benchmark
+    modules and counts selected speculative/generalized bytecode opcodes in the
+    lowered function programs.
+  - The underlying Go test is opt-in and only runs when this wrapper sets the
+    audit environment variables.
+EOF
+}
+
+die() {
+  echo "bench_bytecode_audit: $*" >&2
+  exit 1
+}
+
+resolve_suite_csv() {
+  case "$1" in
+    corpus-full|generality-full)
+      printf '%s,%s\n' "$(bench_external_suite_csv coverage)" "$(bench_fixture_suite_csv "$SCRIPT_DIR" fixture-full)"
+      ;;
+    *)
+      if external_csv="$(bench_external_suite_csv "$1" 2>/dev/null)"; then
+        printf '%s\n' "$external_csv"
+        return 0
+      fi
+      if fixture_csv="$(bench_fixture_suite_csv "$SCRIPT_DIR" "$1" 2>/dev/null)"; then
+        printf '%s\n' "$fixture_csv"
+        return 0
+      fi
+      return 1
+      ;;
+  esac
+}
+
+list_suites() {
+  local suite
+  for suite in $(bench_external_suite_names); do
+    printf '%s\t%s\n' "$suite" "$(bench_external_suite_csv "$suite")"
+  done
+  for suite in $(bench_fixture_suite_names); do
+    printf '%s\t%s\n' "$suite" "$(bench_fixture_suite_csv "$SCRIPT_DIR" "$suite")"
+  done
+  printf '%s\t%s\n' "corpus-full" "$(resolve_suite_csv corpus-full)"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --suite)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --suite"
+      suite_name="$1"
+      ;;
+    --list-suites)
+      list_suites
+      exit 0
+      ;;
+    -b|--benchmarks)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --benchmarks"
+      benchmarks_csv="$1"
+      benchmarks_override=true
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-json"
+      output_json="$1"
+      ;;
+    --output-md)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --output-md"
+      output_md="$1"
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      die "unexpected positional argument: $1"
+      ;;
+  esac
+  shift
+done
+
+if [[ "$benchmarks_override" == false ]]; then
+  benchmarks_csv="$(resolve_suite_csv "$suite_name")" || die "unknown suite: $suite_name"
+fi
+
+IFS=',' read -r -a requested_benchmarks <<<"$benchmarks_csv"
+benchmark_targets=()
+
+for bench in "${requested_benchmarks[@]}"; do
+  [[ -n "$bench" ]] || continue
+  if target="$(bench_external_target "$SCRIPT_DIR" "$bench" 2>/dev/null)"; then
+    :
+  elif fixture_dir="$(bench_fixture_dir "$SCRIPT_DIR" "$bench" 2>/dev/null)"; then
+    fixture_entry="$(bench_fixture_entry "$SCRIPT_DIR" "$bench")" || die "fixture benchmark entry not found for $bench"
+    target="$fixture_dir/$fixture_entry"
+  else
+    die "no Able target mapping for benchmark: $bench"
+  fi
+  target="$(realpath "$target")"
+  [[ -f "$target" ]] || die "Able target not found for $bench: $target"
+  benchmark_targets+=("${bench}=${target}")
+done
+
+[[ ${#benchmark_targets[@]} -gt 0 ]] || die "no benchmarks selected"
+
+if [[ -n "$output_json" ]]; then
+  output_json="$(realpath -m "$output_json")"
+  mkdir -p "$(dirname "$output_json")"
+fi
+if [[ -n "$output_md" ]]; then
+  output_md="$(realpath -m "$output_md")"
+  mkdir -p "$(dirname "$output_md")"
+fi
+
+benchmark_targets_csv="$(IFS=,; printf '%s' "${benchmark_targets[*]}")"
+
+echo ">>> Suite: $suite_name"
+echo ">>> Benchmarks: $benchmarks_csv"
+if [[ -n "$output_json" ]]; then
+  echo ">>> JSON: $output_json"
+fi
+if [[ -n "$output_md" ]]; then
+  echo ">>> Markdown: $output_md"
+fi
+
+(
+  cd "$GO_DIR"
+  env \
+    GOCACHE="$GO_CACHE" \
+    ABLE_BYTECODE_OPCODE_AUDIT=1 \
+    ABLE_BYTECODE_OPCODE_AUDIT_SUITE="$suite_name" \
+    ABLE_BYTECODE_OPCODE_AUDIT_BENCHMARKS="$benchmarks_csv" \
+    ABLE_BYTECODE_OPCODE_AUDIT_BENCHMARK_TARGETS="$benchmark_targets_csv" \
+    ABLE_BYTECODE_OPCODE_AUDIT_OUTPUT_JSON="$output_json" \
+    ABLE_BYTECODE_OPCODE_AUDIT_OUTPUT_MD="$output_md" \
+    go test ./pkg/interpreter -run '^TestBytecodeBenchmarkOpcodeAudit$' -count=1 -v
+)

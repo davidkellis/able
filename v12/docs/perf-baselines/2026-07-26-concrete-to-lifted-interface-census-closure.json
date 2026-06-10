@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "date": "2026-07-26",
+  "decision": "retain_report_only_observer_extension_only",
+  "repository_commit": "237406eccdfb025a519d898daedadee1c8d13a7b",
+  "coverage": {
+    "strict_applications_built": 61,
+    "strict_applications_verified": 61,
+    "telemetry_snapshots": 61,
+    "interpreter_free_dependency_graphs": 61,
+    "dependency_count_min": 96,
+    "dependency_count_max": 119,
+    "generated_go_files_scanned": 2927,
+    "executable_interface_lift_callsites": 0,
+    "interface_lift_runtime_events": 0,
+    "applications_with_executable_interface_lift": 0,
+    "applications_with_interface_lift_events": 0
+  },
+  "speculative_application_candidates": [
+    {"application": "inventory_reconciliation", "registrations": 1},
+    {"application": "concurrent_graph_visitors", "registrations": 4},
+    {"application": "concurrent_packet_codecs", "registrations": 4},
+    {"application": "concurrent_tree_folds", "registrations": 4},
+    {"application": "concurrent_state_machines", "registrations": 4}
+  ],
+  "representative_compiled_stdlib": {
+    "application_packages": [
+      {
+        "application": "inventory_reconciliation",
+        "packages": ["able.collections.hash_map", "able.collections.map"]
+      },
+      {
+        "application": "rational_series",
+        "packages": ["able.numbers.rational"]
+      },
+      {
+        "application": "unicode_scalar_pipeline",
+        "packages": ["able.text.string"]
+      }
+    ],
+    "foundational_test_build": {
+      "generated_go_files": 115,
+      "compiled_binary_exit": 0,
+      "interface_lift_candidate_registrations": 5,
+      "executable_interface_lift_callsites": 0,
+      "candidate_source": "able-stdlib/tests/assertions.test.able",
+      "go_test_wrapper_result": "failed_only_because_keep_workdir_message_was_expected_to_leave_stderr_empty",
+      "go_test_elapsed_seconds": 138.88
+    }
+  },
+  "artifacts": {
+    "full_corpus_compiler_sha256": "d03978d57340528de0f941d262581e1f2486f7dd250ecf024eefc8de85d7e3c2",
+    "full_corpus_report_sha256": "61218a963274f131d56e34c6b56c8c07d46b7da7f6dba3390f8db0f250e4c31b",
+    "foundational_compiled_binary_sha256": "b26bcbdeef548a1cabb6b95d9dca11a2c1c777b5deab24b3352dfeca0111a205"
+  },
+  "profile_gate": {
+    "general_shape_material_in_three_unlike_applications": false,
+    "ab_measurements_collected": false,
+    "reason": "no executable callsite or runtime event exists in the strict application corpus"
+  },
+  "verification": {
+    "focused_compiler_seconds": 0.994,
+    "focused_cli_seconds": 0.036,
+    "go_vet_all": "pass",
+    "go_build_all": "pass",
+    "run_all_tests": "pass",
+    "compiler_batches": 33,
+    "heavy_compiler_batch_seconds": [187.586, 84.907, 110.522],
+    "bytecode_fixture_seconds": 87.571,
+    "stdlib_treewalker_seconds": 18,
+    "stdlib_bytecode_seconds": 15
+  },
+  "production_candidate": null,
+  "production_code_changed": false,
+  "stdlib_changed": false,
+  "wasm_changed": false,
+  "next": "reproduce the compiled foundational stdlib integration duration diagnostics-off before deciding whether the one-minute test gate needs work"
+}

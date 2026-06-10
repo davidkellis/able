@@ -7,27 +7,71 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.BinaryExpression) (bytecodeInstruction, bool) {
-	if ctx == nil || expr == nil {
-		return bytecodeInstruction{}, false
+func bytecodeMirroredIntegerCompareOperator(operator string) (string, bool) {
+	switch operator {
+	case "<":
+		return ">", true
+	case "<=":
+		return ">=", true
+	case ">":
+		return "<", true
+	case ">=":
+		return "<=", true
+	case "==", "!=":
+		return operator, true
+	default:
+		return "", false
 	}
-	ident, ok := expr.Left.(*ast.Identifier)
+}
+
+func bytecodeBinarySlotConstOperands(ctx *bytecodeLoweringContext, expr *ast.BinaryExpression) (int, runtime.IntegerValue, int64, string, bool) {
+	if ctx == nil || expr == nil {
+		return 0, runtime.IntegerValue{}, 0, "", false
+	}
+	if ident, ok := expr.Left.(*ast.Identifier); ok && ident != nil {
+		slot, found := ctx.lookupSlot(ident.Name)
+		if !found {
+			return 0, runtime.IntegerValue{}, 0, "", false
+		}
+		lit, ok := expr.Right.(*ast.IntegerLiteral)
+		if !ok {
+			return 0, runtime.IntegerValue{}, 0, "", false
+		}
+		imm, litVal, ok := bytecodeSlotConstIntegerLiteralImmediate(lit)
+		if !ok {
+			return 0, runtime.IntegerValue{}, 0, "", false
+		}
+		return slot, imm, litVal, expr.Operator, true
+	}
+	lit, ok := expr.Left.(*ast.IntegerLiteral)
+	if !ok {
+		return 0, runtime.IntegerValue{}, 0, "", false
+	}
+	ident, ok := expr.Right.(*ast.Identifier)
 	if !ok || ident == nil {
-		return bytecodeInstruction{}, false
+		return 0, runtime.IntegerValue{}, 0, "", false
 	}
 	slot, found := ctx.lookupSlot(ident.Name)
 	if !found {
-		return bytecodeInstruction{}, false
+		return 0, runtime.IntegerValue{}, 0, "", false
 	}
-	lit, ok := expr.Right.(*ast.IntegerLiteral)
+	operator, ok := bytecodeMirroredIntegerCompareOperator(expr.Operator)
 	if !ok {
-		return bytecodeInstruction{}, false
+		return 0, runtime.IntegerValue{}, 0, "", false
 	}
 	imm, litVal, ok := bytecodeSlotConstIntegerLiteralImmediate(lit)
 	if !ok {
+		return 0, runtime.IntegerValue{}, 0, "", false
+	}
+	return slot, imm, litVal, operator, true
+}
+
+func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.BinaryExpression) (bytecodeInstruction, bool) {
+	slot, imm, litVal, operator, ok := bytecodeBinarySlotConstOperands(ctx, expr)
+	if !ok {
 		return bytecodeInstruction{}, false
 	}
-	switch expr.Operator {
+	switch operator {
 	case "+":
 		return bytecodeInstruction{
 			op:              bytecodeOpBinaryIntAddSlotConst,
@@ -37,7 +81,7 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			intImmediateRaw: litVal,
 			hasIntImmediate: true,
 			hasIntRaw:       true,
-			operator:        expr.Operator,
+			operator:        operator,
 			node:            expr,
 		}, true
 	case "-":
@@ -49,7 +93,7 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			intImmediateRaw: litVal,
 			hasIntImmediate: true,
 			hasIntRaw:       true,
-			operator:        expr.Operator,
+			operator:        operator,
 			node:            expr,
 		}, true
 	case "*":
@@ -61,7 +105,7 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			intImmediateRaw: litVal,
 			hasIntImmediate: true,
 			hasIntRaw:       true,
-			operator:        expr.Operator,
+			operator:        operator,
 			node:            expr,
 		}, true
 	case "%":
@@ -73,7 +117,7 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			intImmediateRaw: litVal,
 			hasIntImmediate: true,
 			hasIntRaw:       true,
-			operator:        expr.Operator,
+			operator:        operator,
 			node:            expr,
 		}, true
 	case "<=":
@@ -85,7 +129,7 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			intImmediateRaw: litVal,
 			hasIntImmediate: true,
 			hasIntRaw:       true,
-			operator:        expr.Operator,
+			operator:        operator,
 			node:            expr,
 		}, true
 	case "<", ">", ">=", "==", "!=":
@@ -97,7 +141,7 @@ func bytecodeBinarySlotConstInstruction(ctx *bytecodeLoweringContext, expr *ast.
 			intImmediateRaw: litVal,
 			hasIntImmediate: true,
 			hasIntRaw:       true,
-			operator:        expr.Operator,
+			operator:        operator,
 			node:            expr,
 		}, true
 	default:
@@ -216,14 +260,13 @@ func bytecodeReturnIfBinarySlotConstInstruction(ctx *bytecodeLoweringContext, co
 			node:            ret,
 		}, true
 	}
-	if lit, ok := ret.Argument.(*ast.IntegerLiteral); ok && lit != nil && lit.Value != nil && lit.IntegerType == nil && lit.Value.IsInt64() {
-		litVal := lit.Value.Int64()
-		if litVal >= math.MinInt32 && litVal <= math.MaxInt32 {
+	if lit, ok := ret.Argument.(*ast.IntegerLiteral); ok && lit != nil {
+		if imm, _, ok := bytecodeSlotConstIntegerLiteralImmediate(lit); ok {
 			return bytecodeInstruction{
 				op:              bytecodeOpReturnConstIfIntLessEqualSlotConst,
 				target:          -1,
 				argCount:        instr.argCount,
-				value:           runtime.NewSmallInt(litVal, runtime.IntegerI32),
+				value:           imm,
 				intImmediate:    instr.intImmediate,
 				intImmediateRaw: instr.intImmediateRaw,
 				hasIntImmediate: instr.hasIntImmediate,

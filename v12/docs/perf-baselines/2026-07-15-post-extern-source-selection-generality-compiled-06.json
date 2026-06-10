@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-07-15T06:29:56.641505Z",
+  "suite": "custom",
+  "benchmarks": [
+    "nbody",
+    "tapelang_alphabet"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-15-post-extern-source-selection-generality-go-reference.json",
+  "cpu_affinity": "14",
+  "experimental_execution_context": false,
+  "rows": [
+    {
+      "benchmark": "nbody",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "nbody",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.37,
+        "avg_user_seconds": 0.34,
+        "avg_sys_seconds": 0.02,
+        "avg_gc": 3.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/nbody/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "2b1471417bee5179b1f9278ec51262ac9827e98d2df01cb93f954a22c0cd3e5d"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0303,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 12.21122112211221
+        }
+      }
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "tapelang_alphabet",
+        "mode": "compiled",
+        "ok_runs": 1,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 3.43,
+        "avg_user_seconds": 3.34,
+        "avg_sys_seconds": 0.02,
+        "avg_gc": 3.0,
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/tapelang-alphabet/verify.rb",
+          "verified_runs": 1,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "a8ac3a1054c1aa7ac25f9b1e652a96a7ac86a1c1130687fc53b90e20c766d149"
+          ]
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 1.7337,
+          "reference_implementation": "go version go1.26.4 linux/amd64",
+          "ratio": 1.9784276403068581
+        }
+      }
+    }
+  ]
+}

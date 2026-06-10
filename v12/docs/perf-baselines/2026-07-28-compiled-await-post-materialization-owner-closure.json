@@ -1,0 +1,235 @@
+{
+  "kind": "compiled-await-post-materialization-owner-closure",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain-no-production-change",
+  "reason": "No open generated compiler/runtime owner is material in at least three unlike applications after excluding required identity and previously closed or rejected routes.",
+  "compiler": {
+    "binary_sha256": "55c7e9cb6f911406510b67a9f09ccece55cc4cb9a111cf8ceebb234adfc13871",
+    "production_scope_sha256": "8d69533a81ce44f58ec8921abbd9867cbeb935aeab3ec9b39312f10aee1f7433"
+  },
+  "generation": {
+    "arguments": [
+      "-no-fallbacks",
+      "-experimental-execution-context",
+      "-build",
+      "-main"
+    ],
+    "stdlib_root": "/home/david/sync/projects/able-stdlib/src"
+  },
+  "execution": {
+    "executor": "goroutine",
+    "gomaxprocs": 4,
+    "cpu_affinity": "0-3",
+    "cpu_profiles_per_application": 25,
+    "allocation_profiles_per_application": 3,
+    "profile_phase": "main",
+    "verifier_backed": true
+  },
+  "applications": [
+    {
+      "benchmark": "await_channel_mux",
+      "source": {
+        "path": "v12/examples/benchmarks/await_channel_mux/await_channel_mux.able",
+        "sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c"
+      },
+      "verifier": {
+        "path": "/home/david/sync/projects/benchmarks/await-channel-mux/verify.rb",
+        "sha256": "e8f3665223aaab95c5680522d2198aafada1a53c327515a1ab7424921ad7c945"
+      },
+      "generated_compiled_go_sha256": "416016910627228777722a008f712b0336978524de8598abd424332e03297f0a",
+      "binary_sha256": "09926fd502da0f50e00b81f517d051edbc5fd1ae064ae5244ac4728ec3021c41",
+      "interpreter_dependency_count": 0,
+      "cpu": {
+        "aggregate_duration_seconds": 1.87,
+        "total_samples_seconds": 2.01,
+        "current_gid_cumulative_seconds": 1.52,
+        "current_gid_cumulative_percent": 75.62
+      },
+      "main_allocation_runs": [
+        {"allocated_bytes": 5173240, "allocations": 96750, "gc_count": 2},
+        {"allocated_bytes": 5175768, "allocations": 96768, "gc_count": 2},
+        {"allocated_bytes": 5177784, "allocations": 96776, "gc_count": 2}
+      ],
+      "main_allocation_mean": {
+        "allocated_bytes": 5175597.333333333,
+        "allocations": 96764.66666666667
+      },
+      "representative_flat_objects": {
+        "bridge.currentGID": 8195,
+        "bridge.ToInt": 4098,
+        "__able_fn__int64_to_int64_to_runtime_value": 4096,
+        "__able_await_state.appendArm": 2560,
+        "__able_iface_Awaitable_i64_wrap_runtime": 2560,
+        "__able_array_iface_Awaitable_i64_to": 2048,
+        "__able_make_await_waker_ctx": 1024
+      }
+    },
+    {
+      "benchmark": "future_await_race",
+      "source": {
+        "path": "v12/examples/benchmarks/future_await_race/future_await_race.able",
+        "sha256": "7950a425ac6225a577d7c234395ee4293d5c89c2ddfcb19fd87732e8d4d0335b"
+      },
+      "verifier": {
+        "path": "/home/david/sync/projects/benchmarks/future-await-race/verify.rb",
+        "sha256": "9e7c2c1e24f458ec6a1a8569c2cbfc386767e4ada14b55582d9410a796e47508"
+      },
+      "generated_compiled_go_sha256": "cae07f46a680f2365680dd1d693090c41e112a1044079dad09ce835f436d55ff",
+      "binary_sha256": "3581724ab541280477219435c34f5bb924474ef9349276fe8e4564d9a9788406",
+      "interpreter_dependency_count": 0,
+      "cpu": {
+        "aggregate_duration_seconds": 0.22535,
+        "total_samples_seconds": 0.32,
+        "current_gid_cumulative_seconds": 0.23,
+        "current_gid_cumulative_percent": 71.88
+      },
+      "main_allocation_runs": [
+        {"allocated_bytes": 674048, "allocations": 10882, "gc_count": 0},
+        {"allocated_bytes": 673920, "allocations": 11048, "gc_count": 1},
+        {"allocated_bytes": 697216, "allocations": 11007, "gc_count": 1}
+      ],
+      "main_allocation_mean": {
+        "allocated_bytes": 681728.0,
+        "allocations": 10979.0
+      },
+      "representative_flat_objects": {
+        "bridge.currentGID": 1074,
+        "bridge.ToDynamicI64": 287,
+        "__able_make_await_waker_ctx": 192,
+        "__able_struct_Array_clone_elements": 192,
+        "__able_struct_Array_to": 192
+      }
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "source": {
+        "path": "v12/examples/benchmarks/mutex_await_journal/mutex_await_journal.able",
+        "sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696"
+      },
+      "verifier": {
+        "path": "/home/david/sync/projects/benchmarks/mutex-await-journal/verify.rb",
+        "sha256": "fdcdde27c877301475341de6158ff0e2bfdecdd17437ea769c4018c2b7cb900b"
+      },
+      "generated_compiled_go_sha256": "4c3eceab08ca3aab70ce2c626448b66aad1650bb65b35c6fc70834053fd9b4f8",
+      "binary_sha256": "8d956900cf9a364dd0086ea80a7463b44296f523cf9e3ad7a74d244b03b57353",
+      "interpreter_dependency_count": 0,
+      "cpu": {
+        "aggregate_duration_seconds": 0.07389,
+        "total_samples_seconds": 0.07,
+        "largest_flat_sample_seconds": 0.01
+      },
+      "main_allocation_runs": [
+        {"allocated_bytes": 965232, "allocations": 22763, "gc_count": 1},
+        {"allocated_bytes": 965816, "allocations": 22789, "gc_count": 1},
+        {"allocated_bytes": 966552, "allocations": 22801, "gc_count": 1}
+      ],
+      "main_allocation_mean": {
+        "allocated_bytes": 965866.6666666666,
+        "allocations": 22784.333333333332
+      },
+      "representative_flat_objects": {
+        "bridge.ToInt": 4101,
+        "__able_array_iface_Awaitable_i64_to": 4096,
+        "__able_fn_void_to_int64_to_runtime_value": 4096,
+        "__able_iface_Awaitable_i64_wrap_runtime": 2048,
+        "__able_make_await_waker_ctx": 2048,
+        "__able_mutex_await_lock_impl": 2048,
+        "__able_notify_mutex_awaiters": 2048
+      }
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "source": {
+        "path": "v12/examples/benchmarks/mutex_work_queue/mutex_work_queue.able",
+        "sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113"
+      },
+      "verifier": {
+        "path": "/home/david/sync/projects/benchmarks/mutex-work-queue/verify.rb",
+        "sha256": "364de001c5c56ee2f4066fd799add37aeab064afdf846e7d655a701e483c2416"
+      },
+      "generated_compiled_go_sha256": "d94d8e44a58068fa0efd05feddb85a22b63cf3ffa78e7375453c9ad308c4245f",
+      "binary_sha256": "51288646220e7236fc06a3adea5c9ac55d15096d952d478dc472f24714d7aa85",
+      "interpreter_dependency_count": 0,
+      "cpu": {
+        "aggregate_duration_seconds": 0.21002,
+        "total_samples_seconds": 0.3,
+        "await_initialization_cumulative_seconds": 0.09,
+        "awaitable_array_conversion_cumulative_seconds": 0.04,
+        "current_gid_cumulative_seconds": 0.01
+      },
+      "main_allocation_runs": [
+        {"allocated_bytes": 2117304, "allocations": 49501, "gc_count": 0},
+        {"allocated_bytes": 2118816, "allocations": 49554, "gc_count": 1},
+        {"allocated_bytes": 2117632, "allocations": 49506, "gc_count": 1}
+      ],
+      "main_allocation_mean": {
+        "allocated_bytes": 2117917.3333333335,
+        "allocations": 49520.333333333336
+      },
+      "representative_flat_objects": {
+        "bridge.ToInt": 8197,
+        "__able_notify_mutex_awaiters": 8196,
+        "__able_array_iface_Awaitable_i64_to": 8192,
+        "__able_fn_void_to_int64_to_runtime_value": 8192,
+        "__able_iface_Awaitable_i64_wrap_runtime": 4096,
+        "__able_make_await_waker_ctx": 4096,
+        "__able_mutex_await_lock_impl": 4096
+      }
+    }
+  ],
+  "owner_classification": [
+    {
+      "owner": "distinct native Await waker",
+      "material_application_count": 4,
+      "disposition": "closed-required-semantic-identity",
+      "reason": "Cancellation cannot prove old native or dynamic waker calls have stopped; safe generation identity still needs a distinct per-Await object."
+    },
+    {
+      "owner": "typed Awaitable Array/protocol conversions",
+      "material_application_count": 4,
+      "disposition": "closed-rejected-candidate-family",
+      "reason": "Typed Array round-trip and protocol-arm candidates already failed broad timing gates."
+    },
+    {
+      "owner": "bridge.ToInt",
+      "material_application_count": 3,
+      "disposition": "closed-rejected-global-cache",
+      "reason": "Remaining ordinary boxing is semantic-boundary materialization; a global i64 cache slowed the TapeLang guard by 4.17%."
+    },
+    {
+      "owner": "bridge.currentGID/runtime.Stack",
+      "material_application_count": 2,
+      "disposition": "closed-breadth-and-prior-design-gates",
+      "reason": "Material in Channel Mux and Future Race only; broad execution-context designs already failed unrelated compiled concurrency guards."
+    },
+    {
+      "owner": "mutex wait lock and notification",
+      "material_application_count": 2,
+      "disposition": "closed-insufficient-breadth",
+      "reason": "Confined to the two mutex applications."
+    },
+    {
+      "owner": "channel arm and receive operations",
+      "material_application_count": 1,
+      "disposition": "closed-insufficient-breadth",
+      "reason": "Confined to Await Channel Mux."
+    }
+  ],
+  "preserved_profiles": {
+    "directory": "v12/docs/perf-baselines/2026-07-28-compiled-await-post-materialization-owner-profiles",
+    "per_application": [
+      "cpu-top",
+      "cpu-cum-top",
+      "alloc-objects-top",
+      "alloc-space-top"
+    ]
+  },
+  "production_changes": [],
+  "next": {
+    "work": "Refresh the broad strict compiled scorecard and owner ranking outside the closed Await sub-frontier.",
+    "why": "The remaining Await-local shared owners are required or already rejected, while retained compiled performance remains below the Go target.",
+    "entails": "Rebuild a feature-covering interpreter-free cohort, repeat verifier-backed Able/Go timing, refresh poorly explained profiles, and admit only an exact open owner repeated in at least three unlike applications.",
+    "importance": "The product goal depends on finding general boundaries where native Go carriers can soundly survive without boxing or semantic adaptation."
+  }
+}

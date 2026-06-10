@@ -1,0 +1,46 @@
+File: compiled
+Build ID: 486c97beb49084dd1a04192783747a196accdc33
+Type: alloc_objects
+Time: 2026-07-28 09:43:07 CDT
+Showing nodes accounting for 1052917, 99.61% of 1056997 total
+Dropped 118 nodes (cum <= 5284)
+      flat  flat%   sum%        cum   cum%
+    532481 50.38% 50.38%     532485 50.38%  able/interpreter-go/pkg/compiler/bridge.ToInt
+    225280 21.31% 71.69%     225280 21.31%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     53248  5.04% 76.73%     108056 10.22%  main.__able_compiled_fn_parse_event_ctx
+     53248  5.04% 81.77%      53249  5.04%  main.__able_struct_EventRecord_from
+     49920  4.72% 86.49%      53824  5.09%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+     30486  2.88% 89.37%      30486  2.88%  runtime/pprof.allFrames
+     30229  2.86% 92.23%      42520  4.02%  main.__able_compiled_fn_event_error_ctx
+     26634  2.52% 94.75%      26634  2.52%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+     26603  2.52% 97.27%      26603  2.52%  main.__able_nullable_i64_from_value
+     12288  1.16% 98.43%      12288  1.16%  main.__able_union__EventRecord_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+      8191  0.77% 99.21%       8232  0.78%  runtime/pprof.(*profileBuilder).emitLocation
+      4297  0.41% 99.61%      43101  4.08%  runtime/pprof.writeHeapProto
+         6 0.00057% 99.61%      38731  3.66%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         3 0.00028% 99.61%    1013888 95.92%  main.__able_compiled_fn_main_ctx
+         1 9.5e-05% 99.61%      43107  4.08%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 9.5e-05% 99.61%    1013890 95.92%  main.RunRegisteredMain
+         1 9.5e-05% 99.61%      43102  4.08%  runtime/pprof.writeHeapInternal
+         0     0% 99.61%      43107  4.08%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.61%      43107  4.08%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.61%    1013889 95.92%  main.RunRegisteredMain.func1
+         0     0% 99.61%    1013889 95.92%  main.__able_compiled_fn_main
+         0     0% 99.61%     425986 40.30%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.61%     851961 80.60%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.61%      26628  2.52%  main.__able_compiled_fn_map_count_ctx
+         0     0% 99.61%      26628  2.52%  main.__able_compiled_method_HashMap_raw_get_spec_ctx
+         0     0% 99.61%     878595 83.12%  main.__able_compiled_method_Result__map_spec_ctx
+         0     0% 99.61%    1013889 95.92%  main.__able_register_compiled_call.func1
+         0     0% 99.61%      12291  1.16%  main.__able_struct_EventDecodeError_to (inline)
+         0     0% 99.61%      12291  1.16%  main.__able_struct_EventDecodeError_to_seen
+         0     0% 99.61%     372736 35.26%  main.__able_struct_EventRecord_apply
+         0     0% 99.61%     745472 70.53%  main.__able_struct_EventRecord_to (inline)
+         0     0% 99.61%     745472 70.53%  main.__able_struct_EventRecord_to_seen
+         0     0% 99.61%    1013889 95.92%  main.__able_wrap_fn_main
+         0     0% 99.61%    1056997   100%  main.main
+         0     0% 99.61%    1056997   100%  main.runMain
+         0     0% 99.61%      43107  4.08%  main.startMainProfilePhase (inline)
+         0     0% 99.61%    1056997   100%  runtime.main
+         0     0% 99.61%      43102  4.08%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.61%      43102  4.08%  runtime/pprof.writeAlloc

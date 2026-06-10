@@ -1,0 +1,121 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain",
+  "candidate": "contextually type an unannotated local lambda from later direct uses as identical fully-bound static callable parameters",
+  "settings": {
+    "cpu_affinity": "9",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "executor": "goroutine",
+    "pairs": 10,
+    "order_balanced": true,
+    "nanosecond_resolution_clock": true,
+    "frozen_binaries": true,
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Concurrent Document Pipeline",
+      "baseline_seconds": [0.085629940, 0.062941313, 0.060313940, 0.061043024, 0.054995775, 0.055778265, 0.054077864, 0.054517269, 0.056397915, 0.061072826],
+      "baseline_mean_seconds": 0.060676813,
+      "candidate_seconds": [0.034675837, 0.037063360, 0.037352800, 0.034824371, 0.036087990, 0.035570145, 0.034454584, 0.034632444, 0.034844160, 0.045512676],
+      "candidate_mean_seconds": 0.036501837,
+      "change_percent": -39.8422,
+      "go_mean_seconds": 0.002584577,
+      "candidate_over_go": 14.123,
+      "verified_baseline": 10,
+      "verified_candidate": 10,
+      "profile": {
+        "baseline_call_value_seconds": 0.17,
+        "baseline_call_value_percent": 45.95,
+        "candidate_total_seconds": 0.14,
+        "candidate_selected_owner_seconds": 0.0
+      },
+      "sha256": {
+        "baseline": "6980f136817e02d0cafe437737322cdddd5cc40ddf088a5678538d8e3f36ee37",
+        "measured_candidate": "f3b174743471778973e0613b05a3bbb1470bbb8ab4687c670cc69d1ae0d78786",
+        "final_rebuild": "ba86258c41c92a71314c5ed238fd786b095928fbb379b8fc3df3d4f35f2f476e",
+        "go": "a46a7558e9fbc14a7204a1e37c35f418aae900134d62433c029414772954aa34"
+      }
+    },
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_seconds": [0.375935078, 0.379451990, 0.392133236, 0.377324820, 0.374788284, 0.369608164, 0.368844748, 0.387343645, 0.373445749, 0.381660223],
+      "baseline_mean_seconds": 0.378053594,
+      "candidate_seconds": [0.303912878, 0.318852425, 0.312531233, 0.307909966, 0.296356201, 0.295730591, 0.293729544, 0.295550823, 0.295962811, 0.293763161],
+      "candidate_mean_seconds": 0.301429963,
+      "change_percent": -20.2679,
+      "go_mean_seconds": 0.003900122,
+      "candidate_over_go": 77.287,
+      "verified_baseline": 10,
+      "verified_candidate": 10,
+      "profile": {
+        "baseline_call_value_seconds": 0.40,
+        "baseline_call_value_percent": 17.86,
+        "candidate_total_seconds": 1.49,
+        "candidate_selected_owner_seconds": 0.0
+      },
+      "sha256": {
+        "baseline": "32573925aa6a2fb6151dcd75b20b547e1b2945dea7809cb1c57fa1ddffb0c4a3",
+        "measured_candidate": "d22fdcc528ea9efce9d7c4d6c854b74a1c0b3562d07497feddd8504924f609ca",
+        "final_rebuild": "d54436662b93f7d948724dc9ce5ca6c69cad0a2f91d867016b5bacf201553b81",
+        "go": "e08c89e8f55ee0e09834e4c4498248dd61cfb5683c542b044151271d37ad16d7"
+      }
+    },
+    {
+      "name": "Policy Record Dispatch",
+      "baseline_seconds": [0.117242336, 0.108712435, 0.113386154, 0.105694532, 0.105586767, 0.102196932, 0.102522850, 0.118566751, 0.101754189, 0.106100082],
+      "baseline_mean_seconds": 0.108176303,
+      "candidate_seconds": [0.102024317, 0.102318525, 0.109241247, 0.099141836, 0.099982023, 0.096566200, 0.096914291, 0.111256123, 0.095370770, 0.096773863],
+      "candidate_mean_seconds": 0.100958919,
+      "change_percent": -6.6719,
+      "go_mean_seconds": 0.003752518,
+      "candidate_over_go": 26.904,
+      "verified_baseline": 10,
+      "verified_candidate": 10,
+      "profile": {
+        "baseline_call_value_seconds": 0.01,
+        "baseline_call_value_percent": 1.82,
+        "baseline_concrete_wrapper_seconds": 0.04,
+        "baseline_concrete_wrapper_percent": 7.27,
+        "candidate_total_seconds": 0.48,
+        "candidate_selected_owner_seconds": 0.0
+      },
+      "sha256": {
+        "baseline": "2e92aa3744beebf17bab1b006cb8c57cdee701947cb6c97c67528ebade271ad6",
+        "measured_candidate": "e2297a042b9d3537dbcef84301f3ee1740ba876c721709be31245638e0ea4876",
+        "final_rebuild": "453bfe3a1d89269c881357c67d333c68838a8b0a61ed8b61bae9915e560cd19e",
+        "go": "b011eae0a14d2687320bc7baf51521d7af985b4c0eb876ad14ca1e2e7f6e2f0a"
+      }
+    }
+  ],
+  "geometric_mean_change_percent": -23.5027,
+  "verification": {
+    "focused_callable_generic_interface_concurrency_and_cli": "pass",
+    "strict_application_verifiers": "pass",
+    "full_compiler_package": "failed_and_timed_out_at_20m",
+    "bounded_reproduced_failures": [
+      "TestCompilerInferredNilWithValueBranchPreservesValue",
+      "TestCompilerExperimentalExecutionContextGuardsCrossPackageInterfaceBodies",
+      "TestCompilerConcreteIteratorFilterMapStayNativeWithExperimentalMonoArrays",
+      "TestCompilerPipePlaceholderLambdaExecutes",
+      "TestCompilerSpecializedImplCanonicalKeyPreventsDuplicateContainAllBodies",
+      "TestCompilerNoSelfInterfaceConcreteAdapterKeepsDeclaredArity"
+    ],
+    "timeout_named_test_isolated_seconds": 0.734,
+    "timeout_named_test_isolated_result": "pass"
+  },
+  "temporary_evidence_root": "/tmp/able-aot-native-callable-flow-20260725.J4pdLM",
+  "changed_surfaces": ["compiler"],
+  "unchanged_surfaces": [
+    "canonical_stdlib",
+    "runtime",
+    "interpreter",
+    "tree_walker",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ]
+}

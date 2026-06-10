@@ -1,0 +1,186 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain",
+  "candidate": "guarded canonical primitive String.split native call-site lowering",
+  "settings": {
+    "cpu_affinity": "9",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timed_runs_per_lane": 20,
+    "warmups_per_lane": 2,
+    "order_balanced": true,
+    "cpu_profiles_per_candidate_application": 10,
+    "allocation_profiles_per_candidate_application": 3,
+    "strict_no_fallbacks": true,
+    "public_verifier_required": true
+  },
+  "applications": [
+    {
+      "name": "Concurrent Event Routing",
+      "baseline_mean_nanoseconds": 100080856.65,
+      "candidate_mean_nanoseconds": 29714164.1,
+      "go_mean_nanoseconds": 3150610.6,
+      "candidate_change_percent": -70.3098,
+      "candidate_over_go": 9.4312,
+      "go_performance_percent": 10.6031,
+      "samples_nanoseconds": {
+        "baseline": [
+          87677864, 87467729, 86326690, 86900386, 87421936,
+          90335929, 89731082, 89791858, 136943522, 130133597,
+          108417509, 120696632, 96486069, 105279838, 94265722,
+          98014353, 113448500, 97491827, 89623303, 105162787
+        ],
+        "candidate": [
+          25291305, 25538136, 25036563, 24016516, 25143594,
+          25037867, 27204916, 27015758, 39012556, 32565027,
+          39518488, 29893790, 27886754, 28084755, 26963227,
+          31977634, 28606723, 31071654, 26028190, 48389829
+        ],
+        "go": [
+          2808930, 3177937, 2522313, 2640726, 3022677,
+          2569404, 3208352, 2536857, 4101763, 3072237,
+          4447943, 3289685, 3335647, 2785281, 3063262,
+          3451313, 2909500, 3550609, 2749558, 3768218
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 14687085.3333,
+        "candidate_samples_bytes_allocations_gc": [
+          [11607992, 155662, 7],
+          [11607976, 155662, 7],
+          [11608200, 155664, 8]
+        ],
+        "candidate_mean_bytes": 11608056,
+        "bytes_change_percent": -20.9642,
+        "baseline_mean_allocations": 264834,
+        "candidate_mean_allocations": 155662.6667,
+        "allocations_change_percent": -41.2226,
+        "baseline_mean_gc": 9.3333,
+        "candidate_mean_gc": 7.3333
+      },
+      "candidate_sha256": "b5cc8dcf1376250a8675d1ca735b4a0c9ec2a5404c3a6f9c755b59a84cdf7f43"
+    },
+    {
+      "name": "Word Frequency",
+      "baseline_mean_nanoseconds": 25673001.3,
+      "candidate_mean_nanoseconds": 21978840.5,
+      "go_mean_nanoseconds": 5173546.5,
+      "candidate_change_percent": -14.3893,
+      "candidate_over_go": 4.2483,
+      "go_performance_percent": 23.5388,
+      "samples_nanoseconds": {
+        "baseline": [
+          37558676, 31683376, 19720395, 20536272, 19356861,
+          21633926, 21245658, 21421817, 20358495, 38285515,
+          36443081, 24696322, 24230148, 33808353, 17444915,
+          32853285, 21889948, 34427596, 19670206, 16195181
+        ],
+        "candidate": [
+          15853000, 28084954, 15130079, 22631257, 29783265,
+          15363753, 16430913, 27436968, 27463201, 26848108,
+          15567450, 15317276, 27179069, 27178084, 25999672,
+          24828653, 15393813, 23516095, 15015658, 24555542
+        ],
+        "go": [
+          5984588, 5519036, 4065063, 5930396, 3780061,
+          4515828, 4454608, 4437931, 3885590, 5412658,
+          4023412, 6205809, 6227930, 5862140, 3646602,
+          8981919, 3823246, 5464551, 5466564, 5782998
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 5222677.3333,
+        "candidate_samples_bytes_allocations_gc": [
+          [3347320, 60186, 3],
+          [3347336, 60186, 3],
+          [3347320, 60186, 3]
+        ],
+        "candidate_mean_bytes": 3347325.3333,
+        "bytes_change_percent": -35.9079,
+        "baseline_mean_allocations": 135165,
+        "candidate_mean_allocations": 60186,
+        "allocations_change_percent": -55.4722,
+        "baseline_mean_gc": 5.6667,
+        "candidate_mean_gc": 3
+      },
+      "candidate_sha256": "e3583f8566212f9bcbe2f5f4cb825461c0f611c72b1d832e041304bf80f100d3"
+    },
+    {
+      "name": "Sensor Calibration",
+      "baseline_mean_nanoseconds": 22537599.9,
+      "candidate_mean_nanoseconds": 14081559.85,
+      "go_mean_nanoseconds": 3035951.2,
+      "candidate_change_percent": -37.5197,
+      "candidate_over_go": 4.6383,
+      "go_performance_percent": 21.5598,
+      "samples_nanoseconds": {
+        "baseline": [
+          24945799, 25423108, 22084704, 25064608, 21386386,
+          21760704, 21370632, 21157995, 21731007, 23985522,
+          25940306, 21017592, 21306358, 21534954, 21788878,
+          21804731, 21396828, 21893956, 23149227, 22008703
+        ],
+        "candidate": [
+          16857181, 16141291, 15904091, 15294939, 13586640,
+          13309198, 14694555, 13108368, 13725608, 13721952,
+          13307344, 13180827, 13850684, 13157947, 13836139,
+          14669798, 13235079, 13133001, 13247951, 13668604
+        ],
+        "go": [
+          3315593, 3477160, 3028495, 2915990, 2969230,
+          2812868, 3168666, 2960898, 2996614, 3000654,
+          2987496, 3111040, 2809705, 2860305, 3249362,
+          2823189, 2882878, 2884049, 3241820, 3223012
+        ]
+      },
+      "allocation": {
+        "baseline_mean_bytes": 10255365.3333,
+        "candidate_samples_bytes_allocations_gc": [
+          [6394880, 125377, 6],
+          [6394864, 125377, 6],
+          [6394880, 125377, 6]
+        ],
+        "candidate_mean_bytes": 6394874.6667,
+        "bytes_change_percent": -37.6436,
+        "baseline_mean_allocations": 324801,
+        "candidate_mean_allocations": 125377,
+        "allocations_change_percent": -61.3988,
+        "baseline_mean_gc": 9.3333,
+        "candidate_mean_gc": 6
+      },
+      "candidate_sha256": "d9dad0a9e4eb6cd5e8cc3a7a1506ce4ea230652659d41f1489e794c13d82d626"
+    }
+  ],
+  "geometric_mean_change_percent": {
+    "wall_time": -45.8463,
+    "allocated_bytes": -31.8964,
+    "allocations": -53.4256
+  },
+  "geometric_mean_candidate_over_go": 5.7066,
+  "geometric_mean_go_performance_percent": 17.5234,
+  "profile_conclusion": {
+    "slice_bytes_allocation_leaf_removed_in_all_three": true,
+    "validation_owned_utf8_decode_allocation_leaf_removed_in_all_three": true,
+    "new_legal_semantic_cpu_owner_shared_by_all_three": false,
+    "pattern_result_materialization_present_in": [
+      "Concurrent Event Routing",
+      "Sensor Calibration"
+    ],
+    "next_admission_requirement": "find a third unlike strict application with the same successful pattern-assignment result materialization owner"
+  },
+  "verification": {
+    "timed_processes_passed_public_verifier": 180,
+    "warmup_processes_passed_public_verifier": 18,
+    "candidate_profile_processes_passed_public_verifier": 39,
+    "strict_dependency_graphs_without_interpreter": 3,
+    "generated_source_guard_passed": true,
+    "unicode_error_freshness_executable_guard_passed": true,
+    "bound_method_dynamic_compatibility_guard_passed": true,
+    "ablec_package_passed": true
+  },
+  "stdlib_changed": false,
+  "runtime_changed": false,
+  "interpreter_changed": false,
+  "wasm_changed": false
+}

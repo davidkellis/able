@@ -1,0 +1,15 @@
+{
+  "description": "literal regex replacement expands whole, ordinal, and named captures while rejecting invalid references",
+  "expect": {
+    "stdout": [
+      "named z<ab:ab:ab> <ab:ab:ab>",
+      "optional <:>",
+      "no-match é",
+      "escapes <$\\>",
+      "zero <>é<>",
+      "ordinal-invalid error",
+      "name-invalid error",
+      "dollar-invalid error"
+    ]
+  }
+}

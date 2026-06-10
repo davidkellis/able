@@ -6,6 +6,9 @@ func (g *generator) compileBodyContext(info *functionInfo) *compileContext {
 	}
 	ctx := newCompileContext(g, info, g.functionsForCompileContext(info), g.overloadsForPackage(info.Package), info.Package, g.compileContextGenericNames(info))
 	ctx.implSiblings = g.defaultSiblingsForFunction(info)
+	if g.executionContextsEnabled() {
+		ctx.executionContextExpr = "__able_exec_ctx"
+	}
 	return ctx
 }
 

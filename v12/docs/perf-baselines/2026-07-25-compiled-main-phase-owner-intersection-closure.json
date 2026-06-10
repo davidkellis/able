@@ -1,0 +1,152 @@
+{
+  "date": "2026-07-25",
+  "decision": "retain_no_code",
+  "scope": "compiled_main_phase_owner_intersection",
+  "compiler_sha256": {
+    "baseline": "8a64cddbb3c20b341ea20205c75257b558ac05cbdfe4369c06157a00381cc30e",
+    "candidate": "a2fbcfd102e9b4e1cae7aad5497021362d494b2ffbff6dc7bf7ec8f0d0e8527c"
+  },
+  "candidate": {
+    "owner": "main.__able_checked_mul_signed",
+    "rule": "Use bits.Mul64 for the nonnegative static-width-64 overflow check.",
+    "retained": false,
+    "reason": "Two repeated broad cohorts were neutral or mixed; Array Slice Window regressed pooled and Concurrent Scene Tiles was neutral."
+  },
+  "process_counts": {
+    "smoke": 12,
+    "baseline_cpu_profile": 520,
+    "candidate_cpu_profile": 520,
+    "exact_allocation_profile": 12,
+    "timing_accepted": 1440,
+    "timing_warmup": 288
+  },
+  "dependency_graph": {
+    "package_count": 96,
+    "interpreter_package_count": 0
+  },
+  "applications": [
+    {
+      "id": "concurrent_scene_tiles",
+      "stdout_sha256": "2c60d0d812049ff61485905f50f92e678610e9708c24849927292dd7566a15fe",
+      "cpu": {
+        "baseline_processes": 200,
+        "baseline_total_samples_ms": 730,
+        "checked_mul_flat_percent": 19.18,
+        "checked_add_flat_percent": 5.48,
+        "candidate_checked_mul_samples_ms": 70
+      },
+      "allocation": {
+        "mean_bytes": 1192453.3333333333,
+        "mean_allocations": 37057.333333333336,
+        "mean_gc": 1
+      },
+      "timing": {
+        "cohort_1_change_percent": -0.462,
+        "cohort_2_change_percent": -0.085,
+        "pooled_baseline_mean_ms": 4.248712,
+        "pooled_candidate_mean_ms": 4.238061,
+        "pooled_go_mean_ms": 1.188431,
+        "pooled_change_percent": -0.251,
+        "baseline_go_ratio": 3.5751,
+        "candidate_go_ratio": 3.5661
+      }
+    },
+    {
+      "id": "array_slice_window",
+      "stdout_sha256": "155f89122475c7b282637dbf2ecba6d19771d396e801b581cb1d1b0cef64103e",
+      "cpu": {
+        "baseline_processes": 120,
+        "baseline_total_samples_ms": 720,
+        "checked_mul_flat_percent": 22.22,
+        "checked_add_flat_percent": 12.50,
+        "candidate_checked_mul_samples_ms": 110
+      },
+      "allocation": {
+        "mean_bytes": 1441720,
+        "mean_allocations": 24016,
+        "mean_gc": 0
+      },
+      "timing": {
+        "cohort_1_change_percent": -0.564,
+        "cohort_2_change_percent": 0.997,
+        "pooled_baseline_mean_ms": 5.970702,
+        "pooled_candidate_mean_ms": 5.985091,
+        "pooled_go_mean_ms": 1.581672,
+        "pooled_change_percent": 0.241,
+        "baseline_go_ratio": 3.7749,
+        "candidate_go_ratio": 3.7840
+      }
+    },
+    {
+      "id": "option_result_config",
+      "stdout_sha256": "28e46b27a6dceeaa15968e9db7a6728f4a2b35f87a89ff7bf561db18cad53112",
+      "cpu": {
+        "baseline_processes": 80,
+        "baseline_total_samples_ms": 1180,
+        "checked_mul_flat_percent": 0.85,
+        "checked_add_flat_percent": 0,
+        "candidate_checked_mul_samples_ms": 50
+      },
+      "allocation": {
+        "mean_bytes": 9936648,
+        "mean_allocations": 182896,
+        "mean_gc": 3.3333333333333335
+      },
+      "timing": {
+        "cohort_1_change_percent": 0.980,
+        "cohort_2_change_percent": -3.269,
+        "pooled_baseline_mean_ms": 16.832906,
+        "pooled_candidate_mean_ms": 16.605655,
+        "pooled_go_mean_ms": 1.252460,
+        "pooled_change_percent": -1.350,
+        "baseline_go_ratio": 13.4399,
+        "candidate_go_ratio": 13.2584
+      }
+    },
+    {
+      "id": "sensor_calibration",
+      "stdout_sha256": "e96cf1e366228f34478289660b4478b345bc069ac6e6633900d9805f0340edbb",
+      "cpu": {
+        "baseline_processes": 120,
+        "baseline_total_samples_ms": 940,
+        "checked_mul_flat_percent": 8.51,
+        "checked_add_flat_percent": 6.38,
+        "candidate_checked_mul_samples_ms": 10
+      },
+      "allocation": {
+        "mean_bytes": 3609488,
+        "mean_allocations": 57536.333333333336,
+        "mean_gc": 1
+      },
+      "timing": {
+        "cohort_1_change_percent": -2.796,
+        "cohort_2_change_percent": -3.305,
+        "pooled_baseline_mean_ms": 10.486278,
+        "pooled_candidate_mean_ms": 10.166153,
+        "pooled_go_mean_ms": 2.620619,
+        "pooled_change_percent": -3.053,
+        "baseline_go_ratio": 4.0015,
+        "candidate_go_ratio": 3.8793
+      }
+    }
+  ],
+  "allocation_intersection": {
+    "exact_owner_breadth_at_least_three": 0,
+    "reason": "Array copies, union/type metadata, parsing/conversion, and concurrent nominal/interface allocation are distinct."
+  },
+  "verification": {
+    "focused_source_and_recurrence": "pass",
+    "multiplication_overflow_fixture": "pass_before_and_after_removal",
+    "prototype_removed": true,
+    "diff_check": "pass"
+  },
+  "next": {
+    "tranche": "static_width_checked_signed_addition_gate",
+    "material_applications": [
+      "concurrent_scene_tiles",
+      "array_slice_window",
+      "sensor_calibration"
+    ],
+    "gate": "Retain only if every admitted unlike application improves in repeated balanced baseline/candidate/Go cohorts."
+  }
+}
