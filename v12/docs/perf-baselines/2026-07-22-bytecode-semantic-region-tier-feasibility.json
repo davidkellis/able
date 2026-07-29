@@ -44,11 +44,11 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-bytecode-semantic-region-feasibility.json",
-      "sha256": "4d099d67fba875d8ecc55e14bb56f7b4f3d87b048e0b9f94e2ff1d277b8b39f6"
+      "sha256": "34009cb483d714891f558f490e74f818c1be10efcfd56d126603529030adeb83"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+      "sha256": "eb2ba1219218732569e91ac23b52cc44b588045e8f69d4ce7930972eb54350d8"
     },
     "ownership_census": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",
@@ -85,58 +85,58 @@
     "prototype_application_count": 3,
     "prototype_regression_count": 3,
     "rankable_current_region_rows": 4,
-    "uniform_cost_model_target_closures": 1
+    "uniform_cost_model_target_closures": 0
   },
   "typed_region_bounds": [
     {
       "benchmark": "monte_carlo_pi",
       "current_rankable": true,
-      "current_seconds": 2.644,
+      "current_seconds": 2.714,
       "family": "stochastic-numeric",
       "instruction_share_percent": 41.7938,
-      "remaining_speedup_in_uniform_cost_model": 0.856788,
-      "required_speedup": 1.471988,
+      "remaining_speedup_in_uniform_cost_model": 1.037921,
+      "required_speedup": 1.78318,
       "scope": "full",
-      "target_budget_seconds": 1.7962105263157893,
-      "uniform_cost_model_reaches_target": true,
+      "target_budget_seconds": 1.5219999999999998,
+      "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.71803
     },
     {
       "benchmark": "rms_norm",
       "current_rankable": true,
-      "current_seconds": 4.754,
+      "current_seconds": 4.682,
       "family": "float-array",
       "instruction_share_percent": 11.7647,
-      "remaining_speedup_in_uniform_cost_model": 5.149206,
-      "required_speedup": 5.835767,
+      "remaining_speedup_in_uniform_cost_model": 7.456998,
+      "required_speedup": 8.451264,
       "scope": "full",
-      "target_budget_seconds": 0.8146315789473684,
+      "target_budget_seconds": 0.5539999999999999,
       "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.133333
     },
     {
       "benchmark": "fixed_width_128",
       "current_rankable": true,
-      "current_seconds": 8.522,
+      "current_seconds": 8.03,
       "family": "wide-numeric",
       "instruction_share_percent": 6.6174,
-      "remaining_speedup_in_uniform_cost_model": 21.575805,
-      "required_speedup": 23.104737,
+      "remaining_speedup_in_uniform_cost_model": 19.242819,
+      "required_speedup": 20.606429,
       "scope": "full",
-      "target_budget_seconds": 0.36884210526315786,
+      "target_budget_seconds": 0.38968421052631574,
       "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.070863
     },
     {
       "benchmark": "future_await_race",
       "current_rankable": true,
-      "current_seconds": 0.152,
+      "current_seconds": 0.142,
       "family": "concurrency",
       "instruction_share_percent": 48.2013,
-      "remaining_speedup_in_uniform_cost_model": 2.252931,
-      "required_speedup": 4.349398,
+      "remaining_speedup_in_uniform_cost_model": 2.254079,
+      "required_speedup": 4.351613,
       "scope": "full",
-      "target_budget_seconds": 0.03494736842105263,
+      "target_budget_seconds": 0.03263157894736842,
       "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.93055
     },

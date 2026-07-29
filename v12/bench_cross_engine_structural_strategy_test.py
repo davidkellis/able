@@ -41,9 +41,9 @@ class CrossEngineStructuralStrategyTests(unittest.TestCase):
         self.assertEqual(summary["performance_capable_route_count"], 1)
         self.assertEqual(summary["concrete_admitted_route_count"], 0)
         self.assertFalse(summary["prototype_admitted"])
-        self.assertEqual(summary["selected_rows"], 119)
-        self.assertEqual(summary["target_misses"], 111)
-        self.assertAlmostEqual(summary["total_target_excess_seconds"], 188.45157894736843)
+        self.assertEqual(summary["selected_rows"], 126)
+        self.assertEqual(summary["target_misses"], 116)
+        self.assertAlmostEqual(summary["total_target_excess_seconds"], 227.17905263157894)
 
     def test_typed_specialization_fails_every_row_gate(self) -> None:
         route = self.report()["routes"]["typed_bytecode_semantic_specialization"]
@@ -60,7 +60,7 @@ class CrossEngineStructuralStrategyTests(unittest.TestCase):
         route = self.report()["routes"]["portable_lower_level_vm_backend"]
         self.assertEqual(route["phase_one_material_row_count"], 5)
         self.assertEqual(route["phase_one_governing_row_count"], 5)
-        self.assertEqual(route["full_corpus_material_row_count"], 5)
+        self.assertEqual(route["full_corpus_material_row_count"], 6)
         self.assertEqual(route["full_corpus_row_count"], 6)
         self.assertTrue(route["passes_phase_one_performance_gate"])
         self.assertFalse(route["concrete_mechanism"])
@@ -69,7 +69,7 @@ class CrossEngineStructuralStrategyTests(unittest.TestCase):
             row for row in route["rows"] if row["benchmark"] == "concurrent_event_routing"
         )
         self.assertFalse(concurrency["phase_one_governing"])
-        self.assertLess(concurrency["target_excess_reduction_percent"], 25)
+        self.assertGreater(concurrency["target_excess_reduction_percent"], 25)
 
     def test_compiled_nominal_route_has_no_three_family_mechanism(self) -> None:
         route = self.report()["routes"]["compiled_general_nominal_abi_simplification"]
@@ -80,7 +80,7 @@ class CrossEngineStructuralStrategyTests(unittest.TestCase):
 
     def test_closures_guards_and_next_lane_are_explicit(self) -> None:
         report = self.report()
-        self.assertEqual(report["summary"]["closure_count"], 21)
+        self.assertEqual(report["summary"]["closure_count"], 23)
         self.assertEqual(report["summary"]["invalidated_closure_count"], 0)
         self.assertEqual(len(report["semantic_obligations"]), 7)
         self.assertEqual(

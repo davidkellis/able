@@ -35,15 +35,18 @@ class CrossEngineArchitectureBudgetTests(unittest.TestCase):
             summary["decision"], "no-go-current-cross-engine-local-mechanism"
         )
         self.assertFalse(summary["candidate_eligible"])
-        self.assertEqual(summary["selected_rows"], 119)
-        self.assertEqual(summary["target_meets"], 8)
-        self.assertEqual(summary["target_misses"], 111)
-        self.assertAlmostEqual(summary["total_excess_seconds"], 188.45157894736843)
+        self.assertEqual(summary["selected_rows"], 126)
+        self.assertEqual(summary["target_meets"], 10)
+        self.assertEqual(summary["target_misses"], 116)
+        self.assertAlmostEqual(summary["total_excess_seconds"], 227.17905263157894)
         self.assertGreater(summary["bytecode_excess_share_percent"], 80)
         bounds = report["architecture_bounds"]
         self.assertGreater(bounds["bytecode"]["minimum_remaining_target_speedup"], 7)
         self.assertGreater(bounds["compiled"]["minimum_remaining_target_speedup"], 3)
-        self.assertEqual(report["group_budgets"][0]["id"], "bytecode-text-map")
+        self.assertEqual(
+            report["group_budgets"][0]["id"],
+            "bytecode-portable-workload-admission",
+        )
         self.assertEqual(
             report["next_architecture_lane"]["id"],
             "cross-engine-structural-strategy-reconciliation",

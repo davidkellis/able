@@ -2,7 +2,7 @@
   "kind": "able-cross-mode-residual-cost-evidence",
   "schema_version": 1,
   "minimum_unlike_applications": 3,
-  "selection_reason": "The five highest-excess unlike applications span text/map, wide numeric, float numeric, regex/interface dispatch, and concurrency and account for more than half of the current aggregate target excess.",
+  "selection_reason": "The retained five-application telemetry cohort spans text/map, wide numeric, float numeric, regex/interface dispatch, and concurrency; its current frontier share is derived below rather than assumed by this evidence record.",
   "applications": [
     {
       "benchmark": "k_nucleotide",

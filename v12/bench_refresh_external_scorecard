@@ -14,6 +14,7 @@ timeout_seconds=90
 cpu_affinity="${ABLE_BENCH_CPU_AFFINITY:-}"
 tag="$(date -u +%Y-%m-%d-full-scorecard-%H%M%SZ)"
 output_dir="$PERF_DIR"
+work_root=""
 keep_tmp=false
 dry_run=false
 require_quiet_cpu=false
@@ -71,10 +72,12 @@ Options:
                            host preflight before measuring
       --tag NAME            Output filename prefix (default: UTC timestamp)
       --output-dir DIR      Report directory (default: v12/docs/perf-baselines)
+      --work-root DIR       Place the tagged build workspace below this
+                            directory (default: v12/tmp)
       --selection-manifest PATH
                             Reviewed mode-aware strict-variance row manifest
                             (default: v12/bench-selection-manifest.json)
-      --keep                Retain temporary benchmark workspaces in v12/tmp
+      --keep                Retain temporary benchmark workspaces
       --no-promote          Keep external-scoreboard-current.* unchanged; use
                             dated artifacts for a candidate cohort comparison
       --dry-run             Print commands without running them
@@ -136,6 +139,11 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || die "missing value for --output-dir"
       output_dir="$1"
       ;;
+    --work-root)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --work-root"
+      work_root="$1"
+      ;;
     --selection-manifest)
       shift
       [[ $# -gt 0 ]] || die "missing value for --selection-manifest"
@@ -178,7 +186,12 @@ fi
 
 output_dir="$(realpath -m "$output_dir")"
 selection_manifest="$(realpath -m "$selection_manifest")"
-tmp_root="$SCRIPT_DIR/tmp/scorecard-refresh-$tag"
+if [[ -n "$work_root" ]]; then
+  work_root="$(realpath -m "$work_root")"
+else
+  work_root="$SCRIPT_DIR/tmp"
+fi
+tmp_root="$work_root/scorecard-refresh-$tag"
 if [[ "$dry_run" == false ]]; then
   mkdir -p "$output_dir" "$tmp_root"
 fi

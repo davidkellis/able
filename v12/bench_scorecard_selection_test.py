@@ -307,6 +307,9 @@ class SelectionStatusTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             manifest = json.loads((SCRIPT_DIR / "bench-selection-manifest.json").read_text())
+            manifest["modes"]["bytecode"].remove("binarytrees")
+            manifest_path = root / "selection.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             rows = [
                 {"benchmark": benchmark, "mode": mode, "able": {"status": "verified"}}
                 for mode, benchmarks in manifest["modes"].items()
@@ -323,6 +326,8 @@ class SelectionStatusTests(unittest.TestCase):
             result = subprocess.run(
                 [
                     str(SCRIPT_DIR / "bench_selection_manifest_check"),
+                    "--manifest",
+                    str(manifest_path),
                     "--status-scorecard",
                     str(scoreboard),
                 ],

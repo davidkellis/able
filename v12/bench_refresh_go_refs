@@ -193,10 +193,7 @@ program_args_for_benchmark() {
   while IFS= read -r argument; do
     [[ -n "$argument" ]] || continue
     printf '%s\0' "$argument"
-  done < <(bench_external_program_args "$benchmark")
-  if [[ "$benchmark" == "binarytrees" ]]; then
-    printf '%s\0' "21"
-  fi
+  done < <(bench_external_program_args "$benchmark" compiled)
 }
 
 record_row() {

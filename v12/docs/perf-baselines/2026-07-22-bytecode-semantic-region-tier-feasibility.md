@@ -12,9 +12,9 @@ evidence. These are completed gates, not untried implementations.
 
 | Application | Family | Instruction share | Required gain | Uniform-cost free-region gain | Remaining gain | Model reaches target? |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| `monte_carlo_pi` | stochastic-numeric | 41.79% | 1.47x | 1.72x | 0.86x | yes |
-| `rms_norm` | float-array | 11.76% | 5.84x | 1.13x | 5.15x | no |
-| `fixed_width_128` | wide-numeric | 6.62% | 23.10x | 1.07x | 21.58x | no |
+| `monte_carlo_pi` | stochastic-numeric | 41.79% | 1.78x | 1.72x | 1.04x | no |
+| `rms_norm` | float-array | 11.76% | 8.45x | 1.13x | 7.46x | no |
+| `fixed_width_128` | wide-numeric | 6.62% | 20.61x | 1.07x | 19.24x | no |
 | `future_await_race` | concurrency | 48.20% | 4.35x | 1.93x | 2.25x | no |
 
 This is a sizing model, not a mathematical upper bound: the census records

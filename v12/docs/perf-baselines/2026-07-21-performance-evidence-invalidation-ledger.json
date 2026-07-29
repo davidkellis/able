@@ -43,6 +43,16 @@
       "reasons": []
     },
     {
+      "id": "bytecode-portable-workload-admission",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
       "id": "bytecode-regex",
       "origin": "frontier",
       "modes": [
@@ -54,6 +64,16 @@
     },
     {
       "id": "bytecode-register-architecture",
+      "origin": "extra",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-semantic-boundary-reach",
       "origin": "extra",
       "modes": [
         "bytecode"
@@ -216,8 +236,8 @@
   ],
   "summary": {
     "decision": "no-invalidated-closure",
-    "closure_count": 21,
-    "current_count": 21,
+    "closure_count": 23,
+    "current_count": 23,
     "invalidated_count": 0,
     "selected_closures": [],
     "selected_by_mode": {

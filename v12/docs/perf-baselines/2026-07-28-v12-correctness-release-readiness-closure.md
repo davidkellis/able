@@ -7,138 +7,147 @@ Date: 2026-07-28
 The current v12 release surface is green. Retain no production code for this
 tranche.
 
-The audit found one genuine release-evidence failure: the cross-engine
-structural-strategy snapshot still pinned the predecessor closure-ledger
-fingerprint. The current ledger itself was healthy at 21 closures and zero
-invalidations. The repair updated the current source identities and
-mechanically regenerated the dependent structural strategy, portable-backend
-ADR, shared-runtime semantic-ABI feasibility, and closed-region decision
-artifacts. Their decisions did not change, and no prototype became admissible.
+The audit found that several derived architecture artifacts still encoded the
+predecessor 119-row scorecard totals after the portable bytecode promotion
+expanded the selected frontier to 126 rows. The repair updated the residual
+cohort rationale and expected totals, removed one hard-coded closure count,
+and mechanically regenerated the dependent residual, interaction,
+architecture-budget, structural-strategy, portable-backend, shared-runtime,
+and bytecode-tier artifacts. Their decisions did not change, and no prototype
+became admissible.
 
-No compiler, generated runtime, runtime, interpreter, bytecode VM, canonical
-stdlib, language, dependency, benchmark, fixture, reference application, or
-WASM behavior changed.
+The audit also repaired the release harness so its generated-program matrices
+are partitioned finely enough for the one-minute individual-test policy, and
+split or narrowed three oversized compiler tests without weakening their
+assertions.
 
-## Release gates
+No compiler production path, generated runtime, runtime, interpreter, bytecode
+VM, canonical stdlib, language, dependency, benchmark, fixture, reference
+application, or WASM behavior changed.
 
-All build-heavy work used disk-backed `TMPDIR=/var/tmp` and
-`GOCACHE=/var/tmp/able-go-cache`.
+## Current release gates
 
-| Gate | Result | Elapsed | Peak RSS |
-| --- | --- | ---: | ---: |
-| `go vet ./...` | pass | 8.73 s | 554,804 KB |
-| `go build ./...` | pass | 2.55 s | 378,808 KB |
-| `./run_all_tests.sh` | pass | 880.18 s | 4,440,504 KB |
-| `./run_all_tests.sh --compiler` | pass | 4,947 s | 2,782,396 KB |
-| cold `./run_all_tests.sh --compiled-cli` | pass | 1,276.93 s | 3,312,312 KB |
-| warm JSON-event compiled-CLI replay | pass | 184.74 s | 2,733,408 KB |
-| `./run_stdlib_tests.sh` | pass | 33.62 s | 840,004 KB |
+All build-heavy work used the exact disk-backed workspace
+`/var/tmp/able-v12-release-7SwdTv`; no large generated build was placed on the
+RAM-backed `/tmp`.
 
-The ordinary handoff passed every deterministic contract, every non-compiler
-package, 34 compiler batches, and the 85.938-second bytecode fixture corpus.
+- `go vet ./...` and `go build ./...` pass.
+- The ordinary `./run_all_tests.sh` handoff passes every preflight,
+  non-compiler package, interpreter fixture, bounded compiler batch, and the
+  bytecode fixture corpus.
+- Canonical stdlib tests pass in both reference modes: tree-walker in 18
+  seconds and bytecode in 15 seconds.
+- The cold `./run_all_tests.sh --compiled-cli` lane passes; the generated-Go
+  CLI package reports 1,190.720 seconds.
+- Architecture-budget, scoreboard, scorecard-evidence, closure-ledger, and
+  frontier reproduction checks pass.
+- Shell syntax, JSON validity, diff whitespace, and maintained Go source-size
+  checks pass.
 
-The separate compiler matrix passed:
+The compiler release matrix passes:
 
-- 33 compiler core batches;
-- three explicit parity outliers;
-- all 24 fallback-audit shards;
-- all 24 compiled-execution shards;
-- all 24 strict-dispatch shards;
-- all 24 interface-lookup shards; and
-- all 24 boundary-marker shards.
+- compiler bridge and all bounded core batches;
+- the concurrency, diagnostics, and dynamic-boundary parity outliers;
+- 128/128 fallback-audit partitions;
+- 128/128 compiled-execution partitions;
+- 128/128 strict-dispatch partitions;
+- 128/128 interface-lookup partitions; and
+- 128/128 boundary-marker partitions.
 
-That is 120 green generated-program audit shards. Together they verify output,
-fallback classification, strict generated dispatch, static interface-lookup
-bypass, and absence of fallback markers.
-
-Canonical stdlib tests passed in both reference modes: tree-walker in 17
-seconds and bytecode in 16 seconds.
+That is 640 green generated-program audit partitions. Together they verify
+output, fallback classification, strict generated dispatch, static
+interface-lookup bypass, and absence of fallback markers across the full
+fixture corpus.
 
 ## Individual-test timing
 
-Eight compiler aggregates crossed one minute during the noisy full runs.
-Exact `go test -json` event timing found these individual maxima:
+The audit found one genuine individual duration violation:
+`TestCompilerTypedArrayDefaultMethodsKeepConcreteReceivers` took 117.87
+seconds. It compiled two independent canonical stdlib graphs and imported the
+broad `able.spec.*` surface.
 
-| Lane | Batch | Longest individual test |
-| --- | ---: | ---: |
-| short | 5 | 3.41 s |
-| short | 20 | 34.47 s |
-| short | 29 | 15.13 s |
-| short | 30 | 14.52 s |
-| full core | 7 | 2.54 s |
-| full core | 9 | 23.05 s |
-| full core | 19 | 34.94 s |
-| full core | 29 | 10.44 s |
+The test-only repair:
 
-The cold compiled-CLI package aggregate took 1,271.838 seconds, while its warm
-JSON replay put the longest individual integration test at 31.09 seconds.
+- split the String and i32 cases into independently reported tests;
+- factored their shared assertion helper;
+- imported the actual canonical owner
+  `able.collections.enumerable.{Enumerable}`; and
+- preserved generated-Go compilation, specialized `drop` helper assertions,
+  and concrete lazy `Iterator<String>`/`Iterator<i32>` assertions.
 
-Two single-shard samples narrowly crossed one minute under sustained pressure
-from the 82-minute compiler matrix. Neither reproduced:
+The new tests take 7.40 and 7.17 seconds. The adjacent canonical
+specialization guard plus both replacements pass together in 39.54 seconds.
 
-- interface-lookup shard 8/24: 19.38, 19.54, and 19.98 seconds; 19.63-second
-  mean;
-- boundary shard 22/24: 17.72, 17.50, and 18.45 seconds; 17.89-second mean.
+Concurrency parity is now four top-level batches and diagnostics parity two
+top-level batches. Their exact fixture subtests remain unchanged; the longest
+observed parity subtest was 28.22 seconds.
 
-No individual test violates the one-minute project limit, so no coverage or
-sharding change is justified.
+The full compiler core JSON audit found a 53.09-second maximum and zero
+individual tests at or above one minute. Release matrices now use 128
+partitions instead of 24:
 
-## Evidence repair
+| Matrix | Result | Maximum under four-worker contention | Serial replay when needed |
+| --- | ---: | ---: | ---: |
+| fallback | 128/128 | 58.707 s | not needed |
+| compiled execution | 128/128 | 123.709 s | 46.896 s package; 24.00 s fixture |
+| strict dispatch | 128/128 | 126.613 s | 16.839 s package; 16.70 s fixture |
+| interface lookup | 128/128 | 67.466 s | 19.541 s package; 19.43 s fixture |
+| boundary marker | 128/128 | 60.809 s | 17.598 s package; 17.50 s fixture |
 
-The repaired chain is:
+The over-one-minute figures are whole processes competing with three other
+compiler processes. Exact serial JSON events demonstrate that no individual
+fixture crosses the policy limit. The unchanged compiled-CLI test code retains
+its prior warm JSON-event maximum of 31.09 seconds.
 
-| Artifact | SHA-256 |
-| --- | --- |
-| performance closure ledger | `f00e9fafd2ad222c018de0748093957687bfd555f3bceb711825ef23191c3ffc` |
-| cross-engine structural strategy | `69679874a7d9666a32411bb126c726349cdfeff692055d6c0d13bf53b5d1f78e` |
-| portable VM backend ADR | `af7eb2539bb16be719af1ead3eb276b8f912e788a15de84371b30436c3d57f2e` |
-| shared-runtime semantic-ABI feasibility | `b7d4ffb2e26f4f88dc317bd456e7f84d7e865d902f661f80ebcd0a867960acfb` |
-| shared-runtime closed-region decision | `83e9792145e78d48bd55e53ecae68c51f4965666302db1e2b14217616f00dea5` |
+## Evidence reconciliation
 
 The final deterministic pass confirms:
 
-- 63 portable applications and 119 selected rows: 63 compiled and 56
+- 63 portable applications and 126 selected rows: 63 compiled and 63
   bytecode;
-- complete five-sample scorecard evidence;
-- 21 current closures and zero invalidations;
+- complete five-sample Able/reference scorecard evidence;
+- 23 current performance closures and zero invalidations;
 - zero actionable frontier groups;
-- all architecture-budget and threshold-control checks;
-- `git diff --check`; and
-- no maintained Go source file at or above 1,000 lines.
+- 6/63 compiled and 4/63 bytecode target passes;
+- a 5.575597x compiled Able/Go geometric-mean ratio;
+- a 12.780200x bytecode geometric mean over Python/Ruby ratios; and
+- all architecture-budget and threshold-control checks.
 
-The v12 specification remained unchanged with SHA-256
-`4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080`.
+The reconciled common 63-application architecture model says a theoretical
+compiled-native bytecode proxy would remove 93.010928% of measured bytecode
+target excess, with 34 projected target passes and 29 misses. However, the
+checked feasibility chain still finds zero concrete eligible hot-function
+classes and zero target closures. This remains strategic evidence, not an
+admissible production implementation.
+
+The v12 specification did not change.
 
 ## Cache and temporary-file cleanup
 
-The cold compiled-CLI run raised the explicit disk-backed compiled-test cache
-to 94 valid entries and 3,464,331,864 bytes. Checksum-aware LRU pruning removed
-52 entries and 1,878,969,544 bytes, leaving 42 valid entries and
-1,585,362,320 bytes below the 1536 MiB ceiling.
-
-There were no corrupt, staging, or obsolete-schema entries. The cache tool
-classified 258 entries and 190,478,898 bytes as unknown and preserved them;
-no caller-owned data was deleted.
-
-The disposable release workspace under `/var/tmp` contains only logs and
-event traces needed to write this record and will be deleted after final hash
-verification.
+The cold release work raised the disposable disk-backed workspace to 28 GiB.
+It contains the isolated Go cache, generated application workspaces, and logs
+used for this record. After recording the results, the exact workspace, the
+29 MiB `/tmp/able-v12-extern-go` directory, and 284 KiB of test-created Python
+bytecode were deleted. No broad `/tmp`, repository, user-cache, or
+caller-owned cleanup was performed.
 
 ## Recommendation
 
 Keep production performance mutation paused and next refresh the non-mutating
-release-consolidation inventory for work retained after the prior July 27
-inventory.
+post-frontier release-consolidation inventory.
 
-Why: the current execution and evidence gates are green and no shared
-performance owner is admitted, while the long-running dirty worktree has
-accumulated substantial retained July 27–28 work.
+Why: all current CPU/allocation coverage and causal boundary evidence agree
+that there is no open general owner spanning three unlike programs, while the
+126-row release surface and 640-partition compiler matrix are now green.
 
-What it entails: map current changed and untracked v12 paths to their dated
-records and dependency-ordered review boundaries. Identify unmatched or
-generated-local paths without deleting them. Do not reset, commit, rewrite
-history, or touch deferred WASM work.
+What it entails: map changed and untracked v12 paths added since the preceding
+consolidation to their dated records and dependency-ordered review boundaries;
+identify unmatched or generated-local paths without deleting, staging,
+committing, resetting, or touching deferred WASM work.
 
 Why it is important: this turns the verified native-lowering and
-interpreter-free state into an auditable release candidate without inventing
-a narrow optimization or risking the existing dirty worktree.
+interpreter-free state into an auditable release candidate, protects the
+extremely dirty worktree, and prevents a benchmark-specific experiment from
+reopening a measured regression. Resume production performance work only when
+a checked evidence invalidation or a new exact open owner reaches three unlike
+families.

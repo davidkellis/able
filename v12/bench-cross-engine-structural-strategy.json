@@ -4,15 +4,15 @@
   "sources": {
     "frontier": {
       "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+      "sha256": "eb2ba1219218732569e91ac23b52cc44b588045e8f69d4ce7930972eb54350d8"
     },
     "native_tier_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "7e58450b286d7b45a25383708bfbcfda7f86865e8943a102c11a3acbfdb24167"
+      "sha256": "a3b73576b074b7709f32c038dca1149f0174c3dc5cdd91a1c19b83bd005f0e2f"
     },
     "compiled_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+      "sha256": "7f9d081284a55c626660692875c93eedb6725056d98ec37f26a554759d33dc1a"
     },
     "compiled_boundary_census": {
       "path": "v12/docs/perf-baselines/2026-07-22-compiled-full-typed-semantic-boundary-census.json",
@@ -20,7 +20,7 @@
     },
     "closure_ledger": {
       "path": "v12/bench-performance-closure-ledger.json",
-      "sha256": "f00e9fafd2ad222c018de0748093957687bfd555f3bceb711825ef23191c3ffc"
+      "sha256": "37f012c500088397808e51edd17d273f417e621082ef449287b3a5aeb554104f"
     }
   },
   "admission": {

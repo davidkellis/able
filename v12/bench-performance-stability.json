@@ -1,159 +1,41 @@
 {
   "kind": "able-performance-stability",
   "schema_version": 1,
-  "selection_sha256": "e6a6ccacc9620f9e1b89e2510cab52a85114ddbf2f41e33abae7c6d8a70241f8",
+  "selection_sha256": "0c72eaf2a1b12d3a5a2f88d00b3382a706f5c5c16977c24b55fb64214f8d429e",
   "scorecard_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
   "entries": [
     {
-      "benchmark": "binarytrees",
-      "mode": "compiled",
-      "classification": "established-meet",
-      "pooled_ratio": 0.9549935126576558,
-      "cohort_ratios": [
-        0.9338941208740972,
-        0.9754841001954166
-      ],
-      "limiting_reference": "go",
-      "able_samples": 10,
-      "reference_samples": 10,
-      "able_source_sha256": "d973598c0ca4e88fcbe96dc852fa64a935cd651b3b85be10121222e9694293d8",
-      "reference_source_sha256": {
-        "go": "27d067b4bfe5f501f1fe2d6a3e0254d699759c750296d9414161c2b5d3623b9f"
-      },
-      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
-      "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
-        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
-      ],
-      "rationale": "Both independent current-source cohorts meet the compiled target."
-    },
-    {
-      "benchmark": "base64",
-      "mode": "compiled",
-      "classification": "volatile-crossing",
-      "pooled_ratio": 0.9885106834490333,
-      "cohort_ratios": [
-        1.0611843228407398,
-        0.9224961195200733
-      ],
-      "limiting_reference": "go",
-      "able_samples": 10,
-      "reference_samples": 10,
-      "able_source_sha256": "b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108",
-      "reference_source_sha256": {
-        "go": "61a41a0ec45d3b3a8c890853d0a7839ce371b758ded8d8b8d0129a5b28390af6"
-      },
-      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
-      "evidence": [
-        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-preserved-compiled.json",
-        "v12/docs/perf-baselines/2026-07-22-current-compiled-scorecard.json",
-        "v12/docs/perf-baselines/2026-07-22-current-compiled-go-scorecard-reconciliation.md"
-      ],
-      "rationale": "The pooled current-source ratio meets, but the immediately preceding five-process cohort misses narrowly, so the new snapshot crossing is not a durable guard."
-    },
-    {
-      "benchmark": "quicksort",
-      "mode": "compiled",
-      "classification": "established-meet",
-      "pooled_ratio": 0.7401068929976997,
-      "cohort_ratios": [
-        0.7571782538988484,
-        0.7223339276907318
-      ],
-      "limiting_reference": "go",
-      "able_samples": 10,
-      "reference_samples": 10,
-      "able_source_sha256": "f54986a03bce5d3fa5bb8d1dd342299c1b6a434a682572d353c46d5f66c1af92",
-      "reference_source_sha256": {
-        "go": "f0bc08270a8f666cb9df5fc21fbbebba5fabd6375e7dc7b1313a5949e7ad485a"
-      },
-      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
-      "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
-        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
-      ],
-      "rationale": "Both independent current-source cohorts meet the compiled target."
-    },
-    {
-      "benchmark": "json",
-      "mode": "compiled",
-      "classification": "established-meet",
-      "pooled_ratio": 0.5607701861121319,
-      "cohort_ratios": [
-        0.5881546476556073,
-        0.5332782141380736
-      ],
-      "limiting_reference": "go",
-      "able_samples": 10,
-      "reference_samples": 10,
-      "able_source_sha256": "84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a",
-      "reference_source_sha256": {
-        "go": "6ea05b659c17322d9fd009c1b6f7ca3862e4621d2d854bbae25cd2eaccbc91c1"
-      },
-      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
-      "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
-        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
-      ],
-      "rationale": "Both independent current-source cohorts meet the compiled target."
-    },
-    {
-      "benchmark": "monte_carlo_pi",
-      "mode": "compiled",
-      "classification": "volatile-crossing",
-      "pooled_ratio": 1.0049177921359118,
-      "cohort_ratios": [
-        0.9272097053726169,
-        1.1579481970543424,
-        0.9497964721845319
-      ],
-      "limiting_reference": "go",
-      "able_samples": 15,
-      "reference_samples": 15,
-      "able_source_sha256": "9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c",
-      "reference_source_sha256": {
-        "go": "34b6ad655126f97e453b17350d49552144c2bcd332fb3b3ca7192382554e3877"
-      },
-      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
-      "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-threshold-stability-variance.json",
-        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md"
-      ],
-      "rationale": "The pooled ratio meets, but one of three independent cohorts misses materially, so this snapshot crossing is not a durable guard."
-    },
-    {
-      "benchmark": "await_channel_mux",
+      "benchmark": "fib",
       "mode": "bytecode",
-      "classification": "variance-sensitive-miss",
-      "pooled_ratio": 1.2178379976698783,
+      "classification": "established-meet",
+      "pooled_ratio": 0.052995661859538044,
       "cohort_ratios": [
-        1.7258404818254562,
-        0.9324055340069852
+        0.05715602673427057,
+        0.04868735083532219
       ],
       "limiting_reference": "ruby",
       "able_samples": 10,
       "reference_samples": 10,
-      "able_source_sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c",
+      "able_source_sha256": "96683db985102a2ae6d82919b95c1da572febe499cccd2490971dcd9647019cd",
       "reference_source_sha256": {
-        "python": "7d8f70c24001b98261028d86c6438c0eb54dfc2dfaa6fe83f7e587ba9a4017ad",
-        "ruby": "3ffb141e0e2ea79cad28c12eb8de625fc852f5fc6e4359b1f79084bd34e7e2ea"
+        "python": "713f87ed003b1d6e99f2fdc0ff5b4e21d52935fcf3110b6a02d3fb378cd2ccac",
+        "ruby": "8a05f59f64e61e6514be4b200bf27953b75f6f97224bd9b6dec3c5a4a40bb61d"
       },
       "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
       "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-current-product-scorecard-async-bytecode-02-selected.json",
-        "v12/docs/perf-baselines/2026-07-22-current-bytecode-scorecard.json",
-        "v12/docs/perf-baselines/2026-07-22-current-bytecode-interpreter-scorecard-reconciliation.md"
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json"
       ],
-      "rationale": "The new snapshot meets, but the immediately preceding cohort and the pooled limiting Ruby ratio miss, so Await Channel Mux is not a durable guard."
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
     },
     {
       "benchmark": "json",
       "mode": "bytecode",
       "classification": "established-meet",
-      "pooled_ratio": 0.5331171280484366,
+      "pooled_ratio": 0.5242054366413114,
       "cohort_ratios": [
-        0.4741704921843221,
-        0.593447107094012
+        0.5217807563427477,
+        0.5265605021504127
       ],
       "limiting_reference": "ruby",
       "able_samples": 10,
@@ -165,19 +47,43 @@
       },
       "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
       "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
-        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json"
       ],
-      "rationale": "Both independent current-source cohorts meet against both interpreters, including the faster Ruby reference."
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "bytecode",
+      "classification": "established-meet",
+      "pooled_ratio": 0.32092864458859677,
+      "cohort_ratios": [
+        0.32706670100437807,
+        0.31466579077024137
+      ],
+      "limiting_reference": "ruby",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "ac3f407e202dd793db41431eb7b5b26e0c60472583e552624bad5ceca404c123",
+      "reference_source_sha256": {
+        "python": "db91f1b169f289258edfd3497815731c042e21f51037442291e6f07348740da4",
+        "ruby": "0f24effadf62b5a38281b13267b06d33cda192d377adf0d024fd371df38b3d37"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json"
+      ],
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
     },
     {
       "benchmark": "pidigits",
       "mode": "bytecode",
       "classification": "established-meet",
-      "pooled_ratio": 0.5909284225823324,
+      "pooled_ratio": 0.5987062886046398,
       "cohort_ratios": [
-        0.5627478144556441,
-        0.6199679921211375
+        0.6028456695255564,
+        0.5947210157033077
       ],
       "limiting_reference": "python",
       "able_samples": 10,
@@ -189,10 +95,148 @@
       },
       "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
       "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-source-exact-guards-variance.json",
-        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md"
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json"
       ],
-      "rationale": "Both independent current-source cohorts meet against both interpreters, including the faster Python reference."
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "base64",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.8949950932286556,
+      "cohort_ratios": [
+        0.8563664596273292,
+        0.9344978165938864
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108",
+      "reference_source_sha256": {
+        "go": "61a41a0ec45d3b3a8c890853d0a7839ce371b758ded8d8b8d0129a5b28390af6"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
+      ],
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.9916760404949381,
+      "cohort_ratios": [
+        0.9673699988469964,
+        1.0130824039128743
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "b2e5cd3b3f439960e39e04b2da675321e9bc45c1b5d811bdb9d61069bb168eeb",
+      "reference_source_sha256": {
+        "go": "27d067b4bfe5f501f1fe2d6a3e0254d699759c750296d9414161c2b5d3623b9f"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
+      ],
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "json",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.42102686494094604,
+      "cohort_ratios": [
+        0.3958935965061539,
+        0.4504684074147897
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a",
+      "reference_source_sha256": {
+        "go": "6ea05b659c17322d9fd009c1b6f7ca3862e4621d2d854bbae25cd2eaccbc91c1"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
+      ],
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.7860445565363599,
+      "cohort_ratios": [
+        0.6456293072179905,
+        0.9795102448775612
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c",
+      "reference_source_sha256": {
+        "go": "34b6ad655126f97e453b17350d49552144c2bcd332fb3b3ca7192382554e3877"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
+      ],
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "pidigits",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.9149209063702438,
+      "cohort_ratios": [
+        0.8794495961711037,
+        0.9533058185643764
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "236a74ef456b4a5ca3e33a743a0b3b8e8767db9cfa07dd619df870bff876d5cb",
+      "reference_source_sha256": {
+        "go": "c8669a71e52ce32ed4e6852547efec42f67e8b8f5656e88653720d74b37da58c"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
+      ],
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.6772627771961549,
+      "cohort_ratios": [
+        0.6515716765781405,
+        0.7045793731835678
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "13dc68cc43b87d80d21943a45ca24f0722614f3b151f2ed26ef4f1025b103338",
+      "reference_source_sha256": {
+        "go": "24e8c148e54ff9ecad02af8477de362ff6da6ba5707709a44c4ff1360e393103"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
+      ],
+      "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
     }
   ]
 }

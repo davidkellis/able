@@ -1,0 +1,205 @@
+{
+  "kind": "able-v12-post-frontier-release-inventory",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "authorized-exact-181-path-local-commit",
+  "repository": {
+    "head": "5bbe9e4594bfb2b7e7f8c84b9fbed9314c0ee8db",
+    "origin_master": "5bbe9e4594bfb2b7e7f8c84b9fbed9314c0ee8db",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0,
+    "index_sha256": "2d58f619060aeb960c342c2aaef79a0181439b121d5c78f443f83a3bdd73353e"
+  },
+  "snapshot": {
+    "visible_dirty_paths": 212,
+    "tracked_modified_paths": 74,
+    "untracked_paths": 138,
+    "deleted_paths": 0,
+    "renamed_paths": 0,
+    "tracked_additions": 6478,
+    "tracked_deletions": 4492,
+    "porcelain_z_sha256": "f355f1c5c876beab17060b6c5a96df81b1e01f35521724e4c2efd236a9c5ba07",
+    "manifest": "2026-07-28-post-frontier-release-inventory.tsv",
+    "manifest_rows": 212,
+    "manifest_bytes": 51897,
+    "manifest_sha256": "13154fd551ada27f96b02538c0b321343672d13283bd1f585a63e9bda9f7ee66"
+  },
+  "boundaries": [
+    {
+      "order": 1,
+      "id": "benchmark-contract-implementation",
+      "tracked_modified": 13,
+      "untracked": 0,
+      "paths": 13,
+      "lines": 4581,
+      "bytes": 157065,
+      "disposition": "retain",
+      "path_sha256": "126b5e511318e03197fc411a8ad5d0919c5330499df2e7c787f487cbec436dd0"
+    },
+    {
+      "order": 2,
+      "id": "benchmark-contract-evidence",
+      "tracked_modified": 4,
+      "untracked": 104,
+      "paths": 108,
+      "lines": 40185,
+      "bytes": 1927781,
+      "disposition": "retain",
+      "path_sha256": "1803f31d39466eca7fcb183178eee62c8b15dcaaa5b8da5ef8199b7cc7d248da"
+    },
+    {
+      "order": 3,
+      "id": "bytecode-profile-coverage",
+      "tracked_modified": 0,
+      "untracked": 6,
+      "paths": 6,
+      "lines": 1862,
+      "bytes": 80364,
+      "disposition": "retain",
+      "path_sha256": "f20ef2e4fb83653df168855c48d8f9ccfd7516941e191a896b990c645e3d9287"
+    },
+    {
+      "order": 4,
+      "id": "bytecode-semantic-boundary-closure",
+      "tracked_modified": 4,
+      "untracked": 2,
+      "paths": 6,
+      "lines": 1277,
+      "bytes": 145785,
+      "disposition": "retain",
+      "path_sha256": "9529db50b7babb97c2332fb05415ec66968ac9959b8f4acc482776568205c4b9"
+    },
+    {
+      "order": 5,
+      "id": "derived-architecture-reconciliation",
+      "tracked_modified": 37,
+      "untracked": 0,
+      "paths": 37,
+      "lines": 26766,
+      "bytes": 1333913,
+      "disposition": "retain",
+      "path_sha256": "3eee6177eeb2d15a8a4163edc3b7764aec0870a2b44cbad160b30a52a423a85d"
+    },
+    {
+      "order": 6,
+      "id": "compiler-release-readiness",
+      "tracked_modified": 5,
+      "untracked": 0,
+      "paths": 5,
+      "lines": 2209,
+      "bytes": 73107,
+      "disposition": "retain",
+      "path_sha256": "934d7d28074266623f6fc1d02711600c4f79804d2768155618d6f11696a3ff0f"
+    },
+    {
+      "order": 7,
+      "id": "handoff-release-tooling",
+      "tracked_modified": 3,
+      "untracked": 0,
+      "paths": 3,
+      "lines": 56184,
+      "bytes": 3915779,
+      "disposition": "retain",
+      "path_sha256": "f9a85fb7af9ed46f62707946d78bc8d9840068d7105f2f1a4fde6e33ea3620e4"
+    },
+    {
+      "order": null,
+      "id": "deferred-wasm",
+      "tracked_modified": 8,
+      "untracked": 26,
+      "paths": 34,
+      "lines": 3266,
+      "bytes": 103984,
+      "disposition": "hold",
+      "path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e"
+    }
+  ],
+  "totals": {
+    "retained_paths": 178,
+    "retained_tracked_modified": 66,
+    "retained_untracked": 112,
+    "retained_lines": 133064,
+    "retained_bytes": 7633794,
+    "retained_path_sha256": "f85b12851614a5f716463feab8d719ee53889beda76f099e27e0c670630b5b44",
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "generated_local_paths": 0,
+    "unmatched_paths": 0
+  },
+  "record_coverage": {
+    "root_log_new_entries": 7,
+    "v12_log_new_entries": 7,
+    "root_log_unique_dated_record_references": 7,
+    "v12_log_unique_dated_record_references": 7,
+    "missing_referenced_records": 0,
+    "governing_record_counts": {
+      "2026-07-28-bytecode-current-source-profile-coverage-closure.md": 6,
+      "2026-07-28-bytecode-portable-workload-scale-calibration.md": 20,
+      "2026-07-28-bytecode-semantic-boundary-reach-closure.md": 6,
+      "2026-07-28-bytecode-unranked-coverage-admission-search.md": 4,
+      "2026-07-28-mode-aware-benchmark-contract-closure.md": 97,
+      "2026-07-28-v12-correctness-release-readiness-closure.md": 45,
+      "deferred-wasm": 34
+    }
+  },
+  "validation": {
+    "identity_rows_reproduced": 212,
+    "git_diff_check": "pass",
+    "dirty_json_files": 75,
+    "invalid_json_files": 0,
+    "dirty_go_files": 14,
+    "gofmt_unformatted_files": 0,
+    "dirty_maintained_source_files": 51,
+    "source_files_at_or_above_1000_lines": 0,
+    "largest_source_file": {
+      "path": "v12/bench_external_catalog.sh",
+      "lines": 997
+    },
+    "performance_evidence_paths": 132,
+    "performance_evidence_bytes": 3168352,
+    "v10_v11_paths": 0,
+    "deprecated_stdlib_paths": 0,
+    "external_able_stdlib_paths": 0,
+    "secret_like_filenames": 0,
+    "common_secret_signature_matches": 0,
+    "deferred_wasm_path_set_matches_preceding_inventory": true,
+    "cleanup_dry_run_reclaimable_gib": 4.01,
+    "cleanup_dry_run_generated_paths": 3,
+    "cached_candidate_paths": 181,
+    "cached_identity_rows_reproduced": 178,
+    "cached_json_files": 72,
+    "cached_go_files": 3,
+    "cached_gofmt_unformatted_files": 0,
+    "cached_binary_files": 0,
+    "cached_deferred_wasm_paths": 0,
+    "cached_git_diff_check": "pass",
+    "unstaged_deferred_wasm_complement_paths": 34
+  },
+  "inventory_metadata": {
+    "self_referential_rows_in_snapshot": 0,
+    "paths_added_after_snapshot": 3,
+    "exact_post_record_candidate_paths": 181,
+    "candidate_lf_path_sha256": "21a3aa4c94d62cfeaa3da7b87a7fe354b253800c299233cb9b8ca0abc2c32510",
+    "candidate_nul_pathspec_sha256": "fd41801a0261058210ab24e5c31660ea1ea59ed990b1208a8edde1056a8596f8",
+    "retained_identity_rows": 178,
+    "retained_identity_lines": 133167,
+    "retained_identity_bytes": 7639403,
+    "retained_identity_manifest_bytes": 27370,
+    "retained_identity_manifest_sha256": "0a9635e0b0e99f740b9cb803167dd0cd5627af14bf2e8c0b4a90b833eb1f0a2a"
+  },
+  "authorization": {
+    "scope": "exact-181-path-local-commit",
+    "staging_authorized": true,
+    "commit_authorized": true,
+    "push_authorized": false,
+    "broad_git_add_used": false,
+    "commit_message": "release: consolidate Able v12 post-frontier state"
+  },
+  "next": {
+    "id": "explicit-publish-authorization",
+    "why": "The exact retained boundary is consolidated locally, but pushing changes external repository state and was not included in the local-commit authorization.",
+    "entails": "Inspect the final commit and branch divergence, confirm the remote destination and exact commit range, and push only after separate explicit authorization.",
+    "importance": "This prevents publishing inactive WASM or an unintended commit range while preserving the verified native-lowering and interpreter-free state."
+  }
+}

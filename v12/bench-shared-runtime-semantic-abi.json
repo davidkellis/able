@@ -4,11 +4,11 @@
   "sources": {
     "backend_adr": {
       "path": "v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
-      "sha256": "af7eb2539bb16be719af1ead3eb276b8f912e788a15de84371b30436c3d57f2e"
+      "sha256": "89432b044deb1227c818b80fce12c63db27c369cbe36233f29d0b54992b4358d"
     },
     "native_tier_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "7e58450b286d7b45a25383708bfbcfda7f86865e8943a102c11a3acbfdb24167"
+      "sha256": "a3b73576b074b7709f32c038dca1149f0174c3dc5cdd91a1c19b83bd005f0e2f"
     },
     "bytecode_architecture_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -16,7 +16,7 @@
     },
     "compiled_architecture_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+      "sha256": "7f9d081284a55c626660692875c93eedb6725056d98ec37f26a554759d33dc1a"
     },
     "spec": {
       "path": "spec/full_spec_v12.md",

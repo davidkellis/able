@@ -91,6 +91,29 @@
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-architecture-closure-refresh.md",
         "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md"
       ]
+    },
+    {
+      "id": "bytecode-semantic-boundary-reach",
+      "modes": ["bytecode"],
+      "disposition": "closed-rejected-candidate",
+      "owner": "Primitive materialization grouped by exact primitive kind and consumer operation exposes only the previously rejected generic nominal-field carrier rule and its aggregate member-write form across three unlike families.",
+      "rationale": "Eight verified family representatives recorded 25,994,536 main-only transitions with no dropped sites. The three broad exact shapes are generic nominal field construction or retention; the governing raw-field experiment already regressed Sensor Calibration 6.93% and Rational Series 4.28%, so no production prototype is admissible.",
+      "benchmarks": [
+        "k_nucleotide",
+        "sudoku_masks",
+        "fixed_width_128",
+        "policy_record_dispatch",
+        "distance_field",
+        "discrete_event_simulation",
+        "concurrent_transform_chain",
+        "reverse_complement"
+      ],
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-bytecode-semantic-boundary-reach-closure.md",
+        "v12/docs/perf-baselines/2026-07-28-bytecode-semantic-boundary-reach-closure.json",
+        "v12/docs/perf-baselines/2026-07-26-bytecode-primitive-materialization-boundary-census-closure.md",
+        "v12/docs/perf-baselines/2026-07-26-bytecode-primitive-materialization-boundary-census-closure.json"
+      ]
     }
   ]
 }

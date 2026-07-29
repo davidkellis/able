@@ -139,7 +139,7 @@ if [[ -n "$FILTER" ]]; then
 fi
 
 COMPILER_HEAVY_RELEASE_TESTS_EGREP='^(TestCompilerExecFixtures|TestCompilerExecFixtureFallbacks|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerInterfaceLookupBypassForStaticFixtures(Batch[1-4])?|TestCompilerBoundaryFallbackMarkerForStaticFixtures(Batch[0-9]+)?)$'
-COMPILER_CORE_OUTLIER_TESTS_EGREP='^TestCompiler.*ParityFixtures$'
+COMPILER_CORE_OUTLIER_TESTS_EGREP='^TestCompiler.*ParityFixtures(Batch[0-9]+)?$'
 
 echo ">>> Running Go tests"
 (
@@ -340,7 +340,7 @@ echo ">>> Running Go tests"
           "ABLE_COMPILER_EXEC_FIXTURES" \
           "ABLE_COMPILER_EXEC_FIXTURE_BATCH_INDEX" \
           "ABLE_COMPILER_EXEC_FIXTURE_BATCH_COUNT" \
-          "24" \
+          "128" \
           '^TestCompilerExecFixtureFallbacks$'
 
         echo ">>> Running compiler full compiled fixture matrix"
@@ -349,7 +349,7 @@ echo ">>> Running Go tests"
           "ABLE_COMPILER_EXEC_FIXTURES" \
           "ABLE_COMPILER_EXEC_FIXTURE_BATCH_INDEX" \
           "ABLE_COMPILER_EXEC_FIXTURE_BATCH_COUNT" \
-          "24" \
+          "128" \
           '^TestCompilerExecFixtures$'
 
         echo ">>> Running compiler strict-dispatch audit"
@@ -358,7 +358,7 @@ echo ">>> Running Go tests"
           "ABLE_COMPILER_STRICT_DISPATCH_FIXTURES" \
           "ABLE_COMPILER_STRICT_DISPATCH_BATCH_INDEX" \
           "ABLE_COMPILER_STRICT_DISPATCH_BATCH_COUNT" \
-          "24" \
+          "128" \
           '^TestCompilerStrictDispatchForStdlibHeavyFixtures$'
 
         echo ">>> Running compiler interface-lookup audit"
@@ -367,7 +367,7 @@ echo ">>> Running Go tests"
           "ABLE_COMPILER_INTERFACE_LOOKUP_FIXTURES" \
           "ABLE_COMPILER_INTERFACE_LOOKUP_BATCH_INDEX" \
           "ABLE_COMPILER_INTERFACE_LOOKUP_BATCH_COUNT" \
-          "24" \
+          "128" \
           '^TestCompilerInterfaceLookupBypassForStaticFixtures$'
 
         echo ">>> Running compiler boundary audit"
@@ -376,7 +376,7 @@ echo ">>> Running Go tests"
           "ABLE_COMPILER_BOUNDARY_AUDIT_FIXTURES" \
           "ABLE_COMPILER_BOUNDARY_AUDIT_BATCH_INDEX" \
           "ABLE_COMPILER_BOUNDARY_AUDIT_BATCH_COUNT" \
-          "24" \
+          "128" \
           '^TestCompilerBoundaryFallbackMarkerForStaticFixtures$'
       fi
     fi

@@ -10,17 +10,17 @@ class rather than a concrete mechanism. Timing reach does not answer who owns
 boxed values and GC roots, how effects and suspension cross the boundary, or how
 the backend is built and distributed.
 
-The governing frontier has 119 selected rows,
-111 misses, and 188.451579
-seconds of target excess. Bytecode contributes 153.740632
-seconds. All 21 completed performance closures remain current.
+The governing frontier has 126 selected rows,
+116 misses, and 227.179053
+seconds of target excess. Bytecode contributes 221.503684
+seconds. All 23 completed performance closures remain current.
 
 ## Route comparison
 
 | Route | Optimistic material rows | Implementation / deployment cost | Semantic risk | Decision |
 | --- | ---: | --- | --- | --- |
 | Typed bytecode specialization | 3/6 | high / low | medium | `reject-current-route` |
-| Portable lower-level backend | 5/5 phase-one; 5/6 full | very high / high | very high | `performance-capable-design-only` |
+| Portable lower-level backend | 5/5 phase-one; 6/6 full | very high / high | very high | `performance-capable-design-only` |
 | Compiled nominal ABI | max breadth 2 | high / low | medium | `reject-current-route` |
 
 ### Typed bytecode semantic specialization
@@ -32,12 +32,12 @@ slot hint, or Go-level specialized dispatch loop is too small.
 
 | Application | Family | Proven instruction share | Excess reduction | Gate |
 | --- | --- | ---: | ---: | --- |
-| `fixed_width_128` | wide-numeric | 33.25% | 34.76% | pass |
-| `distance_field` | float-numeric | 41.03% | 44.07% | pass |
+| `fixed_width_128` | wide-numeric | 33.25% | 34.95% | pass |
+| `distance_field` | float-numeric | 41.03% | 43.74% | pass |
 | `concurrent_event_routing` | concurrency-text | 8.68% | 8.77% | fail |
-| `word_frequency` | text-map | 8.90% | 9.06% | fail |
-| `array_slice_window` | array-iterator | 29.35% | 32.12% | pass |
-| `reverse_complement` | byte-text | 23.27% | 23.52% | fail |
+| `word_frequency` | text-map | 8.90% | 9.03% | fail |
+| `array_slice_window` | array-iterator | 29.35% | 30.63% | pass |
+| `reverse_complement` | byte-text | 23.27% | 23.46% | fail |
 
 Only three of six rows clear 25%, so the route fails the every-governing-row
 gate. It also substantially overlaps the rejected typed-region, register-loop,
@@ -56,10 +56,10 @@ fallback for unsupported activations.
 | --- | --- | --- | ---: | --- |
 | `fixed_width_128` | wide-numeric | yes | 100.00% | pass |
 | `distance_field` | float-numeric | yes | 100.00% | pass |
-| `concurrent_event_routing` | concurrency-text | fallback | 10.62% | fail |
-| `word_frequency` | text-map | yes | 88.82% | pass |
-| `array_slice_window` | array-iterator | yes | 95.03% | pass |
-| `reverse_complement` | byte-text | yes | 98.01% | pass |
+| `concurrent_event_routing` | concurrency-text | fallback | 99.75% | pass |
+| `word_frequency` | text-map | yes | 98.07% | pass |
+| `array_slice_window` | array-iterator | yes | 98.27% | pass |
+| `reverse_complement` | byte-text | yes | 99.26% | pass |
 
 All 5 unlike phase-one rows clear the
 materiality bar, and five of six full-corpus rows do. This makes the route worth

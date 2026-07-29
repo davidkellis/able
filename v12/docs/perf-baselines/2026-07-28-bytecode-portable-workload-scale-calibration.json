@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "admit_general_mode_aware_benchmark_contract_promotion",
+  "production_optimization_admitted": false,
+  "source_commit": "5bbe9e4594bfb2b7e7f8c84b9fbed9314c0ee8db",
+  "bytecode_cli_sha256": "9d3559c1295b110ed95834f35cf08a040decbf4c2ea212370e47433a3becde4f",
+  "canonical_stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+  "execution_contract": {
+    "logical_cpu_budget": 1,
+    "cpu_affinity": "0",
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "timeout_seconds": 60,
+    "runs_per_language": 5,
+    "launch_order": [
+      ["able", "python", "ruby"],
+      ["python", "ruby", "able"],
+      ["ruby", "able", "python"]
+    ]
+  },
+  "verification": {
+    "total_samples": 105,
+    "completed_samples": 105,
+    "verified_samples": 105,
+    "maximum_process_seconds_less_than": 24.5
+  },
+  "applications": [
+    {
+      "benchmark": "binarytrees",
+      "canonical_scale": "depth=21",
+      "calibrated_scale": "depth=15",
+      "able_mean_seconds": 11.625683,
+      "python_mean_seconds": 0.584139,
+      "ruby_mean_seconds": 0.581757,
+      "able_over_python": 19.902247,
+      "able_over_ruby": 19.983757
+    },
+    {
+      "benchmark": "nbody",
+      "canonical_scale": "steps=500000",
+      "calibrated_scale": "steps=50000",
+      "able_mean_seconds": 8.892018,
+      "python_mean_seconds": 0.20977,
+      "ruby_mean_seconds": 0.349334,
+      "able_over_python": 42.389369,
+      "able_over_ruby": 25.454187
+    },
+    {
+      "benchmark": "quicksort",
+      "canonical_scale": "integers=10000000",
+      "calibrated_scale": "integers=500000",
+      "able_mean_seconds": 12.433842,
+      "python_mean_seconds": 0.685404,
+      "ruby_mean_seconds": 0.690791,
+      "able_over_python": 18.140901,
+      "able_over_ruby": 17.999437
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "canonical_scale": "puzzles=10;passes=10",
+      "calibrated_scale": "puzzles=10;passes=1",
+      "able_mean_seconds": 24.084107,
+      "python_mean_seconds": 1.739264,
+      "ruby_mean_seconds": 2.137725,
+      "able_over_python": 13.847295,
+      "able_over_ruby": 11.266231
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "canonical_scale": "delay_loop_levels=7",
+      "calibrated_scale": "delay_loop_levels=5",
+      "able_mean_seconds": 20.495694,
+      "python_mean_seconds": 0.633506,
+      "ruby_mean_seconds": 0.750641,
+      "able_over_python": 32.352822,
+      "able_over_ruby": 27.304263
+    },
+    {
+      "benchmark": "fib",
+      "canonical_scale": "n=45",
+      "calibrated_scale": "n=40",
+      "able_mean_seconds": 0.114012,
+      "python_mean_seconds": 5.287008,
+      "ruby_mean_seconds": 4.291891,
+      "able_over_python": 0.021565,
+      "able_over_ruby": 0.026565
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "canonical_scale": "n=1000",
+      "calibrated_scale": "n=400",
+      "able_mean_seconds": 0.735755,
+      "python_mean_seconds": 3.214674,
+      "ruby_mean_seconds": 3.143816,
+      "able_over_python": 0.228874,
+      "able_over_ruby": 0.234032
+    }
+  ],
+  "geometric_mean_fourteen_ratios": 4.23274826768297,
+  "full_profile_result": {
+    "profiles": 5,
+    "verified": 5,
+    "shared_exact_functions": [
+      "(*bytecodeVM).runResumable",
+      "bytecodeRawIntegerValueInfo"
+    ],
+    "open_owner_repeating_in_three_unlike_applications": false
+  },
+  "retained_changes": [
+    "calibration_evidence",
+    "profile_tops",
+    "handoff"
+  ],
+  "unchanged": [
+    "compiler",
+    "generated_runtime",
+    "runtime",
+    "interpreter",
+    "bytecode_vm",
+    "canonical_stdlib",
+    "benchmark_sources",
+    "external_benchmark_suite",
+    "selection_manifest",
+    "current_scorecard",
+    "wasm"
+  ],
+  "evidence_sha256": {
+    "balanced_runs": "5ab58ba38a7318c6f8bd7a0d84b84ae711b2b81182b271513fb32c5662e83912",
+    "summary": "5ac14291a4e1dd8a4c7a35456bea1a99cab011d8fd9311b824e6fefd615303aa",
+    "source_manifest": "33f3576b9ab462baf69e309433add29d1b97496ceedb6f58a60ef698089c8bb8",
+    "tapelang_input": "381f864256b3c636e4db0278ec11dda44e83f3f20a42317bfc370bb2083458b6",
+    "profile_runs": "b846c339877c700764c21df23c040ceb036222bb67ededf50f591e14037cc124",
+    "profile_manifest": "9853577b5e8beae4966902c185fc39a6349625a14f496466f05679d8df1c19e3"
+  },
+  "next": {
+    "objective": "implement_general_mode_aware_benchmark_arguments_and_refresh_all_126_rows",
+    "selection_after_success": {
+      "compiled": 63,
+      "bytecode": 63
+    },
+    "production_compiler_or_vm_mutation_allowed": false
+  }
+}

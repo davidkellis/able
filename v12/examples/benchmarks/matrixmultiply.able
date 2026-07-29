@@ -2,6 +2,31 @@ package matrixmultiply
 
 import able.kernel.{Array}
 import able.collections.array
+import able.io
+import able.os
+
+fn parse_positive_i32(text: String) -> i32 {
+  result := 0
+  bytes := io.string_to_bytes(text)
+  idx := 0
+  loop {
+    if idx >= bytes.len() { break }
+    byte := bytes.read_slot(idx)
+    if byte < 48_u8 || byte > 57_u8 { return 0 }
+    result = result * 10 + ((byte - 48_u8) as i32)
+    idx = idx + 1
+  }
+  result
+}
+
+fn requested_size() -> i32 {
+  args := os.args()
+  if args.len() > 0 {
+    n := parse_positive_i32(args.get(0)!)
+    if n > 0 { return n }
+  }
+  1000
+}
 
 fn build_matrix(n: i32) -> Array (Array f64) {
   t := 1.0 / (n as f64) / (n as f64)
@@ -66,7 +91,7 @@ fn matmul(a: Array (Array f64), b: Array (Array f64)) -> Array (Array f64) {
 }
 
 fn main() {
-  n := 1000
+  n := requested_size()
   n = (n / 2) as i32 * 2
   a := build_matrix(n)
   b := build_matrix(n)

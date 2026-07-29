@@ -1,13 +1,13 @@
 # Cross-mode performance frontier
 
-Generated from `2026-07-27T20:00:44.352662Z` scorecard evidence. This ledger joins all 119 reviewed rows; it excludes unselected status-only rows.
+Generated from `2026-07-28T20:26:09.989405Z` scorecard evidence. This ledger joins all 126 reviewed rows; it excludes unselected status-only rows.
 
 ## Outcome
 
-- Selected rows: 63 compiled + 56 bytecode = 119.
-- Product target: 8 meet, 111 miss.
-- Established cross-cohort guards: 5 (3 compiled + 2 bytecode); 3 snapshot meets are not established.
-- Aggregate time above the per-row 95%-of-reference budget: 188.452 seconds.
+- Selected rows: 63 compiled + 63 bytecode = 126.
+- Product target: 10 meet, 116 miss.
+- Established cross-cohort guards: 10 (6 compiled + 4 bytecode); 0 snapshot meets are not established.
+- Aggregate time above the per-row 95%-of-reference budget: 227.179 seconds.
 - Unclosed groups: 0.
 
 ## Actionable groups
@@ -22,198 +22,219 @@ Generated from `2026-07-27T20:00:44.352662Z` scorecard evidence. This ledger joi
 
 | Benchmark | Mode | Snapshot | Established | Stability | Able s | Worst ratio | Excess s | Freshness | Disposition | Group |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | --- | --- | --- |
-| array_slice_window | bytecode | miss | not-applicable | - | 0.744 | 12.197 | 0.680 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
-| await_channel_mux | bytecode | meets | not-established | variance-sensitive-miss | 0.200 | 0.932 | 0.000 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| backup_dedup | bytecode | miss | not-applicable | - | 1.916 | 16.404 | 1.793 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| base64 | bytecode | miss | not-applicable | - | 2.840 | 1.113 | 0.155 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
-| binary_event_log | bytecode | miss | not-applicable | - | 7.026 | 39.494 | 6.839 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| channel_rollup | bytecode | miss | not-applicable | - | 0.538 | 11.423 | 0.488 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_audio_voices | bytecode | miss | not-applicable | - | 1.290 | 10.403 | 1.159 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_document_pipeline | bytecode | miss | not-applicable | - | 0.290 | 12.664 | 0.266 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_event_routing | bytecode | miss | not-applicable | - | 3.256 | 96.905 | 3.221 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_graph_visitors | bytecode | miss | not-applicable | - | 0.954 | 17.699 | 0.897 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_packet_codecs | bytecode | miss | not-applicable | - | 0.882 | 11.236 | 0.799 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_policy_callbacks | bytecode | miss | not-applicable | - | 0.382 | 6.655 | 0.322 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_scene_tiles | bytecode | miss | not-applicable | - | 0.672 | 8.784 | 0.591 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_signal_dispatch | bytecode | miss | not-applicable | - | 1.614 | 26.373 | 1.550 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_state_machines | bytecode | miss | not-applicable | - | 0.302 | 5.511 | 0.244 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_stateful_pipeline | bytecode | miss | not-applicable | - | 0.350 | 7.114 | 0.298 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_stencil_reduction | bytecode | miss | not-applicable | - | 1.862 | 19.335 | 1.761 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_text_index | bytecode | miss | not-applicable | - | 0.768 | 7.893 | 0.666 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_transform_chain | bytecode | miss | not-applicable | - | 2.830 | 17.383 | 2.659 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| concurrent_tree_folds | bytecode | miss | not-applicable | - | 0.380 | 6.847 | 0.322 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| config_validation_extraction | bytecode | miss | not-applicable | - | 1.380 | 63.303 | 1.357 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
-| dependency_plan | bytecode | miss | not-applicable | - | 0.556 | 28.808 | 0.536 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
-| dependency_wave_validation | bytecode | miss | not-applicable | - | 0.562 | 15.921 | 0.525 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| discrete_event_simulation | bytecode | miss | not-applicable | - | 4.736 | 27.892 | 4.557 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
-| distance_field | bytecode | miss | not-applicable | - | 5.914 | 15.254 | 5.506 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
-| document_audit | bytecode | miss | not-applicable | - | 0.296 | 19.866 | 0.280 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
-| fasta_generation | bytecode | miss | not-applicable | - | 1.958 | 9.641 | 1.744 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
-| fixed_width_128 | bytecode | miss | not-applicable | - | 8.522 | 24.321 | 8.153 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
-| future_await_race | bytecode | miss | not-applicable | - | 0.152 | 4.578 | 0.117 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| future_pipeline | bytecode | miss | not-applicable | - | 0.458 | 7.316 | 0.392 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| i_before_e | bytecode | miss | not-applicable | - | 0.534 | 6.350 | 0.445 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| inventory_reconciliation | bytecode | miss | not-applicable | - | 2.624 | 34.987 | 2.545 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| json | bytecode | meets | established | established-meet | 0.894 | 0.464 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `bytecode-target-guards` |
-| k_nucleotide | bytecode | miss | not-applicable | - | 46.530 | 31.785 | 44.989 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| lexical_rollup | bytecode | miss | not-applicable | - | 0.448 | 16.654 | 0.420 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
-| log_routing_redaction | bytecode | miss | not-applicable | - | 3.128 | 142.831 | 3.105 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
-| mandelbrot | bytecode | miss | not-applicable | - | 6.814 | 4.580 | 5.248 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
-| manifest_normalization | bytecode | miss | not-applicable | - | 1.582 | 63.534 | 1.556 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| monte_carlo_pi | bytecode | miss | not-applicable | - | 2.644 | 1.549 | 0.848 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
-| mutex_await_journal | bytecode | miss | not-applicable | - | 0.196 | 6.490 | 0.164 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| mutex_ledger | bytecode | miss | not-applicable | - | 0.376 | 10.899 | 0.340 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| mutex_work_queue | bytecode | miss | not-applicable | - | 0.340 | 11.724 | 0.309 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| option_result_config | bytecode | miss | not-applicable | - | 0.834 | 43.665 | 0.814 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
-| pidigits | bytecode | meets | established | established-meet | 2.454 | 0.562 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `bytecode-target-guards` |
-| policy_record_dispatch | bytecode | miss | not-applicable | - | 7.452 | 234.340 | 7.419 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
-| rational_series | bytecode | miss | not-applicable | - | 4.326 | 22.828 | 4.127 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
-| regex_set_audit | bytecode | miss | not-applicable | - | 4.518 | 175.116 | 4.491 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
-| regex_stream_audit | bytecode | miss | not-applicable | - | 3.596 | 123.151 | 3.565 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
-| regex_suffix_audit | bytecode | miss | not-applicable | - | 3.552 | 111.348 | 3.518 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
-| reverse_complement | bytecode | miss | not-applicable | - | 3.758 | 99.156 | 3.718 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
-| rms_norm | bytecode | miss | not-applicable | - | 4.754 | 6.143 | 3.939 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
-| sensor_calibration | bytecode | miss | not-applicable | - | 3.794 | 114.622 | 3.759 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| unicode_scalar_pipeline | bytecode | miss | not-applicable | - | 3.650 | 10.964 | 3.300 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| validated_job_pipeline | bytecode | miss | not-applicable | - | 0.380 | 14.449 | 0.352 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
-| wide_integer_records | bytecode | miss | not-applicable | - | 5.586 | 71.432 | 5.504 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
-| word_frequency | bytecode | miss | not-applicable | - | 1.414 | 60.427 | 1.389 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
-| array_slice_window | compiled | miss | not-applicable | - | 0.098 | 20.851 | 0.093 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
-| await_channel_mux | compiled | miss | not-applicable | - | 0.360 | 65.455 | 0.354 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| backup_dedup | compiled | miss | not-applicable | - | 0.060 | 6.522 | 0.050 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
-| base64 | compiled | meets | not-established | volatile-crossing | 2.448 | 0.922 | 0.000 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
-| binary_event_log | compiled | miss | not-applicable | - | 0.536 | 59.556 | 0.527 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
-| binarytrees | compiled | meets | established | established-meet | 11.444 | 0.959 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
-| channel_rollup | compiled | miss | not-applicable | - | 0.598 | 94.921 | 0.591 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_audio_voices | compiled | miss | not-applicable | - | 0.926 | 188.980 | 0.921 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_document_pipeline | compiled | miss | not-applicable | - | 0.284 | 55.686 | 0.279 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_event_routing | compiled | miss | not-applicable | - | 2.914 | 520.357 | 2.908 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_graph_visitors | compiled | miss | not-applicable | - | 0.258 | 64.500 | 0.254 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_packet_codecs | compiled | miss | not-applicable | - | 0.506 | 133.158 | 0.502 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_policy_callbacks | compiled | miss | not-applicable | - | 0.542 | 110.612 | 0.537 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_scene_tiles | compiled | miss | not-applicable | - | 0.436 | 96.889 | 0.431 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_signal_dispatch | compiled | miss | not-applicable | - | 0.270 | 51.923 | 0.265 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_state_machines | compiled | miss | not-applicable | - | 0.264 | 71.351 | 0.260 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_stateful_pipeline | compiled | miss | not-applicable | - | 0.814 | 185.000 | 0.809 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_stencil_reduction | compiled | miss | not-applicable | - | 0.214 | 41.961 | 0.209 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_text_index | compiled | miss | not-applicable | - | 0.996 | 155.625 | 0.989 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_transform_chain | compiled | miss | not-applicable | - | 8.176 | 1257.846 | 8.169 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| concurrent_tree_folds | compiled | miss | not-applicable | - | 0.384 | 103.784 | 0.380 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| config_validation_extraction | compiled | miss | not-applicable | - | 0.130 | 27.660 | 0.125 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
-| dependency_plan | compiled | miss | not-applicable | - | 0.094 | 18.431 | 0.089 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
-| dependency_wave_validation | compiled | miss | not-applicable | - | 1.444 | 335.814 | 1.439 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| discrete_event_simulation | compiled | miss | not-applicable | - | 0.058 | 4.203 | 0.043 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
-| distance_field | compiled | miss | not-applicable | - | 0.090 | 6.767 | 0.076 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
-| document_audit | compiled | miss | not-applicable | - | 0.102 | 19.245 | 0.096 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
-| fasta_generation | compiled | miss | not-applicable | - | 0.042 | 2.530 | 0.025 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
-| fib | compiled | miss | not-applicable | - | 4.934 | 1.447 | 1.344 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
-| fixed_width_128 | compiled | miss | not-applicable | - | 0.206 | 35.517 | 0.200 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
-| future_await_race | compiled | miss | not-applicable | - | 0.106 | 21.633 | 0.101 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| future_pipeline | compiled | miss | not-applicable | - | 0.396 | 69.474 | 0.390 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| i_before_e | compiled | miss | not-applicable | - | 0.122 | 1.915 | 0.055 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
-| inventory_reconciliation | compiled | miss | not-applicable | - | 0.212 | 22.083 | 0.202 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
-| json | compiled | meets | established | established-meet | 0.742 | 0.453 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
-| k_nucleotide | compiled | miss | not-applicable | - | 2.898 | 35.822 | 2.813 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
-| lexical_rollup | compiled | miss | not-applicable | - | 0.120 | 22.222 | 0.114 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
-| log_routing_redaction | compiled | miss | not-applicable | - | 0.144 | 24.828 | 0.138 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
-| mandelbrot | compiled | miss | not-applicable | - | 0.128 | 2.429 | 0.073 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
-| manifest_normalization | compiled | miss | not-applicable | - | 0.226 | 48.085 | 0.221 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
-| matrixmultiply | compiled | miss | not-applicable | - | 1.214 | 1.132 | 0.085 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `compiled-current-control` |
-| monte_carlo_pi | compiled | meets | not-established | volatile-crossing | 0.192 | 0.679 | 0.000 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
-| mutex_await_journal | compiled | miss | not-applicable | - | 0.812 | 180.444 | 0.807 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| mutex_ledger | compiled | miss | not-applicable | - | 0.820 | 160.784 | 0.815 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| mutex_work_queue | compiled | miss | not-applicable | - | 2.330 | 448.077 | 2.325 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| nbody | compiled | miss | not-applicable | - | 0.172 | 4.550 | 0.132 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
-| option_result_config | compiled | miss | not-applicable | - | 0.176 | 33.846 | 0.171 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
-| pidigits | compiled | miss | not-applicable | - | 1.320 | 1.066 | 0.016 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
-| policy_record_dispatch | compiled | miss | not-applicable | - | 0.226 | 25.977 | 0.217 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
-| quicksort | compiled | meets | established | established-meet | 1.912 | 0.713 | 0.000 | current-exact-post-truthiness-cast-shared-semantics | target-guard | `compiled-target-guards` |
-| rational_series | compiled | miss | not-applicable | - | 0.128 | 8.828 | 0.113 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
-| regex_set_audit | compiled | miss | not-applicable | - | 0.144 | 20.571 | 0.137 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
-| regex_stream_audit | compiled | miss | not-applicable | - | 0.160 | 25.806 | 0.153 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
-| regex_suffix_audit | compiled | miss | not-applicable | - | 0.168 | 26.250 | 0.161 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
-| reverse_complement | compiled | miss | not-applicable | - | 0.114 | 6.667 | 0.096 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
-| rms_norm | compiled | miss | not-applicable | - | 0.088 | 7.395 | 0.075 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
-| sensor_calibration | compiled | miss | not-applicable | - | 0.256 | 50.196 | 0.251 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
-| sudoku_masks | compiled | miss | not-applicable | - | 1.574 | 2.240 | 0.834 | current-exact-post-truthiness-cast-shared-semantics | closed-insufficient-breadth | `compiled-sudoku-quotient` |
-| tapelang_alphabet | compiled | miss | not-applicable | - | 3.706 | 1.250 | 0.585 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `compiled-current-control` |
-| unicode_scalar_pipeline | compiled | miss | not-applicable | - | 0.306 | 27.568 | 0.294 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
-| validated_job_pipeline | compiled | miss | not-applicable | - | 1.046 | 275.263 | 1.042 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
-| wide_integer_records | compiled | miss | not-applicable | - | 0.184 | 6.891 | 0.156 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
-| word_frequency | compiled | miss | not-applicable | - | 0.180 | 30.508 | 0.174 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| array_slice_window | bytecode | miss | not-applicable | - | 0.686 | 25.221 | 0.657 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
+| await_channel_mux | bytecode | miss | not-applicable | - | 0.228 | 2.508 | 0.132 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| backup_dedup | bytecode | miss | not-applicable | - | 1.914 | 14.500 | 1.775 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| base64 | bytecode | miss | not-applicable | - | 3.042 | 1.218 | 0.414 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
+| binary_event_log | bytecode | miss | not-applicable | - | 5.836 | 32.101 | 5.645 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| binarytrees | bytecode | miss | not-applicable | - | 12.298 | 21.922 | 11.707 | current-exact-source-cpu-and-allocation-refresh | closed-no-shared-leaf | `bytecode-portable-workload-admission` |
+| channel_rollup | bytecode | miss | not-applicable | - | 0.444 | 11.443 | 0.403 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_audio_voices | bytecode | miss | not-applicable | - | 1.354 | 10.780 | 1.222 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_document_pipeline | bytecode | miss | not-applicable | - | 0.286 | 11.626 | 0.260 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_event_routing | bytecode | miss | not-applicable | - | 2.954 | 94.679 | 2.921 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_graph_visitors | bytecode | miss | not-applicable | - | 1.290 | 20.156 | 1.223 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_packet_codecs | bytecode | miss | not-applicable | - | 0.838 | 10.757 | 0.756 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_policy_callbacks | bytecode | miss | not-applicable | - | 0.386 | 7.830 | 0.334 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_scene_tiles | bytecode | miss | not-applicable | - | 0.640 | 9.001 | 0.565 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_signal_dispatch | bytecode | miss | not-applicable | - | 1.560 | 24.723 | 1.494 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_state_machines | bytecode | miss | not-applicable | - | 0.390 | 6.404 | 0.326 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_stateful_pipeline | bytecode | miss | not-applicable | - | 0.456 | 8.128 | 0.397 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_stencil_reduction | bytecode | miss | not-applicable | - | 1.810 | 24.101 | 1.731 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_text_index | bytecode | miss | not-applicable | - | 0.602 | 10.308 | 0.541 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_transform_chain | bytecode | miss | not-applicable | - | 2.736 | 19.655 | 2.589 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| concurrent_tree_folds | bytecode | miss | not-applicable | - | 0.426 | 7.018 | 0.362 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| config_validation_extraction | bytecode | miss | not-applicable | - | 1.364 | 72.941 | 1.344 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| dependency_plan | bytecode | miss | not-applicable | - | 0.494 | 27.444 | 0.475 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
+| dependency_wave_validation | bytecode | miss | not-applicable | - | 0.508 | 16.282 | 0.475 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| discrete_event_simulation | bytecode | miss | not-applicable | - | 4.704 | 27.081 | 4.521 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
+| distance_field | bytecode | miss | not-applicable | - | 5.760 | 16.961 | 5.403 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| document_audit | bytecode | miss | not-applicable | - | 0.300 | 21.739 | 0.285 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
+| fasta_generation | bytecode | miss | not-applicable | - | 1.902 | 8.587 | 1.669 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
+| fib | bytecode | meets | established | established-meet | 0.248 | 0.057 | 0.000 | current-contract-two-cohort-stability | target-guard | `bytecode-target-guards` |
+| fixed_width_128 | bytecode | miss | not-applicable | - | 8.030 | 21.691 | 7.640 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
+| future_await_race | bytecode | miss | not-applicable | - | 0.142 | 4.581 | 0.109 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| future_pipeline | bytecode | miss | not-applicable | - | 0.664 | 11.649 | 0.604 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| i_before_e | bytecode | miss | not-applicable | - | 0.518 | 6.145 | 0.429 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| inventory_reconciliation | bytecode | miss | not-applicable | - | 2.490 | 35.673 | 2.417 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| json | bytecode | meets | established | established-meet | 0.872 | 0.522 | 0.000 | current-contract-two-cohort-stability | target-guard | `bytecode-target-guards` |
+| k_nucleotide | bytecode | miss | not-applicable | - | 42.614 | 34.558 | 41.316 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| lexical_rollup | bytecode | miss | not-applicable | - | 0.386 | 23.253 | 0.369 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
+| log_routing_redaction | bytecode | miss | not-applicable | - | 3.114 | 175.932 | 3.095 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| mandelbrot | bytecode | miss | not-applicable | - | 6.532 | 4.766 | 5.089 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| manifest_normalization | bytecode | miss | not-applicable | - | 1.536 | 89.302 | 1.518 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| matrixmultiply | bytecode | meets | established | established-meet | 1.016 | 0.327 | 0.000 | current-contract-two-cohort-stability | target-guard | `bytecode-target-guards` |
+| monte_carlo_pi | bytecode | miss | not-applicable | - | 2.714 | 1.877 | 1.192 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| mutex_await_journal | bytecode | miss | not-applicable | - | 0.232 | 10.404 | 0.209 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| mutex_ledger | bytecode | miss | not-applicable | - | 0.412 | 11.319 | 0.374 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| mutex_work_queue | bytecode | miss | not-applicable | - | 0.374 | 13.453 | 0.345 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| nbody | bytecode | miss | not-applicable | - | 9.158 | 45.744 | 8.947 | current-exact-source-cpu-and-allocation-refresh | closed-no-shared-leaf | `bytecode-portable-workload-admission` |
+| option_result_config | bytecode | miss | not-applicable | - | 0.740 | 41.341 | 0.721 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `bytecode-iterator-control` |
+| pidigits | bytecode | meets | established | established-meet | 2.432 | 0.603 | 0.000 | current-contract-two-cohort-stability | target-guard | `bytecode-target-guards` |
+| policy_record_dispatch | bytecode | miss | not-applicable | - | 7.582 | 375.347 | 7.561 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| quicksort | bytecode | miss | not-applicable | - | 12.178 | 18.410 | 11.482 | current-exact-source-cpu-and-allocation-refresh | closed-no-shared-leaf | `bytecode-portable-workload-admission` |
+| rational_series | bytecode | miss | not-applicable | - | 4.146 | 38.318 | 4.032 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
+| regex_set_audit | bytecode | miss | not-applicable | - | 4.130 | 222.043 | 4.110 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| regex_stream_audit | bytecode | miss | not-applicable | - | 3.616 | 202.011 | 3.597 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| regex_suffix_audit | bytecode | miss | not-applicable | - | 3.448 | 200.465 | 3.430 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `bytecode-regex` |
+| reverse_complement | bytecode | miss | not-applicable | - | 3.292 | 125.171 | 3.264 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `bytecode-byte-output` |
+| rms_norm | bytecode | miss | not-applicable | - | 4.682 | 8.896 | 4.128 | current-exact-post-truthiness-cast-near-path | closed-rejected-candidate | `bytecode-float-numeric` |
+| sensor_calibration | bytecode | miss | not-applicable | - | 2.624 | 94.729 | 2.595 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| sudoku_masks | bytecode | miss | not-applicable | - | 24.394 | 13.581 | 22.503 | current-exact-source-cpu-and-allocation-refresh | closed-no-shared-leaf | `bytecode-portable-workload-admission` |
+| tapelang_alphabet | bytecode | miss | not-applicable | - | 20.530 | 34.814 | 19.909 | current-exact-source-cpu-and-allocation-refresh | closed-no-shared-leaf | `bytecode-portable-workload-admission` |
+| unicode_scalar_pipeline | bytecode | miss | not-applicable | - | 3.812 | 16.159 | 3.564 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| validated_job_pipeline | bytecode | miss | not-applicable | - | 0.370 | 15.948 | 0.346 | current-exact-concurrent-packet-codecs-refresh | closed-no-shared-leaf | `bytecode-concurrency` |
+| wide_integer_records | bytecode | miss | not-applicable | - | 5.570 | 85.692 | 5.502 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `bytecode-wide-numeric` |
+| word_frequency | bytecode | miss | not-applicable | - | 1.502 | 73.627 | 1.481 | current-exact-backup-dedup-main-profile | closed-rejected-candidate | `bytecode-text-map` |
+| array_slice_window | compiled | miss | not-applicable | - | 0.040 | 9.756 | 0.036 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
+| await_channel_mux | compiled | miss | not-applicable | - | 0.178 | 34.902 | 0.173 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| backup_dedup | compiled | miss | not-applicable | - | 0.062 | 6.526 | 0.052 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| base64 | compiled | meets | established | established-meet | 2.206 | 0.856 | 0.000 | current-contract-two-cohort-stability | target-guard | `compiled-target-guards` |
+| binary_event_log | compiled | miss | not-applicable | - | 0.152 | 16.344 | 0.142 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
+| binarytrees | compiled | meets | established | established-meet | 10.068 | 0.967 | 0.000 | current-contract-two-cohort-stability | target-guard | `compiled-target-guards` |
+| channel_rollup | compiled | miss | not-applicable | - | 0.036 | 6.667 | 0.030 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_audio_voices | compiled | miss | not-applicable | - | 0.030 | 6.250 | 0.025 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_document_pipeline | compiled | miss | not-applicable | - | 0.030 | 7.500 | 0.026 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_event_routing | compiled | miss | not-applicable | - | 0.040 | 7.407 | 0.034 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_graph_visitors | compiled | miss | not-applicable | - | 0.030 | 6.667 | 0.025 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_packet_codecs | compiled | miss | not-applicable | - | 0.030 | 6.818 | 0.025 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_policy_callbacks | compiled | miss | not-applicable | - | 0.036 | 7.059 | 0.031 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_scene_tiles | compiled | miss | not-applicable | - | 0.030 | 7.692 | 0.026 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_signal_dispatch | compiled | miss | not-applicable | - | 0.032 | 5.926 | 0.026 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_state_machines | compiled | miss | not-applicable | - | 0.022 | 5.500 | 0.018 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_stateful_pipeline | compiled | miss | not-applicable | - | 0.040 | 7.273 | 0.034 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_stencil_reduction | compiled | miss | not-applicable | - | 0.030 | 6.000 | 0.025 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_text_index | compiled | miss | not-applicable | - | 0.048 | 7.742 | 0.041 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_transform_chain | compiled | miss | not-applicable | - | 0.032 | 5.818 | 0.026 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| concurrent_tree_folds | compiled | miss | not-applicable | - | 0.026 | 6.500 | 0.022 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| config_validation_extraction | compiled | miss | not-applicable | - | 0.044 | 10.476 | 0.040 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| dependency_plan | compiled | miss | not-applicable | - | 0.022 | 5.366 | 0.018 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
+| dependency_wave_validation | compiled | miss | not-applicable | - | 0.030 | 7.143 | 0.026 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| discrete_event_simulation | compiled | miss | not-applicable | - | 0.042 | 2.958 | 0.027 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
+| distance_field | compiled | miss | not-applicable | - | 0.036 | 2.951 | 0.023 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| document_audit | compiled | miss | not-applicable | - | 0.040 | 9.524 | 0.036 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
+| fasta_generation | compiled | miss | not-applicable | - | 0.048 | 2.981 | 0.031 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
+| fib | compiled | miss | not-applicable | - | 3.524 | 1.078 | 0.082 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `compiled-current-control` |
+| fixed_width_128 | compiled | miss | not-applicable | - | 0.090 | 15.000 | 0.084 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
+| future_await_race | compiled | miss | not-applicable | - | 0.058 | 14.500 | 0.054 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| future_pipeline | compiled | miss | not-applicable | - | 0.036 | 6.923 | 0.031 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| i_before_e | compiled | miss | not-applicable | - | 0.070 | 1.169 | 0.007 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| inventory_reconciliation | compiled | miss | not-applicable | - | 0.126 | 14.318 | 0.117 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| json | compiled | meets | established | established-meet | 0.698 | 0.396 | 0.000 | current-contract-two-cohort-stability | target-guard | `compiled-target-guards` |
+| k_nucleotide | compiled | miss | not-applicable | - | 1.564 | 22.634 | 1.491 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| lexical_rollup | compiled | miss | not-applicable | - | 0.042 | 7.368 | 0.036 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
+| log_routing_redaction | compiled | miss | not-applicable | - | 0.062 | 11.698 | 0.056 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| mandelbrot | compiled | miss | not-applicable | - | 0.096 | 1.675 | 0.036 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| manifest_normalization | compiled | miss | not-applicable | - | 0.044 | 10.233 | 0.039 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| matrixmultiply | compiled | miss | not-applicable | - | 1.116 | 1.070 | 0.018 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `compiled-current-control` |
+| monte_carlo_pi | compiled | meets | established | established-meet | 0.178 | 0.646 | 0.000 | current-contract-two-cohort-stability | target-guard | `compiled-target-guards` |
+| mutex_await_journal | compiled | miss | not-applicable | - | 0.212 | 53.000 | 0.208 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| mutex_ledger | compiled | miss | not-applicable | - | 0.100 | 20.833 | 0.095 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| mutex_work_queue | compiled | miss | not-applicable | - | 0.616 | 140.000 | 0.611 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| nbody | compiled | miss | not-applicable | - | 0.102 | 2.152 | 0.052 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| option_result_config | compiled | miss | not-applicable | - | 0.038 | 10.556 | 0.034 | current-exact-discrete-event-main-profile | closed-no-shared-leaf | `compiled-iterator-control` |
+| pidigits | compiled | meets | established | established-meet | 1.176 | 0.879 | 0.000 | current-contract-two-cohort-stability | target-guard | `compiled-target-guards` |
+| policy_record_dispatch | compiled | miss | not-applicable | - | 0.084 | 16.471 | 0.079 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| quicksort | compiled | meets | established | established-meet | 1.764 | 0.652 | 0.000 | current-contract-two-cohort-stability | target-guard | `compiled-target-guards` |
+| rational_series | compiled | miss | not-applicable | - | 0.052 | 3.796 | 0.038 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
+| regex_set_audit | compiled | miss | not-applicable | - | 0.056 | 11.429 | 0.051 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| regex_stream_audit | compiled | miss | not-applicable | - | 0.050 | 7.937 | 0.043 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| regex_suffix_audit | compiled | miss | not-applicable | - | 0.072 | 12.203 | 0.066 | current-exact-post-truthiness-cast-refresh | closed-rejected-candidate | `compiled-regex` |
+| reverse_complement | compiled | miss | not-applicable | - | 0.052 | 2.653 | 0.031 | current-exact-post-truthiness-cast-refresh | closed-no-shared-leaf | `compiled-byte-output` |
+| rms_norm | compiled | miss | not-applicable | - | 0.040 | 2.817 | 0.025 | current-exact-post-truthiness-cast-numeric-next | closed-rejected-candidate | `compiled-float-numeric` |
+| sensor_calibration | compiled | miss | not-applicable | - | 0.046 | 9.787 | 0.041 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| sudoku_masks | compiled | miss | not-applicable | - | 1.412 | 1.942 | 0.647 | current-exact-post-truthiness-cast-shared-semantics | closed-insufficient-breadth | `compiled-sudoku-quotient` |
+| tapelang_alphabet | compiled | miss | not-applicable | - | 3.806 | 1.158 | 0.346 | current-exact-post-truthiness-cast-shared-semantics | closed-no-shared-leaf | `compiled-current-control` |
+| unicode_scalar_pipeline | compiled | miss | not-applicable | - | 0.116 | 9.915 | 0.104 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
+| validated_job_pipeline | compiled | miss | not-applicable | - | 0.060 | 15.000 | 0.056 | current-exact-concurrent-packet-codecs-refresh | closed-rejected-candidate | `compiled-concurrency` |
+| wide_integer_records | compiled | miss | not-applicable | - | 0.078 | 2.069 | 0.038 | current-exact | closed-rejected-candidate | `compiled-wide-numeric` |
+| word_frequency | compiled | miss | not-applicable | - | 0.050 | 8.333 | 0.044 | current-exact-backup-dedup-main-profile | closed-no-shared-leaf | `compiled-text-map` |
 
 ## Cross-cohort stability evidence
 
-### `await_channel_mux/bytecode`
+### `fib/bytecode`
 
-- Classification: `variance-sensitive-miss`; established guard: `not-established`; pooled limiting ratio: 1.218x ruby; cohort ratios: 1.726, 0.932.
-- Samples: 10 Able and 10 limiting-reference; Able source: `31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: The new snapshot meets, but the immediately preceding cohort and the pooled limiting Ruby ratio miss, so Await Channel Mux is not a durable guard.
-- Evidence: [2026-07-20-current-product-scorecard-async-bytecode-02-selected.json](../../docs/perf-baselines/2026-07-20-current-product-scorecard-async-bytecode-02-selected.json), [2026-07-22-current-bytecode-scorecard.json](../../docs/perf-baselines/2026-07-22-current-bytecode-scorecard.json), [2026-07-22-current-bytecode-interpreter-scorecard-reconciliation.md](../../docs/perf-baselines/2026-07-22-current-bytecode-interpreter-scorecard-reconciliation.md).
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.053x ruby; cohort ratios: 0.057, 0.049.
+- Samples: 10 Able and 10 limiting-reference; Able source: `96683db985102a2ae6d82919b95c1da572febe499cccd2490971dcd9647019cd`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json).
 
 ### `json/bytecode`
 
-- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.533x ruby; cohort ratios: 0.474, 0.593.
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.524x ruby; cohort ratios: 0.522, 0.527.
 - Samples: 10 Able and 10 limiting-reference; Able source: `84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: Both independent current-source cohorts meet against both interpreters, including the faster Ruby reference.
-- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json).
+
+### `matrixmultiply/bytecode`
+
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.321x ruby; cohort ratios: 0.327, 0.315.
+- Samples: 10 Able and 10 limiting-reference; Able source: `ac3f407e202dd793db41431eb7b5b26e0c60472583e552624bad5ceca404c123`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json).
 
 ### `pidigits/bytecode`
 
-- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.591x python; cohort ratios: 0.563, 0.620.
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.599x python; cohort ratios: 0.603, 0.595.
 - Samples: 10 Able and 10 limiting-reference; Able source: `236a74ef456b4a5ca3e33a743a0b3b8e8767db9cfa07dd619df870bff876d5cb`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: Both independent current-source cohorts meet against both interpreters, including the faster Python reference.
-- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json).
 
 ### `base64/compiled`
 
-- Classification: `volatile-crossing`; established guard: `not-established`; pooled limiting ratio: 0.989x go; cohort ratios: 1.061, 0.922.
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.895x go; cohort ratios: 0.856, 0.934.
 - Samples: 10 Able and 10 limiting-reference; Able source: `b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: The pooled current-source ratio meets, but the immediately preceding five-process cohort misses narrowly, so the new snapshot crossing is not a durable guard.
-- Evidence: [2026-07-21-validated-job-file-entry-preserved-compiled.json](../../docs/perf-baselines/2026-07-21-validated-job-file-entry-preserved-compiled.json), [2026-07-22-current-compiled-scorecard.json](../../docs/perf-baselines/2026-07-22-current-compiled-scorecard.json), [2026-07-22-current-compiled-go-scorecard-reconciliation.md](../../docs/perf-baselines/2026-07-22-current-compiled-go-scorecard-reconciliation.md).
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-compiled.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json).
 
 ### `binarytrees/compiled`
 
-- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.955x go; cohort ratios: 0.934, 0.975.
-- Samples: 10 Able and 10 limiting-reference; Able source: `d973598c0ca4e88fcbe96dc852fa64a935cd651b3b85be10121222e9694293d8`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: Both independent current-source cohorts meet the compiled target.
-- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.992x go; cohort ratios: 0.967, 1.013.
+- Samples: 10 Able and 10 limiting-reference; Able source: `b2e5cd3b3f439960e39e04b2da675321e9bc45c1b5d811bdb9d61069bb168eeb`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-compiled.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json).
 
 ### `json/compiled`
 
-- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.561x go; cohort ratios: 0.588, 0.533.
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.421x go; cohort ratios: 0.396, 0.450.
 - Samples: 10 Able and 10 limiting-reference; Able source: `84a895d80fee86e71b65c3614dc71088ef36d5a469b2756162007ee49d45b62a`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: Both independent current-source cohorts meet the compiled target.
-- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-compiled.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json).
 
 ### `monte_carlo_pi/compiled`
 
-- Classification: `volatile-crossing`; established guard: `not-established`; pooled limiting ratio: 1.005x go; cohort ratios: 0.927, 1.158, 0.950.
-- Samples: 15 Able and 15 limiting-reference; Able source: `9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: The pooled ratio meets, but one of three independent cohorts misses materially, so this snapshot crossing is not a durable guard.
-- Evidence: [2026-07-20-threshold-stability-variance.json](../../docs/perf-baselines/2026-07-20-threshold-stability-variance.json), [2026-07-20-threshold-stability-reconciliation.md](../../docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md).
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.786x go; cohort ratios: 0.646, 0.980.
+- Samples: 10 Able and 10 limiting-reference; Able source: `9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-compiled.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json).
+
+### `pidigits/compiled`
+
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.915x go; cohort ratios: 0.879, 0.953.
+- Samples: 10 Able and 10 limiting-reference; Able source: `236a74ef456b4a5ca3e33a743a0b3b8e8767db9cfa07dd619df870bff876d5cb`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-compiled.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json).
 
 ### `quicksort/compiled`
 
-- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.740x go; cohort ratios: 0.757, 0.722.
-- Samples: 10 Able and 10 limiting-reference; Able source: `f54986a03bce5d3fa5bb8d1dd342299c1b6a434a682572d353c46d5f66c1af92`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
-- Rationale: Both independent current-source cohorts meet the compiled target.
-- Evidence: [2026-07-20-source-exact-guards-variance.json](../../docs/perf-baselines/2026-07-20-source-exact-guards-variance.json), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md).
+- Classification: `established-meet`; established guard: `established`; pooled limiting ratio: 0.677x go; cohort ratios: 0.652, 0.705.
+- Samples: 10 Able and 10 limiting-reference; Able source: `13dc68cc43b87d80d21943a45ca24f0722614f3b151f2ed26ef4f1025b103338`; evidence stdlib tree: `6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b`.
+- Rationale: Both independent current-contract five-process cohorts meet the target with verifier-backed matched references.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-compiled.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json).
 
 ## Ownership and disposition evidence
 
 ### `compiled-target-guards`
 
-- Disposition: `target-guard`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-target-guard-current-cohort`.
-- Owner: Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.
-- Rationale: Binary Trees, JSON, and QuickSort are established target guards. Fib currently misses after a noisy prior meet but remains a source-exact control for every admitted compiled candidate.
-- Evidence: [2026-07-20-source-equivalence-scorecard.md](../../docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md), [2026-07-20-compiled-control-current-invalidation-gate.md](../../docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md), [2026-07-20-current-two-cohort-scorecard-reconciliation.md](../../docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md), [2026-07-20-threshold-stability-reconciliation.md](../../docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md), [2026-07-21-post-i64-threshold-stability.md](../../docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md), [2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md](../../docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md), [2026-07-21-truthiness-cast-target-guard-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md), [2026-07-21-truthiness-cast-target-guards-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-compiled.json), [2026-07-21-truthiness-cast-target-guards-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-go-reference.json), [2026-07-21-truthiness-cast-target-guards-fib-c2-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-compiled.json), [2026-07-21-truthiness-cast-target-guards-fib-c2-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-go-reference.json).
+- Disposition: `target-guard`; exact unlike-application breadth: 0; profile freshness: `current-contract-two-cohort-stability`; artifact identity: `mode-aware-contract-refresh-plus-independent-matched-guard-cohort`.
+- Owner: Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.
+- Rationale: All six rows meet the compiled target in two independent current-contract five-process cohorts and must be preserved by every admitted compiled candidate.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-compiled.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json).
 
 ### `compiled-current-control`
 
 - Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-control-current-cohorts-and-reach`.
-- Owner: Matrix primitive nested arithmetic and TapeLang flat dispatch remain separate generated bodies.
-- Rationale: Fresh current binaries expose no compiler/runtime child shared across these control-flow programs.
+- Owner: Fib direct recursion, Matrix primitive nested arithmetic, and TapeLang flat dispatch remain separate generated bodies.
+- Rationale: Fresh current binaries expose no compiler/runtime child shared across these unlike control-flow programs.
 - Evidence: [2026-07-20-compiled-control-current-invalidation-gate.md](../../docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md), [2026-07-21-truthiness-cast-control-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md), [2026-07-21-truthiness-cast-control-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-reach.json), [2026-07-21-truthiness-cast-control-closures-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-compiled.json), [2026-07-21-truthiness-cast-control-closures-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-go-reference.json), [2026-07-21-truthiness-cast-control-closures-matrix-c2-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-compiled.json), [2026-07-21-truthiness-cast-control-closures-matrix-c2-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-go-reference.json), [2026-07-21-truthiness-cast-control-closures-tape-c2-compiled.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-compiled.json), [2026-07-21-truthiness-cast-control-closures-tape-c2-go-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-go-reference.json).
 
 ### `compiled-sudoku-quotient`
@@ -226,8 +247,8 @@ Generated from `2026-07-27T20:00:44.352662Z` scorecard evidence. This ledger joi
 ### `compiled-float-numeric`
 
 - Disposition: `closed-rejected-candidate`; exact unlike-application breadth: 3; profile freshness: `current-exact-post-truthiness-cast-numeric-next`; artifact identity: `frozen-current-repeated-timing-and-exact-reach-cohorts`.
-- Owner: Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.
-- Rationale: Fresh repeated timing and exact generated-runtime telemetry preserve the prior ownership result. All five rows have zero truthiness/cast bridge reach, so the closed raw-float lane/carrier evidence remains causal.
+- Owner: Float geometry/regions and normalized raw-float allocation recur across Distance Field, N-Body, and RMS Norm, while Mandelbrot remains a distinct fused loop owner.
+- Rationale: Fresh repeated timing and exact generated-runtime telemetry preserve the prior ownership result. All four rows have zero truthiness/cast bridge reach, so the closed raw-float lane/carrier evidence remains causal.
 - Evidence: [2026-07-21-truthiness-cast-numeric-next-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md), [2026-07-21-truthiness-cast-numeric-next-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-reach.json), [2026-07-20-cross-mode-numeric-wide-profile-gate.md](../../docs/perf-baselines/2026-07-20-cross-mode-numeric-wide-profile-gate.md), [2026-07-20-threshold-stability-reconciliation.md](../../docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md).
 
 ### `compiled-wide-numeric`
@@ -240,8 +261,8 @@ Generated from `2026-07-27T20:00:44.352662Z` scorecard evidence. This ledger joi
 ### `compiled-byte-output`
 
 - Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-refresh`; artifact identity: `frozen-current-verifier-backed-timing-and-exact-reach`.
-- Owner: Fresh post-semantic timing preserves the split among Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work; exact telemetry shows zero changed truthiness or cast-bridge reach in all four programs.
-- Rationale: The semantic correction does not reach these compiled mains. The retained write_all and generic u8 changes remain causal, and no compiler-controlled descendant is shared by three unlike applications.
+- Owner: Fresh post-semantic timing preserves the split between direct FASTA arithmetic and Reverse transform/copy/GC work; exact telemetry shows zero changed truthiness or cast-bridge reach in both programs.
+- Rationale: The semantic correction does not reach these compiled mains. The retained write_all and generic u8 changes remain causal, and the two remaining applications expose no shared compiler-controlled descendant.
 - Evidence: [2026-07-21-truthiness-cast-byte-regex-closure-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md), [2026-07-21-truthiness-cast-byte-regex-closure-reach.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-reach.json), [2026-07-20-compiled-byte-output-current-profile-gate.md](../../docs/perf-baselines/2026-07-20-compiled-byte-output-current-profile-gate.md), [2026-07-18-fasta-write-all-gate.md](../../docs/perf-baselines/2026-07-18-fasta-write-all-gate.md), [2026-07-18-cross-mode-array-capacity-growth-gate.md](../../docs/perf-baselines/2026-07-18-cross-mode-array-capacity-growth-gate.md).
 
 ### `compiled-text-map`
@@ -274,10 +295,17 @@ Generated from `2026-07-27T20:00:44.352662Z` scorecard evidence. This ledger joi
 
 ### `bytecode-target-guards`
 
-- Disposition: `target-guard`; exact unlike-application breadth: 0; profile freshness: `current-exact-post-truthiness-cast-shared-semantics`; artifact identity: `truthiness-cast-target-guard-current-cohort`.
-- Owner: JSON host decoding and PiDigits BigInt/native output are protected target-meeting rows.
-- Rationale: Every admitted VM candidate must preserve these current target meets.
-- Evidence: [2026-07-20-source-equivalence-scorecard.md](../../docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md), [2026-07-20-source-exact-established-guard-refresh.md](../../docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md), [2026-07-21-truthiness-cast-target-guard-refresh.md](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md), [2026-07-21-truthiness-cast-target-guards-bytecode.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-bytecode.json), [2026-07-21-truthiness-cast-target-guards-interpreter-reference.json](../../docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-interpreter-reference.json).
+- Disposition: `target-guard`; exact unlike-application breadth: 0; profile freshness: `current-contract-two-cohort-stability`; artifact identity: `mode-aware-contract-refresh-plus-independent-matched-guard-cohort`.
+- Owner: Fib recursion, Matrix primitive nested arithmetic, JSON host decoding, and PiDigits BigInt/native output are protected target-meeting rows.
+- Rationale: All four rows meet both interpreter targets in two independent current-contract five-process cohorts and must be preserved by every admitted VM candidate.
+- Evidence: [2026-07-28-mode-aware-benchmark-contract-refresh.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json), [2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json](../../docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json).
+
+### `bytecode-portable-workload-admission`
+
+- Disposition: `closed-no-shared-leaf`; exact unlike-application breadth: 0; profile freshness: `current-exact-source-cpu-and-allocation-refresh`; artifact identity: `frozen-current-test-binary-current-selected-sources-and-repeated-main-profiles`.
+- Owner: Exact current-source CPU and measured-main allocation profiles split below shared dispatch among recursion environments and named structs, float materialization and stack snapshots, boxed i32/Array work, bitwise recursion and named structs, and member/named-struct/Array-slot work.
+- Rationale: Two current-source CPU processes and two independent exact allocation processes per row reproduce only aggregate dispatch, Go GC/locking, and already-closed raw-integer, frame/stack, Array, call, return, and store routes. The apparent shared atomic leaf has divergent environment/type-cache and Array callers, while measured-main allocation owners do not repeat across three unlike applications.
+- Evidence: [2026-07-28-bytecode-current-source-profile-coverage-closure.md](../../docs/perf-baselines/2026-07-28-bytecode-current-source-profile-coverage-closure.md).
 
 ### `bytecode-float-numeric`
 

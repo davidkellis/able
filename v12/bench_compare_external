@@ -361,12 +361,6 @@ for bench in "${requested_benchmarks[@]}"; do
   [[ -f "$target" ]] || die "Able target not found for $bench: $target"
   target_sha256="$(sha256sum "$target" | awk '{print $1}')"
 
-  bench_program_args=()
-  while IFS= read -r arg; do
-    [[ -n "$arg" ]] || continue
-    bench_program_args+=("$arg")
-  done < <(bench_external_program_args "$bench")
-
   bench_run_from="$(bench_external_run_dir "$bench_repo" "$bench")"
   [[ -d "$bench_run_from" ]] || die "benchmark run directory not found for $bench: $bench_run_from"
 
@@ -389,18 +383,25 @@ for bench in "${requested_benchmarks[@]}"; do
     echo ">>> No output verifier for $bench"
   fi
 
-  # Capture the verifier and the explicitly declared file arguments before
-  # launching the timed processes.  The manifest deliberately records literal
-  # arguments too (for example a size), but fingerprints only regular files
-  # resolved from the benchmark run directory.  It does not claim to discover
-  # arbitrary implicit files a program may open on its own.
-  python - "$benchmark_contract_rows" "$bench" "$bench_run_from" "$suite_dir/verify.rb" "${bench_program_args[@]}" <<'PY'
+  for mode in "${requested_modes[@]}"; do
+    [[ -n "$mode" ]] || continue
+    bench_program_args=()
+    while IFS= read -r arg; do
+      [[ -n "$arg" ]] || continue
+      bench_program_args+=("$arg")
+    done < <(bench_external_program_args "$bench" "$mode")
+
+    # Capture the verifier and explicitly declared file arguments for this
+    # benchmark/mode before launching the timed processes. Workload scale is a
+    # comparison contract, so compiled and interpreter rows may deliberately
+    # name different arguments while retaining the same program and verifier.
+    python - "$benchmark_contract_rows" "$bench" "$mode" "$bench_run_from" "$suite_dir/verify.rb" "${bench_program_args[@]}" <<'PY'
 import hashlib
 import json
 import sys
 from pathlib import Path
 
-output_path, benchmark, raw_run_dir, raw_verifier, *program_args = sys.argv[1:]
+output_path, benchmark, mode, raw_run_dir, raw_verifier, *program_args = sys.argv[1:]
 run_dir = Path(raw_run_dir).resolve()
 verifier = Path(raw_verifier).resolve()
 
@@ -429,11 +430,15 @@ contract["sha256"] = hashlib.sha256(
 ).hexdigest()
 contract["provenance"] = "measured"
 with open(output_path, "a", encoding="utf-8") as out:
-    out.write(json.dumps({"benchmark": benchmark, "contract": contract}, sort_keys=True) + "\n")
+    out.write(
+        json.dumps(
+            {"benchmark": benchmark, "mode": mode, "contract": contract},
+            sort_keys=True,
+        )
+        + "\n"
+    )
 PY
 
-  for mode in "${requested_modes[@]}"; do
-    [[ -n "$mode" ]] || continue
     logical_cpu_budget="$(bench_external_logical_cpu_budget "$bench" "$mode")" || \
       die "missing CPU budget for $bench/$mode"
     resolved_affinity="$(bench_external_resolve_cpu_affinity "$cpu_pool" "$logical_cpu_budget")" || \
@@ -676,15 +681,26 @@ with open(contracts_path, "r", encoding="utf-8") as f:
             continue
         item = json.loads(line)
         benchmark = item.get("benchmark")
+        mode = item.get("mode")
         contract = item.get("contract")
-        if not isinstance(benchmark, str) or not isinstance(contract, dict):
+        if (
+            not isinstance(benchmark, str)
+            or not isinstance(mode, str)
+            or not isinstance(contract, dict)
+        ):
             raise ValueError("invalid benchmark verifier/input contract")
-        if benchmark in benchmark_contracts:
-            raise ValueError(f"duplicate benchmark verifier/input contract: {benchmark}")
-        benchmark_contracts[benchmark] = contract
+        key = (benchmark, mode)
+        if key in benchmark_contracts:
+            raise ValueError(
+                f"duplicate benchmark verifier/input contract: {benchmark}/{mode}"
+            )
+        benchmark_contracts[key] = contract
 for benchmark in requested_benchmarks:
-    if benchmark not in benchmark_contracts:
-        raise ValueError(f"missing benchmark verifier/input contract: {benchmark}")
+    for mode in requested_modes:
+        if (benchmark, mode) not in benchmark_contracts:
+            raise ValueError(
+                f"missing benchmark verifier/input contract: {benchmark}/{mode}"
+            )
 
 with open(external_results_path, "r", encoding="utf-8") as f:
     external = json.load(f)
@@ -813,7 +829,7 @@ for bench in requested_benchmarks:
             "mode": mode,
             "able": able,
             "execution_contract": able["execution_contract"],
-            "benchmark_contract": benchmark_contracts[bench],
+            "benchmark_contract": benchmark_contracts[(bench, mode)],
             "comparisons": comparisons,
         })
 

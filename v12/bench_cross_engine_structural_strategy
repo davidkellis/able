@@ -437,7 +437,7 @@ def markdown(report: dict[str, Any]) -> str:
         f"The governing frontier has {summary['selected_rows']} selected rows,",
         f"{summary['target_misses']} misses, and {summary['total_target_excess_seconds']:.6f}",
         f"seconds of target excess. Bytecode contributes {summary['bytecode_target_excess_seconds']:.6f}",
-        "seconds. All 21 completed performance closures remain current.",
+        f"seconds. All {summary['closure_count']} completed performance closures remain current.",
         "",
         "## Route comparison",
         "",

@@ -1,0 +1,1019 @@
+{
+  "kind": "able-bytecode-profile-coverage",
+  "schema_version": 1,
+  "selection_sha256": "0c72eaf2a1b12d3a5a2f88d00b3382a706f5c5c16977c24b55fb64214f8d429e",
+  "sources": {
+    "scorecard": {
+      "path": "v12/docs/perf-baselines/external-scoreboard-current.json",
+      "sha256": "3b1a48053e4a9330c1fbeda258f730504d992ac761a2e6fff64c131d9074d9ac"
+    },
+    "selection_manifest": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "859d1db10b34bd6ed978a6222a9f5e1adb5b6325bad907ca95397a76a4d251a9"
+    },
+    "frontier_evidence": {
+      "path": "v12/bench-performance-frontier-evidence.json",
+      "sha256": "58954b15e53d097f8cf006b91db21ab7f31475f62bd96dec6307ad1a7b10634a"
+    },
+    "closure_ledger": {
+      "path": "v12/bench-performance-closure-ledger.json",
+      "sha256": "37f012c500088397808e51edd17d273f417e621082ef449287b3a5aeb554104f"
+    },
+    "coverage_manifest": {
+      "path": "v12/bench-bytecode-profile-coverage.json",
+      "sha256": "187c81ae4d26fef81065a7e5860182712c44320478948638f3fd643961544ea5"
+    }
+  },
+  "summary": {
+    "bytecode_target_misses": 59,
+    "cpu_current_rows": 59,
+    "allocation_current_rows": 59,
+    "uncovered_rows": 0,
+    "closure_ledger_entries": 23,
+    "total_excess_seconds": 221.5036842105263,
+    "production_optimization_admitted": false
+  },
+  "groups": [
+    {
+      "id": "bytecode-portable-workload-admission",
+      "row_count": 5,
+      "total_excess_seconds": 74.54894736842105,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-no-shared-leaf",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-28-bytecode-current-source-profile-coverage-closure.md",
+          "sha256": "b331dc71941cfec4d88a94b45e83a03e5c80d31019e711955b4d77def49327be"
+        }
+      ]
+    },
+    {
+      "id": "bytecode-text-map",
+      "row_count": 9,
+      "total_excess_seconds": 60.73842105263157,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-rejected-candidate",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+          "sha256": "d9592310abfe8ba73129472e89e620820e270bda916d7abddf229a5b71e534c9"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md",
+          "sha256": "789079153f76f2e36a0557006394bb7aed51dca8912cb6a8479b0cbc368434a0"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md",
+          "sha256": "6e418d6f166c67c28d37cc0d18c7f14222e261681dc59250c976a84de273ef0a"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-binary-event-log-application-gate.md",
+          "sha256": "853f45a03db3965bacaeb3f56812120f674f67ccf83f1580b0108caa9bb0a0cd"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-sensor-calibration-application-gate.md",
+          "sha256": "50a091af994285b3b961eb2b24cefea8a78b5a34d60618207ab62564e8989e14"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-27-backup-dedup-application-gate.md",
+          "sha256": "a5bfda084cb8dcddfd3457ae775c15635e6d567825ae08750b7b4231fa5a58d6"
+        }
+      ]
+    },
+    {
+      "id": "bytecode-regex",
+      "row_count": 6,
+      "total_excess_seconds": 23.137894736842107,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-rejected-candidate",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+          "sha256": "47f27a6b97956f1ffdd6566acbdba47b39bb4999625da2100279ab0cb10b7629"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md",
+          "sha256": "b1de056112b3016eabd60ddaae8f4441e62996ca6908f79a52a0cf18c9cb38be"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md",
+          "sha256": "d484fa9aa3b3a0217f01b7342cfbd6c792386b6cf4f58723593e59d34d059778"
+        }
+      ]
+    },
+    {
+      "id": "bytecode-concurrency",
+      "row_count": 23,
+      "total_excess_seconds": 17.716947368421053,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-no-shared-leaf",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+          "sha256": "3228d2b0f7449c93d9d1bb197ef0af288566f4c25fb3280ca5de117077c48790"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md",
+          "sha256": "d484fa9aa3b3a0217f01b7342cfbd6c792386b6cf4f58723593e59d34d059778"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-concurrent-document-pipeline-application-gate.md",
+          "sha256": "1bc51a70a3665b353164ae11b75aeafa3fd4cf788d9be7a86016bb25f3515e3f"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-application-gate.md",
+          "sha256": "6118a8630f2da7b04773fa4c1720a3ad31244e5f84100323037554b84370f0ab"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-application-gate.md",
+          "sha256": "57c898a10bccabd5dcfa609b808e0ec193bcd3eac38daab6229f29ab98bbfd07"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-application-gate.md",
+          "sha256": "f8abe14b07cb85f92893dd2c0f4fc55856bbbb41f277df08ae55d92a1de8b8c5"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-graph-visitors-application-gate.md",
+          "sha256": "23434e8a755978f1b2070b706e53490aca722f2b0221686d185c1a4eb6167063"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-packet-codecs-application-gate.md",
+          "sha256": "4cc1a09e521287897522162e9404db841a5be9dbc1e872a98a9fb0921e2ce71a"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-policy-callbacks-application-gate.md",
+          "sha256": "6d521b83f938f7b8c2f6fac7a83fb290e1c138307d0c9e9da9adb9a155d72b45"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-scene-tiles-application-gate.md",
+          "sha256": "9db8acafbb327e032813c6fbb3120ff6f8891bb692586ac77a68b74580cfd6a4"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-state-machines-application-gate.md",
+          "sha256": "961e0f2c1c920469f53b26444dc6ed47ba444eb7aa2c1d0c244246d382a6942e"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-stateful-pipeline-application-gate.md",
+          "sha256": "1430b636df30539f48ad2748d103861bf6c4ab2b2612b4a60c11d6f45055d023"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-transform-chain-application-gate.md",
+          "sha256": "16ca6eff12c8e25a51965cd9a5f3f911b0015f9ecab92edbc6db3fbdbbfb74ec"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-application-gate.md",
+          "sha256": "4701c5ec99fa8199908151f3ae410bc083e1921f7f738a5cc505d3397d4d8ad9"
+        }
+      ]
+    },
+    {
+      "id": "bytecode-wide-numeric",
+      "row_count": 3,
+      "total_excess_seconds": 17.174,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-rejected-candidate",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+          "sha256": "aa36b9164d84e6c4dfad70a4725e4fc045866034acef47f3cdc02e19abda6976"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md",
+          "sha256": "0e5b420ded67820ddf7f23c79412622c9643294ca650374b1db22c08e5d1ea5f"
+        }
+      ]
+    },
+    {
+      "id": "bytecode-float-numeric",
+      "row_count": 4,
+      "total_excess_seconds": 15.811789473684211,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-rejected-candidate",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+          "sha256": "f2f42c6cdfdcad98fb2bc48a281e82c5020c695bbfd4b59727e9f3986c4a7b95"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-refresh.md",
+          "sha256": "843df29b9f2fcf8d3b5aa2b662918ad65dd120140a386efd511d7c57be000ef5"
+        }
+      ]
+    },
+    {
+      "id": "bytecode-iterator-control",
+      "row_count": 6,
+      "total_excess_seconds": 7.028736842105262,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-no-shared-leaf",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+          "sha256": "223085915e235f65580e0d862c62f5c9f33ce3b4e46ba245c6062c9fe89b0f62"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md",
+          "sha256": "e0664868900c81397d78a4237e36ddbadec323fb08395c7db06ae3685c1cefa5"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-27-discrete-event-simulation-application-gate.md",
+          "sha256": "3622850fbd27223a7644529fa2a64509def9fbf1762adccbf61a73bcaadbe867"
+        }
+      ]
+    },
+    {
+      "id": "bytecode-byte-output",
+      "row_count": 3,
+      "total_excess_seconds": 5.346947368421052,
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "disposition": "closed-no-shared-leaf",
+      "evidence": [
+        {
+          "path": "v12/docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md",
+          "sha256": "8465e0f99cd1e3d776d06f3bdc55b93382d45f9c6ba1193913c98f31d00254e0"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md",
+          "sha256": "2161ecbb57ff33a94d384070d943fc50a00be5aa1e746cd43252c1736b77bfab"
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "benchmark": "k_nucleotide",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/k_nucleotide/k_nucleotide.able",
+        "sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 41.315999999999995,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "mode": "bytecode",
+      "group": "bytecode-portable-workload-admission",
+      "source": {
+        "path": "v12/examples/benchmarks/sudoku_masks/sudoku_masks.able",
+        "sha256": "222b321f579d7b2a84f4bc0fd379064a7ebe554bd83169782b28d04eaaab90e0"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 22.503263157894736,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "mode": "bytecode",
+      "group": "bytecode-portable-workload-admission",
+      "source": {
+        "path": "v12/examples/benchmarks/tapelang_alphabet/tapelang_alphabet.able",
+        "sha256": "426a40e33840f3a0e9e62d5f9b9519a6840edd2733b8031df6a280e4b782fdb8"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 19.90926315789474,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "binarytrees",
+      "mode": "bytecode",
+      "group": "bytecode-portable-workload-admission",
+      "source": {
+        "path": "v12/examples/benchmarks/binarytrees.able",
+        "sha256": "b2e5cd3b3f439960e39e04b2da675321e9bc45c1b5d811bdb9d61069bb168eeb"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 11.707473684210527,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "quicksort",
+      "mode": "bytecode",
+      "group": "bytecode-portable-workload-admission",
+      "source": {
+        "path": "v12/examples/benchmarks/quicksort/quicksort.able",
+        "sha256": "13dc68cc43b87d80d21943a45ca24f0722614f3b151f2ed26ef4f1025b103338"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 11.481684210526316,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "nbody",
+      "mode": "bytecode",
+      "group": "bytecode-portable-workload-admission",
+      "source": {
+        "path": "v12/examples/benchmarks/nbody.able",
+        "sha256": "7d0cb3f9291be2577e7726e6868deaaf2399223acfe48a666226d7ac697f8e49"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 8.947263157894737,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "mode": "bytecode",
+      "group": "bytecode-wide-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able",
+        "sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 7.640315789473684,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "mode": "bytecode",
+      "group": "bytecode-regex",
+      "source": {
+        "path": "v12/examples/benchmarks/policy_record_dispatch/policy_record_dispatch.able",
+        "sha256": "cd6089f205ff542c9c9c07c5526d47b9fc4287f9fd9c7081947d363610ec5263"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 7.560736842105263,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "binary_event_log",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/binary_event_log/binary_event_log.able",
+        "sha256": "658bf062ac063af7302544b1e9d2bc30d21c5c3b535e48634f40c20ba2c8d2ea"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 5.644631578947369,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "mode": "bytecode",
+      "group": "bytecode-wide-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/wide_integer_records/wide_integer_records.able",
+        "sha256": "8ba1e245f5d169409d2d35ba53c3ba94a554fd6767ec8d9d4602fef064b8405d"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 5.501578947368421,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "distance_field",
+      "mode": "bytecode",
+      "group": "bytecode-float-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/distance_field/distance_field.able",
+        "sha256": "80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 5.402526315789474,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "mandelbrot",
+      "mode": "bytecode",
+      "group": "bytecode-float-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/mandelbrot/mandelbrot.able",
+        "sha256": "663385828c4e7318bac285c4fcce27d3b435f9a3536a1a20b3cfa09af2a32315"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 5.089263157894737,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "discrete_event_simulation",
+      "mode": "bytecode",
+      "group": "bytecode-iterator-control",
+      "source": {
+        "path": "v12/examples/benchmarks/discrete_event_simulation/discrete_event_simulation.able",
+        "sha256": "f4229da6b02e7e79c49b81f266a08efb87476edade1255277a55fda77f10f22f"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 4.521157894736842,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "rms_norm",
+      "mode": "bytecode",
+      "group": "bytecode-float-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/rms_norm/rms_norm.able",
+        "sha256": "b289c78432f7c4077e259810c9e788341824899188821df669af345eed04dc59"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 4.128,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "mode": "bytecode",
+      "group": "bytecode-regex",
+      "source": {
+        "path": "v12/examples/benchmarks/regex_set_audit/regex_set_audit.able",
+        "sha256": "124fcfb1435ab1160adff38f7d50ba442c22b4d63cce25fa06e7799a26458b9b"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 4.110421052631579,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "rational_series",
+      "mode": "bytecode",
+      "group": "bytecode-wide-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/rational_series/rational_series.able",
+        "sha256": "20a58261d852834d425de755ed35e7c34b0bda80945caf97a94d4ba9b2e0bf46"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 4.032105263157895,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "mode": "bytecode",
+      "group": "bytecode-regex",
+      "source": {
+        "path": "v12/examples/benchmarks/regex_stream_audit/regex_stream_audit.able",
+        "sha256": "ed58e3975b12776a03ace5bd7e066b570e7538f303f631db9c1704d3a1eaa999"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 3.597157894736842,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "unicode_scalar_pipeline",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/unicode_scalar_pipeline/unicode_scalar_pipeline.able",
+        "sha256": "9ff36de9cbdd1e2b1138611fc20453e0803e3f8734769a30929eb52528ab7bdb"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 3.563684210526316,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "mode": "bytecode",
+      "group": "bytecode-regex",
+      "source": {
+        "path": "v12/examples/benchmarks/regex_suffix_audit/regex_suffix_audit.able",
+        "sha256": "7f8a1b031ae20c9af490cd21ac9846ea472b43c62cd082b22cb6e600fea2c5fe"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 3.429894736842105,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "reverse_complement",
+      "mode": "bytecode",
+      "group": "bytecode-byte-output",
+      "source": {
+        "path": "v12/examples/benchmarks/reverse_complement/reverse_complement.able",
+        "sha256": "4bd16d4b6c65362efc5b2515548f59686144553a91eadcc65a0cde6df537e5f9"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 3.264315789473684,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "mode": "bytecode",
+      "group": "bytecode-regex",
+      "source": {
+        "path": "v12/examples/benchmarks/log_routing_redaction/log_routing_redaction.able",
+        "sha256": "958ad9cdee6f91694757dbca9748e6f23bff84340e52e0e1375589726be0629b"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 3.0953684210526315,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able",
+        "sha256": "23d12e189b92ee44f83917df8a8fa8a84f2ab77242f9785474df345fbe5e274b"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 2.9211578947368424,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "sensor_calibration",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/sensor_calibration/sensor_calibration.able",
+        "sha256": "28a29926e6511185eda8621d69f09109a3f16bcff69de6f41e0d4cdc4c0d480d"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 2.594842105263158,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "concurrent_transform_chain",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_transform_chain/concurrent_transform_chain.able",
+        "sha256": "378d0a572c0a23d65a80d7681c6309ee0eb1e147cdd2e3442ce628ca04c40027"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 2.5894736842105264,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/inventory_reconciliation/inventory_reconciliation.able",
+        "sha256": "16c408486e1f3fb1003c795b5ed0ee63b310cd2fecba4a85d9b4081c381e8d9f"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 2.416526315789474,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "backup_dedup",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/backup_dedup/backup_dedup.able",
+        "sha256": "e29c9ccd3c94346397695303b1fb83d4e705aa9ce2d5b7194b8964268822f944"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.7750526315789472,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_stencil_reduction/concurrent_stencil_reduction.able",
+        "sha256": "db33fbbe0624cda3958b64f1fb51a07e950a023ca480b3469f1b09215f22501a"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.7309473684210528,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "fasta_generation",
+      "mode": "bytecode",
+      "group": "bytecode-byte-output",
+      "source": {
+        "path": "v12/examples/benchmarks/fasta_generation/fasta_generation.able",
+        "sha256": "7b30ce2139b20f4b30495a44e5afc99bb4ab664c2ec9e0817512784adcb06c0e"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.668842105263158,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/manifest_normalization/manifest_normalization.able",
+        "sha256": "4738af1fb5aabcdafd7581c2b84289824d6bf0a5dae779e70f4db6746f63aec9"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.5178947368421052,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "concurrent_signal_dispatch",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_signal_dispatch/concurrent_signal_dispatch.able",
+        "sha256": "79d9f7945ab5278b5725a0c28ee1e1bdf66a81530f95777c6478e9efa01d63d0"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.4935789473684211,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "word_frequency",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/word_frequency/word_frequency.able",
+        "sha256": "ad6e5d39c1685931dfb7b86fb7ce2afe783a1088ffc646a5482540606cd79a3f"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.4805263157894737,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "config_validation_extraction",
+      "mode": "bytecode",
+      "group": "bytecode-regex",
+      "source": {
+        "path": "v12/examples/benchmarks/config_validation_extraction/config_validation_extraction.able",
+        "sha256": "ffdba7256c645683bd9e53ef5a3422ca332ad51dae98816ef902906691ac8b73"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.3443157894736844,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_graph_visitors/concurrent_graph_visitors.able",
+        "sha256": "b445e78cd4c706fc09a3ab008df58fb4a5c90237b2caee4cd52420d04298db56"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.2226315789473685,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_audio_voices",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able",
+        "sha256": "b6a5d1e0d2901bd3341b02d1f3445601ef05670cb2442c9f706305f4ec8b7cad"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.2217894736842108,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "mode": "bytecode",
+      "group": "bytecode-float-numeric",
+      "source": {
+        "path": "v12/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able",
+        "sha256": "9afb1620c5f41eed0b519e225cf7a7cc32e837ccfccd2e047d56175c1805aa0c"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 1.1920000000000002,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_packet_codecs/concurrent_packet_codecs.able",
+        "sha256": "2184c24ec515d57551c57440c9351b58cb4a43c1824e5f1df43e839b3de57481"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.756,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "option_result_config",
+      "mode": "bytecode",
+      "group": "bytecode-iterator-control",
+      "source": {
+        "path": "v12/examples/benchmarks/option_result_config/option_result_config.able",
+        "sha256": "9a0cd261ba89aad1fe1cea7da9ce78bdf356a350151ba7f17277ed5a125d7c48"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.7211578947368421,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "array_slice_window",
+      "mode": "bytecode",
+      "group": "bytecode-iterator-control",
+      "source": {
+        "path": "v12/examples/benchmarks/array_slice_window/array_slice_window.able",
+        "sha256": "64c65a525023e5fc7000f13b9d36875716b7d8b936060fede904381b58156b4e"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.6573684210526316,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "future_pipeline",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/future_pipeline/future_pipeline.able",
+        "sha256": "823bcdb46878c9d57ab6438bed3767861974227b96318572dc823f3da69067b7"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.6040000000000001,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_scene_tiles",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able",
+        "sha256": "dd1b5c6eb972af1480eb87bca3096672e44280e3c8c473df95942c3f06ada71f"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.5651578947368421,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_text_index",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_text_index/concurrent_text_index.able",
+        "sha256": "5a2429f00e30e21af242850073e6e8c24d4022b8cad9bc7aee5e6e7860999eef"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.5405263157894736,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/dependency_wave_validation/dependency_wave_validation.able",
+        "sha256": "7d200dbe3ee867e95668ae8c74a2e45893f4d369db6bf00962363348dc632a50"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.4751578947368421,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "dependency_plan",
+      "mode": "bytecode",
+      "group": "bytecode-iterator-control",
+      "source": {
+        "path": "v12/examples/benchmarks/dependency_plan/dependency_plan.able",
+        "sha256": "f2579982dbe25debb2e40f2ec1f2d0187016a3801c5373c82f45258e16210d8e"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.4750526315789474,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/i_before_e/i_before_e.able",
+        "sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.42926315789473685,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "base64",
+      "mode": "bytecode",
+      "group": "bytecode-byte-output",
+      "source": {
+        "path": "v12/examples/benchmarks/base64/base64.able",
+        "sha256": "b4676ab1b4392ed4433d7a2ce57c7388907e4719494e6edce32728b071750108"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.4137894736842105,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "channel_rollup",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/channel_rollup/channel_rollup.able",
+        "sha256": "cc7ddd6dca16348087e17b89f07a30afa536750d088606744f9c22ce0704808a"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.4031578947368421,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_stateful_pipeline",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able",
+        "sha256": "99c6ecfb4eccd2c93925701f8a9845a53de88b9ac042ba6d34517ca073922bf5"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.39694736842105266,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/mutex_ledger/mutex_ledger.able",
+        "sha256": "2975ac5ae318fd528fd353ee8846f4cb86104e8525a43c2aa1c31e05dfdb1a61"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.3736842105263158,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "mode": "bytecode",
+      "group": "bytecode-iterator-control",
+      "source": {
+        "path": "v12/examples/benchmarks/lexical_rollup/lexical_rollup.able",
+        "sha256": "567a239892f4f6b00e5d61e4d262857ff14687c31e16cd1d390d9e9dfb6b3159"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.3685263157894737,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_tree_folds",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able",
+        "sha256": "521a80923670cdbf78d12110adb8e7b8fc4aa540ac1aea39133f029aa6b2e321"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.3621052631578947,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able",
+        "sha256": "792dd2fbf2d09643082e523999f768745eb5c08af64f2b747e82901e3fe4bd8e"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.34557894736842104,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/mutex_work_queue/mutex_work_queue.able",
+        "sha256": "8341715e210cd8342a49c32dd2d9ba01331f893b680e8a418f5ee2542a456113"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.3447368421052632,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_policy_callbacks",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_policy_callbacks/concurrent_policy_callbacks.able",
+        "sha256": "ae4b730a18e1f64e85b17f3eb2a53c5d7b54bf9d0c99b748e67bb18265451266"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.33410526315789474,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_state_machines",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_state_machines/concurrent_state_machines.able",
+        "sha256": "a8270e45edd0da619ec0c49ff1c09bf80a920e37ceff046e1887963059ea221e"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.3258947368421053,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "document_audit",
+      "mode": "bytecode",
+      "group": "bytecode-iterator-control",
+      "source": {
+        "path": "v12/examples/benchmarks/document_audit/document_audit.able",
+        "sha256": "4f3fe4b3ce2a782c67e79d1178ba0ef3165ff8917b1970a6c96ccd7e550f27f2"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.2854736842105263,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/concurrent_document_pipeline/concurrent_document_pipeline.able",
+        "sha256": "5c5d8a577a404fdc73e355a9b8997ff36acd04e8ca974e07bde0729e78a7dc16"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.26010526315789473,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/mutex_await_journal/mutex_await_journal.able",
+        "sha256": "3d17db99f2a06f2d87868dcb00e129d6f0cb18d4209b329e09bac281adaf8696"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.2085263157894737,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/await_channel_mux/await_channel_mux.able",
+        "sha256": "31bd5d760fff06cdd813c5520f961fbaadb5222908608f2630c183c8598f5b0c"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.13231578947368422,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "benchmark": "future_await_race",
+      "mode": "bytecode",
+      "group": "bytecode-concurrency",
+      "source": {
+        "path": "v12/examples/benchmarks/future_await_race/future_await_race.able",
+        "sha256": "7950a425ac6225a577d7c234395ee4293d5c89c2ddfcb19fd87732e8d4d0335b"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 0.10936842105263156,
+      "disposition": "closed-no-shared-leaf"
+    }
+  ]
+}

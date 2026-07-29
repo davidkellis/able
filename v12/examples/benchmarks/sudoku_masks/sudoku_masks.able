@@ -2,11 +2,35 @@ package sudoku_masks
 
 import able.kernel.{Array}
 import able.fs
+import able.io
+import able.os
 
 struct Position {
   row: i32,
   col: i32,
   choices: i32
+}
+
+fn parse_positive_i32(text: String) -> i32 {
+  result := 0
+  bytes := io.string_to_bytes(text)
+  idx := 0
+  loop {
+    if idx >= bytes.len() { break }
+    byte := bytes.read_slot(idx)
+    if byte < 48_u8 || byte > 57_u8 { return 0 }
+    result = result * 10 + ((byte - 48_u8) as i32)
+    idx = idx + 1
+  }
+  result
+}
+
+fn positive_arg(args: Array String, index: i32, fallback: i32) -> i32 {
+  if index < args.len() {
+    value := parse_positive_i32(args.get(index)!)
+    if value > 0 { return value }
+  }
+  fallback
 }
 
 fn parse_board(line: String) -> Array (Array i32) {
@@ -175,13 +199,16 @@ fn board_to_string(board: Array (Array i32)) -> String {
 }
 
 fn main() {
+  args := os.args()
+  iterations := positive_arg(args, 0, 10)
+  puzzle_limit := positive_arg(args, 1, 10)
   lines := fs.read_lines("sudoku/sudoku.txt")
   iter := 0
   loop {
-    if iter >= 10 { break }
+    if iter >= iterations { break }
     i := 0
     loop {
-      if i >= lines.len() || i >= 10 { break }
+      if i >= lines.len() || i >= puzzle_limit { break }
       puzzle := lines.get(i)!
       if puzzle.len_bytes() >= 81 {
         board := parse_board(puzzle)

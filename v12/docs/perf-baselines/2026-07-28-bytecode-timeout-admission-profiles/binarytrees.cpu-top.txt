@@ -1,0 +1,49 @@
+File: able
+Build ID: b06a0021971ac01d9093075e4e254c32c0a62522
+Type: cpu
+Time: 2026-07-28 13:12:26 CDT
+Duration: 14.95s, Total samples = 14.90s (99.65%)
+Showing nodes accounting for 10.67s, 71.61% of 14.90s total
+Dropped 206 nodes (cum <= 0.07s)
+Showing top 40 nodes out of 134
+      flat  flat%   sum%        cum   cum%
+     2.21s 14.83% 14.83%      2.67s 17.92%  runtime.tryDeferToSpanScan
+     1.02s  6.85% 21.68%      1.02s  6.85%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.76s  5.10% 26.78%     11.82s 79.33%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+     0.59s  3.96% 30.74%      2.71s 18.19%  gcWriteBarrier
+     0.44s  2.95% 33.69%      0.47s  3.15%  able/interpreter-go/pkg/interpreter.matchTypedPatternExactNamedStruct
+     0.44s  2.95% 36.64%      2.16s 14.50%  runtime.wbBufFlush1
+     0.40s  2.68% 39.33%      2.79s 18.72%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishInlineReturn
+     0.32s  2.15% 41.48%      0.32s  2.15%  runtime.memclrNoHeapPointers
+     0.29s  1.95% 43.42%      0.43s  2.89%  runtime.scanObjectsSmall
+     0.27s  1.81% 45.23%      0.41s  2.75%  runtime.findObject
+     0.26s  1.74% 46.98%      3.29s 22.08%  runtime.scanSpan
+     0.23s  1.54% 48.52%      1.42s  9.53%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     0.22s  1.48% 50.00%      0.65s  4.36%  runtime.mapaccess2_faststr
+     0.18s  1.21% 51.21%      0.33s  2.21%  able/interpreter-go/pkg/interpreter.bytecodeNamedStructMemberPlanForInstruction
+     0.17s  1.14% 52.35%      0.40s  2.68%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendSlotStackValueChecked
+     0.17s  1.14% 53.49%      0.17s  1.14%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.16s  1.07% 54.56%      0.16s  1.07%  aeshashbody
+     0.16s  1.07% 55.64%      0.36s  2.42%  runtime.scanObjectSmall
+     0.15s  1.01% 56.64%      0.52s  3.49%  runtime.bulkBarrierPreWrite
+     0.15s  1.01% 57.65%      0.15s  1.01%  runtime.heapArenaOf (inline)
+     0.14s  0.94% 58.59%      0.34s  2.28%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlot
+     0.14s  0.94% 59.53%      0.31s  2.08%  able/interpreter-go/pkg/interpreter.canonicalTypeName
+     0.14s  0.94% 60.47%      0.15s  1.01%  runtime.spanOf (inline)
+     0.13s  0.87% 61.34%      0.48s  3.22%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).pushSelfFastSlot0CallFrameWithBases
+     0.13s  0.87% 62.21%      0.24s  1.61%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).switchRunProgramWithActiveLookupState
+     0.11s  0.74% 62.95%      0.77s  5.17%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).pushSelfFastMinimalCallFrameWithBases
+     0.11s  0.74% 63.69%      0.11s  0.74%  able/interpreter-go/pkg/interpreter.bytecodeRawIntegerValueInfo
+     0.10s  0.67% 64.36%      0.18s  1.21%  able/interpreter-go/pkg/interpreter.bytecodeMaterializeRawIntegerValue
+     0.10s  0.67% 65.03%      0.10s  0.67%  internal/runtime/maps.ctrlGroup.matchFull (inline)
+     0.10s  0.67% 65.70%      0.10s  0.67%  runtime.(*mspan).moveInlineMarks
+     0.09s   0.6% 66.31%      0.66s  4.43%  able/interpreter-go/pkg/interpreter.(*Interpreter).matchesTypeWithoutRuntimeValue
+     0.09s   0.6% 66.91%      2.23s 14.97%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+     0.09s   0.6% 67.52%      0.13s  0.87%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execJumpIfIntLessEqualSlotConstFalse
+     0.09s   0.6% 68.12%      0.82s  5.50%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).releaseSlotFrame
+     0.09s   0.6% 68.72%      0.09s   0.6%  able/interpreter-go/pkg/interpreter.bytecodeIsRawIntegerCarrier (inline)
+     0.09s   0.6% 69.33%      0.09s   0.6%  runtime.(*spanScanOwnership).or (inline)
+     0.09s   0.6% 69.93%      0.09s   0.6%  runtime.alignDown (inline)
+     0.09s   0.6% 70.54%      0.09s   0.6%  runtime.typePointers.next
+     0.08s  0.54% 71.07%      0.96s  6.44%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotOpcode
+     0.08s  0.54% 71.61%      0.08s  0.54%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).releaseSlotFrameRawCells

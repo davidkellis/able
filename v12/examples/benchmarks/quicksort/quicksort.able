@@ -2,6 +2,7 @@ package quicksort
 
 import able.kernel.{Array}
 import able.fs
+import able.os
 
 fn parse_numbers(bytes: Array u8) -> Array i32 {
   count: i32 := bytes.len()
@@ -67,7 +68,9 @@ fn quicksort(arr: Array i32, lo: i32, hi: i32) {
 }
 
 fn main() {
-  nums := parse_numbers(fs.read_bytes("numbers.txt"))
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "numbers.txt" }
+  nums := parse_numbers(fs.read_bytes(path))
 
   quicksort(nums, 0, nums.len() - 1)
 

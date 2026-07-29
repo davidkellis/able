@@ -4,7 +4,7 @@
   "sources": {
     "residual_report": {
       "path": "v12/docs/perf-baselines/2026-07-21-cross-mode-residual-cost-model.json",
-      "sha256": "499c96e9949a7828bf6dc4df4b257257f6d8fcaa95006c5edb87e23c3e05ee7e"
+      "sha256": "4f47c848bcc0d10bf2f1929d662486579dbe367c1ecde02c970a66b44ed5515b"
     },
     "allocation_report": {
       "path": "v12/docs/perf-baselines/2026-07-21-compiled-generated-allocation-shape.json",

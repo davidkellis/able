@@ -6,7 +6,7 @@
 
 Do not rerun a closed performance tranche; no checked evidence identity is invalidated.
 
-The ledger contains 21 closures: 21 current and 0 invalidated.
+The ledger contains 23 closures: 23 current and 0 invalidated.
 
 ## Closure selector
 
@@ -16,8 +16,10 @@ The ledger contains 21 closures: 21 current and 0 invalidated.
 | `bytecode-concurrency` | bytecode | frontier | `closed-no-shared-leaf` | **current** | — |
 | `bytecode-float-numeric` | bytecode | frontier | `closed-rejected-candidate` | **current** | — |
 | `bytecode-iterator-control` | bytecode | frontier | `closed-no-shared-leaf` | **current** | — |
+| `bytecode-portable-workload-admission` | bytecode | frontier | `closed-no-shared-leaf` | **current** | — |
 | `bytecode-regex` | bytecode | frontier | `closed-rejected-candidate` | **current** | — |
 | `bytecode-register-architecture` | bytecode | extra | `closed-rejected-candidate` | **current** | — |
+| `bytecode-semantic-boundary-reach` | bytecode | extra | `closed-rejected-candidate` | **current** | — |
 | `bytecode-target-guards` | bytecode | frontier | `target-guard` | **current** | — |
 | `bytecode-text-map` | bytecode | frontier | `closed-rejected-candidate` | **current** | — |
 | `bytecode-wide-numeric` | bytecode | frontier | `closed-rejected-candidate` | **current** | — |
@@ -48,7 +50,7 @@ The selector does not run benchmarks. An invalidated closure authorizes a bounde
 
 Use this selector as the gate for future performance work. Because it currently selects nothing, do not start another optimization or profiling tranche until a checked source, semantic, stdlib, benchmark, or scorecard trigger invalidates at least one closure.
 
-Why: all 21 closures are current. Repeating a closed profile or candidate would measure unchanged evidence, while broad aggregate labels have already failed to identify one general mechanism.
+Why: all 23 closures are current. Repeating a closed profile or candidate would measure unchanged evidence, while broad aggregate labels have already failed to identify one general mechanism.
 
 What it entails: keep `just bench-evidence-ledger-check` green during ordinary work. After an intentional production/spec/stdlib/benchmark change, run the selector, refresh only the closures it names with repeated verifier-backed arithmetic means, update their evidence hashes, and then reconsider candidate admission. If no trigger occurs, work on correctness or specified language/stdlib completeness rather than manufacturing a benchmark optimization.
 

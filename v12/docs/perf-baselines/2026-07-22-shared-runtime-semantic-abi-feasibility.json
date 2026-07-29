@@ -160,7 +160,7 @@
   "sources": {
     "backend_adr": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
-      "sha256": "af7eb2539bb16be719af1ead3eb276b8f912e788a15de84371b30436c3d57f2e"
+      "sha256": "89432b044deb1227c818b80fce12c63db27c369cbe36233f29d0b54992b4358d"
     },
     "bytecode_architecture_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -168,7 +168,7 @@
     },
     "compiled_architecture_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+      "sha256": "7f9d081284a55c626660692875c93eedb6725056d98ec37f26a554759d33dc1a"
     },
     "compiled_runtime": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/compiler/generator_render_runtime.go",
@@ -180,11 +180,11 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-shared-runtime-semantic-abi.json",
-      "sha256": "679da72db9691db953de93912fd8166a48941ebb575899cd3911b5592b3f4541"
+      "sha256": "3f191a7b8a9faf46d51937dd7ab2904ce49fadc579047bc8b0da20b97966b382"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "7e58450b286d7b45a25383708bfbcfda7f86865e8943a102c11a3acbfdb24167"
+      "sha256": "a3b73576b074b7709f32c038dca1149f0174c3dc5cdd91a1c19b83bd005f0e2f"
     },
     "runtime_values": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/values.go",
@@ -224,7 +224,7 @@
   "target_model": [
     {
       "benchmark": "fixed_width_128",
-      "compiled_equivalent_target_excess_reduction_percent": 47.66913,
+      "compiled_equivalent_target_excess_reduction_percent": 48.568847,
       "family": "wide-numeric",
       "hottest_program": "ordered_select_checksum",
       "hottest_program_instruction_share_percent": 46.735683,
@@ -232,7 +232,7 @@
     },
     {
       "benchmark": "distance_field",
-      "compiled_equivalent_target_excess_reduction_percent": 59.669479,
+      "compiled_equivalent_target_excess_reduction_percent": 59.767008,
       "family": "float-numeric",
       "hottest_program": "main",
       "hottest_program_instruction_share_percent": 56.410349,
@@ -240,7 +240,7 @@
     },
     {
       "benchmark": "word_frequency",
-      "compiled_equivalent_target_excess_reduction_percent": 35.732209,
+      "compiled_equivalent_target_excess_reduction_percent": 39.45596,
       "family": "text-map",
       "hottest_program": "split",
       "hottest_program_instruction_share_percent": 40.23112,
@@ -248,7 +248,7 @@
     },
     {
       "benchmark": "array_slice_window",
-      "compiled_equivalent_target_excess_reduction_percent": 60.332685,
+      "compiled_equivalent_target_excess_reduction_percent": 62.390469,
       "family": "array-iterator",
       "hottest_program": "rolling_checksum",
       "hottest_program_instruction_share_percent": 63.488427,
@@ -256,7 +256,7 @@
     },
     {
       "benchmark": "reverse_complement",
-      "compiled_equivalent_target_excess_reduction_percent": 52.344055,
+      "compiled_equivalent_target_excess_reduction_percent": 53.010698,
       "family": "byte-text",
       "hottest_program": "reverse_complement_fasta",
       "hottest_program_instruction_share_percent": 53.408536,

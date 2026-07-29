@@ -43,11 +43,11 @@ class PerformanceEvidenceLedgerTests(unittest.TestCase):
         report = self.current_report()
         checked = json.loads(CHECKED_REPORT.read_text(encoding="utf-8"))
         self.assertEqual(report, checked)
-        self.assertEqual(report["summary"]["closure_count"], 21)
+        self.assertEqual(report["summary"]["closure_count"], 23)
         self.assertEqual(
             report["summary"]["current_count"]
             + report["summary"]["invalidated_count"],
-            21,
+            23,
         )
 
     def test_one_evidence_identity_invalidates_only_its_closure(self) -> None:

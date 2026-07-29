@@ -26,7 +26,8 @@ type compilerFixtureOutcome struct {
 	Exit   int
 }
 
-func TestCompilerDiagnosticsParityFixtures(t *testing.T) {
+func runCompilerDiagnosticsParityFixtures(t *testing.T, batchIndex, batchCount int) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("skipping compiler diagnostics parity in short mode")
 	}
@@ -38,7 +39,10 @@ func TestCompilerDiagnosticsParityFixtures(t *testing.T) {
 	if len(fixtures) == 0 {
 		t.Skip("no diagnostics fixtures configured")
 	}
-	for _, rel := range fixtures {
+	for index, rel := range fixtures {
+		if index%batchCount != batchIndex {
+			continue
+		}
 		rel := rel
 		t.Run(rel, func(t *testing.T) {
 			t.Parallel()
@@ -67,6 +71,14 @@ func TestCompilerDiagnosticsParityFixtures(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompilerDiagnosticsParityFixturesBatch1(t *testing.T) {
+	runCompilerDiagnosticsParityFixtures(t, 0, 2)
+}
+
+func TestCompilerDiagnosticsParityFixturesBatch2(t *testing.T) {
+	runCompilerDiagnosticsParityFixtures(t, 1, 2)
 }
 
 func resolveCompilerDiagnosticsFixtures() []string {

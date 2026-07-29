@@ -50094,3 +50094,282 @@
   the now-complete local consolidation.
 - Record:
   `v12/docs/perf-baselines/2026-07-28-post-consolidation-release-inventory.md`.
+
+## 2026-07-28 - Bytecode unranked-coverage admission search
+
+- Confirmed that the five reviewed release commits are published. Local
+  `master`, `origin/master`, and `origin/HEAD` all resolve to
+  `5bbe9e4594bfb2b7e7f8c84b9fbed9314c0ee8db`; deferred WASM remains outside
+  the published boundary.
+- Audited the seven compiled-selected applications without a selected
+  bytecode row. Binary Trees, N-Body, Quicksort, Sudoku Masks, and TapeLang
+  Alphabet retain current 90-second Able timeouts. Fib and Matrix Multiply
+  verify but remain unranked because no usable Python timing is available.
+- Collected bounded CPU profiles and separate main-only instruction censuses
+  for the five unlike timeout applications. Their dominant owners differ.
+  The exact common leaves reconcile to already-closed stack, return, frame,
+  raw-integer, and Array routes.
+- Inline resolution recorded zero misses in all five censuses. Array fast
+  paths recorded 3,456,204 hits and 75 fallbacks across the four
+  Array-using rows. No open shared compiler/runtime/VM owner reached the
+  three-unlike-application admission gate.
+- Fresh public-verifier measurements passed 5/5 for each runnable row: Fib
+  averaged 0.1560 seconds and Matrix Multiply averaged 4.5900 seconds.
+- Selection, scorecard-refresh, evidence-reference, and closure-ledger tests
+  pass. JSON, whitespace, and maintained-source-size checks pass.
+- Retained no compiler, generated-runtime, runtime, interpreter, VM,
+  canonical-stdlib, benchmark, language, dependency, nominal-special-case,
+  or WASM production change.
+- Deleted the exact 315 MiB disk-backed profiling workspace and its pointer,
+  a 35 MiB ignored stale generated compiler workspace, and the test-created
+  Python cache after confirming no tracked files or open handles were
+  involved.
+- Next calibrate portable, mode-aware workload scales for the seven unranked
+  rows using temporary cross-language copies and at least five balanced
+  verifier-backed runs. This is important because comparable full runs can
+  reveal a genuinely shared general owner, whereas the standard workloads
+  currently yield timeouts or unusable reference evidence.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-bytecode-unranked-coverage-admission-search.md`.
+
+## 2026-07-28 - Bytecode portable workload-scale calibration
+
+- Calibrated portable temporary workloads for all seven compiled-selected
+  applications without a selected bytecode row: Binary Trees depth 15,
+  N-Body 50,000 steps, Quicksort 500,000 integers, Sudoku Masks ten puzzles
+  for one pass, TapeLang's five-level delay, `fib(40)`, and 400×400 Matrix
+  Multiply.
+- Rotated Able/Python/Ruby launch order across five independent single-CPU
+  processes per language. All 105 samples completed under 24.5 seconds and
+  passed exact or tolerance-backed verification.
+- Able/Python and Able/Ruby ratios respectively are: Binary Trees
+  19.9022×/19.9838×, N-Body 42.3894×/25.4542×, Quicksort
+  18.1409×/17.9994×, Sudoku Masks 13.8473×/11.2662×, TapeLang
+  32.3528×/27.3043×, Fib 0.0216×/0.0266×, and Matrix Multiply
+  0.2289×/0.2340×. The fourteen-ratio geometric mean is 4.232748×.
+- Collected complete verifier-passing CPU profiles for the five misses. Only
+  the aggregate dispatch loop and already-closed raw-integer route appear in
+  every retained top. Other repeated functions reconcile to closed call,
+  store, return, frame, stack, and Array families; no production owner is
+  admitted.
+- Retained calibration samples, summaries, source/input identities, five
+  profile tops, and the exact small TapeLang candidate input. Left canonical
+  Able/external benchmark sources, verifiers, inputs, selection, and current
+  scorecard unchanged.
+- Selection, refresh, evidence-reference, and closure-ledger tests pass, as do
+  JSON, sample-count, timeout, whitespace, and maintained-source-size checks.
+- Deleted the exact 267 MiB disk-backed calibration/build/profile workspace
+  and test-created Python cache after preserving compact evidence.
+- Next implement a general mode-aware benchmark argument and verifier/input
+  contract, preserve canonical compiled workloads, and run a complete
+  five-process 126-row refresh before selecting these seven bytecode rows.
+  This is important because it can reach 63/63 bytecode coverage without
+  weakening compiled comparisons or introducing benchmark-specific VM rules.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-bytecode-portable-workload-scale-calibration.md`.
+
+## 2026-07-28 - Mode-aware benchmark contract and 126-row promotion
+
+- Added a general benchmark-mode argument/input contract. Compiled and Go
+  retain canonical workloads; bytecode, Python, and Ruby use the seven
+  verifier-equivalent portable scales established by calibration.
+- Exposed ordinary workload arguments in the affected Able, Go, Python, and
+  Ruby programs; added portable Quick Sort and TapeLang inputs and updated
+  public verifiers and benchmark documentation.
+- Added focused mode-contract tests and a disk-backed `--work-root` option to
+  the complete scorecard refresh.
+- Collected five verified processes for all 126 Able rows and all 189 required
+  Go/Python/Ruby reference rows: 1,575/1,575 timed processes passed with zero
+  timeouts, execution failures, or verifier failures.
+- Promoted selection from 63 compiled/56 bytecode to complete 63/63 coverage.
+  Current target passes are 6/63 compiled and 4/63 bytecode; geometric means
+  are 5.575597× Able/Go and 12.780200× across bytecode reference ratios.
+- Retained no compiler, generated-runtime, runtime, interpreter, VM,
+  canonical-stdlib, language, dependency, named-container/non-primitive
+  nominal, or WASM production change.
+- Next map current CPU/allocation-profile coverage across the 59 bytecode
+  misses, exclude already-closed routes, and profile the largest genuinely
+  uncovered misses in at least three unlike families. This matters because
+  complete coverage exposes 221.503684 seconds of bytecode target excess, but
+  the five calibrated miss profiles already failed the shared-owner gate.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-closure.md`.
+
+## 2026-07-28 - Mode-aware target stability and evidence ledger reconciled
+
+- Repeated every one of the ten current snapshot passes in an independent
+  current-contract cohort with matched CPU identities and five verifier-backed
+  Able/reference processes per comparison. All 120 retained timed processes
+  passed without timeout, failure, or verifier error.
+- All six compiled passes and all four bytecode passes repeated below the
+  1.052632 target ratio. They are now established ten-sample guards rather
+  than one-cohort snapshot crossings.
+- Regenerated the complete 126-row cross-mode frontier. Added the five unlike
+  calibrated bytecode misses as an explicit closed-no-shared-leaf group and
+  reconciled benchmark-only source/definition drift; all 22 performance
+  closures are current with zero invalidations.
+- Excluded one otherwise verified 30-process compiled cohort because the Able
+  and Go Binary Trees rows used different CPU pools; the comparison harness
+  rejected that contract mismatch before evidence emission.
+- Retained no compiler, generated-runtime, runtime, interpreter, VM, stdlib,
+  language, dependency, nominal-special-case, or WASM production change.
+- Next build a source-identity CPU/allocation profile coverage map across the
+  59 bytecode misses and profile only the largest uncovered rows spanning at
+  least three unlike families. This is important because it targets the
+  221.503684-second bytecode excess without repeating closed VM routes.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-closure.md`.
+
+## 2026-07-28 - Bytecode current-source CPU/allocation coverage closed
+
+- Added a checked source-identity coverage manifest and generator for all 59
+  current bytecode target misses. The generated ledger rehashes every selected
+  Able source, requires current CPU and allocation evidence, covers each miss
+  exactly once, and reconciles every group to a closed frontier disposition.
+- Refreshed the five formerly calibrated-copy-only rows from their exact
+  current selected sources. Two main-only CPU and two independent exact
+  measured-main allocation processes per application all completed under the
+  catalog's current arguments and executor policies.
+- Mean exact main allocation ranged from 163,968 bytes/851 allocations for
+  TapeLang to 3,830,196,580 bytes/31,566,686.5 allocations for Binary Trees.
+  N-Body is owned by stack snapshots and float materialization, QuickSort by
+  boxed/cached i32 values, and Sudoku by named structs.
+- The only exact CPU symbols at 1% flat breadth three are aggregate dispatch,
+  Go GC/locking, and already-closed stack, raw-integer, call, return, and store
+  routes. The apparent shared atomic leaf splits among environment/type-cache
+  and Array callers. No general candidate cleared the admission bar, so no
+  production code was changed.
+- Regenerated the 126-row frontier and advanced only the refreshed portable
+  closure. The 22-entry evidence ledger is current with zero invalidations;
+  focused coverage/frontier tests pass.
+- Removed the disk-backed raw binary, Go cache, pprof files, and temporary
+  reports after preserving the compact generated coverage and decision record.
+- Next build release-disabled primitive materialization/boxing reach counters
+  keyed by primitive kind and consumer operation, then run the largest unlike
+  bytecode misses. This matters because complete profile coverage has closed
+  visible exact owners; causal boundary reach is now needed to find where
+  native carriers are still lost without inventing application or container
+  special cases.
+- Records:
+  `v12/docs/perf-baselines/2026-07-28-bytecode-current-source-profile-coverage-closure.md`
+  and
+  `v12/docs/perf-baselines/2026-07-28-bytecode-current-profile-coverage.md`.
+
+## 2026-07-28 - Bytecode semantic-boundary reach closure
+
+- Reused the retained release-disabled primitive-materialization observer
+  after auditing direct raw-materialization calls; no intentional bytecode
+  boundary bypassed its wrappers, so no duplicate instrumentation was added.
+- Ran eight current-source family representatives with catalog arguments,
+  executor policy, source-root-only loading, main-only counters, disk-backed
+  work, and public verification. The retained rows recorded 25,994,536
+  transitions with no dropped sites. K-Nucleotide and Sudoku repeated with
+  identical totals and byte-identical output.
+- Three exact primitive/consumer shapes cleared the material three-family
+  gate: collection `i32 -> StructLiteralNamedFast` across four families,
+  interface/union `i32 -> MemberSet` across three, and collection
+  `i64 -> StructLiteralNamedFast` across three.
+- All three reopen the generic nominal-field raw-carrier rule rejected on
+  2026-07-26 after Sensor Calibration regressed 6.93% and Rational Series
+  4.28%. No new call/return/slot/stack/Array/cast/host/public boundary
+  qualified, so no prototype or timing A/B cohort was warranted.
+- Retained no compiler, generated-runtime, runtime-semantics, interpreter,
+  VM, stdlib, benchmark, language, dependency, nominal-special-case, or WASM
+  production change.
+- Focused Go diagnostics and CLI tests, 30 Python evidence/coverage/frontier
+  contracts, JSON, whitespace, and generated-report reproduction pass. The
+  23-entry evidence ledger is current with zero invalidations.
+- Removed the exact 336 MiB disk-backed census workspace and a demonstrably
+  idle 27 MiB `/tmp/able-v12-extern-go` cache.
+- Next run current correctness and release-readiness gates and reopen
+  production performance work only on a checked evidence invalidation. This
+  matters because profile and causal-boundary evidence now agree that no open
+  general owner repeats across three unlike families.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-bytecode-semantic-boundary-reach-closure.md`.
+
+## 2026-07-28 - V12 correctness and release-readiness refreshed
+
+- Reconciled residual, interaction, architecture-budget, structural-strategy,
+  portable-backend, shared-runtime, and bytecode-tier evidence with the
+  current 126-row frontier. All derived decisions remain closed; the
+  23-entry performance ledger is current with zero invalidations.
+- Repaired the only genuine individual compiler-test duration violation by
+  splitting the String/i32 typed-Array cases and narrowing their canonical
+  import to `able.collections.enumerable.{Enumerable}`. The replacements take
+  7.40 and 7.17 seconds while preserving compile, generated-Go build,
+  specialization, and concrete Iterator assertions.
+- Split concurrency and diagnostics parity into bounded top-level groups and
+  increased every full generated-program release audit from 24 to 128
+  partitions. Exact serial JSON replay found a 53.09-second compiler-core
+  maximum and no individual test at or above one minute.
+- The ordinary suite, `go vet ./...`, `go build ./...`, canonical stdlib in
+  tree-walker and bytecode modes, the 1,190.720-second cold compiled-CLI lane,
+  and all 640 fallback/compiled-execution/strict-dispatch/interface/boundary
+  audit partitions pass.
+- Final checks confirm 63 compiled plus 63 bytecode rows, five samples for
+  every Able/reference comparison, 23 current closures, zero invalidations,
+  and zero actionable frontier groups. No production compiler, runtime,
+  interpreter, VM, stdlib, language, dependency, benchmark, fixture,
+  reference, nominal-special-case, or WASM behavior changed.
+- Deleted the exact 28 GiB disk-backed release workspace, 29 MiB dead extern
+  cache, and 284 KiB test-created Python bytecode after recording results.
+- Next refresh the non-mutating post-frontier release-consolidation inventory.
+  This entails mapping current changed/untracked v12 paths to dated records
+  and review boundaries without deleting, staging, committing, resetting, or
+  touching deferred WASM work. It is important because the native-lowering
+  state is verified but no new general three-family performance owner is
+  admissible.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-v12-correctness-release-readiness-closure.md`.
+
+## 2026-07-28 - Post-frontier release inventory
+
+- Captured an immutable 212-path pre-record snapshot at
+  `5bbe9e4594bfb2b7e7f8c84b9fbed9314c0ee8db`: 74 tracked modifications,
+  138 fully expanded untracked files, no deletions or renames, and a clean
+  index. `HEAD` exactly matches `origin/master`.
+- Classified exactly 178 retained paths and the unchanged 34-path deferred
+  WASM hold. No path is unmatched or generated-local.
+- Ordered the retained boundary as benchmark contract implementation,
+  benchmark evidence, bytecode profile coverage, semantic-boundary closure,
+  derived architecture reconciliation, compiler release-readiness, and
+  handoff/release tooling.
+- Preserved a 212-row state/order/disposition/governing-record/line/byte/hash
+  manifest with SHA-256
+  `13154fd551ada27f96b02538c0b321343672d13283bd1f585a63e9bda9f7ee66`.
+- All identities reproduce; 75 JSON files parse; 14 dirty Go files are
+  formatted; whitespace, source-size, scope, and common-secret checks pass.
+  The largest dirty maintained source is 997 lines.
+- A non-mutating cleanup dry run identified 4.01 GiB in three ignored
+  generated paths. Nothing was deleted, staged, committed, reset, or pushed,
+  and no production, stdlib, dependency, benchmark, or WASM behavior changed.
+- The exact post-record candidate is 181 paths: 178 retained snapshot paths
+  plus three inventory metadata files. Next obtain explicit authorization
+  before exact staging and one local commit without pushing. This matters
+  because the release boundary is now auditable, but Git mutation remains a
+  separate authority decision.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-post-frontier-release-inventory.md`.
+
+## 2026-07-28 - Authorized post-frontier exact-index commit
+
+- The maintainer explicitly authorized the inventory's exact 181-path local
+  consolidation: 178 retained pre-record paths plus three inventory metadata
+  files.
+- Refreshed all 178 non-self content identities after the final handoff edits
+  and revalidated the exact 181-path candidate against the unchanged 34-path
+  deferred WASM complement.
+- Used only the exact NUL-delimited pathspec with SHA-256
+  `fd41801a0261058210ab24e5c31660ea1ea59ed990b1208a8edde1056a8596f8`;
+  no broad `git add` pathspec was used.
+- Cached identity, JSON, Go formatting, whitespace, source-size, scope,
+  common-secret, evidence, and path-complement checks passed before creating
+  one local consolidation commit.
+- Deferred WASM remained unstaged and no push occurred.
+- Next request explicit maintainer authorization before publishing the local
+  branch. This entails confirming the remote and exact commit range; it is
+  important because local-commit authorization does not authorize external
+  mutation.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-post-frontier-release-inventory.md`.

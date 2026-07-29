@@ -13,10 +13,10 @@ far too small to close even the smallest modeled VM target gap.
 
 | Mode | Rows | Meets | Misses | Excess seconds | Share |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| compiled | 63 | 5 | 58 | 34.710947 | 18.42% |
-| bytecode | 56 | 3 | 53 | 153.740632 | 81.58% |
+| compiled | 63 | 6 | 57 | 5.675368 | 2.50% |
+| bytecode | 63 | 4 | 59 | 221.503684 | 97.50% |
 
-The full 119-row frontier has 111 misses and 188.451579 seconds above its aggregate target. Bytecode owns 81.58% of that gap.
+The full 126-row frontier has 116 misses and 227.179053 seconds above its aggregate target. Bytecode owns 97.50% of that gap.
 
 ## Optimistic architecture bounds
 
@@ -34,14 +34,14 @@ experiment as the next tranche.
 
 | Group | Misses | Excess seconds | Disposition |
 | --- | ---: | ---: | --- |
-| `bytecode-text-map` | 9 | 66.615263 | `closed-rejected-candidate` |
-| `compiled-concurrency` | 23 | 24.776947 | `closed-rejected-candidate` |
-| `bytecode-regex` | 6 | 23.455053 | `closed-rejected-candidate` |
-| `bytecode-wide-numeric` | 3 | 17.783368 | `closed-rejected-candidate` |
-| `bytecode-concurrency` | 22 | 17.442316 | `closed-no-shared-leaf` |
-| `bytecode-float-numeric` | 4 | 15.540842 | `closed-rejected-candidate` |
-| `bytecode-iterator-control` | 6 | 7.286632 | `closed-no-shared-leaf` |
-| `bytecode-byte-output` | 3 | 5.617158 | `closed-no-shared-leaf` |
+| `bytecode-portable-workload-admission` | 5 | 74.548947 | `closed-no-shared-leaf` |
+| `bytecode-text-map` | 9 | 60.738421 | `closed-rejected-candidate` |
+| `bytecode-regex` | 6 | 23.137895 | `closed-rejected-candidate` |
+| `bytecode-concurrency` | 23 | 17.716947 | `closed-no-shared-leaf` |
+| `bytecode-wide-numeric` | 3 | 17.174000 | `closed-rejected-candidate` |
+| `bytecode-float-numeric` | 4 | 15.811789 | `closed-rejected-candidate` |
+| `bytecode-iterator-control` | 6 | 7.028737 | `closed-no-shared-leaf` |
+| `bytecode-byte-output` | 3 | 5.346947 | `closed-no-shared-leaf` |
 
 ## Next recommendation
 

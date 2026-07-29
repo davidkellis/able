@@ -4,7 +4,7 @@
   "sources": {
     "frontier": {
       "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+      "sha256": "eb2ba1219218732569e91ac23b52cc44b588045e8f69d4ce7930972eb54350d8"
     },
     "bytecode_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -12,7 +12,7 @@
     },
     "compiled_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "74ff5bb5e1d4a473ed521e92b6a997fbe229eadbb02cc6cdf697dd28cfb38831"
+      "sha256": "7f9d081284a55c626660692875c93eedb6725056d98ec37f26a554759d33dc1a"
     }
   },
   "minimum_unlike_families": 3,

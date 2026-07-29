@@ -36,19 +36,19 @@
       "family": "text-map",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 46.53,
-          "excess_seconds": 44.98905263157895,
+          "able_real_seconds": 42.614,
+          "excess_seconds": 41.315999999999995,
           "fastest_reference": "ruby",
-          "fastest_reference_real_seconds": 1.4639,
-          "reference_ratio": 31.784957988933673,
+          "fastest_reference_real_seconds": 1.2331,
+          "reference_ratio": 34.55842997323818,
           "reference_ratio_language": "ruby"
         },
         "compiled": {
-          "able_real_seconds": 2.898,
-          "excess_seconds": 2.812842105263158,
+          "able_real_seconds": 1.564,
+          "excess_seconds": 1.4912631578947368,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0809,
-          "reference_ratio": 35.82200247218789,
+          "fastest_reference_real_seconds": 0.0691,
+          "reference_ratio": 22.63386396526773,
           "reference_ratio_language": "go"
         }
       },
@@ -116,19 +116,19 @@
       "family": "wide-numeric",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 8.522,
-          "excess_seconds": 8.153157894736843,
+          "able_real_seconds": 8.03,
+          "excess_seconds": 7.640315789473684,
           "fastest_reference": "python",
-          "fastest_reference_real_seconds": 0.3504,
-          "reference_ratio": 24.320776255707763,
+          "fastest_reference_real_seconds": 0.3702,
+          "reference_ratio": 21.690977849810913,
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.206,
-          "excess_seconds": 0.19989473684210526,
+          "able_real_seconds": 0.09,
+          "excess_seconds": 0.08368421052631579,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0058,
-          "reference_ratio": 35.51724137931035,
+          "fastest_reference_real_seconds": 0.006,
+          "reference_ratio": 15.0,
           "reference_ratio_language": "go"
         }
       },
@@ -196,19 +196,19 @@
       "family": "float-numeric",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 5.914,
-          "excess_seconds": 5.505894736842105,
+          "able_real_seconds": 5.76,
+          "excess_seconds": 5.402526315789474,
           "fastest_reference": "ruby",
-          "fastest_reference_real_seconds": 0.3877,
-          "reference_ratio": 15.25406241939644,
+          "fastest_reference_real_seconds": 0.3396,
+          "reference_ratio": 16.96113074204947,
           "reference_ratio_language": "ruby"
         },
         "compiled": {
-          "able_real_seconds": 0.09,
-          "excess_seconds": 0.076,
+          "able_real_seconds": 0.036,
+          "excess_seconds": 0.023157894736842103,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0133,
-          "reference_ratio": 6.7669172932330826,
+          "fastest_reference_real_seconds": 0.0122,
+          "reference_ratio": 2.9508196721311473,
           "reference_ratio_language": "go"
         }
       },
@@ -253,19 +253,19 @@
       "family": "regex-dispatch",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 7.452,
-          "excess_seconds": 7.418526315789474,
+          "able_real_seconds": 7.582,
+          "excess_seconds": 7.560736842105263,
           "fastest_reference": "python",
-          "fastest_reference_real_seconds": 0.0318,
-          "reference_ratio": 234.3396226415094,
+          "fastest_reference_real_seconds": 0.0202,
+          "reference_ratio": 375.34653465346537,
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.226,
-          "excess_seconds": 0.2168421052631579,
+          "able_real_seconds": 0.084,
+          "excess_seconds": 0.07863157894736843,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0087,
-          "reference_ratio": 25.977011494252878,
+          "fastest_reference_real_seconds": 0.0051,
+          "reference_ratio": 16.470588235294116,
           "reference_ratio_language": "go"
         }
       },
@@ -333,19 +333,19 @@
       "family": "concurrency",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 3.256,
-          "excess_seconds": 3.2206315789473683,
+          "able_real_seconds": 2.954,
+          "excess_seconds": 2.9211578947368424,
           "fastest_reference": "python",
-          "fastest_reference_real_seconds": 0.0336,
-          "reference_ratio": 96.9047619047619,
+          "fastest_reference_real_seconds": 0.0312,
+          "reference_ratio": 94.6794871794872,
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 2.914,
-          "excess_seconds": 2.908105263157895,
+          "able_real_seconds": 0.04,
+          "excess_seconds": 0.03431578947368421,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0056,
-          "reference_ratio": 520.3571428571429,
+          "fastest_reference_real_seconds": 0.0054,
+          "reference_ratio": 7.407407407407407,
           "reference_ratio_language": "go"
         }
       },
@@ -366,7 +366,7 @@
         "policy_record_dispatch",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 75.500947,
+      "covered_application_excess_seconds": 66.551789,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md",
@@ -389,7 +389,7 @@
         "distance_field",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 16.879684,
+      "covered_application_excess_seconds": 15.964,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
@@ -410,7 +410,7 @@
         "policy_record_dispatch",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 3.124947,
+      "covered_application_excess_seconds": 0.112947,
       "eligible": false,
       "evidence": [
         "v12/bench_compiled_boundary_audit"
@@ -430,7 +430,7 @@
         "policy_record_dispatch",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 3.124947,
+      "covered_application_excess_seconds": 0.112947,
       "eligible": false,
       "evidence": [
         "v12/bench_compiled_boundary_audit"
@@ -449,7 +449,7 @@
       "applications": [
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 2.908105,
+      "covered_application_excess_seconds": 0.034316,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md"
@@ -466,15 +466,15 @@
   ],
   "recommendation": "Do not implement another leaf optimization from this evidence; quantify whether a complete typed/register bytecode architecture can meet the remaining interpreter budget while keeping compiler work on its separate domain-owner tracks.",
   "schema_version": 1,
-  "selection_reason": "The five highest-excess unlike applications span text/map, wide numeric, float numeric, regex/interface dispatch, and concurrency and account for more than half of the current aggregate target excess.",
+  "selection_reason": "The retained five-application telemetry cohort spans text/map, wide numeric, float numeric, regex/interface dispatch, and concurrency; its current frontier share is derived below rather than assumed by this evidence record.",
   "sources": {
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-residual-cost-evidence.json",
-      "sha256": "edec4aa67583a1a8b4e7026418817e8e9fc56c88f169dff5e68e198deb7051fe"
+      "sha256": "35df71efd96ceb1ae37c930db53166cbdd76b42d7987c8e0ae590b9c1385ed46"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "83abb85ef63f9c699a2bd712413aaa6ad8d9658d6bfaeb749938738aa0f8e572"
+      "sha256": "eb2ba1219218732569e91ac23b52cc44b588045e8f69d4ce7930972eb54350d8"
     }
   },
   "summary": {
@@ -495,10 +495,10 @@
       "measured": 3
     },
     "eligible_mechanisms": [],
-    "frontier_total_excess_seconds": 188.451579,
+    "frontier_total_excess_seconds": 227.179053,
     "minimum_unlike_applications": 3,
-    "selected_excess_seconds": 75.500947,
-    "selected_excess_share_percent": 40.063844,
+    "selected_excess_seconds": 66.551789,
+    "selected_excess_share_percent": 29.294862,
     "selected_mode_rows": 10,
     "unlike_family_count": 5
   }

@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "retain_no_production_change",
+  "source_commit": "5bbe9e4594bfb2b7e7f8c84b9fbed9314c0ee8db",
+  "bytecode_cli_sha256": "9d3559c1295b110ed95834f35cf08a040decbf4c2ea212370e47433a3becde4f",
+  "selection": {
+    "compiled_rows": 63,
+    "bytecode_rows": 56,
+    "unranked_bytecode_rows": 7
+  },
+  "unranked_classes": {
+    "able_timeout": [
+      "binarytrees",
+      "nbody",
+      "quicksort",
+      "sudoku_masks",
+      "tapelang_alphabet"
+    ],
+    "python_reference_unavailable": [
+      "fib",
+      "matrixmultiply"
+    ]
+  },
+  "fresh_verifier_runs": {
+    "fib": {
+      "runs": 5,
+      "verified": 5,
+      "seconds": [0.15, 0.16, 0.19, 0.16, 0.12],
+      "mean_seconds": 0.156,
+      "output_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+    },
+    "matrixmultiply": {
+      "runs": 5,
+      "verified": 5,
+      "seconds": [4.75, 4.68, 4.48, 4.56, 4.48],
+      "mean_seconds": 4.59,
+      "output_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+    }
+  },
+  "bounded_profiles": {
+    "cutoff_seconds": 15,
+    "classification_authority": "current_scorecard_90_second_runs",
+    "applications": {
+      "binarytrees": {
+        "sample_seconds": 14.9,
+        "owner_shape": "allocation_gc_named_struct_typed_pattern_recursive_return"
+      },
+      "nbody": {
+        "sample_seconds": 14.9,
+        "owner_shape": "float_calls_members_stack_return"
+      },
+      "quicksort": {
+        "sample_seconds": 14.48,
+        "owner_shape": "input_parse_raw_integer_cast_array_read"
+      },
+      "sudoku_masks": {
+        "sample_seconds": 14.92,
+        "owner_shape": "calls_raw_bitwise_frames_array_read"
+      },
+      "tapelang_alphabet": {
+        "sample_seconds": 14.92,
+        "owner_shape": "member_dispatch_named_struct_plan_array_slot"
+      }
+    }
+  },
+  "main_only_census": {
+    "binarytrees": {
+      "dynamic_instructions": 23821542,
+      "primitive_percent": 20.0,
+      "inline_hits": 4787650,
+      "inline_misses": 0,
+      "array_fast_hits": 0,
+      "array_fallbacks": 0
+    },
+    "nbody": {
+      "dynamic_instructions": 21026669,
+      "primitive_percent": 52.99,
+      "inline_hits": 479791,
+      "inline_misses": 0,
+      "array_fast_hits": 811371,
+      "array_fallbacks": 40
+    },
+    "quicksort": {
+      "dynamic_instructions": 34081490,
+      "primitive_percent": 92.49,
+      "inline_hits": 4,
+      "inline_misses": 0,
+      "array_fast_hits": 184176,
+      "array_fallbacks": 2
+    },
+    "sudoku_masks": {
+      "dynamic_instructions": 28400081,
+      "primitive_percent": 67.6,
+      "inline_hits": 572879,
+      "inline_misses": 0,
+      "array_fast_hits": 119648,
+      "array_fallbacks": 6
+    },
+    "tapelang_alphabet": {
+      "dynamic_instructions": 22647597,
+      "primitive_percent": 58.8,
+      "inline_hits": 763053,
+      "inline_misses": 0,
+      "array_fast_hits": 2341009,
+      "array_fallbacks": 27
+    }
+  },
+  "shared_owner_result": {
+    "admitted": false,
+    "open_exact_leaf_repeating_in_three_unlike_applications": false,
+    "reconciled_closed_routes": [
+      "checked_stack_carrier",
+      "inline_return",
+      "call_frame_restore",
+      "raw_integer_carrier",
+      "array_index_and_read"
+    ]
+  },
+  "production_changes": [],
+  "evidence_sha256": {
+    "coverage_status": "9384caa267f51fd81e65e243ae13ecfa19efff3f8ef1337b5574a94ecb880a29",
+    "profile_manifest": "458641124ed24131720dd95bdfe43727604d77054c5d44f0f6bb5029b70c007b",
+    "stats_summary": "f0b9a106644be4181a4524aedbbe08be087db35096cf6c30a5ac8dc2a6ca3adb",
+    "verifier_runs": "1f4ae1ddf7cd08926f0fc8a34fd9625e0e6d0e3b1115787044e735c2f9f12444",
+    "selection_manifest": "dac2450e10f73655271c2e03b236e3d2c0b4dfe83e8bdfcfda9bee4efdba9d23",
+    "current_scoreboard": "9df24ffed73a2ad39060eb2229f7588d617426fa456c3b8df3ff045d5392b53c",
+    "closure_ledger": "f00e9fafd2ad222c018de0748093957687bfd555f3bceb711825ef23191c3ffc"
+  },
+  "next": {
+    "objective": "calibrate_portable_mode_aware_workload_scales_for_seven_unranked_bytecode_rows",
+    "implementation_mutation_allowed": false,
+    "minimum_balanced_verified_runs": 5
+  }
+}

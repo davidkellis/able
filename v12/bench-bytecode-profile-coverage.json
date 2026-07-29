@@ -1,0 +1,96 @@
+{
+  "kind": "able-bytecode-profile-coverage-manifest",
+  "schema_version": 1,
+  "selection_sha256": "0c72eaf2a1b12d3a5a2f88d00b3382a706f5c5c16977c24b55fb64214f8d429e",
+  "groups": [
+    {
+      "id": "bytecode-portable-workload-admission",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-bytecode-current-source-profile-coverage-closure.md"
+      ]
+    },
+    {
+      "id": "bytecode-float-numeric",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-float-numeric-six-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-near-path-closure-refresh.md"
+      ]
+    },
+    {
+      "id": "bytecode-wide-numeric",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-wide-numeric-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md"
+      ]
+    },
+    {
+      "id": "bytecode-byte-output",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-20-bytecode-byte-output-current-profile-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-text-byte-next-closure-refresh.md"
+      ]
+    },
+    {
+      "id": "bytecode-text-map",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-text-map-five-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md",
+        "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-binary-event-log-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-sensor-calibration-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-application-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-regex",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-regex-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md"
+      ]
+    },
+    {
+      "id": "bytecode-concurrency",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-concurrency-fourteen-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-regex-concurrency-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-concurrent-document-pipeline-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-21-validated-job-file-entry-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-22-concurrent-stencil-reduction-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-audio-voices-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-graph-visitors-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-packet-codecs-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-policy-callbacks-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-scene-tiles-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-state-machines-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-stateful-pipeline-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-transform-chain-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-23-concurrent-tree-folds-application-gate.md"
+      ]
+    },
+    {
+      "id": "bytecode-iterator-control",
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-21-bytecode-iterator-control-seven-application-refresh.md",
+        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md",
+        "v12/docs/perf-baselines/2026-07-27-discrete-event-simulation-application-gate.md"
+      ]
+    }
+  ]
+}

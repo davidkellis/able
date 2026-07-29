@@ -35,16 +35,16 @@ class BytecodeSemanticRegionFeasibilityTests(unittest.TestCase):
         self.assertFalse(summary["candidate_eligible"])
         self.assertEqual(summary["material_region_family_count"], 5)
         self.assertEqual(summary["rankable_current_region_rows"], 4)
-        self.assertEqual(summary["uniform_cost_model_target_closures"], 1)
+        self.assertEqual(summary["uniform_cost_model_target_closures"], 0)
         self.assertEqual(summary["prototype_application_count"], 3)
         self.assertEqual(summary["prototype_regression_count"], 3)
         self.assertEqual(summary["current_semantic_candidate_count"], 0)
         self.assertGreater(summary["minimum_remaining_speedup_after_free_transport"], 7)
         bounds = {row["benchmark"]: row for row in report["typed_region_bounds"]}
-        self.assertTrue(bounds["monte_carlo_pi"]["uniform_cost_model_reaches_target"])
+        self.assertFalse(bounds["monte_carlo_pi"]["uniform_cost_model_reaches_target"])
         self.assertGreater(
             bounds["fixed_width_128"]["remaining_speedup_in_uniform_cost_model"],
-            20,
+            19,
         )
         self.assertEqual(
             report["next_architecture_lane"]["id"],

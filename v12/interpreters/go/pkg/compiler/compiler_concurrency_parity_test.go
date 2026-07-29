@@ -18,7 +18,8 @@ import (
 
 const compilerConcurrencyParityFixtureEnv = "ABLE_COMPILER_CONCURRENCY_PARITY_FIXTURES"
 
-func TestCompilerConcurrencyParityFixtures(t *testing.T) {
+func runCompilerConcurrencyParityFixtures(t *testing.T, batchIndex, batchCount int) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("skipping compiler concurrency parity fixtures in short mode")
 	}
@@ -30,7 +31,10 @@ func TestCompilerConcurrencyParityFixtures(t *testing.T) {
 	if len(fixtures) == 0 {
 		t.Skip("no concurrency fixtures configured")
 	}
-	for _, rel := range fixtures {
+	for index, rel := range fixtures {
+		if index%batchCount != batchIndex {
+			continue
+		}
 		rel := rel
 		t.Run(rel, func(t *testing.T) {
 			t.Parallel()
@@ -90,6 +94,22 @@ func TestCompilerGoroutineAwaitFutureFixtureParity(t *testing.T) {
 			assertCompilerFixtureOutcomeParity(t, tree, compiled)
 		})
 	}
+}
+
+func TestCompilerConcurrencyParityFixturesBatch1(t *testing.T) {
+	runCompilerConcurrencyParityFixtures(t, 0, 4)
+}
+
+func TestCompilerConcurrencyParityFixturesBatch2(t *testing.T) {
+	runCompilerConcurrencyParityFixtures(t, 1, 4)
+}
+
+func TestCompilerConcurrencyParityFixturesBatch3(t *testing.T) {
+	runCompilerConcurrencyParityFixtures(t, 2, 4)
+}
+
+func TestCompilerConcurrencyParityFixturesBatch4(t *testing.T) {
+	runCompilerConcurrencyParityFixtures(t, 3, 4)
 }
 
 func resolveCompilerConcurrencyParityFixtures() []string {

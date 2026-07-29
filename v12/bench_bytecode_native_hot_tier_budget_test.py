@@ -36,20 +36,20 @@ class BytecodeNativeHotTierBudgetTests(unittest.TestCase):
             "no-go-native-tier-prototype-current-evidence",
         )
         self.assertFalse(summary["prototype_admitted"])
-        self.assertEqual(summary["common_bytecode_compiled_application_count"], 56)
-        self.assertEqual(summary["compiled_native_proxy_target_meets"], 13)
-        self.assertEqual(summary["compiled_native_proxy_target_misses"], 43)
+        self.assertEqual(summary["common_bytecode_compiled_application_count"], 63)
+        self.assertEqual(summary["compiled_native_proxy_target_meets"], 34)
+        self.assertEqual(summary["compiled_native_proxy_target_misses"], 29)
         self.assertAlmostEqual(
             summary["compiled_native_proxy_target_excess_seconds"],
-            27.145368421,
+            15.481052632,
             places=9,
         )
         self.assertGreater(
-            summary["compiled_native_proxy_excess_reduction_percent"], 81
+            summary["compiled_native_proxy_excess_reduction_percent"], 93
         )
         self.assertEqual(summary["known_region_application_count"], 4)
-        self.assertEqual(summary["known_region_material_reduction_count"], 1)
-        self.assertEqual(summary["known_region_target_closure_count"], 1)
+        self.assertEqual(summary["known_region_material_reduction_count"], 2)
+        self.assertEqual(summary["known_region_target_closure_count"], 0)
         self.assertEqual(summary["hot_function_census_application_count"], 6)
         self.assertEqual(summary["hot_function_contract_eligible_count"], 0)
         self.assertEqual(summary["scalar_proof_census_application_count"], 6)
@@ -63,7 +63,7 @@ class BytecodeNativeHotTierBudgetTests(unittest.TestCase):
             regions["fixed_width_128"][
                 "required_compiled_equivalent_fraction_to_target"
             ],
-            0.98,
+            0.96,
         )
         self.assertGreater(
             regions["rms_norm"]["required_compiled_equivalent_fraction_to_target"],

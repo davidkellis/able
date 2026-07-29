@@ -15,6 +15,7 @@ from types import ModuleType
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 CATALOG = SCRIPT_DIR / "bench_external_catalog.sh"
+BENCHMARK_REPO = REPO_ROOT.parent / "benchmarks"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import bench_execution_contract as contracts  # noqa: E402
@@ -86,6 +87,56 @@ class CatalogExecutionContractTests(unittest.TestCase):
         self.assertEqual(self.catalog("resolve-cpus", "3-5,8", "4").stdout.strip(), "3,4,5,8")
         result = self.catalog("resolve-cpus", "3-5", "4", ok=False)
         self.assertNotEqual(result.returncode, 0)
+
+    def test_workload_arguments_are_mode_aware(self) -> None:
+        benchmarks = [
+            "binarytrees",
+            "nbody",
+            "quicksort",
+            "sudoku_masks",
+            "tapelang_alphabet",
+            "fib",
+            "matrixmultiply",
+        ]
+
+        def arguments(mode: str) -> dict[str, list[str]]:
+            result = self.catalog(
+                "contracts",
+                "--mode",
+                mode,
+                str(BENCHMARK_REPO),
+                *benchmarks,
+            )
+            values: dict[str, list[str]] = {}
+            for line in result.stdout.splitlines():
+                benchmark, _run_dir, _verifier, joined = line.split("\t", 3)
+                values[benchmark] = joined.split("\x1f") if joined else []
+            return values
+
+        self.assertEqual(
+            arguments("compiled"),
+            {
+                "binarytrees": ["21"],
+                "nbody": ["500000"],
+                "quicksort": ["numbers.txt"],
+                "sudoku_masks": ["10", "10"],
+                "tapelang_alphabet": ["benchmark.tape"],
+                "fib": ["45"],
+                "matrixmultiply": ["1000"],
+            },
+        )
+        self.assertEqual(
+            arguments("bytecode"),
+            {
+                "binarytrees": ["15"],
+                "nbody": ["50000"],
+                "quicksort": ["numbers-bytecode.txt"],
+                "sudoku_masks": ["1", "10"],
+                "tapelang_alphabet": ["benchmark-bytecode.tape"],
+                "fib": ["40"],
+                "matrixmultiply": ["400"],
+            },
+        )
 
 
 class ScoreboardExecutionContractTests(unittest.TestCase):

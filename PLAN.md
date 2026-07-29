@@ -34,24 +34,21 @@ belongs in `LOG.md`, `v12/LOG.md`, and the dated records under
 The architectural overview is
 `v12/design/performance-competitiveness-vision.md`. The combined compiled and
 bytecode comparison is
-`v12/docs/perf-baselines/external-scoreboard-current.{json,md}`; the current
-strict compiled refresh is
-`v12/docs/perf-baselines/2026-07-28-current-strict-compiled-scorecard-owner-closure.{json,md}`.
+`v12/docs/perf-baselines/external-scoreboard-current.{json,md}`.
 
 ## Current Handoff
 
 Start from:
 
-- `v12/docs/perf-baselines/2026-07-28-post-consolidation-release-inventory.md`
+- `v12/docs/perf-baselines/2026-07-28-post-frontier-release-inventory.md`
 - `v12/docs/perf-baselines/2026-07-28-v12-correctness-release-readiness-closure.md`
-- `v12/docs/perf-baselines/2026-07-28-compiled-semantic-work-recommendation-reconciliation.md`
-- `v12/docs/perf-baselines/2026-07-28-current-strict-compiled-scorecard-owner-closure.md`
-- `v12/docs/perf-baselines/2026-07-28-compiled-await-post-materialization-owner-closure.md`
-- `v12/docs/perf-baselines/2026-07-27-typed-generic-nominal-storage-reach-census.md`
-- `v12/docs/perf-baselines/2026-07-27-compiler-positional-boundary-zero-reach-closure.md`
+- `v12/docs/perf-baselines/2026-07-28-bytecode-semantic-boundary-reach-closure.md`
+- `v12/docs/perf-baselines/2026-07-28-bytecode-current-source-profile-coverage-closure.md`
+- `v12/docs/perf-baselines/2026-07-28-bytecode-current-profile-coverage.md`
+- `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-closure.md`
+- `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.md`
+- `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.md`
 - `v12/docs/perf-baselines/external-scoreboard-current.md`
-- `v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.md`
-- `v12/docs/perf-baselines/2026-07-25-compiled-scorecard-generic-storage-closure.md`
 - `v12/docs/perf-baselines/2026-07-26-compiled-aot-native-carrier-owner-closure.md`
 - `v12/docs/perf-baselines/2026-07-24-static-interpreter-package-cut-retained.md`
 
@@ -62,68 +59,61 @@ authoritative.
 
 ### Authoritative performance frontier
 
-There is no active production optimization candidate. The current portable
-catalog has 63 applications and the reviewed selection has 119 rows:
-63 compiled and 56 bytecode. The current compiled refresh has 9 target passes
-and 54 misses, a 5.2579x geometric-mean Able/Go ratio, and 5.4254 seconds of
-positive target excess. All 63 strict compiled graphs remain interpreter-free.
-Detailed completed work is in `LOG.md`, `v12/LOG.md`, and the dated records
-linked above.
+The portable catalog and reviewed selection now contain 63 applications and
+126 rows: 63 compiled and 63 bytecode. All 126 rows are verifier-backed and
+ranked with five current Able processes and five current processes for every
+required Go/Python/Ruby reference. Compiled canonical workloads remain
+unchanged; the seven formerly unranked bytecode rows use the documented
+portable mode contract.
 
-The broad retained-state owner refresh retained no production change.
-Fifteen CPU profiles and three exact allocation profiles for each of ten
-poorly explained compiled misses found no open compiler, generated-runtime, or
-semantic-boundary owner material in at least three unlike applications.
-Repeated leaves are already-closed checked arithmetic or boxing, same-family
-UTF-8/regex work, required generic map/nominal/concurrency semantics, or
-already-native application and Go runtime work.
+Compiled currently has 6 target passes, a 5.575597× geometric-mean Able/Go
+ratio, and 5.675368 seconds of positive target excess. Bytecode has 4 target
+passes, a 12.780200× geometric mean over its Python/Ruby ratios, and
+221.503684 seconds of positive target excess. A second independent matched
+five-process cohort confirms all ten snapshot passes as established guards.
+All 63 strict compiled graphs remain interpreter-free, and the 23-closure
+performance-evidence ledger has zero invalidations.
 
-The proposed TapeLang/Sudoku/N-Body semantic-work follow-up was already
-completed on 2026-07-26 and remains valid. Fresh current strict artifacts
-retain the normalized source identities and interpreter-free graphs. Current
-assembly preserves the earlier hot call/branch counts, and the relational
-observer reproduces 0/13 safe reachable checks for TapeLang, 4/32 for Sudoku,
-and 32/52 for N-Body. N-Body remains the only dynamically material proof
-family, so no production candidate reaches three unlike applications.
+There is no admitted production optimization candidate. All 59 current
+bytecode misses have source-identity-checked CPU and allocation coverage. The
+operation-level semantic-boundary map then covered eight unlike family
+representatives and 25,994,536 main-only primitive transitions with no
+dropped sites. Its only three broad exact shapes are the already-rejected
+generic nominal-field carrier rule or its aggregate member-write form. No
+production code was retained. The 23-closure ledger remains current with zero
+invalidations.
 
-The current correctness and release-readiness tranche is complete. Repository
-vet/build, the ordinary handoff, the separate compiler release matrix, the
-cold and warm generated-Go CLI lanes, canonical stdlib parity, and all
-deterministic evidence contracts pass. The compiler matrix includes 120 green
-fallback, execution, strict-dispatch, interface-lookup, and boundary-marker
-shards. The longest measured individual test is 34.94 seconds.
+Current correctness and release-readiness gates are complete. The ordinary
+suite, canonical stdlib in both interpreter modes, compiled CLI integration,
+and all 640 generated-program compiler audit partitions pass. No individual
+test exceeds one minute when measured from exact serial JSON events.
 
-The only failure was a stale predecessor fingerprint in the derived
-architecture-evidence chain. Current source identities were propagated through
-the structural strategy, portable-backend ADR, semantic-ABI feasibility, and
-closed-region decision artifacts without changing any decision. The
-performance ledger remains at 21 current closures and zero invalidations.
-No production or canonical-stdlib change was required.
+The non-mutating post-frontier inventory is complete. Its immutable pre-record
+snapshot contains 212 paths: 178 retained and 34 deferred WASM paths, with
+zero unmatched or generated-local paths. The retained paths map to seven
+dependency-ordered review boundaries and six dated governing records. JSON,
+formatting, whitespace, identity, source-size, scope, and common-secret checks
+pass. The Git index remains empty.
 
-The post-consolidation non-mutating inventory is complete. Its immutable
-pre-record snapshot contains 386 paths: 337 retained, 34 deferred WASM, and 15
-generated-local exclusions, with zero unmatched paths. The retained paths map
-to dependency-ordered compiler/runtime, benchmark, evidence, and handoff
-boundaries governed by 28 dated records. JSON, gzip, whitespace, formatting,
-source-size, scope, and secret-signature checks pass. The Git index remains
-clean; no path was staged, committed, reset, deleted, or rewritten.
+The maintainer explicitly authorized exact staging and one local
+release-consolidation commit. The resulting commit contains the validated
+181-path retained boundary; its worktree complement remains exactly the
+unchanged 34-path deferred WASM hold. No push is authorized.
 
-The maintainer authorized the exact-index consolidation. The sorted candidate
-contains exactly 340 paths: 337 retained pre-record paths plus the three
-inventory metadata files. The exact NUL-delimited pathspec, refreshed
-non-self metadata identities, cached release checks, and resulting local
-commit are recorded in the current inventory record. All 34 deferred WASM
-paths and generated-local cache paths remain outside the commit.
+Next request explicit maintainer authorization before publishing the local
+branch. Keep production performance mutation paused until a concrete
+admission invalidation exists.
 
-Pause production performance mutation until one concrete admission
-invalidation exists. Next request explicit maintainer authorization before
-publishing the local branch. Why: the exact retained boundary is consolidated
-locally, but pushing changes remote state and was not authorized by the local
-commit request. What it entails: inspect the final commit and branch
-divergence, confirm the remote destination and intended commit range, then
-push only after explicit authorization. Why it is important: this prevents
-publishing inactive WASM, machine-local artifacts, or an unintended commit
-range while preserving the native-carrier and interpreter-free state.
+Why: the retained native-lowering and benchmark/evidence state is consolidated
+locally, but pushing changes external repository state and was not included in
+the local-commit authorization.
+What it entails: inspect the final commit and branch divergence, confirm the
+remote destination and exact commit range, then push only after a separate
+explicit instruction.
+Why it matters: this prevents publishing deferred WASM or an unintended commit
+range while preserving interpreter-free compiled graphs, native primitive
+carriers, and the evidence required to resume work toward the 95% performance
+goals.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or default execution-context rollout

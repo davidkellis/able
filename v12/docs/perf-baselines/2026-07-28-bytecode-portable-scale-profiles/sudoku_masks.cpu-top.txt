@@ -1,0 +1,49 @@
+File: able
+Build ID: b06a0021971ac01d9093075e4e254c32c0a62522
+Type: cpu
+Time: 2026-07-28 13:50:31 CDT
+Duration: 24.12s, Total samples = 24.06s (99.75%)
+Showing nodes accounting for 15.89s, 66.04% of 24.06s total
+Dropped 365 nodes (cum <= 0.12s)
+Showing top 40 nodes out of 107
+      flat  flat%   sum%        cum   cum%
+     3.69s 15.34% 15.34%     23.86s 99.17%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runResumable
+     0.78s  3.24% 18.58%      6.74s 28.01%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallOpcode
+     0.77s  3.20% 21.78%      1.10s  4.57%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendSlotStackValueChecked
+     0.68s  2.83% 24.61%      5.63s 23.40%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execBinary
+     0.60s  2.49% 27.10%      1.86s  7.73%  able/interpreter-go/pkg/interpreter.bytecodeDirectSameTypeRawIntegerBitwise
+     0.55s  2.29% 29.38%      0.55s  2.29%  able/interpreter-go/pkg/interpreter.bytecodeRawIntegerValueInfo
+     0.50s  2.08% 31.46%      2.78s 11.55%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execCallMemberArrayGet
+     0.48s  2.00% 33.46%      0.66s  2.74%  able/interpreter-go/pkg/interpreter.bytecodeDirectIntegerValue
+     0.45s  1.87% 35.33%      0.74s  3.08%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).popCallFrameFields
+     0.43s  1.79% 37.12%      1.40s  5.82%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishArrayGetMemberFast
+     0.39s  1.62% 38.74%      2.70s 11.22%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).finishInlineReturn
+     0.32s  1.33% 40.07%      1.04s  4.32%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlot
+     0.32s  1.33% 41.40%      0.41s  1.70%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).pushCallFrame
+     0.32s  1.33% 42.73%      0.46s  1.91%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).runtimeData
+     0.32s  1.33% 44.06%      0.32s  1.33%  aeshashbody
+     0.31s  1.29% 45.34%      1.42s  5.90%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryInlineCachedCallNameDirectFromSlots
+     0.30s  1.25% 46.59%      0.30s  1.25%  able/interpreter-go/pkg/interpreter.bytecodeArrayGetResultMatchesToken
+     0.29s  1.21% 47.80%      0.81s  3.37%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).switchRunProgramWithActiveLookupState
+     0.28s  1.16% 48.96%      0.38s  1.58%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execJumpIfIntCompareSlotConstFalse
+     0.28s  1.16% 50.12%      0.91s  3.78%  able/interpreter-go/pkg/interpreter.evaluateDivModFast
+     0.27s  1.12% 51.25%      0.28s  1.16%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).appendStackValue (inline)
+     0.27s  1.12% 52.37%      1.38s  5.74%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execLoadSlotOpcode
+     0.27s  1.12% 53.49%      0.27s  1.12%  able/interpreter-go/pkg/interpreter.bytecodeStackSnapshotValue
+     0.25s  1.04% 54.53%      0.36s  1.50%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).storeOwnedI32SlotRaw
+     0.22s  0.91% 55.44%      0.41s  1.70%  able/interpreter-go/pkg/interpreter.bytecodeDirectSameTypeSmallIntPair
+     0.22s  0.91% 56.36%      0.57s  2.37%  runtime.mapaccess2_faststr
+     0.21s  0.87% 57.23%      0.60s  2.49%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).tryStoreRawIntegerSlotValue
+     0.20s  0.83% 58.06%      0.57s  2.37%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execStoreSlotBinaryIntSlotConstDiscardI32Fast
+     0.20s  0.83% 58.89%      0.27s  1.12%  able/interpreter-go/pkg/interpreter.execBinaryDirectIntegerComparisonFast
+     0.19s  0.79% 59.68%      0.26s  1.08%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).lookupCachedCallName
+     0.19s  0.79% 60.47%      0.27s  1.12%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).validatedIntegerConstSlots
+     0.18s  0.75% 61.22%      0.18s  0.75%  able/interpreter-go/pkg/interpreter.bytecodeRawI32SlotCachedValue (inline)
+     0.17s  0.71% 61.93%      0.17s  0.71%  able/interpreter-go/pkg/interpreter.(*bytecodeInlineArrayGetCallCacheEntry).matchesCanonicalArrayGetCallIdentity (inline)
+     0.16s  0.67% 62.59%      0.21s  0.87%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).slotDirectSmallI32ValueValidated
+     0.15s  0.62% 63.22%      0.15s  0.62%  able/interpreter-go/pkg/interpreter.bytecodeTrackedArrayState (inline)
+     0.14s  0.58% 63.80%      0.14s  0.58%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).arrayGetPrimitiveNoErrorToken
+     0.14s  0.58% 64.38%      0.38s  1.58%  able/interpreter-go/pkg/interpreter.evaluateArithmeticFast
+     0.14s  0.58% 64.96%      0.14s  0.58%  able/interpreter-go/pkg/interpreter.normalizeOperator (inline)
+     0.13s  0.54% 65.50%      0.13s  0.54%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).acquireSmallHotSlotFrame
+     0.13s  0.54% 66.04%      0.22s  0.91%  able/interpreter-go/pkg/interpreter.(*bytecodeVM).execPop (inline)

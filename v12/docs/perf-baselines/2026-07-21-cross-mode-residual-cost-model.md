@@ -1,18 +1,18 @@
 # Cross-mode residual cost model
 
-The five highest-excess unlike applications span text/map, wide numeric, float numeric, regex/interface dispatch, and concurrency and account for more than half of the current aggregate target excess.
+The retained five-application telemetry cohort spans text/map, wide numeric, float numeric, regex/interface dispatch, and concurrency; its current frontier share is derived below rather than assumed by this evidence record.
 
 ## Selection
 
-The 5 unlike applications contribute 75.501 of 188.452 aggregate target-excess seconds (40.06%).
+The 5 unlike applications contribute 66.552 of 227.179 aggregate target-excess seconds (29.29%).
 
 | Application | Family | Compiled s / ratio / excess | Bytecode s / ratio / excess | VM allocations | Dynamic VM ops |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `k_nucleotide` | text-map | 2.898 / 35.82x / 2.813 | 46.530 / 31.78x / 44.989 | 1,245,836,872 B / 23,947,521 | guard-skipped |
-| `fixed_width_128` | wide-numeric | 0.206 / 35.52x / 0.200 | 8.522 / 24.32x / 8.153 | 1,348,450,616 B / 31,911,044 | 60,446,436 |
-| `distance_field` | float-numeric | 0.090 / 6.77x / 0.076 | 5.914 / 15.25x / 5.506 | 368,035,900 B / 26,000,120 | 78,000,165 |
-| `policy_record_dispatch` | regex-dispatch | 0.226 / 25.98x / 0.217 | 7.452 / 234.34x / 7.419 | 139,533,024 B / 1,453,755 | guard-capped |
-| `concurrent_event_routing` | concurrency | 2.914 / 520.36x / 2.908 | 3.256 / 96.90x / 3.221 | 289,347,356 B / 2,820,542 | 21,367,576 |
+| `k_nucleotide` | text-map | 1.564 / 22.63x / 1.491 | 42.614 / 34.56x / 41.316 | 1,245,836,872 B / 23,947,521 | guard-skipped |
+| `fixed_width_128` | wide-numeric | 0.090 / 15.00x / 0.084 | 8.030 / 21.69x / 7.640 | 1,348,450,616 B / 31,911,044 | 60,446,436 |
+| `distance_field` | float-numeric | 0.036 / 2.95x / 0.023 | 5.760 / 16.96x / 5.403 | 368,035,900 B / 26,000,120 | 78,000,165 |
+| `policy_record_dispatch` | regex-dispatch | 0.084 / 16.47x / 0.079 | 7.582 / 375.35x / 7.561 | 139,533,024 B / 1,453,755 | guard-capped |
+| `concurrent_event_routing` | concurrency | 0.040 / 7.41x / 0.034 | 2.954 / 94.68x / 2.921 | 289,347,356 B / 2,820,542 | 21,367,576 |
 
 The dynamic opcode observer changes execution cost and is used only for counts. A capped or skipped row is missing evidence, never a zero. Static lowering covers all five applications.
 
@@ -40,11 +40,11 @@ The dynamic opcode observer changes execution cost and is used only for counts. 
 
 | Mechanism | Modes | Unlike families | Covered app excess | Status |
 | --- | --- | ---: | ---: | --- |
-| End-to-end allocation pressure | bytecode, compiled | 5 | 75.501 s | `observational-only` |
-| Bytecode stack/slot transport and dispatch | bytecode | 3 | 16.880 s | `closed-rejected` |
-| Generated generic-union fast method dispatch | compiled | 2 | 3.125 s | `insufficient-breadth` |
-| Material generated residual-polymorphic calls | compiled | 2 | 3.125 s | `insufficient-breadth` |
-| Generated goroutine identity discovery | compiled | 1 | 2.908 s | `closed-rejected` |
+| End-to-end allocation pressure | bytecode, compiled | 5 | 66.552 s | `observational-only` |
+| Bytecode stack/slot transport and dispatch | bytecode | 3 | 15.964 s | `closed-rejected` |
+| Generated generic-union fast method dispatch | compiled | 2 | 0.113 s | `insufficient-breadth` |
+| Material generated residual-polymorphic calls | compiled | 2 | 0.113 s | `insufficient-breadth` |
+| Generated goroutine identity discovery | compiled | 1 | 0.034 s | `closed-rejected` |
 
 ## Reconciliation
 

@@ -2,7 +2,32 @@ package nbody
 
 import able.kernel.{Array}
 import able.collections.array
+import able.io
 import able.math
+import able.os
+
+fn parse_positive_i32(text: String) -> i32 {
+  result := 0
+  bytes := io.string_to_bytes(text)
+  idx := 0
+  loop {
+    if idx >= bytes.len() { break }
+    byte := bytes.read_slot(idx)
+    if byte < 48_u8 || byte > 57_u8 { return 0 }
+    result = result * 10 + ((byte - 48_u8) as i32)
+    idx = idx + 1
+  }
+  result
+}
+
+fn requested_steps() -> i32 {
+  args := os.args()
+  if args.len() > 0 {
+    steps := parse_positive_i32(args.get(0)!)
+    if steps > 0 { return steps }
+  }
+  500000
+}
 
 fn offset_momentum(vx: Array f64, vy: Array f64, vz: Array f64, mass: Array f64, solar_mass: f64) {
   px := 0.0
@@ -143,7 +168,7 @@ fn main() {
   offset_momentum(vx, vy, vz, mass, solar_mass)
   print(energy(x, y, z, vx, vy, vz, mass))
 
-  iterations := 500000
+  iterations := requested_steps()
   i := 0
   loop {
     if i >= iterations { break }

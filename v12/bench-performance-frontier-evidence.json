@@ -1,40 +1,33 @@
 {
   "kind": "able-performance-frontier-evidence",
   "schema_version": 1,
-  "selection_sha256": "e6a6ccacc9620f9e1b89e2510cab52a85114ddbf2f41e33abae7c6d8a70241f8",
+  "selection_sha256": "0c72eaf2a1b12d3a5a2f88d00b3382a706f5c5c16977c24b55fb64214f8d429e",
   "groups": [
     {
       "id": "compiled-target-guards",
       "rows": [
+        "base64/compiled",
         "binarytrees/compiled",
-        "fib/compiled",
         "json/compiled",
+        "monte_carlo_pi/compiled",
+        "pidigits/compiled",
         "quicksort/compiled"
       ],
-      "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
-      "artifact_identity": "truthiness-cast-target-guard-current-cohort",
+      "profile_freshness": "current-contract-two-cohort-stability",
+      "artifact_identity": "mode-aware-contract-refresh-plus-independent-matched-guard-cohort",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
-      "owner": "Different protected owners: Binary Trees node allocation/GC, Fib direct recursion, JSON host decoding, and QuickSort recursion.",
-      "rationale": "Binary Trees, JSON, and QuickSort are established target guards. Fib currently misses after a noisy prior meet but remains a source-exact control for every admitted compiled candidate.",
+      "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
+      "rationale": "All six rows meet the compiled target in two independent current-contract five-process cohorts and must be preserved by every admitted compiled candidate.",
       "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
-        "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
-        "v12/docs/perf-baselines/2026-07-20-current-two-cohort-scorecard-reconciliation.md",
-        "v12/docs/perf-baselines/2026-07-20-threshold-stability-reconciliation.md",
-        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
-        "v12/docs/perf-baselines/2026-07-21-post-i64-threshold-stability.md",
-        "v12/docs/perf-baselines/2026-07-21-dynamic-i64-lazy-slot-threshold-stability.md",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-compiled.json",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-go-reference.json",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-compiled.json",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-fib-c2-go-reference.json"
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
       ]
     },
     {
       "id": "compiled-current-control",
       "rows": [
+        "fib/compiled",
         "matrixmultiply/compiled",
         "tapelang_alphabet/compiled"
       ],
@@ -42,8 +35,8 @@
       "artifact_identity": "truthiness-cast-control-current-cohorts-and-reach",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Matrix primitive nested arithmetic and TapeLang flat dispatch remain separate generated bodies.",
-      "rationale": "Fresh current binaries expose no compiler/runtime child shared across these control-flow programs.",
+      "owner": "Fib direct recursion, Matrix primitive nested arithmetic, and TapeLang flat dispatch remain separate generated bodies.",
+      "rationale": "Fresh current binaries expose no compiler/runtime child shared across these unlike control-flow programs.",
       "evidence": [
         "v12/docs/perf-baselines/2026-07-20-compiled-control-current-invalidation-gate.md",
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closure-refresh.md",
@@ -82,7 +75,6 @@
       "rows": [
         "distance_field/compiled",
         "mandelbrot/compiled",
-        "monte_carlo_pi/compiled",
         "nbody/compiled",
         "rms_norm/compiled"
       ],
@@ -90,8 +82,8 @@
       "artifact_identity": "frozen-current-repeated-timing-and-exact-reach-cohorts",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
-      "owner": "Float geometry/regions and normalized raw-float allocation recur, while Mandelbrot remains a distinct fused loop owner.",
-      "rationale": "Fresh repeated timing and exact generated-runtime telemetry preserve the prior ownership result. All five rows have zero truthiness/cast bridge reach, so the closed raw-float lane/carrier evidence remains causal.",
+      "owner": "Float geometry/regions and normalized raw-float allocation recur across Distance Field, N-Body, and RMS Norm, while Mandelbrot remains a distinct fused loop owner.",
+      "rationale": "Fresh repeated timing and exact generated-runtime telemetry preserve the prior ownership result. All four rows have zero truthiness/cast bridge reach, so the closed raw-float lane/carrier evidence remains causal.",
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-refresh.md",
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-numeric-next-closure-reach.json",
@@ -123,17 +115,15 @@
     {
       "id": "compiled-byte-output",
       "rows": [
-        "base64/compiled",
         "fasta_generation/compiled",
-        "pidigits/compiled",
         "reverse_complement/compiled"
       ],
       "profile_freshness": "current-exact-post-truthiness-cast-refresh",
       "artifact_identity": "frozen-current-verifier-backed-timing-and-exact-reach",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Fresh post-semantic timing preserves the split among Base64 host codec/MD5 work, direct FASTA arithmetic, Go BigInt kernels, and Reverse transform/copy/GC work; exact telemetry shows zero changed truthiness or cast-bridge reach in all four programs.",
-      "rationale": "The semantic correction does not reach these compiled mains. The retained write_all and generic u8 changes remain causal, and no compiler-controlled descendant is shared by three unlike applications.",
+      "owner": "Fresh post-semantic timing preserves the split between direct FASTA arithmetic and Reverse transform/copy/GC work; exact telemetry shows zero changed truthiness or cast-bridge reach in both programs.",
+      "rationale": "The semantic correction does not reach these compiled mains. The retained write_all and generic u8 changes remain causal, and the two remaining applications expose no shared compiler-controlled descendant.",
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-refresh.md",
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-byte-regex-closure-reach.json",
@@ -307,21 +297,39 @@
     {
       "id": "bytecode-target-guards",
       "rows": [
+        "fib/bytecode",
         "json/bytecode",
+        "matrixmultiply/bytecode",
         "pidigits/bytecode"
       ],
-      "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
-      "artifact_identity": "truthiness-cast-target-guard-current-cohort",
+      "profile_freshness": "current-contract-two-cohort-stability",
+      "artifact_identity": "mode-aware-contract-refresh-plus-independent-matched-guard-cohort",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
-      "owner": "JSON host decoding and PiDigits BigInt/native output are protected target-meeting rows.",
-      "rationale": "Every admitted VM candidate must preserve these current target meets.",
+      "owner": "Fib recursion, Matrix primitive nested arithmetic, JSON host decoding, and PiDigits BigInt/native output are protected target-meeting rows.",
+      "rationale": "All four rows meet both interpreter targets in two independent current-contract five-process cohorts and must be preserved by every admitted VM candidate.",
       "evidence": [
-        "v12/docs/perf-baselines/2026-07-20-source-equivalence-scorecard.md",
-        "v12/docs/perf-baselines/2026-07-20-source-exact-established-guard-refresh.md",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guard-refresh.md",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-bytecode.json",
-        "v12/docs/perf-baselines/2026-07-21-truthiness-cast-target-guards-interpreter-reference.json"
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-refresh.json",
+        "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.json"
+      ]
+    },
+    {
+      "id": "bytecode-portable-workload-admission",
+      "rows": [
+        "binarytrees/bytecode",
+        "nbody/bytecode",
+        "quicksort/bytecode",
+        "sudoku_masks/bytecode",
+        "tapelang_alphabet/bytecode"
+      ],
+      "profile_freshness": "current-exact-source-cpu-and-allocation-refresh",
+      "artifact_identity": "frozen-current-test-binary-current-selected-sources-and-repeated-main-profiles",
+      "disposition": "closed-no-shared-leaf",
+      "exact_leaf_breadth": 0,
+      "owner": "Exact current-source CPU and measured-main allocation profiles split below shared dispatch among recursion environments and named structs, float materialization and stack snapshots, boxed i32/Array work, bitwise recursion and named structs, and member/named-struct/Array-slot work.",
+      "rationale": "Two current-source CPU processes and two independent exact allocation processes per row reproduce only aggregate dispatch, Go GC/locking, and already-closed raw-integer, frame/stack, Array, call, return, and store routes. The apparent shared atomic leaf has divergent environment/type-cache and Array callers, while measured-main allocation owners do not repeat across three unlike applications.",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-28-bytecode-current-source-profile-coverage-closure.md"
       ]
     },
     {

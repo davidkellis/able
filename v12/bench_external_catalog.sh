@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-
 bench_external_default_suite() {
   printf '%s\n' "core"
 }
-
 bench_external_suite_names() {
   printf '%s\n' \
     "core" \
@@ -62,11 +60,9 @@ bench_external_suite_names() {
     "legacy-sudoku" \
     "sudoku-masks"
 }
-
 bench_external_diagnostic_suite_names() {
   printf '%s\n' "legacy-sudoku"
 }
-
 bench_external_suite_is_diagnostic() {
   case "$1" in
     legacy-sudoku)
@@ -77,7 +73,6 @@ bench_external_suite_is_diagnostic() {
       ;;
   esac
 }
-
 bench_external_suite_csv() {
   case "$1" in
     ""|core)
@@ -251,7 +246,6 @@ bench_external_suite_csv() {
       ;;
   esac
 }
-
 bench_external_target() {
   local root="$1"
   local bench="$2"
@@ -453,13 +447,64 @@ bench_external_target() {
       ;;
   esac
 }
-
 bench_external_program_args() {
-  case "$1" in
+  local benchmark="$1"
+  local mode="${2:-compiled}"
+  local workload_mode
+  case "$mode" in
+    ""|compiled)
+      workload_mode="compiled"
+      ;;
+    bytecode|bytecode-prechecked|bytecode-runtime|treewalker)
+      workload_mode="interpreter"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  case "$benchmark" in
+    binarytrees)
+      if [[ "$workload_mode" == "compiled" ]]; then
+        printf '%s\n' "21"
+      else
+        printf '%s\n' "15"
+      fi
+      ;;
+    fib)
+      if [[ "$workload_mode" == "compiled" ]]; then
+        printf '%s\n' "45"
+      else
+        printf '%s\n' "40"
+      fi
+      ;;
     matrixmultiply)
-      # The external suite Dockerfiles all run the canonical 1000x1000 input;
-      # pass the same input to fresh local Go and Able comparison processes.
-      printf '%s\n' "1000"
+      if [[ "$workload_mode" == "compiled" ]]; then
+        printf '%s\n' "1000"
+      else
+        printf '%s\n' "400"
+      fi
+      ;;
+    nbody)
+      if [[ "$workload_mode" == "compiled" ]]; then
+        printf '%s\n' "500000"
+      else
+        printf '%s\n' "50000"
+      fi
+      ;;
+    quicksort)
+      if [[ "$workload_mode" == "compiled" ]]; then
+        printf '%s\n' "numbers.txt"
+      else
+        printf '%s\n' "numbers-bytecode.txt"
+      fi
+      ;;
+    sudoku_masks)
+      if [[ "$workload_mode" == "compiled" ]]; then
+        printf '%s\n' "10" "10"
+      else
+        printf '%s\n' "1" "10"
+      fi
       ;;
     i_before_e)
       printf '%s\n' "wordlist.txt"
@@ -474,7 +519,11 @@ bench_external_program_args() {
       printf '%s\n' "reverse-complement-input.fasta"
       ;;
     tapelang_alphabet)
-      printf '%s\n' "benchmark.tape"
+      if [[ "$workload_mode" == "compiled" ]]; then
+        printf '%s\n' "benchmark.tape"
+      else
+        printf '%s\n' "benchmark-bytecode.tape"
+      fi
       ;;
     word_frequency)
       printf '%s\n' "corpus.md"
@@ -872,8 +921,17 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
       ;;
     contracts)
       shift
+      contract_mode="compiled"
+      if [[ "${1:-}" == "--mode" ]]; then
+        (($# > 2)) || {
+          echo "usage: $0 contracts [--mode MODE] BENCHMARK_REPO BENCHMARK [...]" >&2
+          exit 2
+        }
+        contract_mode="$2"
+        shift 2
+      fi
       (($# > 1)) || {
-        echo "usage: $0 contracts BENCHMARK_REPO BENCHMARK [...]" >&2
+        echo "usage: $0 contracts [--mode MODE] BENCHMARK_REPO BENCHMARK [...]" >&2
         exit 2
       }
       benchmark_repo="$(realpath "$1")"
@@ -894,7 +952,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         while IFS= read -r argument; do
           [[ -n "$argument" ]] || continue
           arguments+=("$argument")
-        done < <(bench_external_program_args "$benchmark")
+        done < <(bench_external_program_args "$benchmark" "$contract_mode")
         joined_arguments=""
         for argument in "${arguments[@]}"; do
           joined_arguments+="${joined_arguments:+$'\x1f'}$argument"

@@ -1,0 +1,255 @@
+{
+  "kind": "able-bytecode-semantic-boundary-reach-closure",
+  "schema_version": 1,
+  "date": "2026-07-28",
+  "decision": "closed-no-new-candidate",
+  "measurement": {
+    "cpu": 6,
+    "gomaxprocs": 1,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "timeout_seconds": 59,
+    "source_root_only": true,
+    "main_only": true,
+    "workspace": "/var/tmp",
+    "cli_sha256": "9d3559c1295b110ed95834f35cf08a040decbf4c2ea212370e47433a3becde4f",
+    "observer_environment": "ABLE_BYTECODE_PRIMITIVE_MATERIALIZATION_STATS",
+    "observer_source_sha256": "05a8068e610ce3fd5815b20f6ae657150711f105928d92e8f95a6b36f074e9d6",
+    "observer_test_sha256": "76ee15331f46601c37226baaa3d7f402cce14b826d69e0fb19ae65e0a89c0ddf"
+  },
+  "materiality": {
+    "key": ["class", "reason", "primitive_suffix", "consumer_opcode"],
+    "minimum_transitions_per_application": 1000,
+    "minimum_application_share": 0.01,
+    "minimum_unlike_families": 3,
+    "static_return_consumer": "saved caller opcode",
+    "other_consumer": "materializing opcode"
+  },
+  "summary": {
+    "selected_applications": 8,
+    "selected_families": 8,
+    "verified_outputs": 8,
+    "observed_transitions": 25994536,
+    "dropped_sites": 0,
+    "broad_exact_boundaries": 3,
+    "open_candidates": 0,
+    "production_changes": 0
+  },
+  "applications": [
+    {
+      "benchmark": "k_nucleotide",
+      "family": "text/map",
+      "source_sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a",
+      "executor": "serial",
+      "transitions": 4233526,
+      "site_rows": 10,
+      "dropped_sites": 0,
+      "output_sha256": "d628623daa677c00673df8d4961d14eb271b4112cdcb65b8233f07b69d7b49b8",
+      "repeat_transitions": 4233526,
+      "dominant_boundary": {
+        "class": "candidate_static",
+        "reason": "collection_value",
+        "primitive": "i32",
+        "consumer": "StructLiteralNamedFast",
+        "count": 4233440
+      }
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "family": "portable/search",
+      "source_sha256": "222b321f579d7b2a84f4bc0fd379064a7ebe554bd83169782b28d04eaaab90e0",
+      "executor": "serial",
+      "transitions": 18395575,
+      "site_rows": 23,
+      "dropped_sites": 0,
+      "output_sha256": "9354bc257cae59f24fce2f106308db1c36a10976f52089fa54a6d50b7e50b506",
+      "repeat_transitions": 18395575,
+      "dominant_boundary": {
+        "class": "candidate_static",
+        "reason": "static_return",
+        "primitive": "i32",
+        "consumer": "StoreSlotNew",
+        "count": 13010067
+      }
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide numeric",
+      "source_sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e",
+      "executor": "serial",
+      "transitions": 999999,
+      "site_rows": 1,
+      "dropped_sites": 0,
+      "output_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+      "dominant_boundary": {
+        "class": "candidate_static",
+        "reason": "collection_value",
+        "primitive": "u64",
+        "consumer": "StructLiteralNamedFast",
+        "count": 999999
+      }
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "family": "regex/policy",
+      "source_sha256": "cd6089f205ff542c9c9c07c5526d47b9fc4287f9fd9c7081947d363610ec5263",
+      "executor": "serial",
+      "transitions": 2072340,
+      "site_rows": 89,
+      "dropped_sites": 0,
+      "output_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05",
+      "dominant_boundary": {
+        "class": "required_dynamic",
+        "reason": "interface_union",
+        "primitive": "i32",
+        "consumer": "MemberSet",
+        "count": 1045570
+      }
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float numeric",
+      "source_sha256": "80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88",
+      "executor": "serial",
+      "transitions": 0,
+      "site_rows": 0,
+      "dropped_sites": 0,
+      "output_sha256": "cdaaf4451b236346af59b6a407f3136da96004e0c7c39c165546b7b9b21eda94"
+    },
+    {
+      "benchmark": "discrete_event_simulation",
+      "family": "iterator/control",
+      "source_sha256": "f4229da6b02e7e79c49b81f266a08efb87476edade1255277a55fda77f10f22f",
+      "executor": "serial",
+      "transitions": 266384,
+      "site_rows": 7,
+      "dropped_sites": 0,
+      "output_sha256": "6aebca9b31a78441438d2321290a7b66dc831ddbc7671d783e4a725aed6e7405",
+      "dominant_boundary": {
+        "class": "candidate_static",
+        "reason": "collection_value",
+        "primitive": "i64",
+        "consumer": "StructLiteralNamedFast",
+        "count": 162288
+      }
+    },
+    {
+      "benchmark": "concurrent_transform_chain",
+      "family": "concurrency",
+      "source_sha256": "378d0a572c0a23d65a80d7681c6309ee0eb1e147cdd2e3442ce628ca04c40027",
+      "executor": "goroutine",
+      "transitions": 26711,
+      "site_rows": 20,
+      "dropped_sites": 0,
+      "output_sha256": "4695dbb758688b107a6c7917406311bad54f32f2f42310b2e6c2f58702468f57",
+      "dominant_boundary": {
+        "class": "required_dynamic",
+        "reason": "environment",
+        "primitive": "i64",
+        "consumer": "AssignName",
+        "count": 8196
+      }
+    },
+    {
+      "benchmark": "reverse_complement",
+      "family": "byte output",
+      "source_sha256": "4bd16d4b6c65362efc5b2515548f59686144553a91eadcc65a0cde6df537e5f9",
+      "executor": "serial",
+      "transitions": 1,
+      "site_rows": 1,
+      "dropped_sites": 0,
+      "output_sha256": "db06a593d68950aa91293fb57ffed87ad57040c4ac7ab81ae9dc43d50b400bb7"
+    }
+  ],
+  "broad_boundaries": [
+    {
+      "class": "candidate_static",
+      "reason": "collection_value",
+      "primitive": "i32",
+      "consumer": "StructLiteralNamedFast",
+      "families": 4,
+      "transitions": 4499649,
+      "applications": [
+        "k_nucleotide",
+        "policy_record_dispatch",
+        "discrete_event_simulation",
+        "concurrent_transform_chain"
+      ],
+      "disposition": "closed-rejected-generic-nominal-field-carrier"
+    },
+    {
+      "class": "required_dynamic",
+      "reason": "interface_union",
+      "primitive": "i32",
+      "consumer": "MemberSet",
+      "families": 3,
+      "transitions": 2263704,
+      "applications": [
+        "sudoku_masks",
+        "policy_record_dispatch",
+        "discrete_event_simulation"
+      ],
+      "disposition": "closed-same-generic-nominal-field-retention-boundary"
+    },
+    {
+      "class": "candidate_static",
+      "reason": "collection_value",
+      "primitive": "i64",
+      "consumer": "StructLiteralNamedFast",
+      "families": 3,
+      "transitions": 234011,
+      "applications": [
+        "policy_record_dispatch",
+        "discrete_event_simulation",
+        "concurrent_transform_chain"
+      ],
+      "disposition": "closed-rejected-generic-nominal-field-carrier"
+    }
+  ],
+  "excluded_run": {
+    "benchmark": "concurrent_event_routing",
+    "reason": "The release-disabled observer exceeded the 59-second diagnostic cap and produced neither output nor a snapshot.",
+    "replacement": "concurrent_transform_chain"
+  },
+  "prior_rejection": {
+    "evidence": "v12/docs/perf-baselines/2026-07-26-bytecode-primitive-materialization-boundary-census-closure.json",
+    "candidate": "Store immutable raw primitive snapshots in generic nominal struct fields and materialize only at later dynamic consumers.",
+    "sensor_calibration_change_percent": 6.9328,
+    "rational_series_change_percent": 4.2833,
+    "fully_reverted": true
+  },
+  "retained": [
+    "existing release-disabled primitive-materialization observer",
+    "existing focused observer lifecycle and caller-consumer tests",
+    "this decision record"
+  ],
+  "not_changed": [
+    "compiler",
+    "generated runtime",
+    "runtime semantics",
+    "interpreter execution path",
+    "bytecode VM execution path",
+    "stdlib",
+    "benchmark sources",
+    "language",
+    "dependencies",
+    "WASM"
+  ],
+  "verification": {
+    "public_verifiers_passed": 8,
+    "observer_tests": "passed",
+    "cli_stats_output_tests": "passed",
+    "python_contract_tests": 30,
+    "python_contract_tests_skipped": 1,
+    "closure_ledger_entries": 23,
+    "closure_ledger_invalidations": 0,
+    "generated_coverage_reproducible": true,
+    "json_and_whitespace_checks": "passed"
+  },
+  "cleanup": {
+    "removed_disk_backed_workspace_mib": 336,
+    "removed_stale_tmp_extern_cache_mib": 27,
+    "removed_total_mib": 363
+  },
+  "next": "Run current correctness and release-readiness gates; reopen production performance mutation only when a new broad application or a retained semantic/compiler/runtime/stdlib change invalidates a checked closure or exposes one exact open owner in three unlike families."
+}

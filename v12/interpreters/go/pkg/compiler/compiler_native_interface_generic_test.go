@@ -592,21 +592,23 @@ func TestCompilerCanonicalStdlibSpecImportKeepsIterableIteratorStatic(t *testing
 	}
 }
 
-func TestCompilerTypedArrayDefaultMethodsKeepConcreteReceivers(t *testing.T) {
-	result := compileAndBuildCanonicalStdlibSource(t, "ablec-canonical-array-defaults-", strings.Join([]string{
+func testCompilerTypedArrayDefaultMethodsKeepConcreteReceiver(
+	t *testing.T,
+	ableType string,
+	value string,
+	iteratorType string,
+) {
+	t.Helper()
+	result := compileAndBuildCanonicalStdlibSource(t, "ablec-canonical-array-default-", strings.Join([]string{
 		"package demo",
 		"",
-		"import able.spec.*",
+		"import able.collections.enumerable.{Enumerable}",
 		"",
 		"fn main() -> void {",
-		"  labels: Array String := Array.new()",
-		"  labels.push(\"a\")",
-		"  _ = labels.drop(0)",
-		"  _ = labels.lazy()",
-		"  numbers: Array i32 := Array.new()",
-		"  numbers.push(1)",
-		"  _ = numbers.drop(0)",
-		"  _ = numbers.lazy()",
+		"  values: Array " + ableType + " := Array.new()",
+		"  values.push(" + value + ")",
+		"  _ = values.drop(0)",
+		"  _ = values.lazy()",
 		"}",
 		"",
 	}, "\n"))
@@ -617,22 +619,32 @@ func TestCompilerTypedArrayDefaultMethodsKeepConcreteReceivers(t *testing.T) {
 		t.Fatalf("could not find compiled main body")
 	}
 	dropCalls := regexp.MustCompile(`__able_compiled_impl_Enumerable_drop_default_[A-Za-z0-9_]+_spec(?:_[A-Za-z0-9_]+)?\(`).FindAllString(mainBody, -1)
-	if len(dropCalls) < 2 {
+	if len(dropCalls) < 1 {
 		t.Fatalf("expected typed Array drop calls to use specialized impl helpers:\n%s", mainBody)
 	}
 	lazyCalls := regexp.MustCompile(`__able_compiled_impl_Enumerable_lazy_default_[A-Za-z0-9_]+_spec(?:_[A-Za-z0-9_]+)?\(`).FindAllString(mainBody, -1)
-	if len(lazyCalls) < 2 {
+	if len(lazyCalls) < 1 {
 		t.Fatalf("expected typed Array lazy calls to use specialized impl helpers:\n%s", mainBody)
 	}
 	if !regexp.MustCompile(`func __able_compiled_impl_Enumerable_drop_default_[A-Za-z0-9_]+_spec(?:_[A-Za-z0-9_]+)?\(self \*[A-Za-z0-9_]+, count int32\) \(\*[A-Za-z0-9_]+, \*__ableControl\)`).MatchString(compiledSrc) {
 		t.Fatalf("expected typed Array drop default helper to stay on the shared impl specialization path:\n%s", compiledSrc)
 	}
-	if !regexp.MustCompile(`func __able_compiled_impl_Enumerable_lazy_default_[A-Za-z0-9_]+_spec\(self \*[A-Za-z0-9_]+\) \(__able_iface_Iterator_String, \*__ableControl\)`).MatchString(compiledSrc) {
-		t.Fatalf("expected String Array lazy default helper to keep the concrete iterator result:\n%s", compiledSrc)
+	lazyHelper := regexp.MustCompile(
+		`func __able_compiled_impl_Enumerable_lazy_default_[A-Za-z0-9_]+_spec(?:_[A-Za-z0-9_]+)?\(self \*[A-Za-z0-9_]+\) \(__able_iface_Iterator_` +
+			regexp.QuoteMeta(iteratorType) +
+			`, \*__ableControl\)`,
+	)
+	if !lazyHelper.MatchString(compiledSrc) {
+		t.Fatalf("expected %s Array lazy default helper to keep the concrete iterator result:\n%s", ableType, compiledSrc)
 	}
-	if !regexp.MustCompile(`func __able_compiled_impl_Enumerable_lazy_default_[A-Za-z0-9_]+_spec_[A-Za-z0-9_]+\(self \*[A-Za-z0-9_]+\) \(__able_iface_Iterator_i32, \*__ableControl\)`).MatchString(compiledSrc) {
-		t.Fatalf("expected i32 Array lazy default helper to keep the concrete iterator result:\n%s", compiledSrc)
-	}
+}
+
+func TestCompilerTypedStringArrayDefaultMethodsKeepConcreteReceiver(t *testing.T) {
+	testCompilerTypedArrayDefaultMethodsKeepConcreteReceiver(t, "String", `"a"`, "String")
+}
+
+func TestCompilerTypedI32ArrayDefaultMethodsKeepConcreteReceiver(t *testing.T) {
+	testCompilerTypedArrayDefaultMethodsKeepConcreteReceiver(t, "i32", "1", "i32")
 }
 
 func TestCompilerCanonicalStdlibExpectationResultArgumentStaysConcrete(t *testing.T) {
