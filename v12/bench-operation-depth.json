@@ -323,7 +323,7 @@
         {"benchmark": "concurrent_signal_dispatch", "workload": "interface_numeric_file_workers", "source_markers": ["import able.fs", "import able.kernel.{Array, Channel}"]}
       ],
       "local_fixtures": [],
-      "frontier_groups": ["compiled-byte-output", "compiled-iterator-control", "compiled-concurrency", "bytecode-byte-output", "bytecode-iterator-control", "bytecode-concurrency"],
+      "frontier_groups": ["compiled-iterator-control", "compiled-concurrency", "bytecode-byte-output", "bytecode-iterator-control", "bytecode-concurrency"],
       "rationale": "Static package loading spans unlike applications, but current AOT and VM ownership evidence has no shared actionable initialization descendant."
     },
     {

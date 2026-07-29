@@ -10,7 +10,7 @@
       "function": "ordered_select_checksum",
       "function_entries": 1,
       "minimum_closed_scope": "interpreter-instance-runtime",
-      "modeled_target_excess_reduction_percent": 48.568847,
+      "modeled_target_excess_reduction_percent": 48.397571,
       "ownership_domain_count": 6,
       "passes_25_percent_performance_gate": true,
       "reason": "The hot function creates and returns a nominal UInt128 object into a legacy caller. Preserving its exact identity without a return veneer requires the caller, nominal constructors, dispatch metadata, environments, and frames to share the new owner.",
@@ -34,7 +34,7 @@
       "function": "main",
       "function_entries": 1,
       "minimum_closed_scope": "function-plus-transitive-primitive-kernel",
-      "modeled_target_excess_reduction_percent": 59.767008,
+      "modeled_target_excess_reduction_percent": 59.829657,
       "ownership_domain_count": 3,
       "passes_25_percent_performance_gate": true,
       "reason": "The entry has no identity-bearing arguments or result. A bounded cut is possible only if hypot, sqrt, and the f64 sqrt kernel operation execute inside the semantic runtime; print remains one declared terminal host effect.",
@@ -55,7 +55,7 @@
       "function": "split",
       "function_entries": 1937,
       "minimum_closed_scope": "interpreter-instance-runtime",
-      "modeled_target_excess_reduction_percent": 39.45596,
+      "modeled_target_excess_reduction_percent": 39.782042,
       "ownership_domain_count": 7,
       "passes_25_percent_performance_gate": true,
       "reason": "Each hot split call receives legacy String identities and constructs an Array of Strings consumed by iterator and map logic. Avoiding per-call or graph adapters expands ownership through strings, arrays, iterators, maps, dispatch, environments, and frames.",
@@ -80,7 +80,7 @@
       "function": "rolling_checksum",
       "function_entries": 1,
       "minimum_closed_scope": "interpreter-instance-runtime",
-      "modeled_target_excess_reduction_percent": 62.390469,
+      "modeled_target_excess_reduction_percent": 63.356266,
       "ownership_domain_count": 7,
       "passes_25_percent_performance_gate": true,
       "reason": "The legacy caller owns the input Array and the function repeatedly slices, reads, type-matches, and may raise IndexError. A borrowed handle would cause per-operation exits; conversion would break alias and error identity.",
@@ -105,7 +105,7 @@
       "function": "reverse_complement_fasta",
       "function_entries": 1,
       "minimum_closed_scope": "interpreter-instance-runtime",
-      "modeled_target_excess_reduction_percent": 53.010698,
+      "modeled_target_excess_reduction_percent": 53.141588,
       "ownership_domain_count": 7,
       "passes_25_percent_performance_gate": true,
       "reason": "The function receives a file-owned Array and returns a newly allocated Array to write_all while mutating several nested arrays. Exact identity and mutation require the I/O roots, containers, calls, environments, and frames to share one owner.",
@@ -247,7 +247,7 @@
     },
     "native_hot_tier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "a3b73576b074b7709f32c038dca1149f0174c3dc5cdd91a1c19b83bd005f0e2f"
+      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
     },
     "portable_frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-sensor-calibration-interaction-triple-frontier.json",
@@ -271,7 +271,7 @@
     },
     "semantic_abi_feasibility": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-shared-runtime-semantic-abi-feasibility.json",
-      "sha256": "13585787db05987bfe310f63f847c705a53a469bd3044f2a6578702e77e75dfb"
+      "sha256": "0a08bfd77594aae434d6978be8021e9bccb4d1f0d7b006ba428e1776ce8d44d2"
     },
     "shadow_flow": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-semantic-abi-shadow-image-lowering.json",

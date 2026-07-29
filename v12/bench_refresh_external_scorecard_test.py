@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 import tempfile
@@ -23,7 +24,12 @@ def option(command: list[str], name: str) -> str:
 
 
 class RefreshPartitionTests(unittest.TestCase):
-    def dry_run(self, manifest: Path, output_dir: Path) -> list[list[str]]:
+    def dry_run(
+        self,
+        manifest: Path,
+        output_dir: Path,
+        *extra: str,
+    ) -> list[list[str]]:
         result = subprocess.run(
             [
                 str(REFRESH),
@@ -35,6 +41,7 @@ class RefreshPartitionTests(unittest.TestCase):
                 str(output_dir),
                 "--selection-manifest",
                 str(manifest),
+                *extra,
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -97,6 +104,60 @@ class RefreshPartitionTests(unittest.TestCase):
             path = root / "selection.json"
             path.write_text(json.dumps(manifest), encoding="utf-8")
             self.assert_partition(path)
+
+    def test_promotion_requires_an_exact_go_toolchain(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_output:
+            result = subprocess.run(
+                [
+                    str(REFRESH),
+                    "--dry-run",
+                    "--tag",
+                    "missing-toolchain-test",
+                    "--output-dir",
+                    raw_output,
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--go-toolchain is required when promoting", result.stderr)
+
+    def test_exact_go_toolchain_reaches_reference_and_able_builds(self) -> None:
+        selector = "go1.26.5"
+        expected = subprocess.run(
+            ["go", "version"],
+            cwd=REPO_ROOT,
+            env={**os.environ, "GOTOOLCHAIN": selector},
+            text=True,
+            capture_output=True,
+            check=True,
+        ).stdout.strip()
+        with tempfile.TemporaryDirectory() as raw_output:
+            commands = self.dry_run(
+                DEFAULT_MANIFEST,
+                Path(raw_output) / "reports",
+                "--go-toolchain",
+                selector,
+            )
+        references = [
+            command
+            for command in commands
+            if str(SCRIPT_DIR / "bench_refresh_go_refs") in command
+        ]
+        comparisons = [
+            command
+            for command in commands
+            if str(SCRIPT_DIR / "bench_compare_external") in command
+        ]
+        self.assertEqual(len(references), 3)
+        self.assertGreater(len(comparisons), 0)
+        for command in references:
+            self.assertEqual(option(command, "--go-toolchain"), selector)
+        for command in references + comparisons:
+            self.assertIn(f"GOTOOLCHAIN={selector}", command)
+            self.assertIn(f"ABLE_BENCH_EXPECTED_GO_VERSION={expected}", command)
 
 
 if __name__ == "__main__":

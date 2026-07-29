@@ -49,6 +49,10 @@ Start from:
 - `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-closure.md`
 - `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.md`
 - `v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-bytecode.md`
+- `v12/docs/perf-baselines/2026-07-29-compiled-go1265-scorecard-refresh.md`
+- `v12/docs/perf-baselines/2026-07-29-benchmark-go-toolchain-contract.md`
+- `v12/docs/perf-baselines/2026-07-29-post-toolchain-release-inventory.md`
+- `v12/docs/perf-baselines/2026-07-29-compiled-go1265-frontier.md`
 - `v12/docs/perf-baselines/external-scoreboard-current.md`
 - `v12/docs/perf-baselines/2026-07-26-compiled-aot-native-carrier-owner-closure.md`
 - `v12/docs/perf-baselines/2026-07-24-static-interpreter-package-cut-retained.md`
@@ -67,11 +71,11 @@ required Go/Python/Ruby reference. Compiled canonical workloads remain
 unchanged; the seven formerly unranked bytecode rows use the documented
 portable mode contract.
 
-Compiled currently has 6 target passes, a 5.575597× geometric-mean Able/Go
-ratio, and 5.675368 seconds of positive target excess. Bytecode has 4 target
+Compiled currently has 7 target passes, a 4.637116× geometric-mean Able/Go
+ratio, and 5.353263 seconds of positive target excess. Bytecode has 4 target
 passes, a 12.780200× geometric mean over its Python/Ruby ratios, and
 221.503684 seconds of positive target excess. A second independent matched
-five-process cohort confirms all ten snapshot passes as established guards.
+five-process cohort confirms all eleven snapshot passes as established guards.
 All 63 strict compiled graphs remain interpreter-free, and the 23-closure
 performance-evidence ledger has zero invalidations.
 
@@ -95,37 +99,52 @@ was consolidated as commit `d42aab3b004ba121481bba4503d1635be5556b7d` and
 published to `origin/master`; the deferred WASM hold remained outside that
 commit.
 
-The active v12 Go dependency-security refresh is complete locally. Go 1.26.5,
+The active v12 Go dependency-security refresh is published. Go 1.26.5,
 `go-git` v5.19.1, `x/crypto` v0.52.0, and their tidied safe transitive graph
 reduce the active module from 26 symbol-reachable advisories to zero.
-Module verification, vet/build, the ordinary handoff, the complete compiler
-package, three strict interpreter-free application builds, and five-process
-compiled/Go smoke cohorts pass. QuickSort and Binary Trees remain faster than
-Go; Matrix Multiply remains its existing target miss with an essentially
-unchanged Able mean. No production compiler, runtime, interpreter, VM, stdlib,
-language, benchmark, fixture, archived-version, nominal-special-case, or WASM
-code changed.
+The security commit is `2243143aa449c9c764d7215496faf473b19fc73d` on
+`origin/master`.
 
-The maintainer has authorized exact consolidation and publication of the
-six-path active-v12 security tranche. That boundary is the only non-WASM
-working-tree change; the deferred WASM complement must remain outside the
-index and commit.
+The complete compiled catalog has now been refreshed with Go 1.26.5: 63
+strict Able rows and 63 matching Go rows, five verified processes per side,
+zero timeouts, and zero failures. `i_before_e` is the only new target pass and
+a second independent cohort establishes it as a guard. The refreshed
+126-row frontier has 11 established guards, 115 misses, 226.856947 seconds of
+positive target excess, and zero actionable groups. No production code was
+retained.
 
-After publication, next refresh the complete 63-row compiled Able/Go
-scorecard with Go 1.26.5 before reopening production performance mutation.
+The benchmark Go-toolchain provenance contract is complete. Promoted
+full-scorecard refreshes require an exact patch selector, propagate it through
+both reference and generated Able builds, record both selector and resolved
+version, and reject missing, mixed, or mislabeled compiled comparison
+contracts. All 31 benchmark contract files and a real strict Go 1.26.5
+Fibonacci comparison pass. The smoke is contract verification, not new
+performance evidence.
 
-Why: the security toolchain patch changes the Go reference version from
-1.26.4 to 1.26.5. The three-application retention smoke is green, but the
-authoritative compiled frontier still records Go 1.26.4.
-What it entails: rebuild all 63 Go references with Go 1.26.5, run five current
-strict compiled Able processes and five matching Go processes per application
-under the existing verifier and execution contracts, regenerate the compiled
-scorecard/frontier evidence, and inspect target-status or owner-rank changes.
-Retain no production optimization unless the refreshed evidence admits a
-general owner across at least three unlike programs.
-Why it matters: this restores a single patched-toolchain provenance for the
-95%-of-Go goal and distinguishes a real performance opportunity from
-workstation noise or a stale reference baseline.
+The post-toolchain release inventory is complete. Its fully expanded snapshot
+contains 121 files: an exact 87-path retained boundary and the unchanged
+34-file deferred WASM hold. The proposed post-record candidate is 90 paths,
+including the three inventory metadata files. All identities and content
+checks pass; the index remains empty.
+
+The maintainer authorized exact staging and one local consolidation commit for
+the 90-path candidate. The 34-file deferred WASM complement remains outside
+the index and commit. No push is authorized.
+
+Next obtain explicit maintainer authorization before publishing the local
+commit.
+
+Why: exact local consolidation does not authorize mutation of the remote
+repository.
+What it entails: inspect the final commit and branch divergence, confirm the
+remote destination and exact commit range, and push only after separate
+explicit authorization.
+Why it matters: this prevents publishing deferred WASM or an unintended
+history range while preserving the verified Go 1.26.5 scorecard and toolchain
+contract.
+
+Reopen production performance mutation only when the checked frontier admits
+one general owner across at least three unlike programs.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or default execution-context rollout

@@ -4,11 +4,11 @@
   "sources": {
     "structural_strategy": {
       "path": "v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json",
-      "sha256": "c8af8cf4e58dc13197eb2de75b4e9fcb43d19473c7a11b38cfe67c81d5d6de36"
+      "sha256": "fb956076658cd2e8b2251b5746b72ca4394f66e782256f4d6fedf8a11178bb8b"
     },
     "native_tier_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "a3b73576b074b7709f32c038dca1149f0174c3dc5cdd91a1c19b83bd005f0e2f"
+      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
     },
     "spec": {
       "path": "spec/full_spec_v12.md",

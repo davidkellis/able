@@ -5733,3 +5733,92 @@ Open items (2025-11-02 audit):
   the authorized local consolidation does not authorize external mutation.
 - Record:
   `docs/perf-baselines/2026-07-28-post-frontier-release-inventory.md`.
+
+## 2026-07-29 - Complete compiled Go 1.26.5 scorecard refresh
+
+- Ran five verified strict Able processes and five verified Go 1.26.5
+  processes for every one of the 63 selected compiled applications: 630
+  successful timed processes with zero timeouts or failures.
+- Discarded the first partial cohort after proving that root-level reference
+  builds used Go 1.26.4 while module-local generated builds selected Go
+  1.26.5, and that recurring unrelated host jobs contaminated its early rows.
+  The retained cohort explicitly forced Go 1.26.5 on both sides.
+- Compiled results are 7 target passes, 56 misses, a 4.637116x geometric-mean
+  Able/Go ratio, and 5.353263 seconds of positive target excess.
+- Independently repeated the new `i_before_e` pass. Its two five-process ratios
+  are 1.049069x and 0.917108x, with a pooled 0.984465x ratio.
+- Promoted the new scorecard, regenerated the fixed and dated frontiers,
+  advanced only the changed `compiled-text-map` closure, and reconciled every
+  downstream architecture artifact. The 126-row frontier has 11 established
+  guards, 115 misses, zero actionable groups, and 23 current closures.
+- All 30 benchmark contract test files and all affected checked generators
+  pass. No production or WASM code was retained.
+- Next add an explicit Go toolchain/version contract to the refresh driver and
+  wrappers, propagate it to both build paths, reject mixed reports, and add
+  fast tests. This matters because trustworthy native-performance decisions
+  require both sides to use the same recorded Go patch release.
+- Record:
+  `docs/perf-baselines/2026-07-29-compiled-go1265-scorecard-refresh.md`.
+
+## 2026-07-29 - Benchmark Go toolchain provenance contract
+
+- Promoted full-scorecard refreshes now require an exact Go patch selector.
+  The driver resolves it once and propagates the selector and exact version to
+  all external Go-reference and Able CLI/generated-Go build processes.
+- Reference, measurement, and comparison JSON records preserve the toolchain
+  contract. Fresh compiled comparisons reject absent, mixed, or mislabeled
+  selector/version evidence.
+- Added focused contracts covering selector syntax, resolution, expected
+  version, mismatch rejection, promotion refusal, and all commands in the
+  63-application dry-run graph.
+- All 31 benchmark contract files pass. A real strict Fibonacci smoke verified
+  one process per side and recorded matching `go1.26.5` /
+  `go version go1.26.5 linux/amd64` contracts throughout.
+- No production or WASM behavior changed.
+- Next refresh the exact non-mutating release inventory for the completed
+  scorecard and toolchain tranches, preserving the 34 deferred WASM files as
+  an explicit complement. This matters because the verified baseline should
+  be releasable without absorbing unrelated dirty work.
+- Record:
+  `docs/perf-baselines/2026-07-29-benchmark-go-toolchain-contract.md`.
+
+## 2026-07-29 - Post-toolchain release inventory
+
+- Captured 121 fully expanded dirty files at
+  `2243143aa449c9c764d7215496faf473b19fc73d` with `HEAD` equal to
+  `origin/master`, zero staged paths, and no deletions or renames.
+- Classified exactly 87 retained paths and the unchanged 34-file deferred WASM
+  hold. Ordinary porcelain had reported 32 WASM entries only because the
+  three files under `v12/wasm/samples/modules/` were collapsed to one
+  directory entry.
+- The retained dependency order is benchmark toolchain contract, compiled Go
+  1.26.5 scorecard evidence, derived frontier reconciliation, then handoff and
+  release records.
+- All 121 identities and all JSON, formatting, syntax, whitespace,
+  source-size, scope, secret, benchmark-contract, scorecard, frontier, and
+  ledger checks pass.
+- The three inventory metadata files produce an exact 90-path post-record
+  candidate. Nothing was staged, committed, pushed, reset, reverted, or
+  deleted.
+- Next obtain explicit authorization before refreshing identities, staging
+  only the exact candidate, and creating one local commit without pushing.
+  This is important because the release boundary is verified while Git
+  mutation remains separately authorized.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-toolchain-release-inventory.md`.
+
+## 2026-07-29 - Authorized post-toolchain exact-index commit
+
+- The maintainer authorized exact staging and one local commit for the
+  inventory's 90-path retained candidate.
+- Refreshed the 87 pre-record identities, preserved the exact 34-file deferred
+  WASM complement, and used only the recorded NUL-delimited pathspec with
+  SHA-256
+  `ef537311e2af6a320989f5fbe665ab7cc5f92483aa404f5771f2ac587c27b562`.
+- Cached content, scope, evidence, and complement checks passed before the one
+  local commit. No broad staging, deferred WASM staging, or push occurred.
+- Next obtain separate authorization before publishing the local branch,
+  confirming the remote and exact commit range first. This matters because
+  local consolidation authority does not authorize a push.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-toolchain-release-inventory.md`.

@@ -21,6 +21,7 @@ require_quiet_cpu=false
 promote_current=true
 stdlib_root="${ABLE_STDLIB_ROOT:-$SCRIPT_DIR/../../able-stdlib}"
 selection_manifest="${ABLE_BENCH_SELECTION_MANIFEST:-$SCRIPT_DIR/bench-selection-manifest.json}"
+go_toolchain="${ABLE_BENCH_GO_TOOLCHAIN:-}"
 
 generality_csv="$(bench_external_suite_csv generality)"
 async_csv="channel_rollup,future_pipeline,future_await_race,await_channel_mux,mutex_ledger,mutex_await_journal,mutex_work_queue"
@@ -77,6 +78,9 @@ Options:
       --selection-manifest PATH
                             Reviewed mode-aware strict-variance row manifest
                             (default: v12/bench-selection-manifest.json)
+      --go-toolchain NAME   Exact Go patch toolchain used for both Go
+                            references and generated Able builds; required for
+                            promotion (for example go1.26.5)
       --keep                Retain temporary benchmark workspaces
       --no-promote          Keep external-scoreboard-current.* unchanged; use
                             dated artifacts for a candidate cohort comparison
@@ -149,6 +153,14 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || die "missing value for --selection-manifest"
       selection_manifest="$1"
       ;;
+    --go-toolchain)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --go-toolchain"
+      go_toolchain="$1"
+      ;;
+    --go-toolchain=*)
+      go_toolchain="${1#*=}"
+      ;;
     --keep)
       keep_tmp=true
       ;;
@@ -172,6 +184,16 @@ is_positive_int "$runs" || die "--runs must be a positive integer"
 is_positive_int "$timeout_seconds" || die "--timeout must be a positive integer"
 if [[ "$promote_current" == true ]] && ((10#$runs != 5)); then
   die "--runs must be exactly 5 when promoting; use --no-promote for a smoke check"
+fi
+if [[ "$promote_current" == true && -z "$go_toolchain" ]]; then
+  die "--go-toolchain is required when promoting"
+fi
+go_version=""
+if [[ -n "$go_toolchain" ]]; then
+  go_version="$(
+    python3 "$SCRIPT_DIR/bench_go_toolchain_contract.py" \
+      --selector "$go_toolchain" --print-version
+  )" || die "cannot resolve --go-toolchain $go_toolchain"
 fi
 [[ "$tag" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "--tag contains unsupported characters"
 if [[ "$require_quiet_cpu" == true ]]; then
@@ -200,6 +222,14 @@ env_guard=(
   "GOMEMLIMIT=${GOMEMLIMIT:-1GiB}"
   "GOGC=${GOGC:-50}"
 )
+go_toolchain_args=()
+if [[ -n "$go_toolchain" ]]; then
+  env_guard+=(
+    "GOTOOLCHAIN=$go_toolchain"
+    "ABLE_BENCH_EXPECTED_GO_VERSION=$go_version"
+  )
+  go_toolchain_args=(--go-toolchain "$go_toolchain")
+fi
 affinity_args=()
 if [[ -n "$cpu_affinity" ]]; then
   affinity_args=(--cpu-affinity "$cpu_affinity")
@@ -341,14 +371,17 @@ run "$SCRIPT_DIR/bench_stdlib_source_state" \
 
 run env "${env_guard[@]}" "$SCRIPT_DIR/bench_refresh_go_refs" \
   -b "$generality_csv" -r "$runs" -t "$timeout_seconds" "${affinity_args[@]}" \
+  "${go_toolchain_args[@]}" \
   --output-json "$go_general_json" --output-md "$go_general_md" \
   --workdir "$tmp_root/generality-go-reference" "${keep_args[@]}"
 run env "${env_guard[@]}" "$SCRIPT_DIR/bench_refresh_go_refs" \
   -b "$async_csv" -r "$runs" -t "$timeout_seconds" "${affinity_args[@]}" \
+  "${go_toolchain_args[@]}" \
   --output-json "$go_async_json" --output-md "$go_async_md" \
   --workdir "$tmp_root/async-go-reference" "${keep_args[@]}"
 run env "${env_guard[@]}" "$SCRIPT_DIR/bench_refresh_go_refs" \
   -b "$coverage_extra_csv" -r "$runs" -t "$timeout_seconds" "${affinity_args[@]}" \
+  "${go_toolchain_args[@]}" \
   --output-json "$go_coverage_extra_json" --output-md "$go_coverage_extra_md" \
   --workdir "$tmp_root/coverage-extra-go-reference" "${keep_args[@]}"
 

@@ -160,7 +160,7 @@
   "sources": {
     "backend_adr": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
-      "sha256": "89432b044deb1227c818b80fce12c63db27c369cbe36233f29d0b54992b4358d"
+      "sha256": "c46a14b6a44e6a1ce1bcb73d0466a5bee3be486eafde9cefcd315935e502d667"
     },
     "bytecode_architecture_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -180,11 +180,11 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-shared-runtime-semantic-abi.json",
-      "sha256": "3f191a7b8a9faf46d51937dd7ab2904ce49fadc579047bc8b0da20b97966b382"
+      "sha256": "89a1163d04d22c36a67debd6cffe99a0256b1d2fb16161fbfc8074ad4c60a735"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "a3b73576b074b7709f32c038dca1149f0174c3dc5cdd91a1c19b83bd005f0e2f"
+      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
     },
     "runtime_values": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/values.go",
@@ -224,7 +224,7 @@
   "target_model": [
     {
       "benchmark": "fixed_width_128",
-      "compiled_equivalent_target_excess_reduction_percent": 48.568847,
+      "compiled_equivalent_target_excess_reduction_percent": 48.397571,
       "family": "wide-numeric",
       "hottest_program": "ordered_select_checksum",
       "hottest_program_instruction_share_percent": 46.735683,
@@ -232,7 +232,7 @@
     },
     {
       "benchmark": "distance_field",
-      "compiled_equivalent_target_excess_reduction_percent": 59.767008,
+      "compiled_equivalent_target_excess_reduction_percent": 59.829657,
       "family": "float-numeric",
       "hottest_program": "main",
       "hottest_program_instruction_share_percent": 56.410349,
@@ -240,7 +240,7 @@
     },
     {
       "benchmark": "word_frequency",
-      "compiled_equivalent_target_excess_reduction_percent": 39.45596,
+      "compiled_equivalent_target_excess_reduction_percent": 39.782042,
       "family": "text-map",
       "hottest_program": "split",
       "hottest_program_instruction_share_percent": 40.23112,
@@ -248,7 +248,7 @@
     },
     {
       "benchmark": "array_slice_window",
-      "compiled_equivalent_target_excess_reduction_percent": 62.390469,
+      "compiled_equivalent_target_excess_reduction_percent": 63.356266,
       "family": "array-iterator",
       "hottest_program": "rolling_checksum",
       "hottest_program_instruction_share_percent": 63.488427,
@@ -256,7 +256,7 @@
     },
     {
       "benchmark": "reverse_complement",
-      "compiled_equivalent_target_excess_reduction_percent": 53.010698,
+      "compiled_equivalent_target_excess_reduction_percent": 53.141588,
       "family": "byte-text",
       "hottest_program": "reverse_complement_fasta",
       "hottest_program_instruction_share_percent": 53.408536,

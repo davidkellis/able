@@ -20,6 +20,7 @@ output_md=""
 workdir=""
 keep_tmp=false
 require_quiet_cpu=false
+go_toolchain="${ABLE_BENCH_GO_TOOLCHAIN:-}"
 
 usage() {
   cat <<'EOF'
@@ -40,6 +41,8 @@ Options:
                            host preflight before creating reference artifacts
       --gomaxprocs N        Require this GOMAXPROCS for every selected row;
                             it must match each catalog CPU budget
+      --go-toolchain NAME   Exact Go patch toolchain selector, for example
+                            go1.26.5; validates and records the resolved version
       --output-json PATH    Write a report with individual verifier-backed run samples
       --output-md PATH      Write Markdown report
       --workdir DIR         Keep build/run artifacts in DIR
@@ -99,6 +102,14 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || die "missing value for --gomaxprocs"
       gomaxprocs="$1"
       ;;
+    --go-toolchain)
+      shift
+      [[ $# -gt 0 ]] || die "missing value for --go-toolchain"
+      go_toolchain="$1"
+      ;;
+    --go-toolchain=*)
+      go_toolchain="${1#*=}"
+      ;;
     --output-json)
       shift
       [[ $# -gt 0 ]] || die "missing value for --output-json"
@@ -132,11 +143,24 @@ is_int "$timeout_seconds" && ((timeout_seconds > 0)) || die "--timeout must be a
 if [[ -n "$gomaxprocs" ]]; then
   is_int "$gomaxprocs" && ((gomaxprocs > 0)) || die "--gomaxprocs must be a positive integer"
 fi
+if [[ -n "$go_toolchain" ]]; then
+  [[ "$go_toolchain" =~ ^go[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
+    die "--go-toolchain must name an exact Go patch release such as go1.26.5"
+  export GOTOOLCHAIN="$go_toolchain"
+fi
 
 bench_repo="$(realpath "$bench_repo")"
 [[ -d "$bench_repo" ]] || die "benchmark repository not found: $bench_repo"
 command -v go >/dev/null 2>&1 || die "go is required"
 command -v ruby >/dev/null 2>&1 || die "ruby is required for suite verification"
+go_version="$(go version)" || die "cannot identify Go toolchain"
+if [[ -n "$go_toolchain" && "$go_version" != "go version $go_toolchain "* ]]; then
+  die "resolved Go version does not match --go-toolchain $go_toolchain: $go_version"
+fi
+expected_go_version="${ABLE_BENCH_EXPECTED_GO_VERSION:-}"
+if [[ -n "$expected_go_version" && "$go_version" != "$expected_go_version" ]]; then
+  die "resolved Go version does not match expected version: expected $expected_go_version; got $go_version"
+fi
 
 command -v taskset >/dev/null 2>&1 || die "taskset is required for benchmark CPU contracts"
 cpu_pool="$(bench_external_effective_cpu_pool "$cpu_affinity")" || die "cannot resolve benchmark CPU pool"
@@ -166,7 +190,6 @@ if [[ -n "$output_md" ]]; then
   mkdir -p "$(dirname "$output_md")"
 fi
 
-go_version="$(go version)"
 rows_file="$workdir/rows.tsv"
 samples_file="$workdir/samples.tsv"
 : > "$rows_file"
@@ -310,11 +333,11 @@ for benchmark in "${benchmarks[@]}"; do
 done
 
 if [[ -n "$output_json" || -n "$output_md" ]]; then
-  ruby - "$rows_file" "$samples_file" "$output_json" "$output_md" "$bench_repo" "$go_version" "$runs" "$timeout_seconds" "$cpu_pool" "$gomaxprocs" <<'RUBY'
+  ruby - "$rows_file" "$samples_file" "$output_json" "$output_md" "$bench_repo" "$go_version" "$go_toolchain" "$expected_go_version" "$runs" "$timeout_seconds" "$cpu_pool" "$gomaxprocs" <<'RUBY'
 require "json"
 require "time"
 
-rows_path, samples_path, json_path, md_path, bench_repo, go_version, runs, timeout, cpu_pool, gomaxprocs = ARGV
+rows_path, samples_path, json_path, md_path, bench_repo, go_version, go_toolchain, expected_go_version, runs, timeout, cpu_pool, gomaxprocs = ARGV
 samples_by_benchmark = Hash.new { |hash, key| hash[key] = [] }
 File.readlines(samples_path, chomp: true).reject(&:empty?).each do |line|
   benchmark, run, status, duration_ns, stdout_hash = line.split("\t", 5)
@@ -352,6 +375,11 @@ report = {
   "generated_at" => Time.now.utc.iso8601,
   "benchmark_repo" => bench_repo,
   "go_version" => go_version,
+  "go_toolchain" => {
+    "selector" => go_toolchain.empty? ? nil : go_toolchain,
+    "go_version" => go_version,
+    "expected_go_version" => expected_go_version.empty? ? nil : expected_go_version,
+  },
   "runs" => runs.to_i,
   "timeout_seconds" => timeout.to_i,
   "cpu_affinity" => cpu_pool,
@@ -366,6 +394,7 @@ unless md_path.empty?
     "",
     "- Generated: `#{report.fetch("generated_at")}`",
     "- Go: `#{go_version}`",
+    "- Go toolchain selector: `#{go_toolchain.empty? ? "ambient" : go_toolchain}`",
     "- Runs: `#{runs}`",
     "- Timeout: `#{timeout}s`",
     "- CPU pool: `#{cpu_pool}`",

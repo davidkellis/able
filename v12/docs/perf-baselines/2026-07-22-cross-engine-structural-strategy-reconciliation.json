@@ -107,7 +107,7 @@
           "current_seconds": 8.03,
           "current_target_excess_seconds": 7.640315789,
           "family": "wide-numeric",
-          "modeled_seconds": 0.09,
+          "modeled_seconds": 0.118,
           "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
@@ -119,7 +119,7 @@
           "current_seconds": 5.76,
           "current_target_excess_seconds": 5.402526316,
           "family": "float-numeric",
-          "modeled_seconds": 0.036,
+          "modeled_seconds": 0.03,
           "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
@@ -131,48 +131,48 @@
           "current_seconds": 2.954,
           "current_target_excess_seconds": 2.921157895,
           "family": "concurrency-text",
-          "modeled_seconds": 0.04,
-          "modeled_target_excess_seconds": 0.007157895,
+          "modeled_seconds": 0.032,
+          "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": false,
           "target_budget_seconds": 0.032842105263157895,
-          "target_excess_reduction_percent": 99.754964
+          "target_excess_reduction_percent": 100.0
         },
         {
           "benchmark": "word_frequency",
           "current_seconds": 1.502,
           "current_target_excess_seconds": 1.480526316,
           "family": "text-map",
-          "modeled_seconds": 0.05,
-          "modeled_target_excess_seconds": 0.028526316,
+          "modeled_seconds": 0.038,
+          "modeled_target_excess_seconds": 0.016526316,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
           "target_budget_seconds": 0.021473684210526315,
-          "target_excess_reduction_percent": 98.073231
+          "target_excess_reduction_percent": 98.883754
         },
         {
           "benchmark": "array_slice_window",
           "current_seconds": 0.686,
           "current_target_excess_seconds": 0.657368421,
           "family": "array-iterator",
-          "modeled_seconds": 0.04,
-          "modeled_target_excess_seconds": 0.011368421,
+          "modeled_seconds": 0.03,
+          "modeled_target_excess_seconds": 0.001368421,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
           "target_budget_seconds": 0.028631578947368418,
-          "target_excess_reduction_percent": 98.270617
+          "target_excess_reduction_percent": 99.791833
         },
         {
           "benchmark": "reverse_complement",
           "current_seconds": 3.292,
           "current_target_excess_seconds": 3.264315789,
           "family": "byte-text",
-          "modeled_seconds": 0.052,
-          "modeled_target_excess_seconds": 0.024315789,
+          "modeled_seconds": 0.044,
+          "modeled_target_excess_seconds": 0.016315789,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
           "target_budget_seconds": 0.027684210526315787,
-          "target_excess_reduction_percent": 99.255103
+          "target_excess_reduction_percent": 99.500177
         }
       ]
     },
@@ -295,7 +295,7 @@
   "sources": {
     "closure_ledger": {
       "path": "/home/david/sync/projects/able/v12/bench-performance-closure-ledger.json",
-      "sha256": "37f012c500088397808e51edd17d273f417e621082ef449287b3a5aeb554104f"
+      "sha256": "3589828d4cfb03ed7b536f1be6f22dfac34b1e0181c45839f444281ab5b14873"
     },
     "compiled_boundary_census": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-compiled-full-typed-semantic-boundary-census.json",
@@ -307,15 +307,15 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-cross-engine-structural-strategy.json",
-      "sha256": "df3b8d72edc5ef47fe3b64795091c219f5052b1d17650af46daaaf8d7b0ecd17"
+      "sha256": "2d8d788a1070649979bc7c1a9d630610962db7492ee1570a18d33c30641ff716"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "eb2ba1219218732569e91ac23b52cc44b588045e8f69d4ce7930972eb54350d8"
+      "sha256": "a284d389837ef14dd969407360237621cdaaa4f7d992fcb8b1e42fdc5a0df1e0"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "a3b73576b074b7709f32c038dca1149f0174c3dc5cdd91a1c19b83bd005f0e2f"
+      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
     }
   },
   "summary": {
@@ -329,8 +329,8 @@
     "performance_capable_route_count": 1,
     "prototype_admitted": false,
     "selected_rows": 126,
-    "target_misses": 116,
-    "total_target_excess_seconds": 227.17905263157894
+    "target_misses": 115,
+    "total_target_excess_seconds": 226.85694736842106
   },
   "target_guards": [
     {

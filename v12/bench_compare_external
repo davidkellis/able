@@ -488,7 +488,7 @@ with open(rows_path, "a", encoding="utf-8") as out:
         "\t".join([
             bench, mode, "0", "0", "1", "n/a", "n/a", "n/a", "n/a",
             "unavailable", "n/a", "0", "0", "n/a", source_path, source_sha256, "[]",
-            logical_cpu_budget, cpu_affinity, executor_policy,
+            logical_cpu_budget, cpu_affinity, executor_policy, "{}",
         ])
         + "\n"
     )
@@ -530,6 +530,7 @@ with open(rows_path, "a", encoding="utf-8") as out:
                     logical_cpu_budget,
                     cpu_affinity,
                     executor_policy,
+                    json.dumps(payload.get("go_toolchain") or {}, separators=(",", ":")),
                 ]
             )
             + "\n"
@@ -538,13 +539,14 @@ PY
   done
 done
 
-python - "$summary_rows" "$benchmark_contract_rows" "$external_results_json" "$reference_json" "$go_reference_json" "$languages_csv" "$benchmarks_csv" "$modes_csv" "$bytecode_runtime_calls" "$output_json" "$output_md" "$cpu_pool" "$suite_name" "$experimental_execution_context" <<'PY'
+env PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}" python - "$summary_rows" "$benchmark_contract_rows" "$external_results_json" "$reference_json" "$go_reference_json" "$languages_csv" "$benchmarks_csv" "$modes_csv" "$bytecode_runtime_calls" "$output_json" "$output_md" "$cpu_pool" "$suite_name" "$experimental_execution_context" <<'PY'
 import json
 import hashlib
 import math
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from bench_go_toolchain_contract import require_matching_go_toolchains
 
 rows_path, contracts_path, external_results_path, reference_path, go_reference_path, languages_csv, benchmarks_csv, modes_csv, bytecode_runtime_calls, output_json, output_md, cpu_pool, suite_name, experimental_execution_context = sys.argv[1:]
 requested_languages = [x for x in languages_csv.split(",") if x]
@@ -615,6 +617,7 @@ with open(rows_path, "r", encoding="utf-8") as f:
             validation_status, validation_verifier, validation_verified,
             validation_failed, stdout_hashes, source_path, source_sha256, samples_json,
             logical_cpu_budget, resolved_affinity, executor_policy,
+            go_toolchain_json,
         ) = line.split("\t")
         rows.append({
             "benchmark": bench,
@@ -644,6 +647,7 @@ with open(rows_path, "r", encoding="utf-8") as f:
                 "cpu_affinity": resolved_affinity,
                 "executor_policy": executor_policy,
             },
+            "go_toolchain": json.loads(go_toolchain_json),
         })
 
 def execution_contract(raw, context):
@@ -712,11 +716,13 @@ if reference_path:
         fresh_reference_rows = json.load(f).get("rows", [])
 fresh_go_reference_rows = []
 fresh_go_implementation = "fresh-go"
+fresh_go_toolchain = {}
 if go_reference_path:
     with open(go_reference_path, "r", encoding="utf-8") as f:
         fresh_go_reference = json.load(f)
     fresh_go_reference_rows = fresh_go_reference.get("rows", [])
     fresh_go_implementation = fresh_go_reference.get("go_version", fresh_go_implementation)
+    fresh_go_toolchain = fresh_go_reference.get("go_toolchain") or {}
 reference = {}
 for bench in requested_benchmarks:
     bench_refs = {}
@@ -764,6 +770,7 @@ for bench in requested_benchmarks:
                 "execution_contract": execution_contract(
                     best.get("execution_contract"), f"fresh Go reference {bench}"
                 ),
+                "go_toolchain": fresh_go_toolchain,
             }
         elif source == "fresh-interpreter":
             best = min(candidates, key=lambda row: row["avg_real_seconds"])
@@ -805,6 +812,12 @@ for bench in requested_benchmarks:
                     f"execution contract mismatch for {bench}/{mode}/{lang}: "
                     f"Able={able['execution_contract']}, reference={reference_contract}"
                 )
+            if mode == "compiled" and lang == "go" and go_reference_path:
+                require_matching_go_toolchains(
+                    able.get("go_toolchain"),
+                    ref.get("go_toolchain"),
+                    context=f"{bench}/{mode}/{lang}",
+                )
             ratio = None
             if (
                 able["failures"] == 0
@@ -824,6 +837,8 @@ for bench in requested_benchmarks:
                 comparisons[lang]["reference_samples"] = ref["samples"]
             if reference_contract is not None:
                 comparisons[lang]["execution_contract"] = reference_contract
+            if ref.get("go_toolchain"):
+                comparisons[lang]["reference_toolchain"] = ref["go_toolchain"]
         report_rows.append({
             "benchmark": bench,
             "mode": mode,
@@ -833,6 +848,13 @@ for bench in requested_benchmarks:
             "comparisons": comparisons,
         })
 
+report_toolchains = {
+    json.dumps(row["able"].get("go_toolchain") or {}, sort_keys=True)
+    for row in report_rows
+}
+if len(report_toolchains) > 1:
+    raise ValueError("Able rows used mixed Go toolchain contracts")
+report_toolchain = report_rows[0]["able"].get("go_toolchain") if report_rows else {}
 payload = {
     "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     "suite": suite_name,
@@ -846,6 +868,7 @@ payload = {
     "cpu_affinity": cpu_pool,
     "cpu_affinity_pool": cpu_pool,
     "experimental_execution_context": experimental_execution_context == "true",
+    "go_toolchain": report_toolchain,
     "rows": report_rows,
 }
 

@@ -1,11 +1,11 @@
 {
   "kind": "able-performance-frontier",
   "schema_version": 2,
-  "generated_from": "2026-07-28T20:26:09.989405Z",
+  "generated_from": "2026-07-29T06:13:35.851464Z",
   "sources": {
     "scorecard": {
       "path": "v12/docs/perf-baselines/external-scoreboard-current.json",
-      "sha256": "3b1a48053e4a9330c1fbeda258f730504d992ac761a2e6fff64c131d9074d9ac"
+      "sha256": "57936ab2bdc3eb205b96b88933d735c5051dca979a05f553bce6bf17bb5ff4fa"
     },
     "selection_manifest": {
       "path": "v12/bench-selection-manifest.json",
@@ -18,20 +18,20 @@
     },
     "stability_manifest": {
       "path": "v12/bench-performance-stability.json",
-      "sha256": "d658e09bed3d6bafb62cb9b7a53fab802eff5fc5203dd04e091982d507696f5d"
+      "sha256": "6324d632148e5161a972cb5ff4ff9ce91ece622a633d59596f2486c58e8a94e7"
     }
   },
   "summary": {
     "selected_rows": 126,
     "compiled_rows": 63,
     "bytecode_rows": 63,
-    "target_meets": 10,
-    "target_misses": 116,
-    "established_guards": 10,
+    "target_meets": 11,
+    "target_misses": 115,
+    "established_guards": 11,
     "unestablished_snapshot_meets": 0,
-    "compiled_established_guards": 6,
+    "compiled_established_guards": 7,
     "bytecode_established_guards": 4,
-    "total_excess_seconds": 227.17905263157894,
+    "total_excess_seconds": 226.85694736842106,
     "disposition_rows": {
       "closed-insufficient-breadth": 1,
       "closed-no-shared-leaf": 57,
@@ -48,7 +48,7 @@
       "row_count": 6,
       "miss_count": 0,
       "total_excess_seconds": 0.0,
-      "maximum_ratio": 0.9673699988469964,
+      "maximum_ratio": 0.9690859634730797,
       "profile_freshness": "current-contract-two-cohort-stability",
       "artifact_identity": "mode-aware-contract-refresh-plus-independent-matched-guard-cohort",
       "disposition": "target-guard",
@@ -64,8 +64,8 @@
       "id": "compiled-current-control",
       "row_count": 3,
       "miss_count": 3,
-      "total_excess_seconds": 0.44526315789473725,
-      "maximum_ratio": 1.1578595114234431,
+      "total_excess_seconds": 0.4794736842105265,
+      "maximum_ratio": 1.1978938130759105,
       "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
       "artifact_identity": "truthiness-cast-control-current-cohorts-and-reach",
       "disposition": "closed-no-shared-leaf",
@@ -88,8 +88,8 @@
       "id": "compiled-sudoku-quotient",
       "row_count": 1,
       "miss_count": 1,
-      "total_excess_seconds": 0.6467368421052632,
-      "maximum_ratio": 1.9422283356258596,
+      "total_excess_seconds": 0.868842105263158,
+      "maximum_ratio": 2.5155750126283887,
       "profile_freshness": "current-exact-post-truthiness-cast-shared-semantics",
       "artifact_identity": "truthiness-cast-sudoku-current-cohorts-generated-scan-and-two-profile-merge",
       "disposition": "closed-insufficient-breadth",
@@ -110,8 +110,8 @@
       "id": "compiled-float-numeric",
       "row_count": 4,
       "miss_count": 4,
-      "total_excess_seconds": 0.136,
-      "maximum_ratio": 2.9508196721311473,
+      "total_excess_seconds": 0.09936842105263158,
+      "maximum_ratio": 2.7777777777777777,
       "profile_freshness": "current-exact-post-truthiness-cast-numeric-next",
       "artifact_identity": "frozen-current-repeated-timing-and-exact-reach-cohorts",
       "disposition": "closed-rejected-candidate",
@@ -129,8 +129,8 @@
       "id": "compiled-wide-numeric",
       "row_count": 3,
       "miss_count": 3,
-      "total_excess_seconds": 0.15957894736842104,
-      "maximum_ratio": 15.0,
+      "total_excess_seconds": 0.15631578947368419,
+      "maximum_ratio": 15.526315789473683,
       "profile_freshness": "current-exact",
       "artifact_identity": "preserved-binary-matched",
       "disposition": "closed-rejected-candidate",
@@ -149,8 +149,8 @@
       "id": "compiled-byte-output",
       "row_count": 2,
       "miss_count": 2,
-      "total_excess_seconds": 0.06242105263157895,
-      "maximum_ratio": 2.9813664596273295,
+      "total_excess_seconds": 0.0548421052631579,
+      "maximum_ratio": 3.076923076923077,
       "profile_freshness": "current-exact-post-truthiness-cast-refresh",
       "artifact_identity": "frozen-current-verifier-backed-timing-and-exact-reach",
       "disposition": "closed-no-shared-leaf",
@@ -168,9 +168,9 @@
     {
       "id": "compiled-text-map",
       "row_count": 8,
-      "miss_count": 8,
-      "total_excess_seconds": 1.8948421052631579,
-      "maximum_ratio": 22.63386396526773,
+      "miss_count": 7,
+      "total_excess_seconds": 1.6550526315789473,
+      "maximum_ratio": 26.70634920634921,
       "profile_freshness": "current-exact-backup-dedup-main-profile",
       "artifact_identity": "frozen-current-verifier-backed-timing-plus-backup-dedup-strict-main-profiles",
       "disposition": "closed-no-shared-leaf",
@@ -194,8 +194,8 @@
       "id": "compiled-regex",
       "row_count": 6,
       "miss_count": 6,
-      "total_excess_seconds": 0.33463157894736845,
-      "maximum_ratio": 16.470588235294116,
+      "total_excess_seconds": 0.2650526315789474,
+      "maximum_ratio": 14.385964912280702,
       "profile_freshness": "current-exact-post-truthiness-cast-refresh",
       "artifact_identity": "frozen-current-verifier-backed-timing-and-exact-reach",
       "disposition": "closed-rejected-candidate",
@@ -214,8 +214,8 @@
       "id": "compiled-concurrency",
       "row_count": 23,
       "miss_count": 23,
-      "total_excess_seconds": 1.6674736842105262,
-      "maximum_ratio": 140.0,
+      "total_excess_seconds": 1.4936842105263157,
+      "maximum_ratio": 95.29411764705881,
       "profile_freshness": "current-exact-concurrent-packet-codecs-refresh",
       "artifact_identity": "frozen-current-generated-binaries-plus-validated-job-stencil-signal-transform-policy-stateful-pipeline-state-machines-graph-visitors-tree-folds-scene-tiles-audio-voices-and-packet-codecs-main-profiles",
       "disposition": "closed-rejected-candidate",
@@ -264,8 +264,8 @@
       "id": "compiled-iterator-control",
       "row_count": 7,
       "miss_count": 7,
-      "total_excess_seconds": 0.32842105263157895,
-      "maximum_ratio": 16.344086021505376,
+      "total_excess_seconds": 0.2806315789473684,
+      "maximum_ratio": 8.862275449101796,
       "profile_freshness": "current-exact-discrete-event-main-profile",
       "artifact_identity": "retained-current-binaries-plus-discrete-event-native-generic-storage-timing-cpu-and-allocation-evidence",
       "disposition": "closed-no-shared-leaf",
@@ -4304,19 +4304,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.04,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.75609756097561,
+      "worst_ratio": 3.061224489795918,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0041,
-      "target_budget_seconds": 0.00431578947368421,
-      "excess_seconds": 0.03568421052631579,
+      "fastest_reference_real_seconds": 0.0098,
+      "target_budget_seconds": 0.01031578947368421,
+      "excess_seconds": 0.01968421052631579,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0041,
-          "ratio": 9.75609756097561
+          "real_seconds": 0.0098,
+          "ratio": 3.061224489795918
         }
       ],
       "able_source": {
@@ -4355,19 +4355,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.178,
+      "able_real_seconds": 0.15,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 34.90196078431372,
+      "worst_ratio": 31.25,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0051,
-      "target_budget_seconds": 0.005368421052631579,
-      "excess_seconds": 0.1726315789473684,
+      "fastest_reference_real_seconds": 0.0048,
+      "target_budget_seconds": 0.005052631578947368,
+      "excess_seconds": 0.14494736842105263,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0051,
-          "ratio": 34.90196078431372
+          "real_seconds": 0.0048,
+          "ratio": 31.25
         }
       ],
       "able_source": {
@@ -4425,19 +4425,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.062,
+      "able_real_seconds": 0.054,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.526315789473684,
+      "worst_ratio": 5.74468085106383,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0095,
-      "target_budget_seconds": 0.009999999999999998,
-      "excess_seconds": 0.052000000000000005,
+      "fastest_reference_real_seconds": 0.0094,
+      "target_budget_seconds": 0.009894736842105263,
+      "excess_seconds": 0.04410526315789474,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0095,
-          "ratio": 6.526315789473684
+          "real_seconds": 0.0094,
+          "ratio": 5.74468085106383
         }
       ],
       "able_source": {
@@ -4470,19 +4470,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 2.206,
+      "able_real_seconds": 1.998,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.8563664596273292,
+      "worst_ratio": 0.8740539831138721,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 2.576,
-      "target_budget_seconds": 2.711578947368421,
+      "fastest_reference_real_seconds": 2.2859,
+      "target_budget_seconds": 2.4062105263157894,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 2.576,
-          "ratio": 0.8563664596273292
+          "real_seconds": 2.2859,
+          "ratio": 0.8740539831138721
         }
       ],
       "able_source": {
@@ -4535,19 +4535,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.152,
+      "able_real_seconds": 0.148,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 16.344086021505376,
+      "worst_ratio": 8.862275449101796,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0093,
-      "target_budget_seconds": 0.009789473684210525,
-      "excess_seconds": 0.14221052631578948,
+      "fastest_reference_real_seconds": 0.0167,
+      "target_budget_seconds": 0.01757894736842105,
+      "excess_seconds": 0.13042105263157894,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0093,
-          "ratio": 16.344086021505376
+          "real_seconds": 0.0167,
+          "ratio": 8.862275449101796
         }
       ],
       "able_source": {
@@ -4586,19 +4586,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 10.068,
+      "able_real_seconds": 8.978,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.9673699988469964,
+      "worst_ratio": 0.9690859634730797,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 10.4076,
-      "target_budget_seconds": 10.955368421052631,
+      "fastest_reference_real_seconds": 9.2644,
+      "target_budget_seconds": 9.751999999999999,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 10.4076,
-          "ratio": 0.9673699988469964
+          "real_seconds": 9.2644,
+          "ratio": 0.9690859634730797
         }
       ],
       "able_source": {
@@ -4651,19 +4651,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.036,
+      "able_real_seconds": 0.032,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.666666666666666,
+      "worst_ratio": 6.153846153846154,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0054,
-      "target_budget_seconds": 0.00568421052631579,
-      "excess_seconds": 0.030315789473684206,
+      "fastest_reference_real_seconds": 0.0052,
+      "target_budget_seconds": 0.0054736842105263155,
+      "excess_seconds": 0.026526315789473686,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0054,
-          "ratio": 6.666666666666666
+          "real_seconds": 0.0052,
+          "ratio": 6.153846153846154
         }
       ],
       "able_source": {
@@ -4723,17 +4723,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.25,
+      "worst_ratio": 7.6923076923076925,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0048,
-      "target_budget_seconds": 0.005052631578947368,
-      "excess_seconds": 0.02494736842105263,
+      "fastest_reference_real_seconds": 0.0039,
+      "target_budget_seconds": 0.004105263157894737,
+      "excess_seconds": 0.025894736842105262,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0048,
-          "ratio": 6.25
+          "real_seconds": 0.0039,
+          "ratio": 7.6923076923076925
         }
       ],
       "able_source": {
@@ -4791,19 +4791,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.024,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.5,
+      "worst_ratio": 3.287671232876712,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.004,
-      "target_budget_seconds": 0.004210526315789474,
-      "excess_seconds": 0.025789473684210525,
+      "fastest_reference_real_seconds": 0.0073,
+      "target_budget_seconds": 0.007684210526315789,
+      "excess_seconds": 0.01631578947368421,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.004,
-          "ratio": 7.5
+          "real_seconds": 0.0073,
+          "ratio": 3.287671232876712
         }
       ],
       "able_source": {
@@ -4861,19 +4861,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.04,
+      "able_real_seconds": 0.032,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.407407407407407,
+      "worst_ratio": 5.614035087719298,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0054,
-      "target_budget_seconds": 0.00568421052631579,
-      "excess_seconds": 0.03431578947368421,
+      "fastest_reference_real_seconds": 0.0057,
+      "target_budget_seconds": 0.006,
+      "excess_seconds": 0.026000000000000002,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0054,
-          "ratio": 7.407407407407407
+          "real_seconds": 0.0057,
+          "ratio": 5.614035087719298
         }
       ],
       "able_source": {
@@ -4931,19 +4931,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.024,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.666666666666667,
+      "worst_ratio": 6.0,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0045,
-      "target_budget_seconds": 0.004736842105263157,
-      "excess_seconds": 0.02526315789473684,
+      "fastest_reference_real_seconds": 0.004,
+      "target_budget_seconds": 0.004210526315789474,
+      "excess_seconds": 0.019789473684210527,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0045,
-          "ratio": 6.666666666666667
+          "real_seconds": 0.004,
+          "ratio": 6.0
         }
       ],
       "able_source": {
@@ -5003,17 +5003,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.8181818181818175,
+      "worst_ratio": 7.6923076923076925,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0044,
-      "target_budget_seconds": 0.0046315789473684215,
-      "excess_seconds": 0.02536842105263158,
+      "fastest_reference_real_seconds": 0.0039,
+      "target_budget_seconds": 0.004105263157894737,
+      "excess_seconds": 0.025894736842105262,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0044,
-          "ratio": 6.8181818181818175
+          "real_seconds": 0.0039,
+          "ratio": 7.6923076923076925
         }
       ],
       "able_source": {
@@ -5071,19 +5071,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.036,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.058823529411764,
+      "worst_ratio": 7.142857142857143,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0051,
-      "target_budget_seconds": 0.005368421052631579,
-      "excess_seconds": 0.03063157894736842,
+      "fastest_reference_real_seconds": 0.0042,
+      "target_budget_seconds": 0.004421052631578947,
+      "excess_seconds": 0.025578947368421052,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0051,
-          "ratio": 7.058823529411764
+          "real_seconds": 0.0042,
+          "ratio": 7.142857142857143
         }
       ],
       "able_source": {
@@ -5141,19 +5141,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.076,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.6923076923076925,
+      "worst_ratio": 20.54054054054054,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0039,
-      "target_budget_seconds": 0.004105263157894737,
-      "excess_seconds": 0.025894736842105262,
+      "fastest_reference_real_seconds": 0.0037,
+      "target_budget_seconds": 0.0038947368421052633,
+      "excess_seconds": 0.07210526315789473,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0039,
-          "ratio": 7.6923076923076925
+          "real_seconds": 0.0037,
+          "ratio": 20.54054054054054
         }
       ],
       "able_source": {
@@ -5211,19 +5211,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.032,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.925925925925926,
+      "worst_ratio": 6.0,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0054,
-      "target_budget_seconds": 0.00568421052631579,
-      "excess_seconds": 0.02631578947368421,
+      "fastest_reference_real_seconds": 0.005,
+      "target_budget_seconds": 0.005263157894736842,
+      "excess_seconds": 0.024736842105263158,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0054,
-          "ratio": 5.925925925925926
+          "real_seconds": 0.005,
+          "ratio": 6.0
         }
       ],
       "able_source": {
@@ -5281,19 +5281,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.022,
+      "able_real_seconds": 0.028,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.5,
+      "worst_ratio": 7.17948717948718,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.004,
-      "target_budget_seconds": 0.004210526315789474,
-      "excess_seconds": 0.017789473684210525,
+      "fastest_reference_real_seconds": 0.0039,
+      "target_budget_seconds": 0.004105263157894737,
+      "excess_seconds": 0.023894736842105264,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.004,
-          "ratio": 5.5
+          "real_seconds": 0.0039,
+          "ratio": 7.17948717948718
         }
       ],
       "able_source": {
@@ -5353,17 +5353,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.272727272727273,
+      "worst_ratio": 6.8965517241379315,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0055,
-      "target_budget_seconds": 0.005789473684210526,
-      "excess_seconds": 0.034210526315789476,
+      "fastest_reference_real_seconds": 0.0058,
+      "target_budget_seconds": 0.006105263157894736,
+      "excess_seconds": 0.03389473684210526,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0055,
-          "ratio": 7.272727272727273
+          "real_seconds": 0.0058,
+          "ratio": 6.8965517241379315
         }
       ],
       "able_source": {
@@ -5491,19 +5491,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.048,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.741935483870968,
+      "worst_ratio": 5.882352941176471,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0062,
-      "target_budget_seconds": 0.006526315789473684,
-      "excess_seconds": 0.041473684210526315,
+      "fastest_reference_real_seconds": 0.0068,
+      "target_budget_seconds": 0.007157894736842104,
+      "excess_seconds": 0.032842105263157895,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0062,
-          "ratio": 7.741935483870968
+          "real_seconds": 0.0068,
+          "ratio": 5.882352941176471
         }
       ],
       "able_source": {
@@ -5563,17 +5563,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.032,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.818181818181818,
+      "worst_ratio": 6.666666666666667,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0055,
-      "target_budget_seconds": 0.005789473684210526,
-      "excess_seconds": 0.026210526315789476,
+      "fastest_reference_real_seconds": 0.0048,
+      "target_budget_seconds": 0.005052631578947368,
+      "excess_seconds": 0.026947368421052633,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0055,
-          "ratio": 5.818181818181818
+          "real_seconds": 0.0048,
+          "ratio": 6.666666666666667
         }
       ],
       "able_source": {
@@ -5631,19 +5631,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.026,
+      "able_real_seconds": 0.056,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.5,
+      "worst_ratio": 10.76923076923077,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.004,
-      "target_budget_seconds": 0.004210526315789474,
-      "excess_seconds": 0.021789473684210525,
+      "fastest_reference_real_seconds": 0.0052,
+      "target_budget_seconds": 0.0054736842105263155,
+      "excess_seconds": 0.05052631578947368,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.004,
-          "ratio": 6.5
+          "real_seconds": 0.0052,
+          "ratio": 10.76923076923077
         }
       ],
       "able_source": {
@@ -5703,17 +5703,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.044,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 10.476190476190476,
+      "worst_ratio": 5.116279069767441,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0042,
-      "target_budget_seconds": 0.004421052631578947,
-      "excess_seconds": 0.03957894736842105,
+      "fastest_reference_real_seconds": 0.0086,
+      "target_budget_seconds": 0.009052631578947368,
+      "excess_seconds": 0.03494736842105263,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0042,
-          "ratio": 10.476190476190476
+          "real_seconds": 0.0086,
+          "ratio": 5.116279069767441
         }
       ],
       "able_source": {
@@ -5741,19 +5741,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.022,
+      "able_real_seconds": 0.026,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.365853658536585,
+      "worst_ratio": 3.4210526315789473,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0041,
-      "target_budget_seconds": 0.00431578947368421,
-      "excess_seconds": 0.01768421052631579,
+      "fastest_reference_real_seconds": 0.0076,
+      "target_budget_seconds": 0.008,
+      "excess_seconds": 0.018,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0041,
-          "ratio": 5.365853658536585
+          "real_seconds": 0.0076,
+          "ratio": 3.4210526315789473
         }
       ],
       "able_source": {
@@ -5792,19 +5792,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.034,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.142857142857143,
+      "worst_ratio": 7.906976744186047,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0042,
-      "target_budget_seconds": 0.004421052631578947,
-      "excess_seconds": 0.025578947368421052,
+      "fastest_reference_real_seconds": 0.0043,
+      "target_budget_seconds": 0.004526315789473684,
+      "excess_seconds": 0.02947368421052632,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0042,
-          "ratio": 7.142857142857143
+          "real_seconds": 0.0043,
+          "ratio": 7.906976744186047
         }
       ],
       "able_source": {
@@ -5864,17 +5864,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.9577464788732395,
+      "worst_ratio": 2.2222222222222223,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0142,
-      "target_budget_seconds": 0.014947368421052631,
-      "excess_seconds": 0.02705263157894737,
+      "fastest_reference_real_seconds": 0.0189,
+      "target_budget_seconds": 0.019894736842105264,
+      "excess_seconds": 0.02210526315789474,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0142,
-          "ratio": 2.9577464788732395
+          "real_seconds": 0.0189,
+          "ratio": 2.2222222222222223
         }
       ],
       "able_source": {
@@ -5913,19 +5913,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.036,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.9508196721311473,
+      "worst_ratio": 2.631578947368421,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0122,
-      "target_budget_seconds": 0.012842105263157894,
-      "excess_seconds": 0.023157894736842103,
+      "fastest_reference_real_seconds": 0.0114,
+      "target_budget_seconds": 0.012,
+      "excess_seconds": 0.018,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0122,
-          "ratio": 2.9508196721311473
+          "real_seconds": 0.0114,
+          "ratio": 2.631578947368421
         }
       ],
       "able_source": {
@@ -5952,19 +5952,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.04,
+      "able_real_seconds": 0.036,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.523809523809524,
+      "worst_ratio": 3.75,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0042,
-      "target_budget_seconds": 0.004421052631578947,
-      "excess_seconds": 0.03557894736842106,
+      "fastest_reference_real_seconds": 0.0096,
+      "target_budget_seconds": 0.010105263157894735,
+      "excess_seconds": 0.025894736842105262,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0042,
-          "ratio": 9.523809523809524
+          "real_seconds": 0.0096,
+          "ratio": 3.75
         }
       ],
       "able_source": {
@@ -6003,19 +6003,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.048,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.9813664596273295,
+      "worst_ratio": 3.076923076923077,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0161,
-      "target_budget_seconds": 0.01694736842105263,
-      "excess_seconds": 0.03105263157894737,
+      "fastest_reference_real_seconds": 0.013,
+      "target_budget_seconds": 0.013684210526315788,
+      "excess_seconds": 0.026315789473684213,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0161,
-          "ratio": 2.9813664596273295
+          "real_seconds": 0.013,
+          "ratio": 3.076923076923077
         }
       ],
       "able_source": {
@@ -6043,19 +6043,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 3.524,
+      "able_real_seconds": 3.118,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.0776099321142438,
+      "worst_ratio": 1.0753207338943302,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 3.2702,
-      "target_budget_seconds": 3.442315789473684,
-      "excess_seconds": 0.08168421052631603,
+      "fastest_reference_real_seconds": 2.8996,
+      "target_budget_seconds": 3.0522105263157893,
+      "excess_seconds": 0.06578947368421062,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 3.2702,
-          "ratio": 1.0776099321142438
+          "real_seconds": 2.8996,
+          "ratio": 1.0753207338943302
         }
       ],
       "able_source": {
@@ -6087,19 +6087,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.09,
+      "able_real_seconds": 0.118,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 15.0,
+      "worst_ratio": 15.526315789473683,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.006,
-      "target_budget_seconds": 0.00631578947368421,
-      "excess_seconds": 0.08368421052631579,
+      "fastest_reference_real_seconds": 0.0076,
+      "target_budget_seconds": 0.008,
+      "excess_seconds": 0.10999999999999999,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.006,
-          "ratio": 15.0
+          "real_seconds": 0.0076,
+          "ratio": 15.526315789473683
         }
       ],
       "able_source": {
@@ -6127,19 +6127,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.058,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 14.5,
+      "worst_ratio": 11.05263157894737,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.004,
-      "target_budget_seconds": 0.004210526315789474,
-      "excess_seconds": 0.053789473684210526,
+      "fastest_reference_real_seconds": 0.0038,
+      "target_budget_seconds": 0.004,
+      "excess_seconds": 0.038000000000000006,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.004,
-          "ratio": 14.5
+          "real_seconds": 0.0038,
+          "ratio": 11.05263157894737
         }
       ],
       "able_source": {
@@ -6197,19 +6197,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.036,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.9230769230769225,
+      "worst_ratio": 5.769230769230769,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
       "fastest_reference_real_seconds": 0.0052,
       "target_budget_seconds": 0.0054736842105263155,
-      "excess_seconds": 0.030526315789473683,
+      "excess_seconds": 0.024526315789473684,
       "comparisons": [
         {
           "language": "go",
           "real_seconds": 0.0052,
-          "ratio": 6.9230769230769225
+          "ratio": 5.769230769230769
         }
       ],
       "able_source": {
@@ -6264,22 +6264,22 @@
     {
       "benchmark": "i_before_e",
       "mode": "compiled",
-      "target_status": "miss",
-      "established_guard_status": "not-applicable",
-      "stability_classification": null,
-      "able_real_seconds": 0.07,
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 0.062,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.1686143572621035,
+      "worst_ratio": 1.0490693739424704,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0599,
-      "target_budget_seconds": 0.06305263157894736,
-      "excess_seconds": 0.0069473684210526465,
+      "fastest_reference_real_seconds": 0.0591,
+      "target_budget_seconds": 0.06221052631578947,
+      "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0599,
-          "ratio": 1.1686143572621035
+          "real_seconds": 0.0591,
+          "ratio": 1.0490693739424704
         }
       ],
       "able_source": {
@@ -6304,7 +6304,35 @@
         "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md",
         "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md",
         "v12/docs/perf-baselines/2026-07-21-manifest-normalization-compiled-main-profile.txt"
-      ]
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.9844654971527445,
+        "cohort_ratios": [
+          1.0490693739424704,
+          0.9171075837742504
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9",
+        "reference_source_sha256": {
+          "go": "63386a111f2fd35ff949092a419c99ce7dcf21e81b24575ece330f7729df65c0"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-29-compiled-go1265-refresh.json",
+            "sha256": "57936ab2bdc3eb205b96b88933d735c5051dca979a05f553bce6bf17bb5ff4fa"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-29-compiled-go1265-stability-i-before-e.json",
+            "sha256": "63359ebd031c63e4c9f2149ba4e0632f366ff3e45aef3bb81820b8fd2d73beef"
+          }
+        ],
+        "rationale": "Both independent Go 1.26.5 five-process cohorts meet the target with verifier-backed matched references."
+      }
     },
     {
       "benchmark": "inventory_reconciliation",
@@ -6312,19 +6340,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.126,
+      "able_real_seconds": 0.114,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 14.318181818181817,
+      "worst_ratio": 8.507462686567164,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0088,
-      "target_budget_seconds": 0.009263157894736843,
-      "excess_seconds": 0.11673684210526315,
+      "fastest_reference_real_seconds": 0.0134,
+      "target_budget_seconds": 0.014105263157894737,
+      "excess_seconds": 0.09989473684210527,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0088,
-          "ratio": 14.318181818181817
+          "real_seconds": 0.0134,
+          "ratio": 8.507462686567164
         }
       ],
       "able_source": {
@@ -6357,19 +6385,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 0.698,
+      "able_real_seconds": 0.62,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.3958935965061539,
+      "worst_ratio": 0.4725249599878058,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 1.7631,
-      "target_budget_seconds": 1.855894736842105,
+      "fastest_reference_real_seconds": 1.3121,
+      "target_budget_seconds": 1.3811578947368421,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 1.7631,
-          "ratio": 0.3958935965061539
+          "real_seconds": 1.3121,
+          "ratio": 0.4725249599878058
         }
       ],
       "able_source": {
@@ -6422,19 +6450,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 1.564,
+      "able_real_seconds": 1.346,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 22.63386396526773,
+      "worst_ratio": 26.70634920634921,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0691,
-      "target_budget_seconds": 0.07273684210526314,
-      "excess_seconds": 1.4912631578947368,
+      "fastest_reference_real_seconds": 0.0504,
+      "target_budget_seconds": 0.053052631578947365,
+      "excess_seconds": 1.2929473684210526,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0691,
-          "ratio": 22.63386396526773
+          "real_seconds": 0.0504,
+          "ratio": 26.70634920634921
         }
       ],
       "able_source": {
@@ -6467,19 +6495,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.042,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.368421052631579,
+      "worst_ratio": 3.9215686274509802,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0057,
-      "target_budget_seconds": 0.006,
-      "excess_seconds": 0.036000000000000004,
+      "fastest_reference_real_seconds": 0.0102,
+      "target_budget_seconds": 0.010736842105263157,
+      "excess_seconds": 0.029263157894736845,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0057,
-          "ratio": 7.368421052631579
+          "real_seconds": 0.0102,
+          "ratio": 3.9215686274509802
         }
       ],
       "able_source": {
@@ -6518,19 +6546,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.062,
+      "able_real_seconds": 0.052,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 11.69811320754717,
+      "worst_ratio": 5.199999999999999,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0053,
-      "target_budget_seconds": 0.005578947368421052,
-      "excess_seconds": 0.05642105263157895,
+      "fastest_reference_real_seconds": 0.01,
+      "target_budget_seconds": 0.010526315789473684,
+      "excess_seconds": 0.041473684210526315,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0053,
-          "ratio": 11.69811320754717
+          "real_seconds": 0.01,
+          "ratio": 5.199999999999999
         }
       ],
       "able_source": {
@@ -6558,19 +6586,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.096,
+      "able_real_seconds": 0.07,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.6753926701570683,
+      "worst_ratio": 1.5184381778741867,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0573,
-      "target_budget_seconds": 0.060315789473684205,
-      "excess_seconds": 0.0356842105263158,
+      "fastest_reference_real_seconds": 0.0461,
+      "target_budget_seconds": 0.04852631578947368,
+      "excess_seconds": 0.021473684210526325,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0573,
-          "ratio": 1.6753926701570683
+          "real_seconds": 0.0461,
+          "ratio": 1.5184381778741867
         }
       ],
       "able_source": {
@@ -6597,19 +6625,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.044,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 10.232558139534882,
+      "worst_ratio": 7.0,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0043,
-      "target_budget_seconds": 0.004526315789473684,
-      "excess_seconds": 0.039473684210526314,
+      "fastest_reference_real_seconds": 0.006,
+      "target_budget_seconds": 0.00631578947368421,
+      "excess_seconds": 0.03568421052631579,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0043,
-          "ratio": 10.232558139534882
+          "real_seconds": 0.006,
+          "ratio": 7.0
         }
       ],
       "able_source": {
@@ -6642,19 +6670,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 1.116,
+      "able_real_seconds": 0.968,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.0695802185163887,
+      "worst_ratio": 1.070796460176991,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 1.0434,
-      "target_budget_seconds": 1.0983157894736844,
-      "excess_seconds": 0.017684210526315747,
+      "fastest_reference_real_seconds": 0.904,
+      "target_budget_seconds": 0.9515789473684211,
+      "excess_seconds": 0.016421052631578892,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 1.0434,
-          "ratio": 1.0695802185163887
+          "real_seconds": 0.904,
+          "ratio": 1.070796460176991
         }
       ],
       "able_source": {
@@ -6686,19 +6714,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 0.178,
+      "able_real_seconds": 0.136,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.6456293072179905,
+      "worst_ratio": 0.7249466950959489,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.2757,
-      "target_budget_seconds": 0.2902105263157895,
+      "fastest_reference_real_seconds": 0.1876,
+      "target_budget_seconds": 0.1974736842105263,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.2757,
-          "ratio": 0.6456293072179905
+          "real_seconds": 0.1876,
+          "ratio": 0.7249466950959489
         }
       ],
       "able_source": {
@@ -6751,19 +6779,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.212,
+      "able_real_seconds": 0.198,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 53.0,
+      "worst_ratio": 52.10526315789474,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.004,
-      "target_budget_seconds": 0.004210526315789474,
-      "excess_seconds": 0.20778947368421052,
+      "fastest_reference_real_seconds": 0.0038,
+      "target_budget_seconds": 0.004,
+      "excess_seconds": 0.194,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.004,
-          "ratio": 53.0
+          "real_seconds": 0.0038,
+          "ratio": 52.10526315789474
         }
       ],
       "able_source": {
@@ -6821,19 +6849,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.1,
+      "able_real_seconds": 0.08,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 20.833333333333336,
+      "worst_ratio": 18.6046511627907,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0048,
-      "target_budget_seconds": 0.005052631578947368,
-      "excess_seconds": 0.09494736842105264,
+      "fastest_reference_real_seconds": 0.0043,
+      "target_budget_seconds": 0.004526315789473684,
+      "excess_seconds": 0.07547368421052632,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0048,
-          "ratio": 20.833333333333336
+          "real_seconds": 0.0043,
+          "ratio": 18.6046511627907
         }
       ],
       "able_source": {
@@ -6891,19 +6919,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.616,
+      "able_real_seconds": 0.486,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 140.0,
+      "worst_ratio": 95.29411764705881,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0044,
-      "target_budget_seconds": 0.0046315789473684215,
-      "excess_seconds": 0.6113684210526316,
+      "fastest_reference_real_seconds": 0.0051,
+      "target_budget_seconds": 0.005368421052631579,
+      "excess_seconds": 0.4806315789473684,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0044,
-          "ratio": 140.0
+          "real_seconds": 0.0051,
+          "ratio": 95.29411764705881
         }
       ],
       "able_source": {
@@ -6961,19 +6989,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.102,
+      "able_real_seconds": 0.074,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.151898734177215,
+      "worst_ratio": 2.3794212218649515,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0474,
-      "target_budget_seconds": 0.049894736842105256,
-      "excess_seconds": 0.05210526315789474,
+      "fastest_reference_real_seconds": 0.0311,
+      "target_budget_seconds": 0.032736842105263154,
+      "excess_seconds": 0.04126315789473684,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0474,
-          "ratio": 2.151898734177215
+          "real_seconds": 0.0311,
+          "ratio": 2.3794212218649515
         }
       ],
       "able_source": {
@@ -7000,19 +7028,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.038,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 10.555555555555555,
+      "worst_ratio": 6.5625,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0036,
-      "target_budget_seconds": 0.003789473684210526,
-      "excess_seconds": 0.034210526315789476,
+      "fastest_reference_real_seconds": 0.0064,
+      "target_budget_seconds": 0.006736842105263158,
+      "excess_seconds": 0.035263157894736843,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0036,
-          "ratio": 10.555555555555555
+          "real_seconds": 0.0064,
+          "ratio": 6.5625
         }
       ],
       "able_source": {
@@ -7051,19 +7079,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 1.176,
+      "able_real_seconds": 1.07,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.8794495961711037,
+      "worst_ratio": 0.9650072150072151,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 1.3372,
-      "target_budget_seconds": 1.4075789473684208,
+      "fastest_reference_real_seconds": 1.1088,
+      "target_budget_seconds": 1.167157894736842,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 1.3372,
-          "ratio": 0.8794495961711037
+          "real_seconds": 1.1088,
+          "ratio": 0.9650072150072151
         }
       ],
       "able_source": {
@@ -7116,19 +7144,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.084,
+      "able_real_seconds": 0.082,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 16.470588235294116,
+      "worst_ratio": 14.385964912280702,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0051,
-      "target_budget_seconds": 0.005368421052631579,
-      "excess_seconds": 0.07863157894736843,
+      "fastest_reference_real_seconds": 0.0057,
+      "target_budget_seconds": 0.006,
+      "excess_seconds": 0.076,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0051,
-          "ratio": 16.470588235294116
+          "real_seconds": 0.0057,
+          "ratio": 14.385964912280702
         }
       ],
       "able_source": {
@@ -7156,19 +7184,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 1.764,
+      "able_real_seconds": 1.626,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.6515716765781405,
+      "worst_ratio": 0.7022848011056881,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 2.7073,
-      "target_budget_seconds": 2.8497894736842104,
+      "fastest_reference_real_seconds": 2.3153,
+      "target_budget_seconds": 2.437157894736842,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 2.7073,
-          "ratio": 0.6515716765781405
+          "real_seconds": 2.3153,
+          "ratio": 0.7022848011056881
         }
       ],
       "able_source": {
@@ -7223,17 +7251,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.052,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 3.795620437956204,
+      "worst_ratio": 3.2911392405063284,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0137,
-      "target_budget_seconds": 0.014421052631578947,
-      "excess_seconds": 0.03757894736842105,
+      "fastest_reference_real_seconds": 0.0158,
+      "target_budget_seconds": 0.01663157894736842,
+      "excess_seconds": 0.03536842105263158,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0137,
-          "ratio": 3.795620437956204
+          "real_seconds": 0.0158,
+          "ratio": 3.2911392405063284
         }
       ],
       "able_source": {
@@ -7261,19 +7289,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.056,
+      "able_real_seconds": 0.054,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 11.428571428571429,
+      "worst_ratio": 4.615384615384615,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0049,
-      "target_budget_seconds": 0.005157894736842105,
-      "excess_seconds": 0.0508421052631579,
+      "fastest_reference_real_seconds": 0.0117,
+      "target_budget_seconds": 0.01231578947368421,
+      "excess_seconds": 0.04168421052631579,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0049,
-          "ratio": 11.428571428571429
+          "real_seconds": 0.0117,
+          "ratio": 4.615384615384615
         }
       ],
       "able_source": {
@@ -7301,19 +7329,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.05,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.936507936507937,
+      "worst_ratio": 3.8532110091743124,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0063,
-      "target_budget_seconds": 0.006631578947368421,
-      "excess_seconds": 0.043368421052631584,
+      "fastest_reference_real_seconds": 0.0109,
+      "target_budget_seconds": 0.011473684210526315,
+      "excess_seconds": 0.030526315789473686,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0063,
-          "ratio": 7.936507936507937
+          "real_seconds": 0.0109,
+          "ratio": 3.8532110091743124
         }
       ],
       "able_source": {
@@ -7341,19 +7369,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.072,
+      "able_real_seconds": 0.052,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 12.203389830508474,
+      "worst_ratio": 4.7272727272727275,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0059,
-      "target_budget_seconds": 0.006210526315789473,
-      "excess_seconds": 0.06578947368421052,
+      "fastest_reference_real_seconds": 0.011,
+      "target_budget_seconds": 0.011578947368421052,
+      "excess_seconds": 0.04042105263157895,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0059,
-          "ratio": 12.203389830508474
+          "real_seconds": 0.011,
+          "ratio": 4.7272727272727275
         }
       ],
       "able_source": {
@@ -7381,19 +7409,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.052,
+      "able_real_seconds": 0.044,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.6530612244897958,
+      "worst_ratio": 2.9931972789115644,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0196,
-      "target_budget_seconds": 0.02063157894736842,
-      "excess_seconds": 0.03136842105263157,
+      "fastest_reference_real_seconds": 0.0147,
+      "target_budget_seconds": 0.015473684210526315,
+      "excess_seconds": 0.028526315789473684,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0196,
-          "ratio": 2.6530612244897958
+          "real_seconds": 0.0147,
+          "ratio": 2.9931972789115644
         }
       ],
       "able_source": {
@@ -7421,19 +7449,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.04,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.816901408450704,
+      "worst_ratio": 2.7777777777777777,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0142,
-      "target_budget_seconds": 0.014947368421052631,
-      "excess_seconds": 0.025052631578947368,
+      "fastest_reference_real_seconds": 0.0108,
+      "target_budget_seconds": 0.01136842105263158,
+      "excess_seconds": 0.01863157894736842,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0142,
-          "ratio": 2.816901408450704
+          "real_seconds": 0.0108,
+          "ratio": 2.7777777777777777
         }
       ],
       "able_source": {
@@ -7460,19 +7488,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.046,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.787234042553191,
+      "worst_ratio": 6.885245901639344,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0047,
-      "target_budget_seconds": 0.004947368421052632,
-      "excess_seconds": 0.04105263157894737,
+      "fastest_reference_real_seconds": 0.0061,
+      "target_budget_seconds": 0.006421052631578947,
+      "excess_seconds": 0.03557894736842106,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0047,
-          "ratio": 9.787234042553191
+          "real_seconds": 0.0061,
+          "ratio": 6.885245901639344
         }
       ],
       "able_source": {
@@ -7505,19 +7533,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 1.412,
+      "able_real_seconds": 1.494,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.9422283356258596,
+      "worst_ratio": 2.5155750126283887,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.727,
-      "target_budget_seconds": 0.7652631578947368,
-      "excess_seconds": 0.6467368421052632,
+      "fastest_reference_real_seconds": 0.5939,
+      "target_budget_seconds": 0.625157894736842,
+      "excess_seconds": 0.868842105263158,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.727,
-          "ratio": 1.9422283356258596
+          "real_seconds": 0.5939,
+          "ratio": 2.5155750126283887
         }
       ],
       "able_source": {
@@ -7547,19 +7575,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 3.806,
+      "able_real_seconds": 3.276,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.1578595114234431,
+      "worst_ratio": 1.1978938130759105,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 3.2871,
-      "target_budget_seconds": 3.4601052631578946,
-      "excess_seconds": 0.3458947368421055,
+      "fastest_reference_real_seconds": 2.7348,
+      "target_budget_seconds": 2.878736842105263,
+      "excess_seconds": 0.397263157894737,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 3.2871,
-          "ratio": 1.1578595114234431
+          "real_seconds": 2.7348,
+          "ratio": 1.1978938130759105
         }
       ],
       "able_source": {
@@ -7591,19 +7619,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.116,
+      "able_real_seconds": 0.138,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.914529914529915,
+      "worst_ratio": 10.000000000000002,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0117,
-      "target_budget_seconds": 0.01231578947368421,
-      "excess_seconds": 0.1036842105263158,
+      "fastest_reference_real_seconds": 0.0138,
+      "target_budget_seconds": 0.014526315789473682,
+      "excess_seconds": 0.12347368421052633,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0117,
-          "ratio": 9.914529914529915
+          "real_seconds": 0.0138,
+          "ratio": 10.000000000000002
         }
       ],
       "able_source": {
@@ -7636,19 +7664,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.06,
+      "able_real_seconds": 0.056,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 15.0,
+      "worst_ratio": 11.666666666666668,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.004,
-      "target_budget_seconds": 0.004210526315789474,
-      "excess_seconds": 0.05578947368421053,
+      "fastest_reference_real_seconds": 0.0048,
+      "target_budget_seconds": 0.005052631578947368,
+      "excess_seconds": 0.05094736842105263,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.004,
-          "ratio": 15.0
+          "real_seconds": 0.0048,
+          "ratio": 11.666666666666668
         }
       ],
       "able_source": {
@@ -7706,19 +7734,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.078,
+      "able_real_seconds": 0.064,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.0689655172413794,
+      "worst_ratio": 1.2698412698412698,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0377,
-      "target_budget_seconds": 0.03968421052631579,
-      "excess_seconds": 0.03831578947368421,
+      "fastest_reference_real_seconds": 0.0504,
+      "target_budget_seconds": 0.053052631578947365,
+      "excess_seconds": 0.010947368421052636,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0377,
-          "ratio": 2.0689655172413794
+          "real_seconds": 0.0504,
+          "ratio": 1.2698412698412698
         }
       ],
       "able_source": {
@@ -7746,19 +7774,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.05,
+      "able_real_seconds": 0.038,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 8.333333333333334,
+      "worst_ratio": 2.7338129496402876,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.006,
-      "target_budget_seconds": 0.00631578947368421,
-      "excess_seconds": 0.04368421052631579,
+      "fastest_reference_real_seconds": 0.0139,
+      "target_budget_seconds": 0.014631578947368419,
+      "excess_seconds": 0.02336842105263158,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.006,
-          "ratio": 8.333333333333334
+          "real_seconds": 0.0139,
+          "ratio": 2.7338129496402876
         }
       ],
       "able_source": {

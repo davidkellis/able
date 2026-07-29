@@ -10,7 +10,7 @@
     },
     "frontier": {
       "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "eb2ba1219218732569e91ac23b52cc44b588045e8f69d4ce7930972eb54350d8"
+      "sha256": "a284d389837ef14dd969407360237621cdaaa4f7d992fcb8b1e42fdc5a0df1e0"
     },
   "architecture_budget": {
     "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -18,7 +18,7 @@
     },
   "region_feasibility": {
     "path": "v12/docs/perf-baselines/2026-07-22-bytecode-semantic-region-tier-feasibility.json",
-      "sha256": "c0730c0419f20fd598162c17dcd7a1307b76e75b8d2f99be6e90fed4f6d549cf"
+      "sha256": "0776805527f5bdf5933e04c4d4c3b96bdf013b6ea71588180f68bec037ffd0d2"
     },
     "typed_region_gate": {
       "path": "v12/docs/perf-baselines/2026-07-18-bytecode-typed-loop-block-gate.md",

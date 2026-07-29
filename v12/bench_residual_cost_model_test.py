@@ -34,12 +34,12 @@ class ResidualCostModelTests(unittest.TestCase):
         self.assertEqual(summary["application_count"], 5)
         self.assertEqual(summary["unlike_family_count"], 5)
         self.assertEqual(summary["selected_mode_rows"], 10)
-        self.assertAlmostEqual(summary["selected_excess_seconds"], 66.551789, places=6)
+        self.assertAlmostEqual(summary["selected_excess_seconds"], 66.363684, places=6)
         self.assertAlmostEqual(
-            summary["frontier_total_excess_seconds"], 227.179053, places=6
+            summary["frontier_total_excess_seconds"], 226.856947, places=6
         )
         self.assertAlmostEqual(
-            summary["selected_excess_share_percent"], 29.294862, places=6
+            summary["selected_excess_share_percent"], 29.253538, places=6
         )
         self.assertEqual(summary["eligible_mechanisms"], [])
         self.assertEqual(summary["decision"], "no-candidate")

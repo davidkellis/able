@@ -36,9 +36,9 @@ class CrossEngineArchitectureBudgetTests(unittest.TestCase):
         )
         self.assertFalse(summary["candidate_eligible"])
         self.assertEqual(summary["selected_rows"], 126)
-        self.assertEqual(summary["target_meets"], 10)
-        self.assertEqual(summary["target_misses"], 116)
-        self.assertAlmostEqual(summary["total_excess_seconds"], 227.17905263157894)
+        self.assertEqual(summary["target_meets"], 11)
+        self.assertEqual(summary["target_misses"], 115)
+        self.assertAlmostEqual(summary["total_excess_seconds"], 226.85694736842103)
         self.assertGreater(summary["bytecode_excess_share_percent"], 80)
         bounds = report["architecture_bounds"]
         self.assertGreater(bounds["bytecode"]["minimum_remaining_target_speedup"], 7)

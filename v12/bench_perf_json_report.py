@@ -7,6 +7,8 @@ import json
 import sys
 from datetime import datetime, timezone
 
+from bench_go_toolchain_contract import current_go_toolchain
+
 
 def decode_metric(value: str) -> float | None:
     return None if value == "n/a" else float(value)
@@ -132,6 +134,10 @@ def main() -> None:
                     ),
                 }
             )
+    try:
+        go_toolchain = current_go_toolchain()
+    except ValueError as error:
+        raise SystemExit(f"bench_perf_json_report: {error}") from None
     payload = {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "target": target,
@@ -149,6 +155,7 @@ def main() -> None:
         "stdlib_root": stdlib_root or None,
         "executor": executor or None,
         "cpu_affinity": cpu_affinity or None,
+        "go_toolchain": go_toolchain,
         "results": results,
     }
     with open(output_path, "w", encoding="utf-8") as destination:

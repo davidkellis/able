@@ -1,0 +1,163 @@
+{
+  "kind": "able-v12-post-toolchain-release-inventory",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "authorized-exact-90-path-local-commit",
+  "repository": {
+    "head": "2243143aa449c9c764d7215496faf473b19fc73d",
+    "origin_master": "2243143aa449c9c764d7215496faf473b19fc73d",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0,
+    "index_sha256": "01ad931402aaa751ad129b6156f9cdef74d6dac1fd7709a26631d0ed71e5fb52"
+  },
+  "snapshot": {
+    "porcelain_entries_with_collapsed_untracked_directories": 119,
+    "fully_expanded_dirty_files": 121,
+    "tracked_modified_files": 46,
+    "untracked_files": 75,
+    "deleted_files": 0,
+    "renamed_files": 0,
+    "tracked_additions": 2052,
+    "tracked_deletions": 1234,
+    "porcelain_z_sha256": "7ffeb04e770eac5d95f8c0545dc0b5cb925dca0c887bca2640ea4e089d44436e",
+    "untracked_mode": "all",
+    "manifest": "2026-07-29-post-toolchain-release-inventory.tsv",
+    "manifest_rows": 121,
+    "manifest_bytes": 27076,
+    "manifest_sha256": "cd310513da21807d741c039109f42b32763020d2d86ba7e49fbb2ce91d9b795f"
+  },
+  "boundaries": [
+    {
+      "order": 1,
+      "id": "benchmark-toolchain-contract",
+      "tracked_modified": 5,
+      "untracked": 2,
+      "paths": 7,
+      "lines": 2474,
+      "bytes": 94432,
+      "disposition": "retain",
+      "path_sha256": "a5df695d224beb4408861227672413717f51093f1f45e134ee5c26f51f090be7"
+    },
+    {
+      "order": 2,
+      "id": "compiled-go1265-scorecard-evidence",
+      "tracked_modified": 3,
+      "untracked": 43,
+      "paths": 46,
+      "lines": 15700,
+      "bytes": 1003281,
+      "disposition": "retain",
+      "path_sha256": "8a9043b96d939ea801d9c17f7db0bd6edd31c35d47151df72fa261fe7896a0d6"
+    },
+    {
+      "order": 3,
+      "id": "derived-frontier-reconciliation",
+      "tracked_modified": 27,
+      "untracked": 2,
+      "paths": 29,
+      "lines": 22625,
+      "bytes": 1473675,
+      "disposition": "retain",
+      "path_sha256": "d379acf70a9eb508b79efe78b9187997e27df645f21397f4622d762d9d14ab48"
+    },
+    {
+      "order": 4,
+      "id": "handoff-release-boundary",
+      "tracked_modified": 3,
+      "untracked": 2,
+      "paths": 5,
+      "lines": 56676,
+      "bytes": 3941867,
+      "disposition": "retain",
+      "path_sha256": "c9d7f4a877a7eb390e95dba9132f8bddbba347ffa3e66d68669890ce1b6b2847"
+    },
+    {
+      "order": null,
+      "id": "deferred-wasm",
+      "tracked_modified": 8,
+      "untracked": 26,
+      "paths": 34,
+      "lines": 3266,
+      "bytes": 103984,
+      "disposition": "hold",
+      "path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e"
+    }
+  ],
+  "totals": {
+    "retained_paths": 87,
+    "retained_tracked_modified": 38,
+    "retained_untracked": 49,
+    "retained_lines": 97475,
+    "retained_bytes": 6513255,
+    "retained_path_sha256": "ae573ff2d8824c196a679d39167beb0d082b5f0936b63e6c8d74111f2614c3b1",
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "generated_local_paths": 0,
+    "unmatched_paths": 0
+  },
+  "record_coverage": {
+    "governing_record_counts": {
+      "2026-07-29-compiled-go1265-scorecard-refresh.md": 76,
+      "2026-07-29-benchmark-go-toolchain-contract.md": 11,
+      "deferred-wasm": 34
+    },
+    "missing_governing_records": 0
+  },
+  "validation": {
+    "identity_rows_reproduced": 121,
+    "identity_errors": 0,
+    "git_diff_check": "pass",
+    "dirty_json_files": 45,
+    "invalid_json_files": 0,
+    "dirty_go_files": 11,
+    "gofmt_unformatted_files": 0,
+    "dirty_maintained_source_files": 36,
+    "source_files_at_or_above_1000_lines": 0,
+    "largest_source_file": {
+      "path": "v12/bench_compare_external",
+      "lines": 974
+    },
+    "performance_baseline_paths": 61,
+    "performance_baseline_bytes": 2255489,
+    "benchmark_contract_test_files": 31,
+    "benchmark_contract_test_failures": 0,
+    "authoritative_scorecard_check": "pass",
+    "authoritative_frontier_check": "pass",
+    "performance_ledger_check": "pass",
+    "v10_v11_paths": 0,
+    "deprecated_stdlib_paths": 0,
+    "outside_v12_or_handoff_paths": 0,
+    "secret_like_filenames": 0,
+    "common_secret_signature_matches": 0,
+    "deferred_wasm_path_set_matches_2026_07_28_inventory": true,
+    "cleanup_dry_run_generated_paths": 3,
+    "cleanup_dry_run_reclaimable_bytes": 141144046,
+    "cleanup_dry_run_reclaimable_gib": 0.131
+  },
+  "inventory_metadata": {
+    "self_referential_rows_in_snapshot": 0,
+    "paths_added_after_snapshot": 3,
+    "exact_post_record_candidate_paths": 90,
+    "candidate_lf_path_sha256": "62825489bb4ac86248adf440705c2e76f6e3da4124ffae3981399fade79da4fb",
+    "candidate_nul_pathspec_sha256": "ef537311e2af6a320989f5fbe665ab7cc5f92483aa404f5771f2ac587c27b562",
+    "retained_identity_rows": 87,
+    "retained_identity_lines": 97570,
+    "retained_identity_bytes": 6518345,
+    "retained_identity_manifest_bytes": 12508,
+    "retained_identity_manifest_sha256": "fe73a8fa26b2b47657e3249313f8d4180a49184ade96c2a36c80f31015a0357d"
+  },
+  "authorization": {
+    "scope": "exact-90-path-local-commit",
+    "staging_authorized": true,
+    "commit_authorized": true,
+    "push_authorized": false,
+    "broad_git_add_used": false
+  },
+  "next": {
+    "id": "explicit-publish-authorization",
+    "why": "The exact retained boundary is consolidated locally, but pushing changes external repository state and was not included in the local-commit authorization.",
+    "entails": "Inspect the final commit and branch divergence, confirm the remote destination and exact commit range, and push only after separate explicit authorization.",
+    "importance": "This prevents publishing deferred WASM or an unintended history range while preserving the verified Go 1.26.5 performance baseline and toolchain contract."
+  }
+}

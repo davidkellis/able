@@ -42,8 +42,8 @@ class CrossEngineStructuralStrategyTests(unittest.TestCase):
         self.assertEqual(summary["concrete_admitted_route_count"], 0)
         self.assertFalse(summary["prototype_admitted"])
         self.assertEqual(summary["selected_rows"], 126)
-        self.assertEqual(summary["target_misses"], 116)
-        self.assertAlmostEqual(summary["total_target_excess_seconds"], 227.17905263157894)
+        self.assertEqual(summary["target_misses"], 115)
+        self.assertAlmostEqual(summary["total_target_excess_seconds"], 226.85694736842106)
 
     def test_typed_specialization_fails_every_row_gate(self) -> None:
         route = self.report()["routes"]["typed_bytecode_semantic_specialization"]
