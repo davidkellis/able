@@ -40,6 +40,7 @@ bytecode comparison is
 
 Start from:
 
+- `v12/docs/perf-baselines/2026-07-28-active-go-dependency-security-refresh.md`
 - `v12/docs/perf-baselines/2026-07-28-post-frontier-release-inventory.md`
 - `v12/docs/perf-baselines/2026-07-28-v12-correctness-release-readiness-closure.md`
 - `v12/docs/perf-baselines/2026-07-28-bytecode-semantic-boundary-reach-closure.md`
@@ -88,32 +89,43 @@ suite, canonical stdlib in both interpreter modes, compiled CLI integration,
 and all 640 generated-program compiler audit partitions pass. No individual
 test exceeds one minute when measured from exact serial JSON events.
 
-The non-mutating post-frontier inventory is complete. Its immutable pre-record
-snapshot contains 212 paths: 178 retained and 34 deferred WASM paths, with
-zero unmatched or generated-local paths. The retained paths map to seven
-dependency-ordered review boundaries and six dated governing records. JSON,
-formatting, whitespace, identity, source-size, scope, and common-secret checks
-pass. The Git index remains empty.
+The post-frontier release inventory's immutable snapshot contains 212 paths:
+178 retained and 34 deferred WASM paths. Its exact 181-path retained boundary
+was consolidated as commit `d42aab3b004ba121481bba4503d1635be5556b7d` and
+published to `origin/master`; the deferred WASM hold remained outside that
+commit.
 
-The maintainer explicitly authorized exact staging and one local
-release-consolidation commit. The resulting commit contains the validated
-181-path retained boundary; its worktree complement remains exactly the
-unchanged 34-path deferred WASM hold. No push is authorized.
+The active v12 Go dependency-security refresh is complete locally. Go 1.26.5,
+`go-git` v5.19.1, `x/crypto` v0.52.0, and their tidied safe transitive graph
+reduce the active module from 26 symbol-reachable advisories to zero.
+Module verification, vet/build, the ordinary handoff, the complete compiler
+package, three strict interpreter-free application builds, and five-process
+compiled/Go smoke cohorts pass. QuickSort and Binary Trees remain faster than
+Go; Matrix Multiply remains its existing target miss with an essentially
+unchanged Able mean. No production compiler, runtime, interpreter, VM, stdlib,
+language, benchmark, fixture, archived-version, nominal-special-case, or WASM
+code changed.
 
-Next request explicit maintainer authorization before publishing the local
-branch. Keep production performance mutation paused until a concrete
-admission invalidation exists.
+The maintainer has authorized exact consolidation and publication of the
+six-path active-v12 security tranche. That boundary is the only non-WASM
+working-tree change; the deferred WASM complement must remain outside the
+index and commit.
 
-Why: the retained native-lowering and benchmark/evidence state is consolidated
-locally, but pushing changes external repository state and was not included in
-the local-commit authorization.
-What it entails: inspect the final commit and branch divergence, confirm the
-remote destination and exact commit range, then push only after a separate
-explicit instruction.
-Why it matters: this prevents publishing deferred WASM or an unintended commit
-range while preserving interpreter-free compiled graphs, native primitive
-carriers, and the evidence required to resume work toward the 95% performance
-goals.
+After publication, next refresh the complete 63-row compiled Able/Go
+scorecard with Go 1.26.5 before reopening production performance mutation.
+
+Why: the security toolchain patch changes the Go reference version from
+1.26.4 to 1.26.5. The three-application retention smoke is green, but the
+authoritative compiled frontier still records Go 1.26.4.
+What it entails: rebuild all 63 Go references with Go 1.26.5, run five current
+strict compiled Able processes and five matching Go processes per application
+under the existing verifier and execution contracts, regenerate the compiled
+scorecard/frontier evidence, and inspect target-status or owner-rank changes.
+Retain no production optimization unless the refreshed evidence admits a
+general owner across at least three unlike programs.
+Why it matters: this restores a single patched-toolchain provenance for the
+95%-of-Go goal and distinguishes a real performance opportunity from
+workstation noise or a stale reference baseline.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or default execution-context rollout

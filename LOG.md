@@ -50352,6 +50352,37 @@
 - Record:
   `v12/docs/perf-baselines/2026-07-28-post-frontier-release-inventory.md`.
 
+## 2026-07-28 - Active v12 Go dependency security refresh
+
+- Installed and required Go 1.26.5 while retaining the Go 1.25 language
+  compatibility floor. Upgraded active v12 to `go-git` v5.19.1,
+  `x/crypto` v0.52.0, `x/sys` v0.45.0, and their tidied safe transitive graph.
+- `govulncheck` v1.6.0 reduced the active module from 26 symbol-reachable
+  advisories to zero; it also reports zero findings in imported packages.
+- `go mod verify`, `go vet ./...`, `go build ./...`, the 105-test package
+  fetch/CLI suite, the complete 1,084-test compiler package, and the ordinary
+  bounded `./run_all_tests.sh` handoff pass under Go 1.26.5.
+- Strict Matrix Multiply, QuickSort, and Binary Trees builds all verified and
+  retained final Go dependency graphs without `pkg/interpreter`.
+- Five verifier-backed Able and fresh Go processes per application produced
+  means/ratios of 1.1140s/0.9771s/1.1401x for Matrix Multiply,
+  2.1280s/2.7274s/0.7802x for QuickSort, and
+  8.0360s/11.6445s/0.6901x for Binary Trees. Target disposition is unchanged.
+- No compiler, generated-runtime, runtime, interpreter, VM, stdlib, language,
+  benchmark, fixture, archived-version, nominal-special-case, or WASM code
+  changed. All large work used the exact disk-backed
+  `/var/tmp/able-v12-security-upgrade-20260728` workspace.
+- The preceding 181-path performance release is already published at
+  `d42aab3b004ba121481bba4503d1635be5556b7d`.
+- The maintainer authorized exact consolidation and publication of the
+  six-path security tranche; deferred WASM remains outside that boundary.
+- After publication, next refresh all 63 compiled Able/Go rows with five
+  matched Go 1.26.5 processes per side. This matters because the security
+  smoke is green while the authoritative full frontier still records Go
+  1.26.4 references.
+- Record:
+  `v12/docs/perf-baselines/2026-07-28-active-go-dependency-security-refresh.md`.
+
 ## 2026-07-28 - Authorized post-frontier exact-index commit
 
 - The maintainer explicitly authorized the inventory's exact 181-path local

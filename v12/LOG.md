@@ -5686,6 +5686,36 @@ Open items (2025-11-02 audit):
 - Record:
   `docs/perf-baselines/2026-07-28-post-frontier-release-inventory.md`.
 
+## 2026-07-28 - Active Go dependency security refresh
+
+- Retained Go 1.26.5, `go-git` v5.19.1, `x/crypto` v0.52.0,
+  `x/sys` v0.45.0, and their tidied safe transitive dependency graph for the
+  active v12 Go module.
+- `govulncheck` v1.6.0 now reports zero symbol-reachable vulnerabilities and
+  zero vulnerabilities in imported packages, down from 26 reachable findings.
+- Module verification, vet/build, the 105-test package-fetch CLI suite, the
+  complete 1,084-test compiler package, and the ordinary bounded handoff suite
+  pass under Go 1.26.5.
+- Matrix Multiply, QuickSort, and Binary Trees all compile strictly with
+  `--no-fallbacks`, pass public verification, and omit `pkg/interpreter` from
+  their final Go dependency graphs.
+- Five-process compiled Able/Go 1.26.5 means are 1.1140s/0.9771s for Matrix
+  Multiply, 2.1280s/2.7274s for QuickSort, and 8.0360s/11.6445s for Binary
+  Trees. QuickSort and Binary Trees remain faster than Go; Matrix Multiply
+  remains the same existing miss.
+- No compiler, generated runtime, runtime semantics, interpreter, VM, stdlib,
+  language, benchmark, fixture, archived workspace, nominal special case, or
+  WASM code changed. Large work stayed in the exact disk-backed
+  `/var/tmp/able-v12-security-upgrade-20260728` workspace.
+- The maintainer authorized exact consolidation and publication of the
+  six-path security tranche; deferred WASM remains outside that boundary.
+- After publication, next refresh all 63 compiled Able/Go rows with five
+  matched Go 1.26.5 processes per side. This is important because the
+  three-application security smoke is green while the authoritative full
+  frontier still records Go 1.26.4 references.
+- Record:
+  `docs/perf-baselines/2026-07-28-active-go-dependency-security-refresh.md`.
+
 ## 2026-07-28 - Authorized post-frontier exact-index commit
 
 - The maintainer authorized one exact 181-path local commit: the 178 retained
