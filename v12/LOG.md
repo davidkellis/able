@@ -5807,6 +5807,26 @@ Open items (2025-11-02 audit):
 - Record:
   `docs/perf-baselines/2026-07-29-post-toolchain-release-inventory.md`.
 
+## 2026-07-29 - Compiled frontier admission closure
+
+- Published the exact 90-path Go 1.26.5 scorecard/toolchain boundary as
+  `b28a896ab45a592ed3155908f07ae3324923fd25` on `origin/master`, preserving
+  the exact 34-file deferred WASM hold outside history.
+- The current scorecard evidence check passes for all 126 selected rows with
+  five successful samples per side; the dated frontier reproduces with zero
+  actionable groups.
+- The checked performance ledger remains at 23 closures and zero
+  invalidations, so the toolchain refresh did not reopen production ownership.
+- Text/map work, concurrency environment recovery, and Sudoku quotient work
+  account for 75.05% of compiled target excess, but respectively fail the
+  shared-leaf, excluded broad-ABI, and three-unlike-program breadth gates.
+- Retained no production or WASM change and did not start a prototype or A/B
+  cohort.
+- Next keep production mutation paused until checked evidence is invalidated
+  or one new exact general owner becomes material in three unlike programs.
+- Record:
+  `docs/perf-baselines/2026-07-29-compiled-frontier-admission-closure.md`.
+
 ## 2026-07-29 - Authorized post-toolchain exact-index commit
 
 - The maintainer authorized exact staging and one local commit for the

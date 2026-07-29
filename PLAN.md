@@ -53,6 +53,7 @@ Start from:
 - `v12/docs/perf-baselines/2026-07-29-benchmark-go-toolchain-contract.md`
 - `v12/docs/perf-baselines/2026-07-29-post-toolchain-release-inventory.md`
 - `v12/docs/perf-baselines/2026-07-29-compiled-go1265-frontier.md`
+- `v12/docs/perf-baselines/2026-07-29-compiled-frontier-admission-closure.md`
 - `v12/docs/perf-baselines/external-scoreboard-current.md`
 - `v12/docs/perf-baselines/2026-07-26-compiled-aot-native-carrier-owner-closure.md`
 - `v12/docs/perf-baselines/2026-07-24-static-interpreter-package-cut-retained.md`
@@ -121,30 +122,31 @@ contracts. All 31 benchmark contract files and a real strict Go 1.26.5
 Fibonacci comparison pass. The smoke is contract verification, not new
 performance evidence.
 
-The post-toolchain release inventory is complete. Its fully expanded snapshot
-contains 121 files: an exact 87-path retained boundary and the unchanged
-34-file deferred WASM hold. The proposed post-record candidate is 90 paths,
-including the three inventory metadata files. All identities and content
-checks pass; the index remains empty.
+The exact 90-path post-toolchain boundary is published as commit
+`b28a896ab45a592ed3155908f07ae3324923fd25` on `origin/master`. The commit
+contains no WASM path; the unchanged 34-file deferred WASM set remains outside
+history.
 
-The maintainer authorized exact staging and one local consolidation commit for
-the 90-path candidate. The 34-file deferred WASM complement remains outside
-the index and commit. No push is authorized.
+The post-publication compiled admission audit reproduces the 126-row frontier
+with zero actionable groups and the 23-closure evidence ledger with zero
+invalidations. The three largest compiled residual groups account for 75.05%
+of positive target excess, but generic text/map work has no shared concrete
+leaf, concurrency requires the excluded broad callable execution-context ABI,
+and Sudoku quotient work reaches only one application. No prototype, A/B
+cohort, or production change was admitted.
 
-Next obtain explicit maintainer authorization before publishing the local
-commit.
+Next pause production performance mutation until a concrete admission
+invalidation exists.
 
-Why: exact local consolidation does not authorize mutation of the remote
-repository.
-What it entails: inspect the final commit and branch divergence, confirm the
-remote destination and exact commit range, and push only after separate
-explicit authorization.
-Why it matters: this prevents publishing deferred WASM or an unintended
-history range while preserving the verified Go 1.26.5 scorecard and toolchain
-contract.
-
-Reopen production performance mutation only when the checked frontier admits
-one general owner across at least three unlike programs.
+Why: every current residual owner is required, already rejected, below the
+three-unlike-program breadth gate, or lacks one exact shared leaf.
+What it entails: rerun the checked evidence ledger after a retained compiler,
+runtime, language, stdlib, benchmark-source, or broad-application change;
+refresh profiles only for invalidated closures; and advance only a material
+general owner that passes balanced verifier-backed A/B/reference measurement.
+Why it matters: this preserves native carriers and interpreter-free strict
+graphs without manufacturing benchmark-specific, named-container,
+non-primitive nominal, or unsafe broad-ABI wins.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or default execution-context rollout

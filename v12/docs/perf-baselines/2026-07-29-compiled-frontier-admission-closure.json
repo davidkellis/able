@@ -1,0 +1,81 @@
+{
+  "kind": "able-compiled-frontier-admission-closure",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "retain-no-production-change",
+  "repository": {
+    "commit": "b28a896ab45a592ed3155908f07ae3324923fd25",
+    "remote": "origin/master",
+    "published": true
+  },
+  "sources": {
+    "compiled_scorecard": {
+      "path": "v12/docs/perf-baselines/2026-07-29-compiled-go1265-refresh.json",
+      "sha256": "57936ab2bdc3eb205b96b88933d735c5051dca979a05f553bce6bf17bb5ff4fa"
+    },
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-29-compiled-go1265-frontier.json",
+      "sha256": "29105aa91d3f3db2c78aac3e27d960763892f1d61d891278db3fb681f6b4d3f7"
+    },
+    "closure_ledger": {
+      "path": "v12/bench-performance-closure-ledger.json",
+      "sha256": "3589828d4cfb03ed7b536f1be6f22dfac34b1e0181c45839f444281ab5b14873"
+    }
+  },
+  "compiled_summary": {
+    "rows": 63,
+    "target_meets": 7,
+    "target_misses": 56,
+    "geometric_mean_able_go_ratio": 4.637116,
+    "positive_target_excess_seconds": 5.353263,
+    "interpreter_free_graphs": 63,
+    "actionable_groups": 0
+  },
+  "leading_residual_groups": [
+    {
+      "id": "compiled-text-map",
+      "misses": 7,
+      "positive_target_excess_seconds": 1.655053,
+      "share_of_compiled_excess_percent": 30.916706,
+      "disposition": "closed-no-shared-leaf",
+      "admission_failure": "The exact descendants split among checked arithmetic, UTF-8 and String work, boxing, allocation, and required generic nominal storage semantics. Named-map or non-primitive nominal lowering is prohibited."
+    },
+    {
+      "id": "compiled-concurrency",
+      "misses": 23,
+      "positive_target_excess_seconds": 1.493684,
+      "share_of_compiled_excess_percent": 27.902312,
+      "disposition": "closed-rejected-candidate",
+      "admission_failure": "The shared currentGID/runtime.Stack owner requires the excluded broad callable execution-context ABI. The prior default-context route regressed unrelated N-Body by 54.7 percent."
+    },
+    {
+      "id": "compiled-sudoku-quotient",
+      "misses": 1,
+      "positive_target_excess_seconds": 0.868842,
+      "share_of_compiled_excess_percent": 16.23014,
+      "disposition": "closed-insufficient-breadth",
+      "admission_failure": "The material signed-division and search owner occurs in Sudoku only."
+    }
+  ],
+  "admission": {
+    "three_unlike_program_owner_found": false,
+    "prototype_started": false,
+    "ab_cohort_started": false,
+    "production_files_changed": 0,
+    "stdlib_files_changed": 0,
+    "wasm_files_changed": 0
+  },
+  "verification": {
+    "scorecard_selected_rows": 126,
+    "scorecard_successful_samples_per_side": 5,
+    "frontier_actionable_groups": 0,
+    "closure_ledger_entries": 23,
+    "closure_ledger_invalidations": 0
+  },
+  "next": {
+    "action": "pause-production-performance-mutation-until-admission-invalidation",
+    "why": "Every current residual owner is required, already rejected, below the breadth gate, or lacks one exact shared concrete leaf.",
+    "entails": "Re-run the checked ledger after a retained compiler, runtime, language, stdlib, benchmark-source, or broad-application change. Refresh profiles only for invalidated closures and admit code only for one material owner in at least three unlike verifier-backed programs.",
+    "importance": "This preserves native carriers and interpreter-free compiled graphs without introducing benchmark-specific, named-container, non-primitive nominal, or broad ABI regressions."
+  }
+}

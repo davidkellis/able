@@ -50483,6 +50483,29 @@
 - Record:
   `v12/docs/perf-baselines/2026-07-29-post-toolchain-release-inventory.md`.
 
+## 2026-07-29 - Compiled frontier admission closure
+
+- Published the exact 90-path Go 1.26.5 scorecard/toolchain boundary as
+  `b28a896ab45a592ed3155908f07ae3324923fd25` on `origin/master`; the exact
+  34-file deferred WASM complement remained outside history.
+- Reproduced the 126-row frontier with zero actionable groups and confirmed
+  all 126 rows retain five successful Able/reference samples.
+- Re-evaluated the checked 23-closure performance ledger with zero
+  invalidations. The Go 1.26.5 refresh changed timing provenance, not
+  compiler/runtime ownership.
+- The leading compiled residuals are text/map work (30.92% of compiled target
+  excess, no shared concrete leaf), concurrency (27.90%, excluded broad
+  callable execution-context ABI), and Sudoku quotient work (16.23%,
+  one-application reach).
+- Retained no production, stdlib, benchmark, dependency, nominal-lowering, or
+  WASM change; no prototype or A/B cohort was justified.
+- Next pause production performance mutation until a retained relevant change
+  invalidates a closure or a new exact owner is material in three unlike
+  programs. This prevents repeating closed or benchmark-specific routes while
+  keeping the 95%-of-Go goal evidence-driven.
+- Record:
+  `v12/docs/perf-baselines/2026-07-29-compiled-frontier-admission-closure.md`.
+
 ## 2026-07-29 - Authorized post-toolchain exact-index commit
 
 - The maintainer explicitly authorized exact staging and one local commit for
