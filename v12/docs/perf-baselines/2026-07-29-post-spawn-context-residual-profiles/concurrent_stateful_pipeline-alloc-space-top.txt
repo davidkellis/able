@@ -1,0 +1,64 @@
+File: compiled
+Build ID: 57a53b82a10ab91dfbf87f95e622f63283de7d5f
+Type: alloc_space
+Time: 2026-07-29 11:11:32 CDT
+Showing nodes accounting for 54456.80kB, 99.41% of 54779.23kB total
+Dropped 173 nodes (cum <= 273.90kB)
+      flat  flat%   sum%        cum   cum%
+15361.23kB 28.04% 28.04% 15361.23kB 28.04%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+12510.81kB 22.84% 50.88% 12510.81kB 22.84%  runtime/pprof.allFrames
+ 9218.64kB 16.83% 67.71%  9219.34kB 16.83%  able/interpreter-go/pkg/compiler/bridge.ToInt
+ 5350.52kB  9.77% 77.48%  9053.68kB 16.53%  runtime/pprof.(*profileBuilder).emitLocation
+    1944kB  3.55% 81.03%  3515.73kB  6.42%  compress/flate.NewWriter (inline)
+    1536kB  2.80% 83.83%  1536.05kB  2.80%  main.__able_struct_Pulse_from
+ 1152.28kB  2.10% 85.93%  2688.56kB  4.91%  main.__able_struct_Frame_from
+    1056kB  1.93% 87.86% 23723.52kB 43.31%  runtime/pprof.writeHeapInternal
+  960.11kB  1.75% 89.61%  1571.73kB  2.87%  compress/flate.(*compressor).init
+     960kB  1.75% 91.37%     1536kB  2.80%  main.__able_compiled_impl_StatefulStage_apply_0_ctx
+  771.61kB  1.41% 92.77%   771.75kB  1.41%  able/interpreter-go/pkg/runtime.ChannelStoreNew
+  736.56kB  1.34% 94.12% 22667.52kB 41.38%  runtime/pprof.writeHeapProto
+     672kB  1.23% 95.35%     6817kB 12.44%  main.__able_compiled_fn_produce_ctx
+     600kB  1.10% 96.44%      600kB  1.10%  compress/flate.newDeflateFast (inline)
+     480kB  0.88% 97.32%      768kB  1.40%  main.__able_compiled_impl_StatefulStage_apply_0_a_ctx
+     288kB  0.53% 97.84%      288kB  0.53%  main.__able_compiled_fn_main_ctx.__able_compiled_fn_make_reducer_ctx.func5
+     288kB  0.53% 98.37%      288kB  0.53%  main.__able_compiled_fn_main_ctx.__able_compiled_fn_make_reducer_ctx.func6
+     288kB  0.53% 98.89%      288kB  0.53%  main.__able_compiled_fn_main_ctx.__able_compiled_fn_make_reducer_ctx.func7
+  279.75kB  0.51% 99.41%   279.75kB  0.51%  runtime/pprof.(*protobuf).string (inline)
+    1.50kB 0.0027% 99.41% 21570.40kB 39.38%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    1.29kB 0.0024% 99.41%  1465.31kB  2.67%  main.__able_compiled_fn_main_ctx
+    0.21kB 0.00039% 99.41% 22759.23kB 41.55%  main.__able_compiled_fn_run_stage_ctx
+    0.14kB 0.00026% 99.41%  1465.45kB  2.68%  main.__able_compiled_entry_fn_main_ctx
+    0.07kB 0.00013% 99.41% 23724.65kB 43.31%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.07kB 0.00013% 99.41%  1465.66kB  2.68%  main.RunRegisteredMain
+         0     0% 99.41% 23724.65kB 43.31%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.41% 23724.65kB 43.31%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.41%  3535.98kB  6.45%  compress/gzip.(*Writer).Write
+         0     0% 99.41% 29583.25kB 54.00%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 99.41%  1465.59kB  2.68%  main.RunRegisteredMain.func1
+         0     0% 99.41%   772.31kB  1.41%  main.__able_channel_new_ctx (inline)
+         0     0% 99.41%   772.31kB  1.41%  main.__able_channel_new_impl
+         0     0% 99.41%  6817.14kB 12.44%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.41%  7586.39kB 13.85%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.41%  7587.12kB 13.85%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 99.41%  7588.11kB 13.85%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 99.41%   772.88kB  1.41%  main.__able_compiled_method_Channel_new_spec_ctx_into
+         0     0% 99.41%  2694.59kB  4.92%  main.__able_compiled_method_Channel_receive_spec_ctx
+         0     0% 99.41% 24577.50kB 44.87%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0% 99.41%     1536kB  2.80%  main.__able_iface_StatefulStage_adapter_ptr_AffineStage.__able_ctx_apply
+         0     0% 99.41%      768kB  1.40%  main.__able_iface_StatefulStage_adapter_ptr_WindowStage.__able_ctx_apply
+         0     0% 99.41%  1465.59kB  2.68%  main.__able_register_compiled_call.func1
+         0     0% 99.41% 29583.25kB 54.00%  main.__able_run_compiled_task
+         0     0% 99.41% 29579.33kB 54.00%  main.__able_spawn_context.func1
+         0     0% 99.41% 24576.92kB 44.87%  main.__able_struct_Frame_to (inline)
+         0     0% 99.41% 24576.92kB 44.87%  main.__able_struct_Frame_to_seen
+         0     0% 99.41% 13824.81kB 25.24%  main.__able_struct_Pulse_to_seen
+         0     0% 99.41%  1465.59kB  2.68%  main.__able_wrap_fn_main
+         0     0% 99.41% 25190.31kB 45.99%  main.main
+         0     0% 99.41% 25190.31kB 45.99%  main.runMain
+         0     0% 99.41% 23724.65kB 43.31%  main.startMainProfilePhase (inline)
+         0     0% 99.41% 25190.31kB 45.99%  runtime.main
+         0     0% 99.41% 23723.52kB 43.31%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.41%   279.75kB  0.51%  runtime/pprof.(*profileBuilder).build
+         0     0% 99.41%  3535.98kB  6.45%  runtime/pprof.(*profileBuilder).flush
+         0     0% 99.41%   279.75kB  0.51%  runtime/pprof.(*protobuf).strings
+         0     0% 99.41% 23723.52kB 43.31%  runtime/pprof.writeAlloc

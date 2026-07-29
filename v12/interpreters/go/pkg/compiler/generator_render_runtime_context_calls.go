@@ -97,7 +97,8 @@ func __able_method_call_node_ctx(obj runtime.Value, methodName string, args []ru
 }
 
 func (g *generator) renderRuntimeExecutionContextAwaitHelpers(buf *bytes.Buffer) {
-	if g == nil || buf == nil || !g.executionContextsEnabled() || len(g.awaitExprs) == 0 {
+	if g == nil || buf == nil || !g.executionContextsEnabled() ||
+		(len(g.awaitExprs) == 0 && !g.callableExecutionContextsEnabled()) {
 		return
 	}
 	buf.WriteString(`

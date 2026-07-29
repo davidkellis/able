@@ -1,0 +1,94 @@
+{
+  "kind": "able-v12-compiled-native-carrier-census-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "retain-no-code-current-closure",
+  "repository": {
+    "head": "5f84e42c43d3d514c231c7887e835895a9ba557a",
+    "origin_master": "5f84e42c43d3d514c231c7887e835895a9ba557a",
+    "index_staged_paths": 0,
+    "dirty_paths_before_record": 37,
+    "tracked_modified_before_record": 11,
+    "untracked_before_record": 26
+  },
+  "authorities": {
+    "strict_corpus_census": {
+      "path": "v12/docs/perf-baselines/2026-07-26-compiled-corpus-owner-census-lazy-i32-cache-retained.md",
+      "sha256": "ec80f2e55ce44adea4146247bca881784efb061ef60e656829ff4d2389d9bbae",
+      "applications": 61,
+      "verified_processes": 4163
+    },
+    "closure_ledger": {
+      "path": "v12/docs/perf-baselines/2026-07-29-post-spawn-context-closure-ledger.json",
+      "sha256": "2d0f331971c938a7c086d8be95aa255bc9c34dfb6d7943686ce7d7debdc423b2"
+    },
+    "scoreboard": {
+      "path": "v12/docs/perf-baselines/external-scoreboard-current.json",
+      "sha256": "9adbc937a7048eb69f81386920c44b604e9e817b22ecaa183989f72906ff4f3a"
+    },
+    "external_catalog": {
+      "path": "v12/bench_external_catalog.sh",
+      "sha256": "13c7e432b2ed15b4aac26fdaeb7f1950c28b98feb494e6007f8d84ea29efd789"
+    },
+    "v12_spec": {
+      "path": "spec/full_spec_v12.md",
+      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+    }
+  },
+  "current_evidence": {
+    "selected_rows": 126,
+    "compiled_rows": 63,
+    "verified_compiled_rows": 63,
+    "distinct_compiled_sources": 63,
+    "compiled_target_meets": 7,
+    "compiled_target_misses": 56,
+    "able_samples_per_selected_row": 5,
+    "reference_samples_per_selected_row": 5,
+    "closures": 23,
+    "current_closures": 23,
+    "invalidated_closures": 0,
+    "selected_compiled_closures": 0,
+    "selected_bytecode_closures": 0,
+    "actionable_frontier_groups": 0
+  },
+  "scope_check": {
+    "compiler_worktree_changes": 0,
+    "compiler_bridge_worktree_changes": 0,
+    "spec_worktree_changes": 0,
+    "benchmark_source_worktree_changes": 0,
+    "relevant_committed_changes_after_closure_refresh": 0,
+    "deferred_wasm_in_scope": false
+  },
+  "external_coverage": {
+    "coverage_members": 63,
+    "coverage_unique_external_directories": 63,
+    "external_benchmark_directories": 64,
+    "unselected_external_directories": [
+      "sudoku"
+    ],
+    "unselected_disposition": "diagnostic-only legacy workload; non-comparable with current exact-cover references and unable to complete within bounded protocol",
+    "new_portable_application_trigger": false
+  },
+  "validation": {
+    "evidence_ledger_check": "pass",
+    "scoreboard_check": "pass",
+    "scorecard_evidence_check": "pass",
+    "frontier_check": "pass",
+    "closure_ledger_contract_tests": "pass",
+    "frontier_contract_tests": "pass"
+  },
+  "execution": {
+    "strict_rebuild_performed": false,
+    "profiles_collected": false,
+    "prototype_entered": false,
+    "ab_go_cohort_entered": false,
+    "reason": "All governing closures are current; the invalidation contract prohibits rerunning unchanged cohorts."
+  },
+  "production_change": false,
+  "next": {
+    "id": "exact-post-census-release-inventory",
+    "why": "The no-code decision and current roadmap are new retained evidence while 34 deferred WASM files must remain outside later consolidation.",
+    "entails": "Capture a fully expanded worktree snapshot, classify the three handoff files plus this record and its JSON companion as retained, prove their exact complement is the unchanged deferred WASM boundary, and authorize no staging or commit during the inventory.",
+    "importance": "This preserves the evidence-backed stopping condition without mixing deferred work into history; later performance work requires a real checked invalidation trigger."
+  }
+}

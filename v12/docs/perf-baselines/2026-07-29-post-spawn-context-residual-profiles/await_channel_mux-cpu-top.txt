@@ -1,0 +1,108 @@
+File: compiled
+Build ID: 2e96980b65481b55b9f9b2bbfbbf2a45b62d8eca
+Type: cpu
+Time: 2026-07-29 11:11:19 CDT
+Duration: 1.79s, Total samples = 1.97s (110.09%)
+Showing nodes accounting for 1.97s, 100% of 1.97s total
+Showing top 100 nodes out of 252
+      flat  flat%   sum%        cum   cum%
+     0.16s  8.12%  8.12%      0.41s 20.81%  runtime.pcvalue
+     0.16s  8.12% 16.24%      0.17s  8.63%  runtime.step
+     0.15s  7.61% 23.86%      0.20s 10.15%  runtime.lock2
+     0.14s  7.11% 30.96%      0.14s  7.11%  runtime.unlock2
+     0.11s  5.58% 36.55%      0.11s  5.58%  runtime.(*moduledata).textAddr
+     0.08s  4.06% 40.61%      0.08s  4.06%  runtime.memmove
+     0.08s  4.06% 44.67%      0.18s  9.14%  runtime.recordForPanic
+     0.06s  3.05% 47.72%      0.06s  3.05%  runtime.futex
+     0.05s  2.54% 50.25%      0.05s  2.54%  indexbytebody
+     0.05s  2.54% 52.79%      0.24s 12.18%  runtime.gwrite
+     0.04s  2.03% 54.82%      0.04s  2.03%  runtime.findfunc
+     0.04s  2.03% 56.85%      0.32s 16.24%  runtime.printArgs
+     0.04s  2.03% 58.88%      0.04s  2.03%  runtime.procyieldAsm
+     0.03s  1.52% 60.41%      0.03s  1.52%  internal/sync.(*Mutex).Unlock (partial-inline)
+     0.03s  1.52% 61.93%      0.14s  7.11%  runtime.funcInfo.entry (inline)
+     0.03s  1.52% 63.45%      0.21s 10.66%  runtime.printlock
+     0.03s  1.52% 64.97%      0.18s  9.14%  runtime.printstring
+     0.03s  1.52% 66.50%      0.17s  8.63%  runtime.printunlock (partial-inline)
+     0.02s  1.02% 67.51%      0.02s  1.02%  able/interpreter-go/pkg/runtime.ChannelStoreState
+     0.02s  1.02% 68.53%      0.02s  1.02%  internal/bytealg.IndexByteString
+     0.02s  1.02% 69.54%      0.02s  1.02%  internal/strconv.formatBase10
+     0.02s  1.02% 70.56%      0.02s  1.02%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.02s  1.02% 71.57%      0.02s  1.02%  internal/sync.(*Mutex).Lock (inline)
+     0.02s  1.02% 72.59%      0.05s  2.54%  main.__able_register_compiled_method.func1
+     0.02s  1.02% 73.60%      0.03s  1.52%  runtime.adjustframe
+     0.02s  1.02% 74.62%      0.07s  3.55%  runtime.goroutineheader
+     0.02s  1.02% 75.63%      0.09s  4.57%  runtime.printFuncName
+     0.02s  1.02% 76.65%      0.06s  3.05%  runtime.printhexopts
+     0.02s  1.02% 77.66%      1.19s 60.41%  runtime.traceback2
+     0.02s  1.02% 78.68%      0.02s  1.02%  runtime.tryDeferToSpanScan
+     0.02s  1.02% 79.70%      0.02s  1.02%  runtime.usleep
+     0.01s  0.51% 80.20%      0.02s  1.02%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinitionIn
+     0.01s  0.51% 80.71%      0.01s  0.51%  internal/runtime/atomic.(*Int32).CompareAndSwap
+     0.01s  0.51% 81.22%      0.01s  0.51%  internal/runtime/atomic.(*UnsafePointer).StoreNoWB (inline)
+     0.01s  0.51% 81.73%      0.01s  0.51%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).init (inline)
+     0.01s  0.51% 82.23%      0.25s 12.69%  main.__able_await_ctx
+     0.01s  0.51% 82.74%      0.02s  1.02%  main.__able_channel_send_impl
+     0.01s  0.51% 83.25%      0.01s  0.51%  main.__able_checked_mul_signed
+     0.01s  0.51% 83.76%      0.01s  0.51%  main.__able_iface_Awaitable_i64_from_value
+     0.01s  0.51% 84.26%      0.01s  0.51%  main.__able_truthy
+     0.01s  0.51% 84.77%      0.01s  0.51%  runtime.(*_panic).nextDefer
+     0.01s  0.51% 85.28%      0.01s  0.51%  runtime.(*consistentHeapStats).acquire
+     0.01s  0.51% 85.79%      0.01s  0.51%  runtime.(*mLockProfile).start
+     0.01s  0.51% 86.29%      0.01s  0.51%  runtime.(*mheap).tryAllocMSpan (inline)
+     0.01s  0.51% 86.80%      0.01s  0.51%  runtime.(*stkframe).getStackMap
+     0.01s  0.51% 87.31%      0.03s  1.52%  runtime.(*unwinder).initAt
+     0.01s  0.51% 87.82%      0.13s  6.60%  runtime.(*unwinder).next
+     0.01s  0.51% 88.32%      0.01s  0.51%  runtime.acquirem (inline)
+     0.01s  0.51% 88.83%      0.09s  4.57%  runtime.findRunnable
+     0.01s  0.51% 89.34%      0.06s  3.05%  runtime.findnull
+     0.01s  0.51% 89.85%      0.01s  0.51%  runtime.funcInfo.srcFunc (inline)
+     0.01s  0.51% 90.36%      0.08s  4.06%  runtime.mallocgc
+     0.01s  0.51% 90.86%      0.03s  1.52%  runtime.mallocgcSmallNoscan
+     0.01s  0.51% 91.37%      0.04s  2.03%  runtime.mallocgcSmallScanNoHeader
+     0.01s  0.51% 91.88%      0.05s  2.54%  runtime.newInlineUnwinder
+     0.01s  0.51% 92.39%      0.01s  0.51%  runtime.nextFreeFast (inline)
+     0.01s  0.51% 92.89%      0.16s  8.12%  runtime.printArgs.func2 (inline)
+     0.01s  0.51% 93.40%      0.07s  3.55%  runtime.printhex
+     0.01s  0.51% 93.91%      0.08s  4.06%  runtime.printint
+     0.01s  0.51% 94.42%      0.01s  0.51%  runtime.printuint
+     0.01s  0.51% 94.92%      0.01s  0.51%  runtime.readvarint (inline)
+     0.01s  0.51% 95.43%      0.01s  0.51%  runtime.runqget (inline)
+     0.01s  0.51% 95.94%      0.01s  0.51%  runtime.runqput
+     0.01s  0.51% 96.45%      0.02s  1.02%  runtime.scanObject
+     0.01s  0.51% 96.95%      0.01s  0.51%  runtime.selectgo
+     0.01s  0.51% 97.46%      0.04s  2.03%  runtime.showframe
+     0.01s  0.51% 97.97%      0.03s  1.52%  runtime.showfuncinfo
+     0.01s  0.51% 98.48%      0.01s  0.51%  runtime.typedslicecopy
+     0.01s  0.51% 98.98%      0.01s  0.51%  runtime.wbBufFlush1
+     0.01s  0.51% 99.49%      0.01s  0.51%  sync.(*Cond).Wait
+     0.01s  0.51%   100%      0.01s  0.51%  sync/atomic.(*Int32).Add (inline)
+         0     0%   100%      0.02s  1.02%  able/interpreter-go/pkg/ast.Gen
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/ast.ID (inline)
+         0     0%   100%      0.02s  1.02%  able/interpreter-go/pkg/ast.NewGenericTypeExpression (inline)
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/ast.NewIdentifier (inline)
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/ast.Ty
+         0     0%   100%      1.02s 51.78%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%   100%      0.21s 10.66%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%      0.02s  1.02%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).goroutineEnv
+         0     0%   100%      0.21s 10.66%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%      0.26s 13.20%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0%   100%      1.45s 73.60%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/runtime.(*Environment).StructDefinition
+         0     0%   100%      0.02s  1.02%  able/interpreter-go/pkg/runtime.(*FutureValue).Await
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/runtime.(*FutureValue).CancelRequested
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/runtime.(*FutureValue).Context
+         0     0%   100%      0.02s  1.02%  able/interpreter-go/pkg/runtime.ChannelStoreIsClosed
+         0     0%   100%      0.01s  0.51%  able/interpreter-go/pkg/runtime.NewFutureWithContext
+         0     0%   100%      0.01s  0.51%  internal/runtime/atomic.(*Pointer[go.shape.struct { runtime.spanSetBlockHeader2; runtime.spans [512]runtime.atomicMSpanPointer }]).StoreNoWB (inline)
+         0     0%   100%      0.02s  1.02%  internal/strconv.RuntimeFormatBase10 (inline)
+         0     0%   100%      0.01s  0.51%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Range
+         0     0%   100%      0.03s  1.52%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0%   100%      0.03s  1.52%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0%   100%      0.01s  0.51%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).iter
+         0     0%   100%      0.01s  0.51%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+         0     0%   100%      0.02s  1.02%  main.(*__able_channel_awaitable).NativeAwaitableCommit
+         0     0%   100%      0.01s  0.51%  main.(*__able_channel_awaitable).NativeAwaitableIsReady
+         0     0%   100%      0.01s  0.51%  main.(*__able_channel_awaitable).NativeAwaitableRegister
+         0     0%   100%      0.02s  1.02%  main.(*__able_channel_awaitable).commit

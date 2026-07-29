@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Select an explicit row subset from one external comparison report."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+
+def load_report(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"input report not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid input JSON: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError("input report root must be an object")
+    rows = value.get("rows")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("input report needs a non-empty rows array")
+    return value
+
+
+def parse_benchmarks(raw: str) -> list[str]:
+    benchmarks = [value.strip() for value in raw.split(",") if value.strip()]
+    if not benchmarks:
+        raise ValueError("--benchmarks must select at least one row")
+    if len(benchmarks) != len(set(benchmarks)):
+        raise ValueError("--benchmarks repeats a row")
+    return benchmarks
+
+
+def selected_report(
+    source: dict[str, Any],
+    benchmarks: list[str],
+    source_path: Path,
+) -> dict[str, Any]:
+    by_benchmark: dict[str, dict[str, Any]] = {}
+    for index, row in enumerate(source["rows"]):
+        if not isinstance(row, dict):
+            raise ValueError(f"input row {index} must be an object")
+        benchmark = row.get("benchmark")
+        if not isinstance(benchmark, str) or not benchmark:
+            raise ValueError(f"input row {index} needs a benchmark")
+        if benchmark in by_benchmark:
+            raise ValueError(f"input report repeats benchmark {benchmark!r}")
+        by_benchmark[benchmark] = row
+
+    missing = [benchmark for benchmark in benchmarks if benchmark not in by_benchmark]
+    if missing:
+        raise ValueError(f"input report is missing selected rows: {', '.join(missing)}")
+
+    result = dict(source)
+    result["benchmarks"] = benchmarks
+    result["rows"] = [by_benchmark[benchmark] for benchmark in benchmarks]
+    result["row_selection"] = {
+        "kind": "external-comparison-row-selection",
+        "schema_version": 1,
+        "source_path": str(source_path),
+        "source_sha256": hashlib.sha256(source_path.read_bytes()).hexdigest(),
+        "benchmarks": benchmarks,
+    }
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Select named rows from one verifier-backed comparison report."
+    )
+    parser.add_argument("--input", type=Path, required=True)
+    parser.add_argument("--benchmarks", required=True)
+    parser.add_argument(
+        "--go-reference-json",
+        type=Path,
+        help="replace the selected report's Go-reference report path",
+    )
+    parser.add_argument("--output-json", type=Path, required=True)
+    args = parser.parse_args()
+
+    try:
+        benchmarks = parse_benchmarks(args.benchmarks)
+        report = selected_report(load_report(args.input), benchmarks, args.input)
+        if args.go_reference_json is not None:
+            if not args.go_reference_json.is_file():
+                raise ValueError(
+                    f"Go-reference report not found: {args.go_reference_json}"
+                )
+            report["go_reference_json"] = str(args.go_reference_json.resolve())
+    except ValueError as error:
+        parser.error(str(error))
+
+    args.output_json.parent.mkdir(parents=True, exist_ok=True)
+    args.output_json.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    print(f"selected {len(benchmarks)} comparison rows: {args.output_json}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

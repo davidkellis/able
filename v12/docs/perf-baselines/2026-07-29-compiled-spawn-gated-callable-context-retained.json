@@ -1,0 +1,87 @@
+{
+  "kind": "able-compiled-spawn-gated-callable-context-retention",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "retain",
+  "toolchain": "go version go1.26.5 linux/amd64",
+  "compilers": {
+    "baseline_sha256": "059d453b83ba8ab55f25013995cbfca2916b4f0aed3290ec84552ff680a092bb",
+    "candidate_sha256": "2d20c8724ca170756ca0196f4c88f5a6a130d2635fea0f358ecaa767617ea193"
+  },
+  "catalog_census": {
+    "application_count": 63,
+    "baseline_passes": 63,
+    "candidate_passes": 63,
+    "verifier_passes": 126,
+    "interpreter_free_graphs": 126,
+    "changed_generated_sources": 20,
+    "byte_identical_generated_sources": 43,
+    "spawn_free_controls": 39,
+    "already_await_gated_controls": 4,
+    "baseline_tsv_sha256": "6885f8d08333491ef78c6932434e125a253dbc0476a80c913838f23a5b544b50",
+    "candidate_tsv_sha256": "d3289f9d6806cc28964da0b479d895810943e6c157dc3adc08df99e6e21684ce"
+  },
+  "balanced_timing": {
+    "base_pairs_per_application": 7,
+    "extended_pairs_per_application": 15,
+    "base_processes": 420,
+    "base_samples_sha256": "52339e6ec4d3dcd9f743e491c7388990769c702b00cd019fdba56007556dc1ae",
+    "binary_trees_extension_sha256": "fe7a8a2082ac34e8a62ccb39dcd2aecee5b6a60194cd5c9efb3d4e70878d85f1",
+    "short_rows_extension_sha256": "3189ab6cf6645510c48c067dea882b7d8ef163c38210952a02be436b89d25368",
+    "improved_applications": 13,
+    "regressed_applications": 7,
+    "cross_application_paired_geometric_ratio": 0.884258,
+    "cross_application_change_percent": -11.5742,
+    "without_mutex_ledger_paired_geometric_ratio": 0.970408,
+    "without_mutex_ledger_change_percent": -2.9592,
+    "binary_trees": {
+      "pairs": 15,
+      "baseline_mean_seconds": 17.077888,
+      "candidate_mean_seconds": 16.624459,
+      "go_mean_seconds": 16.246988,
+      "candidate_baseline_paired_geometric_ratio": 0.988248,
+      "candidate_go_paired_geometric_ratio": 1.023852,
+      "candidate_as_go_performance_percent": 97.670
+    },
+    "paired_geometric_ratios": {
+      "binarytrees": 0.988248,
+      "channel_rollup": 1.044373,
+      "future_pipeline": 0.971853,
+      "mutex_ledger": 0.151163,
+      "concurrent_text_index": 0.927981,
+      "validated_job_pipeline": 1.040388,
+      "dependency_wave_validation": 0.923312,
+      "concurrent_event_routing": 0.962197,
+      "concurrent_document_pipeline": 0.936014,
+      "concurrent_stencil_reduction": 0.753739,
+      "concurrent_signal_dispatch": 0.986201,
+      "concurrent_transform_chain": 1.014250,
+      "concurrent_policy_callbacks": 1.036511,
+      "concurrent_graph_visitors": 0.966410,
+      "concurrent_audio_voices": 1.066582,
+      "concurrent_packet_codecs": 0.984217,
+      "concurrent_scene_tiles": 0.878503,
+      "concurrent_tree_folds": 1.009033,
+      "concurrent_state_machines": 0.976392,
+      "concurrent_stateful_pipeline": 1.022718
+    }
+  },
+  "allocations": {
+    "verified_processes": 200,
+    "runs_per_lane": 5,
+    "samples_sha256": "4cd74d31f2220b6bb83fef54b258612e7c80f801696806802584daa8b6438db3",
+    "summary_sha256": "8cce948838ebbcbc3faf921e9f88db99b9e7020c4f868b205ece8c43add90384",
+    "mutex_ledger_bytes_change_percent": -56.169616,
+    "mutex_ledger_allocations_change_percent": -49.393098,
+    "broad_material_penalty": false
+  },
+  "current_gid_boundary": {
+    "verified_processes": 200,
+    "runs_per_lane": 5,
+    "samples_sha256": "014918962e98160c2501ef5873725558ce99b74e6e7fd1207afa10deeeb30255",
+    "summary_sha256": "58e21a65e0953a2d3e64553e392795fc3187ba54a60828bfb569b4e0292b5bc5",
+    "applications_reduced": 19,
+    "applications_reduced_at_least_36_percent": 13,
+    "validated_job_pipeline_change_percent": -0.194
+  }
+}

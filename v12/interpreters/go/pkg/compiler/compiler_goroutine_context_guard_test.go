@@ -24,11 +24,11 @@ func TestCompilerNestedSpawnImportedEnvironmentIndependentCallUsesRawBody(t *tes
 		}, "\n"),
 	})
 
-	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
-	if !strings.Contains(mainBody, "__able_compiled_fn_answer(") {
-		t.Fatalf("nested spawn should use the proven-independent imported raw body:\n%s", mainBody)
+	mainBody := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main_ctx")
+	if !strings.Contains(mainBody, "__able_compiled_fn_answer_ctx(") {
+		t.Fatalf("nested spawn should use the proven-independent imported context body:\n%s", mainBody)
 	}
-	if strings.Contains(mainBody, "__able_compiled_entry_fn_answer(") {
+	if strings.Contains(mainBody, "__able_compiled_entry_fn_answer_ctx(") {
 		t.Fatalf("nested spawn should not pay an environment swap for a proven-independent callee:\n%s", mainBody)
 	}
 	for _, fragment := range []string{"__able_call_named(", "__able_call_value("} {
@@ -64,7 +64,7 @@ func TestCompilerDynamicCallHelpersConstructExplicitNativeContext(t *testing.T) 
 	}
 }
 
-func TestCompilerSpawnDoesNotSelectExperimentalExecutionContextByDefault(t *testing.T) {
+func TestCompilerSpawnSelectsSchedulerExecutionContextByDefault(t *testing.T) {
 	result := compileNoFallbackSourceWithCompilerOptions(t, strings.Join([]string{
 		"package demo",
 		"",
@@ -80,19 +80,15 @@ func TestCompilerSpawnDoesNotSelectExperimentalExecutionContextByDefault(t *test
 	compiledSrc := string(result.Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_execution_context struct",
-		"__able_compiled_fn_main_ctx(",
-		"__able_spawn_context(",
-	} {
-		if strings.Contains(compiledSrc, fragment) {
-			t.Fatalf("ordinary spawn compilation must not select the rejected experimental context ABI %q:\n%s", fragment, compiledSrc)
-		}
-	}
-	for _, fragment := range []string{
-		"func __able_compiled_fn_main()",
-		"__able_spawn(",
+		"func __able_compiled_fn_main_ctx(__able_exec_ctx *__able_execution_context)",
+		"func __able_compiled_fn_main() (struct{}, *__ableControl)",
+		"__able_spawn_context(__able_exec_ctx, func(__able_child_ctx *__able_execution_context)",
+		"func __able_channel_send_ctx(args []runtime.Value, __able_exec_ctx *__able_execution_context)",
+		"__able_channel_send_ctx([]runtime.Value{",
+		"__able_child_ctx)",
 	} {
 		if !strings.Contains(compiledSrc, fragment) {
-			t.Fatalf("default compatibility ABI is missing %q:\n%s", fragment, compiledSrc)
+			t.Fatalf("default spawn context path is missing %q:\n%s", fragment, compiledSrc)
 		}
 	}
 }

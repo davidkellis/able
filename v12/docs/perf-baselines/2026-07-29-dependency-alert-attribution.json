@@ -1,0 +1,195 @@
+{
+  "kind": "able-v12-dependency-alert-attribution",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "no-reachable-active-v12-vulnerability",
+  "repository": {
+    "head": "6efad0a53120129510fdfbab7fbcc84dcd081768",
+    "origin_master": "6efad0a53120129510fdfbab7fbcc84dcd081768",
+    "ahead": 0,
+    "behind": 0,
+    "pre_audit_dirty_paths": 34,
+    "pre_audit_staged_paths": 0
+  },
+  "github_push_banner": {
+    "total": 75,
+    "critical": 18,
+    "high": 14,
+    "moderate": 35,
+    "low": 8,
+    "exact_alert_api_http_status": 401,
+    "exact_alert_api_result": "requires-authentication",
+    "authenticated_dependabot_client_available": false
+  },
+  "go_scanner": {
+    "name": "govulncheck",
+    "version": "v1.6.0",
+    "database": "https://vuln.go.dev",
+    "database_last_modified": "2026-07-27T20:14:16Z",
+    "required_toolchain": "go1.26.5"
+  },
+  "active_v12": {
+    "interpreter_go_production": {
+      "toolchain": "go1.26.5",
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "required_module_advisories": [
+        "GO-2026-5025",
+        "GO-2026-5026",
+        "GO-2026-5027",
+        "GO-2026-5028",
+        "GO-2026-5029",
+        "GO-2026-5030",
+        "GO-2026-5932",
+        "GO-2026-5942"
+      ],
+      "required_module_advisory_count": 8
+    },
+    "interpreter_go_tests": {
+      "toolchain": "go1.26.5",
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "required_module_advisory_count": 8
+    },
+    "parser_go_bindings": {
+      "toolchain": "go1.26.5",
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "required_module_advisories": 0
+    },
+    "parser_root": {
+      "go_packages": 0,
+      "tree_sitter_go_v0_24_0_osv_advisories": 0
+    },
+    "module_attribution": {
+      "golang_org_x_net": {
+        "version": "v0.54.0",
+        "advisories": 7,
+        "affected_packages_imported": false,
+        "able_transitive_package": "golang.org/x/net/context",
+        "latest_required_fixed_version": "v0.56.0"
+      },
+      "golang_org_x_crypto": {
+        "version": "v0.52.0",
+        "advisories": 1,
+        "affected_packages_imported": false,
+        "able_transitive_package": "golang.org/x/crypto/hkdf",
+        "affected_package": "golang.org/x/crypto/openpgp",
+        "fixed_version": null
+      }
+    }
+  },
+  "toolchain_control": {
+    "toolchain": "go1.26.4",
+    "reachable_symbol_advisory": "GO-2026-5856",
+    "reachable_symbol_summary": "Encrypted Client Hello privacy leak in crypto/tls",
+    "additional_imported_package_advisory": "GO-2026-4970",
+    "both_fixed_in": "go1.26.5",
+    "required_v12_toolchain_scan_has_reachable_stdlib_advisories": false
+  },
+  "frozen_workspaces": {
+    "v10": {
+      "symbol_vulnerabilities": 25,
+      "imported_package_vulnerabilities": 34,
+      "required_module_advisories": 50,
+      "modified": false
+    },
+    "v11": {
+      "symbol_vulnerabilities": 25,
+      "imported_package_vulnerabilities": 34,
+      "required_module_advisories": 50,
+      "modified": false
+    },
+    "shared_symbol_advisory_ids": [
+      "GO-2023-2402",
+      "GO-2025-3367",
+      "GO-2025-3368",
+      "GO-2025-3487",
+      "GO-2025-3503",
+      "GO-2025-3754",
+      "GO-2025-4116",
+      "GO-2026-4473",
+      "GO-2026-4550",
+      "GO-2026-4909",
+      "GO-2026-4910",
+      "GO-2026-5013",
+      "GO-2026-5015",
+      "GO-2026-5017",
+      "GO-2026-5018",
+      "GO-2026-5019",
+      "GO-2026-5020",
+      "GO-2026-5021",
+      "GO-2026-5074",
+      "GO-2026-5105",
+      "GO-2026-5336",
+      "GO-2026-5490",
+      "GO-2026-5496",
+      "GO-2026-5597",
+      "GO-2026-5693"
+    ],
+    "shared_affected_modules": {
+      "github.com/cloudflare/circl@v1.3.3": 2,
+      "github.com/go-git/go-billy/v5@v5.5.0": 2,
+      "github.com/go-git/go-git/v5@v5.11.0": 10,
+      "golang.org/x/crypto@v0.16.0": 10,
+      "golang.org/x/net@v0.19.0": 1
+    }
+  },
+  "npm_audits": {
+    "npm_version": "11.16.0",
+    "v10_parser": {
+      "dependencies": 28,
+      "vulnerabilities": 0
+    },
+    "v11_parser": {
+      "dependencies": 28,
+      "vulnerabilities": 0
+    },
+    "v12_parser": {
+      "dependencies": 28,
+      "vulnerabilities": 0
+    },
+    "v12_wasm_deferred": {
+      "dependencies": 1,
+      "vulnerabilities": 0,
+      "modified": false
+    }
+  },
+  "proactive_refresh_probe": {
+    "repository_modified": false,
+    "golang_org_x_net": {
+      "from": "v0.54.0",
+      "to": "v0.56.0"
+    },
+    "resolver_updates": {
+      "golang.org/x/crypto": {
+        "from": "v0.52.0",
+        "to": "v0.53.0"
+      },
+      "golang.org/x/sys": {
+        "from": "v0.45.0",
+        "to": "v0.46.0"
+      }
+    },
+    "go_sum_changed_lines": 8,
+    "symbol_vulnerabilities_after_probe": 0,
+    "imported_package_vulnerabilities_after_probe": 0,
+    "remaining_module_advisories": [
+      "GO-2026-5932"
+    ]
+  },
+  "integrity": {
+    "dependency_manifest_files": 197,
+    "dependency_manifest_identity_sha256": "5096554566b53df75d217d921c91262d5e70a3ab3e732eab169d5aa91d28fdb9",
+    "dependency_manifests_byte_identical_after_scan": true,
+    "deferred_wasm_paths_modified": 0,
+    "production_paths_modified": 0,
+    "dependency_paths_modified": 0
+  },
+  "next": {
+    "id": "bounded-v12-x-net-security-refresh",
+    "why": "Active v12 has no reachable vulnerability, but seven fixable x/net module advisories remain in its dependency graph and could become reachable through future imports.",
+    "entails": "Update x/net to v0.56.0 with the resolver-required x/crypto v0.53.0 and x/sys v0.46.0 changes, rerun Go 1.26.5 production and test govulncheck scans, execute bounded Go correctness tests, and preserve all deferred WASM paths.",
+    "importance": "This removes all fixable active-v12 module advisories without conflating frozen v10/v11 exposure or the unfixable, unimported x/crypto/openpgp advisory with current Able reachability."
+  }
+}

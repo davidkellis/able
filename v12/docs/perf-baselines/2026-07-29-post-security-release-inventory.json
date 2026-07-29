@@ -1,0 +1,149 @@
+{
+  "kind": "able-v12-post-security-release-inventory",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "authorized-exact-12-path-local-commit",
+  "repository": {
+    "head": "6efad0a53120129510fdfbab7fbcc84dcd081768",
+    "origin_master": "6efad0a53120129510fdfbab7fbcc84dcd081768",
+    "head_tree": "00f1c924a464725b9f69903f7e03d2b1cf37b28f",
+    "index_tree": "00f1c924a464725b9f69903f7e03d2b1cf37b28f",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0
+  },
+  "snapshot": {
+    "fully_expanded_dirty_files": 43,
+    "tracked_modified_files": 13,
+    "untracked_files": 30,
+    "deleted_files": 0,
+    "renamed_files": 0,
+    "tracked_additions": 715,
+    "tracked_deletions": 75,
+    "porcelain_z_bytes": 1891,
+    "porcelain_z_sha256": "578f593e56565daa5c198272bf7993825985e14a49d175c7160254be4e9cdc06",
+    "untracked_mode": "all",
+    "manifest": "2026-07-29-post-security-release-inventory.tsv",
+    "manifest_rows": 43,
+    "manifest_bytes": 7480,
+    "manifest_sha256": "bfe9137e0bc61391edc75116e1a0acca8f2a448787729d75d64b9f7ab3f76b87"
+  },
+  "boundaries": [
+    {
+      "order": 1,
+      "id": "dependency-alert-attribution",
+      "tracked_modified": 0,
+      "untracked": 2,
+      "paths": 2,
+      "lines": 357,
+      "bytes": 12217,
+      "disposition": "retain",
+      "path_sha256": "b05414d9ac0248fb1b40b3e4a8df0dc978e1e97eb5e2f818d8858ee0e6cdb155"
+    },
+    {
+      "order": 2,
+      "id": "x-net-security-refresh",
+      "tracked_modified": 2,
+      "untracked": 2,
+      "paths": 4,
+      "lines": 410,
+      "bytes": 22116,
+      "disposition": "retain",
+      "path_sha256": "c4af2333521cd125f86d214fcca470a571d2fa38f4256cf0fd792b3ff7b0c47c"
+    },
+    {
+      "order": 3,
+      "id": "handoff-release-boundary",
+      "tracked_modified": 3,
+      "untracked": 0,
+      "paths": 3,
+      "lines": 57208,
+      "bytes": 3974858,
+      "disposition": "retain",
+      "path_sha256": "f9a85fb7af9ed46f62707946d78bc8d9840068d7105f2f1a4fde6e33ea3620e4"
+    },
+    {
+      "order": null,
+      "id": "deferred-wasm",
+      "tracked_modified": 8,
+      "untracked": 26,
+      "paths": 34,
+      "lines": 3266,
+      "bytes": 103984,
+      "disposition": "hold",
+      "path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e"
+    }
+  ],
+  "totals": {
+    "retained_paths": 9,
+    "retained_tracked_modified": 5,
+    "retained_untracked": 4,
+    "retained_lines": 57975,
+    "retained_bytes": 4009191,
+    "retained_path_sha256": "f676cad03e2e51efbae18aed027c993fe624614d20f7e28d2418c83d2c4b01dd",
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "generated_local_paths": 0,
+    "unmatched_paths": 0
+  },
+  "validation": {
+    "identity_rows_reproduced": 43,
+    "identity_errors": 0,
+    "git_diff_check": "pass",
+    "dirty_json_files": 6,
+    "invalid_json_files": 0,
+    "dirty_go_files": 11,
+    "gofmt_unformatted_files": 0,
+    "dirty_node_files": 10,
+    "node_syntax_failures": 0,
+    "dirty_python_files": 0,
+    "dirty_maintained_source_files": 24,
+    "source_files_at_or_above_1000_lines": 0,
+    "largest_source_file": {
+      "path": "v12/wasm/ast_adapter.mjs",
+      "lines": 402
+    },
+    "outside_v12_or_handoff_paths": 0,
+    "v10_v11_paths": 0,
+    "deprecated_stdlib_paths": 0,
+    "secret_like_filenames": 0,
+    "common_secret_signature_matches": 0,
+    "go_mod_sha256": "7a76c1bd85b76d079c9acc1148cc3dc6b6f03694aae7e3c29e650e1891aeb563",
+    "go_sum_sha256": "0eed327adef2c76281d55a5b3dfaa8a0be3df8346423667b0b2aee62f882e83f",
+    "scoreboard_check": "pass",
+    "scoreboard_rows": 126,
+    "five_sample_evidence_check": "pass",
+    "frontier_check": "pass",
+    "actionable_frontier_groups": 0,
+    "closure_ledger_check": "pass",
+    "closure_entries": 23,
+    "invalidated_closures": 0,
+    "deferred_wasm_path_set_matches_prior_inventory": true,
+    "cleanup_dry_run_generated_paths": 0
+  },
+  "inventory_metadata": {
+    "self_referential_rows_in_snapshot": 0,
+    "paths_added_after_snapshot": 3,
+    "exact_post_record_candidate_paths": 12,
+    "candidate_lf_path_sha256": "1e668bf34401fab7c45c151051abf96eedbcae3217281e7ba934b5c4825e945f",
+    "candidate_nul_pathspec_sha256": "d798a1a728506d7ebce8c7bea0540b83830ec1974d54beb3fd2193f6773ec642",
+    "retained_identity_rows": 9,
+    "retained_identity_lines": 58053,
+    "retained_identity_bytes": 4013417,
+    "retained_identity_manifest_bytes": 1023,
+    "retained_identity_manifest_sha256": "49c2b8bc889b1a022c8763823efbc6adf5eedda8ba98b317490a1b48068b60c2"
+  },
+  "authorization": {
+    "scope": "exact-12-path-local-consolidation",
+    "staging_authorized": true,
+    "commit_authorized": true,
+    "push_authorized": false,
+    "broad_git_add_used": false
+  },
+  "next": {
+    "id": "explicit-post-security-publication-authorization",
+    "why": "This tranche authorizes one exact local commit but does not authorize remote mutation.",
+    "entails": "Verify the final one-commit divergence and remote destination, then push only that exact commit-to-branch refspec if explicitly authorized.",
+    "importance": "The verified security correction can reach shared history without publishing deferred WASM or unintended local history."
+  }
+}

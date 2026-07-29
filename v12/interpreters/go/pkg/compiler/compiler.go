@@ -18,9 +18,9 @@ type Options struct {
 	// these fields no longer permit callers to select runtime-store carriers.
 	ExperimentalMonoArrays    bool
 	ExperimentalMonoArraysSet bool
-	// ExperimentalExecutionContext enables the generated-call context ABI
-	// prototype. It is intentionally opt-in until broad profile guards retain
-	// it across concurrent and serial workloads.
+	// ExperimentalExecutionContext force-enables the generated-call context ABI
+	// for diagnostic comparison. Programs that contain an Able await expression
+	// select the scheduler-required context ABI automatically.
 	ExperimentalExecutionContext bool
 	// EmitDynamicBoundaryTelemetry adds debug-only counters to generated code
 	// for classified dynamic/host/runtime-service crossings. It must remain

@@ -1,0 +1,108 @@
+File: compiled
+Build ID: 2e96980b65481b55b9f9b2bbfbbf2a45b62d8eca
+Type: cpu
+Time: 2026-07-29 11:11:19 CDT
+Duration: 1.79s, Total samples = 1.97s (110.09%)
+Showing nodes accounting for 1.43s, 72.59% of 1.97s total
+Showing top 100 nodes out of 252
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      1.53s 77.66%  runtime.systemstack
+         0     0%     0%      1.45s 73.60%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0%     0%      1.42s 72.08%  runtime.Stack
+         0     0%     0%      1.42s 72.08%  runtime.Stack.func1
+         0     0%     0%      1.35s 68.53%  runtime.traceback (inline)
+         0     0%     0%      1.35s 68.53%  runtime.traceback1
+         0     0%     0%      1.22s 61.93%  runtime.traceback1.func1
+     0.02s  1.02%  1.02%      1.19s 60.41%  runtime.traceback2
+         0     0%  1.02%      1.16s 58.88%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%  1.02%      1.15s 58.38%  main.__able_run_compiled_task
+         0     0%  1.02%      1.02s 51.78%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0%  1.02%      0.87s 44.16%  main.__able_spawn_context.func1
+         0     0%  1.02%      0.82s 41.62%  main.__able_register_compiled_call.func1
+         0     0%  1.02%      0.68s 34.52%  main.RunRegisteredMain
+         0     0%  1.02%      0.68s 34.52%  main.RunRegisteredMain.func1
+         0     0%  1.02%      0.68s 34.52%  main.__able_compiled_entry_fn_main_ctx
+         0     0%  1.02%      0.68s 34.52%  main.__able_compiled_fn_main_ctx
+         0     0%  1.02%      0.68s 34.52%  main.__able_wrap_fn_main
+         0     0%  1.02%      0.68s 34.52%  main.main
+         0     0%  1.02%      0.68s 34.52%  main.runMain
+         0     0%  1.02%      0.68s 34.52%  runtime.main
+         0     0%  1.02%      0.52s 26.40%  main.__able_compiled_fn_main_ctx.func3
+         0     0%  1.02%      0.48s 24.37%  main.__able_iface_Future_i64_runtime_adapter.__able_ctx_value
+         0     0%  1.02%      0.48s 24.37%  main.__able_iface_Future_i64_runtime_adapter.value
+         0     0%  1.02%      0.47s 23.86%  main.__able_call_named
+         0     0%  1.02%      0.47s 23.86%  main.__able_call_value_fast
+         0     0%  1.02%      0.47s 23.86%  main.__able_method_call
+     0.16s  8.12%  9.14%      0.41s 20.81%  runtime.pcvalue
+         0     0%  9.14%      0.33s 16.75%  main.__able_compiled_entry_method_Await__default_spec_ctx
+     0.04s  2.03% 11.17%      0.32s 16.24%  runtime.printArgs
+         0     0% 11.17%      0.27s 13.71%  runtime.funcline1
+         0     0% 11.17%      0.26s 13.20%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+     0.01s  0.51% 11.68%      0.25s 12.69%  main.__able_await_ctx
+         0     0% 11.68%      0.24s 12.18%  main.__able_await_value_ctx
+     0.05s  2.54% 14.21%      0.24s 12.18%  runtime.gwrite
+         0     0% 14.21%      0.23s 11.68%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 14.21%      0.21s 10.66%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 14.21%      0.21s 10.66%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 14.21%      0.21s 10.66%  main.__able_await_with_state_ctx
+     0.03s  1.52% 15.74%      0.21s 10.66%  runtime.printlock
+         0     0% 15.74%      0.20s 10.15%  runtime.lock (inline)
+     0.15s  7.61% 23.35%      0.20s 10.15%  runtime.lock2
+         0     0% 23.35%      0.20s 10.15%  runtime.lockWithRank (inline)
+         0     0% 23.35%      0.19s  9.64%  runtime.(*inlineUnwinder).fileLine (inline)
+         0     0% 23.35%      0.18s  9.14%  main.__able_invoke_awaitable_method_ctx
+     0.03s  1.52% 24.87%      0.18s  9.14%  runtime.printstring
+     0.08s  4.06% 28.93%      0.18s  9.14%  runtime.recordForPanic
+     0.03s  1.52% 30.46%      0.17s  8.63%  runtime.printunlock (partial-inline)
+     0.16s  8.12% 38.58%      0.17s  8.63%  runtime.step
+         0     0% 38.58%      0.16s  8.12%  main.__able_complete_await_ctx
+     0.01s  0.51% 39.09%      0.16s  8.12%  runtime.printArgs.func2 (inline)
+         0     0% 39.09%      0.14s  7.11%  main.(*__able_default_awaitable).NativeAwaitableCommit
+         0     0% 39.09%      0.14s  7.11%  main.__able_builtin_named_future_yield
+         0     0% 39.09%      0.14s  7.11%  main.__able_call_value
+         0     0% 39.09%      0.14s  7.11%  main.__able_compiled_method_Await__default_spec_ctx
+         0     0% 39.09%      0.14s  7.11%  main.__able_current_payload
+         0     0% 39.09%      0.14s  7.11%  main.__able_future_yield
+     0.03s  1.52% 40.61%      0.14s  7.11%  runtime.funcInfo.entry (inline)
+         0     0% 40.61%      0.14s  7.11%  runtime.unlock (inline)
+     0.14s  7.11% 47.72%      0.14s  7.11%  runtime.unlock2
+         0     0% 47.72%      0.14s  7.11%  runtime.unlockWithRank (inline)
+     0.01s  0.51% 48.22%      0.13s  6.60%  runtime.(*unwinder).next
+         0     0% 48.22%      0.13s  6.60%  runtime.printcreatedby
+         0     0% 48.22%      0.12s  6.09%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 48.22%      0.12s  6.09%  runtime.printcreatedby1
+     0.11s  5.58% 53.81%      0.11s  5.58%  runtime.(*moduledata).textAddr
+         0     0% 53.81%      0.10s  5.08%  runtime.(*unwinder).resolveInternal
+         0     0% 53.81%      0.10s  5.08%  runtime.funcspdelta (inline)
+     0.01s  0.51% 54.31%      0.09s  4.57%  runtime.findRunnable
+         0     0% 54.31%      0.09s  4.57%  runtime.mcall
+     0.02s  1.02% 55.33%      0.09s  4.57%  runtime.printFuncName
+         0     0% 55.33%      0.09s  4.57%  runtime.schedule
+         0     0% 55.33%      0.08s  4.06%  runtime.funcline (inline)
+     0.01s  0.51% 55.84%      0.08s  4.06%  runtime.mallocgc
+     0.08s  4.06% 59.90%      0.08s  4.06%  runtime.memmove
+         0     0% 59.90%      0.08s  4.06%  runtime.newobject
+         0     0% 59.90%      0.08s  4.06%  runtime.park_m
+     0.01s  0.51% 60.41%      0.08s  4.06%  runtime.printint
+     0.02s  1.02% 61.42%      0.07s  3.55%  runtime.goroutineheader
+     0.01s  0.51% 61.93%      0.07s  3.55%  runtime.printhex
+         0     0% 61.93%      0.06s  3.05%  main.__able_compiled_method_Channel_await_receive_spec_ctx
+     0.01s  0.51% 62.44%      0.06s  3.05%  runtime.findnull
+     0.06s  3.05% 65.48%      0.06s  3.05%  runtime.futex
+         0     0% 65.48%      0.06s  3.05%  runtime.gostringnocopy (inline)
+         0     0% 65.48%      0.06s  3.05%  runtime.printArgs.func3 (inline)
+     0.02s  1.02% 66.50%      0.06s  3.05%  runtime.printhexopts
+     0.05s  2.54% 69.04%      0.05s  2.54%  indexbytebody
+         0     0% 69.04%      0.05s  2.54%  main.(*__able_goroutine_executor).RunFuture
+         0     0% 69.04%      0.05s  2.54%  main.__able_channel_await_try_recv_ctx (inline)
+         0     0% 69.04%      0.05s  2.54%  main.__able_channel_await_try_recv_impl
+         0     0% 69.04%      0.05s  2.54%  main.__able_int64_from_value
+     0.02s  1.02% 70.05%      0.05s  2.54%  main.__able_register_compiled_method.func1
+         0     0% 70.05%      0.05s  2.54%  main.__able_spawn_context
+         0     0% 70.05%      0.05s  2.54%  runtime.copystack
+     0.01s  0.51% 70.56%      0.05s  2.54%  runtime.newInlineUnwinder
+         0     0% 70.56%      0.05s  2.54%  runtime.newstack
+         0     0% 70.56%      0.04s  2.03%  runtime.(*inlineUnwinder).resolveInternal (inline)
+     0.04s  2.03% 72.59%      0.04s  2.03%  runtime.findfunc
+         0     0% 72.59%      0.04s  2.03%  runtime.gcBgMarkWorker
+         0     0% 72.59%      0.04s  2.03%  runtime.gcBgMarkWorker.func2

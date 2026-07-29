@@ -5,17 +5,18 @@ import (
 	"able/interpreter-go/pkg/driver"
 )
 
-func (g *generator) programNeedsCallableExecutionContext(modules []*driver.Module) bool {
-	if g == nil || !g.executionContextsEnabled() {
+func (g *generator) programRequiresSchedulerExecutionContext(modules []*driver.Module) bool {
+	if g == nil {
 		return false
 	}
 	for _, module := range modules {
-		if module == nil || module.AST == nil || module.Package != g.entryPackage {
+		if module == nil || module.AST == nil {
 			continue
 		}
 		found := false
 		ast.Walk(module.AST, func(node ast.Node) bool {
-			if _, ok := node.(*ast.AwaitExpression); ok {
+			switch node.(type) {
+			case *ast.AwaitExpression, *ast.SpawnExpression:
 				found = true
 				return false
 			}

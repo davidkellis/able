@@ -1,0 +1,137 @@
+{
+  "kind": "able-compiled-callable-context-default-activation-retention",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "retain",
+  "baseline_commit": "ada2a21c751baf51200149e9dac2d175e29aa222",
+  "toolchain": "go version go1.26.5 linux/amd64",
+  "compilers": {
+    "baseline_sha256": "3a60b1daf01a9d260277f437504998871593a6aaa8131a1b9c5d7ae6c9e8578f",
+    "candidate_sha256": "3d0af8e165e573f3525c2667587be6d489a9299dea9a17487775f1698b5e1570"
+  },
+  "catalog_census": {
+    "application_count": 63,
+    "successful_processes": 126,
+    "interpreter_free_processes": 126,
+    "verifier_passes": 126,
+    "unchanged_generated_sources": 59,
+    "changed_generated_sources": [
+      "future_await_race",
+      "await_channel_mux",
+      "mutex_await_journal",
+      "mutex_work_queue"
+    ],
+    "baseline_tsv_sha256": "5c10e0d9ba96ded7bb845a2f7799f546eb8f2a699d9237656a02a4e4674398a4",
+    "candidate_tsv_sha256": "f7a0d3f7118c333fcb1c50b9a62fa6835fad1417f0102b77fd44832c98c776d0"
+  },
+  "balanced_timing": {
+    "runs_per_lane": 7,
+    "samples_sha256": "0379ce72a6fd7d9720e4f091420a0504b7d9a7847cb450f3054f8f65047ade3e",
+    "reached_geometric_mean_change_percent": -87.152938,
+    "applications": [
+      {
+        "benchmark": "future_await_race",
+        "baseline_mean_seconds": 0.036571,
+        "candidate_mean_seconds": 0.015092,
+        "change_percent": -58.732595,
+        "go_mean_seconds": 0.004160,
+        "candidate_as_go_performance_percent": 27.57
+      },
+      {
+        "benchmark": "await_channel_mux",
+        "baseline_mean_seconds": 0.208787,
+        "candidate_mean_seconds": 0.113219,
+        "change_percent": -45.773086,
+        "go_mean_seconds": 0.005682,
+        "candidate_as_go_performance_percent": 5.02
+      },
+      {
+        "benchmark": "mutex_await_journal",
+        "baseline_mean_seconds": 0.247917,
+        "candidate_mean_seconds": 0.010365,
+        "change_percent": -95.819105,
+        "go_mean_seconds": 0.005256,
+        "candidate_as_go_performance_percent": 50.71
+      },
+      {
+        "benchmark": "mutex_work_queue",
+        "baseline_mean_seconds": 0.573129,
+        "candidate_mean_seconds": 0.016687,
+        "change_percent": -97.088452,
+        "go_mean_seconds": 0.005611,
+        "candidate_as_go_performance_percent": 33.62
+      }
+    ]
+  },
+  "main_phase_allocations": {
+    "runs_per_lane": 5,
+    "samples_sha256": "1bb81f3ae3c91233821c809245b1bb30daa5279a48ea1730ea25c826d35bb4f3",
+    "applications": [
+      {
+        "benchmark": "future_await_race",
+        "allocated_bytes_change_percent": -21.89,
+        "allocation_count_change_percent": -10.62
+      },
+      {
+        "benchmark": "await_channel_mux",
+        "allocated_bytes_change_percent": -20.69,
+        "allocation_count_change_percent": -14.85
+      },
+      {
+        "benchmark": "mutex_await_journal",
+        "allocated_bytes_change_percent": -77.32,
+        "allocation_count_change_percent": -66.93
+      },
+      {
+        "benchmark": "mutex_work_queue",
+        "allocated_bytes_change_percent": -78.50,
+        "allocation_count_change_percent": -69.24
+      }
+    ]
+  },
+  "current_gid_boundary": {
+    "runs_per_lane": 5,
+    "samples_sha256": "6995a821ed9443cfb271a5e132d712c8d3aa652a41fbf8e7a21dbba99fe5b5ad",
+    "applications": [
+      {
+        "benchmark": "future_await_race",
+        "baseline_mean_calls": 2476.8,
+        "candidate_mean_calls": 1074.8,
+        "change_percent": -56.61
+      },
+      {
+        "benchmark": "await_channel_mux",
+        "baseline_mean_calls": 15875.0,
+        "candidate_mean_calls": 8195.0,
+        "change_percent": -48.38
+      },
+      {
+        "benchmark": "mutex_await_journal",
+        "baseline_mean_calls": 16174.2,
+        "candidate_mean_calls": 14.0,
+        "change_percent": -99.91
+      },
+      {
+        "benchmark": "mutex_work_queue",
+        "baseline_mean_calls": 38243.2,
+        "candidate_mean_calls": 14.0,
+        "change_percent": -99.96
+      }
+    ]
+  },
+  "default_callable_reach": {
+    "tsv_sha256": "a4b0aba7b206dd19eeac273d195526a19678e586e3b01289641f64c8bcc5c0d2",
+    "call_value_fast_calls": {
+      "future_await_race": 922,
+      "await_channel_mux": 512,
+      "mutex_await_journal": 2048,
+      "mutex_work_queue": 4096
+    },
+    "await_calls": {
+      "future_await_race": 192,
+      "await_channel_mux": 1024,
+      "mutex_await_journal": 2048,
+      "mutex_work_queue": 4096
+    }
+  }
+}

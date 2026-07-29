@@ -95,8 +95,7 @@ func TestCompilerExecutionContextUsesLazyAwaitServiceCarriers(t *testing.T) {
 		t.Fatalf("generated atomic Await service materialization fields = %d, want 2", got)
 	}
 
-	defaultResult := compileNoFallbackSource(t, source)
-	defaultCompiled := string(defaultResult.Files["compiled.go"])
+	defaultCompiled := string(compileNoFallbackSource(t, source).Files["compiled.go"])
 	for _, fragment := range []string{
 		"type __able_native_await_waker struct",
 		"type __able_native_await_registration struct",
@@ -104,12 +103,12 @@ func TestCompilerExecutionContextUsesLazyAwaitServiceCarriers(t *testing.T) {
 		"func __able_acquire_await_state(",
 		"func (s *__able_await_state) prepareArmScratch(capacity int)",
 	} {
-		if strings.Contains(defaultCompiled, fragment) {
-			t.Fatalf("default generated source unexpectedly contains %q", fragment)
+		if !strings.Contains(defaultCompiled, fragment) {
+			t.Fatalf("default scheduler-context source is missing %q", fragment)
 		}
 	}
-	if !strings.Contains(defaultCompiled, "awaitStates") {
-		t.Fatalf("default generated source must retain its compatibility Await state cache")
+	if strings.Contains(defaultCompiled, "awaitStates") {
+		t.Fatalf("default scheduler-context source unexpectedly retains the compatibility Await state cache")
 	}
 }
 

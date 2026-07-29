@@ -1,0 +1,108 @@
+File: compiled
+Build ID: 57a53b82a10ab91dfbf87f95e622f63283de7d5f
+Type: cpu
+Time: 2026-07-29 11:11:30 CDT
+Duration: 335.17ms, Total samples = 790ms (235.70%)
+Showing nodes accounting for 570ms, 72.15% of 790ms total
+Showing top 100 nodes out of 146
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      660ms 83.54%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%     0%      660ms 83.54%  main.__able_run_compiled_task
+         0     0%     0%      650ms 82.28%  main.__able_spawn_context.func1
+         0     0%     0%      560ms 70.89%  main.__able_compiled_fn_run_stage_ctx
+      10ms  1.27%  1.27%      400ms 50.63%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0%  1.27%      250ms 31.65%  main.__able_compiled_fn_main_ctx.func4
+         0     0%  1.27%      240ms 30.38%  main.__able_struct_Frame_to (inline)
+         0     0%  1.27%      240ms 30.38%  main.__able_struct_Frame_to_seen
+      10ms  1.27%  2.53%      210ms 26.58%  runtime.mallocgc
+      20ms  2.53%  5.06%      190ms 24.05%  runtime.mallocgcSmallScanNoHeader
+         0     0%  5.06%      180ms 22.78%  main.__able_struct_Pulse_to_seen
+         0     0%  5.06%      170ms 21.52%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         0     0%  5.06%      170ms 21.52%  main.__able_compiled_method_Channel_receive_spec_ctx
+         0     0%  5.06%      170ms 21.52%  runtime.convT
+         0     0%  5.06%      160ms 20.25%  main.__able_compiled_fn_main_ctx.func2
+         0     0%  5.06%      150ms 18.99%  main.__able_compiled_fn_main_ctx.func3
+         0     0%  5.06%      140ms 17.72%  main.__able_channel_send_ctx (inline)
+         0     0%  5.06%      140ms 17.72%  main.__able_channel_send_impl
+         0     0%  5.06%      140ms 17.72%  runtime.systemstack
+      80ms 10.13% 15.19%      130ms 16.46%  internal/sync.(*Mutex).Lock (inline)
+         0     0% 15.19%      130ms 16.46%  sync.(*Mutex).Lock (inline)
+         0     0% 15.19%      100ms 12.66%  main.__able_channel_receive_ctx (inline)
+         0     0% 15.19%      100ms 12.66%  main.__able_channel_receive_impl
+      10ms  1.27% 16.46%       90ms 11.39%  able/interpreter-go/pkg/runtime.ChannelStoreState
+         0     0% 16.46%       90ms 11.39%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 16.46%       90ms 11.39%  main.__able_compiled_fn_produce_ctx
+         0     0% 16.46%       90ms 11.39%  runtime.gcBgMarkWorker
+         0     0% 16.46%       90ms 11.39%  runtime.gcBgMarkWorker.func2
+         0     0% 16.46%       90ms 11.39%  runtime.gcDrain
+         0     0% 16.46%       70ms  8.86%  main.__able_compiled_impl_StatefulStage_apply_0_ctx
+         0     0% 16.46%       70ms  8.86%  main.__able_iface_StatefulStage_adapter_ptr_AffineStage.__able_ctx_apply
+         0     0% 16.46%       70ms  8.86%  main.__able_notify_channel_awaiters
+         0     0% 16.46%       70ms  8.86%  main.__able_struct_Frame_from
+         0     0% 16.46%       70ms  8.86%  runtime.gcDrainMarkWorkerDedicated (inline)
+      60ms  7.59% 24.05%       60ms  7.59%  runtime.memclrNoHeapPointers
+      10ms  1.27% 25.32%       60ms  7.59%  runtime.newobject
+      40ms  5.06% 30.38%       60ms  7.59%  runtime.tryDeferToSpanScan
+         0     0% 30.38%       50ms  6.33%  able/interpreter-go/pkg/runtime.ChannelStoreIsClosed
+         0     0% 30.38%       50ms  6.33%  internal/sync.(*Mutex).lockSlow
+         0     0% 30.38%       50ms  6.33%  internal/sync.runtime_doSpin
+         0     0% 30.38%       50ms  6.33%  main.__able_channel_await_state_for
+         0     0% 30.38%       50ms  6.33%  runtime.procyield (inline)
+      50ms  6.33% 36.71%       50ms  6.33%  runtime.procyieldAsm
+         0     0% 36.71%       50ms  6.33%  runtime.typedmemmove
+         0     0% 36.71%       40ms  5.06%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+      20ms  2.53% 39.24%       40ms  5.06%  runtime.gcmarknewobject
+      10ms  1.27% 40.51%       40ms  5.06%  runtime.scanSpan
+         0     0% 40.51%       30ms  3.80%  main.RunRegisteredMain
+         0     0% 40.51%       30ms  3.80%  main.RunRegisteredMain.func1
+         0     0% 40.51%       30ms  3.80%  main.__able_compiled_entry_fn_main_ctx
+         0     0% 40.51%       30ms  3.80%  main.__able_compiled_fn_main_ctx
+         0     0% 40.51%       30ms  3.80%  main.__able_register_compiled_call.func1
+      30ms  3.80% 44.30%       30ms  3.80%  main.__able_struct_named_field_value
+         0     0% 44.30%       30ms  3.80%  main.__able_wrap_fn_main
+         0     0% 44.30%       30ms  3.80%  main.main
+         0     0% 44.30%       30ms  3.80%  main.runMain
+         0     0% 44.30%       30ms  3.80%  runtime.(*mcache).nextFree
+         0     0% 44.30%       30ms  3.80%  runtime.chanrecv
+      10ms  1.27% 45.57%       30ms  3.80%  runtime.chansend
+         0     0% 45.57%       30ms  3.80%  runtime.main
+         0     0% 45.57%       30ms  3.80%  runtime.makeslice
+         0     0% 45.57%       30ms  3.80%  runtime.markroot
+      30ms  3.80% 49.37%       30ms  3.80%  runtime.memmove
+         0     0% 49.37%       30ms  3.80%  runtime.selectnbrecv
+         0     0% 49.37%       30ms  3.80%  runtime.selectnbsend
+         0     0% 49.37%       30ms  3.80%  runtime.wbBufFlush
+         0     0% 49.37%       30ms  3.80%  runtime.wbBufFlush.func1
+         0     0% 49.37%       30ms  3.80%  runtime.wbBufFlush1
+         0     0% 49.37%       20ms  2.53%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0% 49.37%       20ms  2.53%  able/interpreter-go/pkg/compiler/bridge.currentGID
+         0     0% 49.37%       20ms  2.53%  gcWriteBarrier
+      20ms  2.53% 51.90%       20ms  2.53%  main.__able_checked_add_signed
+      20ms  2.53% 54.43%       20ms  2.53%  main.__able_checked_mul_signed
+      10ms  1.27% 55.70%       20ms  2.53%  main.__able_compiled_fn_main_ctx.__able_compiled_fn_make_reducer_ctx.func5
+         0     0% 55.70%       20ms  2.53%  main.__able_compiled_impl_StatefulStage_apply_0_a_ctx
+         0     0% 55.70%       20ms  2.53%  main.__able_iface_StatefulStage_adapter_ptr_WindowStage.__able_ctx_apply
+      20ms  2.53% 58.23%       20ms  2.53%  main.__able_struct_Pulse_from
+         0     0% 58.23%       20ms  2.53%  runtime.(*mcache).refill
+         0     0% 58.23%       20ms  2.53%  runtime.(*mcentral).cacheSpan
+         0     0% 58.23%       20ms  2.53%  runtime.(*mcentral).grow
+      20ms  2.53% 60.76%       20ms  2.53%  runtime.(*mspan).base (inline)
+         0     0% 60.76%       20ms  2.53%  runtime.(*mspan).initHeapBits
+      20ms  2.53% 63.29%       20ms  2.53%  runtime.(*mspan).writeHeapBitsSmall
+         0     0% 63.29%       20ms  2.53%  runtime.Stack
+         0     0% 63.29%       20ms  2.53%  runtime.Stack.func1
+      20ms  2.53% 65.82%       20ms  2.53%  runtime.acquirem (inline)
+         0     0% 65.82%       20ms  2.53%  runtime.bulkBarrierPreWrite
+         0     0% 65.82%       20ms  2.53%  runtime.gcDrainMarkWorkerIdle (inline)
+         0     0% 65.82%       20ms  2.53%  runtime.heapSetTypeNoHeader (inline)
+         0     0% 65.82%       20ms  2.53%  runtime.scanObject
+         0     0% 65.82%       20ms  2.53%  runtime.traceback (inline)
+         0     0% 65.82%       20ms  2.53%  runtime.traceback1
+         0     0% 65.82%       20ms  2.53%  runtime.unlock (inline)
+      20ms  2.53% 68.35%       20ms  2.53%  runtime.unlock2
+         0     0% 68.35%       20ms  2.53%  runtime.unlockWithRank (inline)
+      20ms  2.53% 70.89%       20ms  2.53%  sync/atomic.(*Int32).Add (inline)
+         0     0% 70.89%       10ms  1.27%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).Env
+         0     0% 70.89%       10ms  1.27%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 70.89%       10ms  1.27%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+      10ms  1.27% 72.15%       10ms  1.27%  internal/sync.(*Mutex).Unlock (inline)

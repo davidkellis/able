@@ -27,7 +27,7 @@ Usage:
     [--modes default,experimental]
 
 Strictly emits, links, and verifier-runs the portable catalog in default and
-experimental execution-context modes. Experimental applications that emit the
+experimental execution-context modes. Applications that emit the
 callable-context ABI receive a diagnostic-only overlay that counts actual
 callable-helper and await-helper execution.
 EOF
@@ -220,7 +220,7 @@ for index in "${!benchmarks[@]}"; do
     probe_binary_sha=n/a
     call_value_fast_calls=0
     await_calls=0
-    if [[ "$mode" == experimental && "$callable_context_helper" -gt 0 ]]; then
+    if [[ "$callable_context_helper" -gt 0 ]]; then
       mkdir -p "$probe_root/instrumented"
       overlay="$probe_root/overlay.json"
       python3 "$SCRIPT_DIR/bench_compiler_callable_context_reach_instrument.py" \
@@ -266,7 +266,7 @@ for index in "${!benchmarks[@]}"; do
     [[ "$run_status" == pass && "$verifier_status" == pass ]] ||
       die "$benchmark/$mode failed: $run_status/$verifier_status"
 
-    if [[ "$mode" == experimental && "$callable_context_helper" -gt 0 ]]; then
+    if [[ "$callable_context_helper" -gt 0 ]]; then
       reach_json="$(
         sed -n 's/^__ABLE_CALLABLE_CONTEXT_REACH__=//p' "$stderr" | tail -n 1
       )"

@@ -1,0 +1,250 @@
+{
+  "kind": "able-performance-evidence-invalidation-report",
+  "schema_version": 1,
+  "closures": [
+    {
+      "id": "bytecode-byte-output",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-concurrency",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-float-numeric",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-iterator-control",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-portable-workload-admission",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-regex",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-register-architecture",
+      "origin": "extra",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-semantic-boundary-reach",
+      "origin": "extra",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-target-guards",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "target-guard",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-text-map",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "bytecode-wide-numeric",
+      "origin": "frontier",
+      "modes": [
+        "bytecode"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-architecture-target-budget",
+      "origin": "extra",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-byte-output",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-concurrency",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "open-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-current-control",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-float-numeric",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-iterator-control",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-regex",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-sudoku-quotient",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-insufficient-breadth",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-target-guards",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "target-guard",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-text-map",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "compiled-wide-numeric",
+      "origin": "frontier",
+      "modes": [
+        "compiled"
+      ],
+      "disposition": "closed-rejected-candidate",
+      "status": "current",
+      "reasons": []
+    },
+    {
+      "id": "cross-family-architecture-ownership",
+      "origin": "extra",
+      "modes": [
+        "bytecode",
+        "compiled"
+      ],
+      "disposition": "closed-no-shared-leaf",
+      "status": "current",
+      "reasons": []
+    }
+  ],
+  "summary": {
+    "decision": "no-invalidated-closure",
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "selected_closures": [],
+    "selected_by_mode": {
+      "compiled": [],
+      "bytecode": []
+    },
+    "reason_counts": {}
+  },
+  "recommendation": "Do not rerun a closed performance tranche; no checked evidence identity is invalidated."
+}

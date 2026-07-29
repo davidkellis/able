@@ -1,0 +1,126 @@
+{
+  "kind": "able-v12-post-census-release-inventory",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "authorized-exact-8-path-local-commit",
+  "repository": {
+    "head": "5f84e42c43d3d514c231c7887e835895a9ba557a",
+    "origin_master": "5f84e42c43d3d514c231c7887e835895a9ba557a",
+    "head_tree": "41539a64d2ecf89f9de3cb8a90510472d62e4387",
+    "index_tree": "41539a64d2ecf89f9de3cb8a90510472d62e4387",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0
+  },
+  "snapshot": {
+    "fully_expanded_dirty_files": 39,
+    "tracked_modified_files": 11,
+    "untracked_files": 28,
+    "deleted_files": 0,
+    "renamed_files": 0,
+    "tracked_additions": 658,
+    "tracked_deletions": 65,
+    "porcelain_z_bytes": 1727,
+    "porcelain_z_sha256": "79ebe4d68010863e20a025188e87c431dd970991b02091caea84e6f1b5800d13",
+    "untracked_mode": "all",
+    "manifest": "2026-07-29-post-census-release-inventory.tsv",
+    "manifest_rows": 39,
+    "manifest_bytes": 6810,
+    "manifest_sha256": "f60fbd1bb26fa160a7e0feca4fda6d2c8e0000be8def5fd51c8cbeddafc353b2"
+  },
+  "boundaries": [
+    {
+      "order": 1,
+      "id": "compiled-native-carrier-census-reconciliation",
+      "tracked_modified": 0,
+      "untracked": 2,
+      "paths": 2,
+      "lines": 219,
+      "bytes": 9298,
+      "disposition": "retain",
+      "path_sha256": "edfc3ad7e804ff993d20112f9da22053690966701968b5b333fe039f19a7a450"
+    },
+    {
+      "order": 2,
+      "id": "handoff-release-boundary",
+      "tracked_modified": 3,
+      "untracked": 0,
+      "paths": 3,
+      "lines": 57383,
+      "bytes": 3984688,
+      "disposition": "retain",
+      "path_sha256": "f9a85fb7af9ed46f62707946d78bc8d9840068d7105f2f1a4fde6e33ea3620e4"
+    },
+    {
+      "order": null,
+      "id": "deferred-wasm",
+      "tracked_modified": 8,
+      "untracked": 26,
+      "paths": 34,
+      "lines": 3266,
+      "bytes": 103984,
+      "disposition": "hold",
+      "path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e"
+    }
+  ],
+  "totals": {
+    "retained_paths": 5,
+    "retained_tracked_modified": 3,
+    "retained_untracked": 2,
+    "retained_lines": 57602,
+    "retained_bytes": 3993986,
+    "retained_path_sha256": "4900de0d696d2771abb014587346bf2c01bd2170719d09db1dd1617e8b34a652",
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "generated_local_paths": 0,
+    "unmatched_paths": 0
+  },
+  "validation": {
+    "identity_rows_reproduced": 39,
+    "identity_errors": 0,
+    "git_diff_check": "pass",
+    "json_parse": "pass",
+    "gofmt": "pass",
+    "node_syntax": "pass",
+    "source_files_at_or_above_1000_lines": 0,
+    "outside_v12_or_handoff_paths": 0,
+    "v10_v11_paths": 0,
+    "deprecated_stdlib_paths": 0,
+    "secret_like_filenames": 0,
+    "common_secret_signature_matches": 0,
+    "scoreboard_check": "pass",
+    "scoreboard_rows": 126,
+    "five_sample_evidence_check": "pass",
+    "frontier_check": "pass",
+    "actionable_frontier_groups": 0,
+    "closure_ledger_check": "pass",
+    "closure_entries": 23,
+    "invalidated_closures": 0,
+    "deferred_wasm_path_set_matches_prior_inventories": true
+  },
+  "inventory_metadata": {
+    "self_referential_rows_in_snapshot": 0,
+    "paths_added_after_snapshot": 3,
+    "exact_post_record_candidate_paths": 8,
+    "candidate_lf_path_sha256": "f5fca8d15cd6c3b1ba37379e73f0c52a65c970fe0b25f8bf6c156124e2b366d8",
+    "candidate_nul_pathspec_sha256": "9a3d36a00f6beba53cedb261e3ef54229c61545e758594db432caf2adb46b96e",
+    "retained_identity_rows": 5,
+    "retained_identity_lines": 57671,
+    "retained_identity_bytes": 3997574,
+    "retained_identity_manifest_bytes": 574,
+    "retained_identity_manifest_sha256": "26a2cad521fc7248ee193b7bb76cbe1f7efc750ca4b07567aa4ba53cf79a3b76"
+  },
+  "authorization": {
+    "scope": "exact-8-path-local-consolidation",
+    "staging_authorized": true,
+    "commit_authorized": true,
+    "push_authorized": false,
+    "broad_git_add_used": false
+  },
+  "next": {
+    "id": "explicit-post-census-publication-authorization",
+    "why": "This tranche authorizes one exact local commit but does not authorize remote mutation.",
+    "entails": "Verify the final one-commit divergence and remote destination, then push only that exact commit-to-branch refspec if explicitly authorized.",
+    "importance": "The evidence-backed stopping decision can reach shared history without publishing deferred WASM or unintended local history."
+  }
+}

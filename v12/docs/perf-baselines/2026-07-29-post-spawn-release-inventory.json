@@ -1,0 +1,186 @@
+{
+  "kind": "able-v12-post-spawn-release-inventory",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "authorized-exact-147-path-local-commit",
+  "repository": {
+    "head": "ada2a21c751baf51200149e9dac2d175e29aa222",
+    "origin_master": "ada2a21c751baf51200149e9dac2d175e29aa222",
+    "head_tree": "b1ee83f77176596c971432b4df02a85956526149",
+    "index_tree": "b1ee83f77176596c971432b4df02a85956526149",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0
+  },
+  "snapshot": {
+    "fully_expanded_dirty_files": 178,
+    "tracked_modified_files": 29,
+    "untracked_files": 149,
+    "deleted_files": 0,
+    "renamed_files": 0,
+    "tracked_additions": 1788,
+    "tracked_deletions": 1469,
+    "porcelain_z_sha256": "3d170cce99ff5931b1ac3fd0fa53d9fbff2ff82156b282d88c0db8abdd60e54e",
+    "untracked_mode": "all",
+    "manifest": "2026-07-29-post-spawn-release-inventory.tsv",
+    "manifest_rows": 178,
+    "manifest_bytes": 43507,
+    "manifest_sha256": "65e0882ebe95edabbba47ef1ece601de6666261beb03d16110b78b0509722b1c"
+  },
+  "boundaries": [
+    {
+      "order": 1,
+      "id": "compiler-spawn-context",
+      "tracked_modified": 12,
+      "untracked": 7,
+      "paths": 19,
+      "lines": 5243,
+      "bytes": 183571,
+      "disposition": "retain",
+      "path_sha256": "30eddae8726ca19179c7d4cf09325a215b0889185419708a155b29db756ee500"
+    },
+    {
+      "order": 2,
+      "id": "comparison-row-selection-tool",
+      "tracked_modified": 0,
+      "untracked": 2,
+      "paths": 2,
+      "lines": 175,
+      "bytes": 6379,
+      "disposition": "retain",
+      "path_sha256": "1a115ef89fe58b4b49366f30552ab9c0db1444410495951a1c070afa598d2cae"
+    },
+    {
+      "order": 3,
+      "id": "post-callable-scorecard-evidence",
+      "tracked_modified": 0,
+      "untracked": 70,
+      "paths": 70,
+      "lines": 24867,
+      "bytes": 1585048,
+      "disposition": "retain",
+      "path_sha256": "b6af5a34c46a40ebed18ffb3f9303e9fa703d9c3c88230155e84636fd0ff8330"
+    },
+    {
+      "order": 4,
+      "id": "post-spawn-scorecard-and-correctness",
+      "tracked_modified": 6,
+      "untracked": 44,
+      "paths": 50,
+      "lines": 30836,
+      "bytes": 2128103,
+      "disposition": "retain",
+      "path_sha256": "407356fc22de80431ddd53417257debd0d7757c4581b4f4ba5dad9c1bbd26801"
+    },
+    {
+      "order": 5,
+      "id": "handoff-release-boundary",
+      "tracked_modified": 3,
+      "untracked": 0,
+      "paths": 3,
+      "lines": 56982,
+      "bytes": 3962287,
+      "disposition": "retain",
+      "path_sha256": "f9a85fb7af9ed46f62707946d78bc8d9840068d7105f2f1a4fde6e33ea3620e4"
+    },
+    {
+      "order": null,
+      "id": "deferred-wasm",
+      "tracked_modified": 8,
+      "untracked": 26,
+      "paths": 34,
+      "lines": 3266,
+      "bytes": 103984,
+      "disposition": "hold",
+      "path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e"
+    }
+  ],
+  "totals": {
+    "retained_paths": 144,
+    "retained_tracked_modified": 21,
+    "retained_untracked": 123,
+    "retained_lines": 118103,
+    "retained_bytes": 7865388,
+    "retained_path_sha256": "6e52c064cb81bc8efd347ec7939a4b7c3c5a62bf64ac3e26cb041fe6981dfdf7",
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_path_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "generated_local_paths": 0,
+    "unmatched_paths": 0
+  },
+  "record_coverage": {
+    "governing_record_counts": {
+      "2026-07-29-compiled-spawn-gated-callable-context-retained.md": 19,
+      "2026-07-29-post-callable-context-scorecard-refresh.md": 70,
+      "2026-07-29-post-spawn-context-scorecard-and-owner-closure.md": 2,
+      "2026-07-29-post-spawn-correctness-release-gate.md": 53,
+      "deferred-wasm": 34
+    },
+    "missing_governing_records": 0
+  },
+  "validation": {
+    "identity_rows_reproduced": 178,
+    "identity_errors": 0,
+    "git_diff_check": "pass",
+    "dirty_json_files": 64,
+    "invalid_json_files": 0,
+    "dirty_gzip_files": 0,
+    "invalid_gzip_files": 0,
+    "dirty_go_files": 22,
+    "gofmt_unformatted_files": 0,
+    "dirty_python_files": 2,
+    "invalid_python_files": 0,
+    "dirty_shell_files": 1,
+    "dirty_node_files": 10,
+    "syntax_failures": 0,
+    "dirty_maintained_source_files": 39,
+    "source_files_at_or_above_1000_lines": 0,
+    "largest_source_file": {
+      "path": "v12/interpreters/go/pkg/compiler/compiler_dispatch_completeness_test.go",
+      "lines": 997
+    },
+    "authoritative_scorecard_check": "pass",
+    "authoritative_scorecard_rows": 126,
+    "authoritative_frontier_check": "pass",
+    "actionable_frontier_groups": 0,
+    "performance_ledger_check": "pass",
+    "performance_ledger_entries": 23,
+    "invalidated_ledger_entries": 0,
+    "five_sample_evidence_check": "pass",
+    "v10_v11_paths": 0,
+    "deprecated_stdlib_paths": 0,
+    "outside_v12_or_handoff_paths": 0,
+    "secret_like_filenames": 0,
+    "common_secret_signature_matches": 0,
+    "deferred_wasm_path_set_matches_prior_inventory": true,
+    "cleanup_dry_run_generated_paths": 3,
+    "cleanup_dry_run_reclaimable_bytes": 8492171264,
+    "cleanup_dry_run_reclaimable_gib": 7.909,
+    "cleanup_applied": false
+  },
+  "inventory_metadata": {
+    "self_referential_rows_in_snapshot": 0,
+    "paths_added_after_snapshot": 3,
+    "exact_post_record_candidate_paths": 147,
+    "candidate_lf_path_sha256": "9aee340d93e8699b2501c5ec619ae3eead6dbf3e56c83a30cd7e3e471dfaf5d9",
+    "candidate_nul_pathspec_sha256": "38c9b5374272e97b50255caf214b837c2b44b0914ce411bf14ddbb5ce681e3b2",
+    "retained_identity_rows": 144,
+    "retained_identity_lines": 118183,
+    "retained_identity_bytes": 7869977,
+    "retained_identity_manifest_bytes": 22527,
+    "retained_identity_manifest_sha256": "483364c319e0c4a6714e4f2f711c87c641f0b57b86ca76e442577eb5e42a8ebb"
+  },
+  "authorization": {
+    "scope": "exact-147-path-local-commit",
+    "staging_authorized": true,
+    "commit_authorized": true,
+    "push_authorized": false,
+    "cleanup_authorized": false,
+    "broad_git_add_used": false
+  },
+  "next": {
+    "id": "explicit-publish-authorization",
+    "why": "The exact retained boundary is consolidated locally, but pushing changes external repository state and was not included in the local-commit authorization.",
+    "entails": "Inspect the final commit and branch divergence, confirm the remote destination and exact commit range, and push only after separate explicit authorization.",
+    "importance": "This prevents publishing deferred WASM or an unintended history range while preserving the verified native-carrier, interpreter-free, scorecard, and correctness state."
+  }
+}

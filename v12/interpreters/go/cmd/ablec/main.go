@@ -34,7 +34,7 @@ func run(args []string) int {
 	requireNoFallbacks := fs.Bool("no-fallbacks", false, "fail compilation when any interpreter fallback is required")
 	experimentalMonoArrays := fs.Bool("experimental-mono-arrays", monoArraysEnabled, "legacy compatibility flag; native static Array lowering is always enabled")
 	noExperimentalMonoArrays := fs.Bool("no-experimental-mono-arrays", false, "legacy compatibility flag; native static Array lowering remains enabled")
-	experimentalExecutionContext := fs.Bool("experimental-execution-context", false, "enable generated-call execution-context propagation prototype")
+	experimentalExecutionContext := fs.Bool("experimental-execution-context", false, "force generated-call execution-context propagation for diagnostic comparison")
 	dynamicBoundaryTelemetry := fs.Bool("dynamic-boundary-telemetry", false, "emit debug-only dynamic-boundary counters in generated code")
 	callPathTelemetry := fs.Bool("call-path-telemetry", false, "emit debug-only generated call-path counters in generated code")
 	typedBoundaryTelemetry := fs.Bool("typed-boundary-telemetry", false, "emit debug-only typed/runtime boundary counters in generated code")

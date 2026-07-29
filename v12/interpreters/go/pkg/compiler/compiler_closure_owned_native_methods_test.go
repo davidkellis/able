@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestCompilerClosureOwnedKernelMethodsFollowCallableContextGate(t *testing.T) {
+func TestCompilerClosureOwnedKernelMethodsFollowSchedulerContextActivation(t *testing.T) {
 	awaitSource := strings.Join([]string{
 		"package demo",
 		"",
@@ -44,17 +44,16 @@ func TestCompilerClosureOwnedKernelMethodsFollowCallableContextGate(t *testing.T
 			method.local + "}"
 		direct := "inst.Fields[" + quoteGoString(method.field) +
 			"] = " + method.local
-		if !strings.Contains(defaultSource, bound) {
-			t.Fatalf("default source is missing bound %s method", method.field)
-		}
-		if strings.Contains(defaultSource, direct) {
-			t.Fatalf("default source unexpectedly uses receiver-free %s method", method.field)
-		}
-		if strings.Contains(experimentalSource, bound) {
-			t.Fatalf("experimental source retains bound %s method", method.field)
-		}
-		if !strings.Contains(experimentalSource, direct) {
-			t.Fatalf("experimental source is missing receiver-free %s method", method.field)
+		for mode, compiledSource := range map[string]string{
+			"default":  defaultSource,
+			"force_on": experimentalSource,
+		} {
+			if strings.Contains(compiledSource, bound) {
+				t.Fatalf("%s source retains bound %s method", mode, method.field)
+			}
+			if !strings.Contains(compiledSource, direct) {
+				t.Fatalf("%s source is missing receiver-free %s method", mode, method.field)
+			}
 		}
 	}
 }

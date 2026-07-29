@@ -1,0 +1,52 @@
+File: compiled
+Build ID: 57a53b82a10ab91dfbf87f95e622f63283de7d5f
+Type: alloc_objects
+Time: 2026-07-29 11:11:32 CDT
+Showing nodes accounting for 700142, 99.87% of 701054 total
+Dropped 185 nodes (cum <= 3505)
+      flat  flat%   sum%        cum   cum%
+    196663 28.05% 28.05%     196678 28.05%  able/interpreter-go/pkg/compiler/bridge.ToInt
+    147466 21.03% 49.09%     147466 21.03%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     87422 12.47% 61.56%      87422 12.47%  runtime/pprof.allFrames
+     49164  7.01% 68.57%      98322 14.02%  main.__able_struct_Frame_from
+     49152  7.01% 75.58%      73728 10.52%  main.__able_compiled_impl_StatefulStage_apply_0_ctx
+     49152  7.01% 82.59%      49153  7.01%  main.__able_struct_Pulse_from
+     24576  3.51% 86.10%     110612 15.78%  main.__able_compiled_fn_produce_ctx
+     24576  3.51% 89.60%      36864  5.26%  main.__able_compiled_impl_StatefulStage_apply_0_a_ctx
+     23196  3.31% 92.91%      23330  3.33%  runtime/pprof.(*profileBuilder).emitLocation
+     12288  1.75% 94.67%      12288  1.75%  main.__able_compiled_fn_main_ctx.__able_compiled_fn_make_reducer_ctx.func5
+     12288  1.75% 96.42%      12288  1.75%  main.__able_compiled_fn_main_ctx.__able_compiled_fn_make_reducer_ctx.func6
+     12288  1.75% 98.17%      12288  1.75%  main.__able_compiled_fn_main_ctx.__able_compiled_fn_make_reducer_ctx.func7
+     11830  1.69% 99.86%     122833 17.52%  runtime/pprof.writeHeapProto
+        42 0.006% 99.86%      24987  3.56%  main.__able_compiled_fn_main_ctx
+        18 0.0026% 99.87%     110791 15.80%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         9 0.0013% 99.87%     442464 63.11%  main.__able_compiled_fn_run_stage_ctx
+         3 0.00043% 99.87%     122851 17.52%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         3 0.00043% 99.87%      24996  3.57%  main.RunRegisteredMain
+         3 0.00043% 99.87%      24990  3.56%  main.__able_compiled_entry_fn_main_ctx
+         3 0.00043% 99.87%     122836 17.52%  runtime/pprof.writeHeapInternal
+         0     0% 99.87%     122851 17.52%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.87%     122851 17.52%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.87%     553192 78.91%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 99.87%      24993  3.57%  main.RunRegisteredMain.func1
+         0     0% 99.87%     110615 15.78%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.87%     147491 21.04%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.87%     147498 21.04%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 99.87%     147511 21.04%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 99.87%      98386 14.03%  main.__able_compiled_method_Channel_receive_spec_ctx
+         0     0% 99.87%     344092 49.08%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0% 99.87%      73728 10.52%  main.__able_iface_StatefulStage_adapter_ptr_AffineStage.__able_ctx_apply
+         0     0% 99.87%      36864  5.26%  main.__able_iface_StatefulStage_adapter_ptr_WindowStage.__able_ctx_apply
+         0     0% 99.87%      24993  3.57%  main.__able_register_compiled_call.func1
+         0     0% 99.87%     553192 78.91%  main.__able_run_compiled_task
+         0     0% 99.87%     553127 78.90%  main.__able_spawn_context.func1
+         0     0% 99.87%     344081 49.08%  main.__able_struct_Frame_to (inline)
+         0     0% 99.87%     344081 49.08%  main.__able_struct_Frame_to_seen
+         0     0% 99.87%     196624 28.05%  main.__able_struct_Pulse_to_seen
+         0     0% 99.87%      24993  3.57%  main.__able_wrap_fn_main
+         0     0% 99.87%     147847 21.09%  main.main
+         0     0% 99.87%     147847 21.09%  main.runMain
+         0     0% 99.87%     122851 17.52%  main.startMainProfilePhase (inline)
+         0     0% 99.87%     147847 21.09%  runtime.main
+         0     0% 99.87%     122836 17.52%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.87%     122836 17.52%  runtime/pprof.writeAlloc

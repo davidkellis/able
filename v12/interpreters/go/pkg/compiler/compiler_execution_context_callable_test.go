@@ -49,6 +49,105 @@ func TestCompilerExperimentalExecutionContextCarriesNativeCallables(t *testing.T
 	}
 }
 
+func TestCompilerAwaitSelectsCallableExecutionContextByDefault(t *testing.T) {
+	source := strings.Join([]string{
+		"package demo",
+		"",
+		"fn apply(callback: (i32 -> i32), value: i32) -> i32 {",
+		"  callback(value)",
+		"}",
+		"",
+		"fn main() -> i32 {",
+		"  handle := spawn { apply(fn(value: i32) -> i32 { value + 1 }, 41) }",
+		"  await [handle] as i32",
+		"}",
+		"",
+	}, "\n")
+	defaultResult := compileNoFallbackSource(t, source)
+	defaultSource := string(defaultResult.Files["compiled.go"])
+	for _, fragment := range []string{
+		"type __able_execution_context struct",
+		"func __able_call_value_fast_ctx(",
+		"type __able_fn_int32_to_int32 func(arg0 int32, __able_exec_ctx *__able_execution_context)",
+	} {
+		if !strings.Contains(defaultSource, fragment) {
+			t.Fatalf("default await context ABI is missing %q", fragment)
+		}
+	}
+}
+
+func TestCompilerImportedAwaitSelectsCallableExecutionContextByDefault(t *testing.T) {
+	result := compileNoFallbackPackageWithOptions(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{run}",
+			"",
+			"fn main() -> i32 { run() }",
+			"",
+		}, "\n"),
+		"remote/run.able": strings.Join([]string{
+			"fn run() -> i32 {",
+			"  handle := spawn { 42 }",
+			"  await [handle] as i32",
+			"}",
+			"",
+		}, "\n"),
+	}, Options{
+		PackageName:        "main",
+		RequireNoFallbacks: true,
+		EmitMain:           true,
+	})
+
+	compiledSource := string(result.Files["compiled.go"])
+	for _, fragment := range []string{
+		"type __able_execution_context struct",
+		"func __able_call_value_fast_ctx(",
+		"func __able_compiled_fn_run_ctx(",
+	} {
+		if !strings.Contains(compiledSource, fragment) {
+			t.Fatalf("imported await context ABI is missing %q", fragment)
+		}
+	}
+}
+
+func TestCompilerImportedSpawnSelectsCallableExecutionContextByDefault(t *testing.T) {
+	result := compileNoFallbackPackageWithOptions(t, "demo", map[string]string{
+		"main.able": strings.Join([]string{
+			"package demo",
+			"",
+			"import demo.remote.{run}",
+			"",
+			"fn main() -> i32 { run() }",
+			"",
+		}, "\n"),
+		"remote/run.able": strings.Join([]string{
+			"fn run() -> i32 {",
+			"  handle := spawn { 42 }",
+			"  handle.value()! as i32",
+			"}",
+			"",
+		}, "\n"),
+	}, Options{
+		PackageName:        "main",
+		RequireNoFallbacks: true,
+		EmitMain:           true,
+	})
+
+	compiledSource := string(result.Files["compiled.go"])
+	for _, fragment := range []string{
+		"type __able_execution_context struct",
+		"func __able_call_value_fast_ctx(",
+		"func __able_compiled_fn_run_ctx(",
+		"type __able_native_await_waker struct",
+		"func __able_make_await_registration_value_ctx(",
+	} {
+		if !strings.Contains(compiledSource, fragment) {
+			t.Fatalf("imported spawn context ABI is missing %q", fragment)
+		}
+	}
+}
+
 func TestCompilerDefaultNativeCallableABIHasNoContextParameter(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

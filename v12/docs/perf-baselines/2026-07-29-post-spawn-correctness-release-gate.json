@@ -1,0 +1,78 @@
+{
+  "kind": "able-post-spawn-correctness-release-gate",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "correctness-release-gate-passed-no-production-change",
+  "environment": {
+    "go_version": "go1.26.5",
+    "fixture_typechecking": "strict",
+    "disk_backed_workspace": "/var/tmp/able-v12-correctness-release-20260729",
+    "stdlib_root": "../able-stdlib",
+    "stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+    "stdlib_git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "stdlib_dirty_before_and_after": true
+  },
+  "run_all_tests": {
+    "status": "passed",
+    "exit_status": 0,
+    "wall_seconds": 950.94,
+    "user_seconds": 2143.07,
+    "system_seconds": 132.99,
+    "cpu_percent": 239,
+    "peak_rss_kb": 4651676,
+    "swaps": 0,
+    "compiler_tests_listed": 835,
+    "compiler_batches": 34,
+    "compiler_batches_passed": 34,
+    "bytecode_fixture_seconds": 83.886
+  },
+  "slow_batch_audit": [
+    {
+      "batch": 20,
+      "aggregate_seconds": 109.93,
+      "passed_tests": 21,
+      "short_mode_skips": 4,
+      "slowest_test": "TestCompilerCanonicalStdlibExpectationResultArgumentStaysConcrete",
+      "slowest_test_seconds": 22.91
+    },
+    {
+      "batch": 29,
+      "aggregate_seconds": 75.451,
+      "passed_tests": 20,
+      "short_mode_skips": 5,
+      "slowest_test": "TestCompilerCanonicalSpecNullableExpectationLowers",
+      "slowest_test_seconds": 15.15
+    },
+    {
+      "batch": 30,
+      "aggregate_seconds": 123.49,
+      "passed_tests": 25,
+      "short_mode_skips": 0,
+      "slowest_test": "TestCompilerNoFallbacksStringBuilderUsesNativeArrayPushAll",
+      "slowest_test_seconds": 10.74
+    }
+  ],
+  "stdlib": {
+    "status": "passed",
+    "treewalker_seconds": 19,
+    "bytecode_seconds": 15,
+    "wall_seconds": 35.4,
+    "peak_rss_kb": 871740,
+    "swaps": 0
+  },
+  "derived_evidence": {
+    "scorecard": "passed",
+    "frontier_rows": 126,
+    "frontier_actionable_groups": 0,
+    "closure_count": 23,
+    "closure_invalidations": 0,
+    "whitespace": "passed"
+  },
+  "production_change": "none",
+  "next": {
+    "recommendation": "Refresh the exact retained/deferred worktree release inventory without staging, committing, or pushing.",
+    "why": "The verified dirty worktree has accumulated retained compiler and evidence paths after the previous inventory beside a separately deferred WASM boundary.",
+    "entails": "Capture exact Git identities, classify every dirty file, validate content and path-complement gates, and write a non-mutating manifest.",
+    "importance": "This protects the verified native-lowering state from accidental inclusion of deferred or generated artifacts."
+  }
+}

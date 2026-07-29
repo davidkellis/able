@@ -1,0 +1,142 @@
+{
+  "kind": "able-post-spawn-context-scorecard-and-owner-closure",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "promote-source-changed-rows-close-rejected-candidate",
+  "production_change": "none",
+  "measurement": {
+    "go_version": "go1.26.5",
+    "affinity_pool": "5,10,3,6",
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "changed_rows": 20,
+    "preserved_source_identical_rows": 43,
+    "measured_control_rows": 9,
+    "accepted_go_processes": 145,
+    "accepted_able_processes": 145,
+    "timeouts": 0,
+    "failures": 0,
+    "verifier_failures": 0,
+    "discarded_toolchain_mismatch_processes": 15,
+    "control_geometric_ratio_drift_percent": 10.31,
+    "changed_row_geometric_ratio": 7.114236,
+    "changed_row_ratio_change_percent": 4.23
+  },
+  "scorecard": {
+    "path": "v12/docs/perf-baselines/2026-07-29-post-spawn-context-scorecard-refresh.json",
+    "sha256": "9adbc937a7048eb69f81386920c44b604e9e817b22ecaa183989f72906ff4f3a",
+    "selected_rows": 126,
+    "successful_samples_per_able_row": 5,
+    "successful_samples_per_reference_row": 5,
+    "compiled": {
+      "rows": 63,
+      "target_passes": 7,
+      "geometric_ratio": 4.320151834108754,
+      "positive_target_excess_seconds": 4.751789473684211
+    },
+    "bytecode": {
+      "rows": 63,
+      "target_passes": 4,
+      "geometric_ratio": 12.780200106901813,
+      "positive_target_excess_seconds": 221.5036842105263
+    },
+    "binary_trees": {
+      "able_mean_seconds": 10.27,
+      "go_mean_seconds": 11.0316,
+      "able_go_ratio": 0.930962249311096
+    }
+  },
+  "profiles": {
+    "applications": [
+      {
+        "id": "await_channel_mux",
+        "binary_sha256": "ff3837545b2e18f4b3931a4fc96070257ec491c76f1a66ac429a685eaadebbf0",
+        "cpu_profiles": 25,
+        "allocation_profiles": 3,
+        "cpu_duration_seconds": 1.79,
+        "cpu_samples_seconds": 1.97,
+        "main_bytes_mean": 5173336,
+        "main_objects_mean": 96748.667,
+        "to_int_objects_per_run": 4098,
+        "current_gid_objects_per_run": 8195,
+        "current_gid_cumulative_cpu_percent": 73.6
+      },
+      {
+        "id": "validated_job_pipeline",
+        "binary_sha256": "1d02920504180286860a1a0ea3e407fc6a4cbd37c66027f41ccdb21502a54a1f",
+        "cpu_profiles": 25,
+        "allocation_profiles": 3,
+        "cpu_duration_seconds": 0.99392,
+        "cpu_samples_seconds": 2.34,
+        "main_bytes_mean": 1832016,
+        "main_objects_mean": 32937.667,
+        "to_int_objects_per_run": 4107,
+        "current_gid_objects_per_run": 4114,
+        "nominal_struct_objects_per_run": 4608,
+        "current_gid_cumulative_cpu_percent": 92.31
+      },
+      {
+        "id": "concurrent_stateful_pipeline",
+        "binary_sha256": "6e7bfd60edfb6341c9a6ae7276d98daacd10b83195f48ce8aeff35637dae5a75",
+        "cpu_profiles": 25,
+        "allocation_profiles": 3,
+        "cpu_duration_seconds": 0.33517,
+        "cpu_samples_seconds": 0.79,
+        "main_bytes_mean": 10599960,
+        "main_objects_mean": 192749,
+        "to_int_objects_per_run": 65554.333,
+        "current_gid_objects_per_run": 15.333,
+        "nominal_struct_objects_per_run": 49155.333,
+        "current_gid_cumulative_cpu_percent": 2.53,
+        "to_int_cumulative_cpu_percent": 21.52
+      }
+    ],
+    "successful_processes": 84,
+    "interpreter_free_binaries": 3,
+    "profile_directory": "v12/docs/perf-baselines/2026-07-29-post-spawn-context-residual-profiles"
+  },
+  "owner": {
+    "exact_leaf": "able/interpreter-go/pkg/compiler/bridge.ToInt",
+    "exact_leaf_breadth": 3,
+    "disposition": "closed-rejected-candidate",
+    "reason": "Ordinary semantic-boundary boxing remains material in all three applications, but a global i64 cache already slowed the allocation-light TapeLang guard by 4.17%. currentGID and nominal struct construction each remain material in only two applications."
+  },
+  "frontier": {
+    "path": "v12/docs/perf-baselines/2026-07-29-post-spawn-context-frontier.json",
+    "target_guards": 11,
+    "target_misses": 115,
+    "total_positive_target_excess_seconds": 226.25547368421053,
+    "actionable_groups": 0
+  },
+  "closure_ledger": {
+    "path": "v12/docs/perf-baselines/2026-07-29-post-spawn-context-closure-ledger.json",
+    "closures": 23,
+    "current": 23,
+    "invalidated": 0,
+    "compiler_production_tree_sha256": "d9e73a315f6ac6c9c3faa7a9530aaae33c8eee4a91e26b82e92505f1af9a4068"
+  },
+  "verification": {
+    "scorecard_evidence": "passed",
+    "frontier_check": "passed",
+    "closure_ledger_check": "passed",
+    "selector_tests": 2,
+    "scorecard_evidence_tests": 2,
+    "frontier_tests": 5,
+    "closure_ledger_tests": 7,
+    "closure_ledger_test_skips": 1,
+    "cmd_ablec_seconds": 5.518
+  },
+  "stdlib_source_state": {
+    "path": "v12/docs/perf-baselines/2026-07-29-post-spawn-context-stdlib-source-state.json",
+    "source_file_count": 70,
+    "source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+    "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "git_dirty": true
+  },
+  "next": {
+    "recommendation": "Do not begin another performance optimization until the evidence selector reports an invalidated closure; use the next tranche for bounded v12 correctness and release verification.",
+    "why": "The only open performance group is closed, and the sole three-application exact owner is an already rejected candidate.",
+    "entails": "Keep the scorecard, frontier, and closure-ledger checks green, run bounded focused tests, and work on a concrete v12 correctness, spec, or stdlib gap until a legitimate evidence trigger appears.",
+    "importance": "This prevents benchmark pressure from reviving unsafe or already rejected lowering routes."
+  }
+}

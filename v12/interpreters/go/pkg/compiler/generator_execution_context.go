@@ -8,11 +8,11 @@ import (
 const executionContextType = "*__able_execution_context"
 
 func (g *generator) executionContextsEnabled() bool {
-	return g != nil && g.opts.ExperimentalExecutionContext
+	return g != nil && (g.opts.ExperimentalExecutionContext || g.schedulerExecutionContextRequired)
 }
 
 func (g *generator) callableExecutionContextsEnabled() bool {
-	return g != nil && g.executionContextsEnabled() && g.needsCallableExecutionContext
+	return g != nil && g.executionContextsEnabled() && g.schedulerExecutionContextRequired
 }
 
 func (g *generator) compiledCallArgs(ctx *compileContext, args []string) string {

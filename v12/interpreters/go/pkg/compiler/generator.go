@@ -79,7 +79,7 @@ type generator struct {
 	needsIterator                       bool
 	needsStrconv                        bool
 	needsStringFromByteArray            bool
-	needsCallableExecutionContext       bool
+	schedulerExecutionContextRequired   bool
 	awaitExprs                          []string
 	awaitNames                          map[*ast.AwaitExpression]string
 	diagNodes                           []diagNodeInfo
@@ -255,7 +255,7 @@ func (g *generator) collect(program *driver.Program) error {
 	g.packageInitOrder = nil
 	g.packageInitStatements = make(map[string][]ast.Statement)
 	g.packageInitCompiled = make(map[string][]string)
-	g.needsCallableExecutionContext = false
+	g.schedulerExecutionContextRequired = false
 	g.invalidatePackageEnvVars()
 	if g.nodeOrigins == nil {
 		g.nodeOrigins = make(map[ast.Node]string)
@@ -294,7 +294,7 @@ func (g *generator) collect(program *driver.Program) error {
 		seenModules[module] = struct{}{}
 		uniqueModules = append(uniqueModules, module)
 	}
-	g.needsCallableExecutionContext = g.programNeedsCallableExecutionContext(uniqueModules)
+	g.schedulerExecutionContextRequired = g.programRequiresSchedulerExecutionContext(uniqueModules)
 	for _, module := range uniqueModules {
 		for _, stmt := range module.AST.Body {
 			def, ok := stmt.(*ast.UnionDefinition)

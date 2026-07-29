@@ -5827,6 +5827,24 @@ Open items (2025-11-02 audit):
 - Record:
   `docs/perf-baselines/2026-07-29-compiled-frontier-admission-closure.md`.
 
+## 2026-07-29 - Active v12 correctness and security revalidation
+
+- Go 1.26.5 module verification and `govulncheck` v1.6.0 pass with zero
+  reachable and zero imported-package vulnerabilities. The same eight
+  unreachable module-only findings remain documented and accepted.
+- Vet, build, every bounded handoff preflight, all non-compiler packages, all
+  34 compiler short-mode shards, and the bytecode fixture pass succeed.
+- Serial JSON timing over the 75 tests in the three aggregate shards above one
+  minute found zero individual test over 60 seconds; the maximum was 24.49
+  seconds.
+- Removed generated Python bytecode, the exact timing artifact, and an idle
+  unheld 37 MiB `/tmp` extern cache. The worktree remains exactly the 34-file
+  deferred WASM hold with an empty index.
+- Retained no source or dependency change. Next keep the production
+  performance pause until a checked closure is genuinely invalidated.
+- Record:
+  `docs/perf-baselines/2026-07-29-active-v12-correctness-security-revalidation.md`.
+
 ## 2026-07-29 - Authorized post-toolchain exact-index commit
 
 - The maintainer authorized exact staging and one local commit for the
@@ -5842,3 +5860,395 @@ Open items (2025-11-02 audit):
   local consolidation authority does not authorize a push.
 - Record:
   `docs/perf-baselines/2026-07-29-post-toolchain-release-inventory.md`.
+
+## 2026-07-29 - Callable-context default-activation design
+
+- Completed the explicitly authorized design/proof revisit of the compiled
+  callable execution-context boundary.
+- Found no missing ABI to invent: the retained experimental implementation
+  already transports an allocation-free task context through static,
+  interface, callable, captured-lambda, bound-method, runtime-adapter, Await,
+  and reverse native-call paths while preserving compatibility entries.
+- Rejected a global default again and specified the narrower production
+  candidate: activate the existing ABI only for a loaded static program graph
+  containing `await`, including imported modules, with byte-identical output
+  required for all await-free programs.
+- Defined task/package/lexical-environment invariants, failure modes, focused
+  source and semantic guards, exact boundary/allocation proof, and the full
+  63-application verifier-backed A/B/Go admission cohort.
+- No compiler, generated-runtime, runtime, interpreter, bytecode VM, stdlib,
+  language, dependency, benchmark, fixture, non-primitive nominal, or WASM
+  production source changed.
+- Next implement and measure the activation-only candidate. This is important
+  because all four currently reached applications improve 55.00%-95.09% with
+  the retained ABI, while safe default selection must keep its cost out of the
+  other 59.
+- Records:
+  `design/compiler-callable-context-default-activation.md` and
+  `docs/perf-baselines/2026-07-29-compiled-callable-context-default-activation-design.md`.
+
+## 2026-07-29 - Callable-context default activation retained
+
+- Changed compiler activation, not representation: a loaded program graph
+  containing `await` now selects the retained callable execution-context ABI
+  by default, while dynamic/host compatibility entries remain available.
+- Option-independent detection covers imported modules. The experimental flag
+  remains a force-on diagnostic and await-free default programs retain their
+  previous generated source.
+- A 63-application frozen A/B census passed all 126 strict builds, executions,
+  public verifiers, and interpreter-dependency checks. Fifty-nine generated
+  sources were byte-identical and only the four expected await applications
+  changed.
+- Seven rotating A/B/Go cohorts improved the four reached rows
+  45.77%-97.09%; their geometric-mean time fell 87.15%.
+- Five-process allocation evidence reduced main-phase bytes
+  20.69%-78.50% and objects 10.62%-69.24%. Five-process bridge overlays
+  reduced `currentGID` calls 48.38%-99.96%, while exact callable/await
+  counters proved default-path execution.
+- Bounded source, imported-module, nested-task, Awaitable, stale-waker,
+  dynamic/host compatibility, fixture-parity, CLI, bridge, and closed
+  benchmark guards pass. No individual focused command exceeded one minute.
+- No runtime, interpreter, bytecode VM, canonical stdlib, language,
+  dependency, benchmark, fixture, non-primitive nominal, or WASM change was
+  required.
+- Next refresh and promote the complete compiled scorecard and frontier with
+  five matched Go 1.26.5 processes per side. This is important because the
+  next shared owner must be selected from the post-activation residuals.
+- Record:
+  `docs/perf-baselines/2026-07-29-compiled-callable-context-default-activation-retained.md`.
+
+## 2026-07-29 - Post-callable-context scorecard promoted
+
+- Completed a paired five-process Go 1.26.5/Able refresh for all 63 strict
+  compiled applications: all 630 launches passed and every Able result passed
+  its public verifier.
+- Rejected the full replacement cohort because unrelated host load inflated
+  the 59 byte-identical controls. Promoted the seven-row async refresh and
+  preserved same-toolchain evidence for the other 56 compiled rows and all 63
+  bytecode rows.
+- Compiled remains at 7/63 target passes; its geometric Able/Go ratio improves
+  8.05% to 4.263718× and positive target excess falls 11.25% to 4.750737
+  seconds.
+- The four changed rows improve 14.67%-91.77% in the formal scorecard. The
+  combined frontier now has 11 guards, 115 misses, 226.254421 seconds of
+  positive target excess, and one actionable group.
+- `compiled-concurrency` is open at 0.891158 seconds of excess. Its 19
+  byte-identical unresolved rows retain the exact
+  `bridge.currentGID`/`runtime.Stack` owner removed from the four await rows.
+- Rebased the 23-closure ledger after source-identity, verifier, and generated
+  source-shape reconciliation; it evaluates with zero invalidations.
+- Static census finds `spawn` in those 19 concurrency rows and Binary Trees,
+  yielding 20 newly reached applications and 39 spawn-free controls.
+- Current scorecard, five-run evidence, frontier, ledger, and focused tooling
+  tests pass. This refresh made no further production, stdlib, runtime,
+  interpreter, VM, language, dependency, benchmark, nominal-special-case, or
+  WASM change.
+- Next implement and gate spawn-aware scheduler-context selection across
+  loaded modules. This entails semantic/source guards and five-or-more
+  balanced A/B/Go, allocation, and exact boundary samples for the 20 reached
+  programs and 39 controls. It matters because it is the only actionable
+  general compiled boundary, and Binary Trees guards against sacrificing
+  already-native performance.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-callable-context-scorecard-refresh.md`.
+
+## 2026-07-29 - Spawn-gated callable context retained
+
+- Scheduler-context detection now recognizes `spawn` as well as `await`
+  across every loaded module, selecting the existing callable-context ABI
+  without changing data carriers or dynamic/host compatibility.
+- Corrected spawn-only generated helper closure: context-aware Awaitable
+  surfaces emit native waker and registration helpers even when no explicit
+  source `await` exists.
+- A complete frozen 63-application baseline/candidate census passed all 126
+  strict executions, verifiers, and interpreter-dependency checks. Twenty
+  generated sources changed; 39 spawn-free and four already await-gated
+  controls were byte-identical.
+- Seven or fifteen rotating A/B/Go pairs per reached row improved 13 of 20
+  applications and produced a 0.884258 cross-application paired geometric
+  ratio. Without the large Mutex Ledger win, the other 19 improve 2.96%.
+- Binary Trees retained the native-performance guard across fifteen pairs:
+  16.624459-second candidate mean versus 16.246988-second Go mean and 97.67%
+  of Go performance by paired geometric ratio.
+- Five-run allocation evidence is broadly neutral; Mutex Ledger cuts bytes
+  56.17% and objects 49.39%. Five-run diagnostic overlays reduce exact
+  `currentGID` calls in 19 of 20 applications.
+- Seven short rows remain 0.90%-6.66% slower. The general syntax gate was
+  retained because a narrower application, family, nominal-type, or measured
+  runtime-count predicate would be benchmark-specific.
+- Bounded source-shape, imported spawn, nested task, captured callable,
+  Channel, Future, Mutex, cancellation, Awaitable/waker, stale-waker,
+  executor, CLI, bridge, formatting, and source-size checks pass.
+- No runtime, interpreter, bytecode VM, canonical stdlib, language,
+  dependency, benchmark, fixture, non-primitive nominal, or WASM change was
+  made.
+- Next selectively refresh the compiled scorecard and derived evidence for
+  the 20 source-changed rows while preserving the 43 source-identical rows.
+  This matters because the pre-spawn frontier no longer represents the
+  residual costs from which the next general compiler/runtime owner must be
+  selected.
+- Records:
+  `design/compiler-spawn-gated-callable-context-activation.md` and
+  `docs/perf-baselines/2026-07-29-compiled-spawn-gated-callable-context-retained.md`.
+
+## 2026-07-29 - Post-spawn scorecard and residual-owner closure
+
+- Measured five matched Go 1.26.5 and Able processes for the 20 changed
+  compiled rows and nine byte-identical controls. All 290 accepted processes
+  verified; a 15-process mixed-toolchain attempt was discarded.
+- The nine controls drifted by a 10.31% geometric mean under unrelated host
+  load, so the promoted scorecard replaces only the 20 source-changed rows and
+  preserves the other 43 compiled rows.
+- Compiled remains at 7/63 target passes, 4.320152× Go geometric mean, and
+  4.751789 seconds of positive target excess. Binary Trees remains a guard at
+  0.930962× Go time.
+- Fresh 25-profile CPU and three-profile exact allocation intersections
+  across Await Channel Mux, Validated Job Pipeline, and Concurrent Stateful
+  Pipeline found ordinary `bridge.ToInt` boxing in all three. The global
+  integer cache remains rejected by its 4.17% TapeLang regression.
+- `currentGID` is material only in the first two applications, while nominal
+  struct construction is material only in the latter two. No new owner clears
+  both breadth and admissibility.
+- The 126-row frontier now has zero actionable groups. The scope-reviewed
+  closure baseline contains 23 current entries and zero invalidations.
+- Added and tested `bench_select_comparison_rows`. Checked scorecard,
+  five-sample evidence, frontier, ledger, Python, whitespace, and
+  `cmd/ablec` verification pass. No production or WASM change was made.
+- Next run bounded v12 correctness and release verification until a concrete
+  change invalidates a performance closure. This keeps the native-carrier and
+  interpreter-free gains protected without reviving rejected candidates.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-spawn-context-scorecard-and-owner-closure.md`.
+
+## 2026-07-29 - Post-spawn correctness and release gate
+
+- `./run_all_tests.sh` passed every deterministic contract, non-compiler
+  package, all 34 compiler short-mode batches, and the complete bytecode
+  fixture corpus under Go 1.26.5 and strict fixture typechecking.
+- The full gate took 15:50.94 at 4,651,676 KB peak RSS with no swaps. The
+  final bytecode fixture pass took 83.886 seconds.
+- Three compiler aggregates exceeded one minute under unrelated host load.
+  Per-test JSON replays found maxima of 22.910 seconds in batch 20, 15.150
+  seconds in batch 29, and 10.740 seconds in batch 30; no individual test
+  violates the one-minute limit.
+- Canonical stdlib tests passed in tree-walker mode in 19 seconds and bytecode
+  mode in 15 seconds. Its source tree and dirty state were unchanged.
+- Authoritative scorecard, zero-actionable frontier, 23-current closure
+  ledger, and whitespace checks remain green.
+- Retained no production, stdlib, dependency, benchmark, fixture,
+  nominal-special-case, or WASM change.
+- Next refresh the exact retained/deferred worktree release inventory without
+  staging, committing, or pushing. This is important because accumulated
+  retained evidence must remain separate from the deferred WASM boundary and
+  generated local artifacts.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-spawn-correctness-release-gate.md`.
+
+## 2026-07-29 - Post-spawn release inventory
+
+- Captured an immutable 178-file fully expanded worktree snapshot with an
+  empty index and `HEAD` equal to `origin/master`.
+- Classified exactly 144 retained paths and the unchanged 34-file deferred
+  WASM hold. No dirty path is unmatched or generated-local.
+- Reproduced every line, byte, and content identity. JSON, formatting,
+  language syntax, whitespace, source-size, scope, common-secret, scorecard,
+  frontier, closure-ledger, and five-sample evidence validation pass.
+- Defined an exact 147-path post-record retained candidate whose complement
+  must remain the 34 deferred WASM files. No staging, commit, push, cleanup
+  application, implementation change, or WASM work occurred.
+- The cleanup audit found 7.909 GiB of ignored generated cache data.
+  Disposable benchmark workspaces are gone and no `/tmp/able-*` path remains.
+- Next obtain explicit authorization for exact local consolidation. This
+  entails refreshing handoff identities and staging only the verified NUL
+  pathspec before one local commit if authorized; it is important because the
+  deferred WASM boundary must remain outside release history.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-spawn-release-inventory.md`.
+
+## 2026-07-29 - Exact post-spawn local consolidation
+
+- The maintainer authorized exact staging and one local commit for the
+  147-path retained candidate, but did not authorize a push.
+- Refreshed the 144 non-self identities and revalidated the exact 147 retained
+  paths against the unchanged 34-file deferred WASM complement.
+- Used only the exact NUL-delimited retained pathspec. All deferred WASM files
+  remained unstaged; no broad `git add` pathspec was used.
+- Identity, JSON, formatting, syntax, whitespace, source-size, scope,
+  common-secret, five-sample scorecard, frontier, and closure-ledger checks
+  passed before the one local commit.
+- Next obtain explicit publish authorization. This entails checking the final
+  one-commit divergence and pushing only that exact range if authorized; it is
+  important because deferred WASM and unintended history must remain local.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-spawn-release-inventory.md`.
+
+## 2026-07-29 - Exact post-spawn publication
+
+- Pushed exactly
+  `6efad0a53120129510fdfbab7fbcc84dcd081768` to `origin/master` without
+  force and verified zero local/remote divergence.
+- The published commit contains the exact authorized 147 paths. The index
+  remained empty and all 34 deferred WASM paths remained outside the commit.
+- GitHub's push banner reported 75 repository-wide dependency alerts, so the
+  next tranche attributed active-v12 reachability before further performance
+  mutation.
+
+## 2026-07-29 - Dependency-alert attribution
+
+- Active v12 production and test scans under Go 1.26.5 report zero reachable
+  symbol and zero imported-package vulnerabilities. Parser Go bindings are
+  also clean.
+- Seven `x/net v0.54.0` advisories and the unfixable, unimported
+  `x/crypto/openpgp` advisory remain module-only.
+- A Go 1.26.4 control reaches a TLS advisory fixed by Go 1.26.5, confirming
+  the checked-in toolchain pin is security-significant.
+- Frozen v10 and v11 each retain 25 reachable historical findings; policy
+  keeps both untouched. All npm lockfiles report zero vulnerabilities.
+- All 197 dependency manifests and 34 deferred WASM paths remained
+  byte-identical. No production or dependency change was retained.
+- A temporary probe proves `x/net v0.56.0`, `x/crypto v0.53.0`, and
+  `x/sys v0.46.0` remove all seven fixable active-v12 module advisories while
+  retaining zero reachable findings.
+- Next perform that bounded proactive refresh and rerun Go 1.26.5
+  vulnerability and correctness gates. This prevents future imports from
+  activating already-fixed `x/net` vulnerabilities.
+- Record:
+  `docs/perf-baselines/2026-07-29-dependency-alert-attribution.md`.
+
+## 2026-07-29 - Bounded v12 x/net security refresh retained
+
+- Advanced `x/net` to `v0.56.0` with resolver-required
+  `x/crypto v0.53.0` and `x/sys v0.46.0`; tidy normalized only the coupled
+  `x/term` and `x/text` sums.
+- The three `go.mod` replacements and 20-line `go.sum` replacement are tidy
+  and verified, with no new module family.
+- Explicit Go 1.26.5 production and test scans remain at zero reachable and
+  zero imported-package vulnerabilities. All seven fixable `x/net`
+  advisories disappear.
+- The only remaining module finding is the unfixable, unimported
+  `x/crypto/openpgp` advisory.
+- Every package compiles, focused dependency-resolver tests pass, and the
+  authoritative scorecard, frontier, and closure ledger remain current.
+- No source, runtime, compiler, interpreter, benchmark, stdlib, frozen
+  workspace, or deferred WASM file changed.
+- Next refresh the non-mutating nine-retained/34-deferred release inventory.
+  This is important because the security correction needs an exact safe
+  consolidation boundary.
+- Record:
+  `docs/perf-baselines/2026-07-29-v12-x-net-security-refresh.md`.
+
+## 2026-07-29 - Post-security release inventory
+
+- Captured an immutable 43-file fully expanded worktree snapshot with an
+  empty index and synchronized local/remote commit.
+- Classified exactly nine retained security/handoff paths and the same 34
+  deferred WASM files. No path is unmatched or generated-local.
+- Identity, JSON, formatting, syntax, whitespace, source-size, scope,
+  common-secret, dependency, scorecard, frontier, and closure-ledger checks
+  pass.
+- Defined an exact 12-path post-record retained candidate whose complement
+  must remain the 34 deferred WASM files. No staging, commit, push, behavior
+  change, or WASM work occurred.
+- Cleanup found no generated project artifact or temporary Able workspace.
+- Next obtain explicit authorization for exact local consolidation. This
+  entails refreshing handoff identities and staging only the verified
+  12-path NUL pathspec before one local commit if authorized; it is important
+  because deferred WASM must remain outside the security release history.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-security-release-inventory.md`.
+
+## 2026-07-29 - Exact post-security local consolidation
+
+- The maintainer authorized exact staging and one local commit for the
+  12-path retained candidate, with no push authorization.
+- Refreshed all nine non-self identities and proved that the exact retained
+  candidate still complements the unchanged 34 deferred WASM files.
+- Staged only the exact NUL-delimited 12-path pathspec. The deferred WASM
+  boundary remained unstaged and no broad `git add` was used.
+- Identity, JSON, whitespace, dependency, common-secret, scorecard,
+  five-sample evidence, frontier, and closure-ledger validation passed before
+  the local commit.
+- Next obtain explicit publish authorization. This requires checking the
+  final one-commit divergence and remote destination, then pushing only that
+  exact range if authorized; it is important because deferred WASM and
+  unintended history must remain local.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-security-release-inventory.md`.
+
+## 2026-07-29 - Exact post-security publication
+
+- Pushed exactly
+  `5f84e42c43d3d514c231c7887e835895a9ba557a` to `origin/master` without
+  force and verified zero local/remote divergence.
+- The published commit contains the exact authorized 12 paths. The index
+  remained empty and all 34 deferred WASM files remained outside history.
+- GitHub still reports the same repository-wide 75-alert aggregate. The
+  completed attribution and bounded refresh remain authoritative for active
+  v12: zero reachable or vulnerable imported-package findings, with all seven
+  fixable `x/net` advisories removed.
+- Next run a whole-corpus compiled native-carrier and semantic-boundary census
+  and compare every remaining generated boundary with the 23 current closure
+  entries. Only an uncovered owner repeated by at least three unlike
+  applications may proceed to repeated CPU/allocation and equivalent-Go
+  measurement. This is important because the current frontier contains no
+  actionable shared owner and closed routes must not be repeated without
+  invalidation.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-security-release-inventory.md`.
+
+## 2026-07-29 - Compiled native-carrier census reconciled
+
+- The requested whole-corpus census is already represented by the completed
+  July 26 61-row exact-owner census and the post-spawn July 29 63-row
+  scorecard/owner refresh.
+- All 23 performance closures are current, none is invalidated, and the
+  frontier has zero actionable groups. Relevant compiler, bridge, spec, and
+  benchmark sources are unchanged after the closure refresh.
+- All 63 compiled rows remain verified with five Able/reference samples each.
+  The external suite has no unselected portable application: only historical
+  diagnostic `sudoku` is outside coverage, and it is non-comparable and
+  unbounded under the current contract.
+- Retained no implementation change and did not repeat closed builds,
+  profiles, prototypes, or A/B/Go measurements.
+- Next refresh the exact retained/deferred release inventory for the three
+  handoff files and two census records. This is important because the
+  no-code stopping condition must remain separate from the unchanged 34
+  deferred WASM files.
+- Record:
+  `docs/perf-baselines/2026-07-29-compiled-native-carrier-census-reconciliation.md`.
+
+## 2026-07-29 - Post-census release inventory
+
+- Captured an immutable 39-file fully expanded worktree snapshot with an empty
+  index and synchronized local/remote commit.
+- Classified exactly five retained census/handoff paths and the same 34
+  deferred WASM files. No path is unmatched or generated-local.
+- Identity, JSON, formatting, syntax, whitespace, source-size, scope,
+  common-secret, scorecard, frontier, and closure-ledger checks pass.
+- Defined an exact eight-path post-record retained candidate whose complement
+  must remain the 34 deferred WASM files. No staging, commit, push, behavior
+  change, or WASM work occurred.
+- Next obtain explicit authorization for exact local consolidation. This
+  entails refreshing the five non-self identities and staging only the
+  verified eight-path NUL pathspec before one local commit if authorized; it
+  is important because deferred WASM must remain outside the census history.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-census-release-inventory.md`.
+
+## 2026-07-29 - Exact post-census local consolidation
+
+- The maintainer authorized exact staging and one local commit for the
+  eight-path retained candidate, with no push authorization.
+- Refreshed all five non-self identities and proved that the exact retained
+  candidate still complements the unchanged 34 deferred WASM files.
+- Staged only the exact NUL-delimited eight-path pathspec. The deferred WASM
+  boundary remained unstaged and no broad `git add` was used.
+- Identity, JSON, whitespace, scope, common-secret, scorecard, five-sample
+  evidence, frontier, and closure-ledger validation passed before the local
+  commit.
+- Next obtain explicit publish authorization. This requires checking the
+  final one-commit divergence and remote destination, then pushing only that
+  exact range if authorized; it is important because deferred WASM and
+  unintended history must remain local.
+- Record:
+  `docs/perf-baselines/2026-07-29-post-census-release-inventory.md`.

@@ -1,0 +1,126 @@
+{
+  "kind": "able-v12-x-net-security-refresh",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": "retain-bounded-v12-security-refresh",
+  "repository": {
+    "head": "6efad0a53120129510fdfbab7fbcc84dcd081768",
+    "origin_master": "6efad0a53120129510fdfbab7fbcc84dcd081768",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0
+  },
+  "dependency_changes": {
+    "go_mod": {
+      "before_sha256": "0dceec93c608f733816f5b926c00a73b05047abc446f7fca91bb664520ebaff3",
+      "after_sha256": "7a76c1bd85b76d079c9acc1148cc3dc6b6f03694aae7e3c29e650e1891aeb563",
+      "version_replacements": 3
+    },
+    "go_sum": {
+      "before_sha256": "10840efb4d3a0cabbef2e43d491d30bae0973faff3735dd85fb681fc60ff94b7",
+      "after_sha256": "0eed327adef2c76281d55a5b3dfaa8a0be3df8346423667b0b2aee62f882e83f",
+      "removed_lines": 10,
+      "added_lines": 10
+    },
+    "versions": {
+      "golang.org/x/net": {
+        "from": "v0.54.0",
+        "to": "v0.56.0"
+      },
+      "golang.org/x/crypto": {
+        "from": "v0.52.0",
+        "to": "v0.53.0"
+      },
+      "golang.org/x/sys": {
+        "from": "v0.45.0",
+        "to": "v0.46.0"
+      },
+      "golang.org/x/term": {
+        "sum_from": "v0.43.0",
+        "sum_to": "v0.44.0"
+      },
+      "golang.org/x/text": {
+        "sum_from": "v0.37.0",
+        "sum_to": "v0.38.0"
+      }
+    },
+    "new_module_families": 0,
+    "go_mod_tidy_diff_after_update": false,
+    "go_mod_verify": "pass"
+  },
+  "vulnerability_validation": {
+    "scanner": "govulncheck v1.6.0",
+    "database": "https://vuln.go.dev",
+    "database_last_modified": "2026-07-27T20:14:16Z",
+    "toolchain": "go1.26.5",
+    "production": {
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "module_advisories": [
+        "GO-2026-5932"
+      ]
+    },
+    "tests": {
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "module_advisories": [
+        "GO-2026-5932"
+      ]
+    },
+    "removed_module_advisories": [
+      "GO-2026-5025",
+      "GO-2026-5026",
+      "GO-2026-5027",
+      "GO-2026-5028",
+      "GO-2026-5029",
+      "GO-2026-5030",
+      "GO-2026-5942"
+    ],
+    "remaining_advisory_attribution": {
+      "id": "GO-2026-5932",
+      "affected_package": "golang.org/x/crypto/openpgp",
+      "imported_by_able": false,
+      "fixed_version": null
+    }
+  },
+  "correctness_validation": {
+    "all_package_compile": {
+      "command": "go test ./... -run ^$ -count=1 -timeout 60s",
+      "result": "pass",
+      "elapsed_seconds": 38.52,
+      "peak_rss_kb": 1583472
+    },
+    "focused_dependency_resolver": {
+      "package": "./cmd/able",
+      "result": "pass",
+      "go_test_seconds": 0.158,
+      "command_elapsed_seconds": 1.50,
+      "peak_rss_kb": 322424
+    },
+    "scoreboard_check": "pass",
+    "scoreboard_rows": 126,
+    "scoreboard_required_samples": 5,
+    "frontier_check": "pass",
+    "frontier_actionable_groups": 0,
+    "closure_ledger_check": "pass",
+    "closure_entries": 23,
+    "invalidated_closures": 0
+  },
+  "scope": {
+    "production_source_files_changed": 0,
+    "runtime_files_changed": 0,
+    "compiler_files_changed": 0,
+    "interpreter_files_changed": 0,
+    "benchmark_files_changed": 0,
+    "canonical_stdlib_files_changed": 0,
+    "frozen_v10_v11_files_changed": 0,
+    "deferred_wasm_files_changed": 0,
+    "dependency_files_changed": 2
+  },
+  "next": {
+    "id": "post-security-release-inventory",
+    "why": "The retained dependency correction and its attribution records now sit beside the unchanged deferred WASM boundary, so the previous release manifest no longer describes every dirty path.",
+    "entails": "Capture a fully expanded non-mutating worktree snapshot, classify the nine post-publication security and handoff paths against the 34 deferred WASM files, validate identities, JSON, whitespace, scope, secrets, and the exact path complement, and do not stage or commit without separate authorization.",
+    "importance": "An exact refreshed boundary preserves the security correction without admitting deferred WASM or unrelated work and restores a safe basis for later consolidation."
+  }
+}
