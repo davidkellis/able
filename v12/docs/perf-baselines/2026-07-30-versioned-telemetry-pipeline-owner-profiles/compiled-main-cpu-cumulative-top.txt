@@ -1,0 +1,89 @@
+File: versioned-telemetry-pipeline
+Build ID: 23d2e76988be7a4cd870b6ddde20fcb547da7cd5
+Type: cpu
+Time: 2026-07-30 08:42:59 CDT
+Duration: 51.79s, Total samples = 51.57s (99.58%)
+Showing nodes accounting for 32.77s, 63.54% of 51.57s total
+Dropped 260 nodes (cum <= 0.26s)
+Showing top 80 nodes out of 129
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     51.10s 99.09%  main.RunRegisteredMain
+         0     0%     0%     51.10s 99.09%  main.RunRegisteredMain.func1
+     0.42s  0.81%  0.81%     51.10s 99.09%  main.__able_compiled_fn_main
+         0     0%  0.81%     51.10s 99.09%  main.__able_register_compiled_call.func1
+         0     0%  0.81%     51.10s 99.09%  main.__able_wrap_fn_main
+         0     0%  0.81%     51.10s 99.09%  main.main
+         0     0%  0.81%     51.10s 99.09%  main.runMain
+         0     0%  0.81%     51.10s 99.09%  runtime.main
+     0.33s  0.64%  1.45%     35.46s 68.76%  main.__able_binary_op
+     0.19s  0.37%  1.82%     34.78s 67.44%  main.__able_compiled_fn_main.func1
+     0.25s  0.48%  2.31%     34.19s 66.30%  able/interpreter-go/pkg/compiler/bridge.ApplyBinaryOperator
+     1.50s  2.91%  5.22%     33.94s 65.81%  able/interpreter-go/pkg/compiler/bridge.applyStaticPrimitiveBinaryOperator
+     0.49s  0.95%  6.17%     31.13s 60.36%  able/interpreter-go/pkg/compiler/bridge.applyStaticIntegerBinary
+     2.22s  4.30% 10.47%     26.63s 51.64%  runtime.mallocgc
+     0.87s  1.69% 12.16%     26.32s 51.04%  able/interpreter-go/pkg/compiler/bridge.staticIntegerArithmetic
+     0.54s  1.05% 13.21%     20.84s 40.41%  able/interpreter-go/pkg/compiler/bridge.staticCheckedInteger
+     1.09s  2.11% 15.32%     17.61s 34.15%  runtime.makeslice
+     0.21s  0.41% 15.73%     16.50s 32.00%  math/big.nat.make (inline)
+     0.33s  0.64% 16.37%      9.24s 17.92%  runtime.convT
+     0.32s  0.62% 16.99%      9.20s 17.84%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     0.11s  0.21% 17.20%      8.92s 17.30%  main.__able_struct_Sample_to (inline)
+     0.16s  0.31% 17.51%      8.81s 17.08%  math/big.(*Int).Lsh (inline)
+     1.20s  2.33% 19.84%      8.65s 16.77%  math/big.nat.lsh
+     0.26s   0.5% 20.34%      8.64s 16.75%  main.__able_struct_Sample_to_seen
+     1.04s  2.02% 22.36%      8.10s 15.71%  runtime.mallocgcSmallScanNoHeader
+     0.04s 0.078% 22.44%      7.17s 13.90%  runtime.systemstack
+     0.72s  1.40% 23.83%      7.11s 13.79%  runtime.mallocgcSmallNoscan
+     0.62s  1.20% 25.03%      5.11s  9.91%  runtime.deductAssistCredit
+     0.21s  0.41% 25.44%      4.79s  9.29%  math/big.(*Int).Set (inline)
+     0.22s  0.43% 25.87%      4.58s  8.88%  math/big.nat.set (inline)
+         0     0% 25.87%      4.49s  8.71%  runtime.gcAssistAlloc
+         0     0% 25.87%      4.39s  8.51%  runtime.gcAssistAlloc.func2
+         0     0% 25.87%      4.39s  8.51%  runtime.gcAssistAlloc1
+     0.04s 0.078% 25.95%      4.39s  8.51%  runtime.gcDrainN
+     0.15s  0.29% 26.24%      4.32s  8.38%  able/interpreter-go/pkg/compiler/bridge.staticIntegerDivMod
+     1.24s  2.40% 28.64%      4.07s  7.89%  runtime.mallocgcTiny
+     3.55s  6.88% 35.52%      3.55s  6.88%  runtime.nextFreeFast (inline)
+     1.89s  3.66% 39.19%      3.52s  6.83%  runtime.gcmarknewobject
+     0.60s  1.16% 40.35%      3.48s  6.75%  math/big.(*Int).Sub
+     0.09s  0.17% 40.53%      2.84s  5.51%  runtime.(*mcache).nextFree
+     0.07s  0.14% 40.66%      2.61s  5.06%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     0.23s  0.45% 41.11%      2.55s  4.94%  math/big.nat.sub
+     0.07s  0.14% 41.24%      2.51s  4.87%  runtime.(*mcache).refill
+     0.01s 0.019% 41.26%      2.50s  4.85%  math/big.(*Int).Mul (inline)
+     0.19s  0.37% 41.63%      2.49s  4.83%  math/big.(*Int).mul
+     0.13s  0.25% 41.88%      2.19s  4.25%  math/big.nat.mul
+     0.01s 0.019% 41.90%      2.08s  4.03%  runtime.(*mcentral).cacheSpan
+     0.26s   0.5% 42.41%      2.06s  3.99%  math/big.nat.mulAddWW
+     1.56s  3.03% 45.43%      1.99s  3.86%  runtime.tryDeferToSpanScan
+     0.33s  0.64% 46.07%      1.89s  3.66%  runtime.typedmemmove
+     0.14s  0.27% 46.34%      1.88s  3.65%  math/big.(*Int).Add
+     0.20s  0.39% 46.73%      1.81s  3.51%  runtime.scanSpan
+     0.03s 0.058% 46.79%      1.63s  3.16%  runtime.newobject
+     0.02s 0.039% 46.83%      1.60s  3.10%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+     0.16s  0.31% 47.14%      1.59s  3.08%  math/big.nat.add
+     0.14s  0.27% 47.41%      1.58s  3.06%  runtime.convTstring
+     0.68s  1.32% 48.73%      1.57s  3.04%  runtime.scanObject
+     0.04s 0.078% 48.81%      1.53s  2.97%  math/big.(*Int).Neg (inline)
+     0.07s  0.14% 48.94%      1.39s  2.70%  runtime.heapSetTypeNoHeader (inline)
+     1.06s  2.06% 51.00%      1.32s  2.56%  runtime.(*mspan).writeHeapBitsSmall
+     0.23s  0.45% 51.44%      1.26s  2.44%  able/interpreter-go/pkg/compiler/bridge.unwrapStaticPrimitive
+     1.21s  2.35% 53.79%      1.21s  2.35%  runtime.memclrNoHeapPointers
+     0.06s  0.12% 53.91%      1.20s  2.33%  main.__able_member_get
+     0.31s   0.6% 54.51%      1.19s  2.31%  able/interpreter-go/pkg/compiler/bridge.unwrapInterface
+     1.16s  2.25% 56.76%      1.16s  2.25%  runtime.acquirem (inline)
+     0.29s  0.56% 57.32%      1.14s  2.21%  main.__able_try_member_get
+     0.01s 0.019% 57.34%      1.13s  2.19%  runtime.deductSweepCredit
+         0     0% 57.34%      1.13s  2.19%  runtime.markroot
+     0.06s  0.12% 57.46%      1.13s  2.19%  runtime.sweepone
+     0.01s 0.019% 57.48%      1.13s  2.19%  runtime.wbBufFlush
+         0     0% 57.48%      1.12s  2.17%  runtime.wbBufFlush.func1
+     0.14s  0.27% 57.75%      1.12s  2.17%  runtime.wbBufFlush1
+     1.09s  2.11% 59.86%      1.09s  2.11%  runtime.(*mspan).base (inline)
+     0.42s  0.81% 60.67%      1.06s  2.06%  runtime.bulkBarrierPreWrite
+     0.80s  1.55% 62.23%         1s  1.94%  runtime.scanblock
+         0     0% 62.23%      0.98s  1.90%  runtime.markrootBlock
+     0.16s  0.31% 62.54%      0.95s  1.84%  gcWriteBarrier
+     0.27s  0.52% 63.06%      0.94s  1.82%  main.__able_ratio_binary_op
+     0.22s  0.43% 63.49%      0.93s  1.80%  runtime.(*sweepLocked).sweep
+     0.03s 0.058% 63.54%      0.89s  1.73%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition

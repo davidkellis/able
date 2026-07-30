@@ -56,11 +56,11 @@ functions, definitions, and host roots all retain the same identity graph.
 
 | Application | Hot function | Identity crosses entry/exit? | Minimum closed scope | Ownership domains | Target excess removed | Bounded? |
 | --- | --- | --- | --- | ---: | ---: | --- |
-| `fixed_width_128` | `ordered_select_checksum` | yes | `interpreter-instance-runtime` | 6 | 48.40% | no |
-| `distance_field` | `main` | no | `function-plus-transitive-primitive-kernel` | 3 | 59.83% | yes |
-| `word_frequency` | `split` | yes | `interpreter-instance-runtime` | 7 | 39.78% | no |
-| `array_slice_window` | `rolling_checksum` | yes | `interpreter-instance-runtime` | 7 | 63.36% | no |
-| `reverse_complement` | `reverse_complement_fasta` | yes | `interpreter-instance-runtime` | 7 | 53.14% | no |
+| `fixed_width_128` | `ordered_select_checksum` | yes | `interpreter-instance-runtime` | 6 | 48.12% | no |
+| `distance_field` | `main` | no | `function-plus-transitive-primitive-kernel` | 3 | 59.30% | yes |
+| `word_frequency` | `split` | yes | `interpreter-instance-runtime` | 7 | 39.60% | no |
+| `array_slice_window` | `rolling_checksum` | yes | `interpreter-instance-runtime` | 7 | 63.45% | no |
+| `reverse_complement` | `reverse_complement_fasta` | yes | `interpreter-instance-runtime` | 7 | 52.97% | no |
 
 Application-specific closure reasons:
 

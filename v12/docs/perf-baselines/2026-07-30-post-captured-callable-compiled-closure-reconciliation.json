@@ -1,0 +1,157 @@
+{
+  "kind": "able-post-captured-callable-compiled-closure-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-additional-code-close-no-shared-leaf",
+  "settings": {
+    "cpu": 12,
+    "gomaxprocs": 1,
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "process_timeout_seconds": 60,
+    "cpu_profile_processes_per_application": 10,
+    "allocation_counter_processes_per_application": 3,
+    "exact_allocation_profile_processes_per_application": 1
+  },
+  "reach": [
+    {
+      "benchmark": "binary_event_log",
+      "changed": true,
+      "baseline_generated_sha256": "99ca664b99eed11dc3c78a3ebe27f797d77e94be53af0f01598732f6f3e418e2",
+      "current_generated_sha256": "599d68cd945f2f391efaf8120c15598a9939f1c5d14cdf0ae4452cc81b9a2c8e",
+      "current_callable": "EventRecord,i64 -> i64"
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "changed": true,
+      "baseline_generated_sha256": "0856e567f8491cb1b085f803ffecceca44f85177447f9b467396652eaa5a8cc1",
+      "current_generated_sha256": "4bd3b95038c646ae2c4e4016f0df1340d07a6b57678ce4c9123617632b4560cb",
+      "current_callable": "ManifestRecord,i64 -> NormalizedManifest"
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "changed": true,
+      "baseline_generated_sha256": "7173333a9a6d6e6e5c0d100c6f0312d46e5d1ad4127789a9753c142c79960154",
+      "current_generated_sha256": "120fdfae2d5c8066f788f0eef7c72d4012da41f4c4adec27128c030622a0e03a",
+      "current_callable": "Sample,Sample -> i64"
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "changed": false,
+      "baseline_generated_sha256": "50286795c39cba078defa7504999a7e57b6334a2cfd7a63c309a2831c0b3dd01",
+      "current_generated_sha256": "50286795c39cba078defa7504999a7e57b6334a2cfd7a63c309a2831c0b3dd01"
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "changed": false,
+      "baseline_generated_sha256": "2a32ab748657ea4ce7809c6969496001c3873f5c3bee22ee4c87af881502c798",
+      "current_generated_sha256": "2a32ab748657ea4ce7809c6969496001c3873f5c3bee22ee4c87af881502c798"
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "changed": false,
+      "baseline_generated_sha256": "ff200b98a50a7e43bb57929805c55aaa4d744dd7396ec5a736a0865ce4fee2c8",
+      "current_generated_sha256": "ff200b98a50a7e43bb57929805c55aaa4d744dd7396ec5a736a0865ce4fee2c8"
+    }
+  ],
+  "strict_binaries": [
+    {"benchmark":"binary_event_log","bytes":13931224,"sha256":"7880784210fe406cbd689b4ad5400ea469b335d38d247b32ebab2e70360a1667","package_dependencies":96,"interpreter_dependency":false,"verified":true},
+    {"benchmark":"manifest_normalization","bytes":13891248,"sha256":"97003d4c990b52d77606864a76b4f967be3f3d563226e618bd6db6e476f8f621","package_dependencies":96,"interpreter_dependency":false,"verified":true},
+    {"benchmark":"versioned_telemetry_pipeline","bytes":12962624,"sha256":"ff9301c782b53f82cb008a44701628a80fd5fdf72be5d8533b3723cd3108f6fc","package_dependencies":96,"interpreter_dependency":false,"verified":true},
+    {"benchmark":"concurrent_event_routing","bytes":14943760,"sha256":"2458cf3f34800f010df652c02976e5ec5e49a2c89d53763e9fb5a8fa9bacce0d","package_dependencies":96,"interpreter_dependency":false,"verified":true},
+    {"benchmark":"concurrent_document_pipeline","bytes":13626896,"sha256":"49bcf837c5bc78e14b67b4188c9f66a50ef63878ef56e24b8c2527a204f9abad","package_dependencies":96,"interpreter_dependency":false,"verified":true},
+    {"benchmark":"policy_record_dispatch","bytes":22118720,"sha256":"5fc84a4cce030db2e6f61936e88a9638ad675a5f89d82dc025e45cf2b42734d2","package_dependencies":96,"interpreter_dependency":false,"verified":true}
+  ],
+  "cpu_profiles": [
+    {
+      "benchmark": "binary_event_log",
+      "processes": 10,
+      "merged_samples_seconds": 0.51,
+      "owners": [
+        {"name":"checked-multiply","flat_percent":19.61},
+        {"name":"signed-divmod","flat_percent":9.80},
+        {"name":"checked-add","flat_percent":7.84},
+        {"name":"parse-event","cumulative_percent":56.86},
+        {"name":"runtime-allocation","cumulative_percent":17.65}
+      ]
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "processes": 10,
+      "merged_samples_seconds": 0.04,
+      "owners": [
+        {"name":"strings-split","flat_percent":25.0},
+        {"name":"utf8-validation","flat_percent":25.0},
+        {"name":"runtime-allocation","cumulative_percent":50.0}
+      ],
+      "resolution": "insufficient-for-leaf-selection"
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "processes": 10,
+      "merged_samples_seconds": 22.85,
+      "owners": [
+        {"name":"checked-multiply","flat_percent":22.93},
+        {"name":"signed-divmod","flat_percent":18.77},
+        {"name":"checked-add","flat_percent":10.81},
+        {"name":"runtime-allocation","cumulative_percent":19.52},
+        {"name":"adaptive-policy-interface-adapter","cumulative_percent":8.27},
+        {"name":"linear-policy-interface-adapter","cumulative_percent":5.08}
+      ]
+    }
+  ],
+  "allocation_counters": [
+    {
+      "benchmark": "binary_event_log",
+      "allocated_bytes": [9321768, 9321768, 9321784],
+      "allocated_bytes_mean": 9321773.333333334,
+      "allocations": [171069, 171069, 171070],
+      "allocations_mean": 171069.33333333334,
+      "gc_count": [8, 8, 8],
+      "gc_count_mean": 8.0
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "allocated_bytes": [1397200, 1397200, 1397200],
+      "allocated_bytes_mean": 1397200.0,
+      "allocations": [27078, 27078, 27078],
+      "allocations_mean": 27078.0,
+      "gc_count": [1, 1, 1],
+      "gc_count_mean": 1.0
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "allocated_bytes": [430788208, 430788032, 430788256],
+      "allocated_bytes_mean": 430788165.3333333,
+      "allocations": [13325303, 13325303, 13325303],
+      "allocations_mean": 13325303.0,
+      "gc_count": [351, 351, 351],
+      "gc_count_mean": 351.0
+    }
+  ],
+  "allocation_shapes": [
+    {"benchmark":"binary_event_log","owner":"fresh EventRecord parse result","objects":53248,"bytes":2555904,"lifetime":"returned through native union/control and consumed by unlike parse/map work"},
+    {"benchmark":"manifest_normalization","owner":"fresh ManifestRecord parse result","objects":3072,"bytes":245760,"lifetime":"returned through native union/control and passed through normalization"},
+    {"benchmark":"versioned_telemetry_pipeline","owner":"fresh Sample literal","objects":13208878,"bytes":422684096,"lifetime":"stored in generic TelemetryWindow storage"}
+  ],
+  "intersection": {
+    "shared_exact_admissible_owner": null,
+    "common_ancestors": ["runtime-allocation", "garbage-collection"],
+    "rejection": "Allocation ancestry is not a removable semantic boundary. Concrete record allocations have different return/storage lifetimes, and all escape as identity-bearing mutable Able nominal values. Checked arithmetic reaches only two rows and is already closed by broad A/B evidence."
+  },
+  "closures_reconciled": [
+    "compiled-target-guards",
+    "compiled-current-control",
+    "compiled-sudoku-quotient",
+    "compiled-float-numeric",
+    "compiled-wide-numeric",
+    "compiled-byte-output",
+    "compiled-text-map",
+    "compiled-regex",
+    "compiled-concurrency",
+    "compiled-iterator-control",
+    "compiled-architecture-target-budget",
+    "cross-family-architecture-ownership"
+  ],
+  "next": "Run a full 66-row static native-boundary census and admit only an exact runtime.Value, bridge, dynamic-call, interface, union, or nominal-allocation boundary that is safely lowerable and materially repeats in three unlike applications."
+}

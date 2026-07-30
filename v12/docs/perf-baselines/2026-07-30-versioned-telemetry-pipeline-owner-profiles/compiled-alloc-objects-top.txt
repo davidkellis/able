@@ -1,0 +1,47 @@
+File: versioned-telemetry-pipeline
+Build ID: 23d2e76988be7a4cd870b6ddde20fcb547da7cd5
+Type: alloc_objects
+Time: 2026-07-30 08:46:29 CDT
+Showing nodes accounting for 829807951, 100% of 829954853 total
+Dropped 9 nodes (cum <= 4149774)
+      flat  flat%   sum%        cum   cum%
+ 526522541 63.44% 63.44%  526522541 63.44%  math/big.nat.make (inline)
+ 184951052 22.28% 85.72%  184951052 22.28%  able/interpreter-go/pkg/compiler/bridge.ToInt
+  51950242  6.26% 91.98%   51950242  6.26%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+  40174180  4.84% 96.82%   40174180  4.84%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+  13189522  1.59% 98.41%  829953593   100%  main.__able_compiled_fn_main
+  13020414  1.57%   100%   13020414  1.57%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0%   100%  633056182 76.28%  able/interpreter-go/pkg/compiler/bridge.ApplyBinaryOperator
+         0     0%   100%  633056182 76.28%  able/interpreter-go/pkg/compiler/bridge.applyStaticIntegerBinary
+         0     0%   100%  633056182 76.28%  able/interpreter-go/pkg/compiler/bridge.applyStaticPrimitiveBinaryOperator
+         0     0%   100%  422930804 50.96%  able/interpreter-go/pkg/compiler/bridge.staticCheckedInteger
+         0     0%   100%  551778148 66.48%  able/interpreter-go/pkg/compiler/bridge.staticIntegerArithmetic
+         0     0%   100%   81278034  9.79%  able/interpreter-go/pkg/compiler/bridge.staticIntegerDivMod
+         0     0%   100%  829953593   100%  main.RunRegisteredMain
+         0     0%   100%  829953593   100%  main.RunRegisteredMain.func1
+         0     0%   100%  633056182 76.28%  main.__able_binary_op
+         0     0%   100%  608030785 73.26%  main.__able_compiled_fn_main.func1
+         0     0%   100%  829953593   100%  main.__able_register_compiled_call.func1
+         0     0%   100%  130359460 15.71%  main.__able_struct_Sample_to (inline)
+         0     0%   100%  130359460 15.71%  main.__able_struct_Sample_to_seen
+         0     0%   100%  829953593   100%  main.__able_wrap_fn_main
+         0     0%   100%  829954853   100%  main.main
+         0     0%   100%  829954853   100%  main.runMain
+         0     0%   100%   39214166  4.72%  math/big.(*Int).Add
+         0     0%   100%  209244172 25.21%  math/big.(*Int).Lsh (inline)
+         0     0%   100%   53894903  6.49%  math/big.(*Int).Mul (inline)
+         0     0%   100%   39125587  4.71%  math/big.(*Int).Neg (inline)
+         0     0%   100%   13795538  1.66%  math/big.(*Int).QuoRem
+         0     0%   100%  142346358 17.15%  math/big.(*Int).Set (inline)
+         0     0%   100%   68027404  8.20%  math/big.(*Int).Sub
+         0     0%   100%   53894903  6.49%  math/big.(*Int).mul
+         0     0%   100%   39214166  4.72%  math/big.nat.add
+         0     0%   100%   13795538  1.66%  math/big.nat.div
+         0     0%   100%    8290430     1%  math/big.nat.divW
+         0     0%   100%  209244172 25.21%  math/big.nat.lsh
+         0     0%   100%   53894903  6.49%  math/big.nat.mul
+         0     0%   100%   53894903  6.49%  math/big.nat.mulAddWW
+         0     0%   100%  142346358 17.15%  math/big.nat.set (inline)
+         0     0%   100%    5505108  0.66%  math/big.nat.setWord (inline)
+         0     0%   100%   68027404  8.20%  math/big.nat.sub
+         0     0%   100%  829954853   100%  runtime.main

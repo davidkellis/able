@@ -12,16 +12,16 @@ This decision is scoped to a register representation by itself. It does not forb
 
 | Application | Family | Current / target s | Operations | Transport share | Required speedup | Uniform-cost transport speedup | Remaining speedup | Target ns / semantic op |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `fixed_width_128` | wide-numeric | 8.522 / 0.369 | 60,446,436 | 31.80% | 23.10x | 1.47x | 15.76x | 8.947 |
-| `distance_field` | float-numeric | 5.914 / 0.408 | 78,000,165 | 41.03% | 14.49x | 1.70x | 8.55x | 8.872 |
-| `concurrent_event_routing` | concurrency | 3.256 / 0.035 | 21,367,576 | 43.14% | 92.06x | 1.76x | 52.35x | 2.911 |
-| `word_frequency` | text-map | 1.414 / 0.025 | 17,591,889 | 44.32% | 57.41x | 1.80x | 31.96x | 2.515 |
-| `array_slice_window` | array-iterator | 0.744 / 0.064 | 8,751,239 | 32.79% | 11.59x | 1.49x | 7.79x | 10.916 |
-| `reverse_complement` | byte-text | 3.758 / 0.040 | 60,602,670 | 30.09% | 94.20x | 1.43x | 65.86x | 0.942 |
+| `fixed_width_128` | wide-numeric | 9.172 / 0.367 | 60,446,436 | 31.80% | 25.01x | 1.47x | 17.06x | 8.896 |
+| `distance_field` | float-numeric | 6.260 / 0.341 | 78,000,165 | 41.03% | 18.37x | 1.70x | 10.83x | 7.410 |
+| `concurrent_event_routing` | concurrency | 4.694 / 0.054 | 21,367,576 | 43.14% | 86.42x | 1.76x | 49.14x | 4.470 |
+| `word_frequency` | text-map | 1.450 / 0.026 | 17,591,889 | 44.32% | 56.45x | 1.80x | 31.43x | 2.622 |
+| `array_slice_window` | array-iterator | 0.658 / 0.030 | 8,751,239 | 32.79% | 22.25x | 1.49x | 14.95x | 5.029 |
+| `reverse_complement` | byte-text | 4.120 / 0.027 | 60,602,670 | 30.09% | 154.09x | 1.43x | 107.73x | 0.631 |
 
-Across the six applications, 89,338,836 of 246,759,975 operations are modeled transport (36.20%). The largest equal-cost planning gain is 1.80x, while the smallest remaining target requirement is still 7.79x.
+Across the six applications, 89,338,836 of 246,759,975 operations are modeled transport (36.20%). The largest equal-cost planning gain is 1.80x, while the smallest remaining target requirement is still 10.83x.
 
-The equal-cost calculation is deliberately favorable to transport removal: it charges each removed load/constant/pop the same average cost as a semantic operation, makes removal free, and adds no translation, register, merge, materialization, or code-size cost. It is a planning scenario, not a timing claim. The target nanoseconds show why representation work alone cannot close the budget: the surviving calls, branches, stores, collection operations, errors, and concurrency semantics would need to average 0.942-10.916 ns each.
+The equal-cost calculation is deliberately favorable to transport removal: it charges each removed load/constant/pop the same average cost as a semantic operation, makes removal free, and adds no translation, register, merge, materialization, or code-size cost. It is a planning scenario, not a timing claim. The target nanoseconds show why representation work alone cannot close the budget: the surviving calls, branches, stores, collection operations, errors, and concurrency semantics would need to average 0.631-8.896 ns each.
 
 ## Live opcode closure
 
@@ -51,7 +51,7 @@ All 144 live opcodes are classified exactly once. Only 6 are removable represent
 | `dynamic-environment-definitions` | Preserve lexical/global lookup, implicit receivers, lambdas, definitions, implementations, externs, imports, dynamic imports, and cache invalidation. | These operations remained semantic/materialization boundaries in the feasibility model. |
 | `source-errors-debugging` | Retain source nodes, precise Able errors, overflow/type diagnostics, breakpoints, and public materialized results. | The ordinary instruction and runtime.Value contracts remain the only complete implementation. |
 
-The current VM surface contains 133 production `bytecode_vm*.go` files / 32,816 lines and 119 test files / 36,191 lines. A complete parallel executor would therefore duplicate a large semantic authority unless it replaced the primary dispatcher incrementally; the prior cold-fallback executor never reached that point.
+The current VM surface contains 133 production `bytecode_vm*.go` files / 32,833 lines and 120 test files / 36,200 lines. A complete parallel executor would therefore duplicate a large semantic authority unless it replaced the primary dispatcher incrementally; the prior cold-fallback executor never reached that point.
 
 ## Empirical architecture gates
 

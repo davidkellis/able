@@ -13,16 +13,16 @@ far too small to close even the smallest modeled VM target gap.
 
 | Mode | Rows | Meets | Misses | Excess seconds | Share |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| compiled | 64 | 7 | 57 | 4.794105 | 2.08% |
-| bytecode | 64 | 4 | 60 | 226.057474 | 97.92% |
+| compiled | 66 | 6 | 60 | 8.473895 | 3.06% |
+| bytecode | 66 | 4 | 62 | 268.726526 | 96.94% |
 
-The full 128-row frontier has 117 misses and 230.851579 seconds above its aggregate target. Bytecode owns 97.92% of that gap.
+The full 132-row frontier has 122 misses and 277.200421 seconds above its aggregate target. Bytecode owns 96.94% of that gap.
 
 ## Optimistic architecture bounds
 
 | Engine | Unlike applications | Favorable assumption | Best remaining requirement | Decision |
 | --- | ---: | --- | ---: | --- |
-| bytecode | 6 | all transport free (at most 1.80x) | 7.79x | `no-go-register-representation-only` |
+| bytecode | 6 | all transport free (at most 1.80x) | 10.83x | `no-go-register-representation-only` |
 | compiled | 5 | largest exact local owner free | 3.60x | `no-go-current-compiled-architecture-mechanism` |
 
 These are upper-bound planning models, not timing claims. They omit replacement,
@@ -34,14 +34,14 @@ experiment as the next tranche.
 
 | Group | Misses | Excess seconds | Disposition |
 | --- | ---: | ---: | --- |
-| `bytecode-portable-workload-admission` | 5 | 74.548947 | `closed-no-shared-leaf` |
-| `bytecode-text-map` | 10 | 65.292211 | `closed-rejected-candidate` |
-| `bytecode-regex` | 6 | 23.137895 | `closed-rejected-candidate` |
-| `bytecode-concurrency` | 23 | 17.716947 | `closed-no-shared-leaf` |
-| `bytecode-wide-numeric` | 3 | 17.174000 | `closed-rejected-candidate` |
-| `bytecode-float-numeric` | 4 | 15.811789 | `closed-rejected-candidate` |
-| `bytecode-iterator-control` | 6 | 7.028737 | `closed-no-shared-leaf` |
-| `bytecode-byte-output` | 3 | 5.346947 | `closed-no-shared-leaf` |
+| `bytecode-portable-workload-admission` | 5 | 87.373158 | `closed-no-shared-leaf` |
+| `bytecode-text-map` | 10 | 77.555789 | `closed-rejected-candidate` |
+| `bytecode-regex` | 6 | 23.836947 | `closed-rejected-candidate` |
+| `bytecode-float-numeric` | 4 | 21.764947 | `closed-rejected-candidate` |
+| `bytecode-concurrency` | 23 | 21.192316 | `closed-no-shared-leaf` |
+| `bytecode-wide-numeric` | 3 | 18.177579 | `closed-rejected-candidate` |
+| `bytecode-iterator-control` | 8 | 12.847579 | `closed-no-shared-leaf` |
+| `bytecode-byte-output` | 3 | 5.978211 | `closed-no-shared-leaf` |
 
 ## Next recommendation
 

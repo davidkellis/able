@@ -1,0 +1,93 @@
+{
+  "kind": "able-versioned-telemetry-pipeline-application-gate",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": {
+    "application": "retained",
+    "production_change": "none",
+    "compiled_candidate": "open-candidate",
+    "bytecode_candidate": "closed-no-new-leaf"
+  },
+  "contract": {
+    "default_updates": 16500000,
+    "short_updates": 160000,
+    "discriminating_feature_families": 10,
+    "operation_depth_entries": 10,
+    "able_source_sha256": "8701c4502963c99452439b882584aef3c8ea6b64bea024ae29447f75f9e6de20",
+    "go_source_sha256": "df321a44087aff77a18fc4bb8eaed98dec670a11d86e99e66b23485788197c67",
+    "python_source_sha256": "0cc787dffc8d2f32d0840602f8f59245067db15e8606f08dd890a696e81591af",
+    "ruby_source_sha256": "9059a9fac1075a21e534273cef10cffc9d15dc2ad4b40beb5410bd55eaf9a454",
+    "verifier_sha256": "8438449f3a3c9d620d2e92f9630156c06d4f2b238f03856a9456ab5b90f960d6",
+    "default_stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86",
+    "short_stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+  },
+  "measurements": {
+    "cpu_affinity": "12",
+    "runs_per_lane": 5,
+    "compiled": {
+      "able_mean_seconds": 51.418,
+      "go_mean_seconds": 0.2201,
+      "able_go_ratio": 233.61199454793277,
+      "able_samples_seconds": [51.79, 51.38, 50.94, 51.54, 51.44],
+      "verified_runs": 5,
+      "timeouts": 0,
+      "failures": 0
+    },
+    "bytecode": {
+      "able_mean_seconds": 3.304,
+      "python_mean_seconds": 0.2023,
+      "ruby_mean_seconds": 0.1258,
+      "able_python_ratio": 16.332179930795846,
+      "able_ruby_ratio": 26.263910969793322,
+      "able_samples_seconds": [3.55, 3.16, 3.47, 3.23, 3.11],
+      "verified_runs": 5,
+      "timeouts": 0,
+      "failures": 0
+    }
+  },
+  "compiled_profile": {
+    "main_cpu_samples_seconds": 51.57,
+    "erased_scorer_cumulative_cpu_seconds": 34.78,
+    "erased_scorer_cumulative_cpu_percent": 67.44,
+    "dynamic_binary_cumulative_cpu_seconds": 35.46,
+    "dynamic_binary_cumulative_cpu_percent": 68.76,
+    "sample_conversion_cumulative_cpu_seconds": 8.64,
+    "sample_conversion_cumulative_cpu_percent": 16.75,
+    "sampled_alloc_objects": 829954853,
+    "erased_scorer_cumulative_alloc_objects": 608030785,
+    "erased_scorer_cumulative_alloc_percent": 73.26,
+    "dynamic_binary_cumulative_alloc_objects": 633056182,
+    "dynamic_binary_cumulative_alloc_percent": 76.28,
+    "sample_conversion_cumulative_alloc_objects": 130359460,
+    "sample_conversion_cumulative_alloc_percent": 15.71,
+    "interpreter_dependency": false
+  },
+  "compiled_candidate": {
+    "owner": "statically monomorphic captured callable retained on runtime.Value carriers",
+    "unlike_applications": [
+      "versioned_telemetry_pipeline",
+      "manifest_normalization",
+      "binary_event_log"
+    ],
+    "required_rule": "infer and preserve one concrete generated callable carrier only when every statically known use agrees; retain erased carriers at dynamic, conflicting, escaping, host, and runtime-service boundaries",
+    "forbidden_special_cases": [
+      "application names",
+      "Sample, ManifestRecord, or EventRecord",
+      "Result",
+      "named containers",
+      "non-primitive nominal types"
+    ]
+  },
+  "bytecode_profile": {
+    "merged_cpu_samples_seconds": 9.63,
+    "processes": 3,
+    "disposition": "closed-no-new-leaf",
+    "owners": [
+      "runResumable",
+      "binary dispatch and raw integer inspection",
+      "cached identifier and member lookup",
+      "call/member dispatch",
+      "frame/return and cast work"
+    ]
+  }
+}

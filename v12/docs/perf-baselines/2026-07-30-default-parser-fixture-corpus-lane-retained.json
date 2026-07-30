@@ -1,0 +1,120 @@
+{
+  "kind": "able-v12-default-parser-fixture-corpus-lane-retained",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-explicit-full-parser-package-lane",
+  "audit": {
+    "active_non_wasm_go_test_files": 617,
+    "explicit_skip_calls": 140,
+    "unclassified_skip_calls": 0,
+    "categories": {
+      "short_mode": 88,
+      "go_toolchain_unavailable": 23,
+      "canonical_stdlib_unavailable": 3,
+      "benchmark_or_probe_selection": 4,
+      "compiled_cli_integration": 1,
+      "temporary_filesystem_layout": 1,
+      "fixture_or_audit_selection": 20
+    },
+    "short_mode_topology": {
+      "compiler": 87,
+      "parser": 1,
+      "other": 0
+    }
+  },
+  "reproduction": {
+    "short_mode": {
+      "fixture_families_passed": 0,
+      "fixture_families_skipped": 16,
+      "package_passed": true,
+      "package_seconds": 0.003
+    },
+    "non_short": {
+      "fixture_families_passed": 16,
+      "fixture_families_skipped": 0,
+      "fixture_subtests_passed": 176,
+      "package_passed": true,
+      "package_seconds": 0.125
+    },
+    "focused_final_lane": {
+      "fixture_families_passed": 16,
+      "fixture_families_skipped": 0,
+      "fixture_subtests_passed": 176,
+      "package_seconds": 0.142
+    }
+  },
+  "implementation": {
+    "path": "v12/run_all_tests.sh",
+    "sha256": "d81d9cbc49fe661bf50c5b7662cb76609923a2853a1edda09378382c11036e6f",
+    "lines": 416,
+    "parser_package_full_mode": true,
+    "parser_removed_from_remaining_short_mode_set": true,
+    "compiler_release_lane_changed": false,
+    "compiled_cli_release_lane_changed": false
+  },
+  "broad_verification": {
+    "run_all_tests": "pass",
+    "integrated_parser_package_seconds": 0.149,
+    "remaining_non_compiler_packages": "pass",
+    "interpreter_package_seconds": 200.105,
+    "compiler_batches": 34,
+    "compiler_batches_passed": 34,
+    "maximum_compiler_batch_seconds": 223.708,
+    "bytecode_fixture_pass": "pass",
+    "bytecode_fixture_pass_seconds": 186.28
+  },
+  "performance_evidence": {
+    "scoreboard_rows": 130,
+    "samples_per_able_reference": 5,
+    "actionable_frontier_groups": 0,
+    "closures": 23,
+    "current": 23,
+    "invalidated": 0,
+    "selector_rows": 0,
+    "remeasurement_required": false
+  },
+  "changes": {
+    "test_runner": true,
+    "parser_implementation": false,
+    "ast": false,
+    "production": false,
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "benchmark": false,
+    "language": false,
+    "dependency": false,
+    "fixture": false,
+    "wasm": false
+  },
+  "git": {
+    "head": "9c32f2777536da2c948327720acc75187973a6d9",
+    "tracking": "9c32f2777536da2c948327720acc75187973a6d9",
+    "ahead": 0,
+    "behind": 0,
+    "index_empty": true,
+    "staged": false,
+    "committed": false,
+    "pushed": false,
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_touched": false
+  },
+  "cleanup": {
+    "workspace_root": "/var/tmp",
+    "workspace_kib": 2440980,
+    "raw_inventory_bytes": 20483,
+    "ram_backed_tmp_used": false,
+    "workspace_removed": true,
+    "raw_inventory_removed": true,
+    "v12_python_cache_directories": 0
+  },
+  "next": {
+    "id": "silent-go-test-suppression-audit",
+    "why": "Explicit skip events are classified, but successful early returns and build tags can suppress tests without producing skip events.",
+    "entails": "Inventory non-WASM conditional early returns, test build constraints, runner tags, and zero-test package results; distinguish helpers and disabled experiments from normal semantic coverage; retain a change only for a reproduced blind spot.",
+    "importance": "The handoff must prove semantic tests executed, not merely that package processes exited successfully."
+  }
+}

@@ -10,15 +10,15 @@
     },
     "frontier": {
       "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
     },
   "architecture_budget": {
     "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
-      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+      "sha256": "6150341f26ecb9b9d4e79dc4bcf7e1743702882b09e281573ca039a74d50c15b"
     },
   "region_feasibility": {
     "path": "v12/docs/perf-baselines/2026-07-22-bytecode-semantic-region-tier-feasibility.json",
-      "sha256": "6d286bbb146aacbb2500a4e55b0717a7bcc55891deff24179efdae906744dd28"
+      "sha256": "f541284451e2fbee038e526531658a2f0c274369ff7fe233c04b7cc0e2a07210"
     },
     "typed_region_gate": {
       "path": "v12/docs/perf-baselines/2026-07-18-bytecode-typed-loop-block-gate.md",
@@ -66,7 +66,7 @@
     },
     "extern_builder": {
       "path": "v12/interpreters/go/pkg/interpreter/extern_host_builder.go",
-      "sha256": "5f4df30aedb25aa08451279f3c20f1882bcd591ddbb6dc6aae660cbdce1f87bd"
+      "sha256": "8f388d679a079093a6e48ec6f0d1938ba8a12d475ed9565f6832b952b2e3b276"
     },
     "executor": {
       "path": "v12/interpreters/go/pkg/interpreter/executor.go",

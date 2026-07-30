@@ -4,7 +4,7 @@
       "application_count": 6,
       "decision": "no-go-register-representation-only",
       "maximum_optimistic_speedup": 1.796096,
-      "minimum_remaining_target_speedup": 7.788121,
+      "minimum_remaining_target_speedup": 10.83139,
       "optimistic_model": "make all stack-transport operations free at uniform average operation cost",
       "unlike_family_count": 6
     },
@@ -22,160 +22,160 @@
     {
       "disposition": "closed-no-shared-leaf",
       "id": "bytecode-portable-workload-admission",
-      "maximum_ratio": 45.744255744255746,
+      "maximum_ratio": 45.639374425023,
       "miss_count": 5,
       "mode": "bytecode",
       "row_count": 5,
-      "total_excess_seconds": 74.54894736842105
+      "total_excess_seconds": 87.37315789473685
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "bytecode-text-map",
-      "maximum_ratio": 133.43023255813952,
+      "maximum_ratio": 120.10471204188482,
       "miss_count": 10,
       "mode": "bytecode",
       "row_count": 10,
-      "total_excess_seconds": 65.29221052631578
+      "total_excess_seconds": 77.55578947368421
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "bytecode-regex",
-      "maximum_ratio": 375.34653465346537,
+      "maximum_ratio": 284.8550724637681,
       "miss_count": 6,
       "mode": "bytecode",
       "row_count": 6,
-      "total_excess_seconds": 23.137894736842107
-    },
-    {
-      "disposition": "closed-no-shared-leaf",
-      "id": "bytecode-concurrency",
-      "maximum_ratio": 94.6794871794872,
-      "miss_count": 23,
-      "mode": "bytecode",
-      "row_count": 23,
-      "total_excess_seconds": 17.716947368421053
-    },
-    {
-      "disposition": "closed-rejected-candidate",
-      "id": "bytecode-wide-numeric",
-      "maximum_ratio": 85.6923076923077,
-      "miss_count": 3,
-      "mode": "bytecode",
-      "row_count": 3,
-      "total_excess_seconds": 17.174
+      "total_excess_seconds": 23.836947368421054
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "bytecode-float-numeric",
-      "maximum_ratio": 16.96113074204947,
+      "maximum_ratio": 19.332921556516368,
       "miss_count": 4,
       "mode": "bytecode",
       "row_count": 4,
-      "total_excess_seconds": 15.811789473684211
+      "total_excess_seconds": 21.764947368421055
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "bytecode-concurrency",
+      "maximum_ratio": 90.96899224806201,
+      "miss_count": 23,
+      "mode": "bytecode",
+      "row_count": 23,
+      "total_excess_seconds": 21.192315789473685
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "bytecode-wide-numeric",
+      "maximum_ratio": 82.01238390092878,
+      "miss_count": 3,
+      "mode": "bytecode",
+      "row_count": 3,
+      "total_excess_seconds": 18.17757894736842
     },
     {
       "disposition": "closed-no-shared-leaf",
       "id": "bytecode-iterator-control",
-      "maximum_ratio": 41.340782122905026,
-      "miss_count": 6,
+      "maximum_ratio": 36.849315068493155,
+      "miss_count": 8,
       "mode": "bytecode",
-      "row_count": 6,
-      "total_excess_seconds": 7.028736842105262
+      "row_count": 8,
+      "total_excess_seconds": 12.84757894736842
     },
     {
       "disposition": "closed-no-shared-leaf",
       "id": "bytecode-byte-output",
-      "maximum_ratio": 125.17110266159695,
+      "maximum_ratio": 162.20472440944883,
       "miss_count": 3,
       "mode": "bytecode",
       "row_count": 3,
-      "total_excess_seconds": 5.346947368421052
-    },
-    {
-      "disposition": "closed-no-shared-leaf",
-      "id": "compiled-text-map",
-      "maximum_ratio": 26.70634920634921,
-      "miss_count": 8,
-      "mode": "compiled",
-      "row_count": 9,
-      "total_excess_seconds": 1.6973684210526316
-    },
-    {
-      "disposition": "closed-rejected-candidate",
-      "id": "compiled-concurrency",
-      "maximum_ratio": 23.272727272727273,
-      "miss_count": 23,
-      "mode": "compiled",
-      "row_count": 23,
-      "total_excess_seconds": 0.8922105263157895
-    },
-    {
-      "disposition": "closed-insufficient-breadth",
-      "id": "compiled-sudoku-quotient",
-      "maximum_ratio": 2.5155750126283887,
-      "miss_count": 1,
-      "mode": "compiled",
-      "row_count": 1,
-      "total_excess_seconds": 0.868842105263158
-    },
-    {
-      "disposition": "closed-no-shared-leaf",
-      "id": "compiled-current-control",
-      "maximum_ratio": 1.1978938130759105,
-      "miss_count": 3,
-      "mode": "compiled",
-      "row_count": 3,
-      "total_excess_seconds": 0.4794736842105265
+      "total_excess_seconds": 5.97821052631579
     },
     {
       "disposition": "closed-no-shared-leaf",
       "id": "compiled-iterator-control",
-      "maximum_ratio": 8.862275449101796,
-      "miss_count": 7,
+      "maximum_ratio": 16.097560975609756,
+      "miss_count": 9,
       "mode": "compiled",
-      "row_count": 7,
-      "total_excess_seconds": 0.2806315789473684
+      "row_count": 9,
+      "total_excess_seconds": 2.2057894736842107
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "compiled-text-map",
+      "maximum_ratio": 23.796711509715994,
+      "miss_count": 9,
+      "mode": "compiled",
+      "row_count": 9,
+      "total_excess_seconds": 2.0156842105263157
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "compiled-current-control",
+      "maximum_ratio": 1.268474855207773,
+      "miss_count": 3,
+      "mode": "compiled",
+      "row_count": 3,
+      "total_excess_seconds": 1.374526315789474
+    },
+    {
+      "disposition": "closed-insufficient-breadth",
+      "id": "compiled-sudoku-quotient",
+      "maximum_ratio": 2.7366369710467704,
+      "miss_count": 1,
+      "mode": "compiled",
+      "row_count": 1,
+      "total_excess_seconds": 1.2097894736842105
+    },
+    {
+      "disposition": "closed-rejected-candidate",
+      "id": "compiled-concurrency",
+      "maximum_ratio": 19.649122807017545,
+      "miss_count": 23,
+      "mode": "compiled",
+      "row_count": 23,
+      "total_excess_seconds": 0.8826315789473684
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "compiled-regex",
-      "maximum_ratio": 14.385964912280702,
+      "maximum_ratio": 18.11320754716981,
       "miss_count": 6,
       "mode": "compiled",
       "row_count": 6,
-      "total_excess_seconds": 0.2650526315789474
+      "total_excess_seconds": 0.35547368421052633
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "compiled-wide-numeric",
-      "maximum_ratio": 15.526315789473683,
+      "maximum_ratio": 17.966101694915253,
       "miss_count": 3,
       "mode": "compiled",
       "row_count": 3,
-      "total_excess_seconds": 0.15631578947368419
+      "total_excess_seconds": 0.20357894736842105
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "compiled-float-numeric",
-      "maximum_ratio": 2.7777777777777777,
+      "maximum_ratio": 2.768361581920904,
       "miss_count": 4,
       "mode": "compiled",
       "row_count": 4,
-      "total_excess_seconds": 0.09936842105263158
+      "total_excess_seconds": 0.15242105263157896
     },
     {
       "disposition": "closed-no-shared-leaf",
       "id": "compiled-byte-output",
-      "maximum_ratio": 3.076923076923077,
+      "maximum_ratio": 3.75,
       "miss_count": 2,
       "mode": "compiled",
       "row_count": 2,
-      "total_excess_seconds": 0.0548421052631579
+      "total_excess_seconds": 0.07400000000000001
     },
     {
       "disposition": "target-guard",
       "id": "bytecode-target-guards",
-      "maximum_ratio": 0.6028456695255564,
+      "maximum_ratio": 0.7979077508321445,
       "miss_count": 0,
       "mode": "bytecode",
       "row_count": 4,
@@ -184,7 +184,7 @@
     {
       "disposition": "target-guard",
       "id": "compiled-target-guards",
-      "maximum_ratio": 0.9650072150072151,
+      "maximum_ratio": 1.0099852676379113,
       "miss_count": 0,
       "mode": "compiled",
       "row_count": 6,
@@ -195,17 +195,17 @@
   "modes": [
     {
       "mode": "compiled",
-      "row_count": 64,
-      "target_meets": 7,
-      "target_misses": 57,
-      "total_excess_seconds": 4.794105263157895
+      "row_count": 66,
+      "target_meets": 6,
+      "target_misses": 60,
+      "total_excess_seconds": 8.473894736842105
     },
     {
       "mode": "bytecode",
-      "row_count": 64,
+      "row_count": 66,
       "target_meets": 4,
-      "target_misses": 60,
-      "total_excess_seconds": 226.05747368421052
+      "target_misses": 62,
+      "total_excess_seconds": 268.7265263157895
     }
   ],
   "next_architecture_lane": {
@@ -218,29 +218,29 @@
   "sources": {
     "bytecode_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
-      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+      "sha256": "6150341f26ecb9b9d4e79dc4bcf7e1743702882b09e281573ca039a74d50c15b"
     },
     "compiled_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "721653e8cd65d19b1326608dddfe012edeb5f7165006c19e74254ee391d1a6e5"
+      "sha256": "b38df6773ef88def536823fb95d054e3bc9b9db13df2905995ce1e06b150a438"
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-cross-engine-architecture-budget.json",
-      "sha256": "541d914e13ac0899c67fc9b24030b160bf44a833a9392d947508d8210772360f"
+      "sha256": "82f425f0ad3a11b470b84d12b832897ed37c0c592d069d3d38cfc3249dc3ea6a"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
     }
   },
   "summary": {
-    "bytecode_excess_share_percent": 97.923295,
+    "bytecode_excess_share_percent": 96.943044,
     "candidate_eligible": false,
     "decision": "no-go-current-cross-engine-local-mechanism",
     "minimum_unlike_families": 3,
-    "selected_rows": 128,
-    "target_meets": 11,
-    "target_misses": 117,
-    "total_excess_seconds": 230.8515789473684
+    "selected_rows": 132,
+    "target_meets": 10,
+    "target_misses": 122,
+    "total_excess_seconds": 277.2004210526316
   }
 }

@@ -59,6 +59,7 @@ bench_external_suite_names() {
     "sensor-calibration" \
     "transaction-ledger-audit" \
     "generic-slot-buffer" \
+    "versioned-telemetry-pipeline" \
     "legacy-sudoku" \
     "sudoku-masks"
 }
@@ -139,7 +140,7 @@ bench_external_suite_csv() {
       # scan-based Sudoku source remains directly addressable through
       # `legacy-sudoku`, but is not comparable with the exact-cover Go/Python
       # references and cannot complete within the bounded scorecard protocol.
-      printf '%s\n' "fib,binarytrees,matrixmultiply,quicksort,sudoku_masks,i_before_e,base64,backup_dedup,binary_event_log,json,monte_carlo_pi,pidigits,mandelbrot,reverse_complement,k_nucleotide,nbody,tapelang_alphabet,distance_field,rms_norm,fasta_generation,fixed_width_128,rational_series,wide_integer_records,word_frequency,document_audit,lexical_rollup,channel_rollup,future_pipeline,future_await_race,await_channel_mux,mutex_ledger,mutex_await_journal,mutex_work_queue,regex_suffix_audit,regex_set_audit,regex_stream_audit,log_routing_redaction,config_validation_extraction,unicode_scalar_pipeline,array_slice_window,dependency_plan,discrete_event_simulation,inventory_reconciliation,option_result_config,concurrent_text_index,validated_job_pipeline,dependency_wave_validation,concurrent_event_routing,concurrent_document_pipeline,concurrent_stencil_reduction,concurrent_signal_dispatch,concurrent_transform_chain,concurrent_policy_callbacks,concurrent_graph_visitors,concurrent_audio_voices,concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,concurrent_state_machines,concurrent_stateful_pipeline,manifest_normalization,policy_record_dispatch,sensor_calibration,transaction_ledger_audit,generic_slot_buffer"
+      printf '%s\n' "fib,binarytrees,matrixmultiply,quicksort,sudoku_masks,i_before_e,base64,backup_dedup,binary_event_log,json,monte_carlo_pi,pidigits,mandelbrot,reverse_complement,k_nucleotide,nbody,tapelang_alphabet,distance_field,rms_norm,fasta_generation,fixed_width_128,rational_series,wide_integer_records,word_frequency,document_audit,lexical_rollup,channel_rollup,future_pipeline,future_await_race,await_channel_mux,mutex_ledger,mutex_await_journal,mutex_work_queue,regex_suffix_audit,regex_set_audit,regex_stream_audit,log_routing_redaction,config_validation_extraction,unicode_scalar_pipeline,array_slice_window,dependency_plan,discrete_event_simulation,inventory_reconciliation,option_result_config,concurrent_text_index,validated_job_pipeline,dependency_wave_validation,concurrent_event_routing,concurrent_document_pipeline,concurrent_stencil_reduction,concurrent_signal_dispatch,concurrent_transform_chain,concurrent_policy_callbacks,concurrent_graph_visitors,concurrent_audio_voices,concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,concurrent_state_machines,concurrent_stateful_pipeline,manifest_normalization,policy_record_dispatch,sensor_calibration,transaction_ledger_audit,generic_slot_buffer,versioned_telemetry_pipeline"
       ;;
     numeric-structural)
       printf '%s\n' "fib,binarytrees,matrixmultiply,mandelbrot,monte_carlo_pi,pidigits,nbody,distance_field,rms_norm"
@@ -242,6 +243,9 @@ bench_external_suite_csv() {
       ;;
     generic-slot-buffer)
       printf '%s\n' "generic_slot_buffer"
+      ;;
+    versioned-telemetry-pipeline)
+      printf '%s\n' "versioned_telemetry_pipeline"
       ;;
     legacy-sudoku)
       printf '%s\n' "sudoku"
@@ -395,6 +399,9 @@ bench_external_target() {
       ;;
     generic_slot_buffer)
       printf '%s\n' "$root/examples/benchmarks/generic_slot_buffer/generic_slot_buffer.able"
+      ;;
+    versioned_telemetry_pipeline)
+      printf '%s\n' "$root/examples/benchmarks/versioned_telemetry_pipeline/versioned_telemetry_pipeline.able"
       ;;
     binarytrees)
       printf '%s\n' "$root/examples/benchmarks/binarytrees.able"
@@ -590,6 +597,11 @@ bench_external_program_args() {
     transaction_ledger_audit)
       printf '%s\n' "transactions.txt"
       ;;
+    versioned_telemetry_pipeline)
+      if [[ "$workload_mode" == "interpreter" ]]; then
+        printf '%s\n' "--short"
+      fi
+      ;;
     regex_suffix_audit)
       printf '%s\n' "i-before-e/wordlist.txt"
       ;;
@@ -718,7 +730,7 @@ bench_external_resolve_cpu_affinity() {
 # benchmark directory must not also become a source root.
 bench_external_source_root_only() {
   case "$1" in
-    fixed_width_128|rational_series|wide_integer_records|backup_dedup|future_pipeline|future_await_race|await_channel_mux|mutex_ledger|mutex_await_journal|mutex_work_queue|regex_suffix_audit|regex_set_audit|regex_stream_audit|log_routing_redaction|config_validation_extraction|unicode_scalar_pipeline|array_slice_window|dependency_plan|discrete_event_simulation|inventory_reconciliation|option_result_config|distance_field|rms_norm|fasta_generation|concurrent_text_index|validated_job_pipeline|dependency_wave_validation|concurrent_event_routing|concurrent_stencil_reduction|concurrent_signal_dispatch|concurrent_transform_chain|concurrent_policy_callbacks|concurrent_graph_visitors|concurrent_audio_voices|concurrent_packet_codecs|concurrent_scene_tiles|concurrent_tree_folds|concurrent_state_machines|concurrent_stateful_pipeline|policy_record_dispatch|sensor_calibration|transaction_ledger_audit|generic_slot_buffer)
+    fixed_width_128|rational_series|wide_integer_records|backup_dedup|future_pipeline|future_await_race|await_channel_mux|mutex_ledger|mutex_await_journal|mutex_work_queue|regex_suffix_audit|regex_set_audit|regex_stream_audit|log_routing_redaction|config_validation_extraction|unicode_scalar_pipeline|array_slice_window|dependency_plan|discrete_event_simulation|inventory_reconciliation|option_result_config|distance_field|rms_norm|fasta_generation|concurrent_text_index|validated_job_pipeline|dependency_wave_validation|concurrent_event_routing|concurrent_stencil_reduction|concurrent_signal_dispatch|concurrent_transform_chain|concurrent_policy_callbacks|concurrent_graph_visitors|concurrent_audio_voices|concurrent_packet_codecs|concurrent_scene_tiles|concurrent_tree_folds|concurrent_state_machines|concurrent_stateful_pipeline|policy_record_dispatch|sensor_calibration|transaction_ledger_audit|generic_slot_buffer|versioned_telemetry_pipeline)
       return 0
       ;;
     *)
@@ -742,7 +754,7 @@ bench_external_result_name() {
       concurrent_graph_visitors|concurrent_audio_voices|concurrent_packet_codecs|\
       concurrent_scene_tiles|concurrent_tree_folds|concurrent_state_machines|\
       concurrent_stateful_pipeline|manifest_normalization|policy_record_dispatch|\
-      sensor_calibration|transaction_ledger_audit|generic_slot_buffer|sudoku_masks)
+      sensor_calibration|transaction_ledger_audit|generic_slot_buffer|versioned_telemetry_pipeline|sudoku_masks)
       printf '%s\n' "${1//_/-}"
       ;;
     *)

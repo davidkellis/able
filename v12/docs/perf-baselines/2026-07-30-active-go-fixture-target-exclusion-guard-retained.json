@@ -1,0 +1,113 @@
+{
+  "kind": "able-v12-active-go-fixture-target-exclusion-guard-retained",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-general-active-target-exclusion-guard",
+  "policy": {
+    "path": "v12/fixture-target-exclusion-policy.json",
+    "active_targets": [
+      "go"
+    ],
+    "retired_targets": [
+      "ts"
+    ],
+    "allowed_classifications": [
+      "intentional-contract-exclusion",
+      "known-correctness-gap",
+      "platform-limitation",
+      "toolchain-limitation"
+    ],
+    "allowlist_entries": 0,
+    "policy_sha256": "64a4f14752249161a9e03233614dcd14775a660fa1f10bcef69c58af1c075d95"
+  },
+  "inventory": {
+    "manifest_count": 176,
+    "active_exclusions": 0,
+    "retired_exclusions": 1,
+    "allowlisted_active_exclusions": 0
+  },
+  "implementation": {
+    "validator": "v12/scripts/check-fixture-target-exclusions.mjs",
+    "validator_sha256": "95c2d2b93dedbee3d08c12fae6c6c9aff2dbeb2f8fc65f39b31c39c153a773f1",
+    "tests": "v12/scripts/check-fixture-target-exclusions.test.mjs",
+    "tests_sha256": "82f5a55c82b8a9edac2d7e2a891bfcdc21b5fbfd62f148a85f0338260060dcbd",
+    "runner": "v12/run_all_tests.sh",
+    "runner_sha256": "61d4e549f40ba0a3a462849c2dea5e05492b732a531da2890b62d45f5f3011d9",
+    "fixture_specific_rules": false,
+    "feature_specific_rules": false
+  },
+  "focused_verification": {
+    "validator_syntax": "pass",
+    "test_syntax": "pass",
+    "policy_json": "pass",
+    "live_inventory": "pass",
+    "policy_tests": 7,
+    "policy_tests_passed": 7,
+    "policy_tests_seconds": 0.096863,
+    "runner_shell_syntax": "pass",
+    "whitespace": "pass"
+  },
+  "broad_verification": {
+    "run_all_tests": "pass",
+    "scoreboard_rows": 130,
+    "samples_per_able_reference": 5,
+    "non_compiler_packages": "pass",
+    "interpreter_package_seconds": 201.876,
+    "compiler_batches": 34,
+    "compiler_batches_passed": 34,
+    "maximum_compiler_batch_seconds": 215.248,
+    "bytecode_fixture_pass": "pass",
+    "bytecode_fixture_pass_seconds": 184.367
+  },
+  "performance_evidence": {
+    "frontier_rows": 130,
+    "actionable_groups": 0,
+    "closures": 23,
+    "current": 23,
+    "invalidated": 0,
+    "selector_rows": 0,
+    "remeasurement_required": false
+  },
+  "changes": {
+    "test_inventory_policy": true,
+    "test_runner": true,
+    "production": false,
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser": false,
+    "canonical_stdlib": false,
+    "benchmark": false,
+    "language": false,
+    "dependency": false,
+    "wasm": false
+  },
+  "git": {
+    "head": "9c32f2777536da2c948327720acc75187973a6d9",
+    "tracking": "9c32f2777536da2c948327720acc75187973a6d9",
+    "remote": "9c32f2777536da2c948327720acc75187973a6d9",
+    "ahead": 0,
+    "behind": 0,
+    "index_empty": true,
+    "staged": false,
+    "committed": false,
+    "pushed": false,
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_touched": false
+  },
+  "cleanup": {
+    "workspace_root": "/var/tmp",
+    "workspace_kib": 2440504,
+    "ram_backed_tmp_used": false,
+    "workspace_removed": true,
+    "v12_python_cache_directories": 0
+  },
+  "next": {
+    "id": "conditional-go-test-skip-audit",
+    "why": "Manifest exclusions now fail closed, but test-code and environment-driven skips are separate coverage mechanisms.",
+    "entails": "Inventory non-WASM t.Skip, environment, short-mode, and toolchain gates; distinguish infrastructure controls from semantic opt-outs; add a policy only for a reproducible unclassified semantic blind spot.",
+    "importance": "Native-lowering correctness guards must remain active so performance work cannot pass merely because semantic coverage disappeared."
+  }
+}

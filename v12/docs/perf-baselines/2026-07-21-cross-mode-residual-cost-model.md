@@ -4,15 +4,15 @@ The retained five-application telemetry cohort spans text/map, wide numeric, flo
 
 ## Selection
 
-The 5 unlike applications contribute 66.375 of 230.852 aggregate target-excess seconds (28.75%).
+The 5 unlike applications contribute 80.587 of 277.200 aggregate target-excess seconds (29.07%).
 
 | Application | Family | Compiled s / ratio / excess | Bytecode s / ratio / excess | VM allocations | Dynamic VM ops |
 | --- | --- | ---: | ---: | ---: | ---: |
-| `k_nucleotide` | text-map | 1.346 / 26.71x / 1.293 | 42.614 / 34.56x / 41.316 | 1,245,836,872 B / 23,947,521 | guard-skipped |
-| `fixed_width_128` | wide-numeric | 0.118 / 15.53x / 0.110 | 8.030 / 21.69x / 7.640 | 1,348,450,616 B / 31,911,044 | 60,446,436 |
-| `distance_field` | float-numeric | 0.030 / 2.63x / 0.018 | 5.760 / 16.96x / 5.403 | 368,035,900 B / 26,000,120 | 78,000,165 |
-| `policy_record_dispatch` | regex-dispatch | 0.082 / 14.39x / 0.076 | 7.582 / 375.35x / 7.561 | 139,533,024 B / 1,453,755 | guard-capped |
-| `concurrent_event_routing` | concurrency | 0.042 / 8.75x / 0.037 | 2.954 / 94.68x / 2.921 | 289,347,356 B / 2,820,542 | 21,367,576 |
+| `k_nucleotide` | text-map | 1.592 / 23.80x / 1.522 | 52.938 / 41.87x / 51.607 | 1,245,836,872 B / 23,947,521 | guard-skipped |
+| `fixed_width_128` | wide-numeric | 0.106 / 17.97x / 0.100 | 9.172 / 26.33x / 8.805 | 1,348,450,616 B / 31,911,044 | 60,446,436 |
+| `distance_field` | float-numeric | 0.038 / 2.59x / 0.023 | 6.260 / 19.33x / 5.919 | 368,035,900 B / 26,000,120 | 78,000,165 |
+| `policy_record_dispatch` | regex-dispatch | 0.096 / 18.11x / 0.090 | 7.862 / 284.86x / 7.833 | 139,533,024 B / 1,453,755 | guard-capped |
+| `concurrent_event_routing` | concurrency | 0.054 / 9.82x / 0.048 | 4.694 / 90.97x / 4.640 | 289,347,356 B / 2,820,542 | 21,367,576 |
 
 The dynamic opcode observer changes execution cost and is used only for counts. A capped or skipped row is missing evidence, never a zero. Static lowering covers all five applications.
 
@@ -40,11 +40,11 @@ The dynamic opcode observer changes execution cost and is used only for counts. 
 
 | Mechanism | Modes | Unlike families | Covered app excess | Status |
 | --- | --- | ---: | ---: | --- |
-| End-to-end allocation pressure | bytecode, compiled | 5 | 66.375 s | `observational-only` |
-| Bytecode stack/slot transport and dispatch | bytecode | 3 | 15.964 s | `closed-rejected` |
-| Generated generic-union fast method dispatch | compiled | 2 | 0.113 s | `insufficient-breadth` |
-| Material generated residual-polymorphic calls | compiled | 2 | 0.113 s | `insufficient-breadth` |
-| Generated goroutine identity discovery | compiled | 1 | 0.037 s | `closed-rejected` |
+| End-to-end allocation pressure | bytecode, compiled | 5 | 80.587 s | `observational-only` |
+| Bytecode stack/slot transport and dispatch | bytecode | 3 | 19.364 s | `closed-rejected` |
+| Generated generic-union fast method dispatch | compiled | 2 | 0.139 s | `insufficient-breadth` |
+| Material generated residual-polymorphic calls | compiled | 2 | 0.139 s | `insufficient-breadth` |
+| Generated goroutine identity discovery | compiled | 1 | 0.048 s | `closed-rejected` |
 
 ## Reconciliation
 

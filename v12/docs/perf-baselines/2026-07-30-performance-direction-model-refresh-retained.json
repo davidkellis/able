@@ -1,0 +1,72 @@
+{
+  "kind": "able-performance-direction-model-refresh-retained",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-evidence-gate-no-production-candidate",
+  "current_frontier": {
+    "rows": 130,
+    "target_meets": 10,
+    "target_misses": 120,
+    "total_target_excess_seconds": 273.4202105263158,
+    "actionable_groups": 0
+  },
+  "residual_cost_model": {
+    "application_count": 5,
+    "selected_mode_rows": 10,
+    "selected_excess_seconds": 80.586842,
+    "selected_excess_share_percent": 29.473623,
+    "eligible_mechanisms": []
+  },
+  "compiled_architecture": {
+    "eligible_mechanisms": [],
+    "minimum_remaining_target_speedup_after_perfect_local_owner_removal": 3.5962281476002094
+  },
+  "bytecode_architecture": {
+    "material_semantic_region_families": 5,
+    "semantic_region_candidates": 0,
+    "common_native_proxy_applications": 65,
+    "native_proxy_target_meets": 36,
+    "native_proxy_target_misses": 29,
+    "native_proxy_excess_reduction_percent": 94.421748,
+    "eligible_hot_function_classes": 0,
+    "selected_backends": 0
+  },
+  "shared_runtime_cutover": {
+    "bounded_unlike_families": 1,
+    "required_unlike_families": 3,
+    "implementation_admitted": false
+  },
+  "closure_ledger": {
+    "closures": 23,
+    "invalidated": 0,
+    "selected": 0
+  },
+  "retained_scope": {
+    "production_changed": false,
+    "compiler_changed": false,
+    "runtime_changed": false,
+    "interpreter_changed": false,
+    "bytecode_vm_changed": false,
+    "canonical_stdlib_changed": false,
+    "benchmark_changed": false,
+    "language_changed": false,
+    "dependency_changed": false,
+    "wasm_changed": false,
+    "default_runner_architecture_gate_added": true,
+    "python_bytecode_disabled": true
+  },
+  "cleanup": {
+    "architecture_go_cache_kib_removed": 142316,
+    "full_runner_go_cache_kib_removed": 2400964,
+    "direction_workspace_kib_removed": 272,
+    "repository_python_cache_removed": true
+  },
+  "default_runner": {
+    "preflights_passed": true,
+    "non_compiler_packages_passed": true,
+    "compiler_batches_passed": 34,
+    "bytecode_fixture_corpus_passed": true
+  },
+  "qualifying_candidate": null,
+  "next": "audit-sustained-multi-feature-workload-depth"
+}

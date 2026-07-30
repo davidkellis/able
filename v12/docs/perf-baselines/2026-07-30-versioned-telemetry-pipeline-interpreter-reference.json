@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-07-30T13:32:25Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "suite": "custom",
+  "runs": 5,
+  "timeout_seconds": 45,
+  "cpu_affinity": "12",
+  "cpu_affinity_pool": "12",
+  "runtimes": {
+    "python": {
+      "executable": "/home/david/.local/share/mise/installs/python/latest/bin/python3",
+      "variant": "python-3.14",
+      "version": "Python 3.14.5"
+    },
+    "ruby": {
+      "executable": "/home/david/.local/share/mise/installs/ruby/latest/bin/ruby",
+      "variant": "ruby-4.0",
+      "version": "ruby 4.0.5 (2026-05-20 revision 64336ffd0e) +PRISM [x86_64-linux]"
+    }
+  },
+  "rows": [
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "language_family": "python",
+      "implementation": "python-3.14",
+      "source": "/home/david/sync/projects/benchmarks/versioned-telemetry-pipeline/python-3.14/run.py",
+      "source_sha256": "0cc787dffc8d2f32d0840602f8f59245067db15e8606f08dd890a696e81591af",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.2023,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.200261597,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.200377118,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.21187561,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.204452838,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.194745551,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "12",
+        "executor_policy": "serial"
+      }
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "language_family": "ruby",
+      "implementation": "ruby-4.0",
+      "source": "/home/david/sync/projects/benchmarks/versioned-telemetry-pipeline/ruby-4.0/run.rb",
+      "source_sha256": "9059a9fac1075a21e534273cef10cffc9d15dc2ad4b40beb5410bd55eaf9a454",
+      "requested_runs": 5,
+      "attempted_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.1258,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.133264739,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.131710546,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.125774087,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.118943506,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.119147832,
+          "stdout_sha256": "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "cd6312c6a89d2107854648f463d6bd7de9dc25b74d32fb5cd5ab65354df2418e"
+      ],
+      "execution_contract": {
+        "mode": "bytecode",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "12",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}

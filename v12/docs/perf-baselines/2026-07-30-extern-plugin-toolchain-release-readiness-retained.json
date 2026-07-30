@@ -1,0 +1,131 @@
+{
+  "kind": "able-v12-extern-plugin-toolchain-release-readiness",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-general-extern-plugin-toolchain-correction",
+  "failure": {
+    "message": "plugin was built with a different version of package runtime",
+    "host_toolchain": "go1.26.5",
+    "ambient_toolchain": "go1.26.4",
+    "cause": "The generated extern module selected the ambient toolchain instead of the exact toolchain that built the running Able host."
+  },
+  "repair": {
+    "rule": "Set GOTOOLCHAIN to runtime.Version() for valid released versions after removing inherited duplicates.",
+    "development_version_behavior": "Preserve the caller environment when runtime.Version() is not a valid released Go version.",
+    "application_specific": false,
+    "nominal_type_specific": false,
+    "benchmark_specific": false
+  },
+  "affected_performance": [
+    {
+      "benchmark": "base64",
+      "mode": "bytecode",
+      "runs": 5,
+      "current_seconds": 2.976,
+      "previous_seconds": 3.974,
+      "change_percent": -25.1132360342,
+      "python_seconds": 4.0818,
+      "ruby_seconds": 2.7211,
+      "verified_runs": 5
+    },
+    {
+      "benchmark": "json",
+      "mode": "bytecode",
+      "runs": 5,
+      "current_seconds": 0.88,
+      "previous_seconds": 1.208,
+      "change_percent": -27.1523178808,
+      "python_seconds": 2.6764,
+      "ruby_seconds": 1.7105,
+      "verified_runs": 5
+    }
+  ],
+  "contracts": {
+    "scorecard_rows": 132,
+    "compiled_rows": 66,
+    "bytecode_rows": 66,
+    "samples_per_row": 5,
+    "retained_measurement_sources": 34,
+    "frontier_target_guards": 10,
+    "frontier_target_misses": 122,
+    "frontier_actionable_groups": 0,
+    "frontier_total_excess_seconds": 277.2004210526316,
+    "closure_count": 23,
+    "invalidated_closure_count": 0
+  },
+  "gates": [
+    {
+      "command": "./run_stdlib_tests.sh",
+      "result": "pass",
+      "treewalker_seconds": 21,
+      "bytecode_seconds": 16
+    },
+    {
+      "command": "just bench-architecture-budget-check",
+      "result": "pass"
+    },
+    {
+      "command": "./run_all_tests.sh --compiler --compiled-cli",
+      "result": "pass",
+      "release_audit_partitions": 640,
+      "compiled_cli_seconds": 1303.019
+    },
+    {
+      "command": "./run_all_tests.sh",
+      "result": "pass",
+      "compiler_batches": 34,
+      "interpreter_package_seconds": 104.021,
+      "bytecode_fixture_seconds": 89.459
+    },
+    {
+      "command": "go vet ./...",
+      "result": "pass"
+    },
+    {
+      "command": "go build ./...",
+      "result": "pass"
+    }
+  ],
+  "timing_policy": {
+    "individual_test_limit_seconds": 60,
+    "release_core_tests_replayed": 125,
+    "release_core_maximum_seconds": 24.32,
+    "release_core_maximum_test": "TestCompilerExperimentalExecutionContextFixtureParity",
+    "default_batch_20_maximum_seconds": 26.05,
+    "default_batch_30_maximum_seconds": 11.44,
+    "release_matrix_maximum_partition_seconds": 33.866,
+    "violation_count": 0
+  },
+  "evidence_sha256": {
+    "extern_builder": "8f388d679a079093a6e48ec6f0d1938ba8a12d475ed9565f6832b952b2e3b276",
+    "extern_builder_test": "3badd56cef961197333192c27937052251b75c386f9e5877271280acc2101d01",
+    "current_scorecard": "3652695dc7b1576ed4729ef30a7688b171114cda9b4ce269132fd868b37849f3",
+    "combined_frontier": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76",
+    "closure_ledger": "e91bc0ea504ec7e79615b01265cba0359da1378790f596bde33af9345ba35c62"
+  },
+  "cleanup": {
+    "pre_tranche_inactive_cache_kib": 30448352,
+    "task_workspace": "/var/tmp/able-v12-release-readiness-20260730.5Ij6Mv",
+    "task_workspace_kib": 28929240,
+    "task_workspace_removed": true,
+    "broad_tmp_cleanup": false
+  },
+  "production_changes": {
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter_extern_builder": true,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "dependency": false,
+    "benchmark": false,
+    "wasm": false
+  },
+  "next": {
+    "tranche": "post-readiness-v12-release-consolidation-inventory-refresh",
+    "why": "All current execution and evidence gates are green and no shared performance owner is admitted.",
+    "entails": "Read-only deterministic mapping of changed and untracked v12 paths to retained records and dependency-ordered review boundaries, without deletion, staging, commit, reset, history rewrite, or WASM work.",
+    "importance": "Turns the verified native-lowering and interpreter-free state into an auditable release candidate while preserving the dirty worktree."
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "kind": "able-v12-implicit-generic-redeclaration-go-fixture-coverage-retained",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-remove-stale-go-fixture-exclusion",
+  "spec_rule": {
+    "document": "spec/full_spec_v12.md",
+    "section": "7.1.5 Optional Generic Parameter Declarations",
+    "requirement": "A body declaration conflicting with an inferred type parameter is a compile-time error."
+  },
+  "fixture": {
+    "path": "v12/fixtures/ast/errors/implicit_generic_redeclaration",
+    "manifest_sha256": "d4e23cb70285385cc78194ac25f81bb1d42d29f2a4148eeaef39ca795de3374d",
+    "source_sha256": "9b6052de0ec8bfb61ee9c417ebb3429d60e3141250f7dea6a9cf119c7d0cce3a",
+    "module_sha256": "022f02eb71f3c3283c0aadd343112c466fa2818ca81f0d6c1fb34ea1977d9c66",
+    "before_go_skipped": true,
+    "after_go_skipped": false,
+    "typecheck_mode": "strict",
+    "expected_diagnostic": "typechecker: v12/fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at v12/fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)",
+    "actual_diagnostic_matches": true
+  },
+  "fixture_inventory": {
+    "active_go_target_exclusions": 0,
+    "remaining_target_exclusions": 1,
+    "remaining_target": "ts",
+    "remaining_fixture": "v12/fixtures/ast/strings/String_methods",
+    "typescript_active_v12_toolchain": false
+  },
+  "focused_verification": {
+    "exact_fixture_test": "pass",
+    "exact_fixture_test_seconds": 0.066,
+    "checker_redeclaration_tests": "pass",
+    "checker_redeclaration_tests_seconds": 0.002,
+    "all_error_fixtures": "pass",
+    "all_error_fixtures_seconds": 0.133,
+    "typechecker_package": "pass",
+    "typechecker_package_seconds": 0.025,
+    "fixture_command_package": "pass",
+    "fixture_command_package_seconds": 0.07,
+    "fixture_cli_replay": "pass"
+  },
+  "broad_verification": {
+    "run_all_tests": "pass",
+    "exec_coverage": "pass",
+    "scoreboard_rows": 130,
+    "scoreboard_samples_per_able_reference": 5,
+    "feature_families": 15,
+    "normative_sections": 16,
+    "portable_applications": 65,
+    "parser_go_binding": "pass",
+    "non_compiler_packages": "pass",
+    "compiler_batches": 34,
+    "compiler_batches_passed": 34,
+    "bytecode_fixture_pass": "pass",
+    "initial_artificial_package_timeout_seconds": 55,
+    "initial_artificial_package_timeout_was_correctness_failure": false
+  },
+  "performance_evidence": {
+    "closures": 23,
+    "current": 23,
+    "invalidated": 0,
+    "selector_rows": 0,
+    "remeasurement_required": false,
+    "reason": "fixture-manifest-metadata-is-outside-checked-production-benchmark-and-spec-scopes"
+  },
+  "changes": {
+    "fixture_manifest": true,
+    "production": false,
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser": false,
+    "canonical_stdlib": false,
+    "benchmark": false,
+    "language": false,
+    "dependency": false,
+    "wasm": false
+  },
+  "cleanup": {
+    "workspace_root": "/var/tmp",
+    "workspace_kib": 2660460,
+    "ram_backed_tmp_used": false,
+    "workspace_removed": true
+  },
+  "next": {
+    "id": "active-go-fixture-target-exclusion-guard",
+    "why": "A stale target exclusion silently disabled canonical Go fixture coverage.",
+    "entails": "Add a general repository-owned inventory check that rejects unclassified active go target exclusions, preserves the retired ts metadata, and has focused positive and negative tests.",
+    "importance": "Go fixture coverage cannot disappear through an unnoticed manifest edit, while genuine exceptions remain explicit and reviewable."
+  }
+}

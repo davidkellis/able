@@ -1,0 +1,45 @@
+File: versioned-telemetry-pipeline
+Build ID: 23d2e76988be7a4cd870b6ddde20fcb547da7cd5
+Type: alloc_space
+Time: 2026-07-30 08:46:29 CDT
+Showing nodes accounting for 31.36GB, 100% of 31.37GB total
+Dropped 11 nodes (cum <= 0.16GB)
+      flat  flat%   sum%        cum   cum%
+   16.86GB 53.74% 53.74%    16.86GB 53.74%  math/big.nat.make (inline)
+    8.27GB 26.36% 80.10%     8.27GB 26.36%  able/interpreter-go/pkg/compiler/bridge.ToInt
+    4.66GB 14.85% 94.96%     4.66GB 14.85%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+    0.60GB  1.91% 96.86%     0.60GB  1.91%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+    0.58GB  1.86% 98.72%     0.58GB  1.86%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+    0.39GB  1.25%   100%    31.36GB   100%  main.__able_compiled_fn_main
+         0     0%   100%    21.62GB 68.93%  able/interpreter-go/pkg/compiler/bridge.ApplyBinaryOperator
+         0     0%   100%    21.62GB 68.93%  able/interpreter-go/pkg/compiler/bridge.applyStaticIntegerBinary
+         0     0%   100%    21.62GB 68.93%  able/interpreter-go/pkg/compiler/bridge.applyStaticPrimitiveBinaryOperator
+         0     0%   100%    15.71GB 50.10%  able/interpreter-go/pkg/compiler/bridge.staticCheckedInteger
+         0     0%   100%    19.20GB 61.22%  able/interpreter-go/pkg/compiler/bridge.staticIntegerArithmetic
+         0     0%   100%     2.42GB  7.70%  able/interpreter-go/pkg/compiler/bridge.staticIntegerDivMod
+         0     0%   100%    31.36GB   100%  main.RunRegisteredMain
+         0     0%   100%    31.36GB   100%  main.RunRegisteredMain.func1
+         0     0%   100%    21.62GB 68.93%  main.__able_binary_op
+         0     0%   100%    20.09GB 64.05%  main.__able_compiled_fn_main.func1
+         0     0%   100%    31.36GB   100%  main.__able_register_compiled_call.func1
+         0     0%   100%     8.16GB 26.03%  main.__able_struct_Sample_to (inline)
+         0     0%   100%     8.16GB 26.03%  main.__able_struct_Sample_to_seen
+         0     0%   100%    31.36GB   100%  main.__able_wrap_fn_main
+         0     0%   100%    31.37GB   100%  main.main
+         0     0%   100%    31.37GB   100%  main.runMain
+         0     0%   100%     1.75GB  5.59%  math/big.(*Int).Add
+         0     0%   100%     9.35GB 29.82%  math/big.(*Int).Lsh (inline)
+         0     0%   100%     2.41GB  7.68%  math/big.(*Int).Mul (inline)
+         0     0%   100%     0.58GB  1.86%  math/big.(*Int).Neg (inline)
+         0     0%   100%     0.21GB  0.66%  math/big.(*Int).QuoRem
+         0     0%   100%     2.12GB  6.76%  math/big.(*Int).Set (inline)
+         0     0%   100%     1.01GB  3.23%  math/big.(*Int).Sub
+         0     0%   100%     2.41GB  7.68%  math/big.(*Int).mul
+         0     0%   100%     1.75GB  5.59%  math/big.nat.add
+         0     0%   100%     0.21GB  0.66%  math/big.nat.div
+         0     0%   100%     9.35GB 29.82%  math/big.nat.lsh
+         0     0%   100%     2.41GB  7.68%  math/big.nat.mul
+         0     0%   100%     2.41GB  7.68%  math/big.nat.mulAddWW
+         0     0%   100%     2.12GB  6.76%  math/big.nat.set (inline)
+         0     0%   100%     1.01GB  3.23%  math/big.nat.sub
+         0     0%   100%    31.37GB   100%  runtime.main

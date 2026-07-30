@@ -1,0 +1,89 @@
+File: versioned-telemetry-pipeline
+Build ID: 23d2e76988be7a4cd870b6ddde20fcb547da7cd5
+Type: cpu
+Time: 2026-07-30 08:42:59 CDT
+Duration: 51.79s, Total samples = 51.57s (99.58%)
+Showing nodes accounting for 42.14s, 81.71% of 51.57s total
+Dropped 260 nodes (cum <= 0.26s)
+Showing top 80 nodes out of 129
+      flat  flat%   sum%        cum   cum%
+     3.55s  6.88%  6.88%      3.55s  6.88%  runtime.nextFreeFast (inline)
+     2.22s  4.30% 11.19%     26.63s 51.64%  runtime.mallocgc
+     1.89s  3.66% 14.85%      3.52s  6.83%  runtime.gcmarknewobject
+     1.56s  3.03% 17.88%      1.99s  3.86%  runtime.tryDeferToSpanScan
+     1.50s  2.91% 20.79%     33.94s 65.81%  able/interpreter-go/pkg/compiler/bridge.applyStaticPrimitiveBinaryOperator
+     1.24s  2.40% 23.19%      4.07s  7.89%  runtime.mallocgcTiny
+     1.21s  2.35% 25.54%      1.21s  2.35%  runtime.memclrNoHeapPointers
+     1.20s  2.33% 27.87%      8.65s 16.77%  math/big.nat.lsh
+     1.16s  2.25% 30.11%      1.16s  2.25%  runtime.acquirem (inline)
+     1.09s  2.11% 32.23%      1.09s  2.11%  runtime.(*mspan).base (inline)
+     1.09s  2.11% 34.34%     17.61s 34.15%  runtime.makeslice
+     1.06s  2.06% 36.40%      1.32s  2.56%  runtime.(*mspan).writeHeapBitsSmall
+     1.04s  2.02% 38.41%      8.10s 15.71%  runtime.mallocgcSmallScanNoHeader
+     0.88s  1.71% 40.12%      0.88s  1.71%  able/interpreter-go/pkg/compiler/bridge.materializeBoundaryValue (inline)
+     0.87s  1.69% 41.81%     26.32s 51.04%  able/interpreter-go/pkg/compiler/bridge.staticIntegerArithmetic
+     0.80s  1.55% 43.36%         1s  1.94%  runtime.scanblock
+     0.72s  1.40% 44.75%      7.11s 13.79%  runtime.mallocgcSmallNoscan
+     0.68s  1.32% 46.07%      0.68s  1.32%  runtime.memmove
+     0.68s  1.32% 47.39%      1.57s  3.04%  runtime.scanObject
+     0.63s  1.22% 48.61%      0.63s  1.22%  runtime.bool2int (inline)
+     0.62s  1.20% 49.82%      5.11s  9.91%  runtime.deductAssistCredit
+     0.60s  1.16% 50.98%      3.48s  6.75%  math/big.(*Int).Sub
+     0.57s  1.11% 52.08%      0.57s  1.11%  runtime.getMCache (inline)
+     0.54s  1.05% 53.13%     20.84s 40.41%  able/interpreter-go/pkg/compiler/bridge.staticCheckedInteger
+     0.51s  0.99% 54.12%      0.51s  0.99%  main.__able_checked_mul_signed
+     0.49s  0.95% 55.07%     31.13s 60.36%  able/interpreter-go/pkg/compiler/bridge.applyStaticIntegerBinary
+     0.47s  0.91% 55.98%      0.50s  0.97%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.45s  0.87% 56.85%      0.65s  1.26%  math/big.(*Int).Cmp
+     0.45s  0.87% 57.73%      0.45s  0.87%  math/big.nat.norm (inline)
+     0.42s  0.81% 58.54%     51.10s 99.09%  main.__able_compiled_fn_main
+     0.42s  0.81% 59.36%      0.50s  0.97%  main.__able_struct_named_field_value
+     0.42s  0.81% 60.17%      0.42s  0.81%  math/big.NewInt (inline)
+     0.42s  0.81% 60.99%      1.06s  2.06%  runtime.bulkBarrierPreWrite
+     0.40s  0.78% 61.76%      0.40s  0.78%  runtime.publicationBarrier
+     0.39s  0.76% 62.52%      0.44s  0.85%  main.__able_ratio_parts_from_struct
+     0.38s  0.74% 63.25%      0.50s  0.97%  runtime.typePointers.next
+     0.36s   0.7% 63.95%      0.37s  0.72%  main.__able_divmod_signed
+     0.33s  0.64% 64.59%     35.46s 68.76%  main.__able_binary_op
+     0.33s  0.64% 65.23%      9.24s 17.92%  runtime.convT
+     0.33s  0.64% 65.87%      1.89s  3.66%  runtime.typedmemmove
+     0.32s  0.62% 66.49%      9.20s 17.84%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     0.31s   0.6% 67.09%      1.19s  2.31%  able/interpreter-go/pkg/compiler/bridge.unwrapInterface
+     0.30s  0.58% 67.68%      0.38s  0.74%  runtime.findObject
+     0.29s  0.56% 68.24%      1.14s  2.21%  main.__able_try_member_get
+     0.28s  0.54% 68.78%      0.28s  0.54%  able/interpreter-go/pkg/compiler/bridge.staticIntegerShape (inline)
+     0.28s  0.54% 69.32%      0.28s  0.54%  runtime.releasem (inline)
+     0.27s  0.52% 69.85%      0.94s  1.82%  main.__able_ratio_binary_op
+     0.26s   0.5% 70.35%      8.64s 16.75%  main.__able_struct_Sample_to_seen
+     0.26s   0.5% 70.86%      0.26s   0.5%  math/big.nat.cmp
+     0.26s   0.5% 71.36%      2.06s  3.99%  math/big.nat.mulAddWW
+     0.26s   0.5% 71.86%      0.89s  1.73%  runtime.makeSpanClass (inline)
+     0.25s  0.48% 72.35%     34.19s 66.30%  able/interpreter-go/pkg/compiler/bridge.ApplyBinaryOperator
+     0.25s  0.48% 72.83%      0.26s   0.5%  main.__able_struct_instance
+     0.25s  0.48% 73.32%      0.67s  1.30%  runtime.mapaccess2_faststr
+     0.23s  0.45% 73.76%      1.26s  2.44%  able/interpreter-go/pkg/compiler/bridge.unwrapStaticPrimitive
+     0.23s  0.45% 74.21%      0.67s  1.30%  main.__able_ratio_coerce
+     0.23s  0.45% 74.66%      2.55s  4.94%  math/big.nat.sub
+     0.23s  0.45% 75.10%      0.42s  0.81%  runtime.scanObjectsSmall
+     0.22s  0.43% 75.53%      4.58s  8.88%  math/big.nat.set (inline)
+     0.22s  0.43% 75.96%      0.93s  1.80%  runtime.(*sweepLocked).sweep
+     0.21s  0.41% 76.36%      4.79s  9.29%  math/big.(*Int).Set (inline)
+     0.21s  0.41% 76.77%     16.50s 32.00%  math/big.nat.make (inline)
+     0.20s  0.39% 77.16%      1.81s  3.51%  runtime.scanSpan
+     0.19s  0.37% 77.53%     34.78s 67.44%  main.__able_compiled_fn_main.func1
+     0.19s  0.37% 77.89%      2.49s  4.83%  math/big.(*Int).mul
+     0.18s  0.35% 78.24%      0.36s   0.7%  able/interpreter-go/pkg/compiler/bridge.AsInt
+     0.16s  0.31% 78.55%      0.95s  1.84%  gcWriteBarrier
+     0.16s  0.31% 78.86%      8.81s 17.08%  math/big.(*Int).Lsh (inline)
+     0.16s  0.31% 79.17%      1.59s  3.08%  math/big.nat.add
+     0.15s  0.29% 79.46%      4.32s  8.38%  able/interpreter-go/pkg/compiler/bridge.staticIntegerDivMod
+     0.14s  0.27% 79.74%      0.32s  0.62%  able/interpreter-go/pkg/runtime.IntegerValue.BigInt (inline)
+     0.14s  0.27% 80.01%      1.88s  3.65%  math/big.(*Int).Add
+     0.14s  0.27% 80.28%      1.58s  3.06%  runtime.convTstring
+     0.14s  0.27% 80.55%      1.12s  2.17%  runtime.wbBufFlush1
+     0.13s  0.25% 80.80%      2.19s  4.25%  math/big.nat.mul
+     0.11s  0.21% 81.02%      8.92s 17.30%  main.__able_struct_Sample_to (inline)
+     0.10s  0.19% 81.21%      0.83s  1.61%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+     0.09s  0.17% 81.38%      0.75s  1.45%  math/big.(*Int).QuoRem
+     0.09s  0.17% 81.56%      2.84s  5.51%  runtime.(*mcache).nextFree
+     0.08s  0.16% 81.71%      0.26s   0.5%  main.__able_iface_CalibrationPolicy_adapter_ptr_AdaptivePolicy.apply

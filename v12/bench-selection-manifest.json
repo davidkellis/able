@@ -66,6 +66,7 @@
       "transaction_ledger_audit",
       "unicode_scalar_pipeline",
       "validated_job_pipeline",
+      "versioned_telemetry_pipeline",
       "wide_integer_records",
       "word_frequency"
     ],
@@ -133,6 +134,7 @@
       "transaction_ledger_audit",
       "unicode_scalar_pipeline",
       "validated_job_pipeline",
+      "versioned_telemetry_pipeline",
       "wide_integer_records",
       "word_frequency"
     ]

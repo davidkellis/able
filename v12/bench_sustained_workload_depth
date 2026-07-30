@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+"""Audit whether portable feature breadth and sustained native work intersect."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_COVERAGE = SCRIPT_DIR / "bench-feature-coverage.json"
+DEFAULT_PRIORITIES = SCRIPT_DIR / "bench-feature-interaction-priorities.json"
+DEFAULT_OPERATIONS = SCRIPT_DIR / "bench-operation-depth.json"
+DEFAULT_SCORECARD = (
+    SCRIPT_DIR / "docs/perf-baselines/external-scoreboard-current.json"
+)
+DEFAULT_FRONTIER = (
+    SCRIPT_DIR
+    / "docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json"
+)
+DEFAULT_SUSTAINED_SECONDS = 0.2
+
+
+def load_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label} JSON in {path}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def source_record(path: Path) -> dict[str, str]:
+    return {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+
+
+def priority_weights(
+    coverage: dict[str, Any], priorities: dict[str, Any]
+) -> tuple[dict[str, int], dict[str, set[str]]]:
+    raw_priorities = priorities.get("families")
+    if (
+        priorities.get("kind") != "able-feature-interaction-priorities"
+        or priorities.get("schema_version") != 1
+        or not isinstance(raw_priorities, list)
+    ):
+        raise ValueError("interaction priorities has an invalid contract")
+    weights: dict[str, int] = {}
+    for raw in raw_priorities:
+        if not isinstance(raw, dict):
+            raise ValueError("interaction priority entries must be objects")
+        family = raw.get("id")
+        weight = raw.get("weight")
+        if not isinstance(family, str) or type(weight) is not int or not 1 <= weight <= 3:
+            raise ValueError("interaction priority entries need an id and weight 1..3")
+        if family in weights:
+            raise ValueError(f"interaction priorities repeats {family}")
+        weights[family] = weight
+
+    raw_families = coverage.get("families")
+    if (
+        coverage.get("kind") != "able-feature-benchmark-coverage"
+        or coverage.get("schema_version") != 1
+        or not isinstance(raw_families, list)
+    ):
+        raise ValueError("feature coverage has an invalid contract")
+    memberships: dict[str, set[str]] = {}
+    seen: set[str] = set()
+    for raw in raw_families:
+        if not isinstance(raw, dict):
+            raise ValueError("feature coverage entries must be objects")
+        family = raw.get("id")
+        benchmarks = raw.get("portable_benchmarks")
+        if not isinstance(family, str) or not isinstance(benchmarks, list):
+            raise ValueError("feature coverage entries need an id and portable_benchmarks")
+        if family in seen:
+            raise ValueError(f"feature coverage repeats {family}")
+        seen.add(family)
+        if family not in weights:
+            continue
+        if any(not isinstance(benchmark, str) for benchmark in benchmarks):
+            raise ValueError(f"feature coverage {family} has a non-string benchmark")
+        for benchmark in benchmarks:
+            memberships.setdefault(benchmark, set()).add(family)
+    if set(weights) - seen:
+        raise ValueError("interaction priorities names unknown feature families")
+    return weights, memberships
+
+
+def operation_memberships(manifest: dict[str, Any]) -> dict[str, set[str]]:
+    operations = manifest.get("operations")
+    if (
+        manifest.get("kind") != "able-performance-operation-depth"
+        or manifest.get("schema_version") != 1
+        or not isinstance(operations, list)
+    ):
+        raise ValueError("operation depth has an invalid contract")
+    result: dict[str, set[str]] = {}
+    for raw in operations:
+        if not isinstance(raw, dict) or not isinstance(raw.get("id"), str):
+            raise ValueError("operation depth entries need an id")
+        for evidence in raw.get("portable_evidence", []):
+            if not isinstance(evidence, dict) or not isinstance(evidence.get("benchmark"), str):
+                raise ValueError(f"operation {raw['id']} has invalid portable evidence")
+            result.setdefault(evidence["benchmark"], set()).add(raw["id"])
+    return result
+
+
+def selected_benchmarks(scorecard: dict[str, Any]) -> tuple[list[str], dict[str, dict[str, Any]]]:
+    benchmarks = scorecard.get("benchmarks")
+    rows = scorecard.get("rows")
+    if (
+        scorecard.get("kind") != "external-benchmark-scoreboard"
+        or not isinstance(benchmarks, list)
+        or not isinstance(rows, list)
+        or any(not isinstance(item, str) for item in benchmarks)
+    ):
+        raise ValueError("scorecard has an invalid contract")
+    compiled: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("mode") != "compiled":
+            continue
+        benchmark = row.get("benchmark")
+        if not isinstance(benchmark, str) or benchmark in compiled:
+            raise ValueError("scorecard has invalid or duplicate compiled rows")
+        able = row.get("able")
+        comparisons = row.get("comparisons")
+        go = comparisons.get("go") if isinstance(comparisons, dict) else None
+        contract = row.get("benchmark_contract")
+        if (
+            not isinstance(able, dict)
+            or able.get("status") != "verified"
+            or able.get("ok_runs", 0) < 5
+            or not isinstance(able.get("real_seconds"), (int, float))
+            or not isinstance(go, dict)
+            or not isinstance(go.get("real_seconds"), (int, float))
+            or not isinstance(contract, dict)
+            or not isinstance(contract.get("sha256"), str)
+        ):
+            raise ValueError(f"compiled row lacks repeated verified evidence: {benchmark}")
+        compiled[benchmark] = row
+    if set(benchmarks) != set(compiled):
+        raise ValueError("scorecard benchmark inventory and compiled rows differ")
+    return sorted(benchmarks), compiled
+
+
+def frontier_excess(manifest: dict[str, Any]) -> dict[str, float]:
+    rows = manifest.get("rows")
+    if manifest.get("kind") != "able-performance-frontier" or not isinstance(rows, list):
+        raise ValueError("performance frontier has an invalid contract")
+    excess: dict[str, float] = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("mode") != "compiled":
+            continue
+        benchmark = row.get("benchmark")
+        seconds = row.get("excess_seconds")
+        if not isinstance(benchmark, str) or not isinstance(seconds, (int, float)):
+            raise ValueError("performance frontier has an invalid compiled row")
+        excess[benchmark] = float(seconds)
+    return excess
+
+
+def build_report(
+    coverage_path: Path,
+    priorities_path: Path,
+    operations_path: Path,
+    scorecard_path: Path,
+    frontier_path: Path,
+    sustained_seconds: float,
+) -> dict[str, Any]:
+    if not math.isfinite(sustained_seconds) or sustained_seconds <= 0:
+        raise ValueError("sustained seconds must be positive and finite")
+    coverage = load_json(coverage_path, "feature coverage")
+    priorities = load_json(priorities_path, "interaction priorities")
+    operations = load_json(operations_path, "operation depth")
+    scorecard = load_json(scorecard_path, "scorecard")
+    frontier = load_json(frontier_path, "performance frontier")
+    weights, family_memberships = priority_weights(coverage, priorities)
+    operation_apps = operation_memberships(operations)
+    benchmarks, compiled = selected_benchmarks(scorecard)
+    excess = frontier_excess(frontier)
+    missing = set(benchmarks) - set(family_memberships)
+    if missing:
+        raise ValueError("benchmarks lack discriminating feature coverage: " + ", ".join(sorted(missing)))
+    broad_minimum = math.ceil(len(weights) / 2)
+    applications: list[dict[str, Any]] = []
+    for benchmark in benchmarks:
+        row = compiled[benchmark]
+        families = sorted(family_memberships[benchmark])
+        go_seconds = float(row["comparisons"]["go"]["real_seconds"])
+        able_seconds = float(row["able"]["real_seconds"])
+        broad = len(families) >= broad_minimum
+        sustained = go_seconds >= sustained_seconds
+        applications.append(
+            {
+                "benchmark": benchmark,
+                "feature_family_count": len(families),
+                "feature_weight": sum(weights[family] for family in families),
+                "triple_count": math.comb(len(families), 3) if len(families) >= 3 else 0,
+                "operation_count": len(operation_apps.get(benchmark, set())),
+                "families": families,
+                "go_seconds": round(go_seconds, 6),
+                "able_compiled_seconds": round(able_seconds, 6),
+                "compiled_target_excess_seconds": round(excess.get(benchmark, 0.0), 6),
+                "benchmark_contract_sha256": row["benchmark_contract"]["sha256"],
+                "repeated_verified": True,
+                "broad_multi_feature": broad,
+                "sustained_native_work": sustained,
+                "closes_depth_gap": broad and sustained,
+            }
+        )
+    applications.sort(
+        key=lambda item: (
+            not item["closes_depth_gap"],
+            -item["feature_family_count"],
+            -item["feature_weight"],
+            -item["go_seconds"],
+            -item["compiled_target_excess_seconds"],
+            item["benchmark"],
+        )
+    )
+    broad = [item for item in applications if item["broad_multi_feature"]]
+    sustained = [item for item in applications if item["sustained_native_work"]]
+    intersection = [item for item in applications if item["closes_depth_gap"]]
+    return {
+        "kind": "able-sustained-multi-feature-workload-depth",
+        "schema_version": 1,
+        "sources": {
+            "feature_coverage": source_record(coverage_path),
+            "interaction_priorities": source_record(priorities_path),
+            "operation_depth": source_record(operations_path),
+            "scorecard": source_record(scorecard_path),
+            "performance_frontier": source_record(frontier_path),
+        },
+        "policy": {
+            "sustained_native_seconds_minimum": sustained_seconds,
+            "broad_feature_family_minimum": broad_minimum,
+            "broad_feature_definition": "at least half of discriminating portable feature families",
+            "duration_definition": "mean Go real time from five verifier-backed processes",
+            "admission_rule": "admit at most one source-equivalent application only when no current application satisfies both predicates",
+        },
+        "summary": {
+            "application_count": len(applications),
+            "discriminating_feature_family_count": len(weights),
+            "broad_multi_feature_count": len(broad),
+            "sustained_native_count": len(sustained),
+            "intersection_count": len(intersection),
+            "material_depth_gap": not intersection,
+            "maximum_go_seconds_among_broad": round(
+                max((item["go_seconds"] for item in broad), default=0.0), 6
+            ),
+            "maximum_feature_families_among_sustained": max(
+                (item["feature_family_count"] for item in sustained), default=0
+            ),
+            "maximum_feature_weight_among_sustained": max(
+                (item["feature_weight"] for item in sustained), default=0
+            ),
+            "admitted_existing_applications": [
+                item["benchmark"] for item in intersection
+            ],
+        },
+        "applications": applications,
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    policy = report["policy"]
+    lines = [
+        "# Sustained Multi-Feature Workload-Depth Audit",
+        "",
+        f"- Applications: `{summary['application_count']}`",
+        f"- Discriminating feature families: `{summary['discriminating_feature_family_count']}`",
+        f"- Broad threshold: `{policy['broad_feature_family_minimum']}` families",
+        f"- Sustained native threshold: `{policy['sustained_native_seconds_minimum']:.3f}s`",
+        f"- Broad applications: `{summary['broad_multi_feature_count']}`",
+        f"- Sustained applications: `{summary['sustained_native_count']}`",
+        f"- Applications satisfying both: `{summary['intersection_count']}`",
+        f"- Material depth gap: `{'yes' if summary['material_depth_gap'] else 'no'}`",
+        "",
+        "The duration predicate uses the five-process Go mean, not Able time, so a",
+        "large runtime/compiler penalty cannot make a short reference workload look",
+        "sustained. The breadth predicate uses at least half of the portable feature",
+        "families selected by the existing interaction-priority contract.",
+        "",
+        "| Application | Families | Weight | Triples | Operations | Go s | Able s | Excess s | Broad | Sustained |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+    ]
+    for item in report["applications"]:
+        lines.append(
+            f"| `{item['benchmark']}` | {item['feature_family_count']} | "
+            f"{item['feature_weight']} | {item['triple_count']} | "
+            f"{item['operation_count']} | {item['go_seconds']:.4f} | "
+            f"{item['able_compiled_seconds']:.4f} | "
+            f"{item['compiled_target_excess_seconds']:.4f} | "
+            f"{'yes' if item['broad_multi_feature'] else 'no'} | "
+            f"{'yes' if item['sustained_native_work'] else 'no'} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--coverage", type=Path, default=DEFAULT_COVERAGE)
+    parser.add_argument("--priorities", type=Path, default=DEFAULT_PRIORITIES)
+    parser.add_argument("--operations", type=Path, default=DEFAULT_OPERATIONS)
+    parser.add_argument("--scorecard", type=Path, default=DEFAULT_SCORECARD)
+    parser.add_argument("--frontier", type=Path, default=DEFAULT_FRONTIER)
+    parser.add_argument("--sustained-seconds", type=float, default=DEFAULT_SUSTAINED_SECONDS)
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    args = parser.parse_args()
+    try:
+        report = build_report(
+            args.coverage,
+            args.priorities,
+            args.operations,
+            args.scorecard,
+            args.frontier,
+            args.sustained_seconds,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+    payload = json.dumps(report, indent=2) + "\n"
+    if args.json_out:
+        write_text(args.json_out, payload)
+    if args.markdown_out:
+        write_text(args.markdown_out, markdown(report))
+    if not args.json_out and not args.markdown_out:
+        print(payload, end="")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

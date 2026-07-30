@@ -4,11 +4,11 @@
   "sources": {
     "structural_strategy": {
       "path": "v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json",
-      "sha256": "0743885d19e097767998c89e9d86212dbdfe56be0c01846f0c28660146168e87"
+      "sha256": "71174d61c5df67ef78f91162c770eecd4dc6e272ee45525570cd0a04c39795a9"
     },
     "native_tier_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
+      "sha256": "7e90ed56f56a3a31be3611bb7ece0c91fc0302ebc25e84dbfe29dba60a2cde55"
     },
     "spec": {
       "path": "spec/full_spec_v12.md",
@@ -44,7 +44,7 @@
     },
     "extern_builder": {
       "path": "v12/interpreters/go/pkg/interpreter/extern_host_builder.go",
-      "sha256": "5f4df30aedb25aa08451279f3c20f1882bcd591ddbb6dc6aae660cbdce1f87bd"
+      "sha256": "8f388d679a079093a6e48ec6f0d1938ba8a12d475ed9565f6832b952b2e3b276"
     }
   },
   "decision_gates": [

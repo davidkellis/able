@@ -1,0 +1,141 @@
+{
+  "kind": "able-v12-post-publication-compiled-profile-admission-closure",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-production-change-no-duplicate-profiles",
+  "repository": {
+    "head": "9c32f2777536da2c948327720acc75187973a6d9",
+    "origin_master": "9c32f2777536da2c948327720acc75187973a6d9",
+    "remote_master": "9c32f2777536da2c948327720acc75187973a6d9",
+    "ahead": 0,
+    "behind": 0
+  },
+  "inputs": {
+    "selection_manifest_sha256": "6bbe6579df9857a791a2f30d55792bba0827994766d4f27beebbf0dba24ec628",
+    "scoreboard_sha256": "43c9a48d92ecaf02069655e6c1e78cc81bf1025997e578708da3c23acac8a4d8",
+    "frontier_evidence_sha256": "6edd75cc356a4bdeb856d46d028e70cdb1d1774e8bad57b62f6b7c21fa7883c2",
+    "frontier_sha256": "f4fa5b26a9f6229d0cb61a27af0ff8b965ba424732f73998463fd8640e5d312b",
+    "closure_ledger_sha256": "aaf867b3b78add52fbf5b36efae45a4c097b9ae9e142f7bf826c754c942d3171",
+    "evaluated_ledger_sha256": "2d0f331971c938a7c086d8be95aa255bc9c34dfb6d7943686ce7d7debdc423b2"
+  },
+  "checked_scopes": [
+    {
+      "id": "compiler-production",
+      "file_count": 287,
+      "tree_sha256": "f28265f71ff2e67df56d447aaeb90a26fd3af9927e2f719c630ed403e9c240ca"
+    },
+    {
+      "id": "runtime-production",
+      "file_count": 40,
+      "tree_sha256": "73b8d6fcd4ee148ca8f928e139b0c69f37f7fcecc7b778dfecfcc9561ec8209d"
+    },
+    {
+      "id": "shared-interpreter-semantics",
+      "file_count": 137,
+      "tree_sha256": "0ba3255d7a3db4a798e616a30db8db9940038748804aa715d1d90b598403d9bf"
+    },
+    {
+      "id": "canonical-stdlib",
+      "file_count": 70,
+      "tree_sha256": "382d256e2fb380220dcdd62a5cf83109fa72297f23d70bdd1ffe2d8daebed047"
+    },
+    {
+      "id": "v12-spec",
+      "file_count": 1,
+      "tree_sha256": "7083f1656a3452236a372c9b20e8efdcdf6f122681e04f7d6d8607099603e71f"
+    }
+  ],
+  "existing_profile_cohort": {
+    "record_markdown_sha256": "d7fafabc99ba2266e99622264689824a0e22b3461f47b3ba4fd962a446621144",
+    "record_json_sha256": "a726f0b0f252a7ef70669bb87e1b5b4792e36454bdbd212f2e9af26d4816fa08",
+    "cross_family_reconciliation_sha256": "5fd2e70dd932871c163fab1fdcb1a9c374d66b1674800a3712ef7a42364d7832",
+    "applications": [
+      "concurrent_event_routing",
+      "distance_field",
+      "fixed_width_128",
+      "k_nucleotide",
+      "manifest_normalization",
+      "policy_record_dispatch"
+    ],
+    "application_count": 6,
+    "strict_build_args": [
+      "--no-fallbacks"
+    ],
+    "dependency_packages_per_application": 96,
+    "interpreter_dependency": false,
+    "cpu_profiles_per_application": 10,
+    "allocation_profiles_per_application": 3,
+    "readable_profile_reports": 42,
+    "exact_phase_stat_records": 18,
+    "verifier_backed": true,
+    "qualifying_candidate": null
+  },
+  "frontier": {
+    "selected_rows": 130,
+    "compiled_rows": 65,
+    "bytecode_rows": 65,
+    "compiled_established_guards": 6,
+    "bytecode_established_guards": 4,
+    "actionable_groups": 0
+  },
+  "ledger": {
+    "closures": 23,
+    "current": 23,
+    "invalidated": 0,
+    "selector_rows": 0,
+    "recommendation": "Do not rerun a closed performance tranche; no checked evidence identity is invalidated."
+  },
+  "verification": {
+    "scoreboard_check": "pass",
+    "scoreboard_rows": 130,
+    "successful_able_reference_samples_per_row": 5,
+    "retained_sources": 31,
+    "retained_reference_reports": 31,
+    "path_tests": 4,
+    "frontier_check": "pass",
+    "frontier_tests": 5,
+    "ledger_check": "pass",
+    "ledger_tests": 10,
+    "ledger_tests_skipped": 1,
+    "go_test_cmd_ablec": "pass",
+    "go_test_package_seconds": 6.09,
+    "go_test_command_seconds": 23.46,
+    "git_diff_check": "pass"
+  },
+  "measurement": {
+    "new_strict_builds": 0,
+    "new_cpu_profiles": 0,
+    "new_allocation_profiles": 0,
+    "new_ab_processes": 0,
+    "reason": "authoritative-selector-empty-under-unchanged-production-and-benchmark-identities"
+  },
+  "changes": {
+    "production": false,
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser": false,
+    "canonical_stdlib": false,
+    "benchmark": false,
+    "language": false,
+    "dependency": false,
+    "fixture": false,
+    "wasm": false
+  },
+  "cleanup": {
+    "workspace_root": "/var/tmp",
+    "workspace_kib": 127280,
+    "ram_backed_tmp_used": false,
+    "workspace_removed": true,
+    "generated_python_cache_files": 6,
+    "generated_python_cache_removed": true
+  },
+  "next": {
+    "id": "bounded-non-wasm-v12-correctness-backlog-audit",
+    "why": "All performance closures are current; more measurement requires a real production, semantic, benchmark, or contradictory-evidence trigger.",
+    "entails": "Review spec/TODO_v12.md, non-WASM skips, and focused bounded tests; select only a reproducible compiler, interpreter, specification, or canonical-stdlib defect. Let any changed checked scope drive exact performance invalidation.",
+    "importance": "A real correctness mechanism can improve v12 while ensuring the next performance refresh is tied to changed code rather than repeated unchanged profiles."
+  }
+}

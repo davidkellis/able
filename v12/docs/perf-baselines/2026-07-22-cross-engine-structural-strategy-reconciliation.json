@@ -104,75 +104,75 @@
       "rows": [
         {
           "benchmark": "fixed_width_128",
-          "current_seconds": 8.03,
-          "current_target_excess_seconds": 7.640315789,
+          "current_seconds": 9.172,
+          "current_target_excess_seconds": 8.805263158,
           "family": "wide-numeric",
-          "modeled_seconds": 0.118,
+          "modeled_seconds": 0.106,
           "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
-          "target_budget_seconds": 0.38968421052631574,
+          "target_budget_seconds": 0.36673684210526314,
           "target_excess_reduction_percent": 100.0
         },
         {
           "benchmark": "distance_field",
-          "current_seconds": 5.76,
-          "current_target_excess_seconds": 5.402526316,
+          "current_seconds": 6.26,
+          "current_target_excess_seconds": 5.919157895,
           "family": "float-numeric",
-          "modeled_seconds": 0.03,
+          "modeled_seconds": 0.038,
           "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
-          "target_budget_seconds": 0.35747368421052633,
+          "target_budget_seconds": 0.34084210526315784,
           "target_excess_reduction_percent": 100.0
         },
         {
           "benchmark": "concurrent_event_routing",
-          "current_seconds": 2.954,
-          "current_target_excess_seconds": 2.921157895,
+          "current_seconds": 4.694,
+          "current_target_excess_seconds": 4.639684211,
           "family": "concurrency-text",
-          "modeled_seconds": 0.042,
-          "modeled_target_excess_seconds": 0.009157895,
+          "modeled_seconds": 0.054,
+          "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": false,
-          "target_budget_seconds": 0.032842105263157895,
-          "target_excess_reduction_percent": 99.686498
+          "target_budget_seconds": 0.054315789473684206,
+          "target_excess_reduction_percent": 100.0
         },
         {
           "benchmark": "word_frequency",
-          "current_seconds": 1.502,
-          "current_target_excess_seconds": 1.480526316,
+          "current_seconds": 1.45,
+          "current_target_excess_seconds": 1.424315789,
           "family": "text-map",
-          "modeled_seconds": 0.038,
-          "modeled_target_excess_seconds": 0.016526316,
+          "modeled_seconds": 0.048,
+          "modeled_target_excess_seconds": 0.022315789,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
-          "target_budget_seconds": 0.021473684210526315,
-          "target_excess_reduction_percent": 98.883754
+          "target_budget_seconds": 0.02568421052631579,
+          "target_excess_reduction_percent": 98.433227
         },
         {
           "benchmark": "array_slice_window",
-          "current_seconds": 0.686,
-          "current_target_excess_seconds": 0.657368421,
+          "current_seconds": 0.658,
+          "current_target_excess_seconds": 0.628421053,
           "family": "array-iterator",
           "modeled_seconds": 0.03,
-          "modeled_target_excess_seconds": 0.001368421,
+          "modeled_target_excess_seconds": 0.000421053,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
-          "target_budget_seconds": 0.028631578947368418,
-          "target_excess_reduction_percent": 99.791833
+          "target_budget_seconds": 0.029578947368421052,
+          "target_excess_reduction_percent": 99.932998
         },
         {
           "benchmark": "reverse_complement",
-          "current_seconds": 3.292,
-          "current_target_excess_seconds": 3.264315789,
+          "current_seconds": 4.12,
+          "current_target_excess_seconds": 4.093263158,
           "family": "byte-text",
-          "modeled_seconds": 0.044,
-          "modeled_target_excess_seconds": 0.016315789,
+          "modeled_seconds": 0.06,
+          "modeled_target_excess_seconds": 0.033263158,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
-          "target_budget_seconds": 0.027684210526315787,
-          "target_excess_reduction_percent": 99.500177
+          "target_budget_seconds": 0.026736842105263156,
+          "target_excess_reduction_percent": 99.187368
         }
       ]
     },
@@ -194,69 +194,69 @@
       "rows": [
         {
           "benchmark": "fixed_width_128",
-          "current_seconds": 8.03,
-          "current_target_excess_seconds": 7.640315789,
+          "current_seconds": 9.172,
+          "current_target_excess_seconds": 8.805263158,
           "family": "wide-numeric",
-          "modeled_seconds": 5.359769137,
-          "modeled_target_excess_seconds": 4.970084926,
+          "modeled_seconds": 6.122017749,
+          "modeled_target_excess_seconds": 5.755280907,
           "passes_materiality_gate": true,
           "proved_instruction_share_percent": 33.253186,
-          "target_excess_reduction_percent": 34.949221
+          "target_excess_reduction_percent": 34.638173
         },
         {
           "benchmark": "distance_field",
-          "current_seconds": 5.76,
-          "current_target_excess_seconds": 5.402526316,
+          "current_seconds": 6.26,
+          "current_target_excess_seconds": 5.919157895,
           "family": "float-numeric",
-          "modeled_seconds": 3.396924531,
-          "modeled_target_excess_seconds": 3.039450847,
+          "modeled_seconds": 3.691796452,
+          "modeled_target_excess_seconds": 3.350954347,
           "passes_materiality_gate": true,
           "proved_instruction_share_percent": 41.025616,
-          "target_excess_reduction_percent": 43.740194
+          "target_excess_reduction_percent": 43.387989
         },
         {
           "benchmark": "concurrent_event_routing",
-          "current_seconds": 2.954,
-          "current_target_excess_seconds": 2.921157895,
+          "current_seconds": 4.694,
+          "current_target_excess_seconds": 4.639684211,
           "family": "concurrency-text",
-          "modeled_seconds": 2.697694356,
-          "modeled_target_excess_seconds": 2.66485225,
+          "modeled_seconds": 4.286722175,
+          "modeled_target_excess_seconds": 4.232406386,
           "passes_materiality_gate": false,
           "proved_instruction_share_percent": 8.676562,
-          "target_excess_reduction_percent": 8.774111
+          "target_excess_reduction_percent": 8.778137
         },
         {
           "benchmark": "word_frequency",
-          "current_seconds": 1.502,
-          "current_target_excess_seconds": 1.480526316,
+          "current_seconds": 1.45,
+          "current_target_excess_seconds": 1.424315789,
           "family": "text-map",
-          "modeled_seconds": 1.368255755,
-          "modeled_target_excess_seconds": 1.346782071,
+          "modeled_seconds": 1.320886049,
+          "modeled_target_excess_seconds": 1.295201838,
           "passes_materiality_gate": false,
           "proved_instruction_share_percent": 8.90441,
-          "target_excess_reduction_percent": 9.033561
+          "target_excess_reduction_percent": 9.064981
         },
         {
           "benchmark": "array_slice_window",
-          "current_seconds": 0.686,
-          "current_target_excess_seconds": 0.657368421,
+          "current_seconds": 0.658,
+          "current_target_excess_seconds": 0.628421053,
           "family": "array-iterator",
-          "modeled_seconds": 0.48465568,
-          "modeled_target_excess_seconds": 0.456024101,
+          "modeled_seconds": 0.464873815,
+          "modeled_target_excess_seconds": 0.435294868,
           "passes_materiality_gate": true,
           "proved_instruction_share_percent": 29.350484,
-          "target_excess_reduction_percent": 30.62884
+          "target_excess_reduction_percent": 30.731972
         },
         {
           "benchmark": "reverse_complement",
-          "current_seconds": 3.292,
-          "current_target_excess_seconds": 3.264315789,
+          "current_seconds": 4.12,
+          "current_target_excess_seconds": 4.093263158,
           "family": "byte-text",
-          "modeled_seconds": 2.526035163,
-          "modeled_target_excess_seconds": 2.498350952,
+          "modeled_seconds": 3.16138058,
+          "modeled_target_excess_seconds": 3.134643738,
           "passes_materiality_gate": false,
           "proved_instruction_share_percent": 23.267462,
-          "target_excess_reduction_percent": 23.46479
+          "target_excess_reduction_percent": 23.419443
         }
       ]
     }
@@ -295,7 +295,7 @@
   "sources": {
     "closure_ledger": {
       "path": "/home/david/sync/projects/able/v12/bench-performance-closure-ledger.json",
-      "sha256": "840797794ab5916a2afc8a77dbf97689645495f2802497580c3fd2733bbe9b6a"
+      "sha256": "e91bc0ea504ec7e79615b01265cba0359da1378790f596bde33af9345ba35c62"
     },
     "compiled_boundary_census": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-compiled-full-typed-semantic-boundary-census.json",
@@ -303,23 +303,23 @@
     },
     "compiled_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "721653e8cd65d19b1326608dddfe012edeb5f7165006c19e74254ee391d1a6e5"
+      "sha256": "b38df6773ef88def536823fb95d054e3bc9b9db13df2905995ce1e06b150a438"
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-cross-engine-structural-strategy.json",
-      "sha256": "9128231e2be23956499380c7db0245d29419ddea5bfd42fb0ea61b7cf2c5de6e"
+      "sha256": "482a29422b50ba60b98acf0a74f1bfa4f0307fc9a92c47697edc9c45d98b6f25"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
+      "sha256": "7e90ed56f56a3a31be3611bb7ece0c91fc0302ebc25e84dbfe29dba60a2cde55"
     }
   },
   "summary": {
-    "bytecode_target_excess_seconds": 226.057473686,
+    "bytecode_target_excess_seconds": 268.726526316,
     "closure_count": 23,
     "concrete_admitted_route_count": 0,
     "decision": "portable-backend-performance-capable-but-no-concrete-mechanism",
@@ -328,9 +328,9 @@
     "minimum_unlike_families": 3,
     "performance_capable_route_count": 1,
     "prototype_admitted": false,
-    "selected_rows": 128,
-    "target_misses": 117,
-    "total_target_excess_seconds": 230.8515789473684
+    "selected_rows": 132,
+    "target_misses": 122,
+    "total_target_excess_seconds": 277.2004210526316
   },
   "target_guards": [
     {

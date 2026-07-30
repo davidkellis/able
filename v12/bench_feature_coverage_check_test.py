@@ -42,7 +42,7 @@ class FeatureCoverageTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("16 normative sections, 65 portable applications", result.stdout)
+        self.assertIn("16 normative sections, 66 portable applications", result.stdout)
 
     def test_uncovered_spec_section_fails(self) -> None:
         manifest = self.manifest()

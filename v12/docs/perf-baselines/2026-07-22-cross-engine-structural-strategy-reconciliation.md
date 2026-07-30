@@ -10,9 +10,9 @@ class rather than a concrete mechanism. Timing reach does not answer who owns
 boxed values and GC roots, how effects and suspension cross the boundary, or how
 the backend is built and distributed.
 
-The governing frontier has 128 selected rows,
-117 misses, and 230.851579
-seconds of target excess. Bytecode contributes 226.057474
+The governing frontier has 132 selected rows,
+122 misses, and 277.200421
+seconds of target excess. Bytecode contributes 268.726526
 seconds. All 23 completed performance closures remain current.
 
 ## Route comparison
@@ -32,12 +32,12 @@ slot hint, or Go-level specialized dispatch loop is too small.
 
 | Application | Family | Proven instruction share | Excess reduction | Gate |
 | --- | --- | ---: | ---: | --- |
-| `fixed_width_128` | wide-numeric | 33.25% | 34.95% | pass |
-| `distance_field` | float-numeric | 41.03% | 43.74% | pass |
-| `concurrent_event_routing` | concurrency-text | 8.68% | 8.77% | fail |
-| `word_frequency` | text-map | 8.90% | 9.03% | fail |
-| `array_slice_window` | array-iterator | 29.35% | 30.63% | pass |
-| `reverse_complement` | byte-text | 23.27% | 23.46% | fail |
+| `fixed_width_128` | wide-numeric | 33.25% | 34.64% | pass |
+| `distance_field` | float-numeric | 41.03% | 43.39% | pass |
+| `concurrent_event_routing` | concurrency-text | 8.68% | 8.78% | fail |
+| `word_frequency` | text-map | 8.90% | 9.06% | fail |
+| `array_slice_window` | array-iterator | 29.35% | 30.73% | pass |
+| `reverse_complement` | byte-text | 23.27% | 23.42% | fail |
 
 Only three of six rows clear 25%, so the route fails the every-governing-row
 gate. It also substantially overlaps the rejected typed-region, register-loop,
@@ -56,10 +56,10 @@ fallback for unsupported activations.
 | --- | --- | --- | ---: | --- |
 | `fixed_width_128` | wide-numeric | yes | 100.00% | pass |
 | `distance_field` | float-numeric | yes | 100.00% | pass |
-| `concurrent_event_routing` | concurrency-text | fallback | 99.69% | pass |
-| `word_frequency` | text-map | yes | 98.88% | pass |
-| `array_slice_window` | array-iterator | yes | 99.79% | pass |
-| `reverse_complement` | byte-text | yes | 99.50% | pass |
+| `concurrent_event_routing` | concurrency-text | fallback | 100.00% | pass |
+| `word_frequency` | text-map | yes | 98.43% | pass |
+| `array_slice_window` | array-iterator | yes | 99.93% | pass |
+| `reverse_complement` | byte-text | yes | 99.19% | pass |
 
 All 5 unlike phase-one rows clear the
 materiality bar, and five of six full-corpus rows do. This makes the route worth

@@ -1,0 +1,114 @@
+{
+  "kind": "able-v12-post-correctness-publication-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-publication-reconciliation-no-production-change",
+  "repository": {
+    "head": "f3f3c92d512d313648563503904528e307b7c11e",
+    "origin_master": "f3f3c92d512d313648563503904528e307b7c11e",
+    "remote_master": "f3f3c92d512d313648563503904528e307b7c11e",
+    "parent": "9c32f2777536da2c948327720acc75187973a6d9",
+    "tree": "336258c8ac459e7412f3c1848da7a5272e0b1f7b",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0,
+    "published_refspec": "f3f3c92d512d313648563503904528e307b7c11e:refs/heads/master"
+  },
+  "commit_boundary": {
+    "paths": 21,
+    "additions": 2681,
+    "deletions": 228,
+    "path_list_bytes": 1364,
+    "path_list_sha256": "b2325ad24655d9cdafcdfa1b3aeef66d0dbbd6ce2b7c6566e42aa6518084954b"
+  },
+  "deferred_boundary": {
+    "paths": 34,
+    "tracked_modified": 8,
+    "untracked": 26,
+    "path_list_bytes": 1414,
+    "path_list_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "state_line_byte_hash_identities_match_inventory": true,
+    "untracked_paths_absent_from_export": 26,
+    "tracked_clean_versions_present_in_export": 8,
+    "tracked_dirty_identities_present_in_export": 0
+  },
+  "clean_export": {
+    "regular_files": 10991,
+    "regular_bytes": 114792673,
+    "tree_content_sha256": "0ed1f35a55fe277c39b39738a31f5736c55851bdee0af0db7a2c6e97e88ce2b9",
+    "disk_backed": true,
+    "deferred_dirty_identity_present": false
+  },
+  "canonical_stdlib": {
+    "source_files": 70,
+    "source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+    "source_only_copy_git_head": null,
+    "source_only_copy_git_dirty": false
+  },
+  "verification": {
+    "pre_push_fixture_inventory": "pass",
+    "export_fixture_inventory": "pass",
+    "manifests": 176,
+    "active_exclusions": 0,
+    "retired_exclusions": 1,
+    "allowlist_entries": 0,
+    "fixture_policy_tests": 7,
+    "fixture_policy_tests_passed": 7,
+    "runner_shell_syntax": "pass",
+    "scoreboard_rows": 130,
+    "samples_per_able_reference": 5,
+    "retained_source_reports": 31,
+    "retained_reference_reports": 31,
+    "path_relocation_tests": 4,
+    "frontier_rows": 130,
+    "frontier_tests": 5,
+    "actionable_frontier_groups": 0,
+    "closure_entries": 23,
+    "current_closures": 23,
+    "invalidated_closures": 0,
+    "selector_rows": 0,
+    "ledger_tests": 10,
+    "ledger_tests_skipped": 1,
+    "complete_runner_pass_retained_for_exact_source": true,
+    "full_runner_repeated": false,
+    "cleanup_dry_run_generated_paths": 0
+  },
+  "github_banner": {
+    "total": 74,
+    "critical": 18,
+    "high": 14,
+    "moderate": 34,
+    "low": 8,
+    "active_v12_reachability_result": false
+  },
+  "cleanup": {
+    "disk_backed_workspace": true,
+    "ram_backed_tmp_used": false,
+    "workspace_kib": 140860,
+    "workspace_mib": 137.56,
+    "workspace_removed": true,
+    "python_bytecode_disabled": true,
+    "task_workspaces_remaining": 0
+  },
+  "changes": {
+    "production": false,
+    "dependency_version": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser_semantics": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "benchmark_measurement": false,
+    "fixture_behavior": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "post-correctness-publication-release-inventory",
+    "why": "The worktree now combines two retained reconciliation records and three handoff files with the unchanged 34 deferred WASM paths.",
+    "entails": "Capture a fully expanded immutable snapshot; record exact state, line, byte, and SHA-256 identities; reproduce the 34-path deferred complement; run format, evidence, Git, and cleanup gates; and define the retained candidate without repository mutation.",
+    "importance": "An exact five-path retained boundary closes publication cleanly and prevents deferred WASM from entering a later consolidation."
+  }
+}

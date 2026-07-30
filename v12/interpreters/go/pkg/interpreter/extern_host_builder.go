@@ -5,11 +5,13 @@ package interpreter
 import (
 	"bytes"
 	"fmt"
+	goversion "go/version"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"plugin"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -125,6 +127,7 @@ func buildExternPlugin(cacheDir, pluginPath string) error {
 	// go.mod, which the Go plugin loader uses to distinguish loaded modules.
 	cmd := exec.Command("go", "build", "-buildmode=plugin", "-o", pluginPath, ".")
 	cmd.Dir = cacheDir
+	cmd.Env = externPluginBuildEnvironment(os.Environ(), runtime.Version())
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
@@ -132,6 +135,20 @@ func buildExternPlugin(cacheDir, pluginPath string) error {
 		return fmt.Errorf("extern host build failed: %w\n%s", err, output.String())
 	}
 	return nil
+}
+
+func externPluginBuildEnvironment(environ []string, toolchain string) []string {
+	if !goversion.IsValid(toolchain) {
+		return environ
+	}
+	const prefix = "GOTOOLCHAIN="
+	result := make([]string, 0, len(environ)+1)
+	for _, item := range environ {
+		if !strings.HasPrefix(item, prefix) {
+			result = append(result, item)
+		}
+	}
+	return append(result, prefix+toolchain)
 }
 
 func renderGoHostModule(state *externTargetState) (string, error) {

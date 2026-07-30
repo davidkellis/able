@@ -4,19 +4,19 @@
   "sources": {
     "backend_adr": {
       "path": "v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
-      "sha256": "3e29e4e30c5a48975135f52d18a5b8558f04c952c327f2e7d54adecd93584d60"
+      "sha256": "11619c3d571fceca5456192337beb9497dbfafa5be786c3206f1b8743c5bee5b"
     },
     "native_tier_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
+      "sha256": "7e90ed56f56a3a31be3611bb7ece0c91fc0302ebc25e84dbfe29dba60a2cde55"
     },
     "bytecode_architecture_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
-      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+      "sha256": "6150341f26ecb9b9d4e79dc4bcf7e1743702882b09e281573ca039a74d50c15b"
     },
     "compiled_architecture_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "721653e8cd65d19b1326608dddfe012edeb5f7165006c19e74254ee391d1a6e5"
+      "sha256": "b38df6773ef88def536823fb95d054e3bc9b9db13df2905995ce1e06b150a438"
     },
     "spec": {
       "path": "spec/full_spec_v12.md",

@@ -36,19 +36,19 @@
       "family": "text-map",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 42.614,
-          "excess_seconds": 41.315999999999995,
+          "able_real_seconds": 52.938,
+          "excess_seconds": 51.60726315789474,
           "fastest_reference": "ruby",
-          "fastest_reference_real_seconds": 1.2331,
-          "reference_ratio": 34.55842997323818,
+          "fastest_reference_real_seconds": 1.2642,
+          "reference_ratio": 41.87470336971998,
           "reference_ratio_language": "ruby"
         },
         "compiled": {
-          "able_real_seconds": 1.346,
-          "excess_seconds": 1.2929473684210526,
+          "able_real_seconds": 1.592,
+          "excess_seconds": 1.5215789473684211,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0504,
-          "reference_ratio": 26.70634920634921,
+          "fastest_reference_real_seconds": 0.0669,
+          "reference_ratio": 23.796711509715994,
           "reference_ratio_language": "go"
         }
       },
@@ -116,19 +116,19 @@
       "family": "wide-numeric",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 8.03,
-          "excess_seconds": 7.640315789473684,
+          "able_real_seconds": 9.172,
+          "excess_seconds": 8.805263157894737,
           "fastest_reference": "python",
-          "fastest_reference_real_seconds": 0.3702,
-          "reference_ratio": 21.690977849810913,
+          "fastest_reference_real_seconds": 0.3484,
+          "reference_ratio": 26.326061997703793,
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.118,
-          "excess_seconds": 0.10999999999999999,
+          "able_real_seconds": 0.106,
+          "excess_seconds": 0.09978947368421053,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0076,
-          "reference_ratio": 15.526315789473683,
+          "fastest_reference_real_seconds": 0.0059,
+          "reference_ratio": 17.966101694915253,
           "reference_ratio_language": "go"
         }
       },
@@ -196,19 +196,19 @@
       "family": "float-numeric",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 5.76,
-          "excess_seconds": 5.402526315789474,
+          "able_real_seconds": 6.26,
+          "excess_seconds": 5.919157894736842,
           "fastest_reference": "ruby",
-          "fastest_reference_real_seconds": 0.3396,
-          "reference_ratio": 16.96113074204947,
+          "fastest_reference_real_seconds": 0.3238,
+          "reference_ratio": 19.332921556516368,
           "reference_ratio_language": "ruby"
         },
         "compiled": {
-          "able_real_seconds": 0.03,
-          "excess_seconds": 0.018,
+          "able_real_seconds": 0.038,
+          "excess_seconds": 0.022526315789473686,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0114,
-          "reference_ratio": 2.631578947368421,
+          "fastest_reference_real_seconds": 0.0147,
+          "reference_ratio": 2.5850340136054424,
           "reference_ratio_language": "go"
         }
       },
@@ -253,19 +253,19 @@
       "family": "regex-dispatch",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 7.582,
-          "excess_seconds": 7.560736842105263,
+          "able_real_seconds": 7.862,
+          "excess_seconds": 7.832947368421053,
           "fastest_reference": "python",
-          "fastest_reference_real_seconds": 0.0202,
-          "reference_ratio": 375.34653465346537,
+          "fastest_reference_real_seconds": 0.0276,
+          "reference_ratio": 284.8550724637681,
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.082,
-          "excess_seconds": 0.076,
+          "able_real_seconds": 0.096,
+          "excess_seconds": 0.09042105263157894,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0057,
-          "reference_ratio": 14.385964912280702,
+          "fastest_reference_real_seconds": 0.0053,
+          "reference_ratio": 18.11320754716981,
           "reference_ratio_language": "go"
         }
       },
@@ -333,19 +333,19 @@
       "family": "concurrency",
       "modes": {
         "bytecode": {
-          "able_real_seconds": 2.954,
-          "excess_seconds": 2.9211578947368424,
+          "able_real_seconds": 4.694,
+          "excess_seconds": 4.639684210526315,
           "fastest_reference": "python",
-          "fastest_reference_real_seconds": 0.0312,
-          "reference_ratio": 94.6794871794872,
+          "fastest_reference_real_seconds": 0.0516,
+          "reference_ratio": 90.96899224806201,
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.042,
-          "excess_seconds": 0.03694736842105263,
+          "able_real_seconds": 0.054,
+          "excess_seconds": 0.048210526315789475,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0048,
-          "reference_ratio": 8.750000000000002,
+          "fastest_reference_real_seconds": 0.0055,
+          "reference_ratio": 9.818181818181818,
           "reference_ratio_language": "go"
         }
       },
@@ -366,7 +366,7 @@
         "policy_record_dispatch",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 66.374632,
+      "covered_application_excess_seconds": 80.586842,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md",
@@ -389,7 +389,7 @@
         "distance_field",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 15.964,
+      "covered_application_excess_seconds": 19.364105,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-bytecode-secondary-architecture-selection.md",
@@ -410,7 +410,7 @@
         "policy_record_dispatch",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 0.112947,
+      "covered_application_excess_seconds": 0.138632,
       "eligible": false,
       "evidence": [
         "v12/bench_compiled_boundary_audit"
@@ -430,7 +430,7 @@
         "policy_record_dispatch",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 0.112947,
+      "covered_application_excess_seconds": 0.138632,
       "eligible": false,
       "evidence": [
         "v12/bench_compiled_boundary_audit"
@@ -449,7 +449,7 @@
       "applications": [
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 0.036947,
+      "covered_application_excess_seconds": 0.048211,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md"
@@ -474,7 +474,7 @@
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
     }
   },
   "summary": {
@@ -495,10 +495,10 @@
       "measured": 3
     },
     "eligible_mechanisms": [],
-    "frontier_total_excess_seconds": 230.851579,
+    "frontier_total_excess_seconds": 277.200421,
     "minimum_unlike_applications": 3,
-    "selected_excess_seconds": 66.374632,
-    "selected_excess_share_percent": 28.75208,
+    "selected_excess_seconds": 80.586842,
+    "selected_excess_share_percent": 29.071688,
     "selected_mode_rows": 10,
     "unlike_family_count": 5
   }

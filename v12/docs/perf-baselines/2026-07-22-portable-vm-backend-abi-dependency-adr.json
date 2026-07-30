@@ -230,7 +230,7 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-portable-vm-backend-adr.json",
-      "sha256": "c68bb5cf51563003be08bb1a6ef430449eab632c4457cb0c54f13b52f149c936"
+      "sha256": "63df0adbbeccb0264e2be1f5dac082eaa303694c1eb70fbcabca08357b56763e"
     },
     "executor": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/executor.go",
@@ -238,11 +238,11 @@
     },
     "extern_builder": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/extern_host_builder.go",
-      "sha256": "5f4df30aedb25aa08451279f3c20f1882bcd591ddbb6dc6aae660cbdce1f87bd"
+      "sha256": "8f388d679a079093a6e48ec6f0d1938ba8a12d475ed9565f6832b952b2e3b276"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
+      "sha256": "7e90ed56f56a3a31be3611bb7ece0c91fc0302ebc25e84dbfe29dba60a2cde55"
     },
     "raw_values": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/raw_value.go",
@@ -258,7 +258,7 @@
     },
     "structural_strategy": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json",
-      "sha256": "0743885d19e097767998c89e9d86212dbdfe56be0c01846f0c28660146168e87"
+      "sha256": "71174d61c5df67ef78f91162c770eecd4dc6e272ee45525570cd0a04c39795a9"
     },
     "vm_dispatch": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go",

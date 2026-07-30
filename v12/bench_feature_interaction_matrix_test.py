@@ -22,7 +22,8 @@ BASELINE_WITHOUT = (
     "concurrent_graph_visitors,concurrent_audio_voices,"
     "concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,"
     "concurrent_state_machines,concurrent_stateful_pipeline,"
-    "discrete_event_simulation,transaction_ledger_audit"
+    "discrete_event_simulation,transaction_ledger_audit,generic_slot_buffer,"
+    "versioned_telemetry_pipeline"
 )
 
 
@@ -131,7 +132,7 @@ class FeatureInteractionMatrixTests(unittest.TestCase):
                 ("functions_closures_callables", "lexical_blocks_bindings_patterns")
             ]
             self.assertEqual(lexical_functions["baseline_count"], 0)
-            self.assertEqual(lexical_functions["current_count"], 16)
+            self.assertEqual(lexical_functions["current_count"], 18)
             self.assertEqual(
                 lexical_functions["portable_benchmarks"],
                 [
@@ -149,8 +150,10 @@ class FeatureInteractionMatrixTests(unittest.TestCase):
                     "concurrent_transform_chain",
                     "concurrent_tree_folds",
                     "dependency_wave_validation",
+                    "generic_slot_buffer",
                     "manifest_normalization",
                     "policy_record_dispatch",
+                    "versioned_telemetry_pipeline",
                 ],
             )
 

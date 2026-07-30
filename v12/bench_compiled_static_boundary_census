@@ -1,0 +1,276 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+MANIFEST="$SCRIPT_DIR/bench-selection-manifest.json"
+FRONTIER="$SCRIPT_DIR/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json"
+jobs=2
+timeout_seconds=60
+output_json=""
+workdir=""
+
+usage() {
+  cat <<'EOF'
+Usage: v12/bench_compiled_static_boundary_census --workdir DIR --output-json FILE [options]
+
+Options:
+  --jobs N          Concurrent compiler processes (default: 2)
+  --timeout SEC     Per-module generation bound (default: 60)
+  --workdir DIR     Disk-backed disposable workspace
+  --output-json     Durable aggregate JSON report
+  -h, --help        Show this help
+
+The command generates every compiled row selected by bench-selection-manifest.json
+with --no-fallbacks, analyzes top-level generated Go, and deletes each module
+after retaining its compact row report.
+EOF
+}
+
+die() {
+  echo "bench_compiled_static_boundary_census: $*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --jobs)
+      shift
+      [[ $# -gt 0 ]] || die "missing --jobs value"
+      jobs="$1"
+      ;;
+    --timeout)
+      shift
+      [[ $# -gt 0 ]] || die "missing --timeout value"
+      timeout_seconds="$1"
+      ;;
+    --workdir)
+      shift
+      [[ $# -gt 0 ]] || die "missing --workdir value"
+      workdir="$1"
+      ;;
+    --output-json)
+      shift
+      [[ $# -gt 0 ]] || die "missing --output-json value"
+      output_json="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ "$jobs" =~ ^[1-9][0-9]*$ ]] || die "--jobs must be positive"
+[[ "$timeout_seconds" =~ ^[1-9][0-9]*$ ]] || die "--timeout must be positive"
+[[ -n "$workdir" ]] || die "--workdir is required"
+[[ -n "$output_json" ]] || die "--output-json is required"
+workdir="$(realpath -m "$workdir")"
+output_json="$(realpath -m "$output_json")"
+mkdir -p "$workdir/gocache" "$workdir/results" "$workdir/build" "$(dirname "$output_json")"
+
+ablec="$workdir/ablec"
+analyzer="$workdir/able-generated-boundary-census"
+env GOCACHE="$workdir/gocache" go build -C "$GO_DIR" -o "$ablec" ./cmd/ablec
+env GOCACHE="$workdir/gocache" go build -C "$GO_DIR" -o "$analyzer" ./cmd/able-generated-boundary-census
+
+benchmarks_file="$workdir/benchmarks.txt"
+python3 - "$MANIFEST" "$benchmarks_file" <<'PY'
+import json
+import pathlib
+import sys
+
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text())
+pathlib.Path(sys.argv[2]).write_text(
+    "".join(f"{name}\n" for name in manifest["modes"]["compiled"])
+)
+PY
+
+export ABLE_CENSUS_WORKDIR="$workdir"
+export ABLE_CENSUS_REPO_ROOT="$REPO_ROOT"
+export ABLE_CENSUS_SCRIPT_DIR="$SCRIPT_DIR"
+export ABLE_CENSUS_TIMEOUT="$timeout_seconds"
+export ABLE_CENSUS_ABLEC="$ablec"
+export ABLE_CENSUS_ANALYZER="$analyzer"
+
+run_census_row() {
+  set -euo pipefail
+  local bench="$1"
+  source "$ABLE_CENSUS_SCRIPT_DIR/bench_external_catalog.sh"
+  local target
+  target="$(realpath "$(bench_external_target "$ABLE_CENSUS_SCRIPT_DIR" "$bench")")"
+  local benchmark_repo
+  benchmark_repo="$(realpath "$ABLE_CENSUS_REPO_ROOT/../benchmarks")"
+  local run_from
+  run_from="$(realpath "$(bench_external_run_dir "$benchmark_repo" "$bench")")"
+  local row_dir="$ABLE_CENSUS_WORKDIR/build/$bench"
+  local module_dir="$row_dir/module"
+  mkdir -p "$module_dir"
+
+  local source_only=()
+  if bench_external_source_root_only "$bench"; then
+    source_only+=(ABLE_SOURCE_ROOT_ONLY=1)
+  fi
+  local start_ns end_ns elapsed_ms rc
+  start_ns="$(date +%s%N)"
+  set +e
+  (
+    cd "$run_from"
+    timeout --signal=INT --kill-after=5 "$ABLE_CENSUS_TIMEOUT" \
+      env ABLE_PATH= ABLE_MODULE_PATHS= \
+      ABLE_STDLIB_ROOT="$ABLE_CENSUS_REPO_ROOT/../able-stdlib/src" \
+      "${source_only[@]}" \
+      "$ABLE_CENSUS_ABLEC" -main -pkg main -o "$module_dir" --no-fallbacks "$target"
+  ) >"$row_dir/generate.stdout" 2>"$row_dir/generate.stderr"
+  rc=$?
+  set -e
+  end_ns="$(date +%s%N)"
+  elapsed_ms=$(((end_ns - start_ns) / 1000000))
+
+  local analysis_path="$row_dir/analyzer.json"
+  local module_sha="" module_bytes=0 module_lines=0 module_files=0
+  if [[ "$rc" -eq 0 ]]; then
+    "$ABLE_CENSUS_ANALYZER" "$module_dir" >"$analysis_path"
+    module_sha="$(
+      cd "$module_dir"
+      find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
+    )"
+    module_bytes="$(find "$module_dir" -maxdepth 1 -type f -printf '%s\n' | awk '{sum += $1} END {print sum + 0}')"
+    module_lines="$(find "$module_dir" -maxdepth 1 -name '*.go' -type f -print0 | xargs -0 wc -l | tail -n 1 | awk '{print $1}')"
+    module_files="$(find "$module_dir" -maxdepth 1 -type f | wc -l)"
+  else
+    printf '{}\n' >"$analysis_path"
+  fi
+
+  python3 - \
+    "$bench" "$target" "$rc" "$elapsed_ms" "$module_sha" \
+    "$module_bytes" "$module_lines" "$module_files" \
+    "$analysis_path" "$row_dir/generate.stderr" \
+    "$ABLE_CENSUS_WORKDIR/results/$bench.json" <<'PY'
+import json
+import pathlib
+import sys
+
+(bench, target, rc, elapsed_ms, module_sha, module_bytes, module_lines,
+ module_files, analysis_path, stderr_path, output_path) = sys.argv[1:]
+analysis = json.loads(pathlib.Path(analysis_path).read_text())
+if analysis:
+    analysis["directory"] = "<disposed-generated-module>"
+row = {
+    "benchmark": bench,
+    "target": target,
+    "strict_no_fallbacks": True,
+    "generation_exit": int(rc),
+    "generation_ms": int(elapsed_ms),
+    "module_sha256": module_sha or None,
+    "module_bytes": int(module_bytes),
+    "module_go_lines": int(module_lines),
+    "module_files": int(module_files),
+    "analysis": analysis or None,
+}
+if int(rc):
+    row["generation_stderr"] = pathlib.Path(stderr_path).read_text(
+        errors="replace"
+    )[-4000:]
+pathlib.Path(output_path).write_text(json.dumps(row, sort_keys=True) + "\n")
+PY
+
+  find "$row_dir" -depth -delete
+  printf '%s\trc=%s\tms=%s\tbytes=%s\n' "$bench" "$rc" "$elapsed_ms" "$module_bytes"
+}
+export -f run_census_row
+
+xargs -r -n1 -P"$jobs" bash -c 'run_census_row "$1"' _ <"$benchmarks_file"
+
+python3 - "$MANIFEST" "$FRONTIER" "$workdir/results" "$output_json" "$timeout_seconds" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+
+manifest_path, frontier_path, results_dir, output_path = map(
+    pathlib.Path, sys.argv[1:5]
+)
+timeout = sys.argv[5]
+manifest = json.loads(manifest_path.read_text())
+frontier = json.loads(frontier_path.read_text())
+selected = manifest["modes"]["compiled"]
+frontier_rows = {
+    row["benchmark"]: row
+    for row in frontier["rows"]
+    if row["mode"] == "compiled"
+}
+rows = []
+for benchmark in selected:
+    row = json.loads((results_dir / f"{benchmark}.json").read_text())
+    timing = frontier_rows[benchmark]
+    row["timing"] = {
+        key: timing[key]
+        for key in (
+            "target_status",
+            "able_real_seconds",
+            "worst_ratio",
+            "target_budget_seconds",
+            "excess_seconds",
+            "group",
+            "profile_freshness",
+            "disposition",
+            "owner",
+        )
+    }
+    rows.append(row)
+
+categories = {}
+for row in rows:
+    analysis = row.get("analysis")
+    if not analysis:
+        continue
+    counts = analysis["scopes"]["compiled_body"]["boundary_categories"]
+    for category, sites in counts.items():
+        summary = categories.setdefault(
+            category,
+            {
+                "applications": 0,
+                "static_sites": 0,
+                "aggregate_excess_seconds": 0.0,
+                "rows": [],
+            },
+        )
+        if sites:
+            summary["applications"] += 1
+            summary["static_sites"] += sites
+            summary["aggregate_excess_seconds"] += row["timing"]["excess_seconds"]
+            summary["rows"].append(
+                {
+                    "benchmark": row["benchmark"],
+                    "sites": sites,
+                    "excess_seconds": row["timing"]["excess_seconds"],
+                }
+            )
+for summary in categories.values():
+    summary["rows"].sort(key=lambda item: (-item["excess_seconds"], item["benchmark"]))
+    summary["aggregate_excess_seconds"] = round(
+        summary["aggregate_excess_seconds"], 9
+    )
+
+payload = {
+    "kind": "able-full-compiled-static-native-boundary-census",
+    "schema_version": 1,
+    "selection_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+    "frontier_sha256": hashlib.sha256(frontier_path.read_bytes()).hexdigest(),
+    "generation_timeout_seconds": int(timeout),
+    "selected_rows": len(selected),
+    "successful_rows": sum(row["generation_exit"] == 0 for row in rows),
+    "failed_rows": sum(row["generation_exit"] != 0 for row in rows),
+    "categories": categories,
+    "rows": rows,
+}
+pathlib.Path(output_path).write_text(
+    json.dumps(payload, indent=2, sort_keys=True) + "\n"
+)
+PY

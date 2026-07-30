@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -106,6 +107,10 @@ fi
 echo ">>> Checking exec coverage index"
 node "$ROOT_DIR/scripts/check-exec-coverage.mjs"
 
+echo ">>> Checking fixture target exclusions"
+node "$ROOT_DIR/scripts/check-fixture-target-exclusions.mjs"
+node --test "$ROOT_DIR/scripts/check-fixture-target-exclusions.test.mjs"
+
 echo ">>> Checking external application scoreboard"
 "$ROOT_DIR/bench_external_scoreboard" --check
 python3 "$ROOT_DIR/bench_scorecard_evidence_check.py" \
@@ -114,9 +119,34 @@ python3 "$ROOT_DIR/bench_scorecard_evidence_check.py" \
   --require-runs 5
 python3 "$ROOT_DIR/bench_scorecard_evidence_check_test.py"
 
+echo ">>> Checking performance frontier and architecture evidence"
+python3 "$ROOT_DIR/bench_performance_frontier_test.py"
+python3 "$ROOT_DIR/bench_performance_frontier.py" --check
+python3 "$ROOT_DIR/bench_performance_evidence_ledger_test.py"
+"$ROOT_DIR/bench_performance_evidence_ledger" --check
+python3 "$ROOT_DIR/bench_compiled_static_boundary_census_test.py"
+python3 "$ROOT_DIR/bench_residual_cost_model_test.py"
+python3 "$ROOT_DIR/bench_compiled_architecture_budget_test.py"
+python3 "$ROOT_DIR/bench_bytecode_architecture_budget_test.py"
+python3 "$ROOT_DIR/bench_bytecode_semantic_region_feasibility_test.py"
+python3 "$ROOT_DIR/bench_bytecode_native_hot_tier_budget_test.py"
+python3 "$ROOT_DIR/bench_cross_engine_architecture_budget_test.py"
+python3 "$ROOT_DIR/bench_cross_engine_structural_strategy_test.py"
+python3 "$ROOT_DIR/bench_portable_vm_backend_adr_test.py"
+python3 "$ROOT_DIR/bench_shared_runtime_semantic_abi_test.py"
+python3 "$ROOT_DIR/bench_shared_runtime_closed_region_cutover_test.py"
+"$ROOT_DIR/bench_bytecode_semantic_region_feasibility" --check
+"$ROOT_DIR/bench_bytecode_native_hot_tier_budget" --check
+"$ROOT_DIR/bench_cross_engine_architecture_budget" --check
+"$ROOT_DIR/bench_cross_engine_structural_strategy" --check
+"$ROOT_DIR/bench_portable_vm_backend_adr" --check
+"$ROOT_DIR/bench_shared_runtime_semantic_abi" --check
+"$ROOT_DIR/bench_shared_runtime_closed_region_cutover" --check
+
 echo ">>> Checking feature-to-application coverage"
 "$ROOT_DIR/bench_feature_coverage_check"
 python3 "$ROOT_DIR/bench_feature_coverage_check_test.py"
+python3 "$ROOT_DIR/bench_sustained_workload_depth_test.py"
 
 echo ">>> Checking external scorecard selection contract"
 "$ROOT_DIR/bench_selection_manifest_check"
@@ -212,8 +242,18 @@ echo ">>> Running Go tests"
   }
 
   if [[ "$RUN_ALL" == true ]]; then
-    mapfile -t fast_pkgs < <(printf '%s\n' "${all_pkgs[@]}" | grep -v '^able/interpreter-go/pkg/compiler$')
-    echo ">>> Running non-compiler packages (short mode)"
+    mapfile -t fast_pkgs < <(
+      printf '%s\n' "${all_pkgs[@]}" |
+        grep -Ev '^able/interpreter-go/pkg/(compiler|parser)$'
+    )
+
+    echo ">>> Running parser package with fixture corpus (full mode)"
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+      GOCACHE="$gocache" \
+      ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+      go test -timeout 1m ./pkg/parser -count=1
+
+    echo ">>> Running remaining non-compiler packages (short mode)"
     ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
       GOCACHE="$gocache" \
       ABLE_COMPILER_EXEC_GOCACHE="$gocache" \

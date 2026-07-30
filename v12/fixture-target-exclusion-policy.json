@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "active_targets": [
+    "go"
+  ],
+  "retired_targets": [
+    "ts"
+  ],
+  "allowed_classifications": [
+    "intentional-contract-exclusion",
+    "known-correctness-gap",
+    "platform-limitation",
+    "toolchain-limitation"
+  ],
+  "allowlist": []
+}

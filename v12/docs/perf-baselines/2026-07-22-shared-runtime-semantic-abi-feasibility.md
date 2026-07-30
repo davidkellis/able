@@ -134,11 +134,11 @@ engine keep these whole effectful functions inside one native address space.
 
 | Application | Family | Hottest function | Dynamic share | Target excess removed | Gate |
 | --- | --- | --- | ---: | ---: | --- |
-| `fixed_width_128` | wide-numeric | `ordered_select_checksum` | 46.74% | 47.67% | pass |
-| `distance_field` | float-numeric | `main` | 56.41% | 59.67% | pass |
-| `word_frequency` | text-map | `split` | 40.23% | 35.73% | pass |
-| `array_slice_window` | array-iterator | `rolling_checksum` | 63.49% | 60.33% | pass |
-| `reverse_complement` | byte-text | `reverse_complement_fasta` | 53.41% | 52.34% | pass |
+| `fixed_width_128` | wide-numeric | `ordered_select_checksum` | 46.74% | 48.12% | pass |
+| `distance_field` | float-numeric | `main` | 56.41% | 59.30% | pass |
+| `word_frequency` | text-map | `split` | 40.23% | 39.60% | pass |
+| `array_slice_window` | array-iterator | `rolling_checksum` | 63.49% | 63.45% | pass |
+| `reverse_complement` | byte-text | `reverse_complement_fasta` | 53.41% | 52.97% | pass |
 
 All 5 serial/effectful rows clear the
 25% materiality gate, satisfying the required three-unlike-family planning bar.

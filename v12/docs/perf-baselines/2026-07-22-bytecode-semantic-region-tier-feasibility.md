@@ -12,10 +12,10 @@ evidence. These are completed gates, not untried implementations.
 
 | Application | Family | Instruction share | Required gain | Uniform-cost free-region gain | Remaining gain | Model reaches target? |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| `monte_carlo_pi` | stochastic-numeric | 41.79% | 1.78x | 1.72x | 1.04x | no |
-| `rms_norm` | float-array | 11.76% | 8.45x | 1.13x | 7.46x | no |
-| `fixed_width_128` | wide-numeric | 6.62% | 20.61x | 1.07x | 19.24x | no |
-| `future_await_race` | concurrency | 48.20% | 4.35x | 1.93x | 2.25x | no |
+| `monte_carlo_pi` | stochastic-numeric | 41.79% | 2.02x | 1.72x | 1.17x | no |
+| `rms_norm` | float-array | 11.76% | 10.50x | 1.13x | 9.27x | no |
+| `fixed_width_128` | wide-numeric | 6.62% | 25.01x | 1.07x | 23.35x | no |
+| `future_await_race` | concurrency | 48.20% | 5.20x | 1.93x | 2.69x | no |
 
 This is a sizing model, not a mathematical upper bound: the census records
 dynamic instruction share rather than sampled wall-time share. It assumes every
@@ -26,7 +26,7 @@ region coverage. The executable prototype result, not this model, closes another
 Go-level region executor.
 
 The broader current six-family architecture model independently makes all stack
-transport free and still leaves at least 7.79x required.
+transport free and still leaves at least 10.83x required.
 
 ## Completed executable gates
 

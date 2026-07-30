@@ -6,8 +6,8 @@
       "id": "cross-family-architecture-ownership",
       "modes": ["compiled", "bytecode"],
       "disposition": "closed-no-shared-leaf",
-      "owner": "The post-nullable family records partition all 65 compiled frontier rows and find direct native validity checks as the broad changed path. bridge.ToInt is the sole exact material owner crossing iterator/control, text/map, and concurrency families, but its general global cache already failed the unrelated TapeLang guard.",
-      "rationale": "Every compiled row has current strict verifier-backed evidence and no interpreter dependency. The primitive nullable allocation owner is eliminated; remaining changed paths are native, non-material, or explicit ABIs with at most two-family breadth. bridge.ToInt has real three-family reach but is an unchanged closed-rejected candidate because the global cache slowed TapeLang by 4.17%. No open changed owner remains, so the reviewed compiler scope can be rebased without changing closure dispositions.",
+      "owner": "The captured-callable compiler change reaches exactly three compiled applications. Fresh post-change CPU and exact allocation profiles split below allocation/GC among parsing and maps, String and Result/Option normalization, and telemetry arithmetic, nominal storage, and interface dispatch.",
+      "rationale": "The 66-row source census and six strict current controls prove exact zero reach outside Binary Event Log, Manifest Normalization, and Versioned Telemetry. All six graphs omit the interpreter. Thirty current CPU profiles and 12 exact allocation processes find no removable exact child across the three reached applications. Allocation/GC is only a common ancestor, and the escaping identity-bearing nominal descendants cannot be copied into Go values without changing Able semantics. No open changed owner remains, so the reviewed compiler scope can be rebased without changing the cross-family disposition.",
       "benchmarks": [
         "array_slice_window",
         "binary_event_log",
@@ -23,6 +23,8 @@
         "concurrent_stencil_reduction"
       ],
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-cross-family-architecture-ownership-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-cross-family-architecture-ownership-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -78,8 +80,8 @@
       "id": "compiled-architecture-target-budget",
       "modes": ["compiled"],
       "disposition": "closed-rejected-candidate",
-      "owner": "Post-nullable main-only CPU and exact allocation profiles keep primitive control, nominal results, bridge conversion, regex storage, concurrency, maps, allocation, and direct generated-body parents split. The widest concrete owners remain material in only two unlike families.",
-      "rationale": "Six strict interpreter-free applications produced 60 verified CPU profiles and 18 exact allocation profiles. ToInt reaches Event Routing and K-Nucleotide; ToString and positional semantic structs reach Event Routing and Manifest. Checked arithmetic is sparse or already closed. No open exact owner is material in three unlike families, so no production candidate is admitted.",
+      "owner": "Post-captured-callable main-only CPU and exact allocation profiles keep parsing/maps, String and Result/Option normalization, telemetry arithmetic, nominal storage, interface dispatch, and concrete allocation lifetimes split. The only common ancestor is allocation/GC.",
+      "rationale": "Three unlike reached applications produced 30 verified current CPU profiles, nine lightweight exact allocation measurements, and three exact allocation-shape profiles. Checked arithmetic is material in only two and already closed. The nominal descendants escape through unlike return and storage lifetimes, so a shared copied-value rule would violate Able identity semantics. No open exact owner is material and safely lowerable in all three applications, so no production candidate is admitted.",
       "benchmarks": [
         "k_nucleotide",
         "fixed_width_128",
@@ -89,6 +91,8 @@
         "manifest_normalization"
       ],
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
+        "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-architecture-owner-closure.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-architecture-owner-closure.md",
         "v12/docs/perf-baselines/2026-07-21-compiled-architecture-target-budget.json",

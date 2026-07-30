@@ -1,0 +1,260 @@
+package versioned_telemetry_pipeline
+
+import able.core.interfaces.{Error}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+import able.core.options.*
+import able.kernel.{Array}
+import able.os
+
+SENSOR_COUNT: i32 := 512
+DEFAULT_ROUNDS: i32 := 16_500_000
+SHORT_ROUNDS: i32 := 160_000
+CHECKSUM_MOD: i64 := 1_000_000_007_i64
+
+struct TelemetryError { code: i32 }
+
+impl Error for TelemetryError {
+  fn message(self: Self) -> String { "invalid telemetry sample" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct Sample {
+  sensor: i32,
+  raw: i64,
+  calibrated: i64,
+  generation: i64
+}
+
+interface CalibrationPolicy for Self {
+  fn apply(self: Self, raw: i64, sensor: i32, generation: i64) -> i64
+}
+
+struct LinearPolicy { offset: i64, scale: i64 }
+struct AdaptivePolicy { bias: i64 }
+
+impl CalibrationPolicy for LinearPolicy {
+  fn apply(self: Self, raw: i64, sensor: i32, generation: i64) -> i64 {
+    (raw + self.offset + (sensor as i64)) * self.scale + generation
+  }
+}
+
+impl CalibrationPolicy for AdaptivePolicy {
+  fn apply(self: Self, raw: i64, sensor: i32, generation: i64) -> i64 {
+    raw * (3_i64 + ((sensor % 5) as i64)) + self.bias - generation * 2_i64
+  }
+}
+
+struct TelemetryWindowIterator T {
+  window: TelemetryWindow T,
+  index: i32,
+  length: i32
+}
+
+struct TelemetryWindow T {
+  slots: Array T,
+  updates: i64
+}
+
+interface ReadableWindow T for Self {
+  fn length(self: Self) -> i32
+  fn read(self: Self, index: i32) -> ?T
+}
+
+methods TelemetryWindow T {
+  fn with_capacity(capacity: i32) -> TelemetryWindow T {
+    TelemetryWindow {
+      slots: Array.with_capacity(capacity),
+      updates: 0_i64
+    }
+  }
+
+  fn len(self: Self) -> i32 { self.slots.len() }
+  fn push(self: Self, value: T) -> void { self.slots.push(value) }
+  fn get(self: Self, index: i32) -> ?T { self.slots.get(index) }
+
+  fn write(self: Self, index: i32, value: T) -> bool {
+    if index < 0 || index >= self.len() { return false }
+    self.slots.write_slot(index, value)
+    self.updates = self.updates + 1_i64
+    true
+  }
+}
+
+impl ReadableWindow T for TelemetryWindow T {
+  fn length(self: Self) -> i32 { self.len() }
+  fn read(self: Self, index: i32) -> ?T { self.get(index) }
+}
+
+impl Iterable T for TelemetryWindow T {
+  fn each(self: Self, visit: T -> void) -> void {
+    index := 0
+    loop {
+      if index >= self.len() { break }
+      visit(self.get(index)!)
+      index = index + 1
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    TelemetryWindowIterator {
+      window: self,
+      index: 0,
+      length: self.len()
+    }
+  }
+}
+
+impl Iterator T for TelemetryWindowIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    if self.index >= self.length { return IteratorEnd {} }
+    value := self.window.get(self.index)!
+    self.index = self.index + 1
+    value
+  }
+}
+
+fn telemetry_error(code: i32) -> Error {
+  value: Error = TelemetryError { code }
+  value
+}
+
+fn calibrate(
+  policy: CalibrationPolicy,
+  raw: i64,
+  sensor: i32,
+  generation: i64
+) -> Result Sample {
+  if raw > 20_000_i64 {
+    return telemetry_error(1)
+  }
+  value := policy.apply(raw, sensor, generation)
+  Sample { sensor, raw, calibrated: value, generation }
+}
+
+fn window_checksum<W>(window: W, seed: i64) -> i64
+  where W: ReadableWindow Sample {
+  checksum := seed
+  index := 0
+  loop {
+    if index >= window.length() { break }
+    sample := window.read(index)!
+    checksum = (
+      checksum * 65_599_i64 +
+      sample.calibrated +
+      sample.generation * 17_i64 +
+      (index as i64) * 31_i64
+    ) % CHECKSUM_MOD
+    index = index + 1
+  }
+  checksum
+}
+
+fn rounds_for(args: Array String) -> i32 {
+  if args.len() > 0 && args.get(0)! == "--short" { SHORT_ROUNDS } else { DEFAULT_ROUNDS }
+}
+
+fn main() -> void {
+  args := os.args()
+  rounds := rounds_for(args)
+  window: TelemetryWindow Sample = TelemetryWindow.with_capacity(SENSOR_COUNT)
+  index := 0
+  loop {
+    if index >= SENSOR_COUNT { break }
+    window.push(Sample {
+      sensor: index,
+      raw: 0_i64,
+      calibrated: 0_i64,
+      generation: 0_i64
+    })
+    index = index + 1
+  }
+
+  policies: Array CalibrationPolicy := Array.with_capacity(2)
+  policies.push(LinearPolicy { offset: 17_i64, scale: 3_i64 })
+  policies.push(AdaptivePolicy { bias: 100_001_i64 })
+  tallies: Array i64 := Array.with_capacity(4)
+  tallies.push(0_i64)
+  tallies.push(0_i64)
+  tallies.push(0_i64)
+  tallies.push(0_i64)
+
+  salt := 97_i64
+  scorer := { sample, previous =>
+    (
+      sample.calibrated * 7_i64 +
+      previous.calibrated * 11_i64 +
+      sample.generation * 13_i64 +
+      salt
+    ) % CHECKSUM_MOD
+  }
+  accepted := 0_i64
+  rejected := 0_i64
+  total := 0_i64
+  checksum := 0_i64
+  round := 0
+  loop {
+    if round >= rounds { break }
+    sensor := (round * 73 + 19) % SENSOR_COUNT
+    previous := window.get(sensor)!
+    generation := previous.generation + 1_i64
+    raw := (
+      ((round as i64) * 48_271_i64 +
+      (sensor as i64) * 31_i64 +
+      generation * 17_i64) % 25_003_i64
+    )
+    policy := policies.read_slot(sensor % 2)
+    if raw <= 20_000_i64 {
+      calibrated := policy.apply(raw, sensor, generation)
+      sample := Sample { sensor, raw, calibrated, generation }
+      window.write(sensor, sample)
+      accepted = accepted + 1_i64
+      bucket := sensor % 4
+      tallies.write_slot(bucket, tallies.read_slot(bucket) + 1_i64)
+      value := scorer(sample, previous)
+      total = (total + value) % CHECKSUM_MOD
+      checksum = (
+        checksum + value * 19_i64 + sample.raw * 23_i64 +
+        (sensor as i64) * 29_i64 + (round as i64) * 3_i64
+      ) % CHECKSUM_MOD
+    } else {
+      rejected = rejected + 1_i64
+      fallback := 101_i64 + ((round as i64) % 211_i64) + (sensor as i64)
+      total = (total + fallback) % CHECKSUM_MOD
+      checksum = (checksum + fallback * 37_i64 + (round as i64) * 5_i64) % CHECKSUM_MOD
+    }
+    if round % 256 == 0 {
+      calibrate(policy, raw, sensor, generation) match {
+        case sample: Sample => {
+          checksum = (checksum + sample.calibrated * 43_i64) % CHECKSUM_MOD
+        },
+        case _: Error => {
+          checksum = (checksum + 47_i64 + (round as i64)) % CHECKSUM_MOD
+        }
+      }
+    }
+    round = round + 1
+  }
+
+  interface_total := window_checksum(window, checksum)
+  iterator_total := 0_i64
+  iterator := window.iterator()
+  loop {
+    iterator.next() match {
+      case IteratorEnd {} => { break },
+      case sample: Sample => {
+        iterator_total = (
+          iterator_total * 257_i64 +
+          sample.calibrated +
+          sample.generation
+        ) % CHECKSUM_MOD
+      }
+    }
+  }
+  iterator.close()
+
+  print(
+    `${rounds}:${accepted}:${rejected}:${window.updates}:`
+    + `${tallies.read_slot(0)},${tallies.read_slot(1)},${tallies.read_slot(2)},${tallies.read_slot(3)}:`
+    + `${total}:${interface_total}:${iterator_total}`
+  )
+}

@@ -14,6 +14,25 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 GENERATOR = SCRIPT_DIR / "bench_feature_interaction_triples"
 BASELINE_REMOVALS = [
+    "lexical_blocks_bindings_patterns=generic_slot_buffer",
+    "types_nominals_generics_unions=generic_slot_buffer",
+    "expressions_arrays_text_files=generic_slot_buffer",
+    "functions_closures_callables=generic_slot_buffer",
+    "control_flow=generic_slot_buffer",
+    "inherent_methods=generic_slot_buffer",
+    "interfaces_implementations_dispatch=generic_slot_buffer",
+    "option_result_exceptions=generic_slot_buffer",
+    "stdlib_protocols_regex=generic_slot_buffer",
+    "lexical_blocks_bindings_patterns=versioned_telemetry_pipeline",
+    "types_nominals_generics_unions=versioned_telemetry_pipeline",
+    "expressions_arrays_text_files=versioned_telemetry_pipeline",
+    "functions_closures_callables=versioned_telemetry_pipeline",
+    "control_flow=versioned_telemetry_pipeline",
+    "inherent_methods=versioned_telemetry_pipeline",
+    "interfaces_implementations_dispatch=versioned_telemetry_pipeline",
+    "option_result_exceptions=versioned_telemetry_pipeline",
+    "stdlib_protocols_regex=versioned_telemetry_pipeline",
+    "program_entry=versioned_telemetry_pipeline",
     "lexical_blocks_bindings_patterns=transaction_ledger_audit",
     "types_nominals_generics_unions=transaction_ledger_audit",
     "expressions_arrays_text_files=transaction_ledger_audit",
@@ -225,7 +244,7 @@ class FeatureInteractionTripleTests(unittest.TestCase):
         self.assertEqual(summary["improved_triples"], 165)
         self.assertAlmostEqual(
             summary["performance_frontier_total_excess_seconds"],
-            230.851579,
+            278.369263,
             places=6,
         )
 
@@ -304,8 +323,8 @@ class FeatureInteractionTripleTests(unittest.TestCase):
             )
         ]
         self.assertEqual(target["baseline_count"], 2)
-        self.assertEqual(target["current_count"], 16)
-        self.assertEqual(target["delta"], 14)
+        self.assertEqual(target["current_count"], 18)
+        self.assertEqual(target["delta"], 16)
         self.assertEqual(
             target["portable_benchmarks"],
             [
@@ -322,9 +341,11 @@ class FeatureInteractionTripleTests(unittest.TestCase):
                 "concurrent_stateful_pipeline",
                 "concurrent_transform_chain",
                 "concurrent_tree_folds",
+                "generic_slot_buffer",
                 "manifest_normalization",
                 "policy_record_dispatch",
                 "validated_job_pipeline",
+                "versioned_telemetry_pipeline",
             ],
         )
 
@@ -363,8 +384,8 @@ class FeatureInteractionTripleTests(unittest.TestCase):
             )
         ]
         self.assertEqual(method_interaction["baseline_count"], 4)
-        self.assertEqual(method_interaction["current_count"], 11)
-        self.assertEqual(method_interaction["delta"], 7)
+        self.assertEqual(method_interaction["current_count"], 13)
+        self.assertEqual(method_interaction["delta"], 9)
         self.assertEqual(
             method_interaction["portable_benchmarks"],
             [
@@ -377,8 +398,10 @@ class FeatureInteractionTripleTests(unittest.TestCase):
                 "concurrent_state_machines",
                 "concurrent_tree_folds",
                 "dependency_wave_validation",
+                "generic_slot_buffer",
                 "policy_record_dispatch",
                 "validated_job_pipeline",
+                "versioned_telemetry_pipeline",
             ],
         )
 

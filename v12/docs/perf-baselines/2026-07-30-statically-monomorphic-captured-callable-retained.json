@@ -1,0 +1,258 @@
+{
+  "kind": "compiled-statically-monomorphic-captured-callable-retention",
+  "generated_at": "2026-07-30",
+  "decision": "retain",
+  "scope": {
+    "mode": "compiled",
+    "applications": [
+      "versioned_telemetry_pipeline",
+      "manifest_normalization",
+      "binary_event_log"
+    ],
+    "cpu_affinity": "12",
+    "go_toolchain": "go1.26.5",
+    "interpreter_free": true
+  },
+  "rule": {
+    "summary": "Infer one native callable carrier only when every statically known use of a fresh local lambda agrees on one fully bound parameter/result signature.",
+    "positive_paths": [
+      "direct invocation",
+      "direct argument to a statically resolved callable",
+      "captured invocation inside a statically typed inline callback",
+      "generic named-union instance-method callback",
+      "sequentially known local receiver inside a nested block"
+    ],
+    "fail_closed_paths": [
+      "dynamic use",
+      "conflicting signatures",
+      "stored or escaping nested callback",
+      "function or iterator boundary without a complete static signature",
+      "host or runtime-service boundary"
+    ],
+    "named_nonprimitive_special_cases": []
+  },
+  "generated_carriers": {
+    "versioned_telemetry_pipeline": {
+      "baseline": "__able_fn_runtime_Value_runtime_Value_to_runtime_Value",
+      "candidate": "__able_fn__Sample__Sample_to_int64"
+    },
+    "manifest_normalization": {
+      "baseline": "__able_fn_runtime_Value_runtime_Value_to__NormalizedManifest",
+      "candidate": "__able_fn__ManifestRecord_int64_to__NormalizedManifest"
+    },
+    "binary_event_log": {
+      "baseline": "__able_fn_runtime_Value_runtime_Value_to_int64",
+      "candidate": "__able_fn__EventRecord_int64_to_int64"
+    }
+  },
+  "balanced_wall_seconds": {
+    "versioned_telemetry_pipeline": {
+      "runs_per_lane": 5,
+      "baseline_samples": [55.01, 56.12, 53.98, 52.69, 53.97],
+      "candidate_samples": [2.27, 2.22, 2.07, 2.01, 2.06],
+      "go_samples": [0.20, 0.20, 0.21, 0.22, 0.20],
+      "baseline_mean": 54.354,
+      "candidate_mean": 2.126,
+      "go_mean": 0.206,
+      "candidate_change_percent": -96.0886,
+      "candidate_to_go_ratio": 10.3204
+    },
+    "manifest_normalization": {
+      "runs_per_lane": 10,
+      "clock": "monotonic_high_resolution",
+      "baseline_samples": [
+        0.012748610,
+        0.011556064,
+        0.011274416,
+        0.016026728,
+        0.013162578,
+        0.013393571,
+        0.010507843,
+        0.011412390,
+        0.010326435,
+        0.011490767
+      ],
+      "candidate_samples": [
+        0.008997464,
+        0.006253029,
+        0.007462334,
+        0.008016769,
+        0.007902674,
+        0.008053352,
+        0.006508067,
+        0.008777209,
+        0.007355936,
+        0.007338642
+      ],
+      "go_samples": [
+        0.002738847,
+        0.002913664,
+        0.003065892,
+        0.003151327,
+        0.004332040,
+        0.005745580,
+        0.002645936,
+        0.003214186,
+        0.003983674,
+        0.003007557
+      ],
+      "baseline_mean": 0.0121899402,
+      "candidate_mean": 0.0076665476,
+      "go_mean": 0.0034798703,
+      "candidate_change_percent": -37.1076,
+      "candidate_to_go_ratio": 2.2031
+    },
+    "binary_event_log": {
+      "runs_per_lane": 10,
+      "clock": "monotonic_high_resolution",
+      "baseline_samples": [
+        0.116777172,
+        0.120660498,
+        0.118853881,
+        0.115372877,
+        0.113307017,
+        0.110400655,
+        0.111612147,
+        0.121183102,
+        0.111148871,
+        0.109682655
+      ],
+      "candidate_samples": [
+        0.052896614,
+        0.055917040,
+        0.050001124,
+        0.046019018,
+        0.046161963,
+        0.044967279,
+        0.051018976,
+        0.045561338,
+        0.046541109,
+        0.054048458
+      ],
+      "go_samples": [
+        0.006710906,
+        0.006756767,
+        0.006744224,
+        0.007033771,
+        0.005879582,
+        0.006272123,
+        0.005738806,
+        0.006007969,
+        0.006316542,
+        0.007111953
+      ],
+      "baseline_mean": 0.1148998875,
+      "candidate_mean": 0.0493132919,
+      "go_mean": 0.0064572643,
+      "candidate_change_percent": -57.0815,
+      "candidate_to_go_ratio": 7.6369
+    }
+  },
+  "exact_main_allocation_counters": {
+    "versioned_telemetry_pipeline": {
+      "runs_per_lane": 3,
+      "baseline_allocated_bytes_samples": [33822958944, 33822959280, 33822957328],
+      "candidate_allocated_bytes_samples": [430788304, 430788208, 430788240],
+      "baseline_allocated_bytes_mean": 33822958517.333,
+      "candidate_allocated_bytes_mean": 430788250.667,
+      "allocated_bytes_change_percent": -98.7263,
+      "baseline_allocations_samples": [1056825647, 1056825647, 1056825647],
+      "candidate_allocations_samples": [13325303, 13325303, 13325303],
+      "baseline_allocations_mean": 1056825647,
+      "candidate_allocations_mean": 13325303,
+      "allocations_change_percent": -98.7391,
+      "baseline_gc_cycles_samples": [28252, 28227, 28253],
+      "candidate_gc_cycles_samples": [351, 351, 352],
+      "baseline_gc_cycles_mean": 28244,
+      "candidate_gc_cycles_mean": 351.333,
+      "gc_cycles_change_percent": -98.7561
+    },
+    "manifest_normalization": {
+      "runs_per_lane": 3,
+      "baseline_allocated_bytes_samples": [3560144, 3560240, 3560160],
+      "candidate_allocated_bytes_samples": [1397152, 1397152, 1397152],
+      "baseline_allocated_bytes_mean": 3560181.333,
+      "candidate_allocated_bytes_mean": 1397152,
+      "allocated_bytes_change_percent": -60.7562,
+      "baseline_allocations_samples": [76230, 76231, 76230],
+      "candidate_allocations_samples": [27075, 27075, 27075],
+      "baseline_allocations_mean": 76230.333,
+      "candidate_allocations_mean": 27075,
+      "allocations_change_percent": -64.4826,
+      "baseline_gc_cycles_samples": [3, 3, 3],
+      "candidate_gc_cycles_samples": [1, 1, 1],
+      "baseline_gc_cycles_mean": 3,
+      "candidate_gc_cycles_mean": 1,
+      "gc_cycles_change_percent": -66.6667
+    },
+    "binary_event_log": {
+      "runs_per_lane": 3,
+      "baseline_allocated_bytes_samples": [62024232, 62024200, 62024120],
+      "candidate_allocated_bytes_samples": [9321736, 9321720, 9321720],
+      "baseline_allocated_bytes_mean": 62024184,
+      "candidate_allocated_bytes_mean": 9321725.333,
+      "allocated_bytes_change_percent": -84.9708,
+      "baseline_allocations_samples": [1020540, 1020540, 1020539],
+      "candidate_allocations_samples": [171066, 171067, 171066],
+      "baseline_allocations_mean": 1020539.667,
+      "candidate_allocations_mean": 171066.333,
+      "allocations_change_percent": -83.2377,
+      "baseline_gc_cycles_samples": [57, 57, 57],
+      "candidate_gc_cycles_samples": [8, 8, 8],
+      "baseline_gc_cycles_mean": 57,
+      "candidate_gc_cycles_mean": 8,
+      "gc_cycles_change_percent": -85.9649
+    }
+  },
+  "official_scorecard": {
+    "runs_per_lane": 5,
+    "source": "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-compiled.json",
+    "rows": {
+      "binary_event_log": {
+        "able_seconds": 0.09,
+        "go_seconds": 0.0097,
+        "ratio": 9.2784
+      },
+      "manifest_normalization": {
+        "able_seconds": 0.044,
+        "go_seconds": 0.0048,
+        "ratio": 9.1667
+      },
+      "versioned_telemetry_pipeline": {
+        "able_seconds": 2.068,
+        "go_seconds": 0.2078,
+        "ratio": 9.9519
+      }
+    }
+  },
+  "verification": [
+    "focused native, nested callback, generic union, future binding, stored escape, conflicting signature, and execution guards",
+    "generic named-union and stdlib Option/Result specialization guards",
+    "all non-compiler Go packages in short mode",
+    "all 34 bounded compiler short-mode batches",
+    "complete bytecode fixture corpus",
+    "public verifier for every retained A/B/reference and scorecard process",
+    "strict dependency graphs omit pkg/interpreter"
+  ],
+  "unmodified_scopes": [
+    "able-stdlib",
+    "runtime",
+    "interpreter",
+    "bytecode_vm",
+    "language",
+    "dependencies",
+    "wasm"
+  ],
+  "cleanup": {
+    "disk_backed_workspace_removed_kib": 3831624,
+    "path": "/var/tmp/able-captured-callable-v12-20260730.CVlP4q",
+    "repository_python_cache_removed_bytes": 28476,
+    "repository_python_cache_changed": false
+  },
+  "next": {
+    "action": "Refresh interpreter-free compiled CPU and allocation ownership after the retained carrier rule across at least three unlike current applications.",
+    "why": "The erased captured-callable owner has been removed, so the previous profiles no longer identify the largest remaining shared cost.",
+    "entails": "Generate current strict binaries, verify interpreter-free dependencies, collect repeated CPU and exact allocation profiles, and admit only a general shared owner that is material in three unlike applications.",
+    "importance": "This is the evidence-driven path from the remaining 2.20x-10.32x gaps toward the 95%-of-Go target without benchmark or nominal-type special cases."
+  }
+}

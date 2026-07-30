@@ -1,0 +1,108 @@
+{
+  "kind": "able-v12-silent-go-test-suppression-audit-closure",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-code",
+  "ast_audit": {
+    "active_non_wasm_test_files": 617,
+    "top_level_tests": 3226,
+    "top_level_returns": 21,
+    "classifications": {
+      "child_or_helper_process_coordination": 12,
+      "successful_search_before_failure": 7,
+      "bounded_polling_or_concurrency_success": 2
+    },
+    "unclassified_returns": 0,
+    "environment_reading_functions_with_returns": 33,
+    "silent_environment_opt_outs": 0
+  },
+  "build_constraints": {
+    "active_non_wasm_test_files_with_constraints": 3,
+    "native_included_not_js_wasm": 2,
+    "diagnostic_only_tagged": 1,
+    "diagnostic_tag": "able_bytecode_box_reuse",
+    "normal_interpreter_tests_listed": 1620,
+    "tagged_interpreter_tests_listed": 1622,
+    "tagged_only_tests": [
+      "TestBytecodeDynamicIntBoxCacheReuseRecordsLookupHitAndInsert",
+      "TestBytecodeDynamicIntBoxCacheReuseRecordsI64Bypass"
+    ],
+    "tagged_tests_passed": 2,
+    "normal_semantic_tests_excluded": 0
+  },
+  "package_and_runner_topology": {
+    "active_non_wasm_packages": 27,
+    "packages_with_test_files": 20,
+    "support_packages_without_test_files": 7,
+    "unexpected_zero_test_packages": 0,
+    "compiler_tests_listed": 836,
+    "compiler_tests_unique": 836,
+    "compiler_batch_size": 25,
+    "compiler_batches": 34,
+    "compiler_omissions": 0,
+    "compiler_duplicates": 0
+  },
+  "focused_verification": {
+    "compiled_cache_child_process_seconds": 0.152,
+    "dynamic_import_search_seconds": 0.003,
+    "concurrent_array_store_polling_seconds": 0.016,
+    "bytecode_search_and_iterator_polling_seconds": 0.07,
+    "extern_plugin_child_process_seconds": 6.879,
+    "diagnostic_tag_tests_seconds": 0.067,
+    "per_invocation_timeout_seconds": 60
+  },
+  "broad_verification": {
+    "runner_sha256": "d81d9cbc49fe661bf50c5b7662cb76609923a2853a1edda09378382c11036e6f",
+    "runner_identity_matches_immediately_preceding_full_pass": true,
+    "source_changed_since_full_pass": false,
+    "duplicate_full_run_required": false,
+    "scoreboard_rows": 130,
+    "samples_per_able_reference": 5,
+    "actionable_frontier_groups": 0,
+    "closures": 23,
+    "current_closures": 23,
+    "invalidated_closures": 0,
+    "selector_rows": 0
+  },
+  "changes": {
+    "test": false,
+    "test_runner": false,
+    "parser": false,
+    "ast": false,
+    "production": false,
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "benchmark": false,
+    "language": false,
+    "dependency": false,
+    "fixture": false,
+    "wasm": false
+  },
+  "git": {
+    "head": "9c32f2777536da2c948327720acc75187973a6d9",
+    "tracking": "9c32f2777536da2c948327720acc75187973a6d9",
+    "ahead": 0,
+    "behind": 0,
+    "index_empty": true,
+    "staged": false,
+    "committed": false,
+    "pushed": false
+  },
+  "cleanup": {
+    "workspace_root": "/var/tmp",
+    "workspace_kib": 458224,
+    "ram_backed_tmp_used": false,
+    "workspace_removed": true,
+    "v12_python_cache_directories": 0
+  },
+  "next": {
+    "id": "post-correctness-release-inventory",
+    "why": "Eighteen intentional non-WASM paths now coexist with the unchanged 34-path deferred WASM boundary.",
+    "entails": "Create exact JSON, Markdown, and TSV manifests with state, disposition, governing record, size, and SHA-256 for every current path; verify all release and evidence gates without staging or publishing.",
+    "importance": "A future consolidation must include only retained correctness work and exclude every deferred WASM path."
+  }
+}

@@ -40,15 +40,15 @@
   "sources": {
     "architecture_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
-      "sha256": "2e1fa6bee7894a41fc24c8ee5cfad86e3d4aa60503616b826f8b6d1abe156a85"
+      "sha256": "6150341f26ecb9b9d4e79dc4bcf7e1743702882b09e281573ca039a74d50c15b"
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-bytecode-semantic-region-feasibility.json",
-      "sha256": "f6fc8212ecbf6400c6d5a9f8f6e5f6240d3a2169c4314311da9c3a9ea9c2fbdb"
+      "sha256": "159aaa795cc2d4b70b22ca2d83c918aefa438f67e9f165feca826820daa2c9d8"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
     },
     "ownership_census": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",
@@ -80,7 +80,7 @@
     "current_semantic_candidate_count": 0,
     "decision": "no-go-current-semantic-region-tier",
     "material_region_family_count": 5,
-    "minimum_remaining_speedup_after_free_transport": 7.788121,
+    "minimum_remaining_speedup_after_free_transport": 10.83139,
     "minimum_unlike_families": 3,
     "prototype_application_count": 3,
     "prototype_regression_count": 3,
@@ -91,52 +91,52 @@
     {
       "benchmark": "monte_carlo_pi",
       "current_rankable": true,
-      "current_seconds": 2.714,
+      "current_seconds": 3.192,
       "family": "stochastic-numeric",
       "instruction_share_percent": 41.7938,
-      "remaining_speedup_in_uniform_cost_model": 1.037921,
-      "required_speedup": 1.78318,
+      "remaining_speedup_in_uniform_cost_model": 1.174504,
+      "required_speedup": 2.017833,
       "scope": "full",
-      "target_budget_seconds": 1.5219999999999998,
+      "target_budget_seconds": 1.581894736842105,
       "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.71803
     },
     {
       "benchmark": "rms_norm",
       "current_rankable": true,
-      "current_seconds": 4.682,
+      "current_seconds": 5.548,
       "family": "float-array",
       "instruction_share_percent": 11.7647,
-      "remaining_speedup_in_uniform_cost_model": 7.456998,
-      "required_speedup": 8.451264,
+      "remaining_speedup_in_uniform_cost_model": 9.267696,
+      "required_speedup": 10.503388,
       "scope": "full",
-      "target_budget_seconds": 0.5539999999999999,
+      "target_budget_seconds": 0.5282105263157895,
       "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.133333
     },
     {
       "benchmark": "fixed_width_128",
       "current_rankable": true,
-      "current_seconds": 8.03,
+      "current_seconds": 9.172,
       "family": "wide-numeric",
       "instruction_share_percent": 6.6174,
-      "remaining_speedup_in_uniform_cost_model": 19.242819,
-      "required_speedup": 20.606429,
+      "remaining_speedup_in_uniform_cost_model": 23.354763,
+      "required_speedup": 25.009759,
       "scope": "full",
-      "target_budget_seconds": 0.38968421052631574,
+      "target_budget_seconds": 0.36673684210526314,
       "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.070863
     },
     {
       "benchmark": "future_await_race",
       "current_rankable": true,
-      "current_seconds": 0.142,
+      "current_seconds": 0.184,
       "family": "concurrency",
       "instruction_share_percent": 48.2013,
-      "remaining_speedup_in_uniform_cost_model": 2.254079,
-      "required_speedup": 4.351613,
+      "remaining_speedup_in_uniform_cost_model": 2.694766,
+      "required_speedup": 5.202381,
       "scope": "full",
-      "target_budget_seconds": 0.03263157894736842,
+      "target_budget_seconds": 0.03536842105263158,
       "uniform_cost_model_reaches_target": false,
       "uniform_instruction_cost_free_region_speedup": 1.93055
     },

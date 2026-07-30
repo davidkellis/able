@@ -326,13 +326,30 @@ func (g *generator) forwardStaticMethodCallArgumentTypeExpr(ctx *compileContext,
 	if !ok || memberIdent == nil || memberIdent.Name == "" {
 		return nil, false
 	}
+	if probe := detachedCallableInferenceContext(ctx); probe != nil {
+		if method, ok := g.resolveGenericNamedUnionInstanceMethod(probe, call, callee.Object, memberIdent.Name, ""); ok &&
+			method != nil && method.Info != nil {
+			g.refreshRepresentableFunctionInfo(method.Info)
+			return g.forwardConcreteCallParamTypeExpr(method.Info, argIdx+1)
+		}
+	}
 	if method, ok := g.resolveStaticMethodCallForCall(ctx, call, callee.Object, memberIdent.Name); ok && method != nil && method.Info != nil {
-		method = g.concreteStaticMethodCallInfo(ctx, call, method, callee.Object, "")
+		paramIdx := argIdx
+		if method.ExpectsSelf {
+			receiverType := g.forwardCallReceiverGoType(ctx, callee.Object)
+			if receiverType == "" {
+				return nil, false
+			}
+			method = g.concreteMethodCallInfo(ctx, call, method, callee.Object, receiverType, "")
+			paramIdx++
+		} else {
+			method = g.concreteStaticMethodCallInfo(ctx, call, method, callee.Object, "")
+		}
 		if method == nil || method.Info == nil {
 			return nil, false
 		}
 		g.refreshRepresentableFunctionInfo(method.Info)
-		return g.forwardConcreteCallParamTypeExpr(method.Info, argIdx)
+		return g.forwardConcreteCallParamTypeExpr(method.Info, paramIdx)
 	}
 	receiverType := g.forwardCallReceiverGoType(ctx, callee.Object)
 	if receiverType == "" {

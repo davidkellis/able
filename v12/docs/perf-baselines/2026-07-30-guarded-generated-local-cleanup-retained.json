@@ -1,0 +1,156 @@
+{
+  "kind": "able-v12-guarded-generated-local-cleanup",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-cleanup-and-exact-release-candidate",
+  "repository": {
+    "head": "418886c70aee64b92b5bb3266ee5fe6453ac4320",
+    "origin_master": "418886c70aee64b92b5bb3266ee5fe6453ac4320",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0
+  },
+  "pre_cleanup": {
+    "visible_paths": 151,
+    "candidate_paths": 110,
+    "deferred_wasm_paths": 34,
+    "generated_local_paths": 7,
+    "porcelain_z_bytes": 9970,
+    "porcelain_z_sha256": "2678232e58c196a9ccae4b6845abd9926a034264de99ea73695b5f060f6c926b",
+    "targets": [
+      {
+        "path": "v12/tmp",
+        "kib": 0
+      },
+      {
+        "path": "v12/interpreters/go/.gocache",
+        "kib": 1742064
+      },
+      {
+        "path": "v12/interpreters/go/tmp",
+        "kib": 0
+      },
+      {
+        "path": "v12/__pycache__",
+        "kib": 52
+      }
+    ],
+    "target_paths": 4,
+    "target_kib": 1742116,
+    "target_list_bytes": 77,
+    "target_list_sha256": "2a096f2774226f5e326502356962325a93d0240d6d03bf3468566c03aa891046",
+    "tracked_descendants": 0,
+    "active_process_owners": 0,
+    "immediate_preview_reproduced": true
+  },
+  "cleanup": {
+    "command": "scripts/cleanup.sh --apply",
+    "include_profiles": false,
+    "applied": true,
+    "removed_paths": 4,
+    "removed_kib": 1742116,
+    "output_bytes": 181,
+    "output_sha256": "b21ca73de39fd96a957f7595373810fbfe94f226701c15a40d367b2a36520772",
+    "post_cleanup_preview_empty": true,
+    "task_workspace_kib": 104,
+    "task_workspace_removed": true
+  },
+  "post_cleanup_pre_record": {
+    "visible_paths": 144,
+    "candidate_paths": 110,
+    "deferred_wasm_paths": 34,
+    "generated_local_paths": 0,
+    "porcelain_z_bytes": 9554,
+    "porcelain_z_sha256": "be5a79ff4ed82494ab10b6c8e46a05508e7c9e5f6e72728de5f07efd529dcc1c",
+    "staged_paths": 0
+  },
+  "candidate": {
+    "paths": 110,
+    "tracked_paths": 55,
+    "untracked_paths": 55,
+    "path_list_bytes": 7708,
+    "path_list_sha256": "c1e7dc8f5ee052e52251ce62273f2770429d3c322acb3208750f1c306129dc21",
+    "nul_pathspec_bytes": 7708,
+    "nul_pathspec_sha256": "08b25c1b1ca46a0721994ff256cd12be732155da186af2f60bffd236a9dde771",
+    "identity_rows": 110,
+    "lines": 114910,
+    "bytes": 7855723,
+    "identity_manifest_bytes": 17372,
+    "identity_manifest_sha256": "dd5a3b64024b36490a72a5f772f454fec1831e7298d706dd38e153181da3bb06"
+  },
+  "deferred_wasm": {
+    "paths": 34,
+    "tracked_paths": 8,
+    "untracked_paths": 26,
+    "path_list_bytes": 1414,
+    "path_list_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "identity_matches_inventory": true,
+    "modified_by_cleanup": false
+  },
+  "validation": {
+    "partition_matches": true,
+    "git_diff_check": "pass",
+    "dirty_go_files": 18,
+    "gofmt_unformatted_files": 0,
+    "dirty_json_files": 55,
+    "invalid_json_files": 0,
+    "dirty_python_files": 9,
+    "python_syntax_failures": 0,
+    "dirty_shell_files": 4,
+    "shell_syntax_failures": 0,
+    "dirty_node_files": 10,
+    "node_syntax_failures": 0,
+    "maintained_source_files": 46,
+    "source_files_at_or_above_1000_lines": 0,
+    "maximum_source_lines": 883,
+    "maximum_source_path": "v12/bench_external_catalog.sh",
+    "evidence_identities_match": true,
+    "cleanup_policy_test": "pass",
+    "complete_release_suite_retained_for_unchanged_source": true,
+    "index_empty": true,
+    "local_tracking_identity_matches": true
+  },
+  "post_record": {
+    "candidate_paths": 112,
+    "candidate_lf_path_bytes": 7868,
+    "candidate_lf_path_sha256": "12c33607dad6eb7033eef9e1fa56c6a825074efad46bee4307b1b232cd30991a",
+    "candidate_nul_pathspec_bytes": 7868,
+    "candidate_nul_pathspec_sha256": "6ab8db8d4ede1872794ff79deca560dbdf901d782b498acca5c6a11a71549790",
+    "final_nonself_identity_rows": 110,
+    "final_nonself_lines": 115003,
+    "final_nonself_bytes": 7860995,
+    "final_nonself_manifest_bytes": 17372,
+    "final_nonself_manifest_sha256": "9da1bba6d8899130c7052bc14ad9c585a467ea28601bb808525e390e4b3fb33d",
+    "final_visible_paths": 146,
+    "final_deferred_wasm_paths": 34
+  },
+  "authorization": {
+    "cleanup_authorized": true,
+    "staging_authorized": true,
+    "commit_authorized": true,
+    "push_authorized": false,
+    "broad_git_add_used": false
+  },
+  "changes": {
+    "generated_local_cleanup_only": true,
+    "production": false,
+    "dependency_version": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser_semantics": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "benchmark_measurement": false,
+    "fixture_behavior": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "exact-local-consolidation-verification-and-publication-authorization",
+    "why": "Exact staging and one local commit are authorized, but remote mutation is not.",
+    "entails": "Verify that the local branch is exactly one commit ahead, that the commit has parent 418886c70aee64b92b5bb3266ee5fe6453ac4320 and the exact 112-path boundary, that the index is empty, and that the 34 deferred WASM paths remain unchanged. Push only that one commit to the intended branch if separately authorized.",
+    "importance": "Independent post-commit verification and separate publication authorization prevent deferred WASM, another commit, or an unintended ref from reaching shared history."
+  }
+}

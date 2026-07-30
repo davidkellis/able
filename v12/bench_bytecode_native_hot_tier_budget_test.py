@@ -36,16 +36,16 @@ class BytecodeNativeHotTierBudgetTests(unittest.TestCase):
             "no-go-native-tier-prototype-current-evidence",
         )
         self.assertFalse(summary["prototype_admitted"])
-        self.assertEqual(summary["common_bytecode_compiled_application_count"], 64)
-        self.assertEqual(summary["compiled_native_proxy_target_meets"], 33)
-        self.assertEqual(summary["compiled_native_proxy_target_misses"], 31)
+        self.assertEqual(summary["common_bytecode_compiled_application_count"], 66)
+        self.assertEqual(summary["compiled_native_proxy_target_meets"], 36)
+        self.assertEqual(summary["compiled_native_proxy_target_misses"], 30)
         self.assertAlmostEqual(
             summary["compiled_native_proxy_target_excess_seconds"],
-            13.852842106,
+            16.818105262,
             places=9,
         )
         self.assertGreater(
-            summary["compiled_native_proxy_excess_reduction_percent"], 93
+            summary["compiled_native_proxy_excess_reduction_percent"], 75
         )
         self.assertEqual(summary["known_region_application_count"], 4)
         self.assertEqual(summary["known_region_material_reduction_count"], 2)

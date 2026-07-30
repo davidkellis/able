@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-07-30T13:32:11Z",
+  "benchmark_repo": "/home/david/sync/projects/benchmarks",
+  "go_version": "go version go1.26.5 linux/amd64",
+  "go_toolchain": {
+    "selector": "go1.26.5",
+    "go_version": "go version go1.26.5 linux/amd64",
+    "expected_go_version": null
+  },
+  "runs": 5,
+  "timeout_seconds": 45,
+  "cpu_affinity": "12",
+  "cpu_affinity_pool": "12",
+  "gomaxprocs": null,
+  "rows": [
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "source": "/home/david/sync/projects/benchmarks/versioned-telemetry-pipeline/go-1.26/app.go",
+      "source_sha256": "df321a44087aff77a18fc4bb8eaed98dec670a11d86e99e66b23485788197c67",
+      "requested_runs": 5,
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.2201,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.240451598,
+          "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.213174373,
+          "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.208273132,
+          "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.217175286,
+          "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.221650499,
+          "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86"
+        }
+      ],
+      "validation": "verified",
+      "stdout_sha256": [
+        "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86"
+      ],
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "12",
+        "executor_policy": "serial"
+      }
+    }
+  ]
+}
