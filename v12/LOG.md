@@ -6759,6 +6759,28 @@ Open items (2025-11-02 audit):
 - Evidence:
   `docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`.
 
+## 2026-07-30 - Post-publication security reconciliation
+
+- Confirmed published commit `be9ecc505161085e1ec11f704571f589b3366c13`
+  at local, tracking, and remote `master` with zero divergence.
+- Active-v12 Go 1.26.5 production and test-inclusive vulnerability scans
+  report zero reachable symbols and zero vulnerable imported packages. The
+  sole module advisory remains unimported `x/crypto/openpgp`.
+- Parser production and direct dependency OSV checks are clean; all v10/v11,
+  v12 parser, and deferred-WASM npm lockfiles report zero npm findings.
+- The 74-alert GitHub banner is one moderate lower than the prior attributed
+  repository-wide count and is not an active-v12 reachability result.
+- Module verification, tidy-diff, scorecard, frontier, ledger, and selector
+  checks passed; retained no dependency or production change.
+- Removed 441.74 MiB across three stale ignored benchmark target trees.
+- The nested parser Go binding's own tests cannot load because its module path,
+  dependency declaration, imports, and absent `go.sum` disagree.
+- Next resolve that standalone binding contract, then rerun its sub-minute Go
+  test/security scan and the official parser harness. Do not begin AST mapping
+  or WASM work.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-publication-security-reconciliation.md`.
+
 ## 2026-07-30 - Post-nullable exact local consolidation
 
 - The maintainer authorized exact staging of the verified 293 retained paths
@@ -6774,3 +6796,80 @@ Open items (2025-11-02 audit):
   reviewable.
 - Evidence:
   `docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`.
+
+## 2026-07-30 - Parser Go binding contract retained
+
+- Confirmed that v12 advertises an active Go binding and that the
+  grammar-root module path, generated binding imports, and official
+  Tree-sitter Go runtime agree.
+- Removed the obsolete nested `bindings/go/go.mod`, which had shadowed the
+  binding behind a contradictory module path and legacy runtime dependency.
+- Added the root sum identity and tidy-required `go-pointer v0.0.1` indirect
+  declaration without changing the retained `go-tree-sitter v0.24.0`
+  dependency.
+- The routine v12 runner now executes the explicit binding package under a
+  one-minute test limit, preventing a future nested module from turning the
+  check into a successful no-package warning.
+- Standalone grammar loading, module tidy/verify, the official Able parser
+  packages, runner syntax, and scoped whitespace checks pass. Every measured
+  command stayed below one minute.
+- Go 1.26.5 `govulncheck v1.6.0 -test` scanned the binding, external test
+  package, test binary, three modules, and standard library with zero
+  vulnerabilities.
+- The complete default v12 runner passed every preflight, the new standalone
+  binding gate, all non-compiler packages, all 34 compiler batches, and the
+  bytecode fixture pass in 16:13.55 with zero swaps.
+- No grammar, generated parser, binding implementation, AST, language,
+  compiler, runtime, interpreter, VM, stdlib, benchmark, fixture, frozen
+  workspace, performance evidence, or WASM source changed.
+- Removed all disk-backed probe, Go, full-suite, scanner, toolchain, and
+  raw-output state after preserving evidence, reclaiming 2.97 GiB.
+- Next refresh the exact retained/deferred release inventory without staging,
+  committing, or pushing. This protects the verified 34-path deferred WASM
+  boundary while making the parser correction independently reviewable.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-parser-go-binding-contract-retained.md`.
+
+## 2026-07-30 - Post-parser release inventory
+
+- Inventoried all 45 fully expanded pre-record dirty paths with an empty index
+  at published `be9ecc505161085e1ec11f704571f589b3366c13`.
+- The exact boundary is 11 retained security, parser-contract, runner, and
+  handoff paths plus the unchanged 34 deferred WASM files. Adding the three
+  inventory metadata paths yields a 14-path retained candidate.
+- The 45-row TSV records Git state, dependency order, family, disposition,
+  governing record, lines, bytes, SHA-256, and path. The deleted obsolete
+  nested parser module is represented and verified as absent.
+- All manifest identities reproduce. JSON, Go, JavaScript, shell, whitespace,
+  source-size, scope, secret, parser-module, and cleanup checks pass.
+- The 130-row five-sample scorecard remains current; the frontier has zero
+  actionable groups; all 23 ledger closures are current with an empty
+  selector; and the canonical 70-file external stdlib source hash is
+  unchanged.
+- The deferred path-list SHA-256 remains
+  `7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e`;
+  all 34 deferred content identities also reproduce.
+- No code, dependency version, semantics, performance input, canonical stdlib,
+  frozen workspace, or WASM source changed during the inventory. Nothing was
+  staged, committed, or pushed.
+- Next obtain explicit authorization before exact 14-path local
+  consolidation. This protects the 34-path deferred complement and keeps any
+  push independently gated.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`.
+
+## 2026-07-30 - Post-parser exact local consolidation
+
+- The maintainer authorized exact staging of the verified 14 retained paths
+  and one local commit; no push was authorized.
+- Reproduced the exact candidate and 34-path deferred complement, refreshed
+  the non-self retained identity, and staged only the NUL-delimited pathspec.
+- Cached-path, whitespace, index-tree, parser-module, manifest, and complement
+  checks passed before the single commit.
+- The final worktree contains only the unchanged deferred WASM paths. The
+  index is empty and local `master` is one commit ahead of `origin/master`.
+- Next obtain explicit authorization before pushing the exact consolidation
+  commit-to-branch refspec. This keeps remote publication independently
+  reviewable.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`.

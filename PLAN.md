@@ -40,6 +40,13 @@ bytecode comparison is
 
 Start from:
 
+- `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.json`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.tsv`
+- `v12/docs/perf-baselines/2026-07-30-parser-go-binding-contract-retained.md`
+- `v12/docs/perf-baselines/2026-07-30-parser-go-binding-contract-retained.json`
+- `v12/docs/perf-baselines/2026-07-30-post-publication-security-reconciliation.md`
+- `v12/docs/perf-baselines/2026-07-30-post-publication-security-reconciliation.json`
 - `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`
 - `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.json`
 - `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.tsv`
@@ -106,25 +113,54 @@ The three inventory metadata files form an exact 293-path post-record retained
 candidate whose complement is precisely those 34 deferred files. All format,
 syntax, identity, size, secret, scope, scorecard, frontier, ledger, and cleanup
 checks pass. The maintainer authorized and the repository now contains one
-exact local consolidation commit for those 293 retained paths. No push is
-authorized.
+exact local consolidation commit for those 293 retained paths. Commit
+`be9ecc505161085e1ec11f704571f589b3366c13` is published; local `HEAD`,
+`origin/master`, and remote `master` agree with zero divergence.
+
+The post-publication security reconciliation retains no dependency or
+production change. Go 1.26.5 production and test scans have zero reachable
+symbol and imported-package findings; only the unimported, unfixable
+`x/crypto/openpgp` module advisory remains. All four canonical npm lockfiles
+are clean. GitHub's 74-alert repository banner is one moderate alert lower
+than the previously attributed banner and does not identify an active-v12
+finding.
+
+The standalone parser Go binding contract is now reproducible. The obsolete
+nested module boundary was removed; the grammar-root module owns
+`bindings/go`, retains the official `go-tree-sitter v0.24.0` runtime, and has
+a complete sum identity. The routine v12 runner now tests the explicit
+binding package with a one-minute limit. Root module integrity, standalone
+grammar loading, the official Able parser packages, and a test-inclusive Go
+1.26.5 vulnerability scan all pass. The complete v12 runner also passes every
+preflight, non-compiler package, all 34 compiler batches, and the bytecode
+fixture corpus with zero swaps. No parser semantic or performance input
+changed.
+
+The post-parser release inventory classifies all 45 pre-record dirty paths
+exactly: 11 retained security/parser/handoff paths and the unchanged 34-path
+deferred WASM boundary. The three inventory metadata files form an exact
+14-path post-record retained candidate. Every manifest identity, format,
+module, scope, secret, source-size, scoreboard, frontier, ledger, canonical
+stdlib, index, and cleanup check passes. The maintainer authorized exact
+staging and one local commit; the repository now contains that consolidation
+as one local commit, with only the 34 deferred WASM paths left dirty. No push
+is authorized.
 
 ### Next tranche
 
 Obtain explicit maintainer authorization before publishing the local
-post-nullable consolidation. Do not start another performance implementation
-until a production, benchmark, or semantic change invalidates a closure.
+post-parser consolidation.
 
 Why: this tranche authorizes one exact local commit but does not authorize
 remote mutation.
 
 What it entails: verify the final one-commit divergence and remote
 destination, then push only that exact commit-to-branch refspec if explicitly
-authorized.
+authorized. Do not publish deferred WASM or unrelated local history.
 
-Why it matters: the verified native-carrier, interpreter-free, scorecard, and
-correctness state can reach shared history without publishing deferred WASM
-or unintended local commits.
+Why it matters: the retained security evidence and parser binding correction
+can reach shared history without publishing deferred WASM or unintended
+commits.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or global default execution-context

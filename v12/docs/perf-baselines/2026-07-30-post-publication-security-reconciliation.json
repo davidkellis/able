@@ -1,0 +1,154 @@
+{
+  "kind": "able-v12-post-publication-security-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-production-or-dependency-change",
+  "repository": {
+    "head": "be9ecc505161085e1ec11f704571f589b3366c13",
+    "origin_master": "be9ecc505161085e1ec11f704571f589b3366c13",
+    "remote_master": "be9ecc505161085e1ec11f704571f589b3366c13",
+    "tree": "59a210723d6abe9677989b4d8440cf8b0b05e025",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0,
+    "pre_record_dirty_paths": 34,
+    "pre_record_dirty_disposition": "deferred-wasm"
+  },
+  "github_banner": {
+    "total": 74,
+    "critical": 18,
+    "high": 14,
+    "moderate": 34,
+    "low": 8,
+    "previous_total": 75,
+    "previous_moderate": 35,
+    "delta_total": -1,
+    "delta_moderate": -1,
+    "exact_alert_rows_available": false,
+    "access_boundary": "authenticated Dependabot-alert permission required"
+  },
+  "go_scanner": {
+    "toolchain": "go1.26.5",
+    "scanner": "govulncheck v1.6.0",
+    "database": "https://vuln.go.dev",
+    "database_updated_utc": "2026-07-27T20:14:16Z",
+    "production": {
+      "root_packages": 29,
+      "modules": 24,
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "required_module_advisories": 1,
+      "required_module_advisory_ids": [
+        "GO-2026-5932"
+      ],
+      "wall_seconds": 14.09,
+      "peak_rss_kb": 1580644,
+      "raw_sha256": "1e7de51a0d634468b73b6cccf59732c6b2f903abb1a259d73ac0db10fe0b8b57"
+    },
+    "tests": {
+      "root_packages": 71,
+      "modules": 24,
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "required_module_advisories": 1,
+      "required_module_advisory_ids": [
+        "GO-2026-5932"
+      ],
+      "wall_seconds": 3.16,
+      "peak_rss_kb": 2123292,
+      "raw_sha256": "1a2b32f0e3d4cd9d1399bdcea58217ce72cf1685ae1e3b95243f1f3cc3473836"
+    }
+  },
+  "module_integrity": {
+    "go_mod_sha256": "7a76c1bd85b76d079c9acc1148cc3dc6b6f03694aae7e3c29e650e1891aeb563",
+    "go_sum_sha256": "0eed327adef2c76281d55a5b3dfaa8a0be3df8346423667b0b2aee62f882e83f",
+    "golang_org_x_net": "v0.56.0",
+    "golang_org_x_crypto": "v0.53.0",
+    "golang_org_x_sys": "v0.46.0",
+    "go_mod_verify": "pass",
+    "go_mod_tidy_diff": "empty"
+  },
+  "parser": {
+    "production_binding": {
+      "root_packages": 1,
+      "modules": 1,
+      "symbol_vulnerabilities": 0,
+      "imported_package_vulnerabilities": 0,
+      "required_module_advisories": 0,
+      "wall_seconds": 1.4,
+      "peak_rss_kb": 178668,
+      "raw_sha256": "1fca5095e41c09a89b5fc1ce443fe1e5bc6c752c43806058f8d05a164f0e9ba6"
+    },
+    "root_go_tree_sitter_v0_24_0_osv_advisories": 0,
+    "nested_smacker_go_tree_sitter_osv_advisories": 0,
+    "nested_test_scan": {
+      "result": "load-failure",
+      "missing_go_sum": true,
+      "declared_module": "github.com/tree-sitter/tree-sitter-able",
+      "declared_tree_sitter_dependency": "github.com/smacker/go-tree-sitter",
+      "imported_tree_sitter_dependency": "github.com/tree-sitter/go-tree-sitter",
+      "imported_binding_module": "github.com/davidkellis/able/bindings/go",
+      "production_or_security_finding": false
+    }
+  },
+  "npm": {
+    "version": "11.16.0",
+    "lockfiles": [
+      {
+        "scope": "v10-parser",
+        "dependencies": 28,
+        "vulnerabilities": 0
+      },
+      {
+        "scope": "v11-parser",
+        "dependencies": 28,
+        "vulnerabilities": 0
+      },
+      {
+        "scope": "v12-parser",
+        "dependencies": 28,
+        "vulnerabilities": 0
+      },
+      {
+        "scope": "v12-deferred-wasm",
+        "dependencies": 1,
+        "vulnerabilities": 0
+      }
+    ]
+  },
+  "performance_evidence": {
+    "scorecard_rows": 130,
+    "successful_able_and_reference_samples_per_row": 5,
+    "frontier_actionable_groups": 0,
+    "ledger_closures": 23,
+    "ledger_invalidations": 0,
+    "selector_empty": true
+  },
+  "cleanup": {
+    "ignored_benchmark_target_paths_removed": 3,
+    "ignored_benchmark_target_reclaimed_kib": 452344,
+    "ignored_benchmark_target_reclaimed_mib": 441.74,
+    "audit_workspace_removed": true,
+    "final_generated_project_paths": 0
+  },
+  "changes": {
+    "production": false,
+    "dependency": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "benchmark": false,
+    "fixture": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "resolve-parser-go-binding-test-contract",
+    "why": "Security is green and the performance frontier has no actionable group, but the nested parser binding tests cannot load reproducibly.",
+    "entails": "Determine whether bindings/go is active or obsolete; if active, align its module path and tree-sitter dependency, add sum identity, and make go test plus govulncheck -test pass under one minute; if obsolete, remove it from the active contract or mark it archival, then rerun the official parser harness without beginning AST mapping or WASM work.",
+    "importance": "Every claimed active test and security surface should be independently reproducible."
+  }
+}

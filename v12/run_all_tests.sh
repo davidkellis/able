@@ -143,18 +143,25 @@ COMPILER_CORE_OUTLIER_TESTS_EGREP='^TestCompiler.*ParityFixtures(Batch[0-9]+)?$'
 
 echo ">>> Running Go tests"
 (
-  cd "$ROOT_DIR/interpreters/go"
-  mapfile -t all_pkgs < <(go list ./... | grep -Ev '^able/interpreter-go/tmp(/|$)')
-  if [[ ${#all_pkgs[@]} -eq 0 ]]; then
-    echo "No Go packages found to test." >&2
-    exit 1
-  fi
   gocache="$ROOT_DIR/interpreters/go/.gocache"
   if [[ "${ABLE_GOCACHE:-}" == "tmp" ]]; then
     gocache="$(mktemp -d)"
     trap 'rm -rf "$gocache"' EXIT
   elif [[ -n "${GOCACHE:-}" ]]; then
     gocache="$GOCACHE"
+  fi
+
+  echo ">>> Running standalone parser Go binding test"
+  (
+    cd "$ROOT_DIR/parser/tree-sitter-able"
+    GOCACHE="$gocache" go test -timeout 1m -count=1 ./bindings/go
+  )
+
+  cd "$ROOT_DIR/interpreters/go"
+  mapfile -t all_pkgs < <(go list ./... | grep -Ev '^able/interpreter-go/tmp(/|$)')
+  if [[ ${#all_pkgs[@]} -eq 0 ]]; then
+    echo "No Go packages found to test." >&2
+    exit 1
   fi
 
   run_compiler_short_batches() {

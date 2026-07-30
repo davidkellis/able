@@ -1,0 +1,125 @@
+{
+  "kind": "able-v12-parser-go-binding-contract-retained",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-grammar-root-go-module-contract",
+  "repository": {
+    "head": "be9ecc505161085e1ec11f704571f589b3366c13",
+    "origin_master": "be9ecc505161085e1ec11f704571f589b3366c13",
+    "pre_record_expanded_dirty_paths": 43,
+    "deferred_wasm_paths": 34,
+    "staged_paths": 0
+  },
+  "cause": {
+    "go_binding_advertised": true,
+    "authoritative_module": "github.com/davidkellis/able",
+    "authoritative_binding_package": "github.com/davidkellis/able/bindings/go",
+    "authoritative_tree_sitter_dependency": "github.com/tree-sitter/go-tree-sitter v0.24.0",
+    "obsolete_nested_module": "github.com/tree-sitter/tree-sitter-able",
+    "obsolete_nested_dependency": "github.com/smacker/go-tree-sitter v0.0.0-20230720070738-0d0a9f78d8f8",
+    "failure": "nested module hid the binding from the grammar-root module and contradicted the generated test imports"
+  },
+  "retained_changes": {
+    "deleted_nested_go_mod": true,
+    "root_module_path_changed": false,
+    "tree_sitter_version_changed": false,
+    "added_indirect_dependency": "github.com/mattn/go-pointer v0.0.1",
+    "added_go_sum_lines": 36,
+    "routine_runner_explicit_package_test": "go test -timeout 1m -count=1 ./bindings/go"
+  },
+  "verification": {
+    "isolated_proof": {
+      "result": "pass",
+      "wall_seconds": 21.22
+    },
+    "go_mod_tidy_diff": "empty",
+    "go_mod_verify": "pass",
+    "standalone_cold": {
+      "result": "pass",
+      "wall_seconds": 15.87,
+      "peak_rss_kb": 196444
+    },
+    "standalone_go_1_26_5": {
+      "result": "pass",
+      "wall_seconds": 15.66,
+      "peak_rss_kb": 196260
+    },
+    "official_able_parser": {
+      "packages": [
+        "able/interpreter-go/pkg/parser",
+        "able/interpreter-go/pkg/parser/language"
+      ],
+      "result": "pass",
+      "wall_seconds": 12.81,
+      "peak_rss_kb": 318988
+    },
+    "full_v12_runner": {
+      "result": "pass",
+      "preflights": "pass",
+      "standalone_parser_binding": "pass",
+      "non_compiler_packages": "pass",
+      "compiler_batches_passed": 34,
+      "bytecode_fixture_pass": "pass",
+      "wall_seconds": 973.55,
+      "peak_rss_kb": 4651560,
+      "swaps": 0,
+      "raw_sha256": "72dc51969c95d617f8e1c3d2bbb9e1552964b75e9c182922205dbfe63b6630f1"
+    },
+    "runner_bash_syntax": "pass",
+    "scoped_diff_check": "pass"
+  },
+  "security": {
+    "toolchain": "go1.26.5",
+    "scanner": "govulncheck v1.6.0",
+    "database_updated_utc": "2026-07-27T20:14:16Z",
+    "test_inclusive": true,
+    "root_packages": 3,
+    "modules": 3,
+    "vulnerabilities": 0,
+    "wall_seconds": 16.35,
+    "peak_rss_kb": 428080,
+    "raw_sha256": "ac2fbe8e62be0ddae77b8fc19198ec6daf9d00145e24d2fb03f32fd040a92811"
+  },
+  "identities": {
+    "go_mod_sha256": "d5c63a254931cd83e2b0cc415137cd076106facb235c0289437e9da2590bdab0",
+    "go_sum_sha256": "a7d2dd524ce7f8e47eb33d9aa480d5011628376107c15e3a415cfef44d22fc44",
+    "binding_go_sha256": "d92fb926123e23f3548e07257fe977d7b788b11354892414d43e35448c9b43c7",
+    "binding_test_go_sha256": "36b9d9d04498363672e6202b84df6fccf1685928d06103d981ac1cbfc3eb5c1a",
+    "parser_c_sha256": "054369173a78160f15ebef87bced7c4717a4aaf85cfb04ded76eb6ab1ed4c6e3"
+  },
+  "semantic_changes": {
+    "grammar": false,
+    "generated_parser": false,
+    "binding_implementation": false,
+    "ast": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "benchmark": false,
+    "fixture": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "performance_evidence_invalidated": false,
+  "cleanup": {
+    "disk_backed_workspace": true,
+    "ram_backed_tmp_used": false,
+    "isolated_grammar_copy_removed": true,
+    "go_and_scanner_cache_removed": true,
+    "reclaimed_kib": 3117804,
+    "reclaimed_mib": 3044.73,
+    "reclaimed_gib": 2.97,
+    "project_cleanup_dry_run": "empty",
+    "deferred_wasm_identity_rows_reproduced": 34,
+    "deferred_wasm_paths_modified": false
+  },
+  "next": {
+    "id": "refresh-post-parser-release-inventory",
+    "why": "The dirty tree combines the unchanged 34-path deferred WASM boundary with retained security, parser-contract, runner, and handoff changes.",
+    "entails": "Expand and classify every dirty path, validate all retained formats and module identities, reproduce the exact deferred complement, and record the review boundary without staging, committing, pushing, or modifying WASM.",
+    "importance": "An exact boundary prevents deferred work from entering a future consolidation and makes this parser correction independently reviewable."
+  }
+}

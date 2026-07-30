@@ -51549,6 +51549,36 @@
 - Record:
   `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`.
 
+## 2026-07-30 - Post-publication security reconciliation
+
+- Published exact commit
+  `be9ecc505161085e1ec11f704571f589b3366c13`; local `HEAD`,
+  `origin/master`, and remote `master` now agree with zero divergence.
+- Retained no production or dependency change after Go 1.26.5
+  `govulncheck v1.6.0` scans.
+- Production (29 roots) and test-inclusive (71 roots) scans report zero
+  symbol-reachable and zero imported-package vulnerabilities. Both retain only
+  `GO-2026-5932` at module level for unimported, unfixable
+  `x/crypto/openpgp`.
+- The parser binding production package and direct OSV queries for both
+  declared parser Go dependency versions are clean. All four canonical npm
+  lockfiles report zero vulnerabilities.
+- GitHub's banner fell from 75 to 74 repository-wide alerts by one moderate
+  alert. Exact rows still require authenticated Dependabot-alert access; the
+  banner does not contradict the clean active-v12 reachability result.
+- `go mod verify`, empty `go mod tidy -diff`, scorecard, frontier, ledger, and
+  selector checks passed.
+- Removed three stale ignored benchmark target trees, reclaiming 441.74 MiB,
+  and removed the isolated security workspace.
+- The one concrete gap is the standalone generated parser binding test
+  scaffold: it has no `go.sum` and its declared module/dependency identities
+  disagree with its test imports.
+- Next resolve whether that scaffold is active or obsolete, then make its
+  supported test/security contract reproducible without beginning AST mapping
+  or WASM work.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-publication-security-reconciliation.md`.
+
 ## 2026-07-30 - Post-nullable exact local consolidation
 
 - Received explicit authorization to stage the exact 293-path retained
@@ -51567,3 +51597,86 @@
   remains separately gated.
 - Record:
   `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`.
+
+## 2026-07-30 - Parser Go binding contract retained
+
+- Resolved the standalone v12 parser Go binding failure as an obsolete nested
+  module boundary, not a grammar or parser-semantic defect.
+- `tree-sitter.json`, the grammar-root module, and the generated binding test
+  establish one supported package:
+  `github.com/davidkellis/able/bindings/go`, using the official
+  `go-tree-sitter v0.24.0` runtime.
+- Removed the contradictory nested `bindings/go/go.mod`, added the
+  tidy-required indirect declaration and complete root `go.sum`, and added an
+  explicit one-minute binding test to the routine v12 runner.
+- Cold standalone grammar loading passed in 15.87s; the Go 1.26.5 replay
+  passed in 15.66s; the official Able parser packages passed in 12.81s.
+- Test-inclusive `govulncheck v1.6.0` scanned three root packages and three
+  modules in 16.35s and reported no vulnerabilities.
+- The complete v12 runner passed every preflight, the new binding gate,
+  non-compiler packages, all 34 compiler batches, and bytecode fixtures in
+  16:13.55 with zero swaps.
+- Root `go mod tidy -diff`, `go mod verify`, runner syntax, and scoped
+  whitespace checks passed. Binding implementation, generated parser, AST,
+  language, compiler, runtime, interpreter, VM, stdlib, benchmarks, fixtures,
+  and deferred WASM remain unchanged.
+- Used only disk-backed `/var/tmp` build state and removed the isolated grammar
+  copy, caches, full-suite workspace, toolchain, scanner, and raw output after
+  recording results, reclaiming 2.97 GiB.
+- Next refresh the exact retained/deferred release inventory without staging,
+  committing, or pushing. This matters because the dirty tree now mixes this
+  retained correction and handoff evidence with the unchanged 34 deferred
+  WASM paths.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-parser-go-binding-contract-retained.md`.
+
+## 2026-07-30 - Post-parser release inventory
+
+- Captured an immutable, fully expanded 45-path worktree snapshot at published
+  commit `be9ecc505161085e1ec11f704571f589b3366c13`, with an empty index and
+  zero local/tracking divergence.
+- Classified exactly 11 retained paths and the unchanged 34-path deferred WASM
+  boundary. The three inventory metadata files form a 14-path post-record
+  retained candidate whose complete complement is those 34 deferred files.
+- Recorded the intentional parser nested-module deletion explicitly with an
+  absent-file identity; all 45 manifest line, byte, SHA-256, state,
+  disposition, and governing-record rows reproduce.
+- JSON, Go formatting, JavaScript syntax, shell syntax, tracked/untracked
+  whitespace, source-size, scope, filename, and common-secret checks pass.
+- Parser module tidy/verify and standalone grammar loading pass. The current
+  130-row scorecard, five-sample evidence, zero-actionable frontier,
+  23-current-closure ledger, empty selector, and canonical external stdlib
+  identity reproduce.
+- All 34 deferred WASM line, byte, SHA-256, and path identities exactly match
+  the previous authoritative inventory. No v10, v11, deprecated stdlib,
+  external stdlib, production, semantic, dependency-version, benchmark, or
+  WASM change was made.
+- Performed no staging, commit, push, reset, revert, broad repository
+  operation, or deferred-file modification.
+- Next obtain explicit authorization before staging the exact 14-path
+  candidate and creating one local commit. This is important because the
+  release boundary is verified, but repository mutation remains separately
+  gated.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`.
+
+## 2026-07-30 - Post-parser exact local consolidation
+
+- Received explicit authorization to stage the exact 14-path retained
+  candidate and create one local commit; no push was authorized.
+- Reproduced the candidate's newline and NUL pathspec identities and its exact
+  34-path deferred WASM complement before staging.
+- Staged only the generated NUL-delimited retained pathspec; no broad
+  `git add`, reset, revert, repository deletion, or deferred WASM modification
+  occurred.
+- Verified the cached path set, whitespace, index tree, manifest, final
+  non-self identity, parser module state, and deferred complement before
+  creating the single local commit.
+- The post-commit worktree contains only the unchanged 34 deferred WASM paths;
+  the index is empty and local `master` is exactly one commit ahead of
+  `origin/master`.
+- Next obtain explicit authorization before publishing the one local commit.
+  This matters because local consolidation was authorized, but remote mutation
+  remains separately gated.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`.
