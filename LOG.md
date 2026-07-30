@@ -51680,3 +51680,93 @@
   remains separately gated.
 - Record:
   `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`.
+
+## 2026-07-30 - Post-parser publication
+
+- Received explicit authorization to publish only local commit
+  `da8cb15bc394b6528dfd6a6b0eb1de30e12fef51`.
+- Verified `origin` as `git@github.com:davidkellis/able.git`, remote `master`
+  at the exact parent, a one-commit fast-forward, an empty index, and the
+  unchanged 34-path deferred WASM residual before publication.
+- Pushed the explicit refspec
+  `da8cb15bc394b6528dfd6a6b0eb1de30e12fef51:refs/heads/master`; no broad
+  branch push or other ref was used.
+- Independent `ls-remote` verification confirms local `HEAD`,
+  `origin/master`, and remote `master` all at `da8cb15b`, with zero
+  ahead/behind divergence.
+- GitHub's publication banner remains at 74 repository-wide Dependabot alerts:
+  18 critical, 14 high, 34 moderate, and 8 low. The committed active-parser
+  scan remains clean; the banner is not an active-v12 reachability result.
+- The deferred WASM files remain uncommitted and unchanged, and no generated
+  project artifact or publication workspace exists.
+- Next run one bounded clean-tree post-publication reconciliation for the exact
+  published commit. This matters because shared-history module, parser-test,
+  and security claims should reproduce without the dirty deferred worktree.
+
+## 2026-07-30 - Post-parser clean-tree publication reconciliation
+
+- Exported exact published commit `da8cb15b` and tree `27f296f7` to
+  disk-backed `/var/tmp`, independently of the 34 deferred WASM paths.
+- Reproduced committed main and parser `go.mod`/`go.sum` identities, empty
+  tidy diffs, and successful module verification under Go 1.26.5.
+- The clean standalone parser binding test passed in 15.80s with 196,324 KB
+  peak RSS.
+- Test-inclusive `govulncheck v1.6.0` scanned three root packages and three
+  reachable modules in 1.21s, reported zero vulnerabilities, and exactly
+  reproduced committed raw SHA-256 `ac2fbe8e…`.
+- Did not repeat the unchanged main vulnerability scans or full v12 suite;
+  their production inputs are unchanged and no performance closure is
+  invalidated.
+- Removed the exact 1,223,340 KiB export/toolchain/module/scanner workspace.
+  No project artifact or task workspace remains.
+- Next refresh the exact five-retained/34-deferred release inventory without
+  staging, committing, or pushing. This matters because future consolidation
+  must continue to exclude deferred WASM exactly.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-parser-publication-reconciliation.md`.
+
+## 2026-07-30 - Post-parser-publication release inventory
+
+- Captured an immutable, fully expanded 39-path worktree snapshot at published
+  commit `da8cb15bc394b6528dfd6a6b0eb1de30e12fef51`, with an empty index and
+  zero local, tracking, or remote divergence.
+- Classified exactly five retained publication-reconciliation/handoff paths
+  and the unchanged 34-path deferred WASM boundary. The three inventory
+  metadata files form an exact eight-path post-record retained candidate.
+- Reproduced every manifest line, byte, SHA-256, state, disposition, and
+  governing-record identity. All deferred identities exactly match the
+  previous authoritative inventory.
+- JSON, Go formatting, JavaScript syntax, tracked/untracked whitespace,
+  source-size, scope, filename, and common-secret checks pass.
+- The 130-row five-sample scorecard, zero-actionable frontier, 23-current-
+  closure ledger, empty selector, and canonical external stdlib identity
+  reproduce. The project cleanup dry run is empty.
+- No code, dependency, semantic, benchmark, stdlib, frozen-workspace, or WASM
+  change was made. Nothing was staged, committed, or pushed.
+- Next obtain explicit authorization before staging the exact eight-path
+  candidate and creating one local commit; keep any push separately gated.
+  This matters because the release boundary is verified while repository
+  mutation remains intentionally unauthorized.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.md`.
+
+## 2026-07-30 - Post-parser-publication exact local consolidation
+
+- Received explicit authorization to stage the exact eight-path retained
+  candidate and create one local commit; no push was authorized.
+- Reproduced the candidate's newline and NUL pathspec identities and its exact
+  34-path deferred WASM complement before staging.
+- Staged only the generated NUL-delimited retained pathspec; no broad
+  `git add`, reset, revert, repository deletion, or deferred WASM modification
+  occurred.
+- Verified the cached path set, whitespace, index tree, manifest, final
+  non-self identity, evidence state, and deferred complement before creating
+  the single local commit.
+- The post-commit worktree contains only the unchanged 34 deferred WASM paths;
+  the index is empty and local `master` is exactly one commit ahead of
+  `origin/master`.
+- Next obtain explicit authorization before publishing the one local commit.
+  This matters because local consolidation was authorized, but remote mutation
+  remains separately gated.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.md`.

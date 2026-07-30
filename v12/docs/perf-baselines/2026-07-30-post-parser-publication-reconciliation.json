@@ -1,0 +1,109 @@
+{
+  "kind": "able-v12-post-parser-publication-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-production-or-dependency-version-change",
+  "repository": {
+    "head": "da8cb15bc394b6528dfd6a6b0eb1de30e12fef51",
+    "origin_master": "da8cb15bc394b6528dfd6a6b0eb1de30e12fef51",
+    "remote_master": "da8cb15bc394b6528dfd6a6b0eb1de30e12fef51",
+    "parent": "be9ecc505161085e1ec11f704571f589b3366c13",
+    "tree": "27f296f7c3ced088157eabff41b1146ff2a502a0",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0,
+    "exported_regular_files": 10953
+  },
+  "toolchain": {
+    "go": "go1.26.5",
+    "scanner": "govulncheck v1.6.0",
+    "database": "https://vuln.go.dev",
+    "database_updated_utc": "2026-07-27T20:14:16Z"
+  },
+  "modules": {
+    "main": {
+      "go_mod_sha256": "7a76c1bd85b76d079c9acc1148cc3dc6b6f03694aae7e3c29e650e1891aeb563",
+      "go_sum_sha256": "0eed327adef2c76281d55a5b3dfaa8a0be3df8346423667b0b2aee62f882e83f",
+      "listed_modules": 65,
+      "tidy_diff": "empty",
+      "tidy_wall_seconds": 10.82,
+      "tidy_peak_rss_kb": 38636,
+      "verify": "pass"
+    },
+    "parser": {
+      "go_mod_sha256": "d5c63a254931cd83e2b0cc415137cd076106facb235c0289437e9da2590bdab0",
+      "go_sum_sha256": "a7d2dd524ce7f8e47eb33d9aa480d5011628376107c15e3a415cfef44d22fc44",
+      "listed_modules": 19,
+      "tidy_diff": "empty",
+      "tidy_wall_seconds": 0.63,
+      "tidy_peak_rss_kb": 28148,
+      "verify": "pass"
+    },
+    "empty_tidy_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verify_output_sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+  },
+  "parser_test": {
+    "command": "go test -timeout 55s -count=1 ./bindings/go",
+    "result": "pass",
+    "wall_seconds": 15.80,
+    "peak_rss_kb": 196324,
+    "output_sha256": "2f2569e1d21054ea3603ff0ffe32c8e6d06a8ff6e82d12ff4b220acc23115f08"
+  },
+  "parser_security": {
+    "test_inclusive": true,
+    "root_packages": 3,
+    "reachable_modules": 3,
+    "vulnerabilities": 0,
+    "wall_seconds": 1.21,
+    "peak_rss_kb": 435752,
+    "raw_sha256": "ac2fbe8e62be0ddae77b8fc19198ec6daf9d00145e24d2fb03f32fd040a92811",
+    "committed_raw_sha256_match": true
+  },
+  "scope": {
+    "clean_git_archive": true,
+    "deferred_untracked_wasm_present": false,
+    "nested_parser_go_mod_present": false,
+    "parser_go_sum_present": true,
+    "main_vulnerability_scan_repeated": false,
+    "full_v12_suite_repeated": false,
+    "performance_evidence_invalidated": false
+  },
+  "github_banner": {
+    "total": 74,
+    "critical": 18,
+    "high": 14,
+    "moderate": 34,
+    "low": 8,
+    "active_v12_reachability_result": false
+  },
+  "cleanup": {
+    "disk_backed_workspace": true,
+    "ram_backed_tmp_used": false,
+    "workspace_kib": 1223340,
+    "workspace_mib": 1194.67,
+    "workspace_removed": true,
+    "cleanup_dry_run_generated_paths": 0,
+    "task_workspaces_remaining": 0
+  },
+  "changes": {
+    "production": false,
+    "dependency_version": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser_semantics": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "benchmark": false,
+    "fixture": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "refresh-post-parser-publication-release-inventory",
+    "why": "The worktree combines five retained handoff/reconciliation paths with the unchanged 34 deferred WASM paths.",
+    "entails": "Expand all untracked files, record exact state/line/byte/hash identities, validate the reconciliation records plus PLAN/logs, reproduce the 34-path deferred complement, and define the next retained candidate without staging, committing, or pushing.",
+    "importance": "A precise boundary closes publication work cleanly and prevents deferred WASM from entering any later handoff consolidation."
+  }
+}

@@ -6873,3 +6873,77 @@ Open items (2025-11-02 audit):
   reviewable.
 - Evidence:
   `docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`.
+
+## 2026-07-30 - Post-parser publication
+
+- Explicitly published only
+  `da8cb15bc394b6528dfd6a6b0eb1de30e12fef51` to `origin/master`.
+- Pre-push checks proved the expected GitHub destination, exact remote parent,
+  one-commit fast-forward, empty index, and unchanged 34-path deferred
+  complement.
+- Post-push `ls-remote`, local tracking identity, and ahead/behind checks all
+  agree at `da8cb15b` with zero divergence.
+- The repository-wide GitHub banner remains 74 alerts at the same severity
+  distribution. No deferred WASM path entered history, and no other ref or
+  commit was published.
+- Next reconcile the exact clean published tree's main/parser modules,
+  standalone binding test, and test-inclusive parser vulnerability result
+  under disk-backed temporary state, then remove that state. This proves the
+  shared artifact independently of the developer worktree.
+
+## 2026-07-30 - Post-parser clean-tree publication reconciliation
+
+- Reconciled exact published `da8cb15b` from a 10,953-file clean Git archive;
+  the export excludes every untracked deferred WASM file.
+- Main and parser module manifests, empty tidy diffs, and verification
+  reproduce under Go 1.26.5.
+- Standalone grammar loading passes in 15.80s. Test-inclusive
+  `govulncheck v1.6.0` finds zero vulnerabilities in the same three reachable
+  modules and reproduces the committed raw output hash exactly.
+- Retained no code, dependency-version, semantic, benchmark, evidence, stdlib,
+  frozen-workspace, or WASM change. Removed 1,223,340 KiB of disk-backed
+  temporary state after recording results.
+- Next inventory the exact five retained handoff/reconciliation paths and 34
+  deferred WASM paths without repository mutation.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-parser-publication-reconciliation.md`.
+
+## 2026-07-30 - Post-parser-publication release inventory
+
+- Inventoried all 39 fully expanded pre-record dirty paths at published
+  `da8cb15bc394b6528dfd6a6b0eb1de30e12fef51`, with an empty index and zero
+  local, tracking, or remote divergence.
+- The exact boundary is five retained reconciliation/handoff paths plus the
+  unchanged 34 deferred WASM files. Adding the three inventory metadata files
+  yields an exact eight-path retained candidate.
+- The 39-row TSV records Git state, dependency order, family, disposition,
+  governing record, lines, bytes, SHA-256, and path. Every identity
+  reproduces, and the deferred content/path set exactly matches the prior
+  authoritative inventory.
+- JSON, Go, JavaScript, whitespace, source-size, scope, secret, scorecard,
+  frontier, ledger, selector, canonical-stdlib, Git-index, remote, and cleanup
+  checks pass.
+- No production, dependency-version, compiler, runtime, interpreter,
+  bytecode-VM, canonical-stdlib, language, benchmark, fixture, frozen v10/v11,
+  or WASM change occurred. Nothing was staged, committed, or pushed.
+- Next obtain explicit authorization before exact eight-path local
+  consolidation. This protects the 34-path deferred complement and keeps any
+  push independently gated.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.md`.
+
+## 2026-07-30 - Post-parser-publication exact local consolidation
+
+- The maintainer authorized exact staging of the verified eight retained paths
+  and one local commit; no push was authorized.
+- Reproduced the exact candidate and 34-path deferred complement, refreshed
+  the non-self retained identity, and staged only the NUL-delimited pathspec.
+- Cached-path, whitespace, index-tree, manifest, evidence-ledger, and
+  complement checks passed before the single commit.
+- The final worktree contains only the unchanged deferred WASM paths. The
+  index is empty and local `master` is one commit ahead of `origin/master`.
+- Next obtain explicit authorization before pushing the exact consolidation
+  commit-to-branch refspec. This keeps remote publication independently
+  reviewable.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.md`.

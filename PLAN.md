@@ -40,6 +40,11 @@ bytecode comparison is
 
 Start from:
 
+- `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.md`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.json`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.tsv`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-publication-reconciliation.md`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-publication-reconciliation.json`
 - `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.md`
 - `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.json`
 - `v12/docs/perf-baselines/2026-07-30-post-parser-release-inventory.tsv`
@@ -143,24 +148,41 @@ deferred WASM boundary. The three inventory metadata files form an exact
 module, scope, secret, source-size, scoreboard, frontier, ledger, canonical
 stdlib, index, and cleanup check passes. The maintainer authorized exact
 staging and one local commit; the repository now contains that consolidation
-as one local commit, with only the 34 deferred WASM paths left dirty. No push
-is authorized.
+as commit `da8cb15bc394b6528dfd6a6b0eb1de30e12fef51`. The commit is
+published; local `HEAD`, `origin/master`, and remote `master` agree with zero
+divergence. The 34 deferred WASM paths remain outside the commit.
+
+The clean-tree post-publication reconciliation exports exact commit
+`da8cb15b` independently of the developer worktree. Main and parser module
+identities, empty tidy diffs, and module verification reproduce. Under Go
+1.26.5, the standalone parser test passes and test-inclusive
+`govulncheck v1.6.0` reports zero vulnerabilities with the exact committed
+raw-output SHA-256. No performance evidence is invalidated.
+
+The post-parser-publication release inventory classifies all 39 pre-record
+dirty paths exactly: five retained reconciliation/handoff paths and the
+unchanged 34-path deferred WASM boundary. The three inventory metadata files
+form an exact eight-path post-record retained candidate whose complement is
+precisely those 34 deferred files. Every manifest identity, format, scope,
+secret, source-size, scoreboard, frontier, ledger, canonical-stdlib, index,
+remote, and cleanup check passes. The maintainer authorized exact staging and
+one local commit; the repository now contains that consolidation while the 34
+deferred WASM paths remain outside history. Nothing was pushed.
 
 ### Next tranche
 
-Obtain explicit maintainer authorization before publishing the local
-post-parser consolidation.
+Obtain explicit maintainer authorization before publishing the one local
+post-parser-publication reconciliation commit.
 
-Why: this tranche authorizes one exact local commit but does not authorize
-remote mutation.
+Why: exact local consolidation is authorized, but remote mutation remains
+separately gated.
 
-What it entails: verify the final one-commit divergence and remote
-destination, then push only that exact commit-to-branch refspec if explicitly
-authorized. Do not publish deferred WASM or unrelated local history.
+What it entails: verify the final one-commit divergence, remote destination,
+empty index, and unchanged deferred complement, then push only that exact
+commit-to-branch refspec if explicitly authorized.
 
-Why it matters: the retained security evidence and parser binding correction
-can reach shared history without publishing deferred WASM or unintended
-commits.
+Why it matters: the reconciliation can reach shared history without
+publishing deferred WASM, another local commit, or any unintended ref.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or global default execution-context
