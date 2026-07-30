@@ -1,0 +1,136 @@
+{
+  "kind": "able-v12-post-parser-publication-shared-tree-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-production-change-open-two-evidence-reproducibility-corrections",
+  "repository": {
+    "head": "e7a054032e189e9a606dad68c827be50af897417",
+    "origin_master": "e7a054032e189e9a606dad68c827be50af897417",
+    "remote_master": "e7a054032e189e9a606dad68c827be50af897417",
+    "parent": "da8cb15bc394b6528dfd6a6b0eb1de30e12fef51",
+    "tree": "6c62157b1ff3bb364995f2d11fd208a3f73d4cae",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0,
+    "published_commit_paths": 8
+  },
+  "clean_export": {
+    "git_archive": true,
+    "regular_files": 10958,
+    "symlinks": 0,
+    "deferred_untracked_wasm_present": false,
+    "disk_backed": true,
+    "ram_backed_tmp_used": false
+  },
+  "published_boundary": {
+    "candidate_paths": 8,
+    "candidate_lf_bytes": 425,
+    "candidate_lf_sha256": "d65ec0bdc385996b9770c78d45e587da51ef00ade48377b2abaf9a713123a284",
+    "commit_candidate_path_diff": 0,
+    "final_nonself_rows": 5,
+    "final_nonself_lines": 59234,
+    "final_nonself_bytes": 4089356,
+    "final_nonself_manifest_bytes": 561,
+    "final_nonself_manifest_sha256": "39a4c35428d9a243351375eeeab5cf20f9b59becfd0d8b8d2fb8e8805baf27bf"
+  },
+  "committed_records": {
+    "publication_reconciliation_json_sha256": "bf45aacd18dd5803c7ce49212376284c43b566a6dd4b6c0e90af38942576acd7",
+    "publication_reconciliation_markdown_sha256": "f4a9229b7fab30a0b344d04f35175cf9d47af53eaff0484e4b716d881d136e09",
+    "release_inventory_json_sha256": "7f4ef8e157717657a9e06031abae1ae1cb9fd162071f893be2b5e79ad1023626",
+    "release_inventory_markdown_sha256": "ddb3acb4e7858efbb2148a8b28eaafce98a38757de160b9cf67058e5c7558e04",
+    "release_inventory_tsv_rows": 39,
+    "release_inventory_tsv_sha256": "dc056e0a2ef32e804fb8d6ba8ed8fb0ceea33c612bef0583a483500d063919ad"
+  },
+  "modules": {
+    "changed_by_publication_commit": false,
+    "main_go_mod_sha256": "7a76c1bd85b76d079c9acc1148cc3dc6b6f03694aae7e3c29e650e1891aeb563",
+    "main_go_sum_sha256": "0eed327adef2c76281d55a5b3dfaa8a0be3df8346423667b0b2aee62f882e83f",
+    "parser_go_mod_sha256": "d5c63a254931cd83e2b0cc415137cd076106facb235c0289437e9da2590bdab0",
+    "parser_go_sum_sha256": "a7d2dd524ce7f8e47eb33d9aa480d5011628376107c15e3a415cfef44d22fc44",
+    "tidy_verify_parser_test_or_scan_repeated": false,
+    "reason_not_repeated": "The publication commit changes only handoff and reconciliation records; all tested module, parser, compiler, runtime, and dependency inputs are byte-identical to the preceding clean-tree reconciliation."
+  },
+  "performance_evidence": {
+    "changed_by_publication_commit": false,
+    "scoreboard_json_sha256": "43c9a48d92ecaf02069655e6c1e78cc81bf1025997e578708da3c23acac8a4d8",
+    "selection_manifest_sha256": "6bbe6579df9857a791a2f30d55792bba0827994766d4f27beebbf0dba24ec628",
+    "selection_semantic_sha256": "d450605f6b271fbddbda7bf31e9f61c1d87cbf1a407f9047304d79bd64ff1684",
+    "frontier_evidence_sha256": "6edd75cc356a4bdeb856d46d028e70cdb1d1774e8bad57b62f6b7c21fa7883c2",
+    "frontier_json_sha256": "f4fa5b26a9f6229d0cb61a27af0ff8b965ba424732f73998463fd8640e5d312b",
+    "closure_ledger_sha256": "67e0934be56885bf491ffbc2b53e2e850ff48290ce163b6dd178720e24327a7a",
+    "ledger_report_sha256": "2d0f331971c938a7c086d8be95aa255bc9c34dfb6d7943686ce7d7debdc423b2",
+    "frontier_check": "pass",
+    "frontier_rows": 130,
+    "actionable_frontier_groups": 0,
+    "developer_worktree_scoreboard_check": "pass",
+    "developer_worktree_five_sample_check": "pass",
+    "developer_worktree_ledger_check": "pass",
+    "developer_worktree_current_closures": 23,
+    "developer_worktree_invalidated_closures": 0,
+    "clean_export_scoreboard_check": "blocked-by-absolute-report-paths",
+    "clean_export_five_sample_check": "blocked-by-absolute-report-paths",
+    "clean_export_ledger_check": "invalidated-by-untracked-wasm-scope-contamination",
+    "publication_commit_causally_invalidates_evidence": false
+  },
+  "reproducibility_gaps": [
+    {
+      "id": "absolute-report-paths",
+      "selected_report_files": 31,
+      "selected_report_files_affected": 31,
+      "absolute_able_workspace_occurrences": 161,
+      "field_counts": {
+        "path": 130,
+        "go_reference_json": 16,
+        "reference_json": 15
+      },
+      "scoreboard_first_error": "fib/compiled: measured source does not match canonical target",
+      "five_sample_first_error": "go_reference_json is not retained under the relocated clean-export perf-baselines directory",
+      "effect": "The checked evidence identities are unchanged, but two validators cannot relocate the source-only archive."
+    },
+    {
+      "id": "native-bytecode-scope-includes-untracked-wasm",
+      "scope": "bytecode-production",
+      "committed_ledger_file_count": 206,
+      "committed_ledger_tree_sha256": "b8472c5b17856a9eed8eecb4dcecd2e3030d6024e7f50ed050f5ae06902de197",
+      "clean_export_file_count": 203,
+      "clean_export_tree_sha256": "4c6b98eafd856f6bda13884e8b32004bf5af2842b4fcf6d2990e8c9321cd39a1",
+      "untracked_deferred_wasm_files_in_baseline": [
+        "v12/interpreters/go/pkg/interpreter/bytecode_i32_frame_proof_wasm.go",
+        "v12/interpreters/go/pkg/interpreter/bytecode_scalar_proof_wasm.go",
+        "v12/interpreters/go/pkg/interpreter/bytecode_type_proofs_wasm.go"
+      ],
+      "clean_export_current_closures": 11,
+      "clean_export_invalidated_closures": 12,
+      "reason": "scope-content-drift:bytecode-production",
+      "effect": "The checked native bytecode ledger baseline depends on three uncommitted WASM-only proof files."
+    }
+  ],
+  "cleanup": {
+    "workspace_kib": 139996,
+    "workspace_mib": 136.71,
+    "workspace_removed": true,
+    "cleanup_dry_run_generated_paths": 0,
+    "task_workspaces_remaining": 0
+  },
+  "changes": {
+    "production": false,
+    "dependency_version": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "benchmark_measurement": false,
+    "fixture": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "repair-relocatable-performance-evidence-gates",
+    "why": "The published source tree is exact, but its evidence gates are not self-contained: absolute report paths prevent relocation and a native bytecode scope includes untracked WASM-only files.",
+    "entails": "Normalize repository-owned report references against the active repository, add relocated-export regressions, exclude *_wasm.go from native bytecode production scope, rebuild the checked ledger from committed inputs, and prove both the developer worktree and a clean relocated export select zero closures.",
+    "importance": "Performance evidence must reproduce from committed source alone and must not depend on deferred WASM state before another optimization tranche can be trusted."
+  }
+}

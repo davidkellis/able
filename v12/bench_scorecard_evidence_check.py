@@ -10,6 +10,7 @@ import json
 import sys
 from pathlib import Path
 
+from bench_repository_paths import repository_owned_path
 from bench_scorecard_selection import manifest_record
 
 
@@ -33,10 +34,7 @@ def load_object(path: Path) -> dict:
 def retained_path(raw_path: object, context: str) -> Path:
     if not isinstance(raw_path, str) or not raw_path:
         raise ValueError(f"{context} must be a non-empty path")
-    path = Path(raw_path)
-    if not path.is_absolute():
-        path = REPO_ROOT / path
-    path = path.resolve()
+    path = repository_owned_path(raw_path, REPO_ROOT)
     try:
         path.relative_to(PERF_DIR)
     except ValueError:

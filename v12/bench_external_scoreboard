@@ -18,11 +18,11 @@ from pathlib import Path
 from typing import Any
 
 from bench_execution_contract import declared_execution_contract, row_execution_contract
+from bench_repository_paths import repository_owned_path
 from bench_scorecard_cohort import aggregate_manifest, canonical_stdlib_source_state
 from bench_scorecard_drift import current_source_drift
 from bench_scorecard_selection import canonical_record, manifest_keys, manifest_record
 from bench_scoreboard_render import render_json
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PERF_DIR = REPO_ROOT / "v12" / "docs" / "perf-baselines"
@@ -130,10 +130,8 @@ def scorecard_source_fingerprint(row: dict[str, Any], target: Path) -> dict[str,
     declared_sha256 = declared.get("sha256")
     if not isinstance(raw_path, str) or not raw_path or not is_sha256(declared_sha256):
         raise ValueError(f"{row['benchmark']}/{row['mode']}: invalid able.source fingerprint")
-    measured_target = Path(raw_path)
-    if not measured_target.is_absolute():
-        measured_target = REPO_ROOT / measured_target
-    if measured_target.resolve() != target:
+    measured_target = repository_owned_path(raw_path, REPO_ROOT)
+    if measured_target != target:
         raise ValueError(
             f"{row['benchmark']}/{row['mode']}: measured source does not match canonical target"
         )
@@ -218,9 +216,7 @@ def reference_fingerprints_for_scorecard_source(
             return
         if not isinstance(raw_path, str) or not raw_path:
             raise ValueError(f"{display_path(scorecard_path)}: reference report path must be a string")
-        report_path = Path(raw_path)
-        if not report_path.is_absolute():
-            report_path = REPO_ROOT / report_path
+        report_path = repository_owned_path(raw_path, REPO_ROOT)
         report = load_json(report_path)
         report_rows = report.get("rows")
         if not isinstance(report_rows, list):

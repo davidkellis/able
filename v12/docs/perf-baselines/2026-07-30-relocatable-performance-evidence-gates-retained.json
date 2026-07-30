@@ -1,0 +1,120 @@
+{
+  "kind": "able-v12-relocatable-performance-evidence-gates-retained",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-general-relocatable-evidence-and-native-scope-corrections",
+  "repository": {
+    "head": "e7a054032e189e9a606dad68c827be50af897417",
+    "origin_master": "e7a054032e189e9a606dad68c827be50af897417",
+    "remote_master": "e7a054032e189e9a606dad68c827be50af897417",
+    "ahead": 0,
+    "behind": 0,
+    "staged_paths": 0
+  },
+  "path_relocation": {
+    "helper": "v12/bench_repository_paths.py",
+    "helper_sha256": "02a5ebed15ca8a6f3847f5f6e4c0e3656711b46cb53b3d2ae64924bd8a159c9b",
+    "scoreboard_sha256": "c3bd75eb593c8910de9b8a11ea8532730e99cc471ce70c4e141a8ffbee72d9a1",
+    "evidence_checker_sha256": "e87f341e988fd8a30c9c15b52e90aa79dc229950f7cbcccf1f1dfd9ba9dcaddd",
+    "rule": "Repository-owned absolute provenance paths follow their retained v12 suffix under the active repository root; external reference implementation paths remain external.",
+    "selected_reports_relocated": 31,
+    "selected_rows_relocated": 130,
+    "successful_samples_required": 5
+  },
+  "native_bytecode_scope": {
+    "scope": "bytecode-production",
+    "added_exclusion": "*_wasm.go",
+    "generator_sha256": "2c5a0fdb5e3f42dd34c2659baecddd53c5f6b7a6d83f52a7aebb29ff4caa7e78",
+    "ledger_sha256_before": "67e0934be56885bf491ffbc2b53e2e850ff48290ce163b6dd178720e24327a7a",
+    "ledger_sha256_after": "15fcba70f930f002e7ef9e00084c4986973248db817e989266a693cc1c40f9c2",
+    "file_count_before": 206,
+    "file_count_after": 203,
+    "tree_sha256_before": "b8472c5b17856a9eed8eecb4dcecd2e3030d6024e7f50ed050f5ae06902de197",
+    "tree_sha256_after": "4c6b98eafd856f6bda13884e8b32004bf5af2842b4fcf6d2990e8c9321cd39a1",
+    "excluded_deferred_wasm_files": 3,
+    "closure_count": 23,
+    "current_closures": 23,
+    "invalidated_closures": 0,
+    "selected_closures": []
+  },
+  "generated_reports": {
+    "ledger_report_changed": false,
+    "ledger_report_json_sha256": "2d0f331971c938a7c086d8be95aa255bc9c34dfb6d7943686ce7d7debdc423b2",
+    "ledger_report_markdown_sha256": "dcf133cbdd3fe987b9c541deca3eb3a6a84375c418145c9ba9021542f332a8ea",
+    "reason": "The corrected committed scope still leaves all 23 closures current, so only the bootstrap scope identity changes."
+  },
+  "validation": {
+    "developer_worktree": {
+      "scoreboard_check": "pass",
+      "scoreboard_rows": 130,
+      "five_sample_check": "pass",
+      "retained_source_reports": 31,
+      "retained_reference_reports": 31,
+      "frontier_check": "pass",
+      "actionable_frontier_groups": 0,
+      "ledger_check": "pass",
+      "current_closures": 23,
+      "invalidated_closures": 0
+    },
+    "relocated_export": {
+      "regular_files": 10959,
+      "deferred_wasm_proof_files": 0,
+      "scoreboard_check": "pass",
+      "scoreboard_rows": 130,
+      "five_sample_check": "pass",
+      "retained_source_reports": 31,
+      "retained_reference_reports": 31,
+      "path_relocation_tests": 4,
+      "frontier_check": "pass",
+      "actionable_frontier_groups": 0,
+      "ledger_check": "pass",
+      "current_closures": 23,
+      "invalidated_closures": 0,
+      "ledger_tests": 8,
+      "ledger_tests_skipped": 1
+    },
+    "path_relocation_test_sha256": "528de388b58bf466670fe0da5f47e8f6a23730d1862dd14fb5681dfe9f9d78f4",
+    "ledger_test_sha256": "5cb68c79e5adb01b8b66d15d0273aee013f0fd4ec630c3c63482dbe9db51a992",
+    "frontier_tests": 5,
+    "python_compile": "pass",
+    "json_parse": "pass",
+    "git_diff_check": "pass",
+    "file_length_check": "pass",
+    "largest_changed_source_lines": 995,
+    "largest_changed_source": "v12/bench_external_scoreboard",
+    "full_v12_suite_repeated": false,
+    "reason_full_suite_not_repeated": "The retained changes affect report path resolution, evidence hashing, generated evidence state, and fast tests only; no parser, compiler, runtime, interpreter, VM, language, stdlib, fixture, or benchmark implementation changed."
+  },
+  "cleanup": {
+    "disk_backed_workspace": true,
+    "ram_backed_tmp_used": false,
+    "workspace_kib": 140068,
+    "workspace_mib": 136.79,
+    "workspace_removed": true,
+    "cleanup_dry_run_generated_paths": 0,
+    "task_workspaces_remaining": 0
+  },
+  "changes": {
+    "performance_evidence_tooling": true,
+    "checked_ledger_scope": true,
+    "production": false,
+    "dependency_version": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "parser": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "benchmark_measurement": false,
+    "fixture": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "refresh-post-relocatable-evidence-release-inventory",
+    "why": "The worktree now combines retained publication records and evidence-tooling corrections with the unchanged 34-path deferred WASM boundary.",
+    "entails": "Expand all untracked files, record exact state, line, byte, and SHA-256 identities, reproduce the 34-path deferred complement, and define the retained candidate without staging, committing, or pushing.",
+    "importance": "An exact release boundary lets the self-contained evidence correction enter history without absorbing deferred WASM work."
+  }
+}

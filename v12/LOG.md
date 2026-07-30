@@ -6947,3 +6947,111 @@ Open items (2025-11-02 audit):
   reviewable.
 - Evidence:
   `docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.md`.
+
+## 2026-07-30 - Post-parser-publication reconciliation publication
+
+- Explicitly published only
+  `e7a054032e189e9a606dad68c827be50af897417` to `origin/master`.
+- Pre-push checks proved the expected GitHub destination, exact remote parent,
+  one-commit fast-forward, empty index, exact eight-path commit boundary, and
+  unchanged 34-path deferred complement.
+- Post-push `ls-remote`, local tracking identity, and ahead/behind checks all
+  agree at `e7a05403` with zero divergence.
+- The repository-wide GitHub banner remains 74 alerts at the same severity
+  distribution. No deferred WASM path entered history, and no other ref or
+  commit was published.
+- Next reconcile the exact clean published tree's reconciliation/inventory
+  identities and unchanged module/performance inputs under disk-backed
+  temporary state, then remove that state. This proves the shared artifact
+  independently of the developer worktree.
+
+## 2026-07-30 - Post-parser-publication shared-tree reconciliation
+
+- Reconciled exact published `e7a05403` from a clean 10,958-file Git archive,
+  excluding every untracked deferred WASM file.
+- The eight-path commit set, record/manifest hashes, refreshed non-self
+  identity, and main/parser module identities reproduce exactly. No tested
+  code, dependency, or evidence input changed across the publication commit.
+- The 130-row frontier remains current with zero actionable groups.
+- Clean relocation reveals that all 31 selected reports retain absolute
+  original-workspace paths: 161 occurrences across source and reference-report
+  fields. The scoreboard and five-sample validators therefore cannot resolve
+  those reports inside the archive.
+- The native `bytecode-production` ledger baseline contains 206 files because
+  it includes three untracked deferred `*_wasm.go` proof files. The clean
+  committed tree has 203 files, causing 12 false bytecode-scope invalidations.
+- Developer-worktree checks still report 23 current closures and zero
+  invalidations, proving the discrepancy is location/scope contamination
+  rather than a publication-code change.
+- Retained no production or WASM change and removed the 139,996 KiB
+  disk-backed workspace.
+- Next make evidence paths relocatable, exclude WASM-only files from the native
+  bytecode scope, rebuild the ledger from committed inputs, and guard both a
+  dirty deferred worktree and a relocated clean export.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-parser-publication-shared-tree-reconciliation.md`.
+
+## 2026-07-30 - Relocatable performance-evidence gates retained
+
+- Added a shared active-repository resolver for retained `v12/...` provenance
+  and used it in the scoreboard and five-sample evidence checker.
+- Four regressions prove ordinary retained paths, relocated retained reports,
+  genuinely external report rejection, and relocated measured Able sources.
+- Native `bytecode-production` hashing now excludes `*_wasm.go`; a focused
+  regression proves deferred WASM-only edits cannot select native bytecode
+  closures.
+- Rebuilt the checked baseline from 203 committed native files with tree hash
+  `4c6b98e…`. All 23 closures remain current and the evaluated JSON/Markdown
+  reports remain byte-identical.
+- The developer worktree and a relocated 10,959-file source export both pass
+  the 130-row scoreboard, five-sample evidence check, zero-actionable frontier,
+  and zero-invalidation ledger. The export contains none of the three deferred
+  WASM proof files.
+- No runtime, compiler, interpreter, VM, language, dependency, benchmark,
+  stdlib, fixture, or WASM source changed.
+- Removed the 140,068 KiB disk-backed validation workspace.
+- Next inventory the retained correction and unchanged deferred WASM boundary
+  exactly, without repository mutation.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-relocatable-performance-evidence-gates-retained.md`.
+
+## 2026-07-30 - Post-relocatable-evidence release inventory
+
+- Inventoried all 48 fully expanded pre-record dirty paths at published
+  `e7a054032e189e9a606dad68c827be50af897417`, with an empty index and zero
+  local, tracking, or remote divergence.
+- The exact boundary is 14 retained shared-tree reconciliation,
+  evidence-tooling, evidence-record, and handoff paths plus the unchanged 34
+  deferred WASM files. Adding three inventory metadata files yields an exact
+  17-path retained candidate.
+- The 48-row TSV records Git state, dependency order, family, disposition,
+  governing record, lines, bytes, SHA-256, and path. Every identity reproduces,
+  and the deferred content/path set exactly matches the prior inventory.
+- JSON, Go, JavaScript, Python, whitespace, source-size, scope, secret,
+  scorecard, five-sample, frontier, ledger, canonical-stdlib, Git-index,
+  remote, and cleanup checks pass.
+- No production, dependency-version, compiler, runtime, interpreter,
+  bytecode-VM, parser, canonical-stdlib, language, benchmark-measurement,
+  fixture, frozen v10/v11, or WASM change occurred during the inventory.
+  Nothing was staged, committed, or pushed.
+- Next obtain explicit authorization before exact 17-path local consolidation.
+  This protects the 34-path deferred complement and keeps any push
+  independently gated.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-relocatable-evidence-release-inventory.md`.
+
+## 2026-07-30 - Post-relocatable-evidence exact local consolidation
+
+- The maintainer authorized exact staging of the verified 17 retained paths
+  and one local commit; no push was authorized.
+- Reproduced the exact candidate and 34-path deferred complement, refreshed
+  the non-self retained identity, and staged only the NUL-delimited pathspec.
+- Cached-path, whitespace, index-tree, manifest, scorecard, frontier, ledger,
+  and complement checks passed before the single commit.
+- The final worktree contains only the unchanged deferred WASM paths. The
+  index is empty and local `master` is one commit ahead of `origin/master`.
+- Next obtain explicit authorization before pushing the exact consolidation
+  commit-to-branch refspec. This keeps remote publication independently
+  reviewable.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-relocatable-evidence-release-inventory.md`.

@@ -40,6 +40,13 @@ bytecode comparison is
 
 Start from:
 
+- `v12/docs/perf-baselines/2026-07-30-post-relocatable-evidence-release-inventory.md`
+- `v12/docs/perf-baselines/2026-07-30-post-relocatable-evidence-release-inventory.json`
+- `v12/docs/perf-baselines/2026-07-30-post-relocatable-evidence-release-inventory.tsv`
+- `v12/docs/perf-baselines/2026-07-30-relocatable-performance-evidence-gates-retained.md`
+- `v12/docs/perf-baselines/2026-07-30-relocatable-performance-evidence-gates-retained.json`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-publication-shared-tree-reconciliation.md`
+- `v12/docs/perf-baselines/2026-07-30-post-parser-publication-shared-tree-reconciliation.json`
 - `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.md`
 - `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.json`
 - `v12/docs/perf-baselines/2026-07-30-post-parser-publication-release-inventory.tsv`
@@ -166,13 +173,41 @@ form an exact eight-path post-record retained candidate whose complement is
 precisely those 34 deferred files. Every manifest identity, format, scope,
 secret, source-size, scoreboard, frontier, ledger, canonical-stdlib, index,
 remote, and cleanup check passes. The maintainer authorized exact staging and
-one local commit; the repository now contains that consolidation while the 34
-deferred WASM paths remain outside history. Nothing was pushed.
+one local commit, then separately authorized publication of only that commit.
+Commit `e7a054032e189e9a606dad68c827be50af897417` is published; local `HEAD`,
+`origin/master`, and remote `master` agree with zero divergence. The 34
+deferred WASM paths remain outside history.
+
+The exact `e7a05403` shared tree reproduces its eight-path commit boundary,
+reconciliation/inventory records, module identities, and 130-row
+zero-actionable frontier. The clean export also exposes two evidence-tooling
+correctness gaps: all 31 selected reports retain absolute original-workspace
+paths, and the native bytecode closure baseline includes three untracked
+deferred `*_wasm.go` proof files. The publication commit changes no module or
+evidence input and causally invalidates no measurement, but the checked gates
+are not yet self-contained.
+
+The evidence gates are now self-contained. Repository-owned provenance paths
+relocate against the active checkout, and native bytecode closure hashing
+excludes `*_wasm.go`. Both the developer worktree and a relocated source-only
+export pass the 130-row scoreboard, five-sample evidence check, zero-actionable
+frontier, and 23-current-closure ledger. No production or WASM source changed.
+
+The post-relocatable-evidence release inventory classifies all 48 pre-record
+dirty paths exactly: 14 retained publication/evidence/handoff paths and the
+unchanged 34-path deferred WASM boundary. The three inventory metadata files
+form an exact 17-path post-record retained candidate whose complement is
+precisely those 34 deferred files. Every identity, format, scope, secret,
+source-size, evidence, stdlib, Git, and cleanup check passes. Nothing was
+staged, committed, or pushed during the inventory. The maintainer subsequently
+authorized exact staging and one local commit; the repository now contains
+that consolidation while the 34 deferred WASM paths remain outside history.
+Nothing was pushed.
 
 ### Next tranche
 
 Obtain explicit maintainer authorization before publishing the one local
-post-parser-publication reconciliation commit.
+post-relocatable-evidence consolidation commit.
 
 Why: exact local consolidation is authorized, but remote mutation remains
 separately gated.
@@ -181,7 +216,7 @@ What it entails: verify the final one-commit divergence, remote destination,
 empty index, and unchanged deferred complement, then push only that exact
 commit-to-branch refspec if explicitly authorized.
 
-Why it matters: the reconciliation can reach shared history without
+Why it matters: the evidence correction can reach shared history without
 publishing deferred WASM, another local commit, or any unintended ref.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,

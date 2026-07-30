@@ -49,7 +49,7 @@ SCOPE_DEFINITIONS = [
         "id": "bytecode-production",
         "root": "v12/interpreters/go/pkg/interpreter",
         "include": ["bytecode*.go", "interpreter_bytecode*.go"],
-        "exclude": ["*_test.go"],
+        "exclude": ["*_test.go", "*_wasm.go"],
     },
     {
         "id": "shared-interpreter-semantics",

@@ -140,6 +140,39 @@ class PerformanceEvidenceLedgerTests(unittest.TestCase):
         report = json.loads(result.stdout)
         self.assertEqual(report["summary"]["selected_closures"], [])
 
+    def test_wasm_only_change_does_not_invalidate_native_bytecode_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            scope_root = directory / "interpreter"
+            scope_root.mkdir()
+            (scope_root / "bytecode_prod.go").write_text(
+                "package interpreter\n", encoding="utf-8"
+            )
+            wasm_path = scope_root / "bytecode_proof_wasm.go"
+            wasm_path.write_text("package interpreter\n", encoding="utf-8")
+            baseline = directory / "ledger.json"
+            override = f"bytecode-production={scope_root}"
+            boot = self.run_ledger(
+                "--bootstrap", "--scope-override", override, "--json-out", str(baseline)
+            )
+            self.assertEqual(boot.returncode, 0, boot.stderr)
+            scope = next(
+                item
+                for item in json.loads(baseline.read_text(encoding="utf-8"))["scopes"]
+                if item["id"] == "bytecode-production"
+            )
+            self.assertEqual(scope["file_count"], 1)
+            self.assertIn("*_wasm.go", scope["exclude"])
+            wasm_path.write_text(
+                "package interpreter\n// deferred wasm change\n", encoding="utf-8"
+            )
+            result = self.run_ledger(
+                "--ledger", str(baseline), "--scope-override", override
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["summary"]["selected_closures"], [])
+
     def test_partial_advance_updates_only_named_closures(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:
             directory = Path(raw_dir)
