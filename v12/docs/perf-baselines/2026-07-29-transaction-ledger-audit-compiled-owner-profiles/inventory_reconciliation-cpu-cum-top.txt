@@ -1,0 +1,74 @@
+File: inventory_reconciliation
+Build ID: e36179affa65ae17b95b4847532c8072cb22aad2
+Type: cpu
+Time: 2026-07-29 14:36:37 CDT
+Duration: 499.62ms, Total samples = 540ms (108.08%)
+Showing nodes accounting for 540ms, 100% of 540ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      540ms   100%  main.RunRegisteredMain
+         0     0%     0%      540ms   100%  main.RunRegisteredMain.func1
+         0     0%     0%      540ms   100%  main.__able_compiled_fn_apply_updates
+         0     0%     0%      540ms   100%  main.__able_compiled_fn_main
+         0     0%     0%      540ms   100%  main.__able_register_compiled_call.func1
+         0     0%     0%      540ms   100%  main.__able_wrap_fn_main
+         0     0%     0%      540ms   100%  main.main
+         0     0%     0%      540ms   100%  main.runMain
+         0     0%     0%      540ms   100%  runtime.main
+         0     0%     0%      350ms 64.81%  main.__able_compiled_fn_lookup
+      10ms  1.85%  1.85%      350ms 64.81%  main.__able_iface_Map_i64_i64_adapter_ptr_HashMap_i64_i64.get
+         0     0%  1.85%      340ms 62.96%  main.__able_compiled_impl_Map_get_0_spec
+         0     0%  1.85%      340ms 62.96%  main.__able_compiled_method_HashMap_raw_get_spec
+      10ms  1.85%  3.70%      190ms 35.19%  main.__able_hash_map_get_impl
+      10ms  1.85%  5.56%      180ms 33.33%  main.__able_compiled_method_HashMap_set_spec
+         0     0%  5.56%      170ms 31.48%  main.__able_compiled_method_HashMap_raw_set_spec
+      40ms  7.41% 12.96%      170ms 31.48%  main.__able_hash_map_find_entry
+      10ms  1.85% 14.81%      150ms 27.78%  main.__able_hash_map_set_impl
+      10ms  1.85% 16.67%      120ms 22.22%  main.__able_hash_map_hash
+      20ms  3.70% 20.37%      110ms 20.37%  able/interpreter-go/pkg/compiler/bridge.HashMapHashValue
+      10ms  1.85% 22.22%      110ms 20.37%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+      10ms  1.85% 24.07%      110ms 20.37%  runtime.mallocgc
+      70ms 12.96% 37.04%       90ms 16.67%  able/interpreter-go/pkg/compiler/bridge.primitiveHashMapHash
+         0     0% 37.04%       80ms 14.81%  runtime.convT
+      10ms  1.85% 38.89%       70ms 12.96%  main.__able_hash_map_keys_equal
+         0     0% 38.89%       70ms 12.96%  runtime.systemstack
+         0     0% 38.89%       60ms 11.11%  able/interpreter-go/pkg/compiler/bridge.HashMapKeysEqual
+      60ms 11.11% 50.00%       60ms 11.11%  able/interpreter-go/pkg/compiler/bridge.primitiveHashMapKeyEqual
+      30ms  5.56% 55.56%       60ms 11.11%  able/interpreter-go/pkg/runtime.(*HashMapValue).HashCandidates (inline)
+      10ms  1.85% 57.41%       60ms 11.11%  main.__able_nullable_i64_from_value
+      20ms  3.70% 61.11%       50ms  9.26%  runtime.mallocgcSmallScanNoHeader
+         0     0% 61.11%       50ms  9.26%  runtime.newobject
+         0     0% 61.11%       40ms  7.41%  runtime.deductAssistCredit
+         0     0% 61.11%       40ms  7.41%  runtime.gcAssistAlloc
+         0     0% 61.11%       40ms  7.41%  runtime.gcAssistAlloc.func2
+         0     0% 61.11%       40ms  7.41%  runtime.gcAssistAlloc1
+         0     0% 61.11%       40ms  7.41%  runtime.gcDrainN
+      40ms  7.41% 68.52%       40ms  7.41%  runtime.tryDeferToSpanScan
+         0     0% 68.52%       30ms  5.56%  runtime.mapaccess1_fast64
+      10ms  1.85% 70.37%       30ms  5.56%  runtime.scanSpan
+         0     0% 70.37%       30ms  5.56%  runtime.wbBufFlush
+         0     0% 70.37%       30ms  5.56%  runtime.wbBufFlush.func1
+         0     0% 70.37%       30ms  5.56%  runtime.wbBufFlush1
+      20ms  3.70% 74.07%       20ms  3.70%  able/interpreter-go/pkg/compiler/bridge.hashMapIntegerValue (inline)
+         0     0% 74.07%       20ms  3.70%  runtime.(*wbBuf).get2 (inline)
+         0     0% 74.07%       20ms  3.70%  runtime.bulkBarrierPreWrite
+         0     0% 74.07%       20ms  3.70%  runtime.typedmemmove
+         0     0% 74.07%       20ms  3.70%  sync.(*Once).Do (inline)
+      20ms  3.70% 77.78%       20ms  3.70%  sync/atomic.(*Bool).Load (inline)
+         0     0% 77.78%       10ms  1.85%  able/interpreter-go/pkg/runtime.HashMapStoreState
+         0     0% 77.78%       10ms  1.85%  gcWriteBarrier
+      10ms  1.85% 79.63%       10ms  1.85%  internal/runtime/gc/scan.FilterNilAVX512
+         0     0% 79.63%       10ms  1.85%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 79.63%       10ms  1.85%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+      10ms  1.85% 81.48%       10ms  1.85%  internal/runtime/maps.(*groupReference).key (inline)
+      10ms  1.85% 83.33%       10ms  1.85%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+      10ms  1.85% 85.19%       10ms  1.85%  internal/runtime/maps.h1 (inline)
+      10ms  1.85% 87.04%       10ms  1.85%  main.__able_checked_add_signed
+      10ms  1.85% 88.89%       10ms  1.85%  runtime.bool2int (inline)
+      10ms  1.85% 90.74%       10ms  1.85%  runtime.gcWriteBarrier2
+      10ms  1.85% 92.59%       10ms  1.85%  runtime.gcmarknewobject
+         0     0% 92.59%       10ms  1.85%  runtime.makeSpanClass (inline)
+      10ms  1.85% 94.44%       10ms  1.85%  runtime.mallocgcTiny
+         0     0% 94.44%       10ms  1.85%  runtime.mapaccess2_fast64
+      10ms  1.85% 96.30%       10ms  1.85%  runtime.memhash64
+      10ms  1.85% 98.15%       10ms  1.85%  runtime.nextFreeFast (inline)
+      10ms  1.85%   100%       10ms  1.85%  runtime.scanObject

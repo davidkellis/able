@@ -1,0 +1,52 @@
+File: compiled
+Build ID: 3beb9b2eb54a9adde022ed1b7d3a70d2e204e756
+Type: alloc_objects
+Time: 2026-07-29 19:57:07 CDT
+Showing nodes accounting for 461956, 98.14% of 470731 total
+Dropped 192 nodes (cum <= 2353)
+      flat  flat%   sum%        cum   cum%
+     94464 20.07% 20.07%      94464 20.07%  main.__able_compiled_fn_regex_nfa_clone_captures
+     86305 18.33% 38.40%     131018 27.83%  main.__able_compiled_fn_regex_codepoints
+     58676 12.46% 50.87%      58676 12.46%  runtime/pprof.allFrames
+     43008  9.14% 60.00%      43008  9.14%  main.__able_compiled_fn_regex_nfa_threads_new
+     38566  8.19% 68.20%      38566  8.19%  main.__able_compiled_fn_utf8_decode
+     36480  7.75% 75.95%     109440 23.25%  main.__able_compiled_fn_regex_nfa_capture_end
+     18432  3.92% 79.86%      34488  7.33%  main.__able_compiled_fn_build_capture_groups
+     15939  3.39% 83.25%      15939  3.39%  main.__able_compiled_fn_slice_bytes_a
+     15630  3.32% 86.57%      15655  3.33%  runtime/pprof.(*profileBuilder).emitLocation
+     14336  3.05% 89.61%      14336  3.05%  main.__able_compiled_fn_regex_nfa_new_captures
+      9216  1.96% 91.57%      27648  5.87%  main.__able_compiled_fn_regex_nfa_capture_start
+      8674  1.84% 93.41%      83107 17.65%  runtime/pprof.writeHeapProto
+      6147  1.31% 94.72%       6147  1.31%  main.__able_compiled_method_String_chars
+      4725  1.00% 95.72%       4725  1.00%  main.__able_string_to_builtin_native
+      4096  0.87% 96.59%     386008 82.00%  main.__able_compiled_fn_evaluate
+      3072  0.65% 97.25%      45779  9.73%  main.__able_compiled_fn_build_match
+      2124  0.45% 97.70%     330501 70.21%  main.__able_compiled_fn_find_nfa_span
+      1536  0.33% 98.02%     379864 80.70%  main.__able_compiled_fn_parse_record
+       518  0.11% 98.13%       3611  0.77%  main.__able_compiled_fn_build_named_capture_groups
+         6 0.0013% 98.13%      74344 15.79%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         3 0.00064% 98.14%     387617 82.34%  main.__able_compiled_fn_main
+         1 0.00021% 98.14%      83113 17.66%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00021% 98.14%     387618 82.34%  main.RunRegisteredMain
+         1 0.00021% 98.14%      83108 17.66%  runtime/pprof.writeHeapInternal
+         0     0% 98.14%      83113 17.66%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 98.14%      83113 17.66%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 98.14%     387617 82.34%  main.RunRegisteredMain.func1
+         0     0% 98.14%      38566  8.19%  main.__able_compiled_entry_impl_Iterator_next_0_c_spec
+         0     0% 98.14%       6147  1.31%  main.__able_compiled_entry_method_String_chars
+         0     0% 98.14%     330501 70.21%  main.__able_compiled_fn_find_token_match
+         0     0% 98.14%     137088 29.12%  main.__able_compiled_fn_regex_nfa_add_closure
+         0     0% 98.14%     130944 27.82%  main.__able_compiled_fn_regex_nfa_move
+         0     0% 98.14%      38566  8.19%  main.__able_compiled_impl_Iterator_next_0_c_spec
+         0     0% 98.14%       3093  0.66%  main.__able_compiled_method_HashMap_new_spec_into
+         0     0% 98.14%     376280 79.94%  main.__able_compiled_method_Regex_match
+         0     0% 98.14%       3092  0.66%  main.__able_hash_map_new_impl
+         0     0% 98.14%      38566  8.19%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.next
+         0     0% 98.14%     387617 82.34%  main.__able_register_compiled_call.func1
+         0     0% 98.14%     387617 82.34%  main.__able_wrap_fn_main
+         0     0% 98.14%     470731   100%  main.main
+         0     0% 98.14%     470731   100%  main.runMain
+         0     0% 98.14%      83113 17.66%  main.startMainProfilePhase (inline)
+         0     0% 98.14%     470731   100%  runtime.main
+         0     0% 98.14%      83108 17.66%  runtime/pprof.(*Profile).WriteTo
+         0     0% 98.14%      83108 17.66%  runtime/pprof.writeAlloc

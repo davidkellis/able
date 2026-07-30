@@ -40,17 +40,21 @@ bytecode comparison is
 
 Start from:
 
-- `v12/docs/perf-baselines/2026-07-29-post-security-release-inventory.md`
-- `v12/docs/perf-baselines/2026-07-29-v12-x-net-security-refresh.md`
-- `v12/docs/perf-baselines/2026-07-29-dependency-alert-attribution.md`
-- `v12/docs/perf-baselines/2026-07-29-post-spawn-release-inventory.md`
-- `v12/docs/perf-baselines/2026-07-29-post-spawn-correctness-release-gate.md`
-- `v12/docs/perf-baselines/2026-07-29-post-spawn-context-scorecard-and-owner-closure.md`
-- `v12/docs/perf-baselines/2026-07-29-post-spawn-context-scorecard-refresh.md`
-- `v12/docs/perf-baselines/2026-07-29-post-spawn-context-frontier.md`
-- `v12/docs/perf-baselines/2026-07-29-post-spawn-context-closure-ledger.md`
-- `v12/docs/perf-baselines/2026-07-29-compiled-spawn-gated-callable-context-retained.md`
-- `v12/design/compiler-spawn-gated-callable-context-activation.md`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.json`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.tsv`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-correctness-release-gate.md`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-correctness-release-gate.json`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-cross-family-architecture-ownership-reconciliation.md`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-cross-family-architecture-ownership-reconciliation.json`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.json`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-architecture-owner-closure.md`
+- `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-architecture-owner-closure.json`
+- `v12/docs/perf-baselines/2026-07-30-compiled-primitive-nullable-value-carrier-retained.md`
+- `v12/design/compiler-primitive-nullable-value-carrier.md`
+- `v12/docs/perf-baselines/2026-07-30-nullable-scalar-retained-frontier.md`
+- `v12/docs/perf-baselines/2026-07-21-performance-evidence-invalidation-ledger.md`
 - `v12/docs/perf-baselines/external-scoreboard-current.md`
 - `v12/docs/perf-baselines/2026-07-24-static-interpreter-package-cut-retained.md`
 
@@ -61,70 +65,66 @@ authoritative.
 
 ### Authoritative performance frontier
 
-The reviewed scorecard contains 63 compiled and 63 bytecode rows, each backed
-by five successful Able and reference processes. Compiled has 7 target passes,
-a 4.320152× geometric-mean Able/Go ratio, and 4.751789 seconds of positive
-target excess. Bytecode remains at 4 target passes, a 12.780200× geometric
-mean over Python/Ruby ratios, and 221.503684 seconds of positive target
-excess. All eleven passes remain established guards. Binary Trees averages
-10.2700 seconds versus Go at 11.0316 seconds, or 107.42% of Go throughput.
+The reviewed scorecard contains 65 compiled and 65 bytecode rows, each backed
+by five successful Able and reference processes. Compiled has 6 established
+target guards, a 5.740300× geometric-mean Able/Go ratio, and 6.696421 seconds
+of positive target excess. Bytecode has 4 established guards, a 17.733801×
+geometric mean over the per-row limiting Python/Ruby ratios, and 266.723789
+seconds of positive target excess. The combined frontier has 10 guards, 120
+misses, 273.420211 seconds of positive target excess, no unestablished
+snapshot meets, and zero actionable frontier groups.
 
-The selective post-spawn refresh promotes new Go 1.26.5 evidence only for the
-20 source-changed compiled rows and preserves the 43 source-identical rows.
-All 290 accepted Able/reference timing processes passed their public
-verifiers. Nine measured source-identical controls drifted by a 10.31%
-geometric mean under unrelated host load, so their noisy replacement evidence
-was rejected. An earlier 15-process mixed-toolchain attempt was also rejected.
+Primitive nullable scalars now use generated `value + valid` Go carriers.
+Five-run frozen A/B means improved Generic Slot Buffer from 0.0560 to 0.0340
+seconds, Inventory Reconciliation from 0.1220 to 0.1100 seconds, and
+Transaction Ledger Audit from 0.0480 to 0.0400 seconds. Exact main allocation
+objects fell 99.60%, 48.88%, and 8.88% respectively. Present primitive zero
+remains distinct from absent. `?Error`, non-primitive nominal nullables, and
+explicit runtime/dynamic boundaries retain their existing representation.
 
-Fresh profiles across Await Channel Mux, Validated Job Pipeline, and
-Concurrent Stateful Pipeline find `bridge.ToInt` in all three. It is ordinary
-semantic-boundary materialization whose global cache already regressed the
-TapeLang guard by 4.17%. `bridge.currentGID` and nominal struct construction
-each remain material in only two applications. The combined frontier now has
-11 established guards, 115 misses, 226.255474 seconds of positive target
-excess, and zero actionable groups. All 23 closure-ledger entries are current
-with zero invalidations. No additional production optimization was retained.
+All three strict application graphs omit `pkg/interpreter`. No stdlib,
+tree-walker, bytecode VM, runtime package, language, dependency, or WASM
+change was required. `go test ./cmd/ablec` and the complete
+`./run_all_tests.sh` suite pass; the latter completed every preflight,
+non-compiler package, all 34 compiler batches, and bytecode fixtures.
 
-The post-spawn correctness gate is green. `./run_all_tests.sh` passed every
-contract, non-compiler package, all 34 compiler batches, and the complete
-bytecode fixture pass in 15:50.94 with no swaps. The canonical external stdlib
-passed in tree-walker mode in 19 seconds and bytecode mode in 15 seconds.
-Individual timing replays of the three compiler aggregates over one minute
-found maxima of 22.910, 15.150, and 10.740 seconds, so no individual test
-exceeds the one-minute limit. No correctness fix or production change was
-required.
+All 12 closures invalidated by the compiler-production identity change have
+now been causally reviewed. The ten compiled family records partition all 65
+compiled frontier rows exactly once; every row has current strict
+verifier-backed evidence and no interpreter dependency. The complete
+23-entry ledger is current with zero invalidations and an empty selector.
 
-The exact 147-path post-spawn consolidation is published as
-`6efad0a53120129510fdfbab7fbcc84dcd081768`; local `HEAD` and
-`origin/master` match. The subsequent dependency-alert attribution finds zero
-reachable active-v12 Go vulnerabilities at the required Go 1.26.5 toolchain
-and zero npm vulnerabilities. Seven fixable `x/net` advisories and the
-unfixable, unimported `x/crypto/openpgp` advisory remain module-only. Frozen
-v10 and v11 each retain 25 reachable historical advisories and remain
-untouched.
+The bounded post-nullable correctness/release gate is complete. The full
+default v12 runner passed every preflight, non-compiler package, all 34
+compiler batches, and the complete bytecode fixture pass. Every audited named
+test remained below one minute. The canonical external stdlib passed in both
+tree-walker and bytecode modes. No production correction was required.
 
-The retained bounded security refresh advances `x/net` to `v0.56.0` with
-resolver-required `x/crypto v0.53.0` and `x/sys v0.46.0`. Go 1.26.5
-production and test scans remain at zero reachable and zero imported-package
-vulnerabilities; all seven fixable `x/net` advisories are gone. Only the
-unfixable, unimported `x/crypto/openpgp` module advisory remains. Every Go
-package compiles, focused dependency-resolver tests pass, and the performance
-frontier and 23-entry closure ledger remain current.
+The fully expanded release inventory now classifies 324 pre-record dirty
+paths exactly: 290 retained and the unchanged 34-path deferred WASM boundary.
+The three inventory metadata files form an exact 293-path post-record retained
+candidate whose complement is precisely those 34 deferred files. All format,
+syntax, identity, size, secret, scope, scorecard, frontier, ledger, and cleanup
+checks pass. The maintainer authorized and the repository now contains one
+exact local consolidation commit for those 293 retained paths. No push is
+authorized.
 
 ### Next tranche
 
-Obtain explicit maintainer authorization before publishing the exact local
-post-census consolidation.
+Obtain explicit maintainer authorization before publishing the local
+post-nullable consolidation. Do not start another performance implementation
+until a production, benchmark, or semantic change invalidates a closure.
 
-Why: the maintainer authorized exact staging and one local commit for the
-eight-path retained candidate, but did not authorize a push.
+Why: this tranche authorizes one exact local commit but does not authorize
+remote mutation.
 
 What it entails: verify the final one-commit divergence and remote
 destination, then push only that exact commit-to-branch refspec if explicitly
 authorized.
 
-Why it matters: the evidence-backed stopping decision can reach shared history
-without publishing deferred WASM or unintended local history.
+Why it matters: the verified native-carrier, interpreter-free, scorecard, and
+correctness state can reach shared history without publishing deferred WASM
+or unintended local commits.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or global default execution-context

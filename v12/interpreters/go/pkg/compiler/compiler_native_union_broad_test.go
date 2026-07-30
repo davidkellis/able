@@ -75,8 +75,8 @@ func TestCompilerGenericUnionAliasesStayNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_describe_option(value *int32) (string, *__ableControl)") {
-		t.Fatalf("expected Option i32 alias to normalize to native nullable pointer carrier:\n%s", compiledSrc)
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_describe_option(value __able_nullable[int32]) (string, *__ableControl)") {
+		t.Fatalf("expected Option i32 alias to normalize to native nullable value carrier:\n%s", compiledSrc)
 	}
 	if !strings.Contains(compiledSrc, "func __able_compiled_fn_describe_result(value __able_union_") {
 		t.Fatalf("expected Result i32 alias to normalize to native union carrier:\n%s", compiledSrc)

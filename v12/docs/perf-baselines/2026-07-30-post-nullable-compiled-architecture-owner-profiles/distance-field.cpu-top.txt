@@ -1,0 +1,19 @@
+File: compiled
+Build ID: a9ba3a1d484f49156aaca924590f6551fad4009f
+Type: cpu
+Time: 2026-07-29 19:52:51 CDT
+Duration: 93.66ms, Total samples = 160ms (170.82%)
+Showing nodes accounting for 160ms, 100% of 160ms total
+      flat  flat%   sum%        cum   cum%
+      60ms 37.50% 37.50%      160ms   100%  main.__able_compiled_fn_main
+      50ms 31.25% 68.75%       70ms 43.75%  main.__able_compiled_fn_sqrt
+      30ms 18.75% 87.50%      100ms 62.50%  main.__able_compiled_fn_hypot
+      20ms 12.50%   100%       20ms 12.50%  math.Sqrt (inline)
+         0     0%   100%      160ms   100%  main.RunRegisteredMain
+         0     0%   100%      160ms   100%  main.RunRegisteredMain.func1
+         0     0%   100%       20ms 12.50%  main.__able_f64_sqrt_native (inline)
+         0     0%   100%      160ms   100%  main.__able_register_compiled_call.func1
+         0     0%   100%      160ms   100%  main.__able_wrap_fn_main
+         0     0%   100%      160ms   100%  main.main
+         0     0%   100%      160ms   100%  main.runMain
+         0     0%   100%      160ms   100%  runtime.main

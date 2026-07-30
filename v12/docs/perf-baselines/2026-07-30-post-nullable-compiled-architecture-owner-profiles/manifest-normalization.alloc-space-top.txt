@@ -1,0 +1,61 @@
+File: compiled
+Build ID: 1f8932ac32e6ea8b556c11b18d1bdcadddc86af2
+Type: alloc_space
+Time: 2026-07-29 19:57:02 CDT
+Showing nodes accounting for 11502.83kB, 98.10% of 11725.63kB total
+Dropped 121 nodes (cum <= 58.63kB)
+      flat  flat%   sum%        cum   cum%
+ 4406.28kB 37.58% 37.58%  4406.28kB 37.58%  runtime/pprof.allFrames
+ 1815.71kB 15.48% 53.06%  3040.31kB 25.93%  runtime/pprof.(*profileBuilder).emitLocation
+    1376kB 11.73% 64.80%     1376kB 11.73%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     648kB  5.53% 70.32%  1171.88kB  9.99%  compress/flate.NewWriter (inline)
+  576.03kB  4.91% 75.24%   576.03kB  4.91%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+     408kB  3.48% 78.72%  8249.16kB 70.35%  runtime/pprof.writeHeapInternal
+     340kB  2.90% 81.62%   468.23kB  3.99%  main.__able_compiled_fn_manifest_error
+     320kB  2.73% 84.35%   523.88kB  4.47%  compress/flate.(*compressor).init
+  314.56kB  2.68% 87.03%   314.56kB  2.68%  strings.genSplit
+  268.31kB  2.29% 89.32%  7841.16kB 66.87%  runtime/pprof.writeHeapProto
+     240kB  2.05% 91.36%  1054.23kB  8.99%  main.__able_compiled_fn_parse_manifest
+     240kB  2.05% 93.41%   240.12kB  2.05%  main.__able_struct_ManifestRecord_from
+     200kB  1.71% 95.12%      200kB  1.71%  compress/flate.newDeflateFast (inline)
+     144kB  1.23% 96.34%      144kB  1.23%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64.func1
+   93.25kB   0.8% 97.14%    93.25kB   0.8%  runtime/pprof.(*protobuf).string (inline)
+   64.02kB  0.55% 97.68%    67.54kB  0.58%  main.__able_host_fn_fs_read_lines_prefix_text_fast
+      48kB  0.41% 98.09%  1309.20kB 11.17%  main.__able_compiled_fn_main.func1
+    0.50kB 0.0043% 98.10%  7448.56kB 63.52%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.09kB 0.00073% 98.10%  3476.11kB 29.65%  main.__able_compiled_fn_main
+    0.03kB 0.00027% 98.10%    70.84kB   0.6%  main.__able_compiled_fn_fs_read_lines_prefix_text_fast
+    0.02kB 0.0002% 98.10%  8249.50kB 70.35%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.0002% 98.10%  3476.13kB 29.65%  main.RunRegisteredMain
+         0     0% 98.10%      144kB  1.23%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0% 98.10%  8249.50kB 70.35%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 98.10%  8249.50kB 70.35%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 98.10%  1178.62kB 10.05%  compress/gzip.(*Writer).Write
+         0     0% 98.10%  3476.11kB 29.65%  main.RunRegisteredMain.func1
+         0     0% 98.10%    71.93kB  0.61%  main.__able_compiled_entry_fn_read_lines_prefix
+         0     0% 98.10%  2317.20kB 19.76%  main.__able_compiled_fn_main.func2
+         0     0% 98.10%   157.03kB  1.34%  main.__able_compiled_fn_normalize_into
+         0     0% 98.10%      314kB  2.68%  main.__able_compiled_fn_parse_manifest.func1 (inline)
+         0     0% 98.10%    71.93kB  0.61%  main.__able_compiled_fn_read_lines_prefix
+         0     0% 98.10%    87.03kB  0.74%  main.__able_compiled_method_Option__map_spec
+         0     0% 98.10%  2349.20kB 20.03%  main.__able_compiled_method_Result__map_spec
+         0     0% 98.10%       96kB  0.82%  main.__able_nullable_string_to_value (inline)
+         0     0% 98.10%  3476.11kB 29.65%  main.__able_register_compiled_call.func1
+         0     0% 98.10%   128.23kB  1.09%  main.__able_struct_ManifestError_to (inline)
+         0     0% 98.10%   128.23kB  1.09%  main.__able_struct_ManifestError_to_seen
+         0     0% 98.10%      864kB  7.37%  main.__able_struct_ManifestRecord_apply
+         0     0% 98.10%     1728kB 14.74%  main.__able_struct_ManifestRecord_to (inline)
+         0     0% 98.10%     1728kB 14.74%  main.__able_struct_ManifestRecord_to_seen
+         0     0% 98.10%  3476.11kB 29.65%  main.__able_wrap_fn_main
+         0     0% 98.10% 11725.63kB   100%  main.main
+         0     0% 98.10% 11725.63kB   100%  main.runMain
+         0     0% 98.10%  8249.50kB 70.35%  main.startMainProfilePhase (inline)
+         0     0% 98.10% 11725.63kB   100%  runtime.main
+         0     0% 98.10%  8249.16kB 70.35%  runtime/pprof.(*Profile).WriteTo
+         0     0% 98.10%    93.25kB   0.8%  runtime/pprof.(*profileBuilder).build
+         0     0% 98.10%  1178.62kB 10.05%  runtime/pprof.(*profileBuilder).flush
+         0     0% 98.10%    93.25kB   0.8%  runtime/pprof.(*protobuf).strings
+         0     0% 98.10%  8249.16kB 70.35%  runtime/pprof.writeAlloc
+         0     0% 98.10%   314.56kB  2.68%  strings.Split (inline)
+         0     0% 98.10%   144.23kB  1.23%  sync.(*Once).Do (inline)
+         0     0% 98.10%   144.23kB  1.23%  sync.(*Once).doSlow

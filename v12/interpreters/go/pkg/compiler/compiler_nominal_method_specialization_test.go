@@ -178,7 +178,7 @@ func TestCompilerStdlibOptionResultMapSpecializationsStayNative(t *testing.T) {
 		}
 	}
 	for _, fragment := range []string{
-		"func __able_compiled_method_Option__map_spec(self *int32, f __able_fn_int32_to_int64)",
+		"func __able_compiled_method_Option__map_spec(self __able_nullable[int32], f __able_fn_int32_to_int64)",
 		"func __able_compiled_method_Result__map_spec(self __able_union_int32_or_runtime_ErrorValue, f __able_fn_int32_to_int64)",
 	} {
 		if !strings.Contains(source, fragment) {

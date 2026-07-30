@@ -1,0 +1,42 @@
+File: compiled
+Build ID: 604277875b52b5af13abb1f002fa57e36da54601
+Type: alloc_space
+Time: 2026-07-29 19:54:57 CDT
+Showing nodes accounting for 589550.38kB, 99.30% of 593697.97kB total
+Dropped 122 nodes (cum <= 2968.49kB)
+      flat  flat%   sum%        cum   cum%
+374999.91kB 63.16% 63.16% 374999.91kB 63.16%  able/interpreter-go/pkg/compiler/bridge.ToUint
+185689.36kB 31.28% 94.44% 185881.31kB 31.31%  able/interpreter-go/pkg/compiler/bridge.ToInt
+10342.71kB  1.74% 96.18% 23196.06kB  3.91%  main.__able_compiled_fn_read_target_sequence
+ 7812.98kB  1.32% 97.50%  7812.98kB  1.32%  main.__able_string_from_builtin_native (inline)
+ 5414.86kB  0.91% 98.41%  5414.86kB  0.91%  runtime/pprof.allFrames
+ 1992.02kB  0.34% 98.75%  4512.35kB  0.76%  main.__able_host_fn_fs_read_lines_fast
+ 1929.40kB  0.32% 99.07%     3156kB  0.53%  runtime/pprof.(*profileBuilder).emitLocation
+  528.02kB 0.089% 99.16%  5040.38kB  0.85%  main.__able_compiled_fn_fs_read_lines_fast
+     512kB 0.086% 99.25%  9535.08kB  1.61%  runtime/pprof.writeHeapInternal
+     328kB 0.055% 99.30%  9023.08kB  1.52%  runtime/pprof.writeHeapProto
+    0.50kB 8.4e-05% 99.30%  8572.83kB  1.44%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.38kB 6.3e-05% 99.30% 560965.62kB 94.49%  main.__able_compiled_fn_print_frequency_table
+    0.20kB 3.3e-05% 99.30% 584162.52kB 98.39%  main.__able_compiled_fn_main
+    0.02kB 3.9e-06% 99.30%  9535.42kB  1.61%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 3.9e-06% 99.30% 584162.55kB 98.39%  main.RunRegisteredMain
+         0     0% 99.30%  9535.42kB  1.61%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.30%  9535.42kB  1.61%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.30% 584162.52kB 98.39%  main.RunRegisteredMain.func1
+         0     0% 99.30%  5040.38kB  0.85%  main.__able_compiled_entry_fn_read_lines
+         0     0% 99.30%  7812.98kB  1.32%  main.__able_compiled_entry_method_String_starts_with
+         0     0% 99.30% 560961.64kB 94.49%  main.__able_compiled_fn_count_windows
+         0     0% 99.30% 560881.22kB 94.47%  main.__able_compiled_fn_increment_count
+         0     0% 99.30%  5040.38kB  0.85%  main.__able_compiled_fn_read_lines
+         0     0% 99.30%  7812.98kB  1.32%  main.__able_compiled_fn_validated_bytes
+         0     0% 99.30% 187500.09kB 31.58%  main.__able_compiled_method_HashMap_raw_get_spec
+         0     0% 99.30% 373381.12kB 62.89%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0% 99.30%  7812.98kB  1.32%  main.__able_compiled_method_String_starts_with
+         0     0% 99.30% 584162.52kB 98.39%  main.__able_register_compiled_call.func1
+         0     0% 99.30% 584162.52kB 98.39%  main.__able_wrap_fn_main
+         0     0% 99.30% 593697.97kB   100%  main.main
+         0     0% 99.30% 593697.97kB   100%  main.runMain
+         0     0% 99.30%  9535.42kB  1.61%  main.startMainProfilePhase (inline)
+         0     0% 99.30% 593697.97kB   100%  runtime.main
+         0     0% 99.30%  9535.08kB  1.61%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.30%  9535.08kB  1.61%  runtime/pprof.writeAlloc

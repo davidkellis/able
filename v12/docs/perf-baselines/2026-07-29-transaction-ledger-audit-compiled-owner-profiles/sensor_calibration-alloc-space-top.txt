@@ -1,0 +1,50 @@
+File: sensor_calibration
+Build ID: 26f1fadc67928436dcaadd3c0324b89b1ea754c3
+Type: alloc_space
+Time: 2026-07-29 14:37:10 CDT
+Showing nodes accounting for 11306.44kB, 113.23% of 9985.16kB total
+Dropped 116 nodes (cum <= 49.93kB)
+      flat  flat%   sum%        cum   cum%
+ 4400.03kB 44.07% 44.07%  4400.03kB 44.07%  runtime/pprof.allFrames
+ 1816.48kB 18.19% 62.26%  1872.70kB 18.75%  runtime/pprof.(*profileBuilder).emitLocation
+    1116kB 11.18% 73.43%  1116.14kB 11.18%  able/interpreter-go/pkg/compiler/bridge.ToInt
+  768.56kB  7.70% 81.13%   768.56kB  7.70%  strings.genSplit
+     648kB  6.49% 87.62%  1171.88kB 11.74%  compress/flate.NewWriter (inline)
+     620kB  6.21% 93.83%  3184.22kB 31.89%  main.__able_compiled_fn_parse_reading
+  424.23kB  4.25% 98.08%   584.38kB  5.85%  main.__able_compiled_fn_calibration_error
+     408kB  4.09% 102.16%  8242.52kB 82.55%  runtime/pprof.writeHeapInternal
+     320kB  3.20% 105.37%   523.88kB  5.25%  compress/flate.(*compressor).init
+  267.19kB  2.68% 108.05%  7834.52kB 78.46%  runtime/pprof.writeHeapProto
+     200kB  2.00% 110.05%      200kB  2.00%  compress/flate.newDeflateFast (inline)
+     160kB  1.60% 111.65%      160kB  1.60%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+   93.25kB  0.93% 112.58%    93.25kB  0.93%  runtime/pprof.(*protobuf).string (inline)
+   64.02kB  0.64% 113.23%    65.97kB  0.66%  main.__able_host_fn_fs_read_lines_prefix_text_fast
+    0.50kB 0.005% 113.23%  6274.70kB 62.84%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.10kB 0.001% 113.23%  3255.12kB 32.60%  main.__able_compiled_fn_main
+    0.03kB 0.00031% 113.23%    69.02kB  0.69%  main.__able_compiled_fn_fs_read_lines_prefix_text_fast
+    0.02kB 0.00023% 113.23%  8242.86kB 82.55%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00023% 113.23%  3255.14kB 32.60%  main.RunRegisteredMain
+         0     0% 113.23%  8242.86kB 82.55%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 113.23%  8242.86kB 82.55%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 113.23%  1178.62kB 11.80%  compress/gzip.(*Writer).Write
+         0     0% 113.23%  3255.12kB 32.60%  main.RunRegisteredMain.func1
+         0     0% 113.23%    70.11kB   0.7%  main.__able_compiled_entry_fn_read_lines_prefix
+         0     0% 113.23%   179.84kB  1.80%  main.__able_compiled_fn_parse_i64
+         0     0% 113.23%      768kB  7.69%  main.__able_compiled_fn_parse_reading.func1 (inline)
+         0     0% 113.23%    70.11kB   0.7%  main.__able_compiled_fn_read_lines_prefix
+         0     0% 113.23%     1116kB 11.18%  main.__able_nullable_i64_to_value (inline)
+         0     0% 113.23%  3255.12kB 32.60%  main.__able_register_compiled_call.func1
+         0     0% 113.23%   160.14kB  1.60%  main.__able_struct_CalibrationError_to (inline)
+         0     0% 113.23%   160.14kB  1.60%  main.__able_struct_CalibrationError_to_seen
+         0     0% 113.23%  3255.12kB 32.60%  main.__able_wrap_fn_main
+         0     0% 113.23%    11498kB 115.15%  main.main
+         0     0% 113.23%    11498kB 115.15%  main.runMain
+         0     0% 113.23%  8242.86kB 82.55%  main.startMainProfilePhase (inline)
+         0     0% 113.23%    11498kB 115.15%  runtime.main
+         0     0% 113.23%  8242.52kB 82.55%  runtime/pprof.(*Profile).WriteTo
+         0     0% 113.23%    93.25kB  0.93%  runtime/pprof.(*profileBuilder).build
+         0     0% 113.23%  1178.62kB 11.80%  runtime/pprof.(*profileBuilder).flush
+         0     0% 113.23%  1184.12kB 11.86%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 113.23%    93.25kB  0.93%  runtime/pprof.(*protobuf).strings
+         0     0% 113.23%  8242.52kB 82.55%  runtime/pprof.writeAlloc
+         0     0% 113.23%   768.56kB  7.70%  strings.Split (inline)

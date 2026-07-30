@@ -131,12 +131,12 @@
           "current_seconds": 2.954,
           "current_target_excess_seconds": 2.921157895,
           "family": "concurrency-text",
-          "modeled_seconds": 0.032,
-          "modeled_target_excess_seconds": 0.0,
+          "modeled_seconds": 0.042,
+          "modeled_target_excess_seconds": 0.009157895,
           "passes_materiality_gate": true,
           "phase_one_governing": false,
           "target_budget_seconds": 0.032842105263157895,
-          "target_excess_reduction_percent": 100.0
+          "target_excess_reduction_percent": 99.686498
         },
         {
           "benchmark": "word_frequency",
@@ -295,7 +295,7 @@
   "sources": {
     "closure_ledger": {
       "path": "/home/david/sync/projects/able/v12/bench-performance-closure-ledger.json",
-      "sha256": "3589828d4cfb03ed7b536f1be6f22dfac34b1e0181c45839f444281ab5b14873"
+      "sha256": "840797794ab5916a2afc8a77dbf97689645495f2802497580c3fd2733bbe9b6a"
     },
     "compiled_boundary_census": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-compiled-full-typed-semantic-boundary-census.json",
@@ -303,23 +303,23 @@
     },
     "compiled_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "7f9d081284a55c626660692875c93eedb6725056d98ec37f26a554759d33dc1a"
+      "sha256": "721653e8cd65d19b1326608dddfe012edeb5f7165006c19e74254ee391d1a6e5"
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-cross-engine-structural-strategy.json",
-      "sha256": "2d8d788a1070649979bc7c1a9d630610962db7492ee1570a18d33c30641ff716"
+      "sha256": "9128231e2be23956499380c7db0245d29419ddea5bfd42fb0ea61b7cf2c5de6e"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "a284d389837ef14dd969407360237621cdaaa4f7d992fcb8b1e42fdc5a0df1e0"
+      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
+      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
     }
   },
   "summary": {
-    "bytecode_target_excess_seconds": 221.503684212,
+    "bytecode_target_excess_seconds": 226.057473686,
     "closure_count": 23,
     "concrete_admitted_route_count": 0,
     "decision": "portable-backend-performance-capable-but-no-concrete-mechanism",
@@ -328,9 +328,9 @@
     "minimum_unlike_families": 3,
     "performance_capable_route_count": 1,
     "prototype_admitted": false,
-    "selected_rows": 126,
-    "target_misses": 115,
-    "total_target_excess_seconds": 226.85694736842106
+    "selected_rows": 128,
+    "target_misses": 117,
+    "total_target_excess_seconds": 230.8515789473684
   },
   "target_guards": [
     {

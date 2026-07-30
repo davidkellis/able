@@ -129,9 +129,10 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 		}
 	}
 	if g.nativeNullableWraps(expected, actual) {
-		ptrTemp := ctx.newTemp()
-		lines = append(lines, fmt.Sprintf("%s := __able_ptr(%s)", ptrTemp, expr))
-		return lines, ptrTemp, expected, true
+		nullableTemp := ctx.newTemp()
+		wrapped, _ := g.nativeNullablePresentExpr(expected, expr)
+		lines = append(lines, fmt.Sprintf("%s := %s", nullableTemp, wrapped))
+		return lines, nullableTemp, expected, true
 	}
 	if actual == "runtime.Value" && expected != "" && expected != "runtime.Value" && expected != "any" {
 		convLines, converted, ok := g.lowerExpectRuntimeValue(ctx, expr, expected)
@@ -155,10 +156,11 @@ func (g *generator) coerceExpectedStaticExpr(ctx *compileContext, lines []string
 	}
 	if innerType, nullable := g.nativeNullableValueInnerType(expected); nullable && innerType == "runtime.ErrorValue" {
 		if errorLines, errorExpr, ok := g.nativeErrorValueLines(ctx, actual, expr); ok {
-			ptrTemp := ctx.newTemp()
+			nullableTemp := ctx.newTemp()
+			wrapped, _ := g.nativeNullablePresentExpr(expected, errorExpr)
 			lines = append(lines, errorLines...)
-			lines = append(lines, fmt.Sprintf("%s := __able_ptr(%s)", ptrTemp, errorExpr))
-			return lines, ptrTemp, expected, true
+			lines = append(lines, fmt.Sprintf("%s := %s", nullableTemp, wrapped))
+			return lines, nullableTemp, expected, true
 		}
 	}
 	if expected == "runtime.ErrorValue" {
@@ -218,7 +220,8 @@ func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression
 	case *ast.StringLiteral:
 		actual := "string"
 		if g.nativeNullableWraps(expected, actual) {
-			return fmt.Sprintf("__able_ptr(%s)", strconv.Quote(e.Value)), expected, true
+			wrapped, _ := g.nativeNullablePresentExpr(expected, strconv.Quote(e.Value))
+			return wrapped, expected, true
 		}
 		if !g.typeMatches(expected, actual) {
 			ctx.setReason("expected string literal")
@@ -228,7 +231,8 @@ func (g *generator) compileExprExpected(ctx *compileContext, expr ast.Expression
 	case *ast.BooleanLiteral:
 		actual := "bool"
 		if g.nativeNullableWraps(expected, actual) {
-			return fmt.Sprintf("__able_ptr(%s)", strconv.FormatBool(e.Value)), expected, true
+			wrapped, _ := g.nativeNullablePresentExpr(expected, strconv.FormatBool(e.Value))
+			return wrapped, expected, true
 		}
 		if !g.typeMatches(expected, actual) {
 			ctx.setReason("expected bool literal")
@@ -402,15 +406,18 @@ func (g *generator) compileIntegerLiteral(ctx *compileContext, lit *ast.IntegerL
 				return "", "", false
 			}
 			if literalExpr, ok := g.integerLiteralExprForType(lit.Value, innerType); ok {
-				return fmt.Sprintf("__able_ptr(%s)", literalExpr), expected, true
+				wrapped, _ := g.nativeNullablePresentExpr(expected, literalExpr)
+				return wrapped, expected, true
 			}
-			return fmt.Sprintf("__able_ptr(%s(%s))", innerType, lit.Value.String()), expected, true
+			wrapped, _ := g.nativeNullablePresentExpr(expected, fmt.Sprintf("%s(%s)", innerType, lit.Value.String()))
+			return wrapped, expected, true
 		case g.isFloatType(innerType):
 			if explicit {
 				ctx.setReason("integer literal type mismatch")
 				return "", "", false
 			}
-			return fmt.Sprintf("__able_ptr(%s(%s))", innerType, lit.Value.String()), expected, true
+			wrapped, _ := g.nativeNullablePresentExpr(expected, fmt.Sprintf("%s(%s)", innerType, lit.Value.String()))
+			return wrapped, expected, true
 		default:
 			ctx.setReason("integer literal type mismatch")
 			return "", "", false
@@ -470,7 +477,8 @@ func (g *generator) compileFloatLiteral(ctx *compileContext, lit *ast.FloatLiter
 			ctx.setReason("float literal type mismatch")
 			return "", "", false
 		}
-		return fmt.Sprintf("__able_ptr(%s(%s))", innerType, strconv.FormatFloat(lit.Value, 'g', -1, 64)), expected, true
+		wrapped, _ := g.nativeNullablePresentExpr(expected, fmt.Sprintf("%s(%s)", innerType, strconv.FormatFloat(lit.Value, 'g', -1, 64)))
+		return wrapped, expected, true
 	}
 	if explicit && expected != actual {
 		ctx.setReason("float literal type mismatch")

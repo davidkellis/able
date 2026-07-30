@@ -124,7 +124,11 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 		self := info.Params[0].GoName
 		fmt.Fprintf(buf, "\tif %s == nil {\n", self)
 		if monoArray && info.ReturnType != "runtime.Value" {
-			fmt.Fprintf(buf, "\t\treturn nil, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n")
+			absent := "nil"
+			if nullableAbsent, ok := g.nativeNullableAbsentExpr(info.ReturnType); ok {
+				absent = nullableAbsent
+			}
+			fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n", absent)
 		} else {
 			fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n")
 		}
@@ -151,7 +155,8 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 			fmt.Fprintf(buf, "\tvar result %s\n", info.ReturnType)
 			fmt.Fprintf(buf, "\tif count := len(%s.Elements); count > 0 {\n", self)
 			fmt.Fprintf(buf, "\t\tvalue := %s.Elements[count-1]\n", self)
-			fmt.Fprintf(buf, "\t\tresult = __able_ptr(value)\n")
+			wrapped, _ := g.nativeNullablePresentExpr(info.ReturnType, "value")
+			fmt.Fprintf(buf, "\t\tresult = %s\n", wrapped)
 			fmt.Fprintf(buf, "\t\t%s.Elements = %s.Elements[:count-1]\n", self, self)
 			fmt.Fprintf(buf, "\t}\n")
 			fmt.Fprintf(buf, "\t%s\n", selfSyncCall)
@@ -180,7 +185,11 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 		idx := info.Params[1].GoName
 		fmt.Fprintf(buf, "\tif %s == nil {\n", self)
 		if monoArray && info.ReturnType != "runtime.Value" {
-			fmt.Fprintf(buf, "\t\treturn nil, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n")
+			absent := "nil"
+			if nullableAbsent, ok := g.nativeNullableAbsentExpr(info.ReturnType); ok {
+				absent = nullableAbsent
+			}
+			fmt.Fprintf(buf, "\t\treturn %s, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n", absent)
 		} else {
 			fmt.Fprintf(buf, "\t\treturn runtime.NilValue{}, __able_control_from_error(fmt.Errorf(\"missing Array value\"))\n")
 		}
@@ -199,13 +208,16 @@ func (g *generator) renderNativeArrayCoreMethod(buf *bytes.Buffer, method *metho
 			fmt.Fprintf(buf, "\tif i >= 0 && i < len(%s.Elements) {\n", self)
 			fmt.Fprintf(buf, "\t\treturn %s.Elements[i], nil\n", self)
 			fmt.Fprintf(buf, "\t}\n")
-			fmt.Fprintf(buf, "\treturn nil, nil\n")
+			zero, _ := g.zeroValueExpr(info.ReturnType)
+			fmt.Fprintf(buf, "\treturn %s, nil\n", zero)
 		case monoArray && nullableReturn && nullableInner == arraySpec.ElemGoType:
 			fmt.Fprintf(buf, "\tif i >= 0 && i < len(%s.Elements) {\n", self)
 			fmt.Fprintf(buf, "\t\tvalue := %s.Elements[i]\n", self)
-			fmt.Fprintf(buf, "\t\treturn __able_ptr(value), nil\n")
+			wrapped, _ := g.nativeNullablePresentExpr(info.ReturnType, "value")
+			fmt.Fprintf(buf, "\t\treturn %s, nil\n", wrapped)
 			fmt.Fprintf(buf, "\t}\n")
-			fmt.Fprintf(buf, "\treturn nil, nil\n")
+			absent, _ := g.nativeNullableAbsentExpr(info.ReturnType)
+			fmt.Fprintf(buf, "\treturn %s, nil\n", absent)
 		default:
 			fmt.Fprintf(buf, "\tif i >= 0 && i < len(%s.Elements) {\n", self)
 			fmt.Fprintf(buf, "\t\tif v := %s.Elements[i]; v != nil {\n", self)

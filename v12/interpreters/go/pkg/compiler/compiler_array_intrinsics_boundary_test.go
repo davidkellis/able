@@ -85,8 +85,8 @@ func TestCompilerArrayHelperFixtureNullableIntrinsicsStayNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"var popped *int32 =",
-		"__able_ptr(__able_tmp_",
+		"var popped __able_nullable[int32] =",
+		"__able_some(__able_tmp_",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected stdlib array-helper lowering to contain %q:\n%s", fragment, mainBody)

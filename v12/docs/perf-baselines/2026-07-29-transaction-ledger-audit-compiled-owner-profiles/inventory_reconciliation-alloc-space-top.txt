@@ -1,0 +1,52 @@
+File: inventory_reconciliation
+Build ID: e36179affa65ae17b95b4847532c8072cb22aad2
+Type: alloc_space
+Time: 2026-07-29 14:37:08 CDT
+Showing nodes accounting for 23651.14kB, 271.75% of 8703.13kB total
+Dropped 89 nodes (cum <= 43.52kB)
+      flat  flat%   sum%        cum   cum%
+   12672kB 145.60% 145.60%    12864kB 147.81%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+ 3623.55kB 41.63% 187.24%  3623.55kB 41.63%  runtime/pprof.allFrames
+ 2112.05kB 24.27% 211.51%  2112.09kB 24.27%  main.__able_nullable_i64_from_value
+ 1715.92kB 19.72% 231.22%  1763.40kB 20.26%  runtime/pprof.(*profileBuilder).emitLocation
+ 1339.45kB 15.39% 246.61%  1339.45kB 15.39%  able/interpreter-go/pkg/runtime.(*HashMapValue).AppendEntry (inline)
+     648kB  7.45% 254.06%  1171.88kB 13.46%  compress/flate.NewWriter (inline)
+  320.19kB  3.68% 257.74%   320.23kB  3.68%  able/interpreter-go/pkg/runtime.HashMapStoreNew (inline)
+     320kB  3.68% 261.41%   523.88kB  6.02%  compress/flate.(*compressor).init
+     288kB  3.31% 264.72%  7197.66kB 82.70%  runtime/pprof.writeHeapInternal
+  219.38kB  2.52% 267.24%  6909.66kB 79.39%  runtime/pprof.writeHeapProto
+     200kB  2.30% 269.54%      200kB  2.30%  compress/flate.newDeflateFast (inline)
+     192kB  2.21% 271.75%      192kB  2.21%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64.func1
+    0.50kB 0.0057% 271.75%  5388.91kB 61.92%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.05kB 0.00054% 271.75% 16637.74kB 191.17%  main.__able_compiled_fn_main
+    0.02kB 0.00027% 271.75%  7198.01kB 82.71%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00027% 271.75% 16637.77kB 191.17%  main.RunRegisteredMain
+    0.02kB 0.00018% 271.75%  2045.13kB 23.50%  main.__able_compiled_fn_build_inventory
+         0     0% 271.75%  7198.01kB 82.71%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 271.75%  7198.01kB 82.71%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 271.75%   320.23kB  3.68%  able/interpreter-go/pkg/runtime.HashMapStoreNewWithCapacity (inline)
+         0     0% 271.75%  1178.62kB 13.54%  compress/gzip.(*Writer).Write
+         0     0% 271.75% 16637.74kB 191.17%  main.RunRegisteredMain.func1
+         0     0% 271.75% 14336.09kB 164.72%  main.__able_compiled_fn_apply_updates
+         0     0% 271.75%      256kB  2.94%  main.__able_compiled_fn_inventory_checksum
+         0     0% 271.75%  8448.09kB 97.07%  main.__able_compiled_fn_lookup
+         0     0% 271.75%  8448.09kB 97.07%  main.__able_compiled_impl_Map_get_0_spec
+         0     0% 271.75%  8448.09kB 97.07%  main.__able_compiled_method_HashMap_raw_get_spec
+         0     0% 271.75%  7868.79kB 90.41%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0% 271.75%  7868.79kB 90.41%  main.__able_compiled_method_HashMap_set_spec
+         0     0% 271.75%   320.33kB  3.68%  main.__able_compiled_method_HashMap_with_capacity_spec_into
+         0     0% 271.75%  1340.79kB 15.41%  main.__able_hash_map_set_impl
+         0     0% 271.75%   320.28kB  3.68%  main.__able_hash_map_with_capacity_impl
+         0     0% 271.75%  8448.09kB 97.07%  main.__able_iface_Map_i64_i64_adapter_ptr_HashMap_i64_i64.get
+         0     0% 271.75% 16637.74kB 191.17%  main.__able_register_compiled_call.func1
+         0     0% 271.75% 16637.74kB 191.17%  main.__able_wrap_fn_main
+         0     0% 271.75% 23835.77kB 273.88%  main.main
+         0     0% 271.75% 23835.77kB 273.88%  main.runMain
+         0     0% 271.75%  7198.01kB 82.71%  main.startMainProfilePhase (inline)
+         0     0% 271.75% 23835.77kB 273.88%  runtime.main
+         0     0% 271.75%  7197.66kB 82.70%  runtime/pprof.(*Profile).WriteTo
+         0     0% 271.75%  1178.62kB 13.54%  runtime/pprof.(*profileBuilder).flush
+         0     0% 271.75%  1192.88kB 13.71%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 271.75%  7197.66kB 82.70%  runtime/pprof.writeAlloc
+         0     0% 271.75%      192kB  2.21%  sync.(*Once).Do (inline)
+         0     0% 271.75%      192kB  2.21%  sync.(*Once).doSlow

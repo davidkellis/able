@@ -1,0 +1,124 @@
+{
+  "kind": "generic-slot-buffer-application-gate",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": {
+    "application": "retained",
+    "production_change": "none",
+    "candidate": null,
+    "reason": "User-defined generic nominal storage already uses native generated Go carriers, and no exact new compiled or bytecode owner is material across three unlike applications."
+  },
+  "application": {
+    "id": "generic_slot_buffer",
+    "expected_output": "512:512:278528:232173748:800413927:576434349:166504429:71319552",
+    "stdout_sha256": "149cd95dcb57f9309c82ccd148336280f98baa95ea3d91ba34be7989fdab06fe",
+    "canonical_able_sha256": "6309f10f16478b34efaa12fb292b24cc22db7bbc700e6f77e4403b32dd37697b",
+    "external_able_sha256": "6309f10f16478b34efaa12fb292b24cc22db7bbc700e6f77e4403b32dd37697b",
+    "verifier_sha256": "59cf1144775bb73c4af6045e1a79083a7aa578fd6b2370f9b7a88faaf5d3638d",
+    "reference_source_sha256": {
+      "go": "c3b6e6b4003fb32e6a5a68d2a9fd37e95a3b532a4e5bdd979273a109a2dcd5da",
+      "python": "fe072a8b08ff9b7674ca5506047f2836c7a72ecb5b7a83ccb867b62bebb47b31",
+      "ruby": "369d12058bf836d9e077ace6dafe46cf89f7b76611358b2906f155b615322d86"
+    },
+    "coverage": [
+      "user-defined generic mutable nominal storage",
+      "identity and alias-observed mutation",
+      "generic interface dispatch",
+      "Iterable and Iterator",
+      "nullable primitive reads",
+      "native static Array storage"
+    ]
+  },
+  "measurements": {
+    "runs_per_implementation": 5,
+    "cpu_affinity": "15",
+    "go_toolchain": "go1.26.5",
+    "compiled": {
+      "able_mean_seconds": 0.042,
+      "go_mean_seconds": 0.0051,
+      "able_over_go": 8.235294117647058,
+      "verified_able_runs": 5,
+      "verified_reference_runs": 5,
+      "strict_no_fallbacks": true,
+      "interpreter_dependency": false
+    },
+    "bytecode": {
+      "able_mean_seconds": 2.258,
+      "python_mean_seconds": 0.1847,
+      "ruby_mean_seconds": 0.1037,
+      "able_over_python": 12.225230102869517,
+      "able_over_ruby": 21.774349083895853,
+      "verified_able_runs": 5,
+      "verified_reference_runs_per_language": 5
+    }
+  },
+  "compiled_owner_refresh": {
+    "cpu_profiles": 30,
+    "cpu_samples_ms": 710,
+    "main_allocated_bytes": 2124160,
+    "main_allocations": 264218,
+    "main_gc_count": 1,
+    "native_carriers": {
+      "array": "__able_array_Slot_i64 with []*Slot_i64 elements",
+      "slot": "Slot_i64 with int64 value and generation fields",
+      "buffer": "VersionedBuffer_i64 with native Array and int64 mutation fields",
+      "interface": "direct typed ReadableBuffer_i64 adapter"
+    },
+    "dominant_exact_allocation": {
+      "owner": "main.__able_compiled_method_VersionedBuffer_get_spec",
+      "objects": 131329,
+      "profile_object_share": 0.8187,
+      "mechanism": "pointer-backed primitive nullable construction via __able_ptr(slot.Value)"
+    },
+    "interpreter_transition": false,
+    "common_exact_nominal_owner_across_three_applications": null,
+    "conclusion": "The new control disproves generic nominal materialization as the shared map cost. Its storage and dispatch are native. Pointer-backed nullable scalar construction is a separate general representation candidate, but the allocating leaves differ between direct typed reads and runtime map conversion/recovery."
+  },
+  "nullable_scalar_evidence": {
+    "generic_slot_buffer": {
+      "direct_nullable_owner": "VersionedBuffer_get_spec",
+      "objects": 131329
+    },
+    "inventory_reconciliation": {
+      "dynamic_i64_objects": 270336,
+      "nullable_i64_recovery_objects": 135171
+    },
+    "transaction_ledger_audit": {
+      "dynamic_i64_objects": 9988,
+      "nullable_i64_recovery_objects": 5123
+    },
+    "disposition": "evidence trigger only",
+    "reason": "The shared representation is *int64, but no exact allocating leaf spans all three programs and a global nullable ABI change requires a separate semantic census and design gate."
+  },
+  "bytecode_owner_refresh": {
+    "runtime_profiles": 3,
+    "cpu_samples_seconds": 7.11,
+    "mean_ns_per_op": 2391279648.333333,
+    "mean_bytes_per_op": 39637373.333333336,
+    "mean_allocs_per_op": 2171769.6666666665,
+    "new_storage_specific_leaf": null,
+    "conclusion": "All material descendants belong to already-closed dispatcher, member/call, raw-integer, frame, stack, cast, propagation/type, or cache families."
+  },
+  "selection": {
+    "portable_applications": 65,
+    "selected_rows": 130,
+    "selection_sha256": "d450605f6b271fbddbda7bf31e9f61c1d87cbf1a407f9047304d79bd64ff1684"
+  },
+  "verification": {
+    "catalog": "passed",
+    "feature_coverage": "passed",
+    "selection_manifest": "passed",
+    "five_sample_scorecard_evidence": "passed",
+    "performance_frontier": "130 rows, zero actionable groups",
+    "closure_ledger": "23 current, zero invalidated",
+    "focused_compiler": "go test ./cmd/ablec passed",
+    "full_handoff_suite": "./run_all_tests.sh passed all preflight, non-compiler, 34 compiler-batch, and bytecode-fixture checks",
+    "cleanup": "removed 190 MiB of exact Generic Slot Buffer build/profile workspaces and generated Python caches"
+  },
+  "next": {
+    "recommendation": "Run a focused compiled nullable-scalar carrier reconciliation before changing the generated ABI.",
+    "why": "Pointer-backed primitive nullables are now dynamically material across unlike programs, but the exact leaves and required dynamic conversions differ.",
+    "entails": "Census every primitive nullable shape and boundary, specify nil and dynamic conversion semantics, and prototype a general value-plus-valid typed carrier only if the evidence gate remains valid; then use semantic guards and five-pair A/B/Go measurements across Generic Slot Buffer, Inventory Reconciliation, and Transaction Ledger Audit.",
+    "importance": "A sound general carrier could remove hundreds of thousands of boxes while preserving native nominal storage and avoiding named-container or benchmark-specific rules."
+  }
+}

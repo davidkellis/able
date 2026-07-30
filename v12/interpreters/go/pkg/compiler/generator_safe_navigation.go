@@ -17,7 +17,7 @@ func (g *generator) safeNavigationCarrierType(goType string) (string, bool) {
 	if g.isNativeNullableValueType(goType) || g.goTypeHasNilZeroValue(goType) {
 		return goType, true
 	}
-	if nullableType, ok := g.nativeNullablePointerType(goType); ok {
+	if nullableType, ok := g.nativeNullableCarrierType(goType); ok {
 		return nullableType, true
 	}
 	return "", false
@@ -32,6 +32,9 @@ func (g *generator) safeNavigationNilCheckExpr(expr string, goType string) strin
 		return fmt.Sprintf("__able_is_nil(%s)", expr)
 	case "any":
 		return fmt.Sprintf("(%s) == nil", expr)
+	}
+	if nilExpr, ok := g.nativeNullableIsNilExpr(goType, expr); ok {
+		return nilExpr
 	}
 	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") {
 		return fmt.Sprintf("%s == nil", expr)
@@ -53,7 +56,8 @@ func (g *generator) safeNavigationCoerceSuccessExpr(ctx *compileContext, expr st
 		return g.lowerRuntimeValue(ctx, expr, exprType)
 	}
 	if g.nativeNullableWraps(resultType, exprType) {
-		return nil, fmt.Sprintf("__able_ptr(%s)", expr), true
+		wrapped, ok := g.nativeNullablePresentExpr(resultType, expr)
+		return nil, wrapped, ok
 	}
 	if exprType == "runtime.Value" {
 		return g.lowerExpectRuntimeValue(ctx, expr, resultType)

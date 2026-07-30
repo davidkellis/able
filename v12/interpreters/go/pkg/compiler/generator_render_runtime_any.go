@@ -59,10 +59,10 @@ func (g *generator) renderRuntimeAnyHelpers(buf *bytes.Buffer) {
 	for _, spec := range nativeNullableSpecs {
 		// Go aliases rune to int32, so both cannot coexist as distinct
 		// pointer cases inside one type switch.
-		if spec.PtrType == "*rune" {
+		if spec.InnerType == "rune" {
 			continue
 		}
-		fmt.Fprintf(buf, "\tcase %s:\n", spec.PtrType)
+		fmt.Fprintf(buf, "\tcase %s:\n", spec.CarrierType)
 		fmt.Fprintf(buf, "\t\treturn __able_nullable_%s_to_value(val)\n", spec.HelperStem)
 	}
 	for _, key := range g.sortedNativeInterfaceKeys() {

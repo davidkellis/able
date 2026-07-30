@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "phases": [
+    {
+      "phase": "bootstrap",
+      "allocated_bytes": 556840,
+      "allocations": 7167,
+      "frees": 1338,
+      "heap_allocated_delta": -769856,
+      "heap_objects_delta": 5829,
+      "gc_count": 1
+    },
+    {
+      "phase": "main",
+      "allocated_bytes": 3333264,
+      "allocations": 53315,
+      "frees": 55229,
+      "heap_allocated_delta": -3372000,
+      "heap_objects_delta": -1914,
+      "gc_count": 3
+    }
+  ]
+}

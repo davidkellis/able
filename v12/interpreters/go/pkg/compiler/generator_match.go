@@ -141,11 +141,13 @@ func (g *generator) compileMatchPatternCondition(ctx *compileContext, pattern as
 				if mapped != innerType {
 					return nil, "false", true
 				}
-				innerCondLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, fmt.Sprintf("(*%s)", subjectTemp), innerType)
+				valueExpr, _ := g.nativeNullableValueExpr(subjectType, subjectTemp)
+				innerCondLines, innerCond, ok := g.compileMatchPatternCondition(ctx, p.Pattern, valueExpr, innerType)
 				if !ok {
 					return nil, "", false
 				}
-				return g.guardMatchConditionWithPredicate(ctx, fmt.Sprintf("%s != nil", subjectTemp), innerCondLines, innerCond)
+				presentExpr, _ := g.nativeNullableHasValueExpr(subjectType, subjectTemp)
+				return g.guardMatchConditionWithPredicate(ctx, presentExpr, innerCondLines, innerCond)
 			}
 			if !g.staticTypedPatternCompatible(subjectType, mapped) {
 				return nil, "false", true
@@ -478,7 +480,8 @@ func (g *generator) compileMatchPatternBindings(ctx *compileContext, pattern ast
 					ctx.setReason("typed pattern type mismatch")
 					return nil, false
 				}
-				return g.compileMatchPatternBindings(ctx, p.Pattern, fmt.Sprintf("(*%s)", subjectTemp), innerType)
+				valueExpr, _ := g.nativeNullableValueExpr(subjectType, subjectTemp)
+				return g.compileMatchPatternBindings(ctx, p.Pattern, valueExpr, innerType)
 			}
 			if !g.staticTypedPatternCompatible(subjectType, mapped) {
 				ctx.setReason("typed pattern type mismatch")

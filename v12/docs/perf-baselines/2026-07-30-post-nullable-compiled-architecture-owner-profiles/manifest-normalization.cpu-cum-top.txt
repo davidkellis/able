@@ -1,0 +1,81 @@
+File: compiled
+Build ID: 1f8932ac32e6ea8b556c11b18d1bdcadddc86af2
+Type: cpu
+Time: 2026-07-29 19:53:24 CDT
+Duration: 58.35ms, Total samples = 140ms (239.95%)
+Showing nodes accounting for 140ms, 100% of 140ms total
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      130ms 92.86%  main.RunRegisteredMain
+         0     0%     0%      130ms 92.86%  main.RunRegisteredMain.func1
+      10ms  7.14%  7.14%      130ms 92.86%  main.__able_compiled_fn_main
+         0     0%  7.14%      130ms 92.86%  main.__able_register_compiled_call.func1
+         0     0%  7.14%      130ms 92.86%  main.__able_wrap_fn_main
+         0     0%  7.14%      130ms 92.86%  main.main
+         0     0%  7.14%      130ms 92.86%  main.runMain
+         0     0%  7.14%      130ms 92.86%  runtime.main
+         0     0%  7.14%      100ms 71.43%  main.__able_compiled_fn_main.func2
+         0     0%  7.14%      100ms 71.43%  main.__able_compiled_method_Result__map_spec
+         0     0%  7.14%       80ms 57.14%  main.__able_compiled_fn_main.func1
+         0     0%  7.14%       60ms 42.86%  runtime.mallocgc
+         0     0%  7.14%       50ms 35.71%  main.__able_struct_ManifestRecord_to (inline)
+         0     0%  7.14%       50ms 35.71%  main.__able_struct_ManifestRecord_to_seen
+         0     0%  7.14%       40ms 28.57%  main.__able_compiled_fn_normalize_into
+      10ms  7.14% 14.29%       40ms 28.57%  runtime.mallocgcSmallScanNoHeader
+         0     0% 14.29%       30ms 21.43%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+      20ms 14.29% 28.57%       30ms 21.43%  main.__able_compiled_entry_method_String_contains
+         0     0% 28.57%       30ms 21.43%  main.__able_struct_ManifestRecord_apply
+         0     0% 28.57%       20ms 14.29%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+         0     0% 28.57%       20ms 14.29%  main.__able_compiled_fn_parse_manifest
+      20ms 14.29% 42.86%       20ms 14.29%  runtime.(*mspan).writeHeapBitsSmall
+         0     0% 42.86%       20ms 14.29%  runtime.convTstring
+         0     0% 42.86%       20ms 14.29%  runtime.deductAssistCredit
+         0     0% 42.86%       20ms 14.29%  runtime.gcAssistAlloc
+         0     0% 42.86%       20ms 14.29%  runtime.gcAssistAlloc.func2
+         0     0% 42.86%       20ms 14.29%  runtime.gcAssistAlloc1
+         0     0% 42.86%       20ms 14.29%  runtime.gcDrainN
+         0     0% 42.86%       20ms 14.29%  runtime.heapSetTypeNoHeader (inline)
+         0     0% 42.86%       20ms 14.29%  runtime.newobject
+         0     0% 42.86%       20ms 14.29%  runtime.systemstack
+      10ms  7.14% 50.00%       10ms  7.14%  able/interpreter-go/pkg/compiler/bridge.AsString
+         0     0% 50.00%       10ms  7.14%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0% 50.00%       10ms  7.14%  internal/poll.(*FD).Pread
+         0     0% 50.00%       10ms  7.14%  internal/poll.(*FD).Pread.func1 (inline)
+         0     0% 50.00%       10ms  7.14%  internal/poll.ignoringEINTR2[go.shape.int] (inline)
+         0     0% 50.00%       10ms  7.14%  internal/runtime/maps.(*Map).growToSmall
+         0     0% 50.00%       10ms  7.14%  internal/runtime/maps.newGroups (inline)
+         0     0% 50.00%       10ms  7.14%  internal/runtime/maps.newarray
+      10ms  7.14% 57.14%       10ms  7.14%  internal/runtime/syscall/linux.Syscall6
+      10ms  7.14% 64.29%       10ms  7.14%  main.__able_checked_add_signed
+         0     0% 64.29%       10ms  7.14%  main.__able_compiled_fn_manifest_error
+         0     0% 64.29%       10ms  7.14%  main.__able_compiled_fn_parse_manifest.func1 (inline)
+         0     0% 64.29%       10ms  7.14%  main.__able_struct_ManifestRecord_from
+         0     0% 64.29%       10ms  7.14%  os.(*File).ReadAt
+         0     0% 64.29%       10ms  7.14%  os.(*File).pread (inline)
+         0     0% 64.29%       10ms  7.14%  runtime.(*mcache).nextFree
+         0     0% 64.29%       10ms  7.14%  runtime.(*mcache).refill
+         0     0% 64.29%       10ms  7.14%  runtime.(*mcentral).cacheSpan
+         0     0% 64.29%       10ms  7.14%  runtime.(*mcentral).grow
+         0     0% 64.29%       10ms  7.14%  runtime.(*mspan).initHeapBits
+         0     0% 64.29%       10ms  7.14%  runtime.findObject
+         0     0% 64.29%       10ms  7.14%  runtime.makeslice
+         0     0% 64.29%       10ms  7.14%  runtime.mapassign_faststr
+      10ms  7.14% 71.43%       10ms  7.14%  runtime.memclrNoHeapPointers
+         0     0% 71.43%       10ms  7.14%  runtime.newarray
+         0     0% 71.43%       10ms  7.14%  runtime.scanObject
+         0     0% 71.43%       10ms  7.14%  runtime.scanSpan
+      10ms  7.14% 78.57%       10ms  7.14%  runtime.spanOf (inline)
+      10ms  7.14% 85.71%       10ms  7.14%  runtime.typePointers.next
+         0     0% 85.71%       10ms  7.14%  runtime/pprof.(*profileBuilder).readMapping
+         0     0% 85.71%       10ms  7.14%  runtime/pprof.elfBuildID
+         0     0% 85.71%       10ms  7.14%  runtime/pprof.newProfileBuilder
+         0     0% 85.71%       10ms  7.14%  runtime/pprof.parseProcSelfMaps
+         0     0% 85.71%       10ms  7.14%  runtime/pprof.profileWriter
+      10ms  7.14% 92.86%       10ms  7.14%  strings.Count
+         0     0% 92.86%       10ms  7.14%  strings.Split (inline)
+         0     0% 92.86%       10ms  7.14%  strings.genSplit
+         0     0% 92.86%       10ms  7.14%  sync/atomic.(*Pointer[go.shape.6477419bcce6179f3692f359f4a6666cc468ad4d11128ea8679268f32a77de0f]).Store (inline)
+      10ms  7.14%   100%       10ms  7.14%  sync/atomic.StorePointer
+         0     0%   100%       10ms  7.14%  syscall.Pread (inline)
+         0     0%   100%       10ms  7.14%  syscall.RawSyscall6
+         0     0%   100%       10ms  7.14%  syscall.Syscall6
+         0     0%   100%       10ms  7.14%  syscall.pread

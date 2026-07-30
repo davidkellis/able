@@ -1,7 +1,7 @@
 {
   "kind": "able-bytecode-profile-coverage-manifest",
   "schema_version": 1,
-  "selection_sha256": "0c72eaf2a1b12d3a5a2f88d00b3382a706f5c5c16977c24b55fb64214f8d429e",
+  "selection_sha256": "96d86cdad06f52286e4423ecad7d47ffaf75968fdc51a7e8010f65369291549e",
   "groups": [
     {
       "id": "bytecode-portable-workload-admission",
@@ -48,7 +48,8 @@
         "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md",
         "v12/docs/perf-baselines/2026-07-22-binary-event-log-application-gate.md",
         "v12/docs/perf-baselines/2026-07-22-sensor-calibration-application-gate.md",
-        "v12/docs/perf-baselines/2026-07-27-backup-dedup-application-gate.md"
+        "v12/docs/perf-baselines/2026-07-27-backup-dedup-application-gate.md",
+        "v12/docs/perf-baselines/2026-07-29-transaction-ledger-audit-application-gate.md"
       ]
     },
     {

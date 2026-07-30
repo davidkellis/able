@@ -160,7 +160,7 @@
   "sources": {
     "backend_adr": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
-      "sha256": "c46a14b6a44e6a1ce1bcb73d0466a5bee3be486eafde9cefcd315935e502d667"
+      "sha256": "3e29e4e30c5a48975135f52d18a5b8558f04c952c327f2e7d54adecd93584d60"
     },
     "bytecode_architecture_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -168,7 +168,7 @@
     },
     "compiled_architecture_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-compiled-architecture-target-budget.json",
-      "sha256": "7f9d081284a55c626660692875c93eedb6725056d98ec37f26a554759d33dc1a"
+      "sha256": "721653e8cd65d19b1326608dddfe012edeb5f7165006c19e74254ee391d1a6e5"
     },
     "compiled_runtime": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/compiler/generator_render_runtime.go",
@@ -180,11 +180,11 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-shared-runtime-semantic-abi.json",
-      "sha256": "89a1163d04d22c36a67debd6cffe99a0256b1d2fb16161fbfc8074ad4c60a735"
+      "sha256": "10c290ddd246280d8a71873faf830beff8fd1ae925dc8d6624e78e495afbea53"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
+      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
     },
     "runtime_values": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/values.go",

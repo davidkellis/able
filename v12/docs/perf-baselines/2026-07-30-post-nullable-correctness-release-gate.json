@@ -1,0 +1,100 @@
+{
+  "kind": "able-v12-correctness-release-gate",
+  "date": "2026-07-30",
+  "decision": "pass",
+  "retained_production_change": false,
+  "environment": {
+    "go_toolchain": "go1.26.5",
+    "fixture_typechecking": "strict",
+    "disk_backed_workspace": "/var/tmp/able-v12-release-20260730.he0nIY",
+    "python_bytecode_disabled": true,
+    "swaps": 0
+  },
+  "complete_v12_gate": {
+    "command": "./run_all_tests.sh",
+    "exit_status": 0,
+    "wall_seconds": 950.29,
+    "user_seconds": 2149.31,
+    "system_seconds": 147.67,
+    "cpu_percent": 241,
+    "peak_rss_kb": 4711072,
+    "compiler_tests_listed": 836,
+    "compiler_batches_passed": 34,
+    "compiler_batches_total": 34,
+    "short_interpreter_package_seconds": 103.96,
+    "final_bytecode_fixture_seconds": 89.806
+  },
+  "compiler_timing_audit": [
+    {
+      "batch": 5,
+      "aggregate_seconds": 60.649,
+      "passed": 19,
+      "skipped": 6,
+      "slowest_test": "TestCompilerConcreteEnumerableGenericMethodsExecute",
+      "slowest_test_seconds": 3.42
+    },
+    {
+      "batch": 20,
+      "aggregate_seconds": 106.686,
+      "passed": 21,
+      "skipped": 4,
+      "slowest_test": "TestCompilerCanonicalStdlibExpectationResultArgumentStaysConcrete",
+      "slowest_test_seconds": 24.04
+    },
+    {
+      "batch": 29,
+      "aggregate_seconds": 71.763,
+      "passed": 20,
+      "skipped": 5,
+      "slowest_test": "TestCompilerCanonicalSpecNullableExpectationLowers",
+      "slowest_test_seconds": 15.31
+    },
+    {
+      "batch": 30,
+      "aggregate_seconds": 105.171,
+      "passed": 25,
+      "skipped": 0,
+      "slowest_test": "TestCompilerNoFallbacksStringBuilderUsesNativeArrayPushAll",
+      "slowest_test_seconds": 10.72
+    }
+  ],
+  "interpreter_timing_audit": {
+    "short_mode": {
+      "slowest_test": "TestExecFixtureParity",
+      "slowest_test_seconds": 34.59,
+      "named_tests_over_60_seconds": 0
+    },
+    "bytecode": {
+      "slowest_test": "TestExecFixtureParity",
+      "slowest_test_seconds": 34.07,
+      "named_tests_over_60_seconds": 0
+    }
+  },
+  "canonical_stdlib": {
+    "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "git_dirty_before_and_after": true,
+    "source_file_count": 70,
+    "source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+    "treewalker": {
+      "result": "pass",
+      "seconds": 19
+    },
+    "bytecode": {
+      "result": "pass",
+      "seconds": 14
+    },
+    "complete_command_seconds": 34.68,
+    "peak_rss_kb": 895340,
+    "swaps": 0
+  },
+  "performance_evidence": {
+    "scorecard_rows": 130,
+    "successful_able_and_reference_samples_per_row": 5,
+    "frontier_actionable_groups": 0,
+    "ledger_closures": 23,
+    "ledger_invalidations": 0,
+    "selector_empty": true
+  },
+  "workspace_cleaned": true,
+  "next_tranche": "refresh-retained-deferred-release-inventory"
+}

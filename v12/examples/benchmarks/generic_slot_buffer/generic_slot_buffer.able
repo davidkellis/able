@@ -1,0 +1,204 @@
+package generic_slot_buffer
+
+import able.collections.array
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+import able.kernel.{Array}
+
+SLOT_COUNT: i32 := 512
+UPDATE_ROUNDS: i32 := 262_144
+CHECKSUM_MOD: i64 := 1_000_000_007_i64
+
+struct Slot T {
+  value: T,
+  generation: i64
+}
+
+struct VersionedBufferIterator T {
+  buffer: VersionedBuffer T,
+  index: i32,
+  length: i32
+}
+
+struct VersionedBuffer T {
+  slots: Array (Slot T),
+  mutations: i64
+}
+
+interface ReadableBuffer T for Self {
+  fn length(self: Self) -> i32
+  fn read(self: Self, index: i32) -> ?T
+}
+
+methods VersionedBuffer T {
+  fn with_capacity(capacity: i32) -> VersionedBuffer T {
+    VersionedBuffer {
+      slots: Array.with_capacity(capacity),
+      mutations: 0_i64
+    }
+  }
+
+  fn len(self: Self) -> i32 { self.slots.len() }
+
+  fn push(self: Self, value: T) -> void {
+    self.slots.push(Slot { value, generation: 0_i64 })
+  }
+
+  fn slot(self: Self, index: i32) -> ?Slot T {
+    self.slots.get(index)
+  }
+
+  fn get(self: Self, index: i32) -> ?T {
+    self.slot(index) match {
+      case slot: Slot T => slot.value,
+      case nil => nil
+    }
+  }
+
+  fn write(self: Self, index: i32, value: T) -> bool {
+    self.slot(index) match {
+      case slot: Slot T => {
+        slot.value = value
+        slot.generation = slot.generation + 1_i64
+        self.mutations = self.mutations + 1_i64
+        true
+      },
+      case nil => false
+    }
+  }
+
+  fn record_alias_mutation(self: Self) -> void {
+    self.mutations = self.mutations + 1_i64
+  }
+}
+
+impl ReadableBuffer T for VersionedBuffer T {
+  fn length(self: Self) -> i32 { self.len() }
+  fn read(self: Self, index: i32) -> ?T { self.get(index) }
+}
+
+impl Iterable T for VersionedBuffer T {
+  fn each(self: Self, visit: T -> void) -> void {
+    index := 0
+    length := self.len()
+    loop {
+      if index >= length { break }
+      visit(self.get(index)!)
+      index = index + 1
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    VersionedBufferIterator {
+      buffer: self,
+      index: 0,
+      length: self.len()
+    }
+  }
+}
+
+impl Iterator T for VersionedBufferIterator T {
+  fn next(self: Self) -> T | IteratorEnd {
+    if self.index >= self.length { return IteratorEnd {} }
+    value := self.buffer.get(self.index)!
+    self.index = self.index + 1
+    value
+  }
+}
+
+fn interface_checksum<B>(
+  buffer: B,
+  seed: i64
+) -> i64 where B: ReadableBuffer i64 {
+  checksum := seed
+  index := 0
+  loop {
+    if index >= buffer.length() { break }
+    value := buffer.read(index)!
+    checksum = (
+      checksum * 65_599_i64 +
+      value +
+      (index as i64) * 17_i64
+    ) % CHECKSUM_MOD
+    index = index + 1
+  }
+  checksum
+}
+
+fn main() -> void {
+  buffer: VersionedBuffer i64 = VersionedBuffer.with_capacity(SLOT_COUNT)
+  index := 0
+  loop {
+    if index >= SLOT_COUNT { break }
+    buffer.push(
+      (((index as i64) + 1_i64) * 7_919_i64 + 17_i64) % CHECKSUM_MOD
+    )
+    index = index + 1
+  }
+
+  alias := buffer
+  direct_checksum := 0_i64
+  round := 0
+  loop {
+    if round >= UPDATE_ROUNDS { break }
+    slot_index := (round * 73 + 19) % SLOT_COUNT
+    old_value := buffer.get(slot_index)!
+    new_value := (
+      old_value * 48_271_i64 +
+      (round as i64) * 31_i64 +
+      (slot_index as i64)
+    ) % CHECKSUM_MOD
+    buffer.write(slot_index, new_value)
+    direct_checksum = (
+      direct_checksum +
+      new_value * 7_i64 +
+      (slot_index as i64) * 11_i64 +
+      (round as i64) * 13_i64
+    ) % CHECKSUM_MOD
+
+    if round % 16 == 0 {
+      alias_index := (slot_index + 157) % SLOT_COUNT
+      alias_slot := alias.slot(alias_index)!
+      alias_slot.value = (
+        alias_slot.value +
+        (round as i64) * 19_i64 +
+        (alias_index as i64) * 23_i64
+      ) % CHECKSUM_MOD
+      alias_slot.generation = alias_slot.generation + 1_i64
+      alias.record_alias_mutation()
+    }
+    round = round + 1
+  }
+
+  interface_total := interface_checksum(buffer, direct_checksum)
+  iterator_total := 0_i64
+  iterator := alias.iterator()
+  loop {
+    iterator.next() match {
+      case IteratorEnd {} => { break },
+      case value: i64 => {
+        iterator_total = (
+          iterator_total * 257_i64 + value
+        ) % CHECKSUM_MOD
+      }
+    }
+  }
+  iterator.close()
+
+  generation_total := 0_i64
+  index = 0
+  loop {
+    if index >= buffer.len() { break }
+    slot := buffer.slot(index)!
+    generation_total = (
+      generation_total +
+      slot.generation * ((index as i64) + 1_i64)
+    ) % CHECKSUM_MOD
+    index = index + 1
+  }
+
+  alias_probe := alias.get(157)!
+  print(
+    `${buffer.len()}:${alias.len()}:${buffer.mutations}:${alias_probe}:`
+    + `${direct_checksum}:${interface_total}:${iterator_total}:${generation_total}`
+  )
+}

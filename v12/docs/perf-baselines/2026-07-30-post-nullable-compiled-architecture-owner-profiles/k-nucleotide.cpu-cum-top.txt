@@ -1,0 +1,89 @@
+File: compiled
+Build ID: 604277875b52b5af13abb1f002fa57e36da54601
+Type: cpu
+Time: 2026-07-29 19:52:57 CDT
+Duration: 25.92s, Total samples = 24.88s (96.00%)
+Showing nodes accounting for 20.48s, 82.32% of 24.88s total
+Dropped 182 nodes (cum <= 0.12s)
+Showing top 80 nodes out of 99
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%     24.61s 98.91%  main.RunRegisteredMain
+         0     0%     0%     24.61s 98.91%  main.RunRegisteredMain.func1
+         0     0%     0%     24.61s 98.91%  main.__able_compiled_fn_main
+         0     0%     0%     24.61s 98.91%  main.__able_register_compiled_call.func1
+         0     0%     0%     24.61s 98.91%  main.__able_wrap_fn_main
+         0     0%     0%     24.61s 98.91%  main.main
+         0     0%     0%     24.61s 98.91%  main.runMain
+         0     0%     0%     24.61s 98.91%  runtime.main
+     0.27s  1.09%  1.09%     23.57s 94.73%  main.__able_compiled_fn_count_windows
+         0     0%  1.09%     23.57s 94.73%  main.__able_compiled_fn_print_frequency_table
+     0.10s   0.4%  1.49%     23.16s 93.09%  main.__able_compiled_fn_increment_count
+     0.17s  0.68%  2.17%     12.98s 52.17%  main.__able_compiled_method_HashMap_raw_set_spec
+     0.15s   0.6%  2.77%     10.08s 40.51%  main.__able_compiled_method_HashMap_raw_get_spec
+     0.41s  1.65%  4.42%      9.50s 38.18%  runtime.convT
+     0.57s  2.29%  6.71%      7.32s 29.42%  runtime.mallocgc
+     0.25s  1.00%  7.72%      6.55s 26.33%  able/interpreter-go/pkg/compiler/bridge.ToUint
+     0.22s  0.88%  8.60%      6.23s 25.04%  main.__able_hash_map_set_impl
+     1.20s  4.82% 13.42%      5.78s 23.23%  main.__able_hash_map_find_entry
+     0.26s  1.05% 14.47%      5.12s 20.58%  main.__able_hash_map_get_impl
+     0.82s  3.30% 17.77%      5.04s 20.26%  runtime.mallocgcSmallScanNoHeader
+     0.21s  0.84% 18.61%      4.54s 18.25%  main.__able_hash_map_keys_equal
+     0.19s  0.76% 19.37%      4.33s 17.40%  able/interpreter-go/pkg/compiler/bridge.HashMapKeysEqual
+     3.28s 13.18% 32.56%      4.14s 16.64%  able/interpreter-go/pkg/compiler/bridge.primitiveHashMapKeyEqual
+     0.19s  0.76% 33.32%      3.52s 14.15%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     0.16s  0.64% 33.96%      3.15s 12.66%  main.__able_hash_map_hash
+     0.20s   0.8% 34.77%      2.99s 12.02%  able/interpreter-go/pkg/compiler/bridge.HashMapHashValue
+     1.69s  6.79% 41.56%      2.79s 11.21%  able/interpreter-go/pkg/compiler/bridge.primitiveHashMapHash
+         0     0% 41.56%      2.75s 11.05%  runtime.systemstack
+     0.21s  0.84% 42.40%      1.96s  7.88%  runtime.typedmemmove
+     0.09s  0.36% 42.77%      1.68s  6.75%  runtime.deductAssistCredit
+         0     0% 42.77%      1.59s  6.39%  runtime.gcAssistAlloc
+         0     0% 42.77%      1.57s  6.31%  runtime.gcAssistAlloc.func2
+         0     0% 42.77%      1.57s  6.31%  runtime.gcAssistAlloc1
+         0     0% 42.77%      1.57s  6.31%  runtime.gcDrainN
+     0.40s  1.61% 44.37%      1.18s  4.74%  runtime.bulkBarrierPreWrite
+     0.78s  3.14% 47.51%      1.03s  4.14%  runtime.tryDeferToSpanScan
+     0.09s  0.36% 47.87%      1.02s  4.10%  runtime.heapSetTypeNoHeader (inline)
+     0.75s  3.01% 50.88%      0.93s  3.74%  runtime.(*mspan).writeHeapBitsSmall
+     0.65s  2.61% 53.50%      0.87s  3.50%  main.__able_hash_map_handle_from_value
+     0.02s  0.08% 53.58%      0.87s  3.50%  main.__able_nullable_i32_from_value
+     0.11s  0.44% 54.02%      0.85s  3.42%  runtime.scanSpan
+     0.01s  0.04% 54.06%      0.84s  3.38%  runtime.(*mcache).nextFree
+     0.38s  1.53% 55.59%      0.83s  3.34%  able/interpreter-go/pkg/compiler/bridge.AsInt
+     0.02s  0.08% 55.67%      0.83s  3.34%  runtime.(*mcache).refill
+     0.57s  2.29% 57.96%      0.80s  3.22%  runtime.gcmarknewobject
+     0.18s  0.72% 58.68%      0.76s  3.05%  able/interpreter-go/pkg/runtime.HashMapStoreState
+     0.01s  0.04% 58.72%      0.75s  3.01%  runtime.wbBufFlush
+         0     0% 58.72%      0.74s  2.97%  runtime.wbBufFlush.func1
+     0.17s  0.68% 59.41%      0.74s  2.97%  runtime.wbBufFlush1
+     0.40s  1.61% 61.01%      0.69s  2.77%  main.__able_compiled_fn_target_count
+     0.01s  0.04% 61.05%      0.68s  2.73%  runtime.(*mcentral).cacheSpan
+     0.62s  2.49% 63.55%      0.62s  2.49%  runtime.nextFreeFast (inline)
+     0.58s  2.33% 65.88%      0.58s  2.33%  runtime.memmove
+     0.04s  0.16% 66.04%      0.53s  2.13%  runtime.(*wbBuf).get2 (inline)
+     0.01s  0.04% 66.08%      0.52s  2.09%  able/interpreter-go/pkg/runtime.(*HasherValue).WriteUint64 (inline)
+     0.20s   0.8% 66.88%      0.52s  2.09%  runtime.mapaccess2_fast64
+     0.05s   0.2% 67.08%      0.51s  2.05%  runtime.sweepone
+     0.01s  0.04% 67.12%      0.49s  1.97%  runtime.deductSweepCredit
+         0     0% 67.12%      0.44s  1.77%  able/interpreter-go/pkg/runtime.(*HasherValue).WriteBytes (inline)
+     0.44s  1.77% 68.89%      0.44s  1.77%  able/interpreter-go/pkg/runtime.HashBytes (inline)
+     0.42s  1.69% 70.58%      0.43s  1.73%  able/interpreter-go/pkg/compiler/bridge.hashMapIntegerValue (inline)
+         0     0% 70.58%      0.43s  1.73%  runtime.markroot
+     0.10s   0.4% 70.98%      0.41s  1.65%  runtime.scanObject
+     0.40s  1.61% 72.59%      0.40s  1.61%  able/interpreter-go/pkg/runtime.IntegerValue.ToInt64
+     0.09s  0.36% 72.95%      0.37s  1.49%  runtime.(*sweepLocked).sweep
+     0.22s  0.88% 73.83%      0.37s  1.49%  runtime.scanblock
+         0     0% 73.83%      0.36s  1.45%  runtime.markrootBlock
+     0.01s  0.04% 73.87%      0.35s  1.41%  main.__able_compiled_fn_read_target_sequence
+     0.15s   0.6% 74.48%      0.33s  1.33%  able/interpreter-go/pkg/compiler/bridge.unwrapInterface
+     0.28s  1.13% 75.60%      0.32s  1.29%  runtime.typePointers.next
+     0.30s  1.21% 76.81%      0.30s  1.21%  runtime.memclrNoHeapPointers
+     0.28s  1.13% 77.93%      0.29s  1.17%  main.__able_shift_left_unsigned
+     0.13s  0.52% 78.46%      0.28s  1.13%  able/interpreter-go/pkg/runtime.IntegerValue.CmpInt
+     0.02s  0.08% 78.54%      0.27s  1.09%  gcWriteBarrier
+     0.17s  0.68% 79.22%      0.24s  0.96%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+     0.19s  0.76% 79.98%      0.24s  0.96%  runtime.scanObjectsSmall
+     0.23s  0.92% 80.91%      0.23s  0.92%  internal/runtime/maps.ctrlGroup.matchFull (inline)
+     0.15s   0.6% 81.51%      0.22s  0.88%  able/interpreter-go/pkg/compiler/bridge.integerToUint64Value
+         0     0% 81.51%      0.21s  0.84%  main.__able_compiled_entry_method_String_starts_with
+     0.20s   0.8% 82.32%      0.20s   0.8%  able/interpreter-go/pkg/compiler/bridge.hashMapCharValue (inline)

@@ -1,0 +1,178 @@
+{
+  "kind": "able-post-nullable-compiled-architecture-owner-closure",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-production-change",
+  "timing_source": "v12/docs/perf-baselines/external-scoreboard-current.json",
+  "profile_artifacts": "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-architecture-owner-profiles",
+  "measurement_contract": {
+    "strict_build_args": ["--no-fallbacks"],
+    "cpu_profiles_per_application": 10,
+    "allocation_profiles_per_application": 3,
+    "cpu_profile_phase": "main",
+    "allocation_profile_phase": "main",
+    "gomemlimit": "1GiB",
+    "gogc": 50,
+    "verifier_backed": true,
+    "dependency_packages_per_application": 96,
+    "interpreter_dependency": false
+  },
+  "applications": [
+    {
+      "benchmark": "concurrent_event_routing",
+      "family": "concurrency-record-routing",
+      "able_seconds": 0.054,
+      "go_seconds": 0.0055,
+      "able_go_ratio": 9.818181818181818,
+      "cpu_samples_ms": 300,
+      "mean_main_allocated_bytes": 4186712,
+      "mean_main_allocations": 70680,
+      "mean_main_gc": 3.6666666666666665,
+      "dominant_exact_owners": [
+        "runtime/pprof.allFrames is observer-only",
+        "runtime.NewStructInstancePositionalSized: 13320 flat objects",
+        "bridge.ToInt: 12301 flat objects",
+        "route_task: 8192 flat objects"
+      ],
+      "binary_sha256": "79fe4c54d1c42bc980dd2c4e7b4f7e6cb1a1463ccd3ba46b8b25bcb5dbe9ed46",
+      "output_sha256": "672e4542ce0d231428dd910348225e7c8b058824d7b8ceffbfb616d77a939d39"
+    },
+    {
+      "benchmark": "distance_field",
+      "family": "float-numeric",
+      "able_seconds": 0.038,
+      "go_seconds": 0.0147,
+      "able_go_ratio": 2.5850340136054424,
+      "cpu_samples_ms": 160,
+      "mean_main_allocated_bytes": 512,
+      "mean_main_allocations": 11,
+      "mean_main_gc": 0,
+      "dominant_exact_owners": [
+        "generated main/hypot/sqrt native float bodies",
+        "no material application allocation owner"
+      ],
+      "binary_sha256": "f6e149c88d84fce349b27c93bbbc66f55bff9fca25840a6447c5078202f732d7",
+      "output_sha256": "cdaaf4451b236346af59b6a407f3136da96004e0c7c39c165546b7b9b21eda94"
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "family": "wide-numeric",
+      "able_seconds": 0.106,
+      "go_seconds": 0.0059,
+      "able_go_ratio": 17.966101694915253,
+      "cpu_samples_ms": 1330,
+      "mean_main_allocated_bytes": 35536416,
+      "mean_main_allocations": 2220986,
+      "mean_main_gc": 24,
+      "dominant_exact_owners": [
+        "modular_add_checksum: 1220964 flat objects",
+        "ordered_select_checksum: 1000001 flat objects",
+        "loop-carried nominal UInt128 values"
+      ],
+      "binary_sha256": "3d4ca3981780e11efb7a22a0894c1ab4a6d591d1e994e6f03d6f410a643ca982",
+      "output_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a"
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "family": "text-map",
+      "able_seconds": 1.592,
+      "go_seconds": 0.0669,
+      "able_go_ratio": 23.796711509715994,
+      "cpu_samples_ms": 24880,
+      "mean_main_allocated_bytes": 598182442.6666666,
+      "mean_main_allocations": 12232484,
+      "mean_main_gc": 323.6666666666667,
+      "dominant_exact_owners": [
+        "bridge.ToUint: 7999998 flat objects",
+        "bridge.ToInt: 3961373 flat objects",
+        "primitive map hash/equality and lookup"
+      ],
+      "binary_sha256": "e6cd731377a4e5dad5b5aa854a05ea080efc149eb53ecd255f5162bc67d8db96",
+      "output_sha256": "d628623daa677c00673df8d4961d14eb271b4112cdcb65b8233f07b69d7b49b8"
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "family": "nominal-result-normalization",
+      "able_seconds": 0.04,
+      "go_seconds": 0.005,
+      "able_go_ratio": 8,
+      "cpu_samples_ms": 140,
+      "mean_main_allocated_bytes": 3559528,
+      "mean_main_allocations": 76234.66666666667,
+      "mean_main_gc": 3,
+      "dominant_exact_owners": [
+        "bridge.ToString: 36866 flat objects",
+        "runtime.NewStructInstancePositionalSized: 13312 flat objects",
+        "manifest parse/normalization nominal values"
+      ],
+      "binary_sha256": "68a979a54710d52e8401f531aa7a43301ddca169b61160d61871007942ec356a",
+      "output_sha256": "2d6d55d5a76f3e45c6eb4fc3c0b892c2c5d8e02f3e38fa916d4f1c9a1579e9cb"
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "family": "regex-dispatch",
+      "able_seconds": 0.096,
+      "go_seconds": 0.0053,
+      "able_go_ratio": 18.11320754716981,
+      "cpu_samples_ms": 710,
+      "mean_main_allocated_bytes": 20768720,
+      "mean_main_allocations": 435019.6666666667,
+      "mean_main_gc": 18.333333333333332,
+      "dominant_exact_owners": [
+        "regex_nfa_clone_captures: 94464 flat objects",
+        "regex_codepoints: 86305 flat objects",
+        "regex NFA closure/move execution"
+      ],
+      "binary_sha256": "a34002eb942209a40f4016a2d016aeeed5635d2363081a33e2f18b1dd3dd57f9",
+      "output_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05"
+    }
+  ],
+  "shared_owner_reach": [
+    {
+      "owner": "bridge.ToInt",
+      "material_applications": ["concurrent_event_routing", "k_nucleotide"],
+      "unlike_family_count": 2,
+      "eligible": false
+    },
+    {
+      "owner": "bridge.ToString",
+      "material_applications": ["concurrent_event_routing", "manifest_normalization"],
+      "unlike_family_count": 2,
+      "eligible": false
+    },
+    {
+      "owner": "runtime.NewStructInstancePositionalSized",
+      "material_applications": ["concurrent_event_routing", "manifest_normalization"],
+      "unlike_family_count": 2,
+      "eligible": false
+    },
+    {
+      "owner": "checked signed arithmetic helpers",
+      "material_applications": ["concurrent_event_routing", "fixed_width_128"],
+      "sample_only_applications": ["manifest_normalization"],
+      "unlike_family_count": 2,
+      "eligible": false,
+      "disposition": "previously-closed-mixed-ab"
+    },
+    {
+      "owner": "allocation and GC parents",
+      "material_applications": [
+        "concurrent_event_routing",
+        "fixed_width_128",
+        "k_nucleotide",
+        "manifest_normalization",
+        "policy_record_dispatch"
+      ],
+      "unlike_family_count": 5,
+      "eligible": false,
+      "disposition": "aggregate-parent-with-distinct-able-descendants"
+    }
+  ],
+  "qualifying_candidate": null,
+  "production_files_changed": [],
+  "stdlib_changed": false,
+  "interpreter_changed": false,
+  "bytecode_changed": false,
+  "language_changed": false,
+  "wasm_changed": false
+}

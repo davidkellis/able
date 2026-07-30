@@ -1,0 +1,108 @@
+{
+  "kind": "able-post-nullable-compiled-current-control-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "closure_id": "compiled-current-control",
+  "decision": "causal-no-material-reach",
+  "changed_mechanism": "primitive-nullable-value-plus-valid-carrier",
+  "source_state": {
+    "compiler_production_tree_sha256": "d9e73a315f6ac6c9c3faa7a9530aaae33c8eee4a91e26b82e92505f1af9a4068",
+    "scorecard": "v12/docs/perf-baselines/2026-07-30-nullable-scalar-retained-scorecard-reconciled.json"
+  },
+  "measurement_contract": {
+    "strict_build_args": [
+      "--no-fallbacks"
+    ],
+    "dependency_packages_per_application": 96,
+    "interpreter_dependency": false,
+    "smoke_processes_per_application": 1,
+    "smoke_verifier_backed": true,
+    "new_cpu_profiles": 0,
+    "new_allocation_profiles": 0,
+    "profile_gate": "refresh only when the retained carrier reaches a material current owner"
+  },
+  "applications": [
+    {
+      "benchmark": "fib",
+      "able_source_sha256": "96683db985102a2ae6d82919b95c1da572febe499cccd2490971dcd9647019cd",
+      "generated_module_sha256": "80ef973289d9a95e0b65b39db7af7c38aa1eaa3dde3319988e56ae463e39704e",
+      "binary_sha256": "ae0b6b855b156413ae888df7c7ed0ee6ee7fd78df17370725a24540b4dbe8a79",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "generated_application_functions_and_entries": 8,
+      "generated_application_nullable_references": 0,
+      "material_owner_nullable_references": 0,
+      "current_owner": "direct generated fib recursion",
+      "prior_main_cpu_samples_seconds": 3.26,
+      "prior_owner_flat_percent": 99.69,
+      "post_carrier_able_seconds_five_run_mean": 4.008,
+      "post_carrier_go_seconds_five_run_mean": 3.1597,
+      "post_carrier_able_go_ratio": 1.268474855207773,
+      "smoke_real_seconds": 4.44,
+      "smoke_output_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188",
+      "material_reach": false
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "able_source_sha256": "ac3f407e202dd793db41431eb7b5b26e0c60472583e552624bad5ceca404c123",
+      "generated_module_sha256": "37986fed6057b6d14d79628a50d25e7dee120f36dab34a8b1b5a43b62e7ca418",
+      "binary_sha256": "ca5dc1215df58112369ae633bae192495e6fc1d5e9818cb7a356f6dbcc223ae0",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "generated_application_functions_and_entries": 10,
+      "generated_application_nullable_references": 0,
+      "material_owner_nullable_references": 0,
+      "current_owner": "direct generated primitive f64 matmul loop",
+      "prior_main_cpu_samples_seconds": 1.44,
+      "prior_owner_flat_percent": 99.31,
+      "post_carrier_able_seconds_five_run_mean": 1.186,
+      "post_carrier_go_seconds_five_run_mean": 1.0241,
+      "post_carrier_able_go_ratio": 1.1580900302704813,
+      "smoke_real_seconds": 1.22,
+      "smoke_output_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c",
+      "material_reach": false
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "able_source_sha256": "426a40e33840f3a0e9e62d5f9b9519a6840edd2733b8031df6a280e4b782fdb8",
+      "generated_module_sha256": "6388cc9ca93cf04f8fc1aca806a0fc724f6ec8e5d9a03fdb43188d588c2917f6",
+      "binary_sha256": "9003529335f2097ac331d82a361cb98b26aae0022896f441443e0480cd31cb4e",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "generated_application_functions_and_entries": 26,
+      "generated_application_nullable_references": 2,
+      "nullable_site": "one-time parse_program loop-stack pop",
+      "workload_bytes": 275,
+      "workload_loop_closures": 14,
+      "material_owner_nullable_references": 0,
+      "current_owner": "direct generated execute dispatch plus Tape.inc/get/move",
+      "prior_main_cpu_samples_seconds": 5.08,
+      "prior_owner_distribution": {
+        "execute_flat_percent": 64.57,
+        "tape_inc_flat_percent": 26.97,
+        "tape_get_flat_percent": 6.3,
+        "tape_move_flat_percent": 0.98,
+        "parse_program_samples": 0
+      },
+      "post_carrier_able_seconds_five_run_mean": 3.768,
+      "post_carrier_go_seconds_five_run_mean": 3.0243,
+      "post_carrier_able_go_ratio": 1.24590814403333,
+      "smoke_real_seconds": 4.4,
+      "smoke_output_sha256": "a8ac3a1054c1aa7ac25f9b1e652a96a7ac86a1c1130687fc53b90e20c766d149",
+      "material_reach": false
+    }
+  ],
+  "qualifying_candidate": null,
+  "profile_refresh_required": false,
+  "cleanup": {
+    "raw_build_workspace_mib": 458,
+    "test_cache_mib": 125,
+    "matching_artifacts_remaining": 0
+  },
+  "production_files_changed": [],
+  "stdlib_changed": false,
+  "interpreter_changed": false,
+  "bytecode_changed": false,
+  "language_changed": false,
+  "wasm_changed": false
+}

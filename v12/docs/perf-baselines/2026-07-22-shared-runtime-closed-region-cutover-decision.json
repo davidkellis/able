@@ -247,7 +247,7 @@
     },
     "native_hot_tier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
+      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
     },
     "portable_frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-sensor-calibration-interaction-triple-frontier.json",
@@ -271,7 +271,7 @@
     },
     "semantic_abi_feasibility": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-shared-runtime-semantic-abi-feasibility.json",
-      "sha256": "0a08bfd77594aae434d6978be8021e9bccb4d1f0d7b006ba428e1776ce8d44d2"
+      "sha256": "2c515e50868c2e3908140c61a3b61603430ce6185cb8d09d8250de1e1a83444b"
     },
     "shadow_flow": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-semantic-abi-shadow-image-lowering.json",

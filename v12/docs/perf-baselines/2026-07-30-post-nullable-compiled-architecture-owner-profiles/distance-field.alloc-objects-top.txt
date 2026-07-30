@@ -1,0 +1,21 @@
+File: compiled
+Build ID: a9ba3a1d484f49156aaca924590f6551fad4009f
+Type: alloc_objects
+Time: 2026-07-29 19:54:34 CDT
+Showing nodes accounting for 32297, 99.58% of 32432 total
+Dropped 88 nodes (cum <= 162)
+      flat  flat%   sum%        cum   cum%
+     23068 71.13% 71.13%      23068 71.13%  runtime/pprof.allFrames
+      6125 18.89% 90.01%       6153 18.97%  runtime/pprof.(*profileBuilder).emitLocation
+      3096  9.55% 99.56%      32415 99.95%  runtime/pprof.writeHeapProto
+         6 0.019% 99.58%      29234 90.14%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         1 0.0031% 99.58%      32421   100%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.0031% 99.58%      32416   100%  runtime/pprof.writeHeapInternal
+         0     0% 99.58%      32421   100%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.58%      32421   100%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.58%      32432   100%  main.main
+         0     0% 99.58%      32432   100%  main.runMain
+         0     0% 99.58%      32421   100%  main.startMainProfilePhase (inline)
+         0     0% 99.58%      32432   100%  runtime.main
+         0     0% 99.58%      32416   100%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.58%      32416   100%  runtime/pprof.writeAlloc

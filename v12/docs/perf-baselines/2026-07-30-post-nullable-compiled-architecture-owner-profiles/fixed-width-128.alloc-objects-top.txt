@@ -1,0 +1,27 @@
+File: compiled
+Build ID: f19e1b6968d8b6e99c0c2ab430691f7d3c03baa4
+Type: alloc_objects
+Time: 2026-07-29 19:54:37 CDT
+Showing nodes accounting for 2245688, 99.74% of 2251635 total
+Dropped 86 nodes (cum <= 11258)
+      flat  flat%   sum%        cum   cum%
+   1220964 54.23% 54.23%    1220964 54.23%  main.__able_compiled_fn_modular_add_checksum
+   1000001 44.41% 98.64%    1000001 44.41%  main.__able_compiled_fn_ordered_select_checksum
+     21862  0.97% 99.61%      21862  0.97%  runtime/pprof.allFrames
+      2852  0.13% 99.74%      30643  1.36%  runtime/pprof.writeHeapProto
+         6 0.00027% 99.74%      27723  1.23%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         1 4.4e-05% 99.74%      30649  1.36%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 4.4e-05% 99.74%    2220986 98.64%  main.RunRegisteredMain
+         1 4.4e-05% 99.74%      30644  1.36%  runtime/pprof.writeHeapInternal
+         0     0% 99.74%      30649  1.36%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.74%      30649  1.36%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.74%    2220985 98.64%  main.RunRegisteredMain.func1
+         0     0% 99.74%    2220985 98.64%  main.__able_compiled_fn_main
+         0     0% 99.74%    2220985 98.64%  main.__able_register_compiled_call.func1
+         0     0% 99.74%    2220985 98.64%  main.__able_wrap_fn_main
+         0     0% 99.74%    2251635   100%  main.main
+         0     0% 99.74%    2251635   100%  main.runMain
+         0     0% 99.74%      30649  1.36%  main.startMainProfilePhase (inline)
+         0     0% 99.74%    2251635   100%  runtime.main
+         0     0% 99.74%      30644  1.36%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.74%      30644  1.36%  runtime/pprof.writeAlloc

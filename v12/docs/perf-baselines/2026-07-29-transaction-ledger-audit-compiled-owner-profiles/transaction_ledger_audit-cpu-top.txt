@@ -1,0 +1,108 @@
+File: transaction_ledger_audit
+Build ID: c1b3278941b24fffd6b92019d5abf34a221fd45b
+Type: cpu
+Time: 2026-07-29 14:35:53 CDT
+Duration: 194.05ms, Total samples = 410ms (211.28%)
+Showing nodes accounting for 410ms, 100% of 410ms total
+Showing top 100 nodes out of 104
+      flat  flat%   sum%        cum   cum%
+      30ms  7.32%  7.32%       30ms  7.32%  runtime.nextFreeFast (inline)
+      20ms  4.88% 12.20%       20ms  4.88%  gcWriteBarrier
+      20ms  4.88% 17.07%       20ms  4.88%  indexbytebody
+      20ms  4.88% 21.95%       20ms  4.88%  main.__able_checked_add_signed
+      20ms  4.88% 26.83%      400ms 97.56%  main.__able_compiled_fn_main
+      20ms  4.88% 31.71%       20ms  4.88%  runtime.mapaccess1_fast64
+      20ms  4.88% 36.59%       30ms  7.32%  runtime.scanObject
+      20ms  4.88% 41.46%      160ms 39.02%  strings.genSplit
+      10ms  2.44% 43.90%       10ms  2.44%  able/interpreter-go/pkg/compiler/bridge.AsInt
+      10ms  2.44% 46.34%       10ms  2.44%  aeshashbody
+      10ms  2.44% 48.78%       10ms  2.44%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+      10ms  2.44% 51.22%       10ms  2.44%  internal/runtime/gc/scan.FilterNilAVX512
+      10ms  2.44% 53.66%       10ms  2.44%  internal/runtime/gc/scan.scanSpanPackedAVX512
+      10ms  2.44% 56.10%       10ms  2.44%  main.__able_checked_sub_signed
+      10ms  2.44% 58.54%      260ms 63.41%  main.__able_compiled_fn_parse_transaction
+      10ms  2.44% 60.98%       30ms  7.32%  main.__able_compiled_method_HashMap_raw_get_spec
+      10ms  2.44% 63.41%       20ms  4.88%  main.__able_compiled_method_Transaction_signed_amount
+      10ms  2.44% 65.85%       30ms  7.32%  main.__able_hash_map_find_entry
+      10ms  2.44% 68.29%       10ms  2.44%  runtime.(*lfstack).pop
+      10ms  2.44% 70.73%       10ms  2.44%  runtime.(*mheap).initSpan
+      10ms  2.44% 73.17%       10ms  2.44%  runtime.(*mspan).moveInlineMarks
+      10ms  2.44% 75.61%       10ms  2.44%  runtime.(*mspan).writeHeapBitsSmall
+      10ms  2.44% 78.05%       20ms  4.88%  runtime.concatstrings
+      10ms  2.44% 80.49%       90ms 21.95%  runtime.deductAssistCredit
+      10ms  2.44% 82.93%      100ms 24.39%  runtime.makeslice
+      10ms  2.44% 85.37%      100ms 24.39%  runtime.mallocgcSmallScanNoHeader
+      10ms  2.44% 87.80%       10ms  2.44%  runtime.memclrNoHeapPointers
+      10ms  2.44% 90.24%       10ms  2.44%  runtime.rawstringtmp
+      10ms  2.44% 92.68%       40ms  9.76%  runtime.scanSpan
+      10ms  2.44% 95.12%       10ms  2.44%  runtime.scanblock
+      10ms  2.44% 97.56%       10ms  2.44%  runtime.spanSetScans
+      10ms  2.44%   100%       10ms  2.44%  runtime.typePointers.next
+         0     0%   100%       10ms  2.44%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+         0     0%   100%       30ms  7.32%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0%   100%       20ms  4.88%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         0     0%   100%       20ms  4.88%  able/interpreter-go/pkg/runtime.(*HashMapValue).HashCandidates (inline)
+         0     0%   100%       20ms  4.88%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0%   100%       20ms  4.88%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+         0     0%   100%       10ms  2.44%  internal/runtime/maps.(*Map).growToSmall
+         0     0%   100%       10ms  2.44%  internal/runtime/maps.NewEmptyMap (inline)
+         0     0%   100%       10ms  2.44%  internal/runtime/maps.newGroups (inline)
+         0     0%   100%       10ms  2.44%  internal/runtime/maps.newarray
+         0     0%   100%       20ms  4.88%  internal/stringslite.Index
+         0     0%   100%       20ms  4.88%  internal/stringslite.IndexByte (inline)
+         0     0%   100%      400ms 97.56%  main.RunRegisteredMain
+         0     0%   100%      400ms 97.56%  main.RunRegisteredMain.func1
+         0     0%   100%       30ms  7.32%  main.__able_compiled_fn_ledger_error
+         0     0%   100%       30ms  7.32%  main.__able_compiled_fn_lookup
+         0     0%   100%       10ms  2.44%  main.__able_compiled_fn_parse_i64
+         0     0%   100%      160ms 39.02%  main.__able_compiled_fn_parse_transaction.func1 (inline)
+         0     0%   100%       30ms  7.32%  main.__able_compiled_impl_Map_get_0_spec
+         0     0%   100%       40ms  9.76%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0%   100%       40ms  9.76%  main.__able_compiled_method_HashMap_set_spec
+         0     0%   100%       20ms  4.88%  main.__able_compiled_method_Transaction_key (inline)
+         0     0%   100%       20ms  4.88%  main.__able_hash_map_get_impl
+         0     0%   100%       10ms  2.44%  main.__able_hash_map_set_impl
+         0     0%   100%       30ms  7.32%  main.__able_iface_Map_String_i64_adapter_ptr_HashMap_String_i64.get
+         0     0%   100%       20ms  4.88%  main.__able_nullable_i64_to_value (inline)
+         0     0%   100%      400ms 97.56%  main.__able_register_compiled_call.func1
+         0     0%   100%       10ms  2.44%  main.__able_struct_LedgerError_to (inline)
+         0     0%   100%       10ms  2.44%  main.__able_struct_LedgerError_to_seen
+         0     0%   100%      400ms 97.56%  main.__able_wrap_fn_main
+         0     0%   100%      400ms 97.56%  main.main
+         0     0%   100%      400ms 97.56%  main.runMain
+         0     0%   100%       10ms  2.44%  runtime.(*activeSweep).end
+         0     0%   100%       40ms  9.76%  runtime.(*mcache).nextFree
+         0     0%   100%       40ms  9.76%  runtime.(*mcache).refill
+         0     0%   100%       30ms  7.32%  runtime.(*mcentral).cacheSpan
+         0     0%   100%       10ms  2.44%  runtime.(*mcentral).grow
+         0     0%   100%       10ms  2.44%  runtime.(*mcentral).uncacheSpan
+         0     0%   100%       10ms  2.44%  runtime.(*mheap).alloc
+         0     0%   100%       10ms  2.44%  runtime.(*mheap).alloc.func1
+         0     0%   100%       10ms  2.44%  runtime.(*mheap).allocSpan
+         0     0%   100%       10ms  2.44%  runtime.(*scavengerState).sleep
+         0     0%   100%       10ms  2.44%  runtime.(*spanSet).push
+         0     0%   100%       10ms  2.44%  runtime.(*spanSetBlockAlloc).alloc
+         0     0%   100%       10ms  2.44%  runtime.(*sweepLocked).sweep
+         0     0%   100%       10ms  2.44%  runtime.(*timer).maybeAdd
+         0     0%   100%       10ms  2.44%  runtime.(*timer).modify
+         0     0%   100%       10ms  2.44%  runtime.(*timer).reset (inline)
+         0     0%   100%       10ms  2.44%  runtime.(*timers).addHeap
+         0     0%   100%       10ms  2.44%  runtime.bgscavenge
+         0     0%   100%       20ms  4.88%  runtime.concatstring3
+         0     0%   100%       50ms 12.20%  runtime.convT
+         0     0%   100%       20ms  4.88%  runtime.deductSweepCredit
+         0     0%   100%       80ms 19.51%  runtime.gcAssistAlloc
+         0     0%   100%       80ms 19.51%  runtime.gcAssistAlloc.func2
+         0     0%   100%       80ms 19.51%  runtime.gcAssistAlloc1
+         0     0%   100%       80ms 19.51%  runtime.gcDrainN
+         0     0%   100%       10ms  2.44%  runtime.growslice
+         0     0%   100%       10ms  2.44%  runtime.heapSetTypeNoHeader (inline)
+         0     0%   100%      400ms 97.56%  runtime.main
+         0     0%   100%       10ms  2.44%  runtime.makemap_small
+         0     0%   100%      190ms 46.34%  runtime.mallocgc
+         0     0%   100%       10ms  2.44%  runtime.mapaccess2_faststr
+         0     0%   100%       10ms  2.44%  runtime.mapassign_faststr
+         0     0%   100%       10ms  2.44%  runtime.markroot
+         0     0%   100%       10ms  2.44%  runtime.markrootBlock
+         0     0%   100%       10ms  2.44%  runtime.newarray
+         0     0%   100%       30ms  7.32%  runtime.newobject

@@ -1,0 +1,27 @@
+File: compiled
+Build ID: 604277875b52b5af13abb1f002fa57e36da54601
+Type: alloc_objects
+Time: 2026-07-29 19:54:57 CDT
+Showing nodes accounting for 12194800, 99.53% of 12251951 total
+Dropped 137 nodes (cum <= 61259)
+      flat  flat%   sum%        cum   cum%
+   7999998 65.30% 65.30%    7999998 65.30%  able/interpreter-go/pkg/compiler/bridge.ToUint
+   3961373 32.33% 97.63%    3965468 32.37%  able/interpreter-go/pkg/compiler/bridge.ToInt
+    233358  1.90% 99.53%     233358  1.90%  main.__able_string_from_builtin_native (inline)
+        34 0.00028% 99.53%     233402  1.91%  main.__able_compiled_fn_read_target_sequence
+        24 0.0002% 99.53%   11965649 97.66%  main.__able_compiled_fn_print_frequency_table
+        12 9.8e-05% 99.53%   12199089 99.57%  main.__able_compiled_fn_main
+         1 8.2e-06% 99.53%   12199090 99.57%  main.RunRegisteredMain
+         0     0% 99.53%   12199089 99.57%  main.RunRegisteredMain.func1
+         0     0% 99.53%     233358  1.90%  main.__able_compiled_entry_method_String_starts_with
+         0     0% 99.53%   11965475 97.66%  main.__able_compiled_fn_count_windows
+         0     0% 99.53%   11965466 97.66%  main.__able_compiled_fn_increment_count
+         0     0% 99.53%     233358  1.90%  main.__able_compiled_fn_validated_bytes
+         0     0% 99.53%    4000002 32.65%  main.__able_compiled_method_HashMap_raw_get_spec
+         0     0% 99.53%    7965464 65.01%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0% 99.53%     233358  1.90%  main.__able_compiled_method_String_starts_with
+         0     0% 99.53%   12199089 99.57%  main.__able_register_compiled_call.func1
+         0     0% 99.53%   12199089 99.57%  main.__able_wrap_fn_main
+         0     0% 99.53%   12251951   100%  main.main
+         0     0% 99.53%   12251951   100%  main.runMain
+         0     0% 99.53%   12251951   100%  runtime.main

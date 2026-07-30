@@ -127,17 +127,19 @@ func (g *generator) compilePropagationExpression(ctx *compileContext, expr *ast.
 		innerType, _ := g.nativeNullableValueInnerType(valueType)
 		lines := append([]string{}, valueLines...)
 		valueTemp := ctx.newTemp()
+		nilExpr, _ := g.nativeNullableIsNilExpr(valueType, valueTemp)
+		unwrappedExpr, _ := g.nativeNullableValueExpr(valueType, valueTemp)
 		transferLines, ok := g.nilPropagationReturnLines(ctx)
 		if !ok {
 			return nil, "", "", false
 		}
 		lines = append(lines,
 			fmt.Sprintf("%s := %s", valueTemp, valueExpr),
-			fmt.Sprintf("if %s == nil {", valueTemp),
+			fmt.Sprintf("if %s {", nilExpr),
 		)
 		lines = append(lines, indentLines(transferLines, 1)...)
 		lines = append(lines, "}")
-		return lines, fmt.Sprintf("(*%s)", valueTemp), innerType, true
+		return lines, unwrappedExpr, innerType, true
 	}
 	if valueType != "runtime.Value" {
 		if !g.typeMatches(resultType, valueType) {
@@ -529,6 +531,7 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	successExpr := valueTemp
 	successType := effectiveValueType
 	nullableCheckExpr := valueTemp
+	nullableCarrierType := effectiveValueType
 	if valueErrorUnion {
 		failureNativeTemp := "_"
 		if bindingName != "" {
@@ -576,10 +579,11 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 		successExpr = successTemp
 		successType = unionSuccessMember.GoType
 		nullableCheckExpr = successTemp
+		nullableCarrierType = unionSuccessMember.GoType
 	}
 
 	if valueNullable {
-		successExpr = fmt.Sprintf("(*%s)", successExpr)
+		successExpr, _ = g.nativeNullableValueExpr(nullableCarrierType, successExpr)
 		successType = valueNullableInner
 	}
 	successConvLines, successExpr, ok := g.coerceJoinBranch(ctx, resultType, successExpr, successType)
@@ -589,10 +593,11 @@ func (g *generator) compileOrElseExpression(ctx *compileContext, expr *ast.OrEls
 	}
 
 	if valueNullable {
+		nilExpr, _ := g.nativeNullableIsNilExpr(nullableCarrierType, nullableCheckExpr)
 		if bindingName != "" {
-			lines = append(lines, fmt.Sprintf("if %s == nil && %s == nil { %s = runtime.NilValue{}; %s = true }", nullableCheckExpr, controlTemp, failureTemp, failedTemp))
+			lines = append(lines, fmt.Sprintf("if %s && %s == nil { %s = runtime.NilValue{}; %s = true }", nilExpr, controlTemp, failureTemp, failedTemp))
 		} else {
-			lines = append(lines, fmt.Sprintf("if %s == nil && %s == nil { %s = true }", nullableCheckExpr, controlTemp, failedTemp))
+			lines = append(lines, fmt.Sprintf("if %s && %s == nil { %s = true }", nilExpr, controlTemp, failedTemp))
 		}
 	}
 	if !valueErrorUnion && (valueType == "runtime.Value" || valueType == "any") {

@@ -13,10 +13,10 @@ far too small to close even the smallest modeled VM target gap.
 
 | Mode | Rows | Meets | Misses | Excess seconds | Share |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| compiled | 63 | 7 | 56 | 5.353263 | 2.36% |
-| bytecode | 63 | 4 | 59 | 221.503684 | 97.64% |
+| compiled | 64 | 7 | 57 | 4.794105 | 2.08% |
+| bytecode | 64 | 4 | 60 | 226.057474 | 97.92% |
 
-The full 126-row frontier has 115 misses and 226.856947 seconds above its aggregate target. Bytecode owns 97.64% of that gap.
+The full 128-row frontier has 117 misses and 230.851579 seconds above its aggregate target. Bytecode owns 97.92% of that gap.
 
 ## Optimistic architecture bounds
 
@@ -35,7 +35,7 @@ experiment as the next tranche.
 | Group | Misses | Excess seconds | Disposition |
 | --- | ---: | ---: | --- |
 | `bytecode-portable-workload-admission` | 5 | 74.548947 | `closed-no-shared-leaf` |
-| `bytecode-text-map` | 9 | 60.738421 | `closed-rejected-candidate` |
+| `bytecode-text-map` | 10 | 65.292211 | `closed-rejected-candidate` |
 | `bytecode-regex` | 6 | 23.137895 | `closed-rejected-candidate` |
 | `bytecode-concurrency` | 23 | 17.716947 | `closed-no-shared-leaf` |
 | `bytecode-wide-numeric` | 3 | 17.174000 | `closed-rejected-candidate` |

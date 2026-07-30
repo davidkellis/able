@@ -1,0 +1,41 @@
+Generic Slot Buffer compiled owner profile
+Date: 2026-07-29
+Go toolchain: go1.26.5
+CPU affinity: 15
+Build: strict --no-fallbacks
+Processes: 30 independent verified CPU-profiled executions
+Merged CPU samples: 710 ms
+
+Main-phase runtime statistics:
+  allocated bytes: 2,124,160
+  allocations:       264,218
+  frees:             222,438
+  heap delta:        617,240 bytes
+  heap-object delta: 41,780
+  GC count:          1
+
+Leading merged CPU owners:
+  180 ms flat / 180 ms cumulative  main.__able_checked_mul_signed
+  100 ms flat / 100 ms cumulative  main.__able_divmod_signed
+   90 ms flat / 700 ms cumulative  main.__able_compiled_fn_main
+   60 ms flat /  60 ms cumulative  main.__able_checked_add_signed
+   40 ms flat / 200 ms cumulative  runtime.mallocgc
+   20 ms flat / 230 ms cumulative  main.__able_compiled_method_VersionedBuffer_get_spec
+   20 ms flat /  60 ms cumulative  main.__able_compiled_method_VersionedBuffer_write_spec
+
+Exact allocation-object profile:
+  total profile objects: 160,403
+  VersionedBuffer_get_spec: 131,329 flat objects (81.87%)
+  runtime/pprof serialization: 28,024+ objects
+
+Exact allocation-space profile:
+  total profile space: 7,609.16 KiB
+  VersionedBuffer_get_spec: 2,052.02 KiB flat (26.97%)
+  runtime/pprof serialization dominates the remainder.
+
+Interpretation:
+  VersionedBuffer_get_spec returns ?i64 as *int64 and constructs it with
+  __able_ptr(slot.Value). The buffer, its Array storage, its Slot<i64>
+  elements, mutation methods, and concrete interface adapter all remain
+  native generated Go values. No runtime.Value conversion or interpreter
+  transition appears in the application hot path.

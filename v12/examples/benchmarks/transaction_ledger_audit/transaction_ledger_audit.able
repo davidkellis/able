@@ -1,0 +1,191 @@
+package transaction_ledger_audit
+
+import able.collections.hash_map.*
+import able.collections.map.*
+import able.core.interfaces.{Error}
+import able.core.options.*
+import able.fs
+import able.io
+import able.kernel.{Array}
+import able.os
+
+RECORD_LIMIT: i32 := 32
+DEFAULT_ROUNDS: i32 := 512
+
+struct LedgerError { code: i32 }
+
+impl Error for LedgerError {
+  fn message(self: Self) -> String { "invalid transaction" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct Transaction {
+  account: String,
+  region: String,
+  kind: String,
+  amount: i64,
+  status: String
+}
+
+methods Transaction {
+  fn valid(self: Self) -> bool {
+    if self.account.len_bytes() == 0 { return false }
+    if self.region != "us" && self.region != "eu" && self.region != "ap" { return false }
+    if self.kind != "credit" && self.kind != "debit" && self.kind != "fee" { return false }
+    if self.amount < 1_i64 || self.amount > 5_000_i64 { return false }
+    self.status == "posted" || self.status == "held" || self.status == "void"
+  }
+
+  fn key(self: Self) -> String { `${self.account}:${self.region}` }
+
+  fn bucket(self: Self) -> i32 {
+    if self.region == "us" { 0 }
+    elsif self.region == "eu" { 1 }
+    else { 2 }
+  }
+
+  fn signed_amount(self: Self) -> i64 {
+    if self.kind == "credit" { self.amount } else { -self.amount }
+  }
+}
+
+fn ledger_error(code: i32) -> Error {
+  error: Error = LedgerError { code }
+  error
+}
+
+fn parse_i64(text: String) -> Result i64 {
+  bytes := io.string_to_bytes(text)
+  if bytes.len() == 0 { return ledger_error(1) }
+  negative := false
+  index := 0
+  if bytes.read_slot(0) == 45_u8 {
+    negative = true
+    index = 1
+  }
+  if index >= bytes.len() { return ledger_error(2) }
+  value := 0_i64
+  loop {
+    if index >= bytes.len() { break }
+    current := bytes.read_slot(index)
+    if current < 48_u8 || current > 57_u8 { return ledger_error(3) }
+    value = value * 10_i64 + ((current - 48_u8) as i64)
+    index = index + 1
+  }
+  if negative { -value } else { value }
+}
+
+fn parse_transaction(line: String) -> Result Transaction {
+  fields := line.split("|")
+  if fields.len() != 5 { return ledger_error(4) }
+  [account: String, region: String, kind: String, amount_text: String, status: String] := fields
+  amount := parse_i64(amount_text) match {
+    case value: i64 => value,
+    case _: Error => { return ledger_error(5) }
+  }
+  transaction := Transaction { account, region, kind, amount, status }
+  if !transaction.valid() { return ledger_error(6) }
+  transaction
+}
+
+fn lookup(balances: Map String i64, key: String) -> i64 {
+  balances.get(key) match {
+    case value: i64 => value,
+    case nil => 0_i64
+  }
+}
+
+fn audit_rounds(args: Array String) -> i32 {
+  if args.len() > 1 && args.get(1)! == "--profile" { 1 } else { DEFAULT_ROUNDS }
+}
+
+fn main() -> void {
+  args := os.args()
+  path := if args.len() > 0 { args.get(0)! } else { "transactions.txt" }
+  lines := fs.read_lines_prefix(path, RECORD_LIMIT)
+  rounds := audit_rounds(args)
+  balances: HashMap String i64 = HashMap.with_capacity(RECORD_LIMIT)
+  keys: Array String := Array.with_capacity(RECORD_LIMIT)
+  counts: Array i64 := Array.with_capacity(3)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  counts.push(0_i64)
+  posted := 0_i64
+  held := 0_i64
+  voided := 0_i64
+  invalid := 0_i64
+  event_checksum := 0_i64
+  sequence := 0_i64
+
+  round := 0
+  loop {
+    if round >= rounds { break }
+    index := 0
+    loop {
+      if index >= lines.len() { break }
+      parse_transaction(lines.read_slot(index)) match {
+        case transaction: Transaction => {
+          if transaction.status == "posted" {
+            posted = posted + 1_i64
+            bucket := transaction.bucket()
+            counts.write_slot(bucket, counts.read_slot(bucket) + 1_i64)
+            key := transaction.key()
+            if round == 0 { keys.push(key) }
+            updated := lookup(balances, key) + transaction.signed_amount()
+            balances.set(key, updated)
+            event_checksum = (
+              event_checksum
+              + (updated + 2_000_000_i64) * 7_i64
+              + transaction.amount * 11_i64
+              + (bucket as i64) * 19_i64
+              + sequence * 3_i64
+            ) % 1_000_003_i64
+          } elsif transaction.status == "held" {
+            held = held + 1_i64
+            event_checksum = (
+              event_checksum
+              + transaction.amount * 13_i64
+              + (transaction.bucket() as i64) * 23_i64
+              + sequence * 5_i64
+            ) % 1_000_003_i64
+          } else {
+            voided = voided + 1_i64
+            event_checksum = (
+              event_checksum
+              + transaction.amount * 17_i64
+              + (transaction.bucket() as i64) * 29_i64
+              + sequence * 7_i64
+            ) % 1_000_003_i64
+          }
+        },
+        case _: Error => {
+          invalid = invalid + 1_i64
+          fallback := 97_i64 + (sequence % 101_i64)
+          event_checksum = (
+            event_checksum + fallback * 31_i64 + sequence * 11_i64
+          ) % 1_000_003_i64
+        }
+      }
+      sequence = sequence + 1_i64
+      index = index + 1
+    }
+    round = round + 1
+  }
+
+  balance_total := 0_i64
+  balance_checksum := 0_i64
+  index := 0
+  loop {
+    if index >= keys.len() { break }
+    balance := lookup(balances, keys.read_slot(index))
+    balance_total = balance_total + balance
+    balance_checksum = balance_checksum + ((index as i64) + 11_i64) * (balance + 2_000_000_i64)
+    index = index + 1
+  }
+
+  print(
+    `${sequence}:${posted}:${held}:${voided}:${invalid}:`
+    + `${counts.read_slot(0)},${counts.read_slot(1)},${counts.read_slot(2)}:`
+    + `${balance_total}:${balance_checksum}:${event_checksum}`
+  )
+}

@@ -175,7 +175,7 @@ func (g *generator) typeExprForGoType(goType string) (ast.TypeExpression, bool) 
 	if callable := g.nativeCallableInfoForGoType(goType); callable != nil && callable.TypeExpr != nil {
 		return g.recordResolvedTypeExprPackage(callable.TypeExpr, callable.PackageName), true
 	}
-	if spec, ok := nativeNullableSpecForPointer(goType); ok {
+	if spec, ok := nativeNullableSpecForCarrier(goType); ok {
 		innerExpr, ok := g.typeExprForGoType(spec.InnerType)
 		if !ok {
 			return nil, false

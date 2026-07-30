@@ -14,6 +14,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 GENERATOR = SCRIPT_DIR / "bench_feature_interaction_triples"
 BASELINE_REMOVALS = [
+    "lexical_blocks_bindings_patterns=transaction_ledger_audit",
+    "types_nominals_generics_unions=transaction_ledger_audit",
+    "expressions_arrays_text_files=transaction_ledger_audit",
+    "control_flow=transaction_ledger_audit",
+    "inherent_methods=transaction_ledger_audit",
+    "interfaces_implementations_dispatch=transaction_ledger_audit",
+    "option_result_exceptions=transaction_ledger_audit",
+    "stdlib_protocols_regex=transaction_ledger_audit",
+    "program_entry=transaction_ledger_audit",
     "lexical_blocks_bindings_patterns=backup_dedup",
     "types_nominals_generics_unions=backup_dedup",
     "expressions_arrays_text_files=backup_dedup",
@@ -216,7 +225,7 @@ class FeatureInteractionTripleTests(unittest.TestCase):
         self.assertEqual(summary["improved_triples"], 165)
         self.assertAlmostEqual(
             summary["performance_frontier_total_excess_seconds"],
-            226.856947,
+            230.851579,
             places=6,
         )
 

@@ -1,0 +1,123 @@
+{
+  "kind": "able-post-nullable-compiled-wide-numeric-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "closure_id": "compiled-wide-numeric",
+  "decision": "zero-changed-carrier-reach-direct-primitive-wide-lowering",
+  "changed_mechanism": "primitive-nullable-value-plus-valid-carrier",
+  "source_state": {
+    "compiler_production_tree_sha256": "d9e73a315f6ac6c9c3faa7a9530aaae33c8eee4a91e26b82e92505f1af9a4068",
+    "scorecard": "v12/docs/perf-baselines/2026-07-30-nullable-scalar-retained-scorecard-reconciled.json"
+  },
+  "measurement_contract": {
+    "strict_build_args": [
+      "--no-fallbacks"
+    ],
+    "dependency_packages_per_application": 96,
+    "interpreter_dependency": false,
+    "successful_smoke_processes_per_application": 1,
+    "smoke_verifier_backed": true,
+    "new_cpu_profiles": 0,
+    "new_allocation_profiles": 0,
+    "new_timing_cohorts": 0,
+    "profile_gate": "profile only a materially reached post-carrier residual shared by at least three unlike applications"
+  },
+  "applications": [
+    {
+      "benchmark": "fixed_width_128",
+      "able_source_sha256": "330ce59771b6dc41a1c147c53d82bb65b43d9a09c018d11ee527c1431a829f0e",
+      "contract_sha256": "125b51b8b2f48731ebb70fbb7ed7ed4ca1994eef570d0a6000ce0120e8cddd13",
+      "generated_compiled_go_sha256": "0a3f2fe8a747b707b14da81c1c5413915736ff02fd8d1f6db828dd5d1381da58",
+      "generated_application_bodies_sha256": "a55ce7f0c0f72370ad714d52e87465a7380735f4cb9babf5baa3771aa92ab24b",
+      "binary_sha256": "2817311f72c1eb79e18850d04bcbdad3189c8fa3d2bab0e6d1bdb8a5bd3e3672",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "whole_module_nullable_wide_references": 12,
+      "nullable_wide_construction_sites": 0,
+      "nullable_wide_helper_call_sites": 0,
+      "material_primitive_wide_path": "UInt128 fields -> runtime.Uint128 add/sub/compare -> general nominal UInt128 result",
+      "current_able_seconds": 0.106,
+      "current_go_seconds": 0.0059,
+      "current_able_go_ratio": 17.966101694915253,
+      "smoke_real_seconds": 0.16,
+      "smoke_output_sha256": "eceabf5869b1abca8d6dd228b64a09f89e4e98ba8cabc4833ffee1218dafa56a",
+      "changed_carrier_material_reach": false
+    },
+    {
+      "benchmark": "rational_series",
+      "able_source_sha256": "20a58261d852834d425de755ed35e7c34b0bda80945caf97a94d4ba9b2e0bf46",
+      "contract_sha256": "0cb1a12c20cb1267434948c20408fa869a6d9abd4f484b63cff67022c21f3b67",
+      "generated_compiled_go_sha256": "0d595f82f2ec169fe227a46a34be6fa06c4d695437f0cca0962d446e70476bda",
+      "generated_application_bodies_sha256": "a2dbececa0aac62bc5335888ced36b169d154e14ed01efdb862139eff482224c",
+      "binary_sha256": "09e281ba15a82052ac9e070de757e1bd854e35c097500f817cac8f5929246dad",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "whole_module_nullable_wide_references": 12,
+      "nullable_wide_construction_sites": 0,
+      "nullable_wide_helper_call_sites": 0,
+      "material_primitive_wide_path": "runtime.Int128 arithmetic, GCD, and DivMod -> general nominal Rational result",
+      "current_able_seconds": 0.07,
+      "current_go_seconds": 0.0135,
+      "current_able_go_ratio": 5.185185185185186,
+      "smoke_real_seconds": 0.06,
+      "smoke_output_sha256": "127f0f44ee4870b57a188a7948f80a0a5d14584a326c345a48d4285594069f0c",
+      "changed_carrier_material_reach": false
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "able_source_sha256": "8ba1e245f5d169409d2d35ba53c3ba94a554fd6767ec8d9d4602fef064b8405d",
+      "contract_sha256": "c578281b99c246e23c56f1c84fe1fe1d5927673e07edeb99fabe33232635ffee",
+      "generated_compiled_go_sha256": "711930f23245b864f7aaec854fd0d0b81c7136a073d1d6614b38c18a1d3cf852",
+      "generated_application_bodies_sha256": "9bc8dc84e6ae99f6b9cd8333d89a151b1cc147c2e9a71a7fae3bf969bfe85ded",
+      "binary_sha256": "194291f250aa8c848dd0bf55bfa959d758df263b1dc5e5bf24eda4dbb7aa9eb1",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "whole_module_nullable_wide_references": 12,
+      "nullable_wide_construction_sites": 0,
+      "nullable_wide_helper_call_sites": 0,
+      "material_primitive_wide_path": "nominal Int128/UInt128 fields -> direct runtime.Int128/Uint128 arithmetic and comparison -> general nominal results",
+      "current_able_seconds": 0.074,
+      "current_go_seconds": 0.0247,
+      "current_able_go_ratio": 2.9959514170040484,
+      "smoke_real_seconds": 0.15,
+      "smoke_output_sha256": "f373537521cc6bfb0fb9e1a1eb36eb93a057654b526a4521878bc269261713e5",
+      "changed_carrier_material_reach": false
+    }
+  ],
+  "changed_carrier_material_reach_count": 0,
+  "changed_carrier_exact_leaf_breadth": 0,
+  "qualifying_residual_candidate": null,
+  "profile_refresh_required": false,
+  "retained_shared_owner": {
+    "owner": "package-environment SwapEnv -> sync/atomic.StorePointer",
+    "flat_cpu_percent": {
+      "fixed_width_128": 16.85,
+      "rational_series": 10.4,
+      "wide_integer_records": 30.64
+    },
+    "disposition": "closed by broad execution-context wall-time regressions",
+    "invalidation_from_nullable_change": false
+  },
+  "closed_alternatives": [
+    "fixed generated execution context",
+    "package linkage context variant",
+    "quotient-only helper",
+    "named UInt128 or Int128 lowering",
+    "named Rational lowering",
+    "nominal result specialization by type name"
+  ],
+  "cleanup": {
+    "raw_build_audit_and_test_workspace_mib": 472,
+    "matching_artifacts_remaining": 0
+  },
+  "verification": {
+    "go_test_cmd_ablec": "pass",
+    "go_test_cmd_ablec_seconds": 5.504
+  },
+  "production_files_changed": [],
+  "stdlib_changed": false,
+  "interpreter_changed": false,
+  "bytecode_changed": false,
+  "language_changed": false,
+  "wasm_changed": false
+}

@@ -1,0 +1,206 @@
+{
+  "kind": "able-post-nullable-cross-family-architecture-ownership-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "closure_id": "cross-family-architecture-ownership",
+  "decision": "close-shared-owner-rejected-and-rebase-reviewed-compiler-scope",
+  "changed_mechanism": "primitive-nullable-value-plus-valid-carrier",
+  "source_state": {
+    "compiler_production_tree_sha256": "d9e73a315f6ac6c9c3faa7a9530aaae33c8eee4a91e26b82e92505f1af9a4068",
+    "canonical_stdlib_tree_sha256": "382d256e2fb380220dcdd62a5cf83109fa72297f23d70bdd1ffe2d8daebed047",
+    "canonical_stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+    "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "go_version": "go1.26.4 linux/amd64",
+    "frontier": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json"
+  },
+  "closure_partition": {
+    "compiled_frontier_rows": 65,
+    "reviewed_family_rows": 65,
+    "reviewed_unique_family_rows": 65,
+    "missing_rows": [],
+    "extra_rows": [],
+    "interpreter_dependencies": 0,
+    "family_closures": 10
+  },
+  "families": [
+    {
+      "closure_id": "compiled-target-guards",
+      "rows": 6,
+      "material_carrier_reach": 0,
+      "residual": "protected native owners remain outside the carrier"
+    },
+    {
+      "closure_id": "compiled-current-control",
+      "rows": 3,
+      "material_carrier_reach": 0,
+      "residual": "direct recursion, primitive matrix loop, and Tape dispatch remain separate"
+    },
+    {
+      "closure_id": "compiled-iterator-control",
+      "rows": 8,
+      "material_carrier_reach": 4,
+      "residual": "native carriers remain direct; ordinary semantic boxes and nominal operations split"
+    },
+    {
+      "closure_id": "compiled-text-map",
+      "rows": 9,
+      "material_carrier_reach": 7,
+      "residual": "named HashMap dynamic conversion boundary plus unrelated text and nominal work"
+    },
+    {
+      "closure_id": "compiled-regex",
+      "rows": 6,
+      "material_carrier_reach": 6,
+      "residual": "native validity checks are allocation-free; NFA work remains the owner"
+    },
+    {
+      "closure_id": "compiled-float-numeric",
+      "rows": 4,
+      "material_carrier_reach": 1,
+      "residual": "one ignored native i32 loop result; float work is direct float64"
+    },
+    {
+      "closure_id": "compiled-wide-numeric",
+      "rows": 3,
+      "material_carrier_reach": 0,
+      "residual": "direct Int128 and Uint128 arithmetic plus shared nominal results"
+    },
+    {
+      "closure_id": "compiled-byte-output",
+      "rows": 2,
+      "material_carrier_reach": 0,
+      "residual": "native byte Arrays and borrowed output; once-per-process host boundary"
+    },
+    {
+      "closure_id": "compiled-sudoku-quotient",
+      "rows": 1,
+      "material_carrier_reach": 0,
+      "residual": "one absent result after work; signed i32 divmod remains one-application"
+    },
+    {
+      "closure_id": "compiled-concurrency",
+      "rows": 23,
+      "material_carrier_reach": 4,
+      "residual": "three direct native receives and one explicit runtime-callable callback ABI"
+    }
+  ],
+  "cross_family_owner_gate": [
+    {
+      "owner": "primitive nullable allocation",
+      "unlike_family_count": 0,
+      "eligible": false,
+      "disposition": "eliminated by retained value-plus-valid carrier"
+    },
+    {
+      "owner": "bridge.ToInt",
+      "material_families": [
+        "compiled-iterator-control",
+        "compiled-text-map",
+        "compiled-concurrency"
+      ],
+      "representative_applications": [
+        "binary_event_log",
+        "dependency_plan",
+        "k_nucleotide",
+        "concurrent_event_routing",
+        "await_channel_mux",
+        "validated_job_pipeline",
+        "concurrent_stateful_pipeline"
+      ],
+      "unlike_family_count": 3,
+      "eligible": false,
+      "disposition": "closed-rejected-candidate",
+      "reason": "The general global integer cache slowed the allocation-light TapeLang guard by 4.17 percent; remaining calls materialize values at explicit semantic boundaries."
+    },
+    {
+      "owner": "named HashMap dynamic conversion boundary",
+      "material_families": [
+        "compiled-iterator-control",
+        "compiled-text-map"
+      ],
+      "unlike_family_count": 2,
+      "eligible": false,
+      "disposition": "insufficient family breadth and named-container compiler treatment forbidden"
+    },
+    {
+      "owner": "native nullable validity checks",
+      "material_families": [
+        "compiled-iterator-control",
+        "compiled-text-map",
+        "compiled-regex",
+        "compiled-concurrency"
+      ],
+      "unlike_family_count": 4,
+      "eligible": false,
+      "disposition": "already direct and allocation-free; not a residual cost leaf"
+    },
+    {
+      "owner": "Await nullable runtime-callable callback conversion",
+      "material_families": [
+        "compiled-concurrency"
+      ],
+      "unlike_family_count": 1,
+      "eligible": false,
+      "disposition": "explicit callable ABI with insufficient breadth"
+    },
+    {
+      "owner": "checked signed arithmetic",
+      "unlike_family_count": 2,
+      "eligible": false,
+      "disposition": "previously closed by mixed broad A/B results"
+    },
+    {
+      "owner": "allocation and GC parents",
+      "unlike_family_count": 5,
+      "eligible": false,
+      "disposition": "aggregate Go parents with distinct Able semantic descendants"
+    }
+  ],
+  "qualifying_candidate": null,
+  "new_cpu_profiles": 0,
+  "new_allocation_profiles": 0,
+  "new_timing_cohorts": 0,
+  "reason_no_new_measurement": "The only exact three-family leaf is an unchanged, already rejected candidate. Every changed carrier path is eliminated, direct native consumption, an explicit boundary with at most two-family breadth, or non-material.",
+  "ledger_transaction": {
+    "method": "complete authoritative baseline transaction after all shared-scope closures were reviewed; named partial advance correctly refused shared scope drift",
+    "before_current": 11,
+    "before_invalidated": 12,
+    "advanced_together": [
+      "compiled-architecture-target-budget",
+      "compiled-byte-output",
+      "compiled-concurrency",
+      "compiled-current-control",
+      "compiled-float-numeric",
+      "compiled-iterator-control",
+      "compiled-regex",
+      "compiled-sudoku-quotient",
+      "compiled-target-guards",
+      "compiled-text-map",
+      "compiled-wide-numeric",
+      "cross-family-architecture-ownership"
+    ],
+    "after_current": 23,
+    "after_invalidated": 0,
+    "after_selected": []
+  },
+  "verification": {
+    "frontier_partition_audit": "pass",
+    "frontier_tests": 5,
+    "closure_ledger_tests": 7,
+    "closure_ledger_test_skips": 1,
+    "frontier_check": "pass",
+    "closure_ledger_check": "pass",
+    "go_test_cmd_ablec": "pass",
+    "go_test_cmd_ablec_seconds": 5.682
+  },
+  "cleanup": {
+    "disk_backed_go_cache_mib": 122,
+    "matching_artifacts_remaining": 0
+  },
+  "production_files_changed": [],
+  "stdlib_changed": false,
+  "interpreter_changed": false,
+  "bytecode_changed": false,
+  "language_changed": false,
+  "wasm_changed": false
+}

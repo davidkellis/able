@@ -1,15 +1,15 @@
 # Bytecode current profile coverage
 
-All 59 current bytecode target misses have source-identity-checked CPU and allocation evidence. The four bytecode target guards are intentionally excluded.
+All 60 current bytecode target misses have source-identity-checked CPU and allocation evidence. The four bytecode target guards are intentionally excluded.
 
-Total current target excess is 221.503684 seconds. The retained closure ledger has 23 entries; no production optimization was admitted.
+Total current target excess is 226.057474 seconds. The retained closure ledger has 23 entries; no production optimization was admitted.
 
 ## Evidence groups
 
 | Group | Rows | Target excess | CPU | Allocation | Disposition |
 | --- | ---: | ---: | --- | --- | --- |
 | `bytecode-portable-workload-admission` | 5 | 74.548947 s | current | current | `closed-no-shared-leaf` |
-| `bytecode-text-map` | 9 | 60.738421 s | current | current | `closed-rejected-candidate` |
+| `bytecode-text-map` | 10 | 65.292211 s | current | current | `closed-rejected-candidate` |
 | `bytecode-regex` | 6 | 23.137895 s | current | current | `closed-rejected-candidate` |
 | `bytecode-concurrency` | 23 | 17.716947 s | current | current | `closed-no-shared-leaf` |
 | `bytecode-wide-numeric` | 3 | 17.174000 s | current | current | `closed-rejected-candidate` |
@@ -33,6 +33,7 @@ Total current target excess is 221.503684 seconds. The retained closure ledger h
 | `wide_integer_records` | `bytecode-wide-numeric` | `8ba1e245f5d169409d2d35ba53c3ba94a554fd6767ec8d9d4602fef064b8405d` | 5.501579 s |
 | `distance_field` | `bytecode-float-numeric` | `80f96ee942dafbf81b7e09edfc3410c3af37ed3190357fcf77c5d9641a30cf88` | 5.402526 s |
 | `mandelbrot` | `bytecode-float-numeric` | `663385828c4e7318bac285c4fcce27d3b435f9a3536a1a20b3cfa09af2a32315` | 5.089263 s |
+| `transaction_ledger_audit` | `bytecode-text-map` | `efed16e88aed7c6b9d4b7aef115eb1274824c5b725bbdbf845993218c9273738` | 4.553789 s |
 | `discrete_event_simulation` | `bytecode-iterator-control` | `f4229da6b02e7e79c49b81f266a08efb87476edade1255277a55fda77f10f22f` | 4.521158 s |
 | `rms_norm` | `bytecode-float-numeric` | `b289c78432f7c4077e259810c9e788341824899188821df669af345eed04dc59` | 4.128000 s |
 | `regex_set_audit` | `bytecode-regex` | `124fcfb1435ab1160adff38f7d50ba442c22b4d63cce25fa06e7799a26458b9b` | 4.110421 s |

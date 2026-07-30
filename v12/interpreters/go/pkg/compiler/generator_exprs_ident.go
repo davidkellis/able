@@ -57,7 +57,8 @@ func (g *generator) compileIdentifier(ctx *compileContext, ident *ast.Identifier
 			}
 		}
 		if g.nativeNullableWraps(expected, param.GoType) {
-			return nil, fmt.Sprintf("__able_ptr(%s)", param.GoName), expected, true
+			wrapped, _ := g.nativeNullablePresentExpr(expected, param.GoName)
+			return nil, wrapped, expected, true
 		}
 		if expected != "" && expected != "runtime.Value" && expected != "any" && param.GoType != "runtime.Value" && g.canCoerceStaticExpr(expected, param.GoType) {
 			return g.lowerCoerceExpectedStaticExpr(ctx, nil, param.GoName, param.GoType, expected)

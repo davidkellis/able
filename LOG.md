@@ -50977,3 +50977,593 @@
   authorize remote mutation or publication of deferred WASM.
 - Record:
   `v12/docs/perf-baselines/2026-07-29-post-census-release-inventory.md`.
+
+## 2026-07-29 - Exact post-census publication
+
+- Published exactly
+  `358368c24f84367ee8f39c5df6b07ec488b477ef` to `origin/master` with an
+  explicit non-force commit-to-branch refspec.
+- Verified the remote object, local tracking ref, and `HEAD` are identical
+  with zero ahead/behind divergence.
+- The commit contains exactly the authorized eight-path census/evidence
+  boundary. The index remained empty and the same 34 deferred WASM files
+  remained outside the commit.
+- GitHub's repository-wide banner decreased from 75 to 74 alerts by removing
+  one moderate alert. The completed active-v12 attribution remains
+  authoritative.
+- Next choose and authorize a real performance-evidence invalidation trigger:
+  new specified language/stdlib behavior or a genuinely new portable external
+  application with applicable references. Implement correctness/coverage
+  first and refresh only closures selected by the ledger. This matters because
+  all 23 current closures and the fully selected 63-application suite admit no
+  repeated performance mutation.
+- Record:
+  `v12/docs/perf-baselines/2026-07-29-post-census-release-inventory.md`.
+
+## 2026-07-29 - Transaction Ledger Audit application and owner gate
+
+- Added the 64th portable application, Transaction Ledger Audit, with
+  byte-identical canonical/external Able sources and equivalent Go 1.26,
+  Python 3.14, and Ruby 4.0 implementations. Strict compiled, tree-walker,
+  bytecode, and all references produce the same verifier-approved output.
+- Five-run CPU-15 means are 0.0500 seconds compiled versus Go at 0.0073
+  seconds, and 4.5900 seconds bytecode versus Python at 0.0344 seconds and
+  Ruby at 0.0914 seconds. The strict binary is fallback-free and omits the
+  interpreter dependency.
+- Refreshed compiled CPU and exact main-allocation ownership across
+  Transaction Ledger Audit, Inventory Reconciliation, and Sensor Calibration.
+  Map storage is material only in the first two; parsing/integer conversion
+  only in the first and third. No exact general Able owner reaches all three.
+- Retained no compiler, runtime, interpreter, VM, stdlib, language,
+  dependency, or WASM change. The 128-row frontier has 11 guards, 117 misses,
+  zero actionable groups, complete bytecode profile coverage, and 23/23
+  current closure entries.
+- Focused evidence and architecture generators, `go test ./cmd/ablec`, and
+  the full `./run_all_tests.sh` handoff suite pass. The latter completed every
+  preflight, non-compiler package, all 34 compiler batches, and the bytecode
+  fixture pass.
+- Removed about 432 MiB of exact disposable build/profile workspaces plus
+  generated Python and extern caches. No matching `/var/tmp` or
+  `/tmp/able-*` artifact remains.
+- Next add a portable user-defined generic nominal storage application. This
+  entails equivalent Able/Go/Python/Ruby identity, aliasing, interface, and
+  iteration behavior, five-run verification, and a closure-selected profile
+  refresh. It matters because this can establish whether the two-program map
+  boundary is a general nominal-encoding cost without permitting a
+  named-container special case or unnecessary dynamic boxing.
+- Record:
+  `v12/docs/perf-baselines/2026-07-29-transaction-ledger-audit-application-gate.md`.
+
+## 2026-07-29 - Generic Slot Buffer native-nominal application gate
+
+- Added the 65th portable application, Generic Slot Buffer, with
+  byte-identical canonical/external Able sources and equivalent Go 1.26,
+  Python 3.14, and Ruby 4.0 implementations. All engines produce the same
+  verifier-approved output.
+- Five-run CPU-15 means are 0.0420 seconds compiled versus Go at 0.0051
+  seconds, and 2.2580 seconds bytecode versus Python at 0.1847 seconds and
+  Ruby at 0.1037 seconds. The strict compiled graph omits `pkg/interpreter`.
+- Confirmed that user-defined generic mutable nominal storage, identity,
+  alias-observed mutation, iteration, and its concrete interface adapter all
+  use direct generated Go carriers. No runtime-value conversion or
+  interpreter transition appears in the application hot path.
+- The exact compiled allocation profile attributes 131,329 objects to direct
+  pointer-backed `?i64` construction. Unlike map workloads, this does not use
+  their dynamic conversion/recovery leaves, so no exact new owner spans three
+  unlike applications. Bytecode repeats only already-closed owners.
+- Retained the application and evidence but no compiler, runtime,
+  interpreter, VM, stdlib, language, dependency, or WASM change. The 130-row
+  frontier has 11 guards, 119 misses, zero actionable groups, and 23/23
+  current closure entries.
+- Catalog, coverage, selection, scorecard, frontier, closure, focused compiler,
+  and the complete `./run_all_tests.sh` handoff suite pass. Updated the stale
+  feature-coverage test expectation from 64 to 65 portable applications.
+- Removed 190 MiB of exact Generic Slot Buffer build/profile workspaces and
+  generated Python caches; no matching `/var/tmp` or `/tmp` artifact remains.
+- Next reconcile the general compiled nullable-scalar carrier. This entails a
+  complete static/interface/union/dynamic/host boundary census and semantic
+  design, followed by a value-plus-valid prototype only if one representation
+  remains sound. It matters because this could remove hundreds of thousands
+  of primitive boxes while preserving native nominal storage and avoiding
+  named-container rules.
+- Record:
+  `v12/docs/perf-baselines/2026-07-29-generic-slot-buffer-application-gate.md`.
+
+## 2026-07-30 - Compiled primitive nullable value carrier retained
+
+- Replaced pointer-backed compiled primitive nullables with one general
+  generated `value + valid` Go carrier. Present zero remains distinct from
+  absent. `?Error`, non-primitive nominal nullables, and explicit
+  runtime/dynamic boundaries keep their existing representations.
+- Five-run frozen A/B means improved Generic Slot Buffer from 0.0560 to 0.0340
+  seconds, Inventory Reconciliation from 0.1220 to 0.1100 seconds, and
+  Transaction Ledger Audit from 0.0480 to 0.0400 seconds. All processes passed
+  public verification and every strict graph omits `pkg/interpreter`.
+- Three independent exact main-phase measurements reduced allocation objects
+  by 99.60%, 48.88%, and 8.88% respectively. The intended nullable owner
+  disappeared in all three; remaining map conversions are explicit dynamic
+  boundaries.
+- Reconciled one non-repeating Pidigits scorecard anomaly with frozen A/B and a
+  fresh five-run row. Conservatively removed I Before E from established
+  guards after its current repeat missed. The 130-row frontier now has 6
+  compiled and 4 bytecode guards, 120 misses, and no unestablished snapshot
+  meet.
+- Focused nullable/interface/union/Array/Result guards, `go test ./cmd/ablec`,
+  and the complete `./run_all_tests.sh` suite pass. No stdlib, tree-walker,
+  bytecode VM, runtime package, language, dependency, or WASM change was
+  required.
+- Removed 442 MiB of exact disk-backed nullable build/profile workspaces and
+  the generated v12 Python cache after retaining readable evidence.
+- The compiler source identity correctly invalidates 12 compiled or
+  cross-family closure records; they were not advanced from evidence covering
+  only three nullable-heavy applications.
+- Next refresh exact CPU and allocation ownership across at least three unlike
+  current compiled misses selected from those invalidated closures. This
+  entails strict interpreter-free builds and repeated profiles, followed by
+  verifier-backed A/B/Go admission only for one exact shared general owner. It
+  matters because the next static-lowering tax must be selected from the
+  post-carrier compiler rather than stale pre-change profiles.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-compiled-primitive-nullable-value-carrier-retained.md`.
+
+## 2026-07-30 - Post-nullable compiled architecture owner closure
+
+- Retained no production change. Six unlike current compiled misses covered
+  concurrency/records, float numerics, wide numerics, text/maps, nominal
+  normalization, and regex dispatch.
+- Fresh strict builds produced 60 verified main-only CPU profiles and 18
+  verified exact allocation profiles. Every dependency graph contains 96
+  packages and omits `pkg/interpreter`.
+- Exact main allocations range from 512 bytes and 11 objects in Distance
+  Field to 598,182,443 bytes and 12,232,484 objects in K-Nucleotide. The
+  dominant Able descendants remain family-specific.
+- The widest concrete owners reach only two unlike families: `ToInt` in Event
+  Routing/K-Nucleotide, and `ToString` plus positional semantic structs in
+  Event Routing/Manifest. Checked arithmetic is sparse or previously closed.
+  Allocation/GC is only a common parent with distinct Able descendants.
+- No owner clears the three-family admission gate, so no candidate or A/B
+  implementation cohort was created. No compiler, runtime, interpreter,
+  bytecode, stdlib, language, dependency, benchmark, or WASM source changed.
+- Registered the new record in the compiled architecture closure evidence.
+  The ledger correctly remains at 12 invalidations because it refuses to
+  advance one closure across shared compiler-scope drift.
+- Retained 42 compact readable owner/phase records, then removed the exact
+  833 MiB disk-backed raw build and binary-profile workspace plus generated
+  Python caches.
+- Next causally reconcile the remaining invalidated closures, starting with
+  Fib, Matrix Multiply, and TapeLang in `compiled-current-control`. Scan
+  strict generated code for material nullable-carrier reach and profile only
+  if it exists. This matters because a directory hash alone should not force
+  repetition of already-closed native-control experiments.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-architecture-owner-closure.md`.
+
+## 2026-07-30 - Post-nullable compiled current-control reconciliation
+
+- Retained no production change. Rebuilt Fib, Matrix Multiply, and TapeLang
+  Alphabet strict from the post-carrier compiler; every graph contains 96
+  packages and omits `pkg/interpreter`.
+- Fib's eight generated application functions/entries and Matrix's ten contain
+  zero primitive-nullable carrier references. Their direct recursive and
+  nested native-float owners therefore have no causal reach.
+- TapeLang's 26 generated application functions/entries contain one nullable
+  construction site: the one-time parser-stack pop for each `]`. The 275-byte
+  public workload executes it 14 times. Its profiled `execute`, `Tape.inc`,
+  `Tape.get`, and `Tape.move` owners contain zero carrier references.
+- The current five-run means remain 4.0080/3.1597 seconds Able/Go for Fib,
+  1.1860/1.0241 for Matrix, and 3.7680/3.0243 for TapeLang. All three are
+  misses, but the carrier cannot explain their separate native-body gaps.
+- Three current binaries passed one public-verifier smoke process each. New
+  CPU/allocation profiles and an A/B candidate were correctly skipped because
+  no changed mechanism reaches a material owner.
+- Registered the causal evidence in `compiled-current-control`. The ledger
+  correctly remains at 12 invalidations: it refuses a partial closure advance
+  that would mask the shared drifted compiler scope.
+- Removed the exact 458 MiB generated build workspace, 125 MiB focused-test
+  cache, and generated Python cache; no matching `/var/tmp` artifact remains.
+- No compiler, runtime, interpreter, bytecode, stdlib, benchmark, language,
+  dependency, nominal special case, or WASM source changed.
+- Next reconcile `compiled-target-guards`: Base64, Binary Trees, JSON, Monte
+  Carlo Pi, PiDigits, and QuickSort. Build them strict and scan material paths
+  for nullable reach, profiling only a reached guard. This matters because the
+  existing >=95%-of-Go wins must remain protected before another miss can
+  justify compiler mutation.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-current-control-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled target guards preserved
+
+- Retained no production change. Rebuilt Base64, Binary Trees, JSON, Monte
+  Carlo Pi, PiDigits, and QuickSort strict from the post-carrier compiler; all
+  six public-verifier smoke processes pass and every graph omits
+  `pkg/interpreter`.
+- Base64 has 119 dependency packages because of its native codec integration;
+  the other five have 96. The extra native dependencies do not introduce the
+  interpreter.
+- Application and material imported-body scans find zero primitive-carrier
+  reach in Base64, Binary Trees, JSON, Monte Carlo, and PiDigits. JSON's one
+  nullable error conversion is the unchanged `?Error` representation.
+- QuickSort's outer `main` has 16 absent-result/error references and zero
+  present carrier constructions. Its recursive sorting and Array-mutation
+  owner has zero reach.
+- The six authoritative ratios remain 0.9344x, 1.0060x, 0.8235x, 1.0079x,
+  1.0100x, and 0.7138x Go, all inside the 1.052632x target. PiDigits also
+  retains a direct five-process nullable baseline/candidate guard.
+- No material guard path changed, so new CPU/allocation profiles and timing
+  cohorts were correctly skipped. Registered the evidence in
+  `compiled-target-guards`; the ledger still refuses partial advancement
+  across shared compiler-scope drift.
+- Removed the exact 728 MiB generated build workspace, 125 MiB focused-test
+  cache, and generated Python cache; no matching `/var/tmp` artifact remains.
+- No compiler, runtime, interpreter, bytecode, stdlib, benchmark, language,
+  dependency, nominal special case, or WASM source changed.
+- Next reconcile `compiled-iterator-control`, beginning with the retained
+  Generic Slot Buffer nullable A/B and allocation evidence, then scanning the
+  other rows for material reach. This matters because it is the closure where
+  the removed pointer-allocation owner was genuinely causal.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled iterator/control reconciliation
+
+- Reconciled all eight `compiled-iterator-control` rows against the retained
+  primitive nullable value carrier and retained no production change.
+- Fresh `--no-fallbacks` builds of Array Slice Window, Binary Event Log,
+  Dependency Plan, Discrete Event Simulation, Document Audit, Generic Slot
+  Buffer, Lexical Rollup, and Option/Result Config all passed their public
+  verifiers. Every graph contains 96 packages and omits `pkg/interpreter`.
+- Material carrier reach is limited to four rows:
+  - Binary Event Log reaches `__able_nullable[int64]` through
+    `HashMap<i64,i64>.raw_get`;
+  - Dependency Plan reaches `__able_nullable[int32]` through
+    `Queue<i32>.dequeue` and `Deque<i32>.pop_front`;
+  - Generic Slot Buffer reaches `__able_nullable[int64]` through its direct
+    `VersionedBuffer` and `ReadableBuffer` paths;
+  - Option/Result Config reaches `__able_nullable[int32]` through its
+    specialized Option functions and methods.
+- Array Slice Window has directly unwrapped Array reads, Discrete Event
+  Simulation uses a non-primitive nullable nominal, and the Document/Lexical
+  material text/iterator paths have no primitive-carrier reach.
+- Attached the retained Generic Slot Buffer A/B: 0.0560 to 0.0340 seconds
+  (-39.29%), 264,215 to 1,046 exact main allocation objects (-99.60%), and
+  zero remaining `VersionedBuffer_get_spec` pointer boxes.
+- The four reached residuals split among nominal EventRecord conversion,
+  Queue/graph work, direct native storage/arithmetic, and static
+  generic-union/match work. No exact compiler or generated-runtime leaf
+  repeats across three unlike applications, so the selective gate correctly
+  produced zero new profiles and no speculative candidate.
+- No compiler, runtime, interpreter, bytecode VM, stdlib, language,
+  dependency, or WASM source changed.
+- Removed the exact 921 MiB disk-backed build, binary, compiler, and Go-cache
+  workspace after retaining the readable evidence.
+- Next reconcile `compiled-text-map`, beginning with the retained Inventory
+  Reconciliation and Transaction Ledger Audit nullable A/B evidence, then
+  scanning the other seven rows for material reach. Profile only a reached row
+  whose residual could repeat across three unlike applications; explicit
+  dynamic-map conversions remain semantic boundaries and cannot authorize a
+  named `HashMap` lowering rule.
+- Evidence:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-iterator-control-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled text/map reconciliation
+
+- Reconciled all nine `compiled-text-map` rows against the retained primitive
+  nullable value carrier and retained no production change.
+- Fresh `--no-fallbacks` builds of Backup Dedup, I Before E, Inventory
+  Reconciliation, K-Nucleotide, Manifest Normalization, Sensor Calibration,
+  Transaction Ledger Audit, Unicode Scalar Pipeline, and Word Frequency all
+  passed their public verifiers. Every graph contains 96 packages and omits
+  `pkg/interpreter`.
+- Material carrier reach occurs in five primitive-valued map paths,
+  Manifest's `Option<String>`, and the `Result<i64>` matches in Sensor and
+  Transaction. I Before E and Unicode have no material reach; I Before E's
+  apparent `int32?` references were dormant shared support definitions.
+- Attached the retained direct A/B evidence. Inventory improved from 0.1220
+  to 0.1100 seconds and 553,060 to 282,723 exact main allocation objects.
+  Transaction improved from 0.0480 to 0.0400 seconds and 115,269 to 105,029
+  objects. The nullable recovery owners remain zero.
+- The five map workloads share only the named `HashMap` kernel's explicit
+  dynamic conversion boundary. A compiler rule for that nominal type is
+  forbidden. Parsing and `ToInt` remain common only to Sensor and
+  Transaction, while Manifest retains a different String/nominal owner.
+- No admissible exact residual clears the three-unlike-application gate, so
+  no new CPU, allocation, timing, or A/B cohort was created. No compiler,
+  runtime, interpreter, VM, stdlib, benchmark, language, dependency, or WASM
+  source changed.
+- Regenerated the frontier and evidence ledger with the causal record. The
+  ledger correctly retains 12 invalidations until every closure sharing the
+  compiler-scope drift is reviewed.
+- Removed the exact 1,164 MiB disk-backed build, binary, compiler, and Go-cache
+  workspace after retaining readable evidence.
+- Next reconcile `compiled-regex`: strictly rebuild its six rows and audit
+  material NFA/capture/state paths for primitive-carrier reach, profiling only
+  an open exact residual. This matters because the shared NFA owner is the
+  smallest remaining closure where optional primitive positions could make
+  the carrier change broadly causal.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled regex reconciliation
+
+- Reconciled all six `compiled-regex` rows against the retained primitive
+  nullable value carrier and retained no production change.
+- Fresh strict builds of Config Validation Extraction, Log Routing Redaction,
+  Policy Record Dispatch, Regex Set Audit, Regex Stream Audit, and Regex
+  Suffix Audit all passed their public verifiers. Every graph contains 96
+  packages and omits `pkg/interpreter`.
+- The carrier materially reaches canonical NFA acceptance in all six rows.
+  Both acceptance functions already return direct `value + valid` `int32`
+  carriers, read native `int32` Arrays, perform zero normal-path bridge
+  conversions, and allocate zero result objects.
+- Merged 40 separately verified CPU-profile processes for each of Config,
+  Log, and Stream, plus one exact verified allocation process per
+  application. Acceptance is 1.19%-5.41% flat and 1.19%-8.11% cumulative.
+  All samples fall on the native state scan and `accepts_state`; carrier match
+  branches and bridges receive zero samples.
+- Larger repeated owners remain `add_closure`, `move`, and `upsert_thread`.
+  Removing the acceptance scan requires the previously rejected state index;
+  thread arenas, character specialization, raw-integer, Array-member, and
+  carrier/call alternatives also remain closed.
+- No compiler, runtime, interpreter, VM, stdlib, benchmark, language,
+  dependency, nominal special case, or WASM source changed.
+- `go test ./cmd/ablec` passed. Removed the exact 1,092 MiB disk-backed build,
+  binary, profile, and Go-cache workspace after retaining readable evidence.
+- Next reconcile `compiled-float-numeric`: strictly rebuild Distance Field,
+  Mandelbrot, N-Body, and RMS Norm and audit material nullable-`f64` reach,
+  profiling only an exact residual with three-application breadth. This
+  matters because direct native float lowering is a clearer path toward Go
+  performance than reopening closed regex algorithms.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled float-numeric reconciliation
+
+- Reconciled Distance Field, Mandelbrot, N-Body, and RMS Norm against the
+  retained primitive nullable value carrier and retained no production
+  change.
+- All four fresh `--no-fallbacks` binaries passed their public verifiers,
+  contain 96 packages, and omit `pkg/interpreter`.
+- Generated material application bodies contain zero nullable-`f64` sites.
+  Scalar numeric loops use direct Go `float64`; N-Body's `Array<f64>` uses
+  native primitive `Elements` reads and writes with no float bridge.
+- The changed carrier reaches only N-Body's allocation-free
+  `__able_nullable[int32]` return from `advance`'s final loop. Its caller
+  ignores the direct result, and no comparable path occurs in the other three
+  rows.
+- Retained the current Distance Field profile: 160 ms merged CPU ownership in
+  native `main`/`hypot`/`sqrt`, with 512 bytes, 11 exact main allocations,
+  and zero GC. Remaining float conversions are one-or-two-call output
+  boundaries.
+- No changed exact residual reaches three unlike rows, so no fresh profile,
+  timing cohort, A/B implementation, compiler, runtime, interpreter, VM,
+  stdlib, language, dependency, nominal special case, or WASM change was
+  warranted.
+- `go test ./cmd/ablec` passed. Removed the exact 564 MiB disk-backed build,
+  audit, and Go-cache workspace plus four standalone audit files.
+- Next reconcile `compiled-wide-numeric`: strictly rebuild Fixed Width 128,
+  Rational Series, and Wide Integer Records and separate primitive wide
+  nullable reach from shared nominal Result/record encoding. This matters
+  because the family has exactly three-row breadth and remains 3.00x-17.97x
+  Go without permitting named-wide-type special cases.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-float-numeric-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled wide-numeric reconciliation
+
+- Reconciled Fixed Width 128, Rational Series, and Wide Integer Records
+  against the retained primitive nullable carrier and retained no production
+  change.
+- All three fresh strict binaries verify, contain 96 packages, and omit
+  `pkg/interpreter`.
+- Each complete generated module contains dormant nullable
+  `runtime.Int128`/`runtime.Uint128` support but zero construction sites and
+  zero helper calls. The changed carrier has no material reach.
+- Fixed Width uses direct `runtime.Uint128` arithmetic behind general UInt128
+  nominal methods. Rational passes direct `runtime.Int128` values through GCD
+  and `DivMod`. Wide Records converts nominal wrappers to direct primitive
+  wide arithmetic and comparison.
+- Remaining pointer results are general UInt128, Int128, Rational, Result, and
+  record nominal encodings. Specializing any by name is forbidden.
+- The retained shared profile owner remains package-environment
+  `SwapEnv`/`sync/atomic.StorePointer`; execution-context and package-linkage
+  variants already regressed unrelated N-Body and K-Nucleotide.
+- No fresh profile, timing cohort, A/B implementation, compiler, runtime,
+  interpreter, VM, stdlib, language, dependency, nominal special case, or
+  WASM change was warranted. `go test ./cmd/ablec` passed.
+- Removed the exact 472 MiB disk-backed build, audit, and Go-cache workspace.
+- Next reconcile `compiled-byte-output`: strictly rebuild FASTA Generation
+  and Reverse Complement and audit native `u8` Array and output paths for
+  nullable-byte reach. This matters because the representation should map to
+  Go slices, but a two-row closure cannot alone authorize a candidate.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-wide-numeric-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled byte-output reconciliation
+
+- Reconciled FASTA Generation and Reverse Complement against the primitive
+  nullable carrier and retained no production change.
+- Added fresh Mandelbrot as the unlike third bulk-output control. All three
+  strict binaries verify, contain 96 packages, and omit `pkg/interpreter`.
+- Generated application bodies contain zero nullable-`u8` sites and zero
+  runtime byte conversions. Their Arrays use native `[]uint8`; reads are
+  direct indexed loads and writes are direct assignment or Go `append`.
+- Reverse input takes `os.ReadFile`'s `[]uint8` through the native fast path.
+  All three output paths borrow `bytes.Elements` directly for `io_write`.
+- Nullable bytes remain only in shared text helpers and the conditional
+  partial-write suffix. The required host handle/result bridge executes once
+  and is not a material owner in three unlike applications.
+- Retained profiles still split among direct FASTA arithmetic, Reverse
+  transform/backing/GC work, and Mandelbrot pixel rendering. No changed shared
+  residual exists, so no fresh profile, A/B candidate, or production source
+  change was admitted.
+- `go test ./cmd/ablec` passed. Removed the exact 418 MiB disk-backed compiler,
+  build, smoke, audit, and Go-cache workspace.
+- Next reconcile `compiled-sudoku-quotient`: rebuild Sudoku Masks strictly and
+  audit nullable-`i32` plus signed Euclidean division against the current wide
+  comparison. This matters because a hot primitive division leaf still needs
+  three unlike applications before it can authorize a general lowering rule.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-byte-output-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled Sudoku quotient reconciliation
+
+- Reconciled Sudoku Masks against the primitive nullable carrier and retained
+  no production change.
+- A fresh current-source strict binary passed its public verifier, contains 96
+  packages, and omits `pkg/interpreter`.
+- The nullable carrier reaches only `main`'s allocation-free absent result
+  after all solve work. Material search functions contain zero nullable-`i32`,
+  runtime-value, bridge, or compiler/interpreter boundary references.
+- `square_index` retains exactly two signed-`i32` divmod calls. The shared
+  positive-operand helper branch already uses native Go `/` and `%`.
+- The retained two-profile merge puts the helper at 12.53% cumulative, but it
+  remains material only in Sudoku. Rational uses distinct Int128 `DivMod`,
+  Regex quotient work is cold, and K-Nucleotide quotient formatting is
+  negligible.
+- Perfect helper removal would leave the current 2.736637x ratio at 2.393736x,
+  so no fresh profile, candidate, or A/B implementation was admitted.
+- Focused division/carrier guards and `go test ./cmd/ablec` passed. Removed
+  the exact 310 MiB disk-backed compiler, build, smoke, audit, and Go-cache
+  workspace.
+- Next reconcile all 23 `compiled-concurrency` rows for primitive-nullable
+  reach at Future/channel/mutex boundaries. This matters because concurrency
+  is the last unreviewed compiled family and remains 5.33x-19.65x Go.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-sudoku-quotient-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable compiled concurrency reconciliation
+
+- Reconciled all 23 `compiled-concurrency` rows against the retained primitive
+  nullable carrier and retained no production change.
+- Every fresh strict application passed its public verifier, contains 96
+  packages, and omits `pkg/interpreter`.
+- Primitive nullable carriers are materially reached in Await Channel Mux,
+  Channel Rollup, Future Await Race, and Future Pipeline. Channel Rollup and
+  Future Pipeline match the native carrier through direct validity checks;
+  Future Await Race intentionally ignores its native result.
+- Only Await retains a nullable cast through an explicit runtime-callable
+  callback ABI. Its exact breadth is one application, so it cannot authorize a
+  general candidate.
+- Channel-handle reach remains exactly 238,838 events across 14 applications,
+  and mutex-handle reach remains exactly 43,016 events across three. These
+  counts are unchanged from the pre-nullable census. Retained normal-binary
+  profiles keep channel-handle recovery below one percent.
+- Retained profiles still make `bridge.ToInt` the only three-application exact
+  leaf; its global cache slowed TapeLang 4.17%. `currentGID` and nominal
+  construction remain two-application owners.
+- No fresh CPU, allocation, timing, or A/B cohort was admitted. Six focused
+  nullable/concurrency guards, `go test ./cmd/ablec`, all frontier tests, and
+  all evidence-ledger tests passed.
+- Removed the exact 2,563 MiB disk-backed compiler, generated-source, binary,
+  smoke, telemetry, and Go-cache workspace after preserving readable evidence.
+- Next reconcile `cross-family-architecture-ownership`, then atomically
+  advance the 12 compiler-scope closures if that review passes. This is
+  important because it checks for a shared owner hidden across family
+  boundaries and makes the evidence selector current after the compiler
+  identity change.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable cross-family ownership reconciliation
+
+- Completed the final causal review after the primitive nullable compiler
+  change and retained no production change.
+- The ten compiled family records partition all 65 compiled frontier rows
+  exactly once, with no missing or extra row. Every row has current strict
+  verifier-backed evidence and no interpreter dependency.
+- The carrier materially reaches 22 applications. The broad common operation
+  is already a direct, allocation-free native validity check.
+- `bridge.ToInt` is the sole exact owner material across three unlike
+  families: iterator/control, text/map, and concurrency. It remains a rejected
+  candidate because its general global cache slowed TapeLang by 4.17%, while
+  its surviving calls are explicit semantic-boundary materializations.
+- Named-map conversion reaches only two families and cannot authorize a named
+  `HashMap` compiler rule. Await's callable conversion has one-family breadth.
+  Checked arithmetic, `currentGID`, nominal construction, and allocation/GC
+  retain their prior closed dispositions.
+- No new CPU, allocation, timing, or A/B cohort was admitted.
+- The named partial-advance path correctly refused to mask shared compiler
+  scope drift. After all 12 affected closures were reviewed, the complete
+  authoritative ledger was rebased in one transaction.
+- The final ledger has 23 current closures, zero invalidations, and an empty
+  selector. Five frontier tests, seven ledger tests, both direct checks, and
+  `go test ./cmd/ablec` passed.
+- No raw profile/build workspace was created; the exact 122 MiB disk-backed
+  Go cache was removed after verification.
+- Next use a bounded tranche for v12 correctness and release verification.
+  This matters because the performance frontier has zero actionable groups;
+  future performance work should begin only from a legitimate evidence
+  invalidation.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-cross-family-architecture-ownership-reconciliation.md`.
+
+## 2026-07-30 - Post-nullable correctness and release gate
+
+- Completed the bounded v12 correctness/release tranche and retained no
+  production change.
+- The complete default v12 runner passed every preflight, all non-compiler
+  packages, all 34 compiler short-mode batches, and the final bytecode fixture
+  corpus in 15:50.29 with zero swaps.
+- Replayed the four compiler aggregates over one minute with JSON timing.
+  Their slowest individual tests took 3.420s, 24.040s, 15.310s, and 10.720s.
+- Replayed the interpreter aggregates. `TestExecFixtureParity` was the
+  slowest named test at 34.590s in short mode and 34.070s in bytecode mode;
+  no named test exceeded one minute.
+- The unchanged canonical external stdlib passed in tree-walker mode in 19s
+  and bytecode mode in 14s.
+- The authoritative 130-row scorecard, zero-actionable-group frontier, and
+  23-current-closure ledger remain green; the selector is empty.
+- Used a disk-backed `/var/tmp` workspace and removed the exact test/cache
+  artifacts after final verification.
+- Next refresh the exact retained/deferred release inventory without staging,
+  committing, or pushing. This is important because the verified dirty tree
+  still mixes retained work, deferred WASM paths, and disposable artifacts.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-correctness-release-gate.md`.
+
+## 2026-07-30 - Post-nullable release inventory
+
+- Captured a fully expanded, non-mutating release inventory at
+  `358368c24f84367ee8f39c5df6b07ec488b477ef`; `HEAD`, `origin/master`,
+  and the empty index agree.
+- Classified all 324 pre-record dirty files exactly: 290 retained paths and
+  the unchanged 34-path deferred WASM boundary, with no unmatched or new
+  WASM-like path.
+- The immutable 324-row TSV manifest reproduces every path's line, byte, and
+  SHA-256 identity. The three inventory metadata paths form an exact
+  293-path post-record retained candidate with the 34 deferred files as its
+  complete complement.
+- All 135 JSON, 39 Go, 10 JavaScript, 7 Python, and one shell path passed
+  validation. Tracked/untracked whitespace, scope, secret, and source-size
+  checks passed; the largest dirty source is 987 lines.
+- The 130-row five-sample scorecard, zero-actionable frontier, 23-current-entry
+  ledger, empty selector, and canonical stdlib source identity reproduce.
+- Removed 9.76 GiB of inactive generated state: the guarded project Go
+  cache/temp paths and the unheld `/tmp/able-v12-extern-go` cache. The final
+  cleanup dry run is empty.
+- Performed no staging, commit, push, reset, revert, production change, or
+  deferred WASM modification.
+- Next obtain explicit maintainer authorization before exact local
+  consolidation. This matters because the release boundary is verified, but
+  repository mutation remains intentionally unauthorized.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`.
+
+## 2026-07-30 - Post-nullable exact local consolidation
+
+- Received explicit authorization to stage the exact 293-path retained
+  candidate and create one local commit; no push was authorized.
+- Reproduced the candidate's newline and NUL pathspec identities and its exact
+  34-path deferred WASM complement before staging.
+- Staged only the generated NUL-delimited retained pathspec; no broad
+  `git add`, reset, revert, deletion, or deferred WASM modification occurred.
+- Verified the cached path set, whitespace, index tree, evidence state, and
+  deferred complement before creating the single local commit.
+- The post-commit worktree contains only the unchanged 34 deferred WASM paths;
+  the index is empty and local `master` is exactly one commit ahead of
+  `origin/master`.
+- Next obtain explicit authorization before publishing the one local commit.
+  This matters because local consolidation was authorized, but remote mutation
+  remains separately gated.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-nullable-release-inventory.md`.

@@ -1,0 +1,31 @@
+File: compiled
+Build ID: a9ba3a1d484f49156aaca924590f6551fad4009f
+Type: alloc_space
+Time: 2026-07-29 19:54:34 CDT
+Showing nodes accounting for 6244.38kB, 99.09% of 6301.70kB total
+Dropped 78 nodes (cum <= 31.51kB)
+      flat  flat%   sum%        cum   cum%
+ 3305.48kB 52.45% 52.45%  3305.48kB 52.45%  runtime/pprof.allFrames
+ 1191.80kB 18.91% 71.37%  1248.03kB 19.80%  runtime/pprof.(*profileBuilder).emitLocation
+     648kB 10.28% 81.65%  1171.88kB 18.60%  compress/flate.NewWriter (inline)
+     320kB  5.08% 86.73%   523.88kB  8.31%  compress/flate.(*compressor).init
+     288kB  4.57% 91.30%  6300.86kB   100%  runtime/pprof.writeHeapInternal
+     200kB  3.17% 94.47%      200kB  3.17%  compress/flate.newDeflateFast (inline)
+  192.75kB  3.06% 97.53%  6012.86kB 95.42%  runtime/pprof.writeHeapProto
+   53.25kB  0.85% 98.37%    65.25kB  1.04%  runtime/pprof.(*protobuf).string (inline)
+   44.57kB  0.71% 99.08%    44.57kB  0.71%  runtime/pprof.(*profileBuilder).stringIndex (inline)
+    0.50kB 0.0079% 99.09%  4555.48kB 72.29%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.02kB 0.00037% 99.09%  6301.20kB   100%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         0     0% 99.09%  6301.20kB   100%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.09%  6301.20kB   100%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.09%  1178.62kB 18.70%  compress/gzip.(*Writer).Write
+         0     0% 99.09%  6301.70kB   100%  main.main
+         0     0% 99.09%  6301.70kB   100%  main.runMain
+         0     0% 99.09%  6301.20kB   100%  main.startMainProfilePhase (inline)
+         0     0% 99.09%  6301.70kB   100%  runtime.main
+         0     0% 99.09%  6300.86kB   100%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.09%    65.25kB  1.04%  runtime/pprof.(*profileBuilder).build
+         0     0% 99.09%  1178.62kB 18.70%  runtime/pprof.(*profileBuilder).flush
+         0     0% 99.09%  1184.12kB 18.79%  runtime/pprof.(*profileBuilder).pbSample
+         0     0% 99.09%    65.25kB  1.04%  runtime/pprof.(*protobuf).strings
+         0     0% 99.09%  6300.86kB   100%  runtime/pprof.writeAlloc

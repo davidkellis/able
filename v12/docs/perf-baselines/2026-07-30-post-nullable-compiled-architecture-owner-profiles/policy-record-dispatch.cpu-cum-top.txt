@@ -1,0 +1,88 @@
+File: compiled
+Build ID: 3beb9b2eb54a9adde022ed1b7d3a70d2e204e756
+Type: cpu
+Time: 2026-07-29 19:53:26 CDT
+Duration: 603.89ms, Total samples = 710ms (117.57%)
+Showing nodes accounting for 550ms, 77.46% of 710ms total
+Showing top 80 nodes out of 134
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      700ms 98.59%  main.RunRegisteredMain
+         0     0%     0%      700ms 98.59%  main.RunRegisteredMain.func1
+         0     0%     0%      700ms 98.59%  main.__able_compiled_fn_main
+         0     0%     0%      700ms 98.59%  main.__able_register_compiled_call.func1
+         0     0%     0%      700ms 98.59%  main.__able_wrap_fn_main
+         0     0%     0%      700ms 98.59%  main.main
+         0     0%     0%      700ms 98.59%  main.runMain
+         0     0%     0%      700ms 98.59%  runtime.main
+         0     0%     0%      670ms 94.37%  main.__able_compiled_fn_evaluate
+         0     0%     0%      660ms 92.96%  main.__able_compiled_fn_parse_record
+         0     0%     0%      650ms 91.55%  main.__able_compiled_method_Regex_match
+      20ms  2.82%  2.82%      610ms 85.92%  main.__able_compiled_fn_find_nfa_span
+         0     0%  2.82%      610ms 85.92%  main.__able_compiled_fn_find_token_match
+      20ms  2.82%  5.63%      350ms 49.30%  runtime.mallocgc
+      70ms  9.86% 15.49%      250ms 35.21%  main.__able_compiled_fn_regex_nfa_add_closure
+      50ms  7.04% 22.54%      250ms 35.21%  main.__able_compiled_fn_regex_nfa_move
+         0     0% 22.54%      250ms 35.21%  runtime.systemstack
+         0     0% 22.54%      180ms 25.35%  runtime.newobject
+         0     0% 22.54%      170ms 23.94%  runtime.deductAssistCredit
+         0     0% 22.54%      170ms 23.94%  runtime.gcAssistAlloc
+         0     0% 22.54%      170ms 23.94%  runtime.gcAssistAlloc.func2
+         0     0% 22.54%      170ms 23.94%  runtime.gcAssistAlloc1
+         0     0% 22.54%      170ms 23.94%  runtime.gcDrainN
+         0     0% 22.54%      130ms 18.31%  runtime.makeslice
+         0     0% 22.54%      120ms 16.90%  main.__able_compiled_fn_regex_codepoints
+         0     0% 22.54%      120ms 16.90%  main.__able_compiled_fn_regex_nfa_threads_new
+      90ms 12.68% 35.21%       90ms 12.68%  runtime.tryDeferToSpanScan
+         0     0% 35.21%       80ms 11.27%  main.__able_compiled_fn_regex_nfa_capture_end
+      10ms  1.41% 36.62%       80ms 11.27%  main.__able_compiled_fn_regex_nfa_clone_captures
+      40ms  5.63% 42.25%       80ms 11.27%  main.__able_compiled_fn_regex_nfa_upsert_thread
+         0     0% 42.25%       80ms 11.27%  runtime.scanSpan
+      10ms  1.41% 43.66%       70ms  9.86%  gcWriteBarrier
+      10ms  1.41% 45.07%       70ms  9.86%  runtime.mallocgcSmallScanNoHeader
+         0     0% 45.07%       70ms  9.86%  runtime.wbBufFlush
+         0     0% 45.07%       70ms  9.86%  runtime.wbBufFlush.func1
+      20ms  2.82% 47.89%       70ms  9.86%  runtime.wbBufFlush1
+         0     0% 47.89%       60ms  8.45%  runtime.(*mcache).nextFree
+      20ms  2.82% 50.70%       60ms  8.45%  runtime.mallocgcTiny
+         0     0% 50.70%       50ms  7.04%  runtime.(*mcache).refill
+      30ms  4.23% 54.93%       50ms  7.04%  runtime.scanObject
+         0     0% 54.93%       40ms  5.63%  main.__able_compiled_fn_build_match
+         0     0% 54.93%       40ms  5.63%  runtime.markroot
+         0     0% 54.93%       40ms  5.63%  runtime.markrootBlock
+      30ms  4.23% 59.15%       40ms  5.63%  runtime.scanblock
+         0     0% 59.15%       30ms  4.23%  main.__able_compiled_entry_impl_Iterator_next_0_c_spec
+         0     0% 59.15%       30ms  4.23%  main.__able_compiled_entry_method_String_chars
+         0     0% 59.15%       30ms  4.23%  main.__able_compiled_fn_build_capture_groups
+         0     0% 59.15%       30ms  4.23%  main.__able_iface_Iterator_char_adapter_ptr_RawStringCharsIter.next
+         0     0% 59.15%       30ms  4.23%  runtime.(*mcentral).cacheSpan
+         0     0% 59.15%       30ms  4.23%  runtime.growslice
+      30ms  4.23% 63.38%       30ms  4.23%  runtime.nextFreeFast (inline)
+      10ms  1.41% 64.79%       30ms  4.23%  runtime.scanObjectsSmall
+         0     0% 64.79%       20ms  2.82%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 64.79%       20ms  2.82%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+         0     0% 64.79%       20ms  2.82%  main.__able_compiled_fn_compile_expression_nfa
+         0     0% 64.79%       20ms  2.82%  main.__able_compiled_fn_compile_regex
+      20ms  2.82% 67.61%       20ms  2.82%  main.__able_compiled_fn_regex_nfa_accepting_thread
+         0     0% 67.61%       20ms  2.82%  main.__able_compiled_fn_regex_nfa_capture_start
+         0     0% 67.61%       20ms  2.82%  main.__able_compiled_fn_regex_nfa_new_captures
+      10ms  1.41% 69.01%       20ms  2.82%  main.__able_compiled_impl_Iterator_next_0_c_spec
+         0     0% 69.01%       20ms  2.82%  main.__able_compiled_method_AutomataExpr_to_nfa
+         0     0% 69.01%       20ms  2.82%  main.__able_compiled_method_Regex_compile
+         0     0% 69.01%       20ms  2.82%  main.__able_compiled_method_Regex_compile_with_options
+         0     0% 69.01%       20ms  2.82%  main.__able_compiled_method_String_chars
+         0     0% 69.01%       20ms  2.82%  runtime.(*mcentral).uncacheSpan
+      20ms  2.82% 71.83%       20ms  2.82%  runtime.(*spanSet).push
+         0     0% 71.83%       20ms  2.82%  runtime.deductSweepCredit
+      10ms  1.41% 73.24%       20ms  2.82%  runtime.findObject
+         0     0% 73.24%       20ms  2.82%  runtime.mallocgcSmallNoscan
+      10ms  1.41% 74.65%       20ms  2.82%  runtime.sweepone
+      10ms  1.41% 76.06%       20ms  2.82%  runtime.typePointers.next
+         0     0% 76.06%       20ms  2.82%  sync/atomic.(*Pointer[go.shape.6477419bcce6179f3692f359f4a6666cc468ad4d11128ea8679268f32a77de0f]).Store (inline)
+      10ms  1.41% 77.46%       20ms  2.82%  sync/atomic.StorePointer
+         0     0% 77.46%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0% 77.46%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.AsInt
+         0     0% 77.46%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0% 77.46%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0% 77.46%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0% 77.46%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.materializeBoundaryValue (inline)
+         0     0% 77.46%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.unwrapInterface

@@ -155,7 +155,7 @@ func TestCompilerRescueTypedPatternBindingStaysNativeNullableI32(t *testing.T) {
 	if !ok {
 		t.Fatalf("could not find compiled main function")
 	}
-	if !strings.Contains(body, "var maybe *int32 =") {
+	if !strings.Contains(body, "var maybe __able_nullable[int32] =") {
 		t.Fatalf("expected rescue typed-pattern binding to stay on the native nullable i32 carrier:\n%s", body)
 	}
 	for _, fragment := range []string{

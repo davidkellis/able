@@ -44,11 +44,11 @@
           "reference_ratio_language": "ruby"
         },
         "compiled": {
-          "able_real_seconds": 1.564,
-          "excess_seconds": 1.4912631578947368,
+          "able_real_seconds": 1.346,
+          "excess_seconds": 1.2929473684210526,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0691,
-          "reference_ratio": 22.63386396526773,
+          "fastest_reference_real_seconds": 0.0504,
+          "reference_ratio": 26.70634920634921,
           "reference_ratio_language": "go"
         }
       },
@@ -124,11 +124,11 @@
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.09,
-          "excess_seconds": 0.08368421052631579,
+          "able_real_seconds": 0.118,
+          "excess_seconds": 0.10999999999999999,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.006,
-          "reference_ratio": 15.0,
+          "fastest_reference_real_seconds": 0.0076,
+          "reference_ratio": 15.526315789473683,
           "reference_ratio_language": "go"
         }
       },
@@ -204,11 +204,11 @@
           "reference_ratio_language": "ruby"
         },
         "compiled": {
-          "able_real_seconds": 0.036,
-          "excess_seconds": 0.023157894736842103,
+          "able_real_seconds": 0.03,
+          "excess_seconds": 0.018,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0122,
-          "reference_ratio": 2.9508196721311473,
+          "fastest_reference_real_seconds": 0.0114,
+          "reference_ratio": 2.631578947368421,
           "reference_ratio_language": "go"
         }
       },
@@ -261,11 +261,11 @@
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.084,
-          "excess_seconds": 0.07863157894736843,
+          "able_real_seconds": 0.082,
+          "excess_seconds": 0.076,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0051,
-          "reference_ratio": 16.470588235294116,
+          "fastest_reference_real_seconds": 0.0057,
+          "reference_ratio": 14.385964912280702,
           "reference_ratio_language": "go"
         }
       },
@@ -341,11 +341,11 @@
           "reference_ratio_language": "python"
         },
         "compiled": {
-          "able_real_seconds": 0.04,
-          "excess_seconds": 0.03431578947368421,
+          "able_real_seconds": 0.042,
+          "excess_seconds": 0.03694736842105263,
           "fastest_reference": "go",
-          "fastest_reference_real_seconds": 0.0054,
-          "reference_ratio": 7.407407407407407,
+          "fastest_reference_real_seconds": 0.0048,
+          "reference_ratio": 8.750000000000002,
           "reference_ratio_language": "go"
         }
       },
@@ -366,7 +366,7 @@
         "policy_record_dispatch",
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 66.551789,
+      "covered_application_excess_seconds": 66.374632,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-bytecode-cross-corpus-exact-leaf-selection.md",
@@ -449,7 +449,7 @@
       "applications": [
         "concurrent_event_routing"
       ],
-      "covered_application_excess_seconds": 0.034316,
+      "covered_application_excess_seconds": 0.036947,
       "eligible": false,
       "evidence": [
         "v12/docs/perf-baselines/2026-07-21-compiled-concurrency-fourteen-application-refresh.md"
@@ -474,7 +474,7 @@
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "eb2ba1219218732569e91ac23b52cc44b588045e8f69d4ce7930972eb54350d8"
+      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
     }
   },
   "summary": {
@@ -495,10 +495,10 @@
       "measured": 3
     },
     "eligible_mechanisms": [],
-    "frontier_total_excess_seconds": 227.179053,
+    "frontier_total_excess_seconds": 230.851579,
     "minimum_unlike_applications": 3,
-    "selected_excess_seconds": 66.551789,
-    "selected_excess_share_percent": 29.294862,
+    "selected_excess_seconds": 66.374632,
+    "selected_excess_share_percent": 28.75208,
     "selected_mode_rows": 10,
     "unlike_family_count": 5
   }

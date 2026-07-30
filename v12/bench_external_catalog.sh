@@ -57,6 +57,8 @@ bench_external_suite_names() {
     "manifest-normalization" \
     "policy-record-dispatch" \
     "sensor-calibration" \
+    "transaction-ledger-audit" \
+    "generic-slot-buffer" \
     "legacy-sudoku" \
     "sudoku-masks"
 }
@@ -137,7 +139,7 @@ bench_external_suite_csv() {
       # scan-based Sudoku source remains directly addressable through
       # `legacy-sudoku`, but is not comparable with the exact-cover Go/Python
       # references and cannot complete within the bounded scorecard protocol.
-      printf '%s\n' "fib,binarytrees,matrixmultiply,quicksort,sudoku_masks,i_before_e,base64,backup_dedup,binary_event_log,json,monte_carlo_pi,pidigits,mandelbrot,reverse_complement,k_nucleotide,nbody,tapelang_alphabet,distance_field,rms_norm,fasta_generation,fixed_width_128,rational_series,wide_integer_records,word_frequency,document_audit,lexical_rollup,channel_rollup,future_pipeline,future_await_race,await_channel_mux,mutex_ledger,mutex_await_journal,mutex_work_queue,regex_suffix_audit,regex_set_audit,regex_stream_audit,log_routing_redaction,config_validation_extraction,unicode_scalar_pipeline,array_slice_window,dependency_plan,discrete_event_simulation,inventory_reconciliation,option_result_config,concurrent_text_index,validated_job_pipeline,dependency_wave_validation,concurrent_event_routing,concurrent_document_pipeline,concurrent_stencil_reduction,concurrent_signal_dispatch,concurrent_transform_chain,concurrent_policy_callbacks,concurrent_graph_visitors,concurrent_audio_voices,concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,concurrent_state_machines,concurrent_stateful_pipeline,manifest_normalization,policy_record_dispatch,sensor_calibration"
+      printf '%s\n' "fib,binarytrees,matrixmultiply,quicksort,sudoku_masks,i_before_e,base64,backup_dedup,binary_event_log,json,monte_carlo_pi,pidigits,mandelbrot,reverse_complement,k_nucleotide,nbody,tapelang_alphabet,distance_field,rms_norm,fasta_generation,fixed_width_128,rational_series,wide_integer_records,word_frequency,document_audit,lexical_rollup,channel_rollup,future_pipeline,future_await_race,await_channel_mux,mutex_ledger,mutex_await_journal,mutex_work_queue,regex_suffix_audit,regex_set_audit,regex_stream_audit,log_routing_redaction,config_validation_extraction,unicode_scalar_pipeline,array_slice_window,dependency_plan,discrete_event_simulation,inventory_reconciliation,option_result_config,concurrent_text_index,validated_job_pipeline,dependency_wave_validation,concurrent_event_routing,concurrent_document_pipeline,concurrent_stencil_reduction,concurrent_signal_dispatch,concurrent_transform_chain,concurrent_policy_callbacks,concurrent_graph_visitors,concurrent_audio_voices,concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,concurrent_state_machines,concurrent_stateful_pipeline,manifest_normalization,policy_record_dispatch,sensor_calibration,transaction_ledger_audit,generic_slot_buffer"
       ;;
     numeric-structural)
       printf '%s\n' "fib,binarytrees,matrixmultiply,mandelbrot,monte_carlo_pi,pidigits,nbody,distance_field,rms_norm"
@@ -234,6 +236,12 @@ bench_external_suite_csv() {
       ;;
     sensor-calibration)
       printf '%s\n' "sensor_calibration"
+      ;;
+    transaction-ledger-audit)
+      printf '%s\n' "transaction_ledger_audit"
+      ;;
+    generic-slot-buffer)
+      printf '%s\n' "generic_slot_buffer"
       ;;
     legacy-sudoku)
       printf '%s\n' "sudoku"
@@ -381,6 +389,12 @@ bench_external_target() {
       ;;
     sensor_calibration)
       printf '%s\n' "$root/examples/benchmarks/sensor_calibration/sensor_calibration.able"
+      ;;
+    transaction_ledger_audit)
+      printf '%s\n' "$root/examples/benchmarks/transaction_ledger_audit/transaction_ledger_audit.able"
+      ;;
+    generic_slot_buffer)
+      printf '%s\n' "$root/examples/benchmarks/generic_slot_buffer/generic_slot_buffer.able"
       ;;
     binarytrees)
       printf '%s\n' "$root/examples/benchmarks/binarytrees.able"
@@ -573,6 +587,9 @@ bench_external_program_args() {
     sensor_calibration)
       printf '%s\n' "readings.txt"
       ;;
+    transaction_ledger_audit)
+      printf '%s\n' "transactions.txt"
+      ;;
     regex_suffix_audit)
       printf '%s\n' "i-before-e/wordlist.txt"
       ;;
@@ -701,7 +718,7 @@ bench_external_resolve_cpu_affinity() {
 # benchmark directory must not also become a source root.
 bench_external_source_root_only() {
   case "$1" in
-    fixed_width_128|rational_series|wide_integer_records|backup_dedup|future_pipeline|future_await_race|await_channel_mux|mutex_ledger|mutex_await_journal|mutex_work_queue|regex_suffix_audit|regex_set_audit|regex_stream_audit|log_routing_redaction|config_validation_extraction|unicode_scalar_pipeline|array_slice_window|dependency_plan|discrete_event_simulation|inventory_reconciliation|option_result_config|distance_field|rms_norm|fasta_generation|concurrent_text_index|validated_job_pipeline|dependency_wave_validation|concurrent_event_routing|concurrent_stencil_reduction|concurrent_signal_dispatch|concurrent_transform_chain|concurrent_policy_callbacks|concurrent_graph_visitors|concurrent_audio_voices|concurrent_packet_codecs|concurrent_scene_tiles|concurrent_tree_folds|concurrent_state_machines|concurrent_stateful_pipeline|policy_record_dispatch|sensor_calibration)
+    fixed_width_128|rational_series|wide_integer_records|backup_dedup|future_pipeline|future_await_race|await_channel_mux|mutex_ledger|mutex_await_journal|mutex_work_queue|regex_suffix_audit|regex_set_audit|regex_stream_audit|log_routing_redaction|config_validation_extraction|unicode_scalar_pipeline|array_slice_window|dependency_plan|discrete_event_simulation|inventory_reconciliation|option_result_config|distance_field|rms_norm|fasta_generation|concurrent_text_index|validated_job_pipeline|dependency_wave_validation|concurrent_event_routing|concurrent_stencil_reduction|concurrent_signal_dispatch|concurrent_transform_chain|concurrent_policy_callbacks|concurrent_graph_visitors|concurrent_audio_voices|concurrent_packet_codecs|concurrent_scene_tiles|concurrent_tree_folds|concurrent_state_machines|concurrent_stateful_pipeline|policy_record_dispatch|sensor_calibration|transaction_ledger_audit|generic_slot_buffer)
       return 0
       ;;
     *)
@@ -712,164 +729,21 @@ bench_external_source_root_only() {
 
 bench_external_result_name() {
   case "$1" in
-    i_before_e)
-      printf '%s\n' "i-before-e"
-      ;;
-    k_nucleotide)
-      printf '%s\n' "k-nucleotide"
-      ;;
-    reverse_complement)
-      printf '%s\n' "reverse-complement"
-      ;;
-    tapelang_alphabet)
-      printf '%s\n' "tapelang-alphabet"
-      ;;
-    distance_field)
-      printf '%s\n' "distance-field"
-      ;;
-    rms_norm)
-      printf '%s\n' "rms-norm"
-      ;;
-    fasta_generation)
-      printf '%s\n' "fasta-generation"
-      ;;
-    fixed_width_128)
-      printf '%s\n' "fixed-width-128"
-      ;;
-    rational_series)
-      printf '%s\n' "rational-series"
-      ;;
-    wide_integer_records)
-      printf '%s\n' "wide-integer-records"
-      ;;
-    binary_event_log)
-      printf '%s\n' "binary-event-log"
-      ;;
-    backup_dedup)
-      printf '%s\n' "backup-dedup"
-      ;;
-    word_frequency)
-      printf '%s\n' "word-frequency"
-      ;;
-    document_audit)
-      printf '%s\n' "document-audit"
-      ;;
-    lexical_rollup)
-      printf '%s\n' "lexical-rollup"
-      ;;
-    channel_rollup)
-      printf '%s\n' "channel-rollup"
-      ;;
-    future_pipeline)
-      printf '%s\n' "future-pipeline"
-      ;;
-    future_await_race)
-      printf '%s\n' "future-await-race"
-      ;;
-    await_channel_mux)
-      printf '%s\n' "await-channel-mux"
-      ;;
-    mutex_ledger)
-      printf '%s\n' "mutex-ledger"
-      ;;
-    mutex_await_journal)
-      printf '%s\n' "mutex-await-journal"
-      ;;
-    mutex_work_queue)
-      printf '%s\n' "mutex-work-queue"
-      ;;
-    regex_suffix_audit)
-      printf '%s\n' "regex-suffix-audit"
-      ;;
-    regex_set_audit)
-      printf '%s\n' "regex-set-audit"
-      ;;
-    regex_stream_audit)
-      printf '%s\n' "regex-stream-audit"
-      ;;
-    log_routing_redaction)
-      printf '%s\n' "log-routing-redaction"
-      ;;
-    config_validation_extraction)
-      printf '%s\n' "config-validation-extraction"
-      ;;
-    unicode_scalar_pipeline)
-      printf '%s\n' "unicode-scalar-pipeline"
-      ;;
-    array_slice_window)
-      printf '%s\n' "array-slice-window"
-      ;;
-    dependency_plan)
-      printf '%s\n' "dependency-plan"
-      ;;
-    discrete_event_simulation)
-      printf '%s\n' "discrete-event-simulation"
-      ;;
-    inventory_reconciliation)
-      printf '%s\n' "inventory-reconciliation"
-      ;;
-    option_result_config)
-      printf '%s\n' "option-result-config"
-      ;;
-    concurrent_text_index)
-      printf '%s\n' "concurrent-text-index"
-      ;;
-    validated_job_pipeline)
-      printf '%s\n' "validated-job-pipeline"
-      ;;
-    dependency_wave_validation)
-      printf '%s\n' "dependency-wave-validation"
-      ;;
-    concurrent_event_routing)
-      printf '%s\n' "concurrent-event-routing"
-      ;;
-    concurrent_document_pipeline)
-      printf '%s\n' "concurrent-document-pipeline"
-      ;;
-    concurrent_stencil_reduction)
-      printf '%s\n' "concurrent-stencil-reduction"
-      ;;
-    concurrent_signal_dispatch)
-      printf '%s\n' "concurrent-signal-dispatch"
-      ;;
-    concurrent_transform_chain)
-      printf '%s\n' "concurrent-transform-chain"
-      ;;
-    concurrent_policy_callbacks)
-      printf '%s\n' "concurrent-policy-callbacks"
-      ;;
-    concurrent_graph_visitors)
-      printf '%s\n' "concurrent-graph-visitors"
-      ;;
-    concurrent_audio_voices)
-      printf '%s\n' "concurrent-audio-voices"
-      ;;
-    concurrent_packet_codecs)
-      printf '%s\n' "concurrent-packet-codecs"
-      ;;
-    concurrent_scene_tiles)
-      printf '%s\n' "concurrent-scene-tiles"
-      ;;
-    concurrent_tree_folds)
-      printf '%s\n' "concurrent-tree-folds"
-      ;;
-    concurrent_state_machines)
-      printf '%s\n' "concurrent-state-machines"
-      ;;
-    concurrent_stateful_pipeline)
-      printf '%s\n' "concurrent-stateful-pipeline"
-      ;;
-    manifest_normalization)
-      printf '%s\n' "manifest-normalization"
-      ;;
-    policy_record_dispatch)
-      printf '%s\n' "policy-record-dispatch"
-      ;;
-    sensor_calibration)
-      printf '%s\n' "sensor-calibration"
-      ;;
-    sudoku_masks)
-      printf '%s\n' "sudoku-masks"
+    i_before_e|k_nucleotide|reverse_complement|tapelang_alphabet|distance_field|rms_norm|\
+      fasta_generation|fixed_width_128|rational_series|wide_integer_records|binary_event_log|\
+      backup_dedup|word_frequency|document_audit|lexical_rollup|channel_rollup|future_pipeline|\
+      future_await_race|await_channel_mux|mutex_ledger|mutex_await_journal|mutex_work_queue|\
+      regex_suffix_audit|regex_set_audit|regex_stream_audit|log_routing_redaction|\
+      config_validation_extraction|unicode_scalar_pipeline|array_slice_window|dependency_plan|\
+      discrete_event_simulation|inventory_reconciliation|option_result_config|\
+      concurrent_text_index|validated_job_pipeline|dependency_wave_validation|\
+      concurrent_event_routing|concurrent_document_pipeline|concurrent_stencil_reduction|\
+      concurrent_signal_dispatch|concurrent_transform_chain|concurrent_policy_callbacks|\
+      concurrent_graph_visitors|concurrent_audio_voices|concurrent_packet_codecs|\
+      concurrent_scene_tiles|concurrent_tree_folds|concurrent_state_machines|\
+      concurrent_stateful_pipeline|manifest_normalization|policy_record_dispatch|\
+      sensor_calibration|transaction_ledger_audit|generic_slot_buffer|sudoku_masks)
+      printf '%s\n' "${1//_/-}"
       ;;
     *)
       printf '%s\n' "$1"

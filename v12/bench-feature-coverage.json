@@ -30,10 +30,12 @@
       "dependency_wave_validation",
       "discrete_event_simulation",
       "fib",
+        "generic_slot_buffer",
         "manifest_normalization",
         "policy_record_dispatch",
         "quicksort",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "sudoku_masks",
         "tapelang_alphabet"
       ],
@@ -70,6 +72,7 @@
       "dependency_wave_validation",
       "discrete_event_simulation",
       "fixed_width_128",
+        "generic_slot_buffer",
         "inventory_reconciliation",
         "k_nucleotide",
         "manifest_normalization",
@@ -77,6 +80,7 @@
         "policy_record_dispatch",
         "rational_series",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "validated_job_pipeline",
         "wide_integer_records"
       ],
@@ -84,7 +88,7 @@
         "fixtures/exec/04_07_types_alias_union_generic_combo",
         "fixtures/exec/04_05_04_struct_literal_generic_inference"
       ],
-    "reason": "The portable set includes primitive widths, nominal structures, aliases, generic containers, nullable values, and result/union values; Binary Event Log constructs validated nominal records or interface-typed decode errors, while Discrete Event Simulation specializes nested application-defined Scheduled T and EventQueue T nominals."
+    "reason": "The portable set includes primitive widths, nominal structures, aliases, generic containers, nullable values, and result/union values; Generic Slot Buffer specializes application-defined Slot T and VersionedBuffer T nominals while observing shared mutable identity."
     },
     {
       "id": "expressions_arrays_text_files",
@@ -116,6 +120,7 @@
       "distance_field",
         "document_audit",
         "fasta_generation",
+        "generic_slot_buffer",
         "i_before_e",
         "json",
         "lexical_rollup",
@@ -126,6 +131,7 @@
         "reverse_complement",
         "rms_norm",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "unicode_scalar_pipeline",
         "validated_job_pipeline",
         "word_frequency"
@@ -171,6 +177,7 @@
         "concurrent_tree_folds",
         "dependency_wave_validation",
         "document_audit",
+        "generic_slot_buffer",
         "lexical_rollup",
         "manifest_normalization",
         "policy_record_dispatch",
@@ -211,6 +218,7 @@
       "distance_field",
         "fasta_generation",
         "fib",
+        "generic_slot_buffer",
         "mandelbrot",
         "manifest_normalization",
         "matrixmultiply",
@@ -221,6 +229,7 @@
         "quicksort",
         "rms_norm",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "sudoku_masks"
       ],
       "local_fixtures": [
@@ -255,10 +264,12 @@
       "dependency_wave_validation",
       "discrete_event_simulation",
       "fixed_width_128",
+        "generic_slot_buffer",
         "option_result_config",
         "policy_record_dispatch",
         "rational_series",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "validated_job_pipeline",
         "wide_integer_records"
       ],
@@ -290,6 +301,7 @@
         "dependency_plan",
         "dependency_wave_validation",
         "document_audit",
+        "generic_slot_buffer",
         "inventory_reconciliation",
         "k_nucleotide",
         "lexical_rollup",
@@ -297,6 +309,7 @@
         "option_result_config",
         "policy_record_dispatch",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "validated_job_pipeline",
         "word_frequency"
       ],
@@ -305,7 +318,7 @@
         "fixtures/exec/10_03_interface_type_dynamic_dispatch",
         "fixtures/exec/10_15_interface_default_generic_method"
       ],
-      "reason": "Collection and configuration applications exercise public iterator, hashing, comparison, generic default-method, and dynamic interface dispatch; Concurrent Policy Callbacks dynamically selects between two user-defined policy implementations and passes a first-class callback through the interface method boundary, while Concurrent Stateful Pipeline passes a state-carrying reducer through three interface-typed stage components."
+      "reason": "Collection and configuration applications exercise public iterator, hashing, comparison, generic default-method, and dynamic interface dispatch; Generic Slot Buffer adds a user-defined generic interface constraint plus an interface-returning iterator over aliased mutable storage."
     },
     {
       "id": "option_result_exceptions",
@@ -333,12 +346,14 @@
         "concurrent_tree_folds",
         "config_validation_extraction",
         "dependency_wave_validation",
+        "generic_slot_buffer",
         "json",
         "log_routing_redaction",
         "manifest_normalization",
         "option_result_config",
         "policy_record_dispatch",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "validated_job_pipeline"
       ],
       "local_fixtures": [
@@ -425,6 +440,7 @@
         "fixed_width_128",
         "future_await_race",
         "future_pipeline",
+        "generic_slot_buffer",
         "i_before_e",
         "inventory_reconciliation",
         "json",
@@ -450,6 +466,7 @@
         "reverse_complement",
         "rms_norm",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "sudoku_masks",
         "tapelang_alphabet",
         "unicode_scalar_pipeline",
@@ -492,6 +509,7 @@
         "dependency_wave_validation",
         "document_audit",
         "fasta_generation",
+        "generic_slot_buffer",
         "inventory_reconciliation",
         "k_nucleotide",
         "lexical_rollup",
@@ -502,6 +520,7 @@
         "regex_stream_audit",
         "regex_suffix_audit",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "unicode_scalar_pipeline",
         "validated_job_pipeline",
         "word_frequency"
@@ -544,6 +563,7 @@
         "quicksort",
         "reverse_complement",
         "sensor_calibration",
+        "transaction_ledger_audit",
         "sudoku_masks",
         "validated_job_pipeline"
       ],

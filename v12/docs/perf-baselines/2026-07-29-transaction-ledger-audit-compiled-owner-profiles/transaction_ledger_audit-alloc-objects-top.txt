@@ -1,0 +1,49 @@
+File: transaction_ledger_audit
+Build ID: c1b3278941b24fffd6b92019d5abf34a221fd45b
+Type: alloc_objects
+Time: 2026-07-29 14:37:06 CDT
+Showing nodes accounting for 158184, 259.54% of 60948 total
+Dropped 137 nodes (cum <= 304)
+      flat  flat%   sum%        cum   cum%
+     37306 61.21% 61.21%      37306 61.21%  runtime/pprof.allFrames
+     20502 33.64% 94.85%      20502 33.64%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+     16385 26.88% 121.73%      16385 26.88%  strings.genSplit
+     15873 26.04% 147.78%      15877 26.05%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     15872 26.04% 173.82%      60926   100%  main.__able_compiled_fn_parse_transaction
+      9988 16.39% 190.20%      10188 16.72%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+      9821 16.11% 206.32%       9862 16.18%  runtime/pprof.(*profileBuilder).emitLocation
+      9732 15.97% 222.29%       9732 15.97%  main.__able_compiled_method_Transaction_key (inline)
+      6141 10.08% 232.36%       8704 14.28%  main.__able_compiled_fn_ledger_error
+      5285  8.67% 241.03%      52539 86.20%  runtime/pprof.writeHeapProto
+      5123  8.41% 249.44%       5124  8.41%  main.__able_nullable_i64_from_value
+      2560  4.20% 253.64%       2560  4.20%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+      2048  3.36% 257.00%       2048  3.36%  main.__able_union__Transaction_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+      1534  2.52% 259.52%       1534  2.52%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+         6 0.0098% 259.53%      47181 77.41%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         5 0.0082% 259.53%     106550 174.82%  main.__able_compiled_fn_main
+         1 0.0016% 259.54%      52545 86.21%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.0016% 259.54%     106551 174.82%  main.RunRegisteredMain
+         1 0.0016% 259.54%      52540 86.20%  runtime/pprof.writeHeapInternal
+         0     0% 259.54%      52545 86.21%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 259.54%      52545 86.21%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 259.54%     106550 174.82%  main.RunRegisteredMain.func1
+         0     0% 259.54%      15397 25.26%  main.__able_compiled_fn_lookup
+         0     0% 259.54%       3586  5.88%  main.__able_compiled_fn_parse_i64
+         0     0% 259.54%      16384 26.88%  main.__able_compiled_fn_parse_transaction.func1 (inline)
+         0     0% 259.54%      15397 25.26%  main.__able_compiled_impl_Map_get_0_spec
+         0     0% 259.54%      15397 25.26%  main.__able_compiled_method_HashMap_raw_get_spec
+         0     0% 259.54%      20430 33.52%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0% 259.54%      20430 33.52%  main.__able_compiled_method_HashMap_set_spec
+         0     0% 259.54%      15397 25.26%  main.__able_iface_Map_String_i64_adapter_ptr_HashMap_String_i64.get
+         0     0% 259.54%      15872 26.04%  main.__able_nullable_i64_to_value (inline)
+         0     0% 259.54%     106550 174.82%  main.__able_register_compiled_call.func1
+         0     0% 259.54%       2563  4.21%  main.__able_struct_LedgerError_to (inline)
+         0     0% 259.54%       2563  4.21%  main.__able_struct_LedgerError_to_seen
+         0     0% 259.54%     106550 174.82%  main.__able_wrap_fn_main
+         0     0% 259.54%     159096 261.04%  main.main
+         0     0% 259.54%     159096 261.04%  main.runMain
+         0     0% 259.54%      52545 86.21%  main.startMainProfilePhase (inline)
+         0     0% 259.54%     159096 261.04%  runtime.main
+         0     0% 259.54%      52540 86.20%  runtime/pprof.(*Profile).WriteTo
+         0     0% 259.54%      52540 86.20%  runtime/pprof.writeAlloc
+         0     0% 259.54%      16385 26.88%  strings.Split (inline)

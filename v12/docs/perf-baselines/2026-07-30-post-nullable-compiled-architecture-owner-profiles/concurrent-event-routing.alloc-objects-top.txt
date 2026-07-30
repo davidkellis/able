@@ -1,0 +1,78 @@
+File: compiled
+Build ID: d8820f7ffdbb377c1312f5993ac54a452aa14e36
+Type: alloc_objects
+Time: 2026-07-29 19:54:29 CDT
+Showing nodes accounting for 123008, 99.73% of 123343 total
+Dropped 196 nodes (cum <= 616)
+      flat  flat%   sum%        cum   cum%
+     37846 30.68% 30.68%      37846 30.68%  runtime/pprof.allFrames
+     13320 10.80% 41.48%      13320 10.80%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     12301  9.97% 51.46%      12308  9.98%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     10026  8.13% 59.58%      10071  8.17%  runtime/pprof.(*profileBuilder).emitLocation
+      8192  6.64% 66.23%      23815 19.31%  main.__able_compiled_fn_route_task_ctx
+      5432  4.40% 70.63%      53432 43.32%  runtime/pprof.writeHeapProto
+      4105  3.33% 73.96%      25508 20.68%  main.__able_compiled_fn_main_ctx
+      4100  3.32% 77.28%       4103  3.33%  main.__able_struct_EventTask_from
+      4100  3.32% 80.61%       8200  6.65%  main.__able_struct_RoutedEvent_from
+      4099  3.32% 83.93%       4099  3.32%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+      4097  3.32% 87.25%       4097  3.32%  strings.genSplit
+      3072  2.49% 89.74%      11527  9.35%  main.__able_compiled_fn_parse_record_ctx
+      3072  2.49% 92.23%       3072  2.49%  main.__able_compiled_fn_work_ctx.func1
+      3072  2.49% 94.72%       3072  2.49%  main.__able_struct_AcceptedRoute_from
+      2309  1.87% 96.59%       3335  2.70%  main.__able_compiled_fn_routing_error_ctx
+      1028  0.83% 97.43%       1028  0.83%  main.__able_struct_RejectedRoute_from
+      1024  0.83% 98.26%       1024  0.83%  main.__able_union__AcceptedRoute_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+      1024  0.83% 99.09%       1024  0.83%  main.__able_union__EventRecord_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+       771  0.63% 99.71%        771  0.63%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64.func1
+         8 0.0065% 99.72%      44357 35.96%  main.__able_compiled_fn_work_ctx
+         6 0.0049% 99.73%      47930 38.86%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         1 0.00081% 99.73%      53438 43.32%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00081% 99.73%      25511 20.68%  main.RunRegisteredMain
+         1 0.00081% 99.73%      25509 20.68%  main.__able_compiled_entry_fn_main_ctx
+         1 0.00081% 99.73%      53433 43.32%  runtime/pprof.writeHeapInternal
+         0     0% 99.73%        771  0.63%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0% 99.73%      53438 43.32%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.73%      53438 43.32%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.73%      44386 35.99%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0% 99.73%      25510 20.68%  main.RunRegisteredMain.func1
+         0     0% 99.73%       6394  5.18%  main.__able_compiled_fn_main_ctx.func1
+         0     0% 99.73%      10629  8.62%  main.__able_compiled_fn_main_ctx.func2
+         0     0% 99.73%      14901 12.08%  main.__able_compiled_fn_main_ctx.func3
+         0     0% 99.73%      12437 10.08%  main.__able_compiled_fn_main_ctx.func4
+         0     0% 99.73%       4096  3.32%  main.__able_compiled_fn_parse_record_ctx.func1 (inline)
+         0     0% 99.73%       3072  2.49%  main.__able_compiled_fn_route_task_ctx.func1
+         0     0% 99.73%       4127  3.35%  main.__able_compiled_method_Channel_receive_spec_a_ctx
+         0     0% 99.73%       8200  6.65%  main.__able_compiled_method_Channel_receive_spec_ctx
+         0     0% 99.73%      16407 13.30%  main.__able_compiled_method_Channel_send_spec_a_ctx
+         0     0% 99.73%      12289  9.96%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0% 99.73%        765  0.62%  main.__able_compiled_method_HashMap_raw_set_spec_ctx
+         0     0% 99.73%        765  0.62%  main.__able_compiled_method_HashMap_set_spec_ctx
+         0     0% 99.73%       4096  3.32%  main.__able_compiled_method_Result__map_spec_ctx
+         0     0% 99.73%      25510 20.68%  main.__able_register_compiled_call.func1
+         0     0% 99.73%      44386 35.99%  main.__able_run_compiled_task
+         0     0% 99.73%      44365 35.97%  main.__able_spawn_context.func1
+         0     0% 99.73%       6148  4.98%  main.__able_struct_AcceptedRoute_to (inline)
+         0     0% 99.73%       6148  4.98%  main.__able_struct_AcceptedRoute_to_seen
+         0     0% 99.73%       3072  2.49%  main.__able_struct_AcceptedRoute_try_from
+         0     0% 99.73%      12289  9.96%  main.__able_struct_EventTask_to (inline)
+         0     0% 99.73%      12289  9.96%  main.__able_struct_EventTask_to_seen
+         0     0% 99.73%       2057  1.67%  main.__able_struct_RejectedRoute_to (inline)
+         0     0% 99.73%       2057  1.67%  main.__able_struct_RejectedRoute_to_seen
+         0     0% 99.73%       1028  0.83%  main.__able_struct_RejectedRoute_try_from
+         0     0% 99.73%      16405 13.30%  main.__able_struct_RoutedEvent_to (inline)
+         0     0% 99.73%      16405 13.30%  main.__able_struct_RoutedEvent_to_seen
+         0     0% 99.73%       1026  0.83%  main.__able_struct_RoutingError_to (inline)
+         0     0% 99.73%       1026  0.83%  main.__able_struct_RoutingError_to_seen
+         0     0% 99.73%       4100  3.32%  main.__able_union__AcceptedRoute_or__RejectedRoute_from_value
+         0     0% 99.73%       8205  6.65%  main.__able_union__AcceptedRoute_or__RejectedRoute_to_value
+         0     0% 99.73%       4100  3.32%  main.__able_union__AcceptedRoute_or__RejectedRoute_try_from_value
+         0     0% 99.73%      25510 20.68%  main.__able_wrap_fn_main
+         0     0% 99.73%      78949 64.01%  main.main
+         0     0% 99.73%      78949 64.01%  main.runMain
+         0     0% 99.73%      53438 43.32%  main.startMainProfilePhase (inline)
+         0     0% 99.73%      78949 64.01%  runtime.main
+         0     0% 99.73%      53433 43.32%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.73%      53433 43.32%  runtime/pprof.writeAlloc
+         0     0% 99.73%       4097  3.32%  strings.Split (inline)
+         0     0% 99.73%        780  0.63%  sync.(*Once).Do (inline)
+         0     0% 99.73%        780  0.63%  sync.(*Once).doSlow

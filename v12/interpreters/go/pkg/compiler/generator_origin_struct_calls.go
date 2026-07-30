@@ -14,6 +14,9 @@ func safeNilReturnExpr(expected string) string {
 	if expected == "any" {
 		return "nil"
 	}
+	if strings.HasPrefix(expected, "__able_nullable[") {
+		return expected + "{}"
+	}
 	if strings.HasPrefix(expected, "*") || strings.HasPrefix(expected, "[]") {
 		return fmt.Sprintf("(%s)(nil)", expected)
 	}

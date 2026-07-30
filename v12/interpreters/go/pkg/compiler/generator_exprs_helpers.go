@@ -505,7 +505,7 @@ func (g *generator) wrapLinesAsExpression(ctx *compileContext, lines []string, e
 
 func (g *generator) zeroValueExpr(goType string) (string, bool) {
 	if g.isNativeNullableValueType(goType) {
-		return "nil", true
+		return g.nativeNullableAbsentExpr(goType)
 	}
 	if g.isMonoArrayType(goType) {
 		return "nil", true
@@ -601,6 +601,9 @@ func (g *generator) goTypeHasNilZeroValue(goType string) bool {
 }
 
 func (g *generator) typedNilExpr(goType string) (string, bool) {
+	if absent, ok := g.nativeNullableAbsentExpr(goType); ok {
+		return absent, true
+	}
 	if !g.goTypeHasNilZeroValue(goType) {
 		return "", false
 	}

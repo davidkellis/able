@@ -1,36 +1,36 @@
 {
   "kind": "able-bytecode-profile-coverage",
   "schema_version": 1,
-  "selection_sha256": "0c72eaf2a1b12d3a5a2f88d00b3382a706f5c5c16977c24b55fb64214f8d429e",
+  "selection_sha256": "96d86cdad06f52286e4423ecad7d47ffaf75968fdc51a7e8010f65369291549e",
   "sources": {
     "scorecard": {
       "path": "v12/docs/perf-baselines/external-scoreboard-current.json",
-      "sha256": "3b1a48053e4a9330c1fbeda258f730504d992ac761a2e6fff64c131d9074d9ac"
+      "sha256": "d3c4269dfb620a31a3fad9a486977085d63689f6726fd8dedbd66cd708843499"
     },
     "selection_manifest": {
       "path": "v12/bench-selection-manifest.json",
-      "sha256": "859d1db10b34bd6ed978a6222a9f5e1adb5b6325bad907ca95397a76a4d251a9"
+      "sha256": "4ea0afa8b59067f82b706a4cdc320cf725f346a190ccaa5dbceb35b5a6b51a7f"
     },
     "frontier_evidence": {
       "path": "v12/bench-performance-frontier-evidence.json",
-      "sha256": "58954b15e53d097f8cf006b91db21ab7f31475f62bd96dec6307ad1a7b10634a"
+      "sha256": "061fb0ce2ba6e4349183c6f62948e6ca7b9e0c77866123041907efa42c93e8ff"
     },
     "closure_ledger": {
       "path": "v12/bench-performance-closure-ledger.json",
-      "sha256": "37f012c500088397808e51edd17d273f417e621082ef449287b3a5aeb554104f"
+      "sha256": "840797794ab5916a2afc8a77dbf97689645495f2802497580c3fd2733bbe9b6a"
     },
     "coverage_manifest": {
       "path": "v12/bench-bytecode-profile-coverage.json",
-      "sha256": "187c81ae4d26fef81065a7e5860182712c44320478948638f3fd643961544ea5"
+      "sha256": "a08c11ae65cec825a20322efeaf6a29c0b8ecd4168f70632f97751ffde0eb634"
     }
   },
   "summary": {
-    "bytecode_target_misses": 59,
-    "cpu_current_rows": 59,
-    "allocation_current_rows": 59,
+    "bytecode_target_misses": 60,
+    "cpu_current_rows": 60,
+    "allocation_current_rows": 60,
     "uncovered_rows": 0,
     "closure_ledger_entries": 23,
-    "total_excess_seconds": 221.5036842105263,
+    "total_excess_seconds": 226.05747368421052,
     "production_optimization_admitted": false
   },
   "groups": [
@@ -50,8 +50,8 @@
     },
     {
       "id": "bytecode-text-map",
-      "row_count": 9,
-      "total_excess_seconds": 60.73842105263157,
+      "row_count": 10,
+      "total_excess_seconds": 65.29221052631578,
       "cpu_status": "current",
       "allocation_status": "current",
       "disposition": "closed-rejected-candidate",
@@ -79,6 +79,10 @@
         {
           "path": "v12/docs/perf-baselines/2026-07-27-backup-dedup-application-gate.md",
           "sha256": "a5bfda084cb8dcddfd3457ae775c15635e6d567825ae08750b7b4231fa5a58d6"
+        },
+        {
+          "path": "v12/docs/perf-baselines/2026-07-29-transaction-ledger-audit-application-gate.md",
+          "sha256": "f0e113932e0c1b2d821a8f431e7e14bffd337a4f91e53a85c20042ef38741c1d"
         }
       ]
     },
@@ -402,6 +406,19 @@
       "cpu_status": "current",
       "allocation_status": "current",
       "excess_seconds": 5.089263157894737,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "benchmark": "transaction_ledger_audit",
+      "mode": "bytecode",
+      "group": "bytecode-text-map",
+      "source": {
+        "path": "v12/examples/benchmarks/transaction_ledger_audit/transaction_ledger_audit.able",
+        "sha256": "efed16e88aed7c6b9d4b7aef115eb1274824c5b725bbdbf845993218c9273738"
+      },
+      "cpu_status": "current",
+      "allocation_status": "current",
+      "excess_seconds": 4.55378947368421,
       "disposition": "closed-rejected-candidate"
     },
     {

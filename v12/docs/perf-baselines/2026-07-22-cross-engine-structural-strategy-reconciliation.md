@@ -10,9 +10,9 @@ class rather than a concrete mechanism. Timing reach does not answer who owns
 boxed values and GC roots, how effects and suspension cross the boundary, or how
 the backend is built and distributed.
 
-The governing frontier has 126 selected rows,
-115 misses, and 226.856947
-seconds of target excess. Bytecode contributes 221.503684
+The governing frontier has 128 selected rows,
+117 misses, and 230.851579
+seconds of target excess. Bytecode contributes 226.057474
 seconds. All 23 completed performance closures remain current.
 
 ## Route comparison
@@ -56,7 +56,7 @@ fallback for unsupported activations.
 | --- | --- | --- | ---: | --- |
 | `fixed_width_128` | wide-numeric | yes | 100.00% | pass |
 | `distance_field` | float-numeric | yes | 100.00% | pass |
-| `concurrent_event_routing` | concurrency-text | fallback | 100.00% | pass |
+| `concurrent_event_routing` | concurrency-text | fallback | 99.69% | pass |
 | `word_frequency` | text-map | yes | 98.88% | pass |
 | `array_slice_window` | array-iterator | yes | 99.79% | pass |
 | `reverse_complement` | byte-text | yes | 99.50% | pass |

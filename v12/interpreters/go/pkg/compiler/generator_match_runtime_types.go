@@ -165,6 +165,8 @@ func (g *generator) compileNativeUnionLiteralMatch(ctx *compileContext, lit ast.
 				nilCond = fmt.Sprintf("__able_is_nil(%s)", memberTemp)
 			case member.GoType == "any":
 				nilCond = fmt.Sprintf("(%s == nil)", memberTemp)
+			case g.isNativeNullableValueType(member.GoType):
+				nilCond, _ = g.nativeNullableIsNilExpr(member.GoType, memberTemp)
 			case g.goTypeHasNilZeroValue(member.GoType):
 				nilCond = fmt.Sprintf("(%s == nil)", memberTemp)
 			default:
@@ -180,6 +182,9 @@ func (g *generator) compileNativeUnionLiteralMatch(ctx *compileContext, lit ast.
 		}
 		if len(conds) != 0 {
 			return lines, fmt.Sprintf("(%s)", strings.Join(conds, " || ")), true
+		}
+		if nilExpr, ok := g.nativeNullableIsNilExpr(subjectType, subjectTemp); ok {
+			return nil, nilExpr, true
 		}
 		if g.goTypeHasNilZeroValue(subjectType) {
 			return nil, fmt.Sprintf("(%s == nil)", subjectTemp), true
@@ -272,13 +277,16 @@ func (g *generator) compileLiteralMatch(ctx *compileContext, lit ast.Literal, su
 	}
 	if innerType, ok := g.nativeNullableValueInnerType(subjectType); ok {
 		if _, isNil := lit.(*ast.NilLiteral); isNil {
-			return nil, fmt.Sprintf("(%s == nil)", subjectTemp), true
+			nilExpr, _ := g.nativeNullableIsNilExpr(subjectType, subjectTemp)
+			return nil, nilExpr, true
 		}
 		litLines, expr, _, ok := g.compileExprLines(ctx, lit.(ast.Expression), innerType)
 		if !ok {
 			return nil, "", false
 		}
-		return litLines, fmt.Sprintf("(%s != nil && (*%s == %s))", subjectTemp, subjectTemp, expr), true
+		presentExpr, _ := g.nativeNullableHasValueExpr(subjectType, subjectTemp)
+		valueExpr, _ := g.nativeNullableValueExpr(subjectType, subjectTemp)
+		return litLines, fmt.Sprintf("(%s && (%s == %s))", presentExpr, valueExpr, expr), true
 	}
 	if lines, cond, ok := g.compileNativeUnionLiteralMatch(ctx, lit, subjectTemp, subjectType); ok {
 		return lines, cond, true

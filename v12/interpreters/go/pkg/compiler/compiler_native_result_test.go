@@ -211,7 +211,7 @@ func TestCompilerNilPropagationReturnsNullableFromCurrentFunction(t *testing.T) 
 	if !ok {
 		t.Fatalf("could not find marker function")
 	}
-	if !strings.Contains(body, "return nil, nil") {
+	if !strings.Contains(body, "return __able_nullable[string]{}, nil") {
 		t.Fatalf("expected nil propagation to return a normal nullable nil value:\n%s", body)
 	}
 	if strings.Contains(body, "__able_raise_control(nil, runtime.NilValue{})") {

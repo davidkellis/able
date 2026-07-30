@@ -1,0 +1,110 @@
+{
+  "kind": "transaction-ledger-audit-application-gate",
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "decision": {
+    "application": "retained",
+    "production_change": "none",
+    "candidate": null,
+    "reason": "No concrete compiler or generated-runtime owner is material in all three unlike compiled applications."
+  },
+  "application": {
+    "id": "transaction_ledger_audit",
+    "expected_output": "16384:10240:2048:2048:2048:3584,3584,3072:785408:836090112:991490",
+    "stdout_sha256": "aa5a4fe7f85ce13998797ef506647a93f16e0ee747613683268fd801d609c812",
+    "canonical_able_sha256": "efed16e88aed7c6b9d4b7aef115eb1274824c5b725bbdbf845993218c9273738",
+    "external_able_sha256": "efed16e88aed7c6b9d4b7aef115eb1274824c5b725bbdbf845993218c9273738",
+    "input_sha256": "bb03a70ea4905c7e59c0d8c97974a79db39be6228d68dc1bdaf7b44fdca2b25e",
+    "verifier_sha256": "ba283a40dbc4c1aa4314823a028c30b819033d1e408c22eb50bdf4848b13dfc9",
+    "reference_source_sha256": {
+      "go": "e362f9aeca17298a8263c8cb72ef8fde1ebbed611e4f3d758aa73a1a372011f8",
+      "python": "d4c23454a91bc81c802b5ef32f9dbfa381cdab77f24ca51671da42f24f8d41a7",
+      "ruby": "fbd173e891cfff7191f109e94cf0dd917eea8240fa7cb6fdbea11585c86b48d6"
+    }
+  },
+  "measurements": {
+    "runs_per_implementation": 5,
+    "cpu_affinity": "15",
+    "go_toolchain": "go1.26.5",
+    "compiled": {
+      "able_mean_seconds": 0.05,
+      "go_mean_seconds": 0.0073,
+      "able_over_go": 6.849315068493151,
+      "verified_able_runs": 5,
+      "verified_reference_runs": 5,
+      "strict_no_fallbacks": true,
+      "interpreter_dependency": false
+    },
+    "bytecode": {
+      "able_mean_seconds": 4.59,
+      "python_mean_seconds": 0.0344,
+      "ruby_mean_seconds": 0.0914,
+      "able_over_python": 133.43023255813952,
+      "able_over_ruby": 50.21881838074398,
+      "verified_able_runs": 5,
+      "verified_reference_runs_per_language": 5
+    }
+  },
+  "compiled_owner_refresh": {
+    "applications": [
+      {
+        "id": "transaction_ledger_audit",
+        "cpu_profiles": 20,
+        "cpu_samples_ms": 410,
+        "main_allocated_bytes": 5784248,
+        "main_allocations": 115269,
+        "main_gc_count": 5,
+        "material_owners": [
+          "strings.genSplit",
+          "bridge.ToString",
+          "bridge.ToInt",
+          "bridge.ToDynamicI64",
+          "generated transaction-key and nominal error construction"
+        ]
+      },
+      {
+        "id": "inventory_reconciliation",
+        "cpu_profiles": 5,
+        "cpu_samples_ms": 540,
+        "main_allocated_bytes": 17037072,
+        "main_allocations": 553059,
+        "main_gc_count": 15,
+        "material_owners": [
+          "primitiveHashMapHash",
+          "primitiveHashMapKeyEqual",
+          "generated hash-map entry lookup",
+          "bridge.ToDynamicI64",
+          "nullable i64 recovery"
+        ]
+      },
+      {
+        "id": "sensor_calibration",
+        "cpu_profiles": 30,
+        "cpu_samples_ms": 220,
+        "main_allocated_bytes": 3333264,
+        "main_allocations": 53315,
+        "main_gc_count": 3,
+        "material_owners": [
+          "bridge.ToInt",
+          "strings.genSplit",
+          "generated Result/error union construction",
+          "nominal struct construction"
+        ]
+      }
+    ],
+    "common_runtime_parent": "runtime.mallocgc",
+    "common_concrete_able_owner": null,
+    "conclusion": "Map storage repeats only in Transaction Ledger Audit and Inventory Reconciliation; parsing and integer conversion repeat only in Transaction Ledger Audit and Sensor Calibration. No general candidate clears the three-unlike-application gate."
+  },
+  "selection": {
+    "portable_applications": 64,
+    "selected_rows": 128,
+    "selection_sha256": "96d86cdad06f52286e4423ecad7d47ffaf75968fdc51a7e8010f65369291549e"
+  },
+  "next": {
+    "recommendation": "Add a portable user-defined generic nominal storage workload before reopening typed nominal storage architecture.",
+    "why": "The remaining map boundary is visible in two programs, but a HashMap-specific compiler rule is forbidden and current evidence does not show that the same mechanism affects user-defined nominal storage.",
+    "entails": "Create source-equivalent Able, Go, Python, and Ruby implementations exercising a user-defined generic mutable nominal through identity, aliasing, interface, and iteration boundaries; verify all engines; collect five-run evidence; then refresh only invalidated closure groups.",
+    "importance": "This can distinguish a general semantic-encoding cost from a named-container artifact and is the shortest evidence path toward safe native Go lowering without compiled/interpreted boundary boxing."
+  }
+}

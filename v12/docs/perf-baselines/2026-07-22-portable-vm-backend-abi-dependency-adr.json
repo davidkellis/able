@@ -230,7 +230,7 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-portable-vm-backend-adr.json",
-      "sha256": "250be630dd4b057944892cd4681f089e6e0e5d71959f1723cf0a8136a580abd9"
+      "sha256": "c68bb5cf51563003be08bb1a6ef430449eab632c4457cb0c54f13b52f149c936"
     },
     "executor": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/executor.go",
@@ -242,7 +242,7 @@
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "56d32ff3ce31c5793f10c8ecc6a7cbc4b6385accb7a0d97202efe97c5459ff3c"
+      "sha256": "ad9f79174a20368ab55c1e80450960e28280111f8cbf1f58c9bbda0b1f0705bf"
     },
     "raw_values": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/raw_value.go",
@@ -258,7 +258,7 @@
     },
     "structural_strategy": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json",
-      "sha256": "fb956076658cd2e8b2251b5746b72ca4394f66e782256f4d6fedf8a11178bb8b"
+      "sha256": "0743885d19e097767998c89e9d86212dbdfe56be0c01846f0c28660146168e87"
     },
     "vm_dispatch": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go",

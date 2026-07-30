@@ -13,6 +13,17 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 GENERATOR = SCRIPT_DIR / "bench_feature_interaction_matrix"
+BASELINE_WITHOUT = (
+    "backup_dedup,binary_event_log,concurrent_document_pipeline,"
+    "concurrent_text_index,validated_job_pipeline,dependency_wave_validation,"
+    "concurrent_event_routing,manifest_normalization,policy_record_dispatch,"
+    "sensor_calibration,concurrent_stencil_reduction,concurrent_signal_dispatch,"
+    "concurrent_transform_chain,concurrent_policy_callbacks,"
+    "concurrent_graph_visitors,concurrent_audio_voices,"
+    "concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,"
+    "concurrent_state_machines,concurrent_stateful_pipeline,"
+    "discrete_event_simulation,transaction_ledger_audit"
+)
 
 
 class FeatureInteractionMatrixTests(unittest.TestCase):
@@ -23,7 +34,7 @@ class FeatureInteractionMatrixTests(unittest.TestCase):
                 [
                     str(GENERATOR),
                     "--baseline-without",
-                    "backup_dedup,binary_event_log,concurrent_document_pipeline,concurrent_text_index,validated_job_pipeline,dependency_wave_validation,concurrent_event_routing,manifest_normalization,policy_record_dispatch,sensor_calibration,concurrent_stencil_reduction,concurrent_signal_dispatch,concurrent_transform_chain,concurrent_policy_callbacks,concurrent_graph_visitors,concurrent_audio_voices,concurrent_packet_codecs,concurrent_scene_tiles,concurrent_tree_folds,concurrent_state_machines,concurrent_stateful_pipeline,discrete_event_simulation",
+                    BASELINE_WITHOUT,
                     "--json-out",
                     str(output),
                 ],

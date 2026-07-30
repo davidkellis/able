@@ -1,7 +1,7 @@
 {
   "kind": "able-performance-stability",
   "schema_version": 1,
-  "selection_sha256": "0c72eaf2a1b12d3a5a2f88d00b3382a706f5c5c16977c24b55fb64214f8d429e",
+  "selection_sha256": "d450605f6b271fbddbda7bf31e9f61c1d87cbf1a407f9047304d79bd64ff1684",
   "scorecard_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
   "entries": [
     {
@@ -145,29 +145,6 @@
         "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
       ],
       "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
-    },
-    {
-      "benchmark": "i_before_e",
-      "mode": "compiled",
-      "classification": "established-meet",
-      "pooled_ratio": 0.9844654971527445,
-      "cohort_ratios": [
-        1.0490693739424704,
-        0.9171075837742504
-      ],
-      "limiting_reference": "go",
-      "able_samples": 10,
-      "reference_samples": 10,
-      "able_source_sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9",
-      "reference_source_sha256": {
-        "go": "63386a111f2fd35ff949092a419c99ce7dcf21e81b24575ece330f7729df65c0"
-      },
-      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
-      "evidence": [
-        "v12/docs/perf-baselines/2026-07-29-compiled-go1265-refresh.json",
-        "v12/docs/perf-baselines/2026-07-29-compiled-go1265-stability-i-before-e.json"
-      ],
-      "rationale": "Both independent Go 1.26.5 five-process cohorts meet the target with verifier-backed matched references."
     },
     {
       "benchmark": "json",

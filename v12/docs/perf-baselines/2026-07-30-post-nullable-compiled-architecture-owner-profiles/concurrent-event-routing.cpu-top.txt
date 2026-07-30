@@ -1,0 +1,88 @@
+File: compiled
+Build ID: d8820f7ffdbb377c1312f5993ac54a452aa14e36
+Type: cpu
+Time: 2026-07-29 19:52:49 CDT
+Duration: 338.85ms, Total samples = 300ms (88.53%)
+Showing nodes accounting for 300ms, 100% of 300ms total
+Showing top 80 nodes out of 101
+      flat  flat%   sum%        cum   cum%
+      30ms 10.00% 10.00%       30ms 10.00%  runtime.lock2
+      30ms 10.00% 20.00%       30ms 10.00%  runtime.unlock2
+      20ms  6.67% 26.67%       20ms  6.67%  main.__able_checked_mul_signed
+      20ms  6.67% 33.33%       20ms  6.67%  main.__able_struct_RoutedEvent_from
+      20ms  6.67% 40.00%       20ms  6.67%  unicode/utf8.ValidString
+      10ms  3.33% 43.33%       10ms  3.33%  indexbytebody
+      10ms  3.33% 46.67%       10ms  3.33%  internal/chacha8rand.(*State).Refill
+      10ms  3.33% 50.00%       10ms  3.33%  internal/sync.(*Mutex).Lock (inline)
+      10ms  3.33% 53.33%       10ms  3.33%  main.__able_checked_add_signed
+      10ms  3.33% 56.67%       50ms 16.67%  main.__able_compiled_fn_main_ctx
+      10ms  3.33% 60.00%       10ms  3.33%  main.__able_compiled_fn_score_record_ctx_into.func3 (inline)
+      10ms  3.33% 63.33%       30ms 10.00%  main.__able_compiled_method_Channel_receive_spec_a_ctx
+      10ms  3.33% 66.67%       20ms  6.67%  main.__able_struct_EventTask_from
+      10ms  3.33% 70.00%       10ms  3.33%  main.__able_struct_named_field_value
+      10ms  3.33% 73.33%       10ms  3.33%  runtime.chansend
+      10ms  3.33% 76.67%       10ms  3.33%  runtime.findObject
+      10ms  3.33% 80.00%       10ms  3.33%  runtime.getempty
+      10ms  3.33% 83.33%       10ms  3.33%  runtime.goschedIfBusy
+      10ms  3.33% 86.67%       20ms  6.67%  runtime.mcall
+      10ms  3.33% 90.00%       30ms 10.00%  runtime.newobject
+      10ms  3.33% 93.33%       10ms  3.33%  runtime.nextFreeFast (inline)
+      10ms  3.33% 96.67%       10ms  3.33%  runtime.sweepone
+      10ms  3.33%   100%       10ms  3.33%  runtime.typePointers.next
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/runtime.(*Environment).SetRuntimeData
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/runtime.(*Environment).mutex
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/runtime.ChannelStoreIsClosed
+         0     0%   100%       10ms  3.33%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+         0     0%   100%       10ms  3.33%  internal/stringslite.Index
+         0     0%   100%       10ms  3.33%  internal/stringslite.IndexByte (inline)
+         0     0%   100%      160ms 53.33%  main.(*__able_goroutine_executor).RunFuture.func1
+         0     0%   100%       50ms 16.67%  main.RunRegisteredMain
+         0     0%   100%       50ms 16.67%  main.RunRegisteredMain.func1
+         0     0%   100%       10ms  3.33%  main.__able_channel_receive_ctx (inline)
+         0     0%   100%       10ms  3.33%  main.__able_channel_receive_impl
+         0     0%   100%       10ms  3.33%  main.__able_channel_send_ctx (inline)
+         0     0%   100%       10ms  3.33%  main.__able_channel_send_impl
+         0     0%   100%       50ms 16.67%  main.__able_compiled_entry_fn_main_ctx
+         0     0%   100%       60ms 20.00%  main.__able_compiled_fn_main_ctx.func1
+         0     0%   100%       20ms  6.67%  main.__able_compiled_fn_main_ctx.func2
+         0     0%   100%       30ms 10.00%  main.__able_compiled_fn_main_ctx.func3
+         0     0%   100%       40ms 13.33%  main.__able_compiled_fn_main_ctx.func4
+         0     0%   100%       40ms 13.33%  main.__able_compiled_fn_parse_record_ctx
+         0     0%   100%       30ms 10.00%  main.__able_compiled_fn_parse_record_ctx.func1 (inline)
+         0     0%   100%       10ms  3.33%  main.__able_compiled_fn_parse_record_ctx.func2 (inline)
+         0     0%   100%       90ms 30.00%  main.__able_compiled_fn_route_task_ctx
+         0     0%   100%       40ms 13.33%  main.__able_compiled_fn_route_task_ctx.func1
+         0     0%   100%       40ms 13.33%  main.__able_compiled_fn_score_record_ctx_into
+         0     0%   100%      150ms 50.00%  main.__able_compiled_fn_work_ctx
+         0     0%   100%       40ms 13.33%  main.__able_compiled_fn_work_ctx.func1
+         0     0%   100%       30ms 10.00%  main.__able_compiled_method_Channel_receive_spec_ctx
+         0     0%   100%       30ms 10.00%  main.__able_compiled_method_Channel_send_spec_a_ctx
+         0     0%   100%       10ms  3.33%  main.__able_compiled_method_Channel_send_spec_ctx
+         0     0%   100%       40ms 13.33%  main.__able_compiled_method_Result__map_spec_ctx
+         0     0%   100%       50ms 16.67%  main.__able_register_compiled_call.func1
+         0     0%   100%      160ms 53.33%  main.__able_run_compiled_task
+         0     0%   100%      150ms 50.00%  main.__able_spawn_context.func1
+         0     0%   100%       20ms  6.67%  main.__able_struct_RejectedRoute_to (inline)
+         0     0%   100%       10ms  3.33%  main.__able_struct_RejectedRoute_to_seen
+         0     0%   100%       30ms 10.00%  main.__able_struct_RoutedEvent_to (inline)
+         0     0%   100%       30ms 10.00%  main.__able_struct_RoutedEvent_to_seen
+         0     0%   100%       20ms  6.67%  main.__able_union__AcceptedRoute_or__RejectedRoute_to_value
+         0     0%   100%       50ms 16.67%  main.__able_wrap_fn_main
+         0     0%   100%       50ms 16.67%  main.main
+         0     0%   100%       50ms 16.67%  main.runMain
+         0     0%   100%       10ms  3.33%  runtime.(*gcWork).init
+         0     0%   100%       10ms  3.33%  runtime.(*gcWork).tryGetObj
+         0     0%   100%       10ms  3.33%  runtime.(*wbBuf).get2 (inline)
+         0     0%   100%       70ms 23.33%  runtime.bgsweep
+         0     0%   100%       10ms  3.33%  runtime.bulkBarrierPreWrite
+         0     0%   100%       10ms  3.33%  runtime.convT
+         0     0%   100%       20ms  6.67%  runtime.deductAssistCredit
+         0     0%   100%       10ms  3.33%  runtime.freeDeadSpanSPMCs
+         0     0%   100%       30ms 10.00%  runtime.freeSomeWbufs
+         0     0%   100%       20ms  6.67%  runtime.gcAssistAlloc
+         0     0%   100%       20ms  6.67%  runtime.gcAssistAlloc.func2
+         0     0%   100%       20ms  6.67%  runtime.gcAssistAlloc1
+         0     0%   100%       20ms  6.67%  runtime.gcDrainN
+         0     0%   100%       10ms  3.33%  runtime.goschedImpl
+         0     0%   100%       10ms  3.33%  runtime.gosched_m

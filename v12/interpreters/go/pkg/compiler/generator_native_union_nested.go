@@ -125,7 +125,8 @@ func (g *generator) nativeUnionWrapExprSeen(info *nativeUnionInfo, actual, expr 
 			continue
 		}
 		if g.nativeNullableWraps(member.GoType, actual) {
-			return fmt.Sprintf("%s(__able_ptr(%s))", member.WrapHelper, expr), true
+			wrapped, _ := g.nativeNullablePresentExpr(member.GoType, expr)
+			return fmt.Sprintf("%s(%s)", member.WrapHelper, wrapped), true
 		}
 		if inner := g.nativeUnionInfoForGoType(member.GoType); inner != nil {
 			if wrapped, ok := g.nativeUnionWrapExprSeen(inner, actual, expr, seen); ok {

@@ -19,8 +19,8 @@ func TestCompilerNullableI32ParamAndMatchStayNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_describe(value *int32) (string, *__ableControl)") {
-		t.Fatalf("expected describe to keep a native nullable *int32 parameter")
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_describe(value __able_nullable[int32]) (string, *__ableControl)") {
+		t.Fatalf("expected describe to keep a value-backed native nullable int32 parameter")
 	}
 
 	body, ok := findCompiledFunction(result, "__able_compiled_fn_describe")
@@ -28,8 +28,8 @@ func TestCompilerNullableI32ParamAndMatchStayNative(t *testing.T) {
 		t.Fatalf("could not find compiled describe function")
 	}
 	for _, fragment := range []string{
-		"!= nil",
-		"(*__able_tmp_0)",
+		".valid",
+		".value",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected nullable match lowering to contain %q:\n%s", fragment, body)
@@ -68,11 +68,11 @@ func TestCompilerNullableI32ReturnAndOrElseStayNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_maybe(flag bool) (*int32, *__ableControl)") {
-		t.Fatalf("expected maybe to keep a native nullable *int32 return")
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_maybe(flag bool) (__able_nullable[int32], *__ableControl)") {
+		t.Fatalf("expected maybe to keep a value-backed native nullable int32 return")
 	}
-	if !strings.Contains(compiledSrc, "__able_ptr(int32(7))") {
-		t.Fatalf("expected nullable integer literal lowering to use __able_ptr(int32(7))")
+	if !strings.Contains(compiledSrc, "__able_some(int32(7))") {
+		t.Fatalf("expected nullable integer literal lowering to use __able_some(int32(7))")
 	}
 
 	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_maybe")
@@ -88,8 +88,8 @@ func TestCompilerNullableI32ReturnAndOrElseStayNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"== nil",
-		"(*",
+		".valid",
+		".value",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native nullable or-else lowering to contain %q:\n%s", fragment, mainBody)
@@ -120,11 +120,18 @@ func TestCompilerNullableI64ReturnAndOrElseStayNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_maybe(flag bool) (*int64, *__ableControl)") {
-		t.Fatalf("expected maybe to keep a native nullable *int64 return")
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_maybe(flag bool) (__able_nullable[int64], *__ableControl)") {
+		t.Fatalf("expected maybe to keep a value-backed native nullable int64 return")
 	}
-	if !strings.Contains(compiledSrc, "__able_ptr(int64(7))") {
-		t.Fatalf("expected nullable integer literal lowering to use __able_ptr(int64(7))")
+	if !strings.Contains(compiledSrc, "__able_some(int64(7))") {
+		t.Fatalf("expected nullable integer literal lowering to use __able_some(int64(7))")
+	}
+	maybeBody, ok := findCompiledFunction(result, "__able_compiled_fn_maybe")
+	if !ok {
+		t.Fatalf("could not find compiled maybe function")
+	}
+	if strings.Contains(maybeBody, "__able_ptr(") {
+		t.Fatalf("expected primitive nullable construction to avoid pointer boxing:\n%s", maybeBody)
 	}
 
 	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_maybe")
@@ -140,13 +147,35 @@ func TestCompilerNullableI64ReturnAndOrElseStayNative(t *testing.T) {
 		t.Fatalf("could not find compiled main function")
 	}
 	for _, fragment := range []string{
-		"== nil",
-		"(*",
+		".valid",
+		".value",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected native nullable or-else lowering to contain %q:\n%s", fragment, mainBody)
 		}
 	}
+}
+
+func TestCompilerNullableI64PresentZeroDiffersFromAbsent(t *testing.T) {
+	compileAndRunSource(t, "ablec-nullable-i64-zero-", strings.Join([]string{
+		"package demo",
+		"",
+		"extern go fn __able_os_exit(code: i32) -> void {}",
+		"",
+		"fn maybe(flag: bool) -> ?i64 {",
+		"  if flag { 0_i64 } else { nil }",
+		"}",
+		"",
+		"fn main() {",
+		"  present := maybe(true)",
+		"  absent := maybe(false)",
+		"  if present != nil && (present or { 1_i64 }) == 0_i64 && absent == nil {",
+		"    __able_os_exit(0)",
+		"  }",
+		"  __able_os_exit(1)",
+		"}",
+		"",
+	}, "\n"))
 }
 
 func TestCompilerNullableF64ReturnStayNative(t *testing.T) {
@@ -160,11 +189,11 @@ func TestCompilerNullableF64ReturnStayNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_maybe(flag bool) (*float64, *__ableControl)") {
-		t.Fatalf("expected maybe to keep a native nullable *float64 return")
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_maybe(flag bool) (__able_nullable[float64], *__ableControl)") {
+		t.Fatalf("expected maybe to keep a value-backed native nullable float64 return")
 	}
-	if !strings.Contains(compiledSrc, "__able_ptr(float64(1.25))") {
-		t.Fatalf("expected nullable float literal lowering to use __able_ptr(float64(1.25))")
+	if !strings.Contains(compiledSrc, "__able_some(float64(1.25))") {
+		t.Fatalf("expected nullable float literal lowering to use __able_some(float64(1.25))")
 	}
 
 	wrapBody, ok := findCompiledFunction(result, "__able_wrap_fn_maybe")
@@ -190,8 +219,8 @@ func TestCompilerNullableCharParamAndMatchStayNative(t *testing.T) {
 	}, "\n"))
 
 	compiledSrc := string(result.Files["compiled.go"])
-	if !strings.Contains(compiledSrc, "func __able_compiled_fn_describe(value *rune) (string, *__ableControl)") {
-		t.Fatalf("expected describe to keep a native nullable *rune parameter")
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_describe(value __able_nullable[rune]) (string, *__ableControl)") {
+		t.Fatalf("expected describe to keep a value-backed native nullable rune parameter")
 	}
 
 	body, ok := findCompiledFunction(result, "__able_compiled_fn_describe")
@@ -199,8 +228,8 @@ func TestCompilerNullableCharParamAndMatchStayNative(t *testing.T) {
 		t.Fatalf("could not find compiled describe function")
 	}
 	for _, fragment := range []string{
-		"!= nil",
-		"(*__able_tmp_0)",
+		".valid",
+		".value",
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("expected nullable char match lowering to contain %q:\n%s", fragment, body)
@@ -285,9 +314,8 @@ func TestCompilerNullableStringEqualityStaysNative(t *testing.T) {
 			t.Fatalf("could not find compiled function %s", name)
 		}
 		for _, fragment := range []string{
-			"== nil",
-			"!= nil",
-			"(*",
+			".valid",
+			".value",
 		} {
 			if !strings.Contains(body, fragment) {
 				t.Fatalf("expected native nullable string equality lowering in %s to contain %q:\n%s", name, fragment, body)
@@ -378,9 +406,9 @@ func TestCompilerSafeNavigationMethodAndFieldStayNativeNullable(t *testing.T) {
 		t.Fatalf("could not find compiled main")
 	}
 	for _, fragment := range []string{
-		"var b *int32",
-		"var c *int32",
-		"__able_ptr(",
+		"var b __able_nullable[int32]",
+		"var c __able_nullable[int32]",
+		"__able_some(",
 	} {
 		if !strings.Contains(mainBody, fragment) {
 			t.Fatalf("expected safe navigation to keep native nullable carriers and contain %q:\n%s", fragment, mainBody)

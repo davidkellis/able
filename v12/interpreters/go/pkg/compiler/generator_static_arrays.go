@@ -308,7 +308,7 @@ func (g *generator) staticArrayDefaultNullableResultType(ctx *compileContext, ex
 	if g.isNilableStaticCarrierType(elemGoType) {
 		return elemGoType, true
 	}
-	return g.nativeNullablePointerType(elemGoType)
+	return g.nativeNullableCarrierType(elemGoType)
 }
 
 func (g *generator) staticArrayPropagationResultType(ctx *compileContext, expr ast.Expression, goType string) (string, bool) {

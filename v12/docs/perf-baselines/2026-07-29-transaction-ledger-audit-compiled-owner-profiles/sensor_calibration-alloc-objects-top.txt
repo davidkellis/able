@@ -1,0 +1,39 @@
+File: sensor_calibration
+Build ID: 26f1fadc67928436dcaadd3c0324b89b1ea754c3
+Type: alloc_objects
+Time: 2026-07-29 14:37:10 CDT
+Showing nodes accounting for 91652, 182.82% of 50131 total
+Dropped 127 nodes (cum <= 250)
+      flat  flat%   sum%        cum   cum%
+     30468 60.78% 60.78%      30468 60.78%  runtime/pprof.allFrames
+     23808 47.49% 108.27%      23811 47.50%  able/interpreter-go/pkg/compiler/bridge.ToInt
+      8242 16.44% 124.71%       8270 16.50%  runtime/pprof.(*profileBuilder).emitLocation
+      8193 16.34% 141.05%       8193 16.34%  strings.genSplit
+      7936 15.83% 156.88%      48902 97.55%  main.__able_compiled_fn_parse_reading
+      4287  8.55% 165.43%      43124 86.02%  runtime/pprof.writeHeapProto
+      3571  7.12% 172.56%       3571  7.12%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+      2831  5.65% 178.21%       4114  8.21%  main.__able_compiled_fn_calibration_error
+      1280  2.55% 180.76%       1280  2.55%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+      1024  2.04% 182.80%       1024  2.04%  main.__able_union__SensorReading_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+         6 0.012% 182.81%      38751 77.30%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         3 0.006% 182.82%      48958 97.66%  main.__able_compiled_fn_main
+         1 0.002% 182.82%      43130 86.03%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.002% 182.82%      48959 97.66%  main.RunRegisteredMain
+         1 0.002% 182.82%      43125 86.02%  runtime/pprof.writeHeapInternal
+         0     0% 182.82%      43130 86.03%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 182.82%      43130 86.03%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 182.82%      48958 97.66%  main.RunRegisteredMain.func1
+         0     0% 182.82%       4596  9.17%  main.__able_compiled_fn_parse_i64
+         0     0% 182.82%       8192 16.34%  main.__able_compiled_fn_parse_reading.func1 (inline)
+         0     0% 182.82%      23808 47.49%  main.__able_nullable_i64_to_value (inline)
+         0     0% 182.82%      48958 97.66%  main.__able_register_compiled_call.func1
+         0     0% 182.82%       1283  2.56%  main.__able_struct_CalibrationError_to (inline)
+         0     0% 182.82%       1283  2.56%  main.__able_struct_CalibrationError_to_seen
+         0     0% 182.82%      48958 97.66%  main.__able_wrap_fn_main
+         0     0% 182.82%      92089 183.70%  main.main
+         0     0% 182.82%      92089 183.70%  main.runMain
+         0     0% 182.82%      43130 86.03%  main.startMainProfilePhase (inline)
+         0     0% 182.82%      92089 183.70%  runtime.main
+         0     0% 182.82%      43125 86.02%  runtime/pprof.(*Profile).WriteTo
+         0     0% 182.82%      43125 86.02%  runtime/pprof.writeAlloc
+         0     0% 182.82%       8193 16.34%  strings.Split (inline)

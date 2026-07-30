@@ -1,0 +1,244 @@
+{
+  "kind": "able-post-nullable-compiled-regex-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "closure_id": "compiled-regex",
+  "decision": "causal-material-reach-direct-native-carrier-no-new-admissible-residual",
+  "changed_mechanism": "primitive-nullable-value-plus-valid-carrier",
+  "source_state": {
+    "compiler_production_tree_sha256": "d9e73a315f6ac6c9c3faa7a9530aaae33c8eee4a91e26b82e92505f1af9a4068",
+    "scorecard": "v12/docs/perf-baselines/2026-07-30-nullable-scalar-retained-scorecard-reconciled.json"
+  },
+  "measurement_contract": {
+    "strict_build_args": [
+      "--no-fallbacks"
+    ],
+    "dependency_packages_per_application": 96,
+    "interpreter_dependency": false,
+    "successful_smoke_processes_per_application": 1,
+    "smoke_verifier_backed": true,
+    "profiled_applications": 3,
+    "cpu_profile_processes_per_application": 40,
+    "allocation_profile_processes_per_application": 1,
+    "verified_cpu_profile_processes": 120,
+    "verified_allocation_profile_processes": 3,
+    "cpu_affinity": "12",
+    "gomaxprocs": 1,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "timeout_seconds": 90,
+    "profile_gate": "profile materially reached shared nullable acceptance residual across at least three unlike regex APIs"
+  },
+  "applications": [
+    {
+      "benchmark": "config_validation_extraction",
+      "able_source_sha256": "ffdba7256c645683bd9e53ef5a3422ca332ad51dae98816ef902906691ac8b73",
+      "contract_sha256": "cb024c47d2f13ee5d732e2fcb6ff0a1fd3313194e72597e5ede90b57f1fad5b9",
+      "generated_compiled_go_sha256": "ffa704e76c27135fccf56b9475cd2e56d258e7c1220b7c46b721cd4a22979230",
+      "binary_sha256": "6d1d6aebd705f8061e525757fd445dc6b26771eb949ada6d0ab7a576250fb107",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "program_args": [
+        "deployments.cfg"
+      ],
+      "carrier_path": "Regex.match/is_match -> find_token_match -> find_nfa_span -> regex_nfa_accepting_thread -> __able_nullable[int32]",
+      "current_able_seconds": 0.048,
+      "current_go_seconds": 0.0038,
+      "current_able_go_ratio": 12.631578947368421,
+      "smoke_real_seconds": 0.16,
+      "smoke_output_sha256": "c1aa99b9a13bb6e0c7731cb2aea77e300cd3cecc695df7fd4af90036939341d1",
+      "material_reach": true,
+      "profiled": true
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "able_source_sha256": "958ad9cdee6f91694757dbca9748e6f23bff84340e52e0e1375589726be0629b",
+      "contract_sha256": "c95d0a01099f34ba7c70d101276682a7117e45f4562e58542b12725cfe80ebfa",
+      "generated_compiled_go_sha256": "80f2c41fb041e0a374e396d890d19f50bca1376b90b2085a6e9080b9c6d0048a",
+      "binary_sha256": "a6e2f10a208f7365c2ea6ace4d078bc15323b11137d5709538eed4ae699077f7",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "program_args": [
+        "logs.txt"
+      ],
+      "carrier_path": "RegexSet.matches -> regex_set_accepting_start -> __able_nullable[int32]; Regex.replace -> find_nfa_span -> regex_nfa_accepting_thread",
+      "current_able_seconds": 0.042,
+      "current_go_seconds": 0.0041,
+      "current_able_go_ratio": 10.24390243902439,
+      "smoke_real_seconds": 0.07,
+      "smoke_output_sha256": "0d9585b01f83904fdf11d47b2902678c1718c8442ed1d84410d61d5d90f60bf4",
+      "material_reach": true,
+      "profiled": true
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "able_source_sha256": "cd6089f205ff542c9c9c07c5526d47b9fc4287f9fd9c7081947d363610ec5263",
+      "contract_sha256": "24a062092328b765e5c8a68245b1f04300e71fcc7b79bfca515b0ed637827da5",
+      "generated_compiled_go_sha256": "ff200b98a50a7e43bb57929805c55aaa4d744dd7396ec5a736a0865ce4fee2c8",
+      "binary_sha256": "f05bc6461d391755fde36c834d41e639463277f5361d480a197173c11ff15785",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "program_args": [
+        "records.txt"
+      ],
+      "carrier_path": "schema Regex.match -> find_nfa_span -> regex_nfa_accepting_thread -> __able_nullable[int32]",
+      "current_able_seconds": 0.096,
+      "current_go_seconds": 0.0053,
+      "current_able_go_ratio": 18.11320754716981,
+      "smoke_real_seconds": 0.1,
+      "smoke_output_sha256": "f15c66e53e4c89650ae12aff6c2f466f2cf0c7adb6ca3fe5be0127bfba217c05",
+      "material_reach": true,
+      "profiled": false,
+      "retained_current_accepting_thread_flat_percent": 2.82
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "able_source_sha256": "124fcfb1435ab1160adff38f7d50ba442c22b4d63cce25fa06e7799a26458b9b",
+      "contract_sha256": "4b87c592a72c00bc957bc918bcc90636ed4ad612771a67c64b0b6bf4e5b9aaa4",
+      "generated_compiled_go_sha256": "8602be0e5f8e2dcd8f7eb8bcbe16745cc3bd693854cfe892e0c7f229b3e25329",
+      "binary_sha256": "592af95e868f7ea310f5251ae3a5c0486d20cec58815ae4dd293c90352de3d12",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "program_args": [
+        "i-before-e/wordlist.txt"
+      ],
+      "carrier_path": "RegexSet.matches -> regex_set_accepting_start -> __able_nullable[int32]",
+      "current_able_seconds": 0.068,
+      "current_go_seconds": 0.0054,
+      "current_able_go_ratio": 12.592592592592592,
+      "smoke_real_seconds": 0.08,
+      "smoke_output_sha256": "3d8f861a312416f95b95d59be62614f0ffc7918e86fb984fe6035ca7b7b28da2",
+      "material_reach": true,
+      "profiled": false
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "able_source_sha256": "ed58e3975b12776a03ace5bd7e066b570e7538f303f631db9c1704d3a1eaa999",
+      "contract_sha256": "959c2c2c268b1f2f06ffa8f260b52ca302268bc3a6769fd1bf7942115542b1be",
+      "generated_compiled_go_sha256": "c2c50705936e30dddb0d9a4f05fc5463c58c0304928baa465b860c4840d0d8f6",
+      "binary_sha256": "4ae3f9b2032a3aa2c256bc49019d6a697c0a1c01e021bfc8d7aa8d1dfb1c7934",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "program_args": [
+        "i-before-e/wordlist.txt"
+      ],
+      "carrier_path": "RegexScanner.feed acceptance -> regex_nfa_accepting_thread -> __able_nullable[int32]; previous character -> __able_nullable[char]",
+      "current_able_seconds": 0.07,
+      "current_go_seconds": 0.005,
+      "current_able_go_ratio": 14.0,
+      "smoke_real_seconds": 0.25,
+      "smoke_output_sha256": "dd7801f0b104d8bd47aaef64d685bc65a06263851f12c8df8cf75260d09e717b",
+      "material_reach": true,
+      "profiled": true
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "able_source_sha256": "7f8a1b031ae20c9af490cd21ac9846ea472b43c62cd082b22cb6e600fea2c5fe",
+      "contract_sha256": "83efcddb4a321839068f9cc784a0700db697ce86b93724ccb9962d76a32db3ab",
+      "generated_compiled_go_sha256": "c2405f4fafc672451bbc893097b7ef8d29fd3a97d741d25e3aadc15298e80762",
+      "binary_sha256": "fb336343a703c0f5a185b1faac4b62b58226acfec1df335d191d91529cd2d9b0",
+      "dependency_count": 96,
+      "interpreter_dependency": false,
+      "program_args": [
+        "i-before-e/wordlist.txt"
+      ],
+      "carrier_path": "Regex.match -> find_nfa_span -> regex_nfa_accepting_thread -> __able_nullable[int32]",
+      "current_able_seconds": 0.062,
+      "current_go_seconds": 0.0054,
+      "current_able_go_ratio": 11.481481481481481,
+      "smoke_real_seconds": 0.3,
+      "smoke_output_sha256": "b5d5ccfabbfd4dc5952406cb1c42d62b807f75828661c4c3774b251abe38380f",
+      "material_reach": true,
+      "profiled": false
+    }
+  ],
+  "generated_carrier_shape": {
+    "return_type": "__able_nullable[int32]",
+    "representation": "value-plus-valid",
+    "native_array_element_type": "int32",
+    "normal_path_runtime_value_conversions": 0,
+    "normal_path_bridge_calls": 0,
+    "allocation_objects_in_accepting_thread": 0,
+    "allocation_objects_in_accepting_start": 0,
+    "only_bridge_site": "unreached defensive non-exhaustive-match error"
+  },
+  "profiles": [
+    {
+      "benchmark": "config_validation_extraction",
+      "merged_cpu_profile_sha256": "b3c3d02ed74a5c8956ce6199d68caa94e94b27cdcbc02239c6580ffe4706216f",
+      "allocation_profile_sha256": "159bf43337bc952930d2d2baaddb6b8fa3298318c0e836f3ca195d62dbc01f60",
+      "cpu_total_samples_ms": 370,
+      "accepting_thread_flat_ms": 20,
+      "accepting_thread_flat_percent": 5.41,
+      "accepting_thread_cumulative_ms": 30,
+      "accepting_thread_cumulative_percent": 8.11,
+      "accepting_thread_line_samples": "10ms bounds check; 10ms direct Array load; 10ms cumulative accepts_state",
+      "nullable_match_or_bridge_samples_ms": 0,
+      "allocation_objects_total": 72066,
+      "accepting_allocation_objects": 0,
+      "add_closure_flat_percent": 10.81,
+      "move_flat_percent": 2.7,
+      "upsert_thread_flat_percent": 8.11
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "merged_cpu_profile_sha256": "75856bf29e8e309bf86f1eec38f17ea58020fdceb95f16e3d05353c108ed74b2",
+      "allocation_profile_sha256": "d02a026f346a3992c6fa78ef5795252d53827221838a4a0d0c2fe516e3da1db4",
+      "cpu_total_samples_ms": 840,
+      "accepting_thread_flat_ms": 10,
+      "accepting_thread_flat_percent": 1.19,
+      "accepting_thread_cumulative_ms": 10,
+      "accepting_thread_cumulative_percent": 1.19,
+      "accepting_thread_line_samples": "10ms native loop header",
+      "nullable_match_or_bridge_samples_ms": 0,
+      "allocation_objects_total": 100810,
+      "accepting_allocation_objects": 0,
+      "add_closure_flat_percent": 13.1,
+      "move_flat_percent": 13.1,
+      "upsert_thread_flat_percent": 11.9
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "merged_cpu_profile_sha256": "44a86ab8741b50945668b4c5352a15e27c7303bc1146f8cb9eaaf416f50ef773",
+      "allocation_profile_sha256": "16dd0ee4693c8a2e41cbd3360760c6036d17cc0b635042352809f520c3c84fdc",
+      "cpu_total_samples_ms": 870,
+      "accepting_thread_flat_ms": 20,
+      "accepting_thread_flat_percent": 2.3,
+      "accepting_thread_cumulative_ms": 50,
+      "accepting_thread_cumulative_percent": 5.75,
+      "accepting_thread_line_samples": "10ms loop header; 10ms direct Array load; 30ms cumulative accepts_state",
+      "nullable_match_or_bridge_samples_ms": 0,
+      "allocation_objects_total": 15292,
+      "accepting_allocation_objects": 0,
+      "add_closure_flat_percent": 16.09,
+      "move_flat_percent": 9.2,
+      "upsert_thread_flat_percent": 12.64
+    }
+  ],
+  "material_reach_count": 6,
+  "qualifying_residual_candidate": null,
+  "profile_refresh_required": true,
+  "profile_refresh_completed": true,
+  "closed_alternatives": [
+    "matcher thread arena",
+    "reusable state-to-position index",
+    "character specialization",
+    "raw integer lowering",
+    "Array member and cache lowering",
+    "call return and carrier lowering"
+  ],
+  "cleanup": {
+    "raw_build_profile_and_test_workspace_mib": 1092,
+    "matching_artifacts_remaining": 0
+  },
+  "verification": {
+    "go_test_cmd_ablec": "pass",
+    "go_test_cmd_ablec_seconds": 5.944
+  },
+  "production_files_changed": [],
+  "stdlib_changed": false,
+  "interpreter_changed": false,
+  "bytecode_changed": false,
+  "language_changed": false,
+  "wasm_changed": false
+}

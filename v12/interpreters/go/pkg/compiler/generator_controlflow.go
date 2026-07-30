@@ -197,6 +197,9 @@ func (g *generator) staticTruthinessExpr(expr string, goType string) (string, bo
 	if g.staticFalsyErrorCarrierType(goType) {
 		return "false", true
 	}
+	if presentExpr, ok := g.nativeNullableHasValueExpr(goType, expr); ok {
+		return presentExpr, true
+	}
 	if g.isNilableStaticCarrierType(goType) {
 		return fmt.Sprintf("%s != nil", expr), true
 	}

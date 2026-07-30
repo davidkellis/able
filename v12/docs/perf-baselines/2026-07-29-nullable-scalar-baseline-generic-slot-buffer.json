@@ -1,0 +1,112 @@
+{
+  "generated_at": "2026-07-29T21:41:50.807728Z",
+  "target": "/home/david/sync/projects/able/v12/examples/benchmarks/generic_slot_buffer/generic_slot_buffer.able",
+  "run_from": "/home/david/sync/projects/benchmarks/generic-slot-buffer",
+  "runs": 5,
+  "timeout_seconds": 90,
+  "build_timeout_seconds": 180,
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_prechecked": false,
+  "bytecode_runtime_calls": 1,
+  "compiled_build_args": [
+    "--no-fallbacks"
+  ],
+  "experimental_execution_context": false,
+  "source_root_only": true,
+  "program_args": [],
+  "stdlib_root": "/home/david/sync/projects/able-stdlib/src",
+  "executor": null,
+  "cpu_affinity": "15",
+  "go_toolchain": {
+    "selector": null,
+    "go_version": "go version go1.26.4 linux/amd64"
+  },
+  "results": [
+    {
+      "mode": "compiled",
+      "ok_runs": 5,
+      "timeouts": 0,
+      "failures": 0,
+      "avg_real_seconds": 0.056,
+      "avg_user_seconds": 0.026,
+      "avg_sys_seconds": 0.01,
+      "avg_gc": 0.0,
+      "avg_ns_per_op": null,
+      "avg_bytes_per_op": null,
+      "avg_allocs_per_op": null,
+      "samples": [
+        {
+          "run": 1,
+          "status": "ok",
+          "real_seconds": 0.11,
+          "user_seconds": 0.03,
+          "sys_seconds": 0.01,
+          "gc_count": 0.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "149cd95dcb57f9309c82ccd148336280f98baa95ea3d91ba34be7989fdab06fe"
+        },
+        {
+          "run": 2,
+          "status": "ok",
+          "real_seconds": 0.04,
+          "user_seconds": 0.02,
+          "sys_seconds": 0.01,
+          "gc_count": 0.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "149cd95dcb57f9309c82ccd148336280f98baa95ea3d91ba34be7989fdab06fe"
+        },
+        {
+          "run": 3,
+          "status": "ok",
+          "real_seconds": 0.04,
+          "user_seconds": 0.02,
+          "sys_seconds": 0.01,
+          "gc_count": 0.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "149cd95dcb57f9309c82ccd148336280f98baa95ea3d91ba34be7989fdab06fe"
+        },
+        {
+          "run": 4,
+          "status": "ok",
+          "real_seconds": 0.04,
+          "user_seconds": 0.03,
+          "sys_seconds": 0.01,
+          "gc_count": 0.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "149cd95dcb57f9309c82ccd148336280f98baa95ea3d91ba34be7989fdab06fe"
+        },
+        {
+          "run": 5,
+          "status": "ok",
+          "real_seconds": 0.05,
+          "user_seconds": 0.03,
+          "sys_seconds": 0.01,
+          "gc_count": 0.0,
+          "ns_per_op": null,
+          "bytes_per_op": null,
+          "allocs_per_op": null,
+          "stdout_sha256": "149cd95dcb57f9309c82ccd148336280f98baa95ea3d91ba34be7989fdab06fe"
+        }
+      ],
+      "validation": {
+        "status": "verified",
+        "verifier": "/home/david/sync/projects/benchmarks/generic-slot-buffer/verify.rb",
+        "verified_runs": 5,
+        "failed_runs": 0,
+        "stdout_sha256": [
+          "149cd95dcb57f9309c82ccd148336280f98baa95ea3d91ba34be7989fdab06fe"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+File: compiled
+Build ID: 1f8932ac32e6ea8b556c11b18d1bdcadddc86af2
+Type: alloc_objects
+Time: 2026-07-29 19:57:02 CDT
+Showing nodes accounting for 117889, 99.84% of 118076 total
+Dropped 126 nodes (cum <= 590)
+      flat  flat%   sum%        cum   cum%
+     36866 31.22% 31.22%      36866 31.22%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+     30566 25.89% 57.11%      30566 25.89%  runtime/pprof.allFrames
+     13312 11.27% 68.38%      13312 11.27%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+      8185  6.93% 75.32%       8225  6.97%  runtime/pprof.(*profileBuilder).emitLocation
+      4305  3.65% 78.96%      43183 36.57%  runtime/pprof.writeHeapProto
+      4097  3.47% 82.43%       4097  3.47%  strings.genSplit
+      3072  2.60% 85.03%       3072  2.60%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64.func1
+      3072  2.60% 87.63%      37701 31.93%  main.__able_compiled_fn_main.func1
+      3072  2.60% 90.24%      11525  9.76%  main.__able_compiled_fn_parse_manifest
+      3072  2.60% 92.84%       3074  2.60%  main.__able_struct_ManifestRecord_from
+      2498  2.12% 94.95%       2498  2.12%  main.__able_compiled_fn_normalize_into.func2
+      2304  1.95% 96.90%       3333  2.82%  main.__able_compiled_fn_manifest_error
+      1408  1.19% 98.10%       1408  1.19%  main.__able_compiled_fn_default_owner (inline)
+      1024  0.87% 98.96%       1024  0.87%  main.__able_union__ManifestRecord_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+      1024  0.87% 99.83%       1024  0.87%  main.__able_union__NormalizedManifest_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+         6 0.0051% 99.84%      38804 32.86%  runtime/pprof.(*profileBuilder).appendLocsForStack
+         3 0.0025% 99.84%      74886 63.42%  main.__able_compiled_fn_main
+         1 0.00085% 99.84%      43189 36.58%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+         1 0.00085% 99.84%      74887 63.42%  main.RunRegisteredMain
+         1 0.00085% 99.84%      43184 36.57%  runtime/pprof.writeHeapInternal
+         0     0% 99.84%       3072  2.60%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0% 99.84%      43189 36.58%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 99.84%      43189 36.58%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 99.84%      74886 63.42%  main.RunRegisteredMain.func1
+         0     0% 99.84%      62277 52.74%  main.__able_compiled_fn_main.func2
+         0     0% 99.84%      10050  8.51%  main.__able_compiled_fn_normalize_into
+         0     0% 99.84%       1408  1.19%  main.__able_compiled_fn_normalize_into.func1
+         0     0% 99.84%       4096  3.47%  main.__able_compiled_fn_parse_manifest.func1 (inline)
+         0     0% 99.84%       5570  4.72%  main.__able_compiled_method_Option__map_spec
+         0     0% 99.84%       1408  1.19%  main.__able_compiled_method_Option_or_else_spec
+         0     0% 99.84%       3072  2.60%  main.__able_compiled_method_Option_unwrap_or_spec
+         0     0% 99.84%      63301 53.61%  main.__able_compiled_method_Result__map_spec
+         0     0% 99.84%       6144  5.20%  main.__able_nullable_string_to_value (inline)
+         0     0% 99.84%      74886 63.42%  main.__able_register_compiled_call.func1
+         0     0% 99.84%       1029  0.87%  main.__able_struct_ManifestError_to (inline)
+         0     0% 99.84%       1029  0.87%  main.__able_struct_ManifestError_to_seen
+         0     0% 99.84%      21504 18.21%  main.__able_struct_ManifestRecord_apply
+         0     0% 99.84%      43008 36.42%  main.__able_struct_ManifestRecord_to (inline)
+         0     0% 99.84%      43008 36.42%  main.__able_struct_ManifestRecord_to_seen
+         0     0% 99.84%      74886 63.42%  main.__able_wrap_fn_main
+         0     0% 99.84%     118076   100%  main.main
+         0     0% 99.84%     118076   100%  main.runMain
+         0     0% 99.84%      43189 36.58%  main.startMainProfilePhase (inline)
+         0     0% 99.84%     118076   100%  runtime.main
+         0     0% 99.84%      43184 36.57%  runtime/pprof.(*Profile).WriteTo
+         0     0% 99.84%      43184 36.57%  runtime/pprof.writeAlloc
+         0     0% 99.84%       4097  3.47%  strings.Split (inline)
+         0     0% 99.84%       3077  2.61%  sync.(*Once).Do (inline)
+         0     0% 99.84%       3077  2.61%  sync.(*Once).doSlow

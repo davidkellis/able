@@ -1,0 +1,55 @@
+File: transaction_ledger_audit
+Build ID: c1b3278941b24fffd6b92019d5abf34a221fd45b
+Type: alloc_space
+Time: 2026-07-29 14:37:06 CDT
+Showing nodes accounting for 14825.59kB, 131.37% of 11285.39kB total
+Dropped 131 nodes (cum <= 56.43kB)
+      flat  flat%   sum%        cum   cum%
+ 5365.97kB 47.55% 47.55%  5365.97kB 47.55%  runtime/pprof.allFrames
+ 1918.43kB 17.00% 64.55%  3145.03kB 27.87%  runtime/pprof.(*profileBuilder).emitLocation
+ 1280.56kB 11.35% 75.89%  1280.56kB 11.35%  strings.genSplit
+    1240kB 10.99% 86.88%  4544.06kB 40.26%  main.__able_compiled_fn_parse_transaction
+  855.95kB  7.58% 94.47%  1176.09kB 10.42%  main.__able_compiled_fn_ledger_error
+  744.05kB  6.59% 101.06%   744.23kB  6.59%  able/interpreter-go/pkg/compiler/bridge.ToInt
+     648kB  5.74% 106.80%  1171.88kB 10.38%  compress/flate.NewWriter (inline)
+     488kB  4.32% 111.13%  9452.78kB 83.76%  runtime/pprof.writeHeapInternal
+  468.19kB  4.15% 115.27%   477.56kB  4.23%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+  329.56kB  2.92% 118.19%  8964.78kB 79.44%  runtime/pprof.writeHeapProto
+  320.34kB  2.84% 121.03%   320.34kB  2.84%  able/interpreter-go/pkg/compiler/bridge.ToString (inline)
+     320kB  2.84% 123.87%      320kB  2.84%  able/interpreter-go/pkg/runtime.NewStructInstancePositionalSized (inline)
+     320kB  2.84% 126.70%   523.88kB  4.64%  compress/flate.(*compressor).init
+     200kB  1.77% 128.48%      200kB  1.77%  compress/flate.newDeflateFast (inline)
+  152.06kB  1.35% 129.82%   152.06kB  1.35%  main.__able_compiled_method_Transaction_key (inline)
+   93.25kB  0.83% 130.65%    93.25kB  0.83%  runtime/pprof.(*protobuf).string (inline)
+   80.05kB  0.71% 131.36%    80.09kB  0.71%  main.__able_nullable_i64_from_value
+    0.63kB 0.0056% 131.36%  5648.66kB 50.05%  main.__able_compiled_fn_main
+    0.50kB 0.0044% 131.37%  8512.97kB 75.43%  runtime/pprof.(*profileBuilder).appendLocsForStack
+    0.02kB 0.00021% 131.37%  9453.12kB 83.76%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).writeAllocationSnapshot
+    0.02kB 0.00021% 131.37%  5648.68kB 50.05%  main.RunRegisteredMain
+         0     0% 131.37%  9453.12kB 83.76%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).StartMain
+         0     0% 131.37%  9453.12kB 83.76%  able/interpreter-go/pkg/profilehook.(*PhaseProfiler).start
+         0     0% 131.37%  1178.62kB 10.44%  compress/gzip.(*Writer).Write
+         0     0% 131.37%  5648.66kB 50.05%  main.RunRegisteredMain.func1
+         0     0% 131.37%   241.79kB  2.14%  main.__able_compiled_fn_lookup
+         0     0% 131.37%   272.06kB  2.41%  main.__able_compiled_fn_parse_i64
+         0     0% 131.37%     1280kB 11.34%  main.__able_compiled_fn_parse_transaction.func1 (inline)
+         0     0% 131.37%   241.79kB  2.14%  main.__able_compiled_impl_Map_get_0_spec
+         0     0% 131.37%   241.79kB  2.14%  main.__able_compiled_method_HashMap_raw_get_spec
+         0     0% 131.37%   637.56kB  5.65%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0% 131.37%   637.56kB  5.65%  main.__able_compiled_method_HashMap_set_spec
+         0     0% 131.37%   241.79kB  2.14%  main.__able_iface_Map_String_i64_adapter_ptr_HashMap_String_i64.get
+         0     0% 131.37%      744kB  6.59%  main.__able_nullable_i64_to_value (inline)
+         0     0% 131.37%  5648.66kB 50.05%  main.__able_register_compiled_call.func1
+         0     0% 131.37%   320.14kB  2.84%  main.__able_struct_LedgerError_to (inline)
+         0     0% 131.37%   320.14kB  2.84%  main.__able_struct_LedgerError_to_seen
+         0     0% 131.37%  5648.66kB 50.05%  main.__able_wrap_fn_main
+         0     0% 131.37% 15101.80kB 133.82%  main.main
+         0     0% 131.37% 15101.80kB 133.82%  main.runMain
+         0     0% 131.37%  9453.12kB 83.76%  main.startMainProfilePhase (inline)
+         0     0% 131.37% 15101.80kB 133.82%  runtime.main
+         0     0% 131.37%  9452.78kB 83.76%  runtime/pprof.(*Profile).WriteTo
+         0     0% 131.37%    93.25kB  0.83%  runtime/pprof.(*profileBuilder).build
+         0     0% 131.37%  1178.62kB 10.44%  runtime/pprof.(*profileBuilder).flush
+         0     0% 131.37%    93.25kB  0.83%  runtime/pprof.(*protobuf).strings
+         0     0% 131.37%  9452.78kB 83.76%  runtime/pprof.writeAlloc
+         0     0% 131.37%  1280.56kB 11.35%  strings.Split (inline)

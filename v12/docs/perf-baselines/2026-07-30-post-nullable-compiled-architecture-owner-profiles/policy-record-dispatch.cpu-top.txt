@@ -1,0 +1,88 @@
+File: compiled
+Build ID: 3beb9b2eb54a9adde022ed1b7d3a70d2e204e756
+Type: cpu
+Time: 2026-07-29 19:53:26 CDT
+Duration: 603.89ms, Total samples = 710ms (117.57%)
+Showing nodes accounting for 710ms, 100% of 710ms total
+Showing top 80 nodes out of 134
+      flat  flat%   sum%        cum   cum%
+      90ms 12.68% 12.68%       90ms 12.68%  runtime.tryDeferToSpanScan
+      70ms  9.86% 22.54%      250ms 35.21%  main.__able_compiled_fn_regex_nfa_add_closure
+      50ms  7.04% 29.58%      250ms 35.21%  main.__able_compiled_fn_regex_nfa_move
+      40ms  5.63% 35.21%       80ms 11.27%  main.__able_compiled_fn_regex_nfa_upsert_thread
+      30ms  4.23% 39.44%       30ms  4.23%  runtime.nextFreeFast (inline)
+      30ms  4.23% 43.66%       50ms  7.04%  runtime.scanObject
+      30ms  4.23% 47.89%       40ms  5.63%  runtime.scanblock
+      20ms  2.82% 50.70%      610ms 85.92%  main.__able_compiled_fn_find_nfa_span
+      20ms  2.82% 53.52%       20ms  2.82%  main.__able_compiled_fn_regex_nfa_accepting_thread
+      20ms  2.82% 56.34%       20ms  2.82%  runtime.(*spanSet).push
+      20ms  2.82% 59.15%      350ms 49.30%  runtime.mallocgc
+      20ms  2.82% 61.97%       60ms  8.45%  runtime.mallocgcTiny
+      20ms  2.82% 64.79%       70ms  9.86%  runtime.wbBufFlush1
+      10ms  1.41% 66.20%       70ms  9.86%  gcWriteBarrier
+      10ms  1.41% 67.61%       10ms  1.41%  internal/runtime/gc/scan.FilterNilAVX512
+      10ms  1.41% 69.01%       10ms  1.41%  internal/runtime/gc/scan.scanSpanPackedAVX512
+      10ms  1.41% 70.42%       10ms  1.41%  main.__able_compiled_fn_regex_nfa_char_set_matches
+      10ms  1.41% 71.83%       80ms 11.27%  main.__able_compiled_fn_regex_nfa_clone_captures
+      10ms  1.41% 73.24%       10ms  1.41%  main.__able_compiled_fn_score_record_into
+      10ms  1.41% 74.65%       20ms  2.82%  main.__able_compiled_impl_Iterator_next_0_c_spec
+      10ms  1.41% 76.06%       10ms  1.41%  runtime.(*itabTableType).add
+      10ms  1.41% 77.46%       10ms  1.41%  runtime.(*mspan).init
+      10ms  1.41% 78.87%       10ms  1.41%  runtime.(*mspan).moveInlineMarks
+      10ms  1.41% 80.28%       10ms  1.41%  runtime.(*mspan).refillAllocCache
+      10ms  1.41% 81.69%       10ms  1.41%  runtime.(*mspan).scannedBitsForIndex (inline)
+      10ms  1.41% 83.10%       10ms  1.41%  runtime.bool2int (inline)
+      10ms  1.41% 84.51%       20ms  2.82%  runtime.findObject
+      10ms  1.41% 85.92%       10ms  1.41%  runtime.gcWriteBarrier2
+      10ms  1.41% 87.32%       70ms  9.86%  runtime.mallocgcSmallScanNoHeader
+      10ms  1.41% 88.73%       10ms  1.41%  runtime.memclrNoHeapPointers
+      10ms  1.41% 90.14%       10ms  1.41%  runtime.publicationBarrier
+      10ms  1.41% 91.55%       30ms  4.23%  runtime.scanObjectsSmall
+      10ms  1.41% 92.96%       10ms  1.41%  runtime.spanOf (inline)
+      10ms  1.41% 94.37%       20ms  2.82%  runtime.sweepone
+      10ms  1.41% 95.77%       20ms  2.82%  runtime.typePointers.next
+      10ms  1.41% 97.18%       10ms  1.41%  runtime.typePointers.nextFast (inline)
+      10ms  1.41% 98.59%       10ms  1.41%  sync.(*Once).doSlow
+      10ms  1.41%   100%       20ms  2.82%  sync/atomic.StorePointer
+         0     0%   100%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).SwapEnv
+         0     0%   100%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.AsInt
+         0     0%   100%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.RestoreEnvIfNeeded
+         0     0%   100%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.SwapEnvIfNeeded
+         0     0%   100%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.ToDynamicI64
+         0     0%   100%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.materializeBoundaryValue (inline)
+         0     0%   100%       10ms  1.41%  able/interpreter-go/pkg/compiler/bridge.unwrapInterface
+         0     0%   100%       20ms  2.82%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0%   100%       20ms  2.82%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+         0     0%   100%      700ms 98.59%  main.RunRegisteredMain
+         0     0%   100%      700ms 98.59%  main.RunRegisteredMain.func1
+         0     0%   100%       30ms  4.23%  main.__able_compiled_entry_impl_Iterator_next_0_c_spec
+         0     0%   100%       30ms  4.23%  main.__able_compiled_entry_method_String_chars
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_build_alternate
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_build_capture
+         0     0%   100%       30ms  4.23%  main.__able_compiled_fn_build_capture_groups
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_build_concat
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_build_expr
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_build_literal
+         0     0%   100%       40ms  5.63%  main.__able_compiled_fn_build_match
+         0     0%   100%       20ms  2.82%  main.__able_compiled_fn_compile_expression_nfa
+         0     0%   100%       20ms  2.82%  main.__able_compiled_fn_compile_regex
+         0     0%   100%      670ms 94.37%  main.__able_compiled_fn_evaluate
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_evaluate.func1
+         0     0%   100%      610ms 85.92%  main.__able_compiled_fn_find_token_match
+         0     0%   100%      700ms 98.59%  main.__able_compiled_fn_main
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_main.func1
+         0     0%   100%      660ms 92.96%  main.__able_compiled_fn_parse_record
+         0     0%   100%      120ms 16.90%  main.__able_compiled_fn_regex_codepoints
+         0     0%   100%       80ms 11.27%  main.__able_compiled_fn_regex_nfa_capture_end
+         0     0%   100%       20ms  2.82%  main.__able_compiled_fn_regex_nfa_capture_start
+         0     0%   100%       20ms  2.82%  main.__able_compiled_fn_regex_nfa_new_captures
+         0     0%   100%      120ms 16.90%  main.__able_compiled_fn_regex_nfa_threads_new
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_slice_bytes_a
+         0     0%   100%       10ms  1.41%  main.__able_compiled_fn_utf8_decode
+         0     0%   100%       20ms  2.82%  main.__able_compiled_method_AutomataExpr_to_nfa
+         0     0%   100%       10ms  1.41%  main.__able_compiled_method_HashMap_raw_set_spec
+         0     0%   100%       10ms  1.41%  main.__able_compiled_method_HashMap_set_spec
+         0     0%   100%       10ms  1.41%  main.__able_compiled_method_NFABuilder_build
+         0     0%   100%       20ms  2.82%  main.__able_compiled_method_Regex_compile
+         0     0%   100%       20ms  2.82%  main.__able_compiled_method_Regex_compile_with_options
+         0     0%   100%      650ms 91.55%  main.__able_compiled_method_Regex_match

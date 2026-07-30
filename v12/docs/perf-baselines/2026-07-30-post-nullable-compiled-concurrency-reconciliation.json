@@ -1,0 +1,188 @@
+{
+  "kind": "able-post-nullable-compiled-concurrency-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "closure_id": "compiled-concurrency",
+  "decision": "native-nullable-reach-confirmed-no-new-residual-with-three-application-breadth",
+  "changed_mechanism": "primitive-nullable-value-plus-valid-carrier",
+  "source_state": {
+    "compiler_production_tree_sha256": "d9e73a315f6ac6c9c3faa7a9530aaae33c8eee4a91e26b82e92505f1af9a4068",
+    "compiler_telemetry_binary_sha256": "e4b71a1557092da8316de96dc2dbc3497e021f81c2643056e275fb379fe4580e",
+    "canonical_stdlib_tree_sha256": "382d256e2fb380220dcdd62a5cf83109fa72297f23d70bdd1ffe2d8daebed047",
+    "canonical_stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+    "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "go_version": "go1.26.4 linux/amd64",
+    "scorecard": "v12/docs/perf-baselines/2026-07-30-nullable-scalar-retained-scorecard-reconciled.json"
+  },
+  "measurement_contract": {
+    "suite": "coverage",
+    "strict_build_args": [
+      "--no-fallbacks",
+      "--typed-boundary-telemetry"
+    ],
+    "applications": 23,
+    "successful_builds": 23,
+    "successful_verifier_smokes": 23,
+    "dependency_packages_per_application": 96,
+    "interpreter_dependencies": 0,
+    "diagnostic_processes_per_application": 1,
+    "new_cpu_profiles": 0,
+    "new_allocation_profiles": 0,
+    "new_timing_cohorts": 0,
+    "profile_gate": "profile only a materially reached post-carrier residual shared by at least three unlike applications"
+  },
+  "applications": [
+    "await_channel_mux",
+    "channel_rollup",
+    "concurrent_audio_voices",
+    "concurrent_document_pipeline",
+    "concurrent_event_routing",
+    "concurrent_graph_visitors",
+    "concurrent_packet_codecs",
+    "concurrent_policy_callbacks",
+    "concurrent_scene_tiles",
+    "concurrent_signal_dispatch",
+    "concurrent_state_machines",
+    "concurrent_stateful_pipeline",
+    "concurrent_stencil_reduction",
+    "concurrent_text_index",
+    "concurrent_transform_chain",
+    "concurrent_tree_folds",
+    "dependency_wave_validation",
+    "future_await_race",
+    "future_pipeline",
+    "mutex_await_journal",
+    "mutex_ledger",
+    "mutex_work_queue",
+    "validated_job_pipeline"
+  ],
+  "current_frontier": {
+    "rows": 23,
+    "minimum_able_go_ratio": 5.333333,
+    "maximum_able_go_ratio": 19.649123,
+    "geometric_able_go_ratio": 8.310084,
+    "positive_target_excess_seconds": 0.8826315789
+  },
+  "typed_boundary_totals": {
+    "any_to_runtime": 0,
+    "integer_from_runtime": 281884,
+    "array_from_runtime": 16,
+    "array_to_runtime": 7360,
+    "struct_from_runtime": 108951,
+    "struct_to_runtime": 100291,
+    "union_from_runtime": 18948,
+    "union_to_runtime": 12296,
+    "interface_from_runtime": 10248,
+    "interface_to_runtime": 8704,
+    "callable_from_runtime": 0,
+    "callable_to_runtime": 8704,
+    "control_from_error": 553394,
+    "control_to_error": 512
+  },
+  "service_boundaries": {
+    "channel_handle": {
+      "applications": 14,
+      "events": 238838,
+      "pre_nullable_applications": 14,
+      "pre_nullable_events": 238838,
+      "changed": false,
+      "retained_profile_examples": {
+        "channel_rollup_flat_cpu_percent": 0.11,
+        "future_pipeline_flat_cpu_percent": 0.22
+      },
+      "disposition": "required opaque scheduler-service ABI; retained profiles keep recovery below one percent"
+    },
+    "mutex_handle": {
+      "applications": 3,
+      "events": 43016,
+      "pre_nullable_applications": 3,
+      "pre_nullable_events": 43016,
+      "changed": false,
+      "disposition": "required opaque scheduler-service ABI; broad execution-context ABI variants remain closed"
+    }
+  },
+  "primitive_nullable_material_reach": [
+    {
+      "benchmark": "await_channel_mux",
+      "shape": "fn(i64?) -> i64 callback parameter",
+      "generated_callback_call_sites": 4,
+      "runtime_callable_transitions": 2048,
+      "residual": "callback body casts the native nullable value through the explicit runtime callable ABI",
+      "generated_module_sha256": "4bb49cc8a4a0517d4520b808e3f56b7718d8ef9fa88c40a20892063b031a1aab",
+      "binary_sha256": "2a3760c4d3d8bf5e32997526cdf0c77d755580da474f712833405b3780d6ec44"
+    },
+    {
+      "benchmark": "channel_rollup",
+      "shape": "Channel<i64>.receive returns native nullable i64",
+      "residual": "none; generated match reads valid directly",
+      "generated_module_sha256": "ed5d9f71041da8f060e23e556c908549719200bf61ff832aa66c332ecea16a30",
+      "binary_sha256": "cc4d33bfa430c5d288d5e9a7f44ee02b11584026c09b8128bf60d1e901975762"
+    },
+    {
+      "benchmark": "future_await_race",
+      "shape": "Channel<i64>.receive returns native nullable i64",
+      "residual": "none; the native result is intentionally ignored",
+      "generated_module_sha256": "9aeb11ae5d5de534862ca87ed06628fc5d52576c1436e65d55a7f9e229ff3f05",
+      "binary_sha256": "bf706b4877d2ee9afc9f70374f68c212e024e7b66a8958beecbe74f2d3e31956"
+    },
+    {
+      "benchmark": "future_pipeline",
+      "shape": "three Channel<i64>.receive paths return native nullable i64",
+      "residual": "none; generated matches read valid directly",
+      "generated_module_sha256": "c73c931d59cca2243c597e7a6851588751c8424ab9eab8ffefb6ef6707bc3de8",
+      "binary_sha256": "7eb301d15ad20aab86258563b263ca6e3911c46cc32619db0f78e7f85e8eb7cb"
+    }
+  ],
+  "carrier_reach_applications": 4,
+  "carrier_native_consumption_applications": 3,
+  "nullable_cast_residual_applications": 1,
+  "retained_profile_intersection": {
+    "applications": [
+      "await_channel_mux",
+      "validated_job_pipeline",
+      "concurrent_stateful_pipeline"
+    ],
+    "to_int_objects_per_run": [
+      4098,
+      4107,
+      65554.333
+    ],
+    "to_int_exact_leaf_breadth": 3,
+    "to_int_disposition": "closed; the global cache slowed TapeLang by 4.17 percent",
+    "current_gid_material_breadth": 2,
+    "nominal_struct_material_breadth": 2
+  },
+  "qualifying_residual_candidate": null,
+  "profile_refresh_required": false,
+  "reason_no_profile_refresh": "The only changed residual occurs in Await Channel Mux. The broad channel and mutex handle counts are byte-for-byte identical to the pre-nullable census and their retained profiles keep handle recovery below one percent or behind already rejected ABI alternatives.",
+  "closed_alternatives": [
+    "application-specific nullable callback lowering",
+    "global integer boxing cache",
+    "broad execution-context ABI change",
+    "typed Channel storage redesign",
+    "named-container or non-primitive nominal special case",
+    "interpreter or GC ballast removal"
+  ],
+  "cleanup": {
+    "raw_build_audit_and_gocache_workspace_mib": 2563,
+    "matching_artifacts_remaining": 0
+  },
+  "verification": {
+    "focused_nullable_and_concurrency_guards": "pass",
+    "focused_nullable_and_concurrency_guards_seconds": 15.787,
+    "go_test_cmd_ablec": "pass",
+    "go_test_cmd_ablec_seconds": 7.209,
+    "frontier_tests": 5,
+    "frontier_check": "pass",
+    "closure_ledger_tests": 7,
+    "closure_ledger_check": "pass",
+    "closure_ledger_current": 23,
+    "closure_ledger_invalidated": 12
+  },
+  "production_files_changed": [],
+  "stdlib_changed": false,
+  "interpreter_changed": false,
+  "bytecode_changed": false,
+  "language_changed": false,
+  "wasm_changed": false
+}

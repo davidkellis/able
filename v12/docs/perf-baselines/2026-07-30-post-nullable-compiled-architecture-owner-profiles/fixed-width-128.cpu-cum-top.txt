@@ -1,0 +1,88 @@
+File: compiled
+Build ID: f19e1b6968d8b6e99c0c2ab430691f7d3c03baa4
+Type: cpu
+Time: 2026-07-29 19:52:53 CDT
+Duration: 1.34s, Total samples = 1.33s (98.95%)
+Showing nodes accounting for 1.24s, 93.23% of 1.33s total
+Showing top 80 nodes out of 103
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      1.33s   100%  main.RunRegisteredMain
+         0     0%     0%      1.33s   100%  main.RunRegisteredMain.func1
+         0     0%     0%      1.33s   100%  main.__able_compiled_fn_main
+         0     0%     0%      1.33s   100%  main.__able_register_compiled_call.func1
+         0     0%     0%      1.33s   100%  main.__able_wrap_fn_main
+         0     0%     0%      1.33s   100%  main.main
+         0     0%     0%      1.33s   100%  main.runMain
+         0     0%     0%      1.33s   100%  runtime.main
+     0.05s  3.76%  3.76%      0.96s 72.18%  runtime.newobject
+     0.04s  3.01%  6.77%      0.91s 68.42%  runtime.mallocgc
+     0.02s  1.50%  8.27%      0.71s 53.38%  main.__able_compiled_fn_modular_add_checksum
+     0.11s  8.27% 16.54%      0.65s 48.87%  runtime.mallocgcSmallNoscan
+     0.01s  0.75% 17.29%      0.61s 45.86%  main.__able_compiled_fn_ordered_select_checksum
+     0.01s  0.75% 18.05%      0.24s 18.05%  runtime.systemstack
+     0.01s  0.75% 18.80%      0.22s 16.54%  runtime.deductAssistCredit
+         0     0% 18.80%      0.21s 15.79%  runtime.gcAssistAlloc
+         0     0% 18.80%      0.21s 15.79%  runtime.gcAssistAlloc.func2
+         0     0% 18.80%      0.21s 15.79%  runtime.gcAssistAlloc1
+         0     0% 18.80%      0.20s 15.04%  runtime.gcDrainN
+     0.15s 11.28% 30.08%      0.15s 11.28%  runtime.nextFreeFast (inline)
+     0.04s  3.01% 33.08%      0.12s  9.02%  main.__able_compiled_method_UInt128_add_into
+     0.01s  0.75% 33.83%      0.08s  6.02%  runtime.(*mcache).nextFree
+     0.06s  4.51% 38.35%      0.07s  5.26%  main.__able_checked_mul_signed
+         0     0% 38.35%      0.07s  5.26%  runtime.(*mcache).refill
+         0     0% 38.35%      0.07s  5.26%  runtime.markroot
+     0.02s  1.50% 39.85%      0.07s  5.26%  runtime.scanObject
+         0     0% 39.85%      0.06s  4.51%  runtime.(*mcentral).cacheSpan
+     0.06s  4.51% 44.36%      0.06s  4.51%  runtime.acquirem (inline)
+     0.02s  1.50% 45.86%      0.06s  4.51%  runtime.gcmarknewobject
+         0     0% 45.86%      0.06s  4.51%  runtime.markrootBlock
+     0.01s  0.75% 46.62%      0.06s  4.51%  runtime.scanSpan
+     0.05s  3.76% 50.38%      0.06s  4.51%  runtime.scanblock
+         0     0% 50.38%      0.05s  3.76%  runtime.deductSweepCredit
+     0.05s  3.76% 54.14%      0.05s  3.76%  runtime.publicationBarrier
+         0     0% 54.14%      0.05s  3.76%  runtime.sweepone
+     0.03s  2.26% 56.39%      0.05s  3.76%  runtime.tryDeferToSpanScan
+     0.03s  2.26% 58.65%      0.04s  3.01%  main.__able_compiled_fn_uint128_check_overflow
+     0.04s  3.01% 61.65%      0.04s  3.01%  main.__able_compiled_fn_words_less (inline)
+         0     0% 61.65%      0.04s  3.01%  main.__able_compiled_method_UInt128_sub_into
+     0.02s  1.50% 63.16%      0.04s  3.01%  main.__able_compiled_method_UInt128_to_u128
+     0.04s  3.01% 66.17%      0.04s  3.01%  main.__able_divmod_signed
+     0.04s  3.01% 69.17%      0.04s  3.01%  runtime.getMCache (inline)
+     0.04s  3.01% 72.18%      0.04s  3.01%  runtime.releasem (inline)
+     0.03s  2.26% 74.44%      0.04s  3.01%  runtime.typePointers.next
+     0.02s  1.50% 75.94%      0.03s  2.26%  runtime.(*sweepLocked).sweep
+         0     0% 75.94%      0.02s  1.50%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 75.94%      0.02s  1.50%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+     0.02s  1.50% 77.44%      0.02s  1.50%  internal/runtime/gc/scan.scanSpanPackedAVX512
+     0.01s  0.75% 78.20%      0.02s  1.50%  main.__able_compiled_fn_uint128_from_u128_into
+     0.02s  1.50% 79.70%      0.02s  1.50%  main.__able_compiled_fn_uint128_to_u128
+         0     0% 79.70%      0.02s  1.50%  runtime.(*mheap).nextSpanForSweep
+     0.02s  1.50% 81.20%      0.02s  1.50%  runtime.(*mspan).base (inline)
+     0.01s  0.75% 81.95%      0.02s  1.50%  runtime.(*spanSet).pop
+     0.02s  1.50% 83.46%      0.02s  1.50%  runtime.(*spanSet).push
+         0     0% 83.46%      0.02s  1.50%  runtime.gcStart
+     0.01s  0.75% 84.21%      0.02s  1.50%  runtime.makeSpanClass (inline)
+     0.02s  1.50% 85.71%      0.02s  1.50%  runtime.memclrNoHeapPointers
+     0.02s  1.50% 87.22%      0.02s  1.50%  runtime.pageIndexOf (inline)
+     0.01s  0.75% 87.97%      0.01s  0.75%  able/interpreter-go/pkg/runtime.Uint128.AddChecked (inline)
+     0.01s  0.75% 88.72%      0.01s  0.75%  able/interpreter-go/pkg/runtime.Uint128.Compare (inline)
+     0.01s  0.75% 89.47%      0.01s  0.75%  able/interpreter-go/pkg/runtime.Uint128.SubChecked (inline)
+         0     0% 89.47%      0.01s  0.75%  fmt.Fprintln
+         0     0% 89.47%      0.01s  0.75%  internal/poll.(*FD).Write
+         0     0% 89.47%      0.01s  0.75%  internal/poll.ignoringEINTRIO (inline)
+     0.01s  0.75% 90.23%      0.01s  0.75%  internal/runtime/atomic.(*UnsafePointer).Load (inline)
+     0.01s  0.75% 90.98%      0.01s  0.75%  internal/runtime/syscall/linux.Syscall6
+         0     0% 90.98%      0.01s  0.75%  main.__able_call_named
+         0     0% 90.98%      0.01s  0.75%  main.__able_call_native_function
+         0     0% 90.98%      0.01s  0.75%  main.__able_call_native_function_value
+         0     0% 90.98%      0.01s  0.75%  main.__able_call_value
+     0.01s  0.75% 91.73%      0.01s  0.75%  main.__able_checked_add_signed
+         0     0% 91.73%      0.01s  0.75%  main.__able_compiled_fn_print_words
+     0.01s  0.75% 92.48%      0.01s  0.75%  main.__able_compiled_method_UInt128_new_into (inline)
+     0.01s  0.75% 93.23%      0.01s  0.75%  main.__able_signed_bounds (inline)
+         0     0% 93.23%      0.01s  0.75%  main.registerPrintInEnv.func1
+         0     0% 93.23%      0.01s  0.75%  os.(*File).Write
+         0     0% 93.23%      0.01s  0.75%  os.(*File).write (inline)
+         0     0% 93.23%      0.01s  0.75%  runtime.(*atomicMSpanPointer).Load (inline)
+         0     0% 93.23%      0.01s  0.75%  runtime.(*mcentral).grow
+         0     0% 93.23%      0.01s  0.75%  runtime.(*mcentral).uncacheSpan

@@ -35,10 +35,10 @@ class CrossEngineArchitectureBudgetTests(unittest.TestCase):
             summary["decision"], "no-go-current-cross-engine-local-mechanism"
         )
         self.assertFalse(summary["candidate_eligible"])
-        self.assertEqual(summary["selected_rows"], 126)
+        self.assertEqual(summary["selected_rows"], 128)
         self.assertEqual(summary["target_meets"], 11)
-        self.assertEqual(summary["target_misses"], 115)
-        self.assertAlmostEqual(summary["total_excess_seconds"], 226.85694736842103)
+        self.assertEqual(summary["target_misses"], 117)
+        self.assertAlmostEqual(summary["total_excess_seconds"], 230.8515789473684)
         self.assertGreater(summary["bytecode_excess_share_percent"], 80)
         bounds = report["architecture_bounds"]
         self.assertGreater(bounds["bytecode"]["minimum_remaining_target_speedup"], 7)

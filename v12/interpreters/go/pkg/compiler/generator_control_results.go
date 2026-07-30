@@ -116,7 +116,7 @@ func (g *generator) nilPropagationReturnExpr(ctx *compileContext) (string, bool)
 		return "nil", true
 	}
 	if _, nullable := g.nativeNullableValueInnerType(ctx.returnType); nullable {
-		return "nil", true
+		return g.nativeNullableAbsentExpr(ctx.returnType)
 	}
 	if expr, ok := g.nativeUnionNilExpr(ctx.returnType); ok {
 		return expr, true

@@ -44,11 +44,11 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-bytecode-semantic-region-feasibility.json",
-      "sha256": "03d35fc5f8b90c6fa6e21accf4147027923d3d6b31abbfea3bd5efc6efdfb91c"
+      "sha256": "f6fc8212ecbf6400c6d5a9f8f6e5f6240d3a2169c4314311da9c3a9ea9c2fbdb"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "a284d389837ef14dd969407360237621cdaaa4f7d992fcb8b1e42fdc5a0df1e0"
+      "sha256": "2609bdccad9679b75dc9d10e07e430c2049d65d6021530a73f34eccdcf9d716f"
     },
     "ownership_census": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-21-truthiness-cast-cross-family-architecture-ownership-census.json",

@@ -52,7 +52,11 @@ func (g *generator) compileStaticNullableEqualityComparison(expr *ast.BinaryExpr
 	if !ok || !g.isEqualityComparable(innerType) {
 		return "", "", false
 	}
-	eqExpr := fmt.Sprintf("((%s == nil && %s == nil) || (%s != nil && %s != nil && (*%s == *%s)))", left, right, left, right, left, right)
+	leftPresent, _ := g.nativeNullableHasValueExpr(leftType, left)
+	rightPresent, _ := g.nativeNullableHasValueExpr(rightType, right)
+	leftValue, _ := g.nativeNullableValueExpr(leftType, left)
+	rightValue, _ := g.nativeNullableValueExpr(rightType, right)
+	eqExpr := fmt.Sprintf("((!%s && !%s) || (%s && %s && (%s == %s)))", leftPresent, rightPresent, leftPresent, rightPresent, leftValue, rightValue)
 	if expr.Operator == "!=" {
 		return "(!" + eqExpr + ")", "bool", true
 	}

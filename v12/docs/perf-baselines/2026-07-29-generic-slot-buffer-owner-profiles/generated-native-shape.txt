@@ -1,0 +1,35 @@
+Relevant strict generated Go shape
+
+type __able_array_Slot_i64 struct {
+    Elements []*Slot_i64
+}
+
+type Slot_i64 struct {
+    Value      int64
+    Generation int64
+}
+
+type VersionedBuffer_i64 struct {
+    Slots     *__able_array_Slot_i64
+    Mutations int64
+}
+
+func __able_compiled_method_VersionedBuffer_get_spec(
+    self *VersionedBuffer_i64,
+    index int32,
+) (*int64, *__ableControl) {
+    // The omitted bounds/match control remains generated native Go.
+    slot := /* native *Slot_i64 lookup */
+    result := __able_ptr(slot.Value)
+    return result, nil
+}
+
+func (
+    w __able_iface_ReadableBuffer_i64_adapter_ptr_VersionedBuffer_i64,
+) read(arg0 int32) (*int64, *__ableControl) {
+    return __able_compiled_impl_ReadableBuffer_read_1_spec(w.Value, arg0)
+}
+
+The exact source contains ordinary generated control handling around the
+abridged lines above. This excerpt records carrier and dispatch shape only.
+The strict final dependency graph omits pkg/interpreter.

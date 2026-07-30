@@ -135,7 +135,7 @@ func (m *TypeMapper) mapNullableType(t *ast.NullableTypeExpression) (string, boo
 		return innerType, true
 	}
 	if spec, ok := nativeNullableSpecForInnerType(innerType); ok {
-		return spec.PtrType, true
+		return spec.CarrierType, true
 	}
 	if m != nil && m.gen != nil && m.gen.typeExprIsConcreteInPackage(m.packageName, t) {
 		return "", false

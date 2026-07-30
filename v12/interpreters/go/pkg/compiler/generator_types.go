@@ -291,6 +291,9 @@ func (g *generator) isNilableStaticCarrierType(goType string) bool {
 	if strings.HasPrefix(goType, "*") {
 		return true
 	}
+	if g.isNativeNullableValueType(goType) {
+		return true
+	}
 	if g.nativeInterfaceInfoForGoType(goType) != nil {
 		return true
 	}

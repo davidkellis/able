@@ -1,0 +1,117 @@
+{
+  "kind": "able-post-nullable-compiled-sudoku-quotient-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "closure_id": "compiled-sudoku-quotient",
+  "decision": "hot-quotient-unchanged-nullable-carrier-outside-search-insufficient-breadth",
+  "changed_mechanism": "primitive-nullable-value-plus-valid-carrier",
+  "source_state": {
+    "compiler_production_tree_sha256": "d9e73a315f6ac6c9c3faa7a9530aaae33c8eee4a91e26b82e92505f1af9a4068",
+    "compiler_binary_sha256": "b679ae9a89bfa85528b2dc0fd5512c588625448facf8074d9a86ff7565c05851",
+    "canonical_stdlib_tree_sha256": "382d256e2fb380220dcdd62a5cf83109fa72297f23d70bdd1ffe2d8daebed047",
+    "canonical_stdlib_commit": "219eff222c28406487231713753641bc49ee5b9a",
+    "spec_sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "go_version": "go1.26.4 linux/amd64",
+    "scorecard": "v12/docs/perf-baselines/2026-07-30-nullable-scalar-retained-scorecard-reconciled.json"
+  },
+  "measurement_contract": {
+    "strict_build_args": [
+      "--no-fallbacks"
+    ],
+    "dependency_packages": 96,
+    "interpreter_dependency": false,
+    "successful_smoke_processes": 1,
+    "smoke_verifier_backed": true,
+    "new_cpu_profiles": 0,
+    "new_allocation_profiles": 0,
+    "new_timing_cohorts": 0,
+    "profile_gate": "profile only a materially reached post-carrier residual shared by at least three unlike applications"
+  },
+  "application": {
+    "benchmark": "sudoku_masks",
+    "able_source_sha256": "222b321f579d7b2a84f4bc0fd379064a7ebe554bd83169782b28d04eaaab90e0",
+    "contract_sha256": "23fb9a195d292c88efb87180cb2153f5ad893a960aed03cec070a37f2906ada6",
+    "verifier_sha256": "2898dd09ba0cb05362589c83f95c2d8ae979b09f791cd9f2e63c762bfa221ce7",
+    "generated_compiled_go_sha256": "aed73c15ab545c9a3f56e7c6d7b9d3aad9c3bfe98c2e2a15d376a79057e9f0b2",
+    "generated_application_bodies_sha256": "af94b597e2146cdcd5ea62100def9c16cc2328ebe2f78b828f703f8699c524aa",
+    "square_index_body_sha256": "db7972f4be24b3101fd6a7cc64586ef5e2fa8805ec4cc743f3aa0b9ba635bee7",
+    "signed_divmod_relevant_body_sha256": "14a0303919009ab72062777a6599845de03dda31350a5f745a72cdfe325af7d1",
+    "binary_sha256": "7014eaeb9a4b0cf4ae7db905df49e16134c5568be03cefc9acd71e7e7ac94e87",
+    "dependency_count": 96,
+    "interpreter_dependency": false,
+    "application_function_count": 11,
+    "whole_module_nullable_i32_references": 38,
+    "whole_module_nullable_helper_name_references": 17,
+    "application_nullable_i32_references": 15,
+    "application_nullable_helper_calls": 0,
+    "hot_search_nullable_i32_references": 0,
+    "hot_search_nullable_helper_calls": 0,
+    "hot_search_runtime_value_references": 0,
+    "hot_search_bridge_conversions": 0,
+    "changed_carrier_reach": "main returns one absent allocation-free i32 carrier after all solve work; registered wrapper converts it once to runtime nil",
+    "changed_carrier_material_reach": false,
+    "signed_i32_divmod_application_calls": 2,
+    "signed_i32_divmod_sites": "square_index row quotient and remainder with positive index and constant positive divisor three",
+    "signed_i32_hot_path": "native Go slash and percent inside the shared positive-operand semantic branch",
+    "current_able_seconds": 1.966,
+    "current_go_seconds": 0.7184,
+    "current_able_go_ratio": 2.73663697104677,
+    "smoke_real_seconds": 1.5,
+    "smoke_peak_rss_kib": 9896,
+    "smoke_output_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec"
+  },
+  "retained_profile": {
+    "merged_cpu_seconds": 3.91,
+    "signed_i32_divmod_flat_percent": 11.51,
+    "signed_i32_divmod_cumulative_percent": 12.53,
+    "square_index_cumulative_percent": 35.04,
+    "find_best_empty_cumulative_percent": 89.0,
+    "perfect_divmod_removal_speedup": 1.143249,
+    "perfect_divmod_removal_current_ratio": 2.393736,
+    "additional_speedup_to_target_after_perfect_removal": 2.274049
+  },
+  "breadth_controls": [
+    {
+      "benchmark": "rational_series",
+      "exact_leaf_material": false,
+      "reason": "uses distinct runtime.Int128.DivMod two-word wide representation"
+    },
+    {
+      "benchmark_family": "compiled_regex",
+      "exact_leaf_material": false,
+      "reason": "material execution is NFA; quotient is confined to a cold DFA descendant"
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "exact_leaf_material": false,
+      "reason": "material execution is text/map work; quotient formatting is negligible"
+    }
+  ],
+  "changed_carrier_exact_leaf_breadth": 0,
+  "signed_i32_divmod_exact_leaf_breadth": 1,
+  "qualifying_residual_candidate": null,
+  "profile_refresh_required": false,
+  "closed_alternatives": [
+    "benchmark-specific square_index lowering",
+    "named-container or non-primitive nominal special case",
+    "broad execution-context ABI change",
+    "interpreter or GC ballast removal",
+    "one-family quotient helper specialization"
+  ],
+  "cleanup": {
+    "raw_build_audit_and_test_workspace_mib": 310,
+    "matching_artifacts_remaining": 0
+  },
+  "verification": {
+    "focused_division_fixture_and_carrier_guard": "pass",
+    "focused_division_fixture_and_carrier_guard_seconds": 3.165,
+    "go_test_cmd_ablec": "pass",
+    "go_test_cmd_ablec_seconds": 6.742
+  },
+  "production_files_changed": [],
+  "stdlib_changed": false,
+  "interpreter_changed": false,
+  "bytecode_changed": false,
+  "language_changed": false,
+  "wasm_changed": false
+}

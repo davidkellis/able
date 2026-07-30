@@ -1,0 +1,32 @@
+Generic Slot Buffer bytecode runtime profile
+Date: 2026-07-29
+Go toolchain: go1.26.5
+CPU affinity: 15
+Processes: 3 warmed, serial, one-main runtime profiles
+Merged CPU samples: 7.11 s
+
+Per-process runtime operation metrics:
+  run 1: 2.182668453 s, 39,639,160 B/op, 2,171,770 allocs/op
+  run 2: 2.256681170 s, 39,633,800 B/op, 2,171,769 allocs/op
+  run 3: 2.734489322 s, 39,639,160 B/op, 2,171,770 allocs/op
+  mean:  2.391279648 s, 39,637,373 B/op, 2,171,770 allocs/op
+
+Leading merged CPU owners:
+  0.63 s flat / 7.01 s cumulative  bytecodeVM.runResumable
+  0.24 s flat / 1.06 s cumulative  lookupCachedMemberMethodEntry
+  0.20 s flat / 0.20 s cumulative  bytecodeRawIntegerValueInfo
+  0.14 s flat / 1.29 s cumulative  tryInlineResolvedCallFromStack
+  0.11 s flat / 2.71 s cumulative  execCallMember
+  0.10 s flat / 0.13 s cumulative  pushCallFrame
+  0.09 s flat / 0.11 s cumulative  appendSlotStackValueChecked
+  0.09 s flat / 0.11 s cumulative  popCallFrameFields
+  0.08 s flat / 1.37 s cumulative  execBinary
+  0.08 s flat / 0.37 s cumulative  execCastOpcode
+
+Interpretation:
+  The profile exposes no nominal-storage-specific VM leaf. Its material
+  descendants are the already-reviewed dispatcher, member lookup/call,
+  raw-integer, frame, stack, cast, propagation/type, and cache-map families.
+  The public five-process bytecode scorecard separately verified application
+  output; the runtime profile intentionally measures its one-main operation
+  without stdout verification.

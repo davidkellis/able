@@ -1,0 +1,108 @@
+File: sensor_calibration
+Build ID: 26f1fadc67928436dcaadd3c0324b89b1ea754c3
+Type: cpu
+Time: 2026-07-29 14:36:38 CDT
+Duration: 9.06ms, Total samples = 220ms (2427.12%)
+Showing nodes accounting for 210ms, 95.45% of 220ms total
+Showing top 100 nodes out of 105
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%      220ms   100%  main.RunRegisteredMain
+         0     0%     0%      220ms   100%  main.RunRegisteredMain.func1
+         0     0%     0%      220ms   100%  main.__able_compiled_fn_main
+         0     0%     0%      220ms   100%  main.__able_register_compiled_call.func1
+         0     0%     0%      220ms   100%  main.__able_wrap_fn_main
+         0     0%     0%      220ms   100%  main.main
+         0     0%     0%      220ms   100%  main.runMain
+         0     0%     0%      220ms   100%  runtime.main
+         0     0%     0%      200ms 90.91%  main.__able_compiled_fn_parse_reading
+      10ms  4.55%  4.55%      150ms 68.18%  runtime.mallocgc
+         0     0%  4.55%      110ms 50.00%  runtime.systemstack
+      10ms  4.55%  9.09%       70ms 31.82%  runtime.mallocgcSmallScanNoHeader
+         0     0%  9.09%       60ms 27.27%  main.__able_compiled_fn_parse_reading.func1 (inline)
+         0     0%  9.09%       60ms 27.27%  runtime.convT
+         0     0%  9.09%       60ms 27.27%  runtime.deductAssistCredit
+         0     0%  9.09%       60ms 27.27%  runtime.gcAssistAlloc
+         0     0%  9.09%       60ms 27.27%  runtime.gcAssistAlloc.func2
+         0     0%  9.09%       60ms 27.27%  runtime.gcAssistAlloc1
+         0     0%  9.09%       60ms 27.27%  runtime.gcDrainN
+         0     0%  9.09%       60ms 27.27%  strings.Split (inline)
+         0     0%  9.09%       60ms 27.27%  strings.genSplit
+         0     0%  9.09%       50ms 22.73%  able/interpreter-go/pkg/compiler/bridge.ToInt
+         0     0%  9.09%       50ms 22.73%  main.__able_nullable_i64_to_value (inline)
+         0     0%  9.09%       50ms 22.73%  runtime.makeslice
+         0     0%  9.09%       50ms 22.73%  runtime.scanSpan
+         0     0%  9.09%       40ms 18.18%  runtime.(*mcache).nextFree
+         0     0%  9.09%       40ms 18.18%  runtime.(*mcache).refill
+         0     0%  9.09%       40ms 18.18%  runtime.(*mcentral).cacheSpan
+         0     0%  9.09%       30ms 13.64%  main.__able_compiled_fn_parse_i64
+         0     0%  9.09%       30ms 13.64%  runtime.newobject
+      10ms  4.55% 13.64%       20ms  9.09%  able/interpreter-go/pkg/compiler/bridge.AsInt
+         0     0% 13.64%       20ms  9.09%  internal/runtime/gc/scan.ScanSpanPacked (inline)
+         0     0% 13.64%       20ms  9.09%  internal/runtime/gc/scan.ScanSpanPackedAVX512
+      20ms  9.09% 22.73%       20ms  9.09%  internal/runtime/gc/scan.scanSpanPackedAVX512
+         0     0% 22.73%       20ms  9.09%  main.__able_compiled_fn_calibration_error
+         0     0% 22.73%       20ms  9.09%  runtime.(*mcentral).grow
+         0     0% 22.73%       20ms  9.09%  runtime.(*mheap).alloc
+         0     0% 22.73%       20ms  9.09%  runtime.(*mheap).alloc.func1
+         0     0% 22.73%       20ms  9.09%  runtime.(*mheap).allocSpan
+         0     0% 22.73%       20ms  9.09%  runtime.(*sweepLocked).sweep
+         0     0% 22.73%       20ms  9.09%  runtime.deductSweepCredit
+      10ms  4.55% 27.27%       20ms  9.09%  runtime.findObject
+         0     0% 27.27%       20ms  9.09%  runtime.sweepone
+      10ms  4.55% 31.82%       20ms  9.09%  runtime.tryDeferToSpanScan
+         0     0% 31.82%       10ms  4.55%  able/interpreter-go/pkg/compiler/bridge.(*Runtime).StructDefinition
+      10ms  4.55% 36.36%       10ms  4.55%  able/interpreter-go/pkg/compiler/bridge.materializeBoundaryValue (inline)
+         0     0% 36.36%       10ms  4.55%  able/interpreter-go/pkg/compiler/bridge.unwrapInterface
+      10ms  4.55% 40.91%       10ms  4.55%  aeshashbody
+         0     0% 40.91%       10ms  4.55%  gcWriteBarrier
+      10ms  4.55% 45.45%       10ms  4.55%  internal/bytealg.IndexByteString
+      10ms  4.55% 50.00%       10ms  4.55%  internal/runtime/atomic.(*Uint32).Load (inline)
+         0     0% 50.00%       10ms  4.55%  internal/runtime/maps.(*Map).growToSmall
+         0     0% 50.00%       10ms  4.55%  internal/runtime/maps.newGroups (inline)
+         0     0% 50.00%       10ms  4.55%  internal/runtime/maps.newarray
+      10ms  4.55% 54.55%       10ms  4.55%  internal/runtime/sys.LeadingZeros64 (inline)
+         0     0% 54.55%       10ms  4.55%  internal/stringslite.Index
+         0     0% 54.55%       10ms  4.55%  internal/stringslite.IndexByte (inline)
+      10ms  4.55% 59.09%       10ms  4.55%  main.__able_checked_mul_signed
+         0     0% 59.09%       10ms  4.55%  main.__able_compiled_entry_fn_read_lines_prefix
+         0     0% 59.09%       10ms  4.55%  main.__able_compiled_fn_fs_read_lines_prefix_text_fast
+         0     0% 59.09%       10ms  4.55%  main.__able_compiled_fn_read_lines_prefix
+         0     0% 59.09%       10ms  4.55%  main.__able_compiled_method_SensorReading_calibrated
+         0     0% 59.09%       10ms  4.55%  main.__able_host_fn_fs_read_lines_prefix_text_fast
+         0     0% 59.09%       10ms  4.55%  main.__able_struct_CalibrationError_to (inline)
+         0     0% 59.09%       10ms  4.55%  main.__able_struct_CalibrationError_to_seen
+         0     0% 59.09%       10ms  4.55%  main.__able_union_int64_or_runtime_ErrorValue_wrap_int64 (inline)
+         0     0% 59.09%       10ms  4.55%  main.__able_union_int64_or_runtime_ErrorValue_wrap_runtime_ErrorValue (inline)
+         0     0% 59.09%       10ms  4.55%  runtime.(*mcache).allocLarge
+         0     0% 59.09%       10ms  4.55%  runtime.(*mheap).freeSpan (inline)
+         0     0% 59.09%       10ms  4.55%  runtime.(*mheap).freeSpanLocked
+         0     0% 59.09%       10ms  4.55%  runtime.(*mheap).initSpan
+      10ms  4.55% 63.64%       10ms  4.55%  runtime.(*mspan).divideByElemSize (inline)
+         0     0% 63.64%       10ms  4.55%  runtime.(*mspan).initHeapBits
+      10ms  4.55% 68.18%       10ms  4.55%  runtime.(*mspan).moveInlineMarks
+         0     0% 68.18%       10ms  4.55%  runtime.(*mspan).objIndex (inline)
+         0     0% 68.18%       10ms  4.55%  runtime.(*pageAlloc).allocToCache
+         0     0% 68.18%       10ms  4.55%  runtime.(*pageAlloc).free
+         0     0% 68.18%       10ms  4.55%  runtime.(*pageAlloc).update
+         0     0% 68.18%       10ms  4.55%  runtime.(*pallocBits).summarize
+         0     0% 68.18%       10ms  4.55%  runtime.(*scavengeIndex).free
+         0     0% 68.18%       10ms  4.55%  runtime.(*spanSet).reset
+         0     0% 68.18%       10ms  4.55%  runtime.(*sweepLocked).sweep.(*mheap).freeSpan.func2
+         0     0% 68.18%       10ms  4.55%  runtime.convT64
+         0     0% 68.18%       10ms  4.55%  runtime.finishsweep_m
+         0     0% 68.18%       10ms  4.55%  runtime.gcStart
+         0     0% 68.18%       10ms  4.55%  runtime.gcStart.func3
+         0     0% 68.18%       10ms  4.55%  runtime.gcmarknewobject
+      10ms  4.55% 72.73%       10ms  4.55%  runtime.heapArenaOf (inline)
+         0     0% 72.73%       10ms  4.55%  runtime.mallocgcLarge
+         0     0% 72.73%       10ms  4.55%  runtime.mapaccess2_faststr
+         0     0% 72.73%       10ms  4.55%  runtime.mapassign_faststr
+         0     0% 72.73%       10ms  4.55%  runtime.markroot
+         0     0% 72.73%       10ms  4.55%  runtime.markrootBlock
+      10ms  4.55% 77.27%       10ms  4.55%  runtime.memclrNoHeapPointers
+      10ms  4.55% 81.82%       10ms  4.55%  runtime.newArenaMayUnlock
+         0     0% 81.82%       10ms  4.55%  runtime.newMarkBits
+         0     0% 81.82%       10ms  4.55%  runtime.newarray
+      10ms  4.55% 86.36%       10ms  4.55%  runtime.offAddr.lessThan (inline)
+      10ms  4.55% 90.91%       10ms  4.55%  runtime.scanblock
+      10ms  4.55% 95.45%       10ms  4.55%  runtime.spanOf (inline)

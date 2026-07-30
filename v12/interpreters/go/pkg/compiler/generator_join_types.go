@@ -235,7 +235,7 @@ func (g *generator) joinResultTypeWithSawNil(ctx *compileContext, types []string
 	if g.goTypeHasNilZeroValue(joinedType) {
 		return joinedType, true
 	}
-	if nullableType, ok := g.nativeNullablePointerType(joinedType); ok {
+	if nullableType, ok := g.nativeNullableCarrierType(joinedType); ok {
 		return nullableType, true
 	}
 	return "", false
