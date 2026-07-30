@@ -200,24 +200,52 @@ form an exact 17-path post-record retained candidate whose complement is
 precisely those 34 deferred files. Every identity, format, scope, secret,
 source-size, evidence, stdlib, Git, and cleanup check passes. Nothing was
 staged, committed, or pushed during the inventory. The maintainer subsequently
-authorized exact staging and one local commit; the repository now contains
-that consolidation while the 34 deferred WASM paths remain outside history.
-Nothing was pushed.
+authorized exact staging and one local commit, then separately authorized
+publication of only that commit. Commit
+`9a4eac717e1a46e10195e17c562b389fa452dcfd` is published; local `HEAD`,
+`origin/master`, and remote `master` agree with zero divergence. The 34
+deferred WASM paths remain outside history.
+
+The exact published tree passes the relocated 130-row scoreboard,
+five-sample evidence gate, four path regressions, zero-actionable frontier,
+and five frontier tests from a disk-backed clean export. The complete ledger
+exposes one remaining checkout dependency: its canonical-stdlib scope
+definition hashes the absolute developer-workspace root. An adjacent stdlib
+with the same 70 files and exact content therefore selects all 23 closures for
+`scope-definition-drift:canonical-stdlib`. No code was retained, and all
+task-owned export state was removed.
+
+The canonical-stdlib ledger scope is now relocatable. Its configured semantic
+root remains `../able-stdlib/src` while default and override paths only locate
+the files to hash. Separate-root regressions prove byte-identical content
+retains zero invalidations and real content drift still selects all 23
+dependent closures. The developer worktree and a clean source-only export
+both pass the complete 130-row scorecard, five-sample, frontier, and
+23-current-closure gates. No production or WASM source changed.
+
+The canonical-stdlib scope release inventory classifies all 42 pre-record
+dirty paths exactly: eight retained reconciliation/evidence/handoff paths and
+the unchanged 34-path deferred WASM boundary. The three inventory metadata
+files form an exact 11-path post-record retained candidate whose complement is
+precisely those 34 deferred files. Every identity, format, scope, secret,
+source-size, evidence, stdlib, Git, remote, and cleanup check passes. Nothing
+was staged, committed, or pushed.
 
 ### Next tranche
 
-Obtain explicit maintainer authorization before publishing the one local
-post-relocatable-evidence consolidation commit.
+Obtain explicit authorization before staging the exact 11-path retained
+candidate and creating one local commit. Keep publication separately gated.
 
-Why: exact local consolidation is authorized, but remote mutation remains
-separately gated.
+Why: the release boundary is verified, but this inventory does not itself
+authorize repository mutation.
 
-What it entails: verify the final one-commit divergence, remote destination,
-empty index, and unchanged deferred complement, then push only that exact
-commit-to-branch refspec if explicitly authorized.
+What it entails: reproduce the candidate pathspec and final non-self
+identities, stage only the exact NUL-delimited pathspec, verify the cached
+complement and ledger gates, and create one local commit if explicitly
+authorized.
 
-Why it matters: the evidence correction can reach shared history without
-publishing deferred WASM, another local commit, or any unintended ref.
+Why it matters: local consolidation can preserve the exact 34-path deferred
+boundary, while any remote publication remains a separate reviewable action.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or global default execution-context

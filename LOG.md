@@ -51899,3 +51899,103 @@
   remains separately gated.
 - Record:
   `v12/docs/perf-baselines/2026-07-30-post-relocatable-evidence-release-inventory.md`.
+
+## 2026-07-30 - Relocatable evidence correction publication
+
+- Received explicit authorization to publish only local commit
+  `9a4eac717e1a46e10195e17c562b389fa452dcfd`.
+- Verified `origin` as `git@github.com:davidkellis/able.git`, remote `master`
+  at the exact parent, a one-commit fast-forward, an empty index, the exact
+  17-path commit boundary, current scoreboard/ledger gates, and the unchanged
+  34-path deferred WASM residual before publication.
+- Pushed the explicit refspec
+  `9a4eac717e1a46e10195e17c562b389fa452dcfd:refs/heads/master`; no broad
+  branch push or other ref was used.
+- Independent `ls-remote` verification confirms local `HEAD`,
+  `origin/master`, and remote `master` all at `9a4eac71`, with zero
+  ahead/behind divergence.
+- GitHub's publication banner remains at 74 repository-wide Dependabot
+  alerts: 18 critical, 14 high, 34 moderate, and 8 low. The active-v12 scans
+  remain clean; the banner is not an active-v12 reachability result.
+- The deferred WASM files remain uncommitted and unchanged. No generated
+  project artifact or publication workspace exists.
+- Next run one bounded clean-tree reconciliation for exact published commit
+  `9a4eac71`. This matters because the evidence gates must prove they are
+  checkout-independent without the dirty deferred worktree.
+
+## 2026-07-30 - Post-relocatable-evidence publication reconciliation
+
+- Exported exact published commit
+  `9a4eac717e1a46e10195e17c562b389fa452dcfd`, tree `eed160e4`, and
+  10,966 regular files to disk-backed `/var/tmp`.
+- Supplied the canonical adjacent stdlib with 70 runtime sources and exact
+  scorecard source identity `6a412c87…`; none of the three deferred bytecode
+  WASM proof files exists in the export.
+- The 130-row scoreboard, five-sample evidence gate, four relocation tests,
+  zero-actionable frontier, and five frontier tests pass.
+- The ledger correctly excludes deferred WASM but fails checkout independence:
+  all 23 closures select only
+  `scope-definition-drift:canonical-stdlib`.
+- Checked and exported canonical-stdlib scopes have the same 70 files and
+  tree SHA-256 `382d256e…`; only the absolute root differs. Pointing the
+  export back at the developer stdlib makes the ledger pass, confirming a
+  root-identity defect rather than content drift.
+- The eight-test ledger suite has seven passes and the expected current-ledger
+  failure. No code, production input, benchmark measurement, stdlib behavior,
+  or deferred WASM file changed.
+- Removed the exact 141,040 KiB validation workspace; no task-owned artifact
+  remains.
+- Next make default canonical-stdlib scope identity semantic rather than
+  absolute, add relocation/content-drift guards, rebuild the ledger, and
+  prove it in dirty and clean trees. This is important because closure
+  validity must not depend on a workstation path.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-relocatable-evidence-publication-reconciliation.md`.
+
+## 2026-07-30 - Canonical stdlib ledger identity made relocatable
+
+- Changed scope identity to retain the configured semantic root while using
+  default or override paths only to locate and hash files.
+- Added separate-root guards proving identical canonical-stdlib content stays
+  current and real content drift selects all 23 dependent closures.
+- Rebuilt the checked baseline from absolute
+  `/home/david/sync/projects/able-stdlib/src` to semantic
+  `../able-stdlib/src`; its SHA-256 is now `aaf867b3…`.
+- The evaluated JSON and Markdown remain byte-identical. The developer
+  worktree passes all 130 scorecard rows, complete five-sample evidence, the
+  zero-actionable frontier, 23 current closures, and ten ledger tests with one
+  intentional skip.
+- An independent 10,966-file source export of published `9a4eac71`, overlaid
+  only with the three-file candidate, passes the same gates with the canonical
+  adjacent stdlib and no scope override or developer path.
+- No production, compiler, runtime, interpreter, VM, stdlib, benchmark,
+  language, dependency, or WASM behavior changed.
+- Removed the exact 140,948 KiB disk-backed workspace; no task cache remains.
+- Next inventory the complete retained correction/record boundary against the
+  unchanged 34 deferred WASM files without staging or committing. This is
+  important because later consolidation must not absorb deferred work.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-canonical-stdlib-scope-identity-relocatable-retained.md`.
+
+## 2026-07-30 - Canonical stdlib scope release inventory
+
+- Captured an immutable, fully expanded 42-path worktree snapshot at published
+  `9a4eac717e1a46e10195e17c562b389fa452dcfd`, with an empty index and zero
+  local, tracking, or remote divergence.
+- Classified exactly eight retained reconciliation/ledger/handoff paths and
+  the unchanged 34-path deferred WASM boundary. Three inventory metadata
+  files form an exact 11-path post-record retained candidate.
+- Reproduced every manifest state, line, byte, SHA-256, disposition, and
+  governing-record identity. All deferred identities match the previous
+  authoritative inventory.
+- JSON, Go, JavaScript, Python, whitespace, source-size, scope, filename,
+  common-secret, canonical-stdlib, scorecard, five-sample, frontier, ledger,
+  selector, Git-index, remote, and cleanup checks pass.
+- No production, semantic, dependency, benchmark-measurement, stdlib, frozen
+  workspace, or WASM change was made. Nothing was staged, committed, or
+  pushed.
+- Next obtain explicit authorization before exact 11-path local
+  consolidation; keep publication separately gated. This matters because the
+  correction can enter history without absorbing the 34 deferred paths.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-canonical-stdlib-scope-release-inventory.md`.

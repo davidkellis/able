@@ -7055,3 +7055,89 @@ Open items (2025-11-02 audit):
   reviewable.
 - Evidence:
   `docs/perf-baselines/2026-07-30-post-relocatable-evidence-release-inventory.md`.
+
+## 2026-07-30 - Relocatable evidence correction publication
+
+- Explicitly published only
+  `9a4eac717e1a46e10195e17c562b389fa452dcfd` to `origin/master`.
+- Pre-push checks proved the expected GitHub destination, exact remote parent,
+  one-commit fast-forward, empty index, exact 17-path commit boundary, current
+  evidence gates, and unchanged 34-path deferred complement.
+- Post-push `ls-remote`, local tracking identity, and ahead/behind checks all
+  agree at `9a4eac71` with zero divergence.
+- The repository-wide GitHub banner remains 74 alerts at the same severity
+  distribution. No deferred WASM path entered history, and no other ref or
+  commit was published.
+- Next run the scoreboard, five-sample, frontier, ledger, and focused
+  relocation/scope tests from an exact clean archive with the canonical
+  adjacent stdlib, then remove all disk-backed task state. This proves the
+  published correction independently of the developer worktree.
+
+## 2026-07-30 - Published evidence clean-tree reconciliation
+
+- Exported exact published `9a4eac71`, tree `eed160e4`, and 10,966 files to
+  disk-backed `/var/tmp`, with no deferred bytecode WASM proof file.
+- The adjacent canonical stdlib reproduces 70 runtime sources, scorecard tree
+  `6a412c87…`, and ledger tree `382d256e…`.
+- The scoreboard, five-sample gate, four relocation tests, frontier, and five
+  frontier tests pass: 130 rows and zero actionable groups.
+- The ledger fails solely because its checked canonical-stdlib definition
+  stores `/home/david/sync/projects/able-stdlib/src`, while the clean export
+  uses an adjacent `/var/tmp/.../able-stdlib/src`. File count, include/exclude
+  rules, and content tree are identical.
+- All 23 closures select `scope-definition-drift:canonical-stdlib`; seven of
+  eight ledger tests pass. A developer-path override restores 23 current
+  closures, proving the remaining hidden path dependency.
+- Retained no code and removed the exact 141,040 KiB workspace.
+- Next canonicalize default external-scope identity, preserve complete content
+  hashing, add relocation and real-drift guards, rebuild the ledger, and
+  rerun both environments. This makes performance evidence portable between
+  identical checkouts.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-post-relocatable-evidence-publication-reconciliation.md`.
+
+## 2026-07-30 - Canonical stdlib scope identity relocatable
+
+- Scope overrides now relocate reads without replacing the configured
+  semantic root stored in the closure baseline.
+- Two regressions prove identical content at separate roots stays current and
+  changed relocated content selects all 23 canonical-stdlib-dependent
+  closures.
+- Rebuilt the baseline with root `../able-stdlib/src`; its SHA-256 changed
+  from `15fcba70…` to `aaf867b3…`, while evaluated JSON and Markdown remain
+  byte-identical.
+- Both the dirty worktree and a clean published-tree export pass the 130-row
+  scoreboard, complete five-sample evidence, four path tests, zero-actionable
+  frontier, five frontier tests, 23-current-closure ledger, and ten ledger
+  tests with one conditional skip.
+- The clean export used the canonical adjacent 70-file stdlib with no
+  developer path or scope override and contained no deferred bytecode WASM
+  proof file.
+- No production or WASM behavior changed. Removed the exact 140,948 KiB
+  disk-backed workspace.
+- Next inventory the retained correction and records against the unchanged
+  34-path deferred boundary without repository mutation. This keeps future
+  consolidation exact.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-canonical-stdlib-scope-identity-relocatable-retained.md`.
+
+## 2026-07-30 - Canonical stdlib scope release inventory
+
+- Inventoried all 42 fully expanded pre-record dirty paths at published
+  `9a4eac71`, with an empty index and zero local/tracking/remote divergence.
+- The exact boundary is eight retained reconciliation, ledger, record, and
+  handoff paths plus the unchanged 34 deferred WASM files. Adding three
+  inventory metadata files yields an exact 11-path candidate.
+- The 42-row TSV records Git state, dependency order, family, disposition,
+  governing record, lines, bytes, SHA-256, and path. Every identity reproduces.
+- Format, syntax, whitespace, source-size, scope, secret, stdlib, scoreboard,
+  five-sample, frontier, ledger, selector, index, remote, and cleanup gates
+  pass.
+- No production or WASM behavior changed. Nothing was staged, committed, or
+  pushed.
+- Next obtain explicit authorization before staging only the 11-path
+  NUL-delimited candidate and making one local commit. This protects the
+  unchanged 34-path deferred complement and keeps publication separately
+  reviewable.
+- Evidence:
+  `docs/perf-baselines/2026-07-30-canonical-stdlib-scope-release-inventory.md`.

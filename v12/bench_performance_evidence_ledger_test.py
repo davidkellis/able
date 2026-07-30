@@ -34,8 +34,8 @@ class PerformanceEvidenceLedgerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
-    def bootstrap_ledger(self, path: Path) -> dict[str, object]:
-        result = self.run_ledger("--bootstrap", "--json-out", str(path))
+    def bootstrap_ledger(self, path: Path, *args: str) -> dict[str, object]:
+        result = self.run_ledger("--bootstrap", *args, "--json-out", str(path))
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(path.read_text(encoding="utf-8"))
 
@@ -172,6 +172,63 @@ class PerformanceEvidenceLedgerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout)
         self.assertEqual(report["summary"]["selected_closures"], [])
+
+    def test_scope_override_relocates_reads_without_changing_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            first = directory / "first"
+            second = directory / "second"
+            first.mkdir()
+            second.mkdir()
+            for root in (first, second):
+                (root / "library.able").write_text("fn value() = 1\n", encoding="utf-8")
+            baseline = directory / "ledger.json"
+            ledger = self.bootstrap_ledger(
+                baseline, "--scope-override", f"canonical-stdlib={first}"
+            )
+            scope = next(
+                item for item in ledger["scopes"] if item["id"] == "canonical-stdlib"
+            )
+            self.assertEqual(scope["root"], "../able-stdlib/src")
+            result = self.run_ledger(
+                "--ledger",
+                str(baseline),
+                "--scope-override",
+                f"canonical-stdlib={second}",
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["summary"]["selected_closures"], [])
+
+    def test_relocated_scope_content_drift_still_invalidates(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            directory = Path(raw_dir)
+            first = directory / "first"
+            second = directory / "second"
+            first.mkdir()
+            second.mkdir()
+            for root in (first, second):
+                (root / "library.able").write_text("fn value() = 1\n", encoding="utf-8")
+            baseline = directory / "ledger.json"
+            ledger = self.bootstrap_ledger(
+                baseline, "--scope-override", f"canonical-stdlib={first}"
+            )
+            (second / "library.able").write_text("fn value() = 2\n", encoding="utf-8")
+            result = self.run_ledger(
+                "--ledger",
+                str(baseline),
+                "--scope-override",
+                f"canonical-stdlib={second}",
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(
+            report["summary"]["selected_closures"],
+            sorted(closure["id"] for closure in ledger["closures"]),
+        )
+        self.assertEqual(
+            report["summary"]["reason_counts"],
+            {"scope-content-drift:canonical-stdlib": 23},
+        )
 
     def test_partial_advance_updates_only_named_closures(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:

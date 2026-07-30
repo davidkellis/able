@@ -138,7 +138,8 @@ def hash_scope(
     payload = "".join(f"{relative}\0{digest}\n" for relative, digest in records)
     return {
         "id": definition["id"],
-        "root": display_path(root),
+        # An override relocates reads; it does not redefine the semantic scope.
+        "root": root_value,
         "include": include,
         "exclude": exclude,
         "file_count": len(records),
