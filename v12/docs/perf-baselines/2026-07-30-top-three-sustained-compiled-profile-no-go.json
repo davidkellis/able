@@ -1,0 +1,294 @@
+{
+  "kind": "top-three-sustained-compiled-profile-closure",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "repository_commit": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+  "decision": {
+    "status": "closed-no-shared-exact-owner",
+    "candidate_admitted": false,
+    "production_code_changed": false,
+    "ab_run": false,
+    "reason": "The only flat-positive CPU symbol sampled in all three applications is Go runtime.asyncPreempt; no generated application, generated runtime, bridge, or semantic helper owner repeats materially."
+  },
+  "cleanup": {
+    "workspace": "/var/tmp/able-top-three-profile-TrfHdM",
+    "workspace_kib": 503192,
+    "removed": true,
+    "contents": [
+      "profiling compiler",
+      "Go cache",
+      "generated modules",
+      "binaries",
+      "logs",
+      "summaries",
+      "raw profiles"
+    ],
+    "tmp_able_artifacts_remaining": 0,
+    "new_python_caches_remaining": 0
+  },
+  "protocol": {
+    "strict_no_fallbacks": true,
+    "cpu_affinity": "12",
+    "gomaxprocs": 1,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "process_timeout_seconds": 58,
+    "smoke_processes": 3,
+    "cpu_profiles_per_application": 10,
+    "cpu_profile_processes": 30,
+    "allocation_counter_processes_per_application": 3,
+    "allocation_counter_processes": 9,
+    "exact_allocation_shape_processes_per_application": 1,
+    "exact_allocation_shape_processes": 3,
+    "verified_processes": 45,
+    "failures": 0,
+    "timeouts": 0,
+    "go_toolchain": "go1.26.4 linux/amd64",
+    "host_timing_status": "unrelated sustained Marketlab CPU and disk load; profiles are ownership evidence and process wall times are controls, not a new performance claim"
+  },
+  "compiler": {
+    "binary_sha256": "8dcdbfdf8189a1d9e1459464625aad5e2e340ccae7b69b85d90efdb71f7fe66b",
+    "binary_bytes": 15447544
+  },
+  "applications": [
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "source_sha256": "8701c4502963c99452439b882584aef3c8ea6b64bea024ae29447f75f9e6de20",
+      "binary_sha256": "f8fcc674848f08853b24f3718feeba4946523dd157095aa194dcd3bff59f7187",
+      "binary_bytes": 12959080,
+      "module_sha256": "edb78deaf4a989c46d90321053aa4b844327e5fd45fac6dc1ea26a6107e597f8",
+      "compiled_go_sha256": "1599b3c19b886199f0923bb9f9bac9f7648d1eb5e20f0add0d5d97ec18927257",
+      "dependencies": 96,
+      "dependency_sha256": "2ade011a547ecde322acb0a2197606779154282df470466b4cb6fbfd9468510a",
+      "interpreter_dependency": false,
+      "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86",
+      "cpu_profile_process_wall_seconds": {
+        "samples": [2.21, 2.18, 2.27, 2.10, 2.24, 2.34, 2.30, 2.25, 2.26, 2.08],
+        "mean": 2.223,
+        "status": "control-only"
+      },
+      "merged_cpu": {
+        "sample_seconds": 22.12,
+        "sha256": "afd754e3f7f42a977b08559d15f0201933ce166a356438653b3eb5a040974742",
+        "owners": [
+          {
+            "name": "main.__able_checked_mul_signed",
+            "flat_seconds": 5.00,
+            "cumulative_seconds": 5.07,
+            "cumulative_percent": 22.92
+          },
+          {
+            "name": "main.__able_divmod_signed",
+            "flat_seconds": 3.90,
+            "cumulative_seconds": 4.14,
+            "cumulative_percent": 18.72
+          },
+          {
+            "name": "main.__able_checked_add_signed",
+            "flat_seconds": 2.79,
+            "cumulative_seconds": 2.81,
+            "cumulative_percent": 12.70
+          },
+          {
+            "name": "runtime.newobject",
+            "flat_seconds": 0.14,
+            "cumulative_seconds": 4.26,
+            "cumulative_percent": 19.26
+          }
+        ]
+      },
+      "exact_main_allocation_counters": {
+        "allocated_bytes_samples": [430788208, 430788160, 430788296],
+        "allocated_bytes_mean": 430788221.3333333,
+        "allocation_samples": [13325303, 13325303, 13325305],
+        "allocation_mean": 13325303.666666666,
+        "gc_samples": [351, 351, 351],
+        "gc_mean": 351
+      },
+      "allocation_shape": {
+        "owner": "hot escaping Sample nominal literal",
+        "flat_objects": 13208878,
+        "semantics": "identity-bearing Sample pointers escape into generic TelemetryWindow storage"
+      }
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "source_sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a",
+      "binary_sha256": "b75d73d220617f7243f06689d72b640a241a024f409d17adf724dea27c513277",
+      "binary_bytes": 15488040,
+      "module_sha256": "ca154331127449a1f46a21a979b7931a83af9d276c15531485dfd1a93b30f330",
+      "compiled_go_sha256": "91f4cadb5d0b951df488064fa8095818a2eba4c92432898b32088b4f517eca02",
+      "dependencies": 96,
+      "dependency_sha256": "2ade011a547ecde322acb0a2197606779154282df470466b4cb6fbfd9468510a",
+      "interpreter_dependency": false,
+      "stdout_sha256": "d628623daa677c00673df8d4961d14eb271b4112cdcb65b8233f07b69d7b49b8",
+      "cpu_profile_process_wall_seconds": {
+        "samples": [1.39, 1.46, 1.43, 1.42, 1.40, 1.44, 1.39, 1.47, 1.47, 1.33],
+        "mean": 1.42,
+        "status": "control-only"
+      },
+      "merged_cpu": {
+        "sample_seconds": 14.09,
+        "sha256": "2d91e73b195e9d5edaa065a45877f314125e76d70c2bd4b6cff591a0c58b5d1a",
+        "owners": [
+          {
+            "name": "bridge.primitiveHashMapKeyEqual",
+            "flat_seconds": 2.48,
+            "cumulative_seconds": 3.06,
+            "cumulative_percent": 21.72
+          },
+          {
+            "name": "bridge.primitiveHashMapHash",
+            "flat_seconds": 1.08,
+            "cumulative_seconds": 1.66,
+            "cumulative_percent": 11.78
+          },
+          {
+            "name": "main.__able_hash_map_find_entry",
+            "flat_seconds": 0.73,
+            "cumulative_seconds": 3.96,
+            "cumulative_percent": 28.11
+          },
+          {
+            "name": "bridge.ToUint",
+            "flat_seconds": 0.11,
+            "cumulative_seconds": 3.40,
+            "cumulative_percent": 24.13
+          },
+          {
+            "name": "bridge.ToInt",
+            "flat_seconds": 0.06,
+            "cumulative_seconds": 2.17,
+            "cumulative_percent": 15.40
+          },
+          {
+            "name": "runtime.mallocgc",
+            "flat_seconds": 0.25,
+            "cumulative_seconds": 4.20,
+            "cumulative_percent": 29.81
+          }
+        ]
+      },
+      "exact_main_allocation_counters": {
+        "allocated_bytes_samples": [598183536, 598183552, 598183552],
+        "allocated_bytes_mean": 598183546.6666666,
+        "allocation_samples": [12232489, 12232489, 12232489],
+        "allocation_mean": 12232489,
+        "gc_samples": [275, 274, 274],
+        "gc_mean": 274.3333333333333
+      },
+      "allocation_shape": {
+        "owners": [
+          {
+            "name": "bridge.ToUint",
+            "flat_objects": 7999998
+          },
+          {
+            "name": "bridge.ToInt",
+            "flat_objects": 3961373
+          }
+        ],
+        "semantics": "runtime integer carriers beneath canonical HashMap raw set and get"
+      }
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "source_sha256": "222b321f579d7b2a84f4bc0fd379064a7ebe554bd83169782b28d04eaaab90e0",
+      "binary_sha256": "4c0a43e2eae631e930246ab5a9db4d599be2670b1e11dab77d13337f6f06f71e",
+      "binary_bytes": 13817008,
+      "module_sha256": "c1c2aba9e19d13c9024037abea128654571de3ac078b1134de5e5b12d9a88de4",
+      "compiled_go_sha256": "959b07e48bcbe9f7affc34db49cb7e7de31f5d245922e43a0a487ac44c80aa81",
+      "dependencies": 96,
+      "dependency_sha256": "2ade011a547ecde322acb0a2197606779154282df470466b4cb6fbfd9468510a",
+      "interpreter_dependency": false,
+      "stdout_sha256": "35a81e448daf9986f2a9b7c3a873dc6216bd55c969efec50c9b1de6d866659ec",
+      "cpu_profile_process_wall_seconds": {
+        "samples": [1.43, 1.45, 1.53, 1.57, 1.45, 1.42, 1.50, 1.46, 1.45, 1.41],
+        "mean": 1.467,
+        "status": "control-only"
+      },
+      "merged_cpu": {
+        "sample_seconds": 14.58,
+        "sha256": "fd3a4fc6095753eb42ef7cc069a1bffe5bc5cd217fea440529a0d7beb8207cb3",
+        "owners": [
+          {
+            "name": "main.__able_compiled_fn_find_best_empty",
+            "flat_seconds": 5.06,
+            "cumulative_seconds": 13.16,
+            "cumulative_percent": 90.26
+          },
+          {
+            "name": "main.__able_compiled_fn_bit_count",
+            "flat_seconds": 2.24,
+            "cumulative_seconds": 2.24,
+            "cumulative_percent": 15.36
+          },
+          {
+            "name": "main.__able_checked_mul_signed",
+            "flat_seconds": 2.12,
+            "cumulative_seconds": 2.26,
+            "cumulative_percent": 15.50
+          },
+          {
+            "name": "main.__able_divmod_signed",
+            "flat_seconds": 2.04,
+            "cumulative_seconds": 2.43,
+            "cumulative_percent": 16.67
+          },
+          {
+            "name": "main.__able_compiled_fn_square_index",
+            "flat_seconds": 1.42,
+            "cumulative_seconds": 6.13,
+            "cumulative_percent": 42.04
+          }
+        ]
+      },
+      "exact_main_allocation_counters": {
+        "allocated_bytes_samples": [618856, 618856, 618856],
+        "allocated_bytes_mean": 618856,
+        "allocation_samples": [15018, 15018, 15018],
+        "allocation_mean": 15018,
+        "gc_samples": [0, 0, 0],
+        "gc_mean": 0
+      },
+      "allocation_shape": {
+        "owners": [
+          {
+            "name": "board_to_string concatenation",
+            "flat_objects": 7600
+          },
+          {
+            "name": "parse_board",
+            "flat_objects": 5000
+          },
+          {
+            "name": "new_masks",
+            "flat_objects": 1000
+          }
+        ],
+        "semantics": "setup and output only; hot exact-cover solver performs no material allocation"
+      }
+    }
+  ],
+  "intersection": {
+    "flat_positive_cpu_symbols": [
+      {
+        "name": "runtime.asyncPreempt",
+        "application_percentages": {
+          "versioned_telemetry_pipeline": 0.41,
+          "k_nucleotide": 0.14,
+          "sudoku_masks": 0.14
+        },
+        "admissible": false,
+        "reason": "Go runtime preemption sampling, not generated Able code or a semantic lowering boundary"
+      }
+    ],
+    "shared_generated_owner_count": 0,
+    "shared_allocation_semantic_owner_count": 0
+  },
+  "next": {
+    "objective": "Build an exact semantic-parent boundary census from the current 66-row static native-boundary evidence before choosing another profile cohort.",
+    "method": "Normalize direct-main runtime.Value, bridge, interface, union, callable, and nominal conversions by exact callee and generated semantic parent, join them to current excess and retained profile reach, and admit only an exact triple spanning unlike applications.",
+    "why": "Duration selection grouped three different owners; exact parent identity is required to distinguish a broadly lowerable crossing from unrelated uses of generic helpers."
+  }
+}

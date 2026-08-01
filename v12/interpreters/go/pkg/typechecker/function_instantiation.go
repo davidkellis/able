@@ -51,7 +51,7 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 				continue
 			}
 			argExpr := call.TypeArguments[i]
-			typ := c.resolveTypeReference(argExpr)
+			typ := c.resolveCallTypeArgument(argExpr)
 			if typ == nil {
 				typ = UnknownType{}
 			}
@@ -88,7 +88,8 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 			if param.Name == "" {
 				continue
 			}
-			if _, ok := subst[param.Name]; !ok {
+			bound, ok := subst[param.Name]
+			if !ok || isPendingIntegerLiteral(bound) {
 				needsInference = true
 				break
 			}
@@ -108,7 +109,7 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 				continue
 			}
 			if bound, ok := subst[param.Name]; ok {
-				inferred[i] = c.typeExpressionForLabelFromType(bound)
+				inferred[i] = c.inferredTypeLabel(bound)
 				hasBinding = true
 			} else {
 				inferred[i] = ast.NewWildcardTypeExpression()
@@ -234,7 +235,14 @@ func bindTypeParameter(name string, actual Type, subst map[string]Type, node ast
 		return nil
 	}
 	if existing, ok := subst[name]; ok {
-		if typesEquivalentForSignature(existing, actual) {
+		if isPendingIntegerLiteral(existing) && literalAssignableTo(existing, actual) {
+			subst[name] = typeWithoutLiteralMetadata(actual)
+			return nil
+		}
+		if isPendingIntegerLiteral(actual) && literalAssignableTo(actual, existing) {
+			return nil
+		}
+		if invariantTypeEquivalent(existing, actual) {
 			return nil
 		}
 		if typeAssignable(existing, actual) && typeAssignable(actual, existing) {
@@ -248,6 +256,38 @@ func bindTypeParameter(name string, actual Type, subst map[string]Type, node ast
 	}
 	subst[name] = actual
 	return nil
+}
+
+func isPendingIntegerLiteral(typ Type) bool {
+	integer, ok := typ.(IntegerType)
+	return ok && integer.Literal != nil && !integer.Explicit
+}
+
+func typeWithoutLiteralMetadata(typ Type) Type {
+	if integer, ok := typ.(IntegerType); ok {
+		return IntegerType{Suffix: integer.Suffix}
+	}
+	return typ
+}
+
+func (c *Checker) inferredTypeLabel(typ Type) ast.TypeExpression {
+	label := c.typeExpressionForLabelFromType(typ)
+	if c != nil && label != nil {
+		if c.inferredTypeLabels == nil {
+			c.inferredTypeLabels = make(map[ast.TypeExpression]Type)
+		}
+		c.inferredTypeLabels[label] = typ
+	}
+	return label
+}
+
+func (c *Checker) resolveCallTypeArgument(expr ast.TypeExpression) Type {
+	if c != nil && expr != nil {
+		if typ, ok := c.inferredTypeLabels[expr]; ok {
+			return typ
+		}
+	}
+	return c.resolveTypeReference(expr)
 }
 
 func (c *Checker) structInfoFromType(base Type, fallback string) (StructType, bool) {

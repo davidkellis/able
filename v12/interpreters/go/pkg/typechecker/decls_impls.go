@@ -9,11 +9,34 @@ import (
 )
 
 func (c *declarationCollector) functionTypeFromDefinition(def *ast.FunctionDefinition, parentScope map[string]Type, owner string, node ast.Node) FunctionType {
+	return c.functionTypeFromDefinitionWithOptions(def, parentScope, owner, node, typeResolutionOptions{})
+}
+
+func (c *declarationCollector) functionTypeFromDefinitionWithOptions(
+	def *ast.FunctionDefinition,
+	parentScope map[string]Type,
+	owner string,
+	node ast.Node,
+	typeOpts typeResolutionOptions,
+) FunctionType {
 	scope := copyTypeScope(parentScope)
 	c.ensureFunctionGenericInference(def, scope)
 	typeParams, localScope := c.convertGenericParams(def.GenericParams)
 	for name, typ := range localScope {
 		scope[name] = typ
+	}
+	if !typeOpts.allowTypeConstructors {
+		for _, param := range def.Params {
+			if param == nil {
+				continue
+			}
+			if node := appliedOrdinaryTypeParameter(param.ParamType, scope); node != nil {
+				c.diags = append(c.diags, unsupportedHigherKindedParameterDiagnostic(node))
+			}
+		}
+		if node := appliedOrdinaryTypeParameter(def.ReturnType, scope); node != nil {
+			c.diags = append(c.diags, unsupportedHigherKindedParameterDiagnostic(node))
+		}
 	}
 
 	paramTypes := make([]Type, len(def.Params))
@@ -22,7 +45,7 @@ func (c *declarationCollector) functionTypeFromDefinition(def *ast.FunctionDefin
 			paramTypes[idx] = UnknownType{}
 			continue
 		}
-		paramTypes[idx] = c.resolveTypeExpression(param.ParamType, scope)
+		paramTypes[idx] = c.resolveTypeExpressionWithOptions(param.ParamType, scope, typeOpts)
 	}
 	hasSelfParam := len(def.Params) > 0 && strings.EqualFold(functionParameterName(def.Params[0]), "self")
 	if def.IsMethodShorthand && !hasSelfParam {
@@ -31,7 +54,7 @@ func (c *declarationCollector) functionTypeFromDefinition(def *ast.FunctionDefin
 
 	var returnType Type = UnknownType{}
 	if def.ReturnType != nil {
-		returnType = c.resolveTypeExpression(def.ReturnType, scope)
+		returnType = c.resolveTypeExpressionWithOptions(def.ReturnType, scope, typeOpts)
 	}
 
 	where := c.convertWhereClause(def.WhereClause, scope)
@@ -44,6 +67,53 @@ func (c *declarationCollector) functionTypeFromDefinition(def *ast.FunctionDefin
 	fnType.Obligations = obligationsFromSpecs(owner, typeParams, where, node)
 	c.obligations = append(c.obligations, fnType.Obligations...)
 	return fnType
+}
+
+func appliedOrdinaryTypeParameter(expr ast.TypeExpression, scope map[string]Type) ast.Node {
+	switch t := expr.(type) {
+	case *ast.GenericTypeExpression:
+		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
+			name := simple.Name.Name
+			if name != "Self" {
+				if _, ok := scope[name].(TypeParameterType); ok {
+					return t.Base
+				}
+			}
+		}
+		if node := appliedOrdinaryTypeParameter(t.Base, scope); node != nil {
+			return node
+		}
+		for _, arg := range t.Arguments {
+			if node := appliedOrdinaryTypeParameter(arg, scope); node != nil {
+				return node
+			}
+		}
+	case *ast.FunctionTypeExpression:
+		for _, param := range t.ParamTypes {
+			if node := appliedOrdinaryTypeParameter(param, scope); node != nil {
+				return node
+			}
+		}
+		return appliedOrdinaryTypeParameter(t.ReturnType, scope)
+	case *ast.NullableTypeExpression:
+		return appliedOrdinaryTypeParameter(t.InnerType, scope)
+	case *ast.ResultTypeExpression:
+		return appliedOrdinaryTypeParameter(t.InnerType, scope)
+	case *ast.UnionTypeExpression:
+		for _, member := range t.Members {
+			if node := appliedOrdinaryTypeParameter(member, scope); node != nil {
+				return node
+			}
+		}
+	}
+	return nil
+}
+
+func unsupportedHigherKindedParameterDiagnostic(node ast.Node) Diagnostic {
+	return Diagnostic{
+		Message: "typechecker: ordinary generic parameters cannot be applied as type constructors; higher-kinded parameters are limited to interface self patterns such as 'for F _'",
+		Node:    node,
+	}
 }
 
 func (c *declarationCollector) collectImplementationDefinition(def *ast.ImplementationDefinition) (*ImplementationSpec, []Diagnostic) {
@@ -193,6 +263,24 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		return nil, diags
 	}
 	spec.Obligations = obligationsFromSpecs(implLabel, params, where, def)
+	interfaceObligations := obligationsFromSpecs(implLabel+" interface requirements", nil, ifaceType.Where, def)
+	if len(interfaceObligations) > 0 {
+		selfObligations := interfaceObligations[:0]
+		for _, obligation := range interfaceObligations {
+			if typeContainsSelf(obligation.Subject) || typeContainsSelf(obligation.Constraint) {
+				selfObligations = append(selfObligations, obligation)
+			}
+		}
+		subst := map[string]Type{"Self": selfType}
+		for index, param := range ifaceType.TypeParams {
+			if param.Name == "" || index >= len(interfaceArgs) {
+				continue
+			}
+			subst[param.Name] = interfaceArgs[index]
+		}
+		selfObligations = substituteObligations(selfObligations, subst)
+		spec.Obligations = append(spec.Obligations, selfObligations...)
+	}
 	c.obligations = append(c.obligations, spec.Obligations...)
 
 	if spec.ImplName != "" {

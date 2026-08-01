@@ -1,0 +1,276 @@
+{
+  "kind": "able-exact-semantic-parent-boundary-census-closure",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "repository_commit": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+  "decision": {
+    "disposition": "closed-no-general-lowerable-parent",
+    "admitted_candidate": null,
+    "production_change": false,
+    "report_tooling_change": true,
+    "new_profile_cohort_run": false,
+    "ab_cohort_run": false,
+    "reason": "Every exact identity spanning three current workload groups is explicit main/host ABI, already-native union lowering, a named HashMap kernel boundary, or a cold Result/error guard. Interface, callable, union-runtime, struct-runtime, and native-interface identities do not span three unlike groups."
+  },
+  "protocol": {
+    "strict_no_fallbacks": true,
+    "selected_applications": 66,
+    "parallel_compiler_processes": 2,
+    "generation_timeout_seconds": 60,
+    "large_workspace": "/var/tmp",
+    "analyzer_schema_version": 2,
+    "scope": "main_direct_reachable",
+    "identity": [
+      "category",
+      "exact_callee",
+      "generated_semantic_parent"
+    ],
+    "timing_authority": "retained five-process frontier and retained normal-binary profiles",
+    "generation_timing_status": "completion guard only; unrelated sustained Marketlab load was present"
+  },
+  "inputs": {
+    "selection_manifest": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "5e05af7e06f328284c91639fc58e8a4ff822c637fd641b36943505dfb3822097"
+    },
+    "compiled_frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
+    },
+    "prior_boundary_closure": {
+      "path": "v12/docs/perf-baselines/2026-07-30-full-compiled-static-native-boundary-census.json",
+      "sha256": "c9738f938d81027578d874fedf0aac313adfc449163fd12ff9270dfefa83166c"
+    },
+    "prior_full_row_census": {
+      "path": "v12/docs/perf-baselines/2026-07-30-interface-dictionary-capture-strict-static-census.json",
+      "sha256": "ba115b6965135d45494090d8c7bba51c2cf076aba8f731579c0334bc11daf0b4"
+    },
+    "top_three_profiles": {
+      "path": "v12/docs/perf-baselines/2026-07-30-top-three-sustained-compiled-profile-no-go.json",
+      "sha256": "39efc2f1d3b2474c708944d6b18fd253c32c2c64e74382a449f28cd9e72dfcaa"
+    },
+    "iterator_control_reconciliation": {
+      "path": "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-iterator-control-reconciliation.json",
+      "sha256": "724318058e7b6989a07fd8ce415f129b065f4699f85ee74360f401430f0949c7"
+    },
+    "text_map_reconciliation": {
+      "path": "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.json",
+      "sha256": "0a4ac8f92765e79c5046e7d4767bbd561db116311ebad65c892d7d4e9ee0d11b"
+    },
+    "analyzer": {
+      "path": "v12/interpreters/go/cmd/able-generated-boundary-census/main.go",
+      "sha256": "957a49799a6921f2ecc841ac322b508d0ce92e68fba6afa82c17c50fb3720ce3"
+    },
+    "runner": {
+      "path": "v12/bench_compiled_static_boundary_census",
+      "sha256": "12f9434ec76de85e52995d65300e5ea46127e92d54cd6af92c837c82e165032f"
+    },
+    "ephemeral_raw_result": {
+      "sha256": "8e7bead9bff25bfb3d1d8dcf7188b4b35ab3ad5783ce690943049d7b3e44ea93",
+      "retained": false
+    }
+  },
+  "coverage": {
+    "successful_rows": 66,
+    "failed_rows": 0,
+    "module_identity_matches": 66,
+    "module_identity_mismatches": 0,
+    "generation_ms": {
+      "minimum": 309,
+      "maximum": 11522,
+      "mean": 3520.303
+    },
+    "module_bytes": {
+      "minimum": 1123264,
+      "maximum": 8966497,
+      "mean": 4323525.561
+    },
+    "module_go_lines": {
+      "minimum": 30143,
+      "maximum": 211856,
+      "mean": 106976.227
+    },
+    "exact_identities": 1304,
+    "identities_in_at_least_three_applications": 418,
+    "identities_spanning_at_least_three_workload_groups": 21
+  },
+  "category_coverage": {
+    "runtime_value_type": {
+      "identities": 58,
+      "maximum_applications": 36,
+      "maximum_unlike_groups": 8,
+      "three_application_identities": 22,
+      "cross_group_identities": 4
+    },
+    "bridge_encode": {
+      "identities": 40,
+      "maximum_applications": 29,
+      "maximum_unlike_groups": 6,
+      "three_application_identities": 19,
+      "cross_group_identities": 5
+    },
+    "bridge_decode": {
+      "identities": 16,
+      "maximum_applications": 14,
+      "maximum_unlike_groups": 3,
+      "three_application_identities": 8,
+      "cross_group_identities": 1
+    },
+    "bridge_error": {
+      "identities": 105,
+      "maximum_applications": 10,
+      "maximum_unlike_groups": 3,
+      "three_application_identities": 38,
+      "cross_group_identities": 4
+    },
+    "erased_or_dynamic_call": {
+      "identities": 7,
+      "maximum_applications": 36,
+      "maximum_unlike_groups": 8,
+      "three_application_identities": 3,
+      "cross_group_identities": 1
+    },
+    "interface_runtime_conversion": {
+      "identities": 4,
+      "maximum_applications": 3,
+      "maximum_unlike_groups": 1,
+      "three_application_identities": 1,
+      "cross_group_identities": 0
+    },
+    "callable_runtime_conversion": {
+      "identities": 4,
+      "maximum_applications": 2,
+      "maximum_unlike_groups": 1,
+      "three_application_identities": 0,
+      "cross_group_identities": 0
+    },
+    "union_runtime_conversion": {
+      "identities": 1,
+      "maximum_applications": 1,
+      "maximum_unlike_groups": 1,
+      "three_application_identities": 0,
+      "cross_group_identities": 0
+    },
+    "struct_runtime_conversion": {
+      "identities": 92,
+      "maximum_applications": 6,
+      "maximum_unlike_groups": 2,
+      "three_application_identities": 9,
+      "cross_group_identities": 0
+    },
+    "native_interface_adapter": {
+      "identities": 32,
+      "maximum_applications": 2,
+      "maximum_unlike_groups": 1,
+      "three_application_identities": 0,
+      "cross_group_identities": 0
+    },
+    "native_union_wrap_or_projection": {
+      "identities": 366,
+      "maximum_applications": 20,
+      "maximum_unlike_groups": 7,
+      "three_application_identities": 136,
+      "cross_group_identities": 1
+    },
+    "heap_nominal_literal": {
+      "identities": 449,
+      "maximum_applications": 6,
+      "maximum_unlike_groups": 2,
+      "three_application_identities": 136,
+      "cross_group_identities": 0
+    },
+    "control_error_conversion": {
+      "identities": 95,
+      "maximum_applications": 24,
+      "maximum_unlike_groups": 3,
+      "three_application_identities": 38,
+      "cross_group_identities": 5
+    },
+    "primitive_or_any_runtime_conversion": {
+      "identities": 32,
+      "maximum_applications": 6,
+      "maximum_unlike_groups": 2,
+      "three_application_identities": 7,
+      "cross_group_identities": 0
+    }
+  },
+  "cross_group_identity_review": [
+    {
+      "class": "explicit-main-host-abi",
+      "identity_count": 4,
+      "identities": [
+        "__able_call_named @ __able_compiled_fn_main",
+        "runtime.Value @ __able_compiled_fn_main",
+        "bridge.ToString @ __able_compiled_fn_main",
+        "bridge.ToFloat64 @ __able_compiled_fn_main"
+      ],
+      "maximum_applications": 36,
+      "maximum_unlike_groups": 8,
+      "disposition": "required one-shot host argument/output boundary; retained profiles do not identify it as shared material CPU or allocation work"
+    },
+    {
+      "class": "native-path-union",
+      "identity_count": 1,
+      "identities": [
+        "__able_union__Path_or_string_wrap_string @ __able_compiled_fn_main"
+      ],
+      "maximum_applications": 20,
+      "maximum_unlike_groups": 7,
+      "disposition": "successful native Go union construction, not runtime boxing"
+    },
+    {
+      "class": "named-hashmap-kernel",
+      "identity_count": 12,
+      "parents": [
+        "__able_compiled_method_HashMap_raw_set_spec",
+        "__able_compiled_method_HashMap_with_capacity_spec_into",
+        "__able_compiled_method_HashMap_raw_get_spec"
+      ],
+      "maximum_applications": 11,
+      "maximum_unlike_groups": 3,
+      "disposition": "explicit canonical HashMap kernel/runtime ABI; a HashMap compiler rule is prohibited and retained profiles do not establish one lowerable general child in three unlike applications"
+    },
+    {
+      "class": "cold-error-guards",
+      "identity_count": 4,
+      "parents": [
+        "__able_compiled_fn_main",
+        "__able_compiled_method_Result_is_ok_spec",
+        "__able_compiled_method_Result__map_spec",
+        "__able_compiled_method_Result_unwrap_or_spec"
+      ],
+      "callee": "bridge.RaiseRuntimeErrorWithContext",
+      "maximum_applications": 9,
+      "maximum_unlike_groups": 3,
+      "disposition": "cold semantic error reporting; no shared normal-path sampled owner"
+    }
+  ],
+  "narrow_boundary_review": {
+    "interface_runtime_conversion": "Future<i64> recovery reaches three related concurrency rows in one workload group; every other exact identity reaches at most two applications.",
+    "callable_runtime_conversion": "The widest exact identity is void-to-i64 under Mutex.await_lock in two related mutex rows.",
+    "union_runtime_conversion": "One Option/Result identity reaches one application.",
+    "struct_runtime_conversion": "The widest identities are shared only inside regex or numeric families; no exact struct conversion spans three workload groups.",
+    "native_interface_adapter": "No exact adapter reaches three applications.",
+    "heap_nominal_literal": "Repeated exact identities remain family-specific and preserve mutable/escaping nominal identity."
+  },
+  "verification": {
+    "analyzer_contract": "passed",
+    "runner_shell_syntax": "passed",
+    "individual_generation_under_one_minute": true,
+    "interpreter_dependency_check": "inherited from byte-identical retained strict modules",
+    "source_files_under_1000_lines": true
+  },
+  "cleanup": {
+    "workspace": "/var/tmp/able-semantic-parent-census-Vxk9b7",
+    "workspace_kib_before_cleanup": 433584,
+    "removed": true,
+    "tmp_able_artifacts_remaining": 0,
+    "new_python_caches_remaining": 0
+  },
+  "next": {
+    "objective": "Run the current mode-aware performance-evidence selector and release/correctness gates, then reopen execution profiling only for a genuinely invalidated exact owner.",
+    "why": "The refined compiled boundary census is complete and finds no admissible native/erased crossing. The selector is the fail-closed authority for whether changed compiler evidence has made a compiled or bytecode closure stale.",
+    "method": "Validate the census record and tooling, run the current ledger, scoreboard, frontier, strict dependency, fixture, compiler, and canonical-stdlib checks, repair only a real shared failure, and profile only an exact selected owner in three unlike applications.",
+    "importance": "This keeps progress toward native Go and competitive bytecode performance evidence-driven while preventing another named-container, cold-boundary, or already-native optimization attempt."
+  }
+}

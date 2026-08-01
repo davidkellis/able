@@ -1,0 +1,10 @@
+package exec_07_15_local_lambda_conflicting_constraints_diag
+
+fn apply_i32(callback: i32 -> i32) -> i32 { callback(1) }
+fn apply_i64(callback: i64 -> i64) -> i64 { callback(2_i64) }
+
+fn main() -> void {
+  callback := { value => value }
+  apply_i32(callback)
+  apply_i64(callback)
+}

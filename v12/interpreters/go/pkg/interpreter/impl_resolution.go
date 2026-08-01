@@ -11,6 +11,7 @@ import (
 
 type implEntry struct {
 	interfaceName string
+	packageName   string
 	methods       map[string]runtime.Value
 	definition    *ast.ImplementationDefinition
 	// registrationTarget keeps the source-form target expression used at
@@ -120,8 +121,11 @@ func dedupeMethodMatches(matches []methodMatch) []methodMatch {
 	return deduped
 }
 
-func (i *Interpreter) registerUnnamedImpl(ifaceName string, ifaceArgs []ast.TypeExpression, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string, isBuiltin bool) error {
+func (i *Interpreter) registerUnnamedImpl(ifaceName string, ifaceArgs []ast.TypeExpression, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string, packageName string, isPrivate bool, isBuiltin bool) error {
 	key := ifaceName + "::" + variant.typeName
+	if isPrivate {
+		key = packageName + "::private::" + key
+	}
 	bucket, ok := i.unnamedImpls[key]
 	if !ok {
 		bucket = make(map[string]map[string]bool)
@@ -276,6 +280,10 @@ func (i *Interpreter) matchInterfaceArgs(entry *implEntry, ifaceArgs []ast.TypeE
 }
 
 func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter string, methodFilter string, ifaceArgs []ast.TypeExpression) ([]implCandidate, error) {
+	return i.collectImplCandidatesForPackage(info, interfaceFilter, methodFilter, ifaceArgs, i.currentPackage)
+}
+
+func (i *Interpreter) collectImplCandidatesForPackage(info typeInfo, interfaceFilter string, methodFilter string, ifaceArgs []ast.TypeExpression, packageName string) ([]implCandidate, error) {
 	if info.name == "" {
 		return nil, nil
 	}
@@ -293,6 +301,9 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 	var constraintErr error
 	for idx := range entries {
 		entry := &entries[idx]
+		if entry.definition != nil && entry.definition.IsPrivate && entry.packageName != packageName {
+			continue
+		}
 		if interfaceFilter != "" && !i.interfaceExtendsInterface(entry.interfaceName, interfaceFilter, make(map[string]struct{})) {
 			continue
 		}

@@ -269,7 +269,7 @@ func (vm *bytecodeVM) castArrayIndexSwapSlotValue(instr *bytecodeInstruction, va
 	if instr == nil || instr.typeExpr == nil {
 		return value, nil
 	}
-	return vm.interp.castValueToType(vm.canonicalRuntimeTypeExpression(instr.typeExpr), value)
+	return vm.interp.castValueToTypeInEnv(vm.canonicalRuntimeTypeExpression(instr.typeExpr), value, vm.env)
 }
 
 func (vm *bytecodeVM) attachArrayIndexSwapSlotError(err error, instr *bytecodeInstruction) error {

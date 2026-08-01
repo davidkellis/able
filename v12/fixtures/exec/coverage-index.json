@@ -116,6 +116,17 @@
     "focus": "union match ordering with wildcard fallback"
   },
   {
+    "id": "exec/08_01_error_exhaustiveness_open_set",
+    "status": "seeded",
+    "spec_sections": [
+      "5.2.7",
+      "8.1.2",
+      "10.3.4",
+      "11.3.2"
+    ],
+    "focus": "open Error coverage, typed catch-alls, guarded refutability, and partial rescue re-propagation"
+  },
+  {
     "id": "exec/08_01_control_flow_fizzbuzz",
     "status": "seeded",
     "spec_sections": [
@@ -420,6 +431,16 @@
       "13.5"
     ],
     "focus": "imported interface identity remains package-qualified through return, cast, parameter coercion, and dispatch despite a kernel short-name collision"
+  },
+  {
+    "id": "exec/13_10_static_interface_distinct_dictionary_capture",
+    "status": "seeded",
+    "spec_sections": [
+      "10.3.4",
+      "13.4",
+      "13.5"
+    ],
+    "focus": "separate static upcasts retain distinct private implementation dictionaries for one interface and concrete type"
   },
   {
     "id": "exec/04_07_02_alias_generic_substitution",
@@ -1204,6 +1225,14 @@
     "focus": "operator dispatch via Add/Index/IndexMut interfaces on custom structs"
   },
   {
+    "id": "exec/06_03_fixed_integer_alternative_arithmetic",
+    "status": "seeded",
+    "spec_sections": [
+      "6.3.2"
+    ],
+    "focus": "wrapping, saturating, and checked fixed-width arithmetic across all signed and unsigned primitive carriers"
+  },
+  {
     "id": "exec/06_03_cast_semantics",
     "status": "seeded",
     "spec_sections": [
@@ -1826,6 +1855,14 @@
     "focus": "block expression separation via newline/semicolon with last expression value and scoped bindings"
   },
   {
+    "id": "exec/04_01_hkt_static_boundary_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "4.1.4-4.1.7"
+    ],
+    "focus": "runtime value annotations reject unbound type constructors"
+  },
+  {
     "id": "exec/04_01_type_inference_constraints",
     "status": "seeded",
     "spec_sections": [
@@ -1935,7 +1972,15 @@
       "6.1.1",
       "6.1.2"
     ],
-    "focus": "contextual numeric literal adoption for integer and float targets"
+    "focus": "contextual numeric literal adoption for direct, generic, integer, and float targets"
+  },
+  {
+    "id": "exec/06_01_literals_explicit_suffix_mismatch_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "6.1.1"
+    ],
+    "focus": "explicit integer suffix rejects an incompatible typed context"
   },
   {
     "id": "exec/06_01_literals_numeric_contextual_diag",
@@ -2068,6 +2113,47 @@
       "6.7"
     ],
     "focus": "iterator.next raises an error when re-entered while suspended at yield"
+  },
+  {
+    "id": "exec/07_11_invariant_type_arguments_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "4.1.7"
+    ],
+    "focus": "nested generic arguments remain invariant across static call boundaries"
+  },
+  {
+    "id": "exec/07_12_callable_signature_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "4.1.7",
+      "7.2"
+    ],
+    "focus": "callable values require equivalent complete parameter and result signatures"
+  },
+  {
+    "id": "exec/07_13_explicit_invariant_reconstruction",
+    "status": "seeded",
+    "spec_sections": [
+      "4.1.7"
+    ],
+    "focus": "explicit reconstruction preserves legal top-level element conversion without container coercion"
+  },
+  {
+    "id": "exec/07_14_local_lambda_monomorphic_constraint",
+    "status": "seeded",
+    "spec_sections": [
+      "7.2.2"
+    ],
+    "focus": "compatible complete static uses solve a local unannotated lambda to one monomorphic callable signature"
+  },
+  {
+    "id": "exec/07_15_local_lambda_conflicting_constraints_diag",
+    "status": "seeded",
+    "spec_sections": [
+      "7.2.2"
+    ],
+    "focus": "conflicting complete static callable constraints on one local lambda are rejected before execution"
   },
   {
     "id": "exec/07_07_overload_resolution_runtime",
@@ -2306,6 +2392,15 @@
       "10.3.4"
     ],
     "focus": "interface-typed values dispatch correctly across overloaded interface methods"
+  },
+  {
+    "id": "exec/10_18_recursive_self_static_safety",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.3",
+      "10.3.4"
+    ],
+    "focus": "recursive Self stays structural for concrete and constrained calls while exact Self remains dynamically safe"
   },
   {
     "id": "exec/13_01_package_structure_modules",

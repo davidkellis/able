@@ -127,7 +127,7 @@ func (vm *bytecodeVM) tryInlineSlotlessResolvedCallFromStack(fn *runtime.Functio
 		arg = vm.materializePrimitiveValue(bytecodeMaterializationCandidateStatic, bytecodeMaterializationReasonStaticCall, arg)
 		paramType := vm.interp.canonicalizeTypeExpressionCached(param.ParamType, fn.Closure, vm.interp.typeExpressionReferencesAliasCached(param.ParamType))
 		if paramType != nil && !callPlan.paramUsesGeneric(idx) && !vm.interp.coerceValueToTypeWouldBeNoOp(paramType) && !inlineCoercionUnnecessaryWithInterpreter(vm.interp, paramType, arg) {
-			coerced, err := vm.interp.coerceValueToType(paramType, arg)
+			coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, fn.Closure)
 			if err != nil {
 				return nil, err
 			}

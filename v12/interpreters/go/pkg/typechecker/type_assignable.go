@@ -43,39 +43,46 @@ func typeAssignable(from, to Type) bool {
 	}
 	if future, ok := from.(FutureType); ok {
 		if targetFuture, ok := to.(FutureType); ok {
-			return typeAssignable(future.Result, targetFuture.Result)
+			return invariantTypeEquivalent(future.Result, targetFuture.Result)
 		}
 		return typeAssignable(future.Result, to)
 	}
 	switch target := to.(type) {
+	case FunctionType:
+		source, ok := from.(FunctionType)
+		return ok && invariantTypeEquivalent(source, target)
 	case StructType:
 		if name, ok := structName(from); ok {
 			return name == target.StructName
 		}
 		return false
 	case StructInstanceType:
-		if name, ok := structName(from); ok {
-			return name == target.StructName
+		if source, ok := from.(StructInstanceType); ok {
+			return invariantTypeEquivalent(source, target)
+		}
+		if source, ok := from.(StructType); ok {
+			return source.StructName == target.StructName && len(target.TypeArgs) == 0
 		}
 		return false
 	case ArrayType:
 		if elem, ok := arrayElementType(from); ok {
-			return typeAssignable(elem, target.Element)
+			return invariantTypeEquivalent(elem, target.Element)
 		}
 		return false
 	case RangeType:
 		if rng, ok := from.(RangeType); ok {
-			return typeAssignable(rng.Element, target.Element)
+			return invariantTypeEquivalent(rng.Element, target.Element)
 		}
 		return false
 	case IteratorType:
 		if iter, ok := from.(IteratorType); ok {
-			return typeAssignable(iter.Element, target.Element)
+			return invariantTypeEquivalent(iter.Element, target.Element)
 		}
 		return false
 	case MapType:
 		if sourceMap, ok := from.(MapType); ok {
-			return typeAssignable(sourceMap.Key, target.Key) && typeAssignable(sourceMap.Value, target.Value)
+			return invariantTypeEquivalent(sourceMap.Key, target.Key) &&
+				invariantTypeEquivalent(sourceMap.Value, target.Value)
 		}
 		return false
 	case NullableType:
@@ -83,7 +90,7 @@ func typeAssignable(from, to Type) bool {
 			return true
 		}
 		if nullable, ok := from.(NullableType); ok {
-			return typeAssignable(nullable.Inner, target.Inner)
+			return invariantTypeEquivalent(nullable.Inner, target.Inner)
 		}
 		return typeAssignable(from, target.Inner)
 	case UnionLiteralType:
@@ -91,7 +98,7 @@ func typeAssignable(from, to Type) bool {
 	case UnionType:
 		if union, ok := from.(UnionType); ok {
 			if union.UnionName != "" && target.UnionName != "" && union.UnionName == target.UnionName {
-				return true
+				return invariantTypeEquivalent(union, target)
 			}
 			return unionLiteralAssignableToNamed(UnionLiteralType{Members: union.Variants}, target)
 		}
@@ -105,17 +112,7 @@ func typeAssignable(from, to Type) bool {
 		}
 		if inst, ok := from.(StructInstanceType); ok {
 			if name, ok := structName(target.Base); ok && inst.StructName == name {
-				if len(inst.TypeArgs) > 0 {
-					if len(inst.TypeArgs) != len(target.Arguments) {
-						return false
-					}
-					for i := range inst.TypeArgs {
-						if !typeAssignable(inst.TypeArgs[i], target.Arguments[i]) {
-							return false
-						}
-					}
-				}
-				return true
+				return invariantTypeArgumentsEquivalent(inst.TypeArgs, target.Arguments)
 			}
 		}
 		if name, ok := structName(from); ok {
@@ -132,8 +129,8 @@ func typeAssignable(from, to Type) bool {
 			return source.StructName == name
 		}
 	case StructInstanceType:
-		if name, ok := structName(to); ok {
-			return source.StructName == name
+		if target, ok := to.(StructInstanceType); ok {
+			return invariantTypeEquivalent(source, target)
 		}
 	case AppliedType:
 		if targetApplied, ok := to.(AppliedType); ok {
@@ -146,19 +143,20 @@ func typeAssignable(from, to Type) bool {
 		}
 	case MapType:
 		if targetMap, ok := to.(MapType); ok {
-			return typeAssignable(source.Key, targetMap.Key) && typeAssignable(source.Value, targetMap.Value)
+			return invariantTypeEquivalent(source.Key, targetMap.Key) &&
+				invariantTypeEquivalent(source.Value, targetMap.Value)
 		}
 	case ArrayType:
 		if elem, ok := arrayElementType(to); ok {
-			return typeAssignable(source.Element, elem)
+			return invariantTypeEquivalent(source.Element, elem)
 		}
 	case RangeType:
 		if rng, ok := to.(RangeType); ok {
-			return typeAssignable(source.Element, rng.Element)
+			return invariantTypeEquivalent(source.Element, rng.Element)
 		}
 	case IteratorType:
 		if iter, ok := to.(IteratorType); ok {
-			return typeAssignable(source.Element, iter.Element)
+			return invariantTypeEquivalent(source.Element, iter.Element)
 		}
 	case NullableType:
 		return typeAssignable(source.Inner, to)
@@ -178,7 +176,8 @@ func typeAssignable(from, to Type) bool {
 	case UnionType:
 		if targetNamed, ok := to.(UnionType); ok {
 			if source.UnionName != "" && targetNamed.UnionName != "" {
-				return source.UnionName == targetNamed.UnionName
+				return source.UnionName == targetNamed.UnionName &&
+					invariantTypeEquivalent(source, targetNamed)
 			}
 			return unionLiteralAssignableToNamed(UnionLiteralType{Members: source.Variants}, targetNamed)
 		}
@@ -310,7 +309,28 @@ func literalMismatchMessage(from, to Type) (string, bool) {
 		return "", false
 	}
 	source, ok := from.(IntegerType)
-	if !ok || source.Literal == nil || source.Explicit {
+	if !ok || source.Literal == nil {
+		return "", false
+	}
+	if source.Explicit {
+		if _, integerTarget := to.(IntegerType); integerTarget && !typeAssignable(source, to) {
+			return fmt.Sprintf(
+				"literal %s_%s has type %s, expected %s",
+				source.Literal.String(),
+				source.Suffix,
+				source.Suffix,
+				typeName(to),
+			), true
+		}
+		if _, floatTarget := to.(FloatType); floatTarget && !typeAssignable(source, to) {
+			return fmt.Sprintf(
+				"literal %s_%s has type %s, expected %s",
+				source.Literal.String(),
+				source.Suffix,
+				source.Suffix,
+				typeName(to),
+			), true
+		}
 		return "", false
 	}
 	target, ok := to.(IntegerType)
@@ -462,71 +482,7 @@ func buildUnionType(types ...Type) Type {
 }
 
 func sameType(a, b Type) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	a = normalizeSpecialType(a)
-	b = normalizeSpecialType(b)
-	if isUnknownType(a) || isUnknownType(b) {
-		return false
-	}
-	if a.Name() == b.Name() {
-		return true
-	}
-	switch av := a.(type) {
-	case AppliedType:
-		if bv, ok := b.(AppliedType); ok {
-			if !sameType(av.Base, bv.Base) {
-				return false
-			}
-			if len(av.Arguments) != len(bv.Arguments) {
-				return false
-			}
-			for i := range av.Arguments {
-				if !sameType(av.Arguments[i], bv.Arguments[i]) {
-					return false
-				}
-			}
-			return true
-		}
-	case ArrayType:
-		if bv, ok := b.(ArrayType); ok {
-			return sameType(av.Element, bv.Element)
-		}
-	case MapType:
-		if bv, ok := b.(MapType); ok {
-			return sameType(av.Key, bv.Key) && sameType(av.Value, bv.Value)
-		}
-	case RangeType:
-		if bv, ok := b.(RangeType); ok {
-			return sameType(av.Element, bv.Element)
-		}
-	case IteratorType:
-		if bv, ok := b.(IteratorType); ok {
-			return sameType(av.Element, bv.Element)
-		}
-	case FutureType:
-		if bv, ok := b.(FutureType); ok {
-			return sameType(av.Result, bv.Result)
-		}
-	case NullableType:
-		if bv, ok := b.(NullableType); ok {
-			return sameType(av.Inner, bv.Inner)
-		}
-	case UnionLiteralType:
-		if bv, ok := b.(UnionLiteralType); ok {
-			if len(av.Members) != len(bv.Members) {
-				return false
-			}
-			for i := range av.Members {
-				if !sameType(av.Members[i], bv.Members[i]) {
-					return false
-				}
-			}
-			return true
-		}
-	}
-	return false
+	return exactTypeEquivalent(a, b)
 }
 
 func normalizeSpecialType(t Type) Type {
@@ -593,18 +549,7 @@ func argumentOrUnknown(args []Type, idx int) Type {
 }
 
 func appliedTypesAssignable(from, to AppliedType) bool {
-	if !typeAssignable(from.Base, to.Base) {
-		return false
-	}
-	if len(from.Arguments) != len(to.Arguments) {
-		return false
-	}
-	for i := range from.Arguments {
-		if !typeAssignable(from.Arguments[i], to.Arguments[i]) {
-			return false
-		}
-	}
-	return true
+	return invariantTypeEquivalent(from, to)
 }
 
 func unionAssignable(from Type, to UnionLiteralType) bool {

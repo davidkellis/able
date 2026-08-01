@@ -11,7 +11,7 @@ boxed values and GC roots, how effects and suspension cross the boundary, or how
 the backend is built and distributed.
 
 The governing frontier has 132 selected rows,
-122 misses, and 277.200421
+119 misses, and 274.677263
 seconds of target excess. Bytecode contributes 268.726526
 seconds. All 23 completed performance closures remain current.
 
@@ -57,9 +57,9 @@ fallback for unsupported activations.
 | `fixed_width_128` | wide-numeric | yes | 100.00% | pass |
 | `distance_field` | float-numeric | yes | 100.00% | pass |
 | `concurrent_event_routing` | concurrency-text | fallback | 100.00% | pass |
-| `word_frequency` | text-map | yes | 98.43% | pass |
-| `array_slice_window` | array-iterator | yes | 99.93% | pass |
-| `reverse_complement` | byte-text | yes | 99.19% | pass |
+| `word_frequency` | text-map | yes | 99.56% | pass |
+| `array_slice_window` | array-iterator | yes | 98.98% | pass |
+| `reverse_complement` | byte-text | yes | 99.68% | pass |
 
 All 5 unlike phase-one rows clear the
 materiality bar, and five of six full-corpus rows do. This makes the route worth

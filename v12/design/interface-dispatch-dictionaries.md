@@ -38,6 +38,19 @@ uses the fully bound interface/call information for method resolution and
 return/constraint handling. An interface name with unbound parameters is not a
 runtime interface value (spec §4.1 and §10).
 
+Implementation selection happens once, at the upcast. A statically known
+source with incomparable unnamed implementations is rejected before dispatch;
+an unknown source checked by `as Interface` applies the same rule at runtime.
+Generic method arguments instantiate the captured slot rather than selecting
+another implementation. Default slots likewise retain the explicit override
+or default selected for that interface view.
+
+An interface method declared to return `Self` returns the same fully bound
+interface view. The tree-walker and bytecode VM attach the originating
+interface definition, arguments, shared dictionary, and an isolated copy of
+any per-value overlay to the concrete result. This prevents a consumer package
+from resolving the result against a different visible implementation.
+
 ## Construction and invalidation
 
 For normal interpreter coercion, `coerceToInterfaceValue` verifies that the
@@ -68,6 +81,12 @@ and direct Go method calls. Static parameters, returns, typed locals, fields,
 and direct calls stay on that carrier. Conversion helpers such as
 `*_to_runtime_value` and `*_from_value` exist only at explicit runtime/dynamic
 edges, callbacks, or other required ABI boundaries.
+
+For an exact `Self` return, the generated Go method returns the same
+`__able_iface_*` carrier. The concrete adapter invokes the selected compiled
+implementation on its native receiver and wraps the concrete result directly
+back into that carrier. No `runtime.Value`, interpreter method call, or
+consumer-scope implementation lookup is part of this static path.
 
 Do not replace those direct carriers with `runtime.InterfaceValue`, a generic
 dictionary, a `runtime.Value`, or a named-container-specific lowering rule.

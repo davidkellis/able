@@ -1,0 +1,13 @@
+package exec_13_10_static_interface_distinct_dictionary_capture
+
+import exec_13_10_static_interface_distinct_dictionary_capture.factory_a.{make_a}
+import exec_13_10_static_interface_distinct_dictionary_capture.factory_b.{make_b}
+
+fn main() -> void {
+  a := make_a("Ada")
+  b := make_b("Bob")
+  print(a.render())
+  print(b.render())
+  print(a.duplicate().render())
+  print(b.duplicate().render())
+}

@@ -1,0 +1,7 @@
+interface IntegerOnly for i32 {
+  fn value(self: Self) -> i32
+}
+
+interface StringComposite for String = IntegerOnly
+
+nil

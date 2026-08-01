@@ -235,6 +235,7 @@ type Interpreter struct {
 	packageRegistry        map[string]map[string]runtime.Value
 	packageMetadata        map[string]packageMeta
 	packageEnvs            map[string]*runtime.Environment
+	packageNamesByEnv      map[*runtime.Environment]string
 	externHostPackages     map[string]*externHostPackage
 	externHostMu           sync.Mutex
 	currentPackage         string
@@ -584,6 +585,7 @@ func newInterpreter(exec Executor, mode execMode) *Interpreter {
 		packageRegistry:      make(map[string]map[string]runtime.Value),
 		packageMetadata:      make(map[string]packageMeta),
 		packageEnvs:          make(map[string]*runtime.Environment),
+		packageNamesByEnv:    make(map[*runtime.Environment]string),
 		externHostPackages:   make(map[string]*externHostPackage),
 		dynamicPackageEnvs:   make(map[string]*runtime.Environment),
 		executor:             exec,
@@ -890,6 +892,7 @@ func (i *Interpreter) evaluateModuleWithProgram(module *ast.Module, program *byt
 			moduleEnv = runtime.NewEnvironment(i.global)
 		}
 		i.packageEnvs[pkgName] = moduleEnv
+		i.packageNamesByEnv[moduleEnv] = pkgName
 		i.currentPackage = pkgName
 		if _, ok := i.packageRegistry[pkgName]; !ok {
 			i.packageRegistry[pkgName] = make(map[string]runtime.Value)
@@ -901,6 +904,7 @@ func (i *Interpreter) evaluateModuleWithProgram(module *ast.Module, program *byt
 	} else {
 		i.currentPackage = ""
 		i.packageEnvs[""] = moduleEnv
+		i.packageNamesByEnv[moduleEnv] = ""
 	}
 	i.registerExternStatements(module)
 

@@ -52700,3 +52700,1221 @@
   and remote mutation are separate release actions.
 - Governing record:
   `v12/docs/perf-baselines/2026-07-30-guarded-generated-local-cleanup-retained.md`.
+
+## 2026-07-30 — Exact publication reconciliation retained
+
+- Verified live `refs/heads/master`, local `HEAD`, and local
+  `origin/master` at `c43c4e68` with zero divergence and an empty index.
+- Reproduced the published commit's reviewed parent, tree, 112-path boundary,
+  57 additions, 55 modifications, and exact 7,868-byte NUL path identity.
+- Verified that the pre-record worktree contains only the byte-identical
+  34-path deferred WASM boundary: eight tracked modifications and 26
+  untracked files.
+- Reproduced the extern builder, 132-row scorecard, combined frontier, and
+  23-entry closure-ledger identities. The frontier still has zero actionable
+  groups and every closure is current.
+- The cleanup preview is empty. No production, measurement, fixture, stdlib,
+  dependency, frozen-workspace, or WASM behavior changed.
+- The Markdown/JSON record plus PLAN and both logs form an exact five-path
+  documentation-only handoff.
+- Next run a non-mutating post-publication invalidation-trigger audit. This is
+  important because another compiler or VM tranche requires a changed
+  evidence identity and one exact material owner across three unlike
+  programs; release completion alone is not such evidence.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-exact-publication-reconciliation.md`.
+
+## 2026-07-30 — Post-publication invalidation-trigger audit retained
+
+- Rebuilt the current scoreboard from retained source reports and verified all
+  Able source, verifier/input, and Go/Python/Ruby reference fingerprints.
+- Recaptured an exact canonical stdlib state match: sibling HEAD `219eff22`,
+  70 source files, and source-tree SHA-256 `6a412c87`.
+- The complete catalog remains 66 portable applications and 145 combined
+  programs with zero actionable depth gaps. The 132-row evidence, frontier,
+  and all six production scopes remain current.
+- The performance ledger reports 23 current closures, zero invalidations, and
+  a zero-byte selector. Retained no compiler, runtime, interpreter, bytecode
+  VM, measurement, stdlib, language, dependency, fixture, frozen-workspace, or
+  WASM change.
+- Corrected one stale test-only interaction-triple expectation from the
+  superseded 278.369263-second frontier to the published 277.200421-second
+  frontier. The focused guard and all fast catalog, scorecard, frontier,
+  selection, and evidence protocols pass.
+- Removed the six audit-created Python bytecode files through the guarded
+  cleanup script; the final cleanup preview is empty. The exact 34-path
+  deferred WASM boundary remains byte-identical and unstaged.
+- Next run a read-only v12 correctness-and-stdlib-completeness selection audit
+  and identify one already-specified, reproducible non-WASM semantic gap
+  before authorizing implementation. This matters because semantic
+  completeness can create legitimate native-lowering work, while the current
+  performance evidence admits no new production candidate.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-post-publication-invalidation-trigger-audit.md`.
+
+## 2026-07-30 — v12 correctness/stdlib completeness selection audit retained
+
+- Reconciled the v12 spec and TODO with the active parser, typechecker,
+  testing, compiler-lowering, bytecode, stdlib, interface-dictionary, and
+  performance authorities.
+- Found zero already-specified reproducible compiler, interpreter, VM, parser,
+  AST, or canonical-stdlib completeness gaps. Remaining spec markers either
+  require a language decision or are stale/broad prose for behavior already
+  specified and covered.
+- The exec coverage gate reports 272 seeded fixtures, zero planned fixtures,
+  and 273 fixture directories. Focused composite/named/generic interface
+  parser and checker controls pass.
+- Four representative default/composite/generic/named/private-dictionary
+  interface fixtures pass in tree-walker, bytecode, and strict compiled
+  execution. The complete canonical stdlib test suite passes in both
+  interpreter modes.
+- The 66-application catalog, 132-row scorecard, and 23-closure evidence ledger
+  remain current; the selector emits zero bytes. Retained no implementation or
+  measurement change.
+- Removed the task-created 266 MiB project Go cache, empty project temp
+  directory, and 65 MiB extern cache. The guarded cleanup finishes empty.
+- Next complete a spec-first composite-interface self-pattern contract
+  tranche. This matters because §10.1.5 leaves mixed explicit/implicit
+  `for`/`Self` composition undecided, and one canonical rule is required
+  before static native adapters can treat any such form as valid or invalid.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-v12-correctness-stdlib-completeness-selection-audit.md`.
+
+## 2026-07-30 — Composite-interface self-pattern contract retained
+
+- Canonicalized §10.1.5: a composite target set must be contained by every
+  explicit base target set after resolved generic substitution.
+- Added shared post-hydration typechecker validation. Compatible explicit plus
+  implicit composition remains valid; under-specified implicit composites and
+  incompatible explicit patterns now fail before execution or adapter
+  synthesis.
+- Added parser/checker guards, alias-substitution coverage, an AST diagnostic
+  fixture, and expanded composite execution coverage.
+- The valid mixed form passes tree-walker, bytecode, parity, and strict
+  fallback-free compilation. Complete parser/typechecker/interpreter plus
+  `cmd/ablec` verification passes.
+- Retained no runtime, VM, compiler generator, bridge, stdlib, dependency,
+  benchmark, named-container, non-primitive nominal, or WASM change.
+- Removed the task-created 335 MiB project cache and exact 2.0 GiB
+  disk-backed workspace; the final guarded cleanup preview is empty.
+- The unchanged 132-row scorecard and zero-actionable frontier remain valid
+  artifacts, but all 23 closures are now formally invalidated solely by
+  `scope-content-drift:v12-spec`; the ledger was not advanced.
+- Next reconcile the selected performance evidence with repeated balanced
+  Able/reference measurements and strict boundary guards. This matters
+  because the native-lowering program must resume from current evidence, not
+  a silently waived shared-spec hash.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-composite-interface-self-pattern-contract-retained.md`.
+
+## 2026-07-30 — Composite-interface performance evidence reconciled
+
+- Proved all 66 shared benchmark sources remain valid under the canonical
+  composite-interface self-pattern rule.
+- Regenerated all 66 compiled applications with `--no-fallbacks`; every
+  generated module identity and compact native-boundary count exactly matches
+  the prior full census.
+- Recaptured ten strict set-cover dependency guards. All outputs verified,
+  every final Go graph omits `pkg/interpreter`, and runtime-service boundary
+  traffic is zero.
+- Collected two opposite-order five-process cohorts for ten compiled and nine
+  bytecode applications plus fresh Go/Python/Ruby references: 470/470 timed
+  processes verified with zero failures or timeouts. Ten volatile rows remain
+  descriptive and admit no causal performance claim.
+- Rebased the reviewed `v12-spec` scope, attached the durable reconciliation
+  evidence to the cross-family closure, and restored 23 current closures with
+  zero invalidations and an empty selector. The 132-row scorecard and
+  zero-actionable frontier remain unchanged.
+- Added a fast checked reconciliation tool/test and retained no compiler,
+  runtime, interpreter, VM, stdlib, dependency, benchmark, or WASM production
+  change.
+- Next specify interface-dictionary capture and ambiguity at static upcasts.
+  This is important because native interface lowering cannot safely eliminate
+  runtime representation crossings until generic/default/`Self` dictionary
+  semantics are canonical.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-composite-interface-contract-performance-evidence-reconciliation.md`.
+
+## 2026-07-30 — Interface-dictionary capture contract and evidence retained
+
+- Defined dictionary capture at static interface upcasts, compile/runtime
+  ambiguity behavior, fixed method slots, generic slot instantiation, and
+  exact top-level `Self` result preservation.
+- Aligned checker, tree-walker, bytecode, and compiled execution. Two packages
+  can now capture distinct private implementations for the same native
+  concrete carrier, and strict compiled exact-`Self` calls stay on native Go
+  interface adapters without crossing into the interpreter.
+- Focused ambiguity, dictionary, parity, native-carrier, and strict fixture
+  guards pass. All 66 strict applications generate; 58 module identities
+  changed and aggregate generated source fell 1.13%.
+- Ninety isolated baseline/current/Go processes verified across Binary Trees,
+  Quicksort, and k-Nucleotide. The geometric current/baseline effect was
+  +0.64%, so the correctness/native-capability change is retained without a
+  performance-win claim.
+- Refreshed all 23 performance closures with 470 verified opposite-order
+  Able/Go/Python/Ruby processes, zero failures, and zero timeouts. Five
+  volatile rows remain descriptive. Ten strict dependency guards omit the
+  interpreter and record zero runtime-service calls.
+- The reviewed ledger reports 23 current closures, zero invalidations, and an
+  empty selector. Removed about 6.5 GiB of task-created artifacts; guarded
+  cleanup is empty.
+- Next profile native dictionary reach in `concurrent_graph_visitors`,
+  `concurrent_event_routing`, and `validated_job_pipeline`. This matters
+  because those interface-heavy applications are most likely to turn the now
+  sound native dictionary contract into a broad, measurable reduction in
+  `runtime.Value` conversions or compiled/interpreted crossings.
+- Records:
+  `v12/docs/perf-baselines/2026-07-30-interface-dictionary-capture-contract-retained.md`
+  and
+  `v12/docs/perf-baselines/2026-07-30-interface-dictionary-capture-performance-evidence-reconciliation.md`.
+
+## 2026-07-30 — Native dictionary runtime reach closed with no candidate
+
+- Built normal and typed-boundary `--no-fallbacks` binaries for Concurrent
+  Graph Visitors, Concurrent Event Routing, and Validated Job Pipeline. All
+  three public verifiers pass and every final dependency graph omits
+  `pkg/interpreter`.
+- Collected 30 independent main-only CPU profiles, nine exact main-allocation
+  profiles, and three repeated typed-boundary processes per application. All
+  51 processes verified with zero failures or timeouts.
+- Proved none of the selected applications declares an interface method with
+  an exact top-level `Self` return. Interface from/to-runtime and runtime-lift
+  telemetry remained zero in every repeat.
+- CPU profiles sampled `GraphVisitor.inspect` in Graph Visitors and `Map.get`
+  in Event Routing; both have non-`Self` results and neither repeats in
+  Validated Job Pipeline. No exact shared native-dictionary owner cleared the
+  three-unlike-application bar.
+- Retained no compiler, generated-runtime, runtime, interpreter, VM, stdlib,
+  language, dependency, benchmark, fixture, or WASM production change. With no
+  candidate, no baseline/candidate/Go A/B cohort was manufactured.
+- Removed the exact 866-MiB disk-backed task workspace and 16-KiB generated
+  Python cache after preserving compact evidence.
+- Next audit sustained benchmark coverage for natural exact-`Self` interface
+  workloads. This matters because generated support code cannot establish
+  runtime materiality when the selected applications do not use the changed
+  language surface.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-native-dictionary-runtime-reach-no-go.md`.
+
+## 2026-07-30 — Exact-`Self` benchmark coverage closed with no admission
+
+- Audited all 66 selected Able application sources and the 67
+  verifier-backed sibling benchmark directories, excluding copied generated
+  `target/` trees.
+- The selected catalog contains 12 application-defined interfaces across 11
+  sources and zero exact top-level `Self` interface results. The sibling
+  source suite also contains zero; its extra application is diagnostic legacy
+  Sudoku.
+- Checked imported canonical `Clone`, `Default`, `Extend`, `Numeric`, and
+  `Fractional` surfaces. Wide Integer Records calls `min`, `max`, and `abs`
+  only on statically concrete `UInt128`/`Int128` receivers, so it never
+  exercises a captured interface-dictionary return.
+- Ranked Versioned Telemetry Pipeline, Generic Slot Buffer, Concurrent
+  Stateful Pipeline, Concurrent Graph Visitors, Concurrent State Machines,
+  and Wide Integer Records. Recasting any interface result as exact `Self`
+  would change its natural workload contract; the concrete numeric case does
+  not cross the interface boundary.
+- Retained no benchmark, compiler, generated-runtime, runtime, interpreter,
+  bytecode VM, stdlib, language, dependency, fixture, frozen, or WASM change.
+  No A/B cohort was manufactured.
+- Removed the exact 16 KiB of task-created audit lists; no `/tmp/able-*`
+  artifact or new Python cache remains.
+- Next refresh strict main-phase CPU and exact-allocation profiles for
+  Versioned Telemetry Pipeline, k-Nucleotide, and Sudoku Masks. They are the
+  three largest sustained compiled absolute-excess rows and are unlike enough
+  to admit only a genuinely general shared lowering owner.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-exact-self-benchmark-coverage-no-go.md`.
+
+## 2026-07-30 — Top-three sustained compiled profiles closed with no candidate
+
+- Regenerated Versioned Telemetry Pipeline, k-Nucleotide, and Sudoku Masks
+  under `--no-fallbacks`. All public verifiers pass, and every final
+  96-package dependency graph omits `pkg/interpreter`.
+- Collected ten independent main-only CPU profiles, three exact allocation
+  counters, and one one-object allocation-shape profile per application, plus
+  three unprofiled smoke runs. All 45 processes verified with zero failures
+  or timeouts; the longest process took 32.03 seconds.
+- Telemetry's 22.12 sampled seconds are owned by checked arithmetic and
+  escaping `Sample` allocation. k-Nucleotide's 14.09 seconds are owned by
+  HashMap hashing/equality and `ToUint`/`ToInt` runtime carriers. Sudoku's
+  14.58 seconds are owned by allocation-free exact-cover search, bit counting,
+  and checked arithmetic.
+- Exact allocation means are 430,788,221.33 bytes / 13,325,303.67 objects,
+  598,183,546.67 bytes / 12,232,489 objects, and 618,856 bytes / 15,018
+  objects respectively. Sudoku performs zero GC cycles.
+- The only flat-positive CPU symbol sampled in all three is negligible Go
+  `runtime.asyncPreempt`. No generated or semantic owner repeats, so no
+  production code or baseline/candidate/Go A/B was admitted.
+- Removed the exact 503,192 KiB task-created disk-backed profiling workspace,
+  including its compiler, Go cache, generated modules, binaries, and raw
+  profiles. No `/tmp/able-*` artifact or new Python cache remains.
+- Next build an exact semantic-parent boundary census over the current 66-row
+  static evidence. This matters because exact callee-plus-parent identity can
+  select a genuinely shared native/erased crossing before another expensive
+  profile cohort is launched.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-top-three-sustained-compiled-profile-no-go.md`.
+
+## 2026-07-30 — Exact semantic-parent boundary census closed with no candidate
+
+- Extended the report-only generated-Go analyzer to record direct-main
+  boundary identities by exact category, callee, and generated semantic
+  parent. The runner now joins those identities to retained timing excess,
+  workload group, profile freshness, and profile owner.
+- Regenerated all 66 strict applications with two bounded workers. Every row
+  completed under 12 seconds, and all 66 module hashes exactly match the
+  retained post-dictionary census.
+- Classified 1,304 exact identities. Although 418 reach at least three
+  applications, only 21 span three current workload groups.
+- Those 21 reduce to explicit main/host ABI, already-native `Path | String`
+  union construction, 12 canonical `HashMap` kernel identities, and four cold
+  Result/error guards. None is a general lowerable crossing.
+- Exact interface runtime conversion spans at most three related concurrency
+  rows; callable conversion reaches two applications; union runtime conversion
+  reaches one; and no struct conversion or native interface adapter spans
+  three unlike groups.
+- Retained no compiler, generated-runtime, runtime, interpreter, bytecode VM,
+  stdlib, language, dependency, benchmark, fixture, frozen, or WASM
+  performance change. No new profile or A/B cohort was manufactured.
+- Focused analyzer and `ablec` tests, four report-contract tests, runner
+  syntax, JSON, formatting, and source-size checks pass.
+- Removed the exact 433,584 KiB task-created disk-backed workspace, including
+  its compiler, analyzer, Go cache, and disposable raw census reports. No
+  `/tmp/able-*` artifact or new Python cache remains.
+- Next run the mode-aware evidence selector and ordinary release/correctness
+  gates. This is important because only a genuinely invalidated exact owner
+  should reopen compiled or bytecode execution profiling.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-exact-semantic-parent-boundary-census-no-go.md`.
+
+## 2026-07-30 — Mode-aware evidence and release gate retained (v12)
+
+- The current authority remains closed: 23 current performance closures, zero
+  invalidations, no compiled or bytecode selection, 132 current scoreboard
+  rows, and zero actionable frontier groups. No profile or A/B was admitted.
+- Refreshed the content-addressed architecture chain after current upstream
+  fingerprints changed. The bytecode hot-tier, cross-engine structural,
+  portable-VM, semantic-ABI, and closed-region decisions and Markdown are
+  unchanged; only checked source records moved.
+- Repaired fixture coverage metadata and retained general bounded test
+  orchestration. Tree-walker, bytecode, and parity fixtures run in eight
+  deterministic shards; 843 ordinary compiler tests run in batches of ten,
+  and the canonical compiler outlier runs alone.
+- The normal `./run_all_tests.sh` entry point passes all 844 compiler tests,
+  parser, interpreter, CLI, fixture, evidence, threshold, cleanup, and kernel
+  checks. Canonical stdlib tree-walker and bytecode suites pass in 22 and 17
+  seconds.
+- Ten unlike strict applications freshly pass their public verifiers. Every
+  final dependency graph omits `pkg/interpreter`, and runtime-service traffic
+  totals zero.
+- Removed the exact 3,941,000 KiB task-created `/var/tmp` workspace, shared Go
+  cache, comparison candidates, and pointer after validation.
+- Retained no production execution, stdlib, dependency, language, benchmark,
+  frozen, or WASM change.
+- Next automate topological checked-evidence refresh with non-source and
+  Markdown comparisons, then rerun the selector. This matters because no
+  production performance work is admissible while the selector is empty, and
+  source-hash propagation must not obscure a future real owner invalidation.
+- Record:
+  `v12/docs/perf-baselines/2026-07-30-mode-aware-evidence-release-gate-retained.md`.
+
+## 2026-07-31 — Architecture evidence chain automation retained (v12)
+
+- Declared the five-node checked architecture-report dependency graph once in
+  a machine-readable manifest.
+- Added read-only checking and transactional topological refresh. Refresh uses
+  disk-backed `/var/tmp`, permits only source-record hash changes, requires
+  identical decision-bearing JSON and Markdown, writes atomically, and restores
+  every earlier update if any downstream node drifts.
+- Added five fast synthetic tests covering no-write checks, ordered
+  propagation, dependency mismatch, decision rollback, and Markdown rollback.
+- Routed the normal suite and aggregate architecture recipe through the chain.
+  A current refresh is a five-node no-op.
+- The complete normal suite passes all 844 compiler tests and all other
+  release gates. The selector remains 23 current closures, zero invalidations,
+  and empty compiled/bytecode selections.
+- Removed exactly 37,906,702 bytes of idle generated extern cache and stale
+  audit scratch files; no `/tmp/able-*`, `/var/tmp/able-*`, or new Python cache
+  remains.
+- Retained no production execution, stdlib, dependency, language, benchmark,
+  fixture, frozen, or WASM change.
+- Next wait for a genuine mode-aware closure invalidation before reopening
+  profiling. This matters because native Go lowering remains the goal, but
+  current evidence names no unresolved shared owner.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-architecture-evidence-chain-automation-retained.md`.
+
+## 2026-07-31 — v12 open-work index cleanup retained
+
+- Replaced the 607-line `spec/TODO_v12.md` completed-work chronology with a
+  102-line forward-only index: 96 lines added and 601 removed.
+- Retained only genuine unresolved language decisions, stale canonical-spec
+  markers needing editorial reconciliation, closed-surface status, and active
+  authority links.
+- Confirmed that named implementation invocation is already specified in
+  §10.3.3 and implemented across parser, checker, tree-walker, bytecode,
+  compiler, imports, and fixtures; the lingering §13.5 TBD is editorial, not
+  an implementation gap.
+- The architecture chain, 23-closure ledger, zero-actionable 132-row frontier,
+  and normal correctness suite remain green. All 844 compiler tests pass; the
+  canonical outlier takes 14.435 seconds and the noisiest batch 36.566 seconds.
+- Removed the exact 37,781,644 bytes of verification-created extern cache and
+  Python bytecode; no Able temp path or new Python cache remains.
+- Retained no language, parser, checker, interpreter, compiler, runtime,
+  stdlib, dependency, fixture, benchmark, frozen, or WASM behavior change.
+- Next reconcile stale canonical-spec markers against existing normative and
+  implemented behavior, then refresh checked evidence and rerun the selector.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-v12-open-work-index-cleanup-retained.md`.
+
+## 2026-07-31 — Canonical spec editorial reconciliation retained (v12)
+
+- Reconciled §11.2.1 `Error` ownership, §12.2.3
+  `FutureError { details: String }`, the §13.5 named-implementation
+  cross-reference, and the stale trailing todo lists with already normative,
+  stdlib-defined, and implemented behavior.
+- Removed the completed editorial queue from `spec/TODO_v12.md`; it is now an
+  82-line forward-only index with no selected implementation gap.
+- Focused parser, checker, tree-walker/bytecode parity, and strict
+  fallback-free compiler controls pass. No semantic or execution code changed.
+- Before review, all 23 performance closures were invalidated solely by
+  `scope-content-drift:v12-spec`. Rebased only that semantics-neutral shared
+  scope and attached the durable reconciliation evidence; the ledger is again
+  23 current, zero invalidated, with empty compiled and bytecode selections.
+- Refreshed the five-node architecture chain. Only source pins changed; no
+  decision-bearing JSON or checked Markdown drifted.
+- The complete suite passed in 789.02 seconds at 1,279,232 KiB peak RSS. All
+  844 compiler tests pass; the canonical outlier took 14.798 seconds and the
+  noisiest bounded batch 48.090 seconds.
+- Retained no parser, checker, interpreter, compiler, runtime, stdlib,
+  dependency, fixture, benchmark, frozen, or WASM behavior change.
+- Next prepare a spec-first decision proposal for open-set `Error`
+  exhaustiveness and refutability. This matters because sound native
+  error-control lowering requires one cross-runtime rule before residual
+  dynamic checks can be removed.
+- Records:
+  `v12/docs/perf-baselines/2026-07-31-canonical-spec-editorial-reconciliation-retained.md`
+  and
+  `v12/docs/perf-baselines/2026-07-31-canonical-spec-editorial-reconciliation-retained.json`.
+
+## 2026-07-31 — Open-set Error exhaustiveness/refutability proposal complete (v12)
+
+- Completed the spec-first audit and decision proposal without changing the
+  specification or execution behavior.
+- Recommended a conservative positive proof: only unguarded clauses
+  contribute coverage; typed bindings and typed discards have identical
+  coverage; concrete implementations never close an open interface; ordinary
+  partial matches retain runtime diagnostics; and partial rescues retain
+  re-propagation.
+- Parsed all 759 Able files in fixtures, examples, and the canonical stdlib
+  with zero failures. The corpus contains 915 matches and 71 rescues,
+  including guarded universals, typed `Error` catch-alls, and intentional
+  partial handlers that constrain compatibility.
+- Focused checker, tree-walker/bytecode parity, and strict fallback-free
+  compiler controls pass.
+- The complete suite passed in 12:45.48 at 1,837,420 KiB peak RSS. All 844
+  compiler tests pass; the canonical outlier took 13.986 seconds and the
+  slowest bounded batch 45.516 seconds.
+- The ledger remains 23 current closures with zero invalidations, the
+  architecture chain is current, and neither performance mode selects an
+  owner.
+- Removed the exact 2,700,016 KiB task workspace after verification; no Able
+  temp path or new Python cache remains.
+- Retained no parser, AST, typechecker, interpreter, compiler, runtime, stdlib,
+  dependency, fixture, benchmark, frozen, or WASM behavior change.
+- Next obtain a maintainer decision on recommended option A before changing
+  the spec or implementation. This matters because only a selected canonical
+  proof can authorize removal of redundant match/rescue fallback branches
+  around native `Error` and `Result` carriers.
+- Records:
+  `v12/design/error-exhaustiveness-refutability-proposal.md`,
+  `v12/docs/perf-baselines/2026-07-31-error-exhaustiveness-refutability-proposal.md`,
+  and
+  `v12/docs/perf-baselines/2026-07-31-error-exhaustiveness-refutability-proposal.json`.
+
+## 2026-07-31 — Error exhaustiveness contract retained; compiler elision no-go (v12)
+
+- Selected option A and made the conservative open-interface exhaustiveness
+  and pattern-refutability rule canonical in the v12 specification.
+- Added positive-only checker facts outside the AST. Unguarded whole-interface
+  typed bindings/discards close an open component; guards, concrete
+  implementation enumeration, Arrays, unknown types, and unproven nested
+  patterns produce no proof.
+- Added focused checker coverage and the cross-runtime
+  `08_01_error_exhaustiveness_open_set` fixture for `Result`, direct `Error`,
+  guarded matches, and partial rescue re-propagation.
+- Evaluated a general compiler consumer that omitted proven-impossible match
+  failure and unmatched-rescue branches. Across three unlike applications it
+  removed 9.36%-41.14% of generated fallback guards and 0.05%-0.27% of binary
+  bytes.
+- Rejected and removed that compiler change: balanced ten-process A/B was not
+  broadly faster. Policy wall time improved 8.22% while user time worsened
+  1.96%; Sensor wall time worsened 3.33% with neutral user time; sustained
+  Telemetry wall/user time worsened 1.62%/1.59%.
+- Thirty fresh verifier-approved Go reference processes put the rejected
+  candidate at 13.14x, 5.17x, and 10.76x Go wall time; it did not materially
+  close the 95%-of-Go objective.
+- The complete suite passed in 585.91 seconds at 1,878,412 KiB peak RSS. All
+  844 compiler tests pass; the canonical outlier took 14.089 seconds and the
+  noisiest bounded batch 37.400 seconds.
+- Removed exactly 4,948,512 KiB of disposable disk-backed A/B workspace,
+  generated Go cache, and Python cache. No `/tmp/able-*`, `/var/tmp/able-*`,
+  task Go cache, or new Python cache remains.
+- Rebased only the intentional v12-spec scope and attached the no-go evidence.
+  The ledger is 23 current closures with zero invalidations and empty
+  compiled/bytecode selections. The five-node architecture chain is current
+  with no decision or checked-Markdown drift.
+- Retained the language contract, checker facts, tests, and fixture. Retained
+  no compiler execution, interpreter, bytecode VM, runtime, stdlib,
+  dependency, benchmark, frozen, or WASM change.
+- Next use the mode-aware selector as the performance admission gate. It
+  currently selects nothing; do correctness/specification work until a real
+  checked change invalidates a closure, then require a new shared exact owner
+  and three-unlike-application A/B.
+- Records:
+  `v12/docs/perf-baselines/2026-07-31-error-exhaustiveness-contract-retained-compiler-elision-no-go.md`
+  and
+  `v12/docs/perf-baselines/2026-07-31-error-exhaustiveness-contract-retained-compiler-elision-no-go.json`.
+
+## 2026-07-31 — Recursive/nested `Self` semantics proposal complete (v12)
+
+- Completed the spec-first audit and decision proposal without changing the
+  specification or production behavior.
+- Recommended recursive structural `Self` substitution for concrete and
+  statically constrained calls, plus per-method object safety for existential
+  interface calls. Exact top-level `Self` results retain the originating
+  interface view; all other non-receiver `Self` occurrences remain
+  static-only.
+- Parsed all 760 active fixture, example, and canonical-stdlib Able files with
+  zero failures. The only ordinary nested result is
+  `Integral.div_mod -> DivModResult Self`; no audited source calls it through
+  an existential `Integral`.
+- Reproduced the unresolved boundary with temporary cases. Tree-walker and
+  bytecode execute dynamic nullable, parameter, and nominal nested-`Self`
+  forms. Strict compilation rejects the nullable forms for required
+  fallbacks, but accepts `Pair Self` and then fails at runtime converting
+  `Pair Box` to `Pair DuplicatePair`.
+- Defined a finite recursive-obligation proof graph: only an identical
+  canonical obligation may close as an anchored back-edge; growing or
+  unanchored cycles fail.
+- Focused typechecker, interpreter, compiler, evidence-ledger, and
+  architecture-chain checks pass. The complete suite passed in 12:49.83 at
+  1,322,092 KiB peak RSS with all 844 compiler tests; the canonical outlier
+  took 14.213 seconds and the slowest bounded batch 46.769 seconds.
+- The ledger remains 23 current closures, zero invalidations, and an empty
+  compiled/bytecode selector. Removed the exact 2,566,140 KiB disk-backed task
+  workspace and separate inventory file after recording the evidence.
+- Retained no parser, AST, checker, interpreter, VM, compiler, runtime,
+  stdlib, dependency, fixture, benchmark, frozen, or WASM change.
+- Next obtain a maintainer decision on option A. If selected, canonicalize the
+  rule, add shared call-safety facts and cross-runtime diagnostics, keep strict
+  compilation fail-closed, and preserve native concrete/generic calls.
+- Records:
+  `v12/design/recursive-self-semantics-proposal.md`,
+  `v12/docs/perf-baselines/2026-07-31-recursive-self-semantics-proposal.md`,
+  and
+  `v12/docs/perf-baselines/2026-07-31-recursive-self-semantics-proposal.json`.
+
+## 2026-07-31 — Recursive/nested `Self` option A retained (v12)
+
+- Canonicalized structural recursive `Self` substitution for concrete and
+  statically constrained receivers.
+- Added per-method dynamic safety. The exact receiver and exact top-level
+  `Self` result remain representable; every other non-receiver `Self`
+  occurrence is static-only on an interface value.
+- Added a coded checker diagnostic and made the compiler fail closed before
+  generation. Concrete declarations, implementations, and constrained generic
+  calls remain valid and native.
+- Added a finite recursive-constraint proof graph: identical anchored
+  back-edges close, while unanchored and growing cycles fail.
+- Added focused method-shape/proof-graph/compiler tests plus positive and
+  negative cross-runtime fixtures. Direct and constrained
+  `Integral.div_mod` pass in tree-walker, bytecode, and strict compiled modes.
+- All 66 strict census applications generated without fallback. Their 66
+  generated module hashes and all 15 boundary-category totals exactly match
+  the retained authority; retained guards omit `pkg/interpreter`.
+- Reconciled the deliberately changed spec/compiler evidence scopes. The
+  ledger is 23 current closures with zero invalidations and an empty
+  mode-aware selector.
+- The bounded compiler release lane passed every core, outlier, fallback,
+  compiled-fixture, strict-dispatch, interface-lookup, and boundary shard in
+  5,161.91 seconds at 2,791,020 KiB peak RSS.
+- Removed 26,284,576 KiB of disk-backed task workspace and 22,900 KiB of
+  RAM-backed extern cache. No `/tmp/able-*` or `/var/tmp/able-*` path remains.
+- Retained no parser, AST, interpreter execution, bytecode VM, runtime,
+  canonical-stdlib, dependency, benchmark, frozen-workspace, or WASM change.
+- Next prepare a maintainer decision on variance and existential nominal
+  coercions. This is important because it defines whether nested nominal
+  values can ever cross interface boundaries without recursive boxing,
+  identity changes, or named-container rules.
+- Records:
+  `v12/design/recursive-self-semantics-proposal.md` and
+  `v12/docs/perf-baselines/2026-07-31-recursive-self-contract-retained-performance-reconciliation.{md,json}`.
+
+## 2026-07-31 — Variance/existential nominal-coercion proposal complete (v12)
+
+- Completed the spec-first variance audit and decision proposal without
+  changing production or specification semantics.
+- Recommended invariant-only v12: a valid top-level `A -> B` conversion does
+  not imply `F A -> F B`, callable types require complete signature
+  equivalence, and declared-variance syntax remains deferred.
+- Parsed all 829 active fixture, example, and canonical-stdlib Able files with
+  zero failures. No audited declaration uses variance syntax or a variance
+  keyword.
+- Reproduced the implementation gap across all execution modes. An accepted
+  `Array i8 -> Array i32` call mutates the original and prints `300` in both
+  interpreters, while strict compiled code crosses `runtime.Value`, mutates a
+  converted copy, and prints `7`. An incompatible callable is also accepted
+  statically and fails differently in each mode.
+- Confirmed that nested existential and generic-interface argument lifting is
+  already rejected, while explicit element-wise reconstruction remains valid
+  in tree-walker, bytecode, and fallback-free compiled execution.
+- Corrected the omitted expected diagnostic metadata for the pre-existing
+  recursive-`Self` fixture after the first full run exposed it; no new fixture
+  source or behavior was introduced.
+- The focused fixture rerun and complete v12 suite pass. The suite took 654.74
+  seconds at 1,374,380 KiB peak RSS; the slowest bounded compiler batch took
+  42.778 seconds and the canonical outlier 14.717 seconds.
+- Removed the exact 3,010,692 KiB disk-backed task workspace. No
+  `/tmp/able-*` or `/var/tmp/able-*` directory remains.
+- The evidence ledger remains 23 current closures with zero invalidations and
+  an empty mode-aware selector; the five-node architecture chain is current.
+- Retained no specification semantic, parser, AST, checker, interpreter, VM,
+  compiler, runtime, stdlib, dependency, benchmark, frozen, or WASM behavior
+  change.
+- Next obtain a maintainer decision on option A. If selected, enforce recursive
+  type equivalence and full callable comparison with coded fail-closed
+  diagnostics, cross-runtime fixtures, and the 66-program strict census. This
+  matters because invalid static conversions must stop before hidden copying,
+  boxing, or runtime-carrier adaptation, while valid programs retain exact
+  native Go carriers.
+- Records:
+  `v12/design/variance-existential-coercion-proposal.md` and
+  `v12/docs/perf-baselines/2026-07-31-variance-existential-coercion-proposal.{md,json}`.
+
+## 2026-07-31 — Invariant generic and callable contract retained (v12)
+
+- Selected option A. All v12 generic arguments are invariant after
+  normalization and substitution, and complete callable signatures require
+  equivalence. Top-level numeric, union, nullable, and proven interface
+  conversions remain local to their value position.
+- Added one recursive invariant-equivalence relation, coded
+  `invariant-type-argument` and `callable-signature-mismatch` diagnostics, and
+  compiler fail-closed admission. No recursive nominal conversion, container
+  copy, callable adapter, or interpreter fallback was added.
+- Canonicalized keyword callable parsing and contextual checking for
+  conditionals and lambdas. The kernel String byte helpers now declare their
+  native `Array u8` carrier; no external stdlib source changed.
+- Added focused parser/checker/compiler guards and three cross-runtime fixtures
+  for negative Array widening, negative callable mismatch, and positive
+  explicit reconstruction. An initial full run exposed and corrected a
+  top-level concrete-to-interface lambda result regression; Option/Result
+  passes in tree-walker, bytecode parity, and strict compiled execution.
+- All 66 applications generated under `--no-fallbacks`. Every row preserved
+  its complete compiled-body boundary-category map, and all 15 aggregate
+  totals match the retained authority. All generated hashes changed from
+  canonical callable/type metadata and were reviewed row by row; no new boxed,
+  dynamic, runtime-service, or interpreter boundary appeared.
+- The complete fast suite passed in 9:42.25 at 1,868,384 KiB peak RSS. All 85
+  compiler batches passed; the slowest took 46.300 seconds and the canonical
+  outlier 13.939 seconds.
+- The evidence ledger is 23 current closures with zero invalidations; the
+  five-node architecture chain is current. Removed the exact 7,944,748 KiB
+  disposable task workspace, 36,968 KiB RAM-backed extern cache, and 44 KiB
+  Python cache; no Able temp directory or repository Python cache remains.
+- Retained no production interpreter, bytecode VM, generator, runtime,
+  dependency, external stdlib, benchmark, frozen-workspace, or WASM change.
+- Next close monomorphic local-lambda callable constraints: infer one exact
+  native signature when all static uses agree and diagnose incompatible uses
+  before generation. This matters because an unresolved local lambda can still
+  conceal a statically avoidable `runtime.Value` callable boundary.
+- Records:
+  `v12/docs/perf-baselines/2026-07-31-variance-invariant-callable-contract-retained.{md,json}`
+  and
+  `v12/docs/perf-baselines/2026-07-31-variance-invariant-callable-strict-static-census.json`.
+
+## 2026-07-31 — Monomorphic local-lambda constraint retained (v12)
+
+- Unannotated lambdas in fresh local bindings now solve one exact monomorphic
+  callable signature from complete static call arguments, direct invocations,
+  typed bindings, and return contexts. Both `:=` and implicit declaration
+  through `=` register provenance; true reassignment clears it.
+- Incompatible complete constraints emit the coded
+  `callable-signature-mismatch` diagnostic and strict compilation fails before
+  generation. Explicitly dynamic use remains erased, explicit generic lambdas
+  remain polymorphic, and lexically shadowed bindings solve independently.
+- Local callable annotations resolve structurally against the lexical
+  environment. Broad verification rejected an over-broad global pattern
+  resolver that degraded a renamed imported generic callable to
+  `runtime.Value`, then exposed premature generic-constructor arity checking;
+  the scoped constructor-aware resolver preserves both imported identity and
+  existing typed Array/Map/Range/Future behavior.
+- Added focused typechecker/compiler guards and two public fixtures. The
+  closure, positive constraint, and conflict-diagnostic fixtures pass in
+  tree-walker, bytecode, and strict compiled modes.
+- All 66 strict applications generated with zero failures. Every compiled-body
+  boundary map, all 15 aggregate totals, and all 66 module hashes match the
+  retained authority/pre-final candidate.
+- Binary Event Log, Concurrent Document Pipeline, and Versioned Telemetry
+  Pipeline produced byte-identical baseline/candidate generated Go and
+  trimpath binaries. Five alternating runs per variant all passed their public
+  verifiers; observed time differences were timer/noise effects.
+- The complete suite passed in 718.50 seconds at 1,846,056 KiB peak RSS. All
+  85 compiler batches passed; the slowest took 38.659 seconds and the canonical
+  outlier 15.074 seconds. The ledger remains 23 current closures with zero
+  invalidations and the five-node architecture chain is current.
+- Removed the exact 14,363,772 KiB disk-backed task workspace; no Able temp
+  directory or repository Python cache remains.
+- Retained no production compiler generator, runtime, interpreter, bytecode
+  VM, parser, AST, dependency, external stdlib, benchmark, frozen-workspace, or
+  WASM change.
+- Next refresh interpreter-free CPU and exact-allocation profiles for Binary
+  Event Log, Concurrent Document Pipeline, and Versioned Telemetry Pipeline.
+  Build a shared owner matrix and advance only a general mechanism material in
+  all three with five-or-more balanced baseline/candidate/Go pairs. This is
+  important because their valid binaries are unchanged yet remain roughly
+  9–10x slower than Go, so fresh profiles must identify the real
+  post-lowering cost.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-local-lambda-monomorphic-constraint-retained.{md,json}`.
+
+## 2026-07-31 — Three-application native-nominal profile closure (v12)
+
+- Retained no production code after refreshing Binary Event Log, Concurrent
+  Document Pipeline, and Versioned Telemetry Pipeline.
+- All three strict binaries passed public verifiers, contain 96 dependencies,
+  and omit `pkg/interpreter`. Their current Able/Go ratios remain 9.278x,
+  10.233x, and 9.952x.
+- Merged 350 main-only Able CPU profiles, plus nine lightweight exact
+  allocation runs and three one-object allocation-shape runs. Fifteen scaled
+  Go CPU profiles and nine Go allocation runs passed the same verifiers.
+- Exact Able/Go allocation means are 171,069.67/26 objects for Binary,
+  10,471/62.33 for Concurrent Document, and 13,325,303/21 for Telemetry.
+- Heap-backed records repeat broadly, but the semantic descendants differ:
+  `EventRecord` escapes through a native union, `DocumentTask`/`DocumentScore`
+  cross the runtime Channel payload ABI, and `Sample` stays in native
+  `[]*Sample` storage. Only the concurrent row has a material
+  `runtime.Value` payload transition.
+- An unconditional Go value carrier would violate Able's mutable reference
+  semantics. No checked-arithmetic, execution-context, typed scheduler,
+  named-container, nominal-name, benchmark, interpreter, or WASM route was
+  reopened; no A/B candidate was manufactured.
+- Removed the exact 494,304 KiB disk-backed workspace after recording compact
+  evidence; no RAM-backed `/tmp` workspace was used.
+- Next run a read-only nominal-carrier feasibility gate: define a fail-closed
+  whole-program mutation/identity proof, census all 66 strict applications and
+  canonical stdlib, and build generated-only ceilings before considering one
+  shared carrier rule. This matters because it is the sound route to Go value
+  carriers for unobservably immutable records while retaining pointer identity
+  for every mutable or uncertain value.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-three-application-native-nominal-profile-no-go.{md,json}`.
+
+## 2026-07-31 — Read-only nominal-carrier feasibility gate (v12)
+
+- Retained a fail-closed generated nominal feasibility census, but no compiler,
+  generated-runtime, runtime, interpreter, or stdlib carrier change.
+- All 66 strict applications generated successfully. The proof inspected 1,103
+  reachable constructed nominal instantiations; 56 pass the conservative
+  diagnostic screen across 30 applications.
+- `EventRecord` and `Sample` have no reachable field mutation, identity
+  comparison, or runtime conversion, but each is blocked by one unresolved
+  mutation-capable generated callable. `DocumentTask` and `DocumentScore` have
+  no reachable field mutation but each crosses three runtime/host conversion
+  and opaque Channel boundary sites.
+- The canonical stdlib inventory covers 70 source files, 19,090 lines, 258
+  struct declarations, and 240 member-assignment sites. The already-dirty
+  external stdlib remained unchanged.
+- Three generated-only ceilings all passed public verifiers but required
+  different application lifetime assumptions. Binary Event Log allocations
+  fell 31.13% and time 4.09%; Concurrent Document allocations fell 78.74% and
+  time 22.77%; Versioned Telemetry allocations fell 99.13% and time 24.75%.
+  The candidates still measured 7.64x, 1.92x, and 6.89x their Go references.
+- Existing alias, escape, retained-old-result, callee-capture, and conditional
+  candidate compiler guards pass, as do the new analyzer positives/negatives
+  and the static census contract tests.
+- Removed the exact 1,443,920 KiB disk-backed task workspace; no RAM-backed
+  Able temp directory was used or remains.
+- No generated-only candidate was retained because caller-owned union storage,
+  runtime Channel bypass, and in-place specialized storage are not one shared
+  semantic rule.
+- Next add typed nominal mutation, capture, and callable-effect summaries. This
+  is important because unresolved callable effects block 48 constructed
+  instantiations across 23 strict applications and must become a compiler fact
+  before sound Go value carriers or broader caller-owned reuse are possible.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-read-only-nominal-carrier-feasibility-no-go.{md,json}`.
+
+## 2026-07-31 — Typed nominal callable effects retained (v12)
+
+- Retained an opt-in compiler analysis that computes conservative mutation,
+  capture/storage, return-alias, and unknown-call summaries through direct and
+  monomorphic functions, methods, local functions, and lambdas.
+- All 66 strict applications generated successfully. Of 48 generated nominal
+  rows previously blocked by unknown mutation-capable calls, 20 are now wholly
+  read-only/non-escaping, two are precisely classified as storage capture, 21
+  retain a typed unknown, and five generated helper names remain unmatched.
+- Five unlike rows are newly clear of every generated feasibility blocker:
+  Binary Event Log `EventRecord`, Concurrent Event Routing `EventRecord`,
+  Graph Visitors `VisitState`, Packet Codecs `CursorState`, and Tree Folds
+  `FoldState`.
+- A second 66-row census with analysis disabled had zero generated-module
+  hash, analyzer, aggregate-boundary, or semantic-parent differences.
+- Binary Event Log and Versioned Telemetry passed public verifiers and omit
+  `pkg/interpreter`; no runtime A/B was needed because generated Go is exactly
+  unchanged.
+- Reconciled the compiler-production evidence scope. The ledger is current at
+  23 closures with zero invalidations, and the five-node architecture evidence
+  chain is current.
+- Removed two exact disk-backed task workspaces totaling 1,761,224 KiB; no
+  `/tmp/able-*` or `/var/tmp/able-*` path remains.
+- Retained no carrier, generated-runtime, runtime, interpreter, VM, stdlib,
+  language, dependency, benchmark, frozen-workspace, or WASM change.
+- Next join the five newly clear typed rows to exact generated conversion,
+  writeback, allocation, and storage descendants. Admit production work only
+  if one identity/lifetime mechanism is material in at least three unlike
+  applications; this is important because effect safety alone does not prove
+  that copying a reference-semantic nominal value is sound.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-typed-nominal-callable-effects-retained.{md,json}`.
+
+## 2026-07-31 — Nominal effect/generated-site join retained; ownership reuse no-go (v12)
+
+- Retained exact generated unknown-call sites and an optional join to typed
+  nominal callable candidate sets. Compiler summaries now expose stable
+  generated Go names; the census records caller, callee, argument indexes, and
+  generated source locations.
+- All 66 strict applications generated. The census found 125 linked sites
+  across 23 applications: 15 interface candidate sets, seven indirect lambda
+  sets, and 103 deliberately unresolved runtime/helper calls.
+- The five target rows resolve to read-only/non-escaping candidates. Graph
+  Visitors `VisitState`, Packet Codecs `CursorState`, and Tree Folds
+  `FoldState` share loop-carried functional-state allocation through native
+  interface dispatch.
+- A generated-only audited receiver-overwrite ceiling reduced allocated bytes
+  21.77%-42.24%, objects 17.50%-33.16%, and balanced launch time
+  6.60%-18.68% across the three applications. All 108 allocation/timing
+  processes passed public verifiers.
+- Rejected the production rule because callee noncapture does not prove caller
+  ownership: overwriting the receiver changes a retained old alias. Existing
+  retained-old, capture, and conditional-candidate guards remain authoritative.
+- Focused analyzer/compiler/CLI tests pass. The three strict modules each have
+  96 dependencies and omit `pkg/interpreter`. The ledger has 23 current
+  closures with zero invalidations; the five-node architecture chain is
+  current.
+- Removed the exact 1,313,444 KiB disk-backed task workspaces. No Able task
+  directory remains under `/tmp` or `/var/tmp`.
+- Retained no carrier, storage-reuse, generated-runtime, runtime, interpreter,
+  VM, stdlib, language, dependency, benchmark, frozen-workspace, or WASM
+  execution change.
+- Next add an opt-in interprocedural ownership-transfer analysis covering
+  caller aliases/liveness, native interface candidate sets, and embedded fresh
+  results. This matters because it is the missing semantic proof for safe
+  caller-owned storage or value-carrier lowering on the measured shared owner.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-nominal-effect-site-join-no-go.{md,json}`.
+
+## 2026-07-31 — Interprocedural nominal ownership proof retained (v12)
+
+- Retained an opt-in, diagnostic-only ownership-transfer analysis over the
+  typed nominal-effect fixed point. It proves fresh direct successors,
+  successors embedded in fresh result fields, complete native-interface
+  implementation sets, locally fresh caller provenance, and unconditional
+  same-region replacement.
+- Corrected fresh aggregate effect classification: a new aggregate root is not
+  a returned alias merely because its fields read the input. Directly embedded
+  old nominal identities remain captures and continue to fail closed.
+- Added guards for direct, interface, and embedded positives plus retained
+  aliases, capture/storage, conditional replacement, parameter-origin
+  identity, and opt-in isolation from generated Go.
+- All 66 strict applications generated with zero failures and no interpreter
+  dependency. The final census found ten candidate sites: nine eligible sites
+  across six unlike applications and seven nominal types, plus one correctly
+  blocked external-origin `PhaseState` site.
+- The original Graph `VisitState`, Packet `CursorState`, and Tree `FoldState`
+  owners all pass complete two-implementation interface proofs. Audio
+  `MixState`, Packet `PacketStats`, Scene `TileState`, and three Dependency
+  Wave `WaveTask` sites broaden the eligible direct-replacement surface.
+- Focused effect/ownership, retained caller-identity, native-interface,
+  imported alias/Result/Option, ablec, and generated-boundary-census tests
+  pass. No observed individual test or generation exceeded one minute.
+- Removed the two exact disk-backed task workspaces totaling 808,376 KiB, the
+  8,180 KiB disposable extern-Go cache, and the repository Python cache created
+  by the census contract test. No Able task directory remains under `/tmp` or
+  `/var/tmp`.
+- Retained no carrier, storage reuse, generated execution, runtime,
+  interpreter, VM, stdlib, language, dependency, benchmark, frozen-workspace,
+  or WASM change. No performance A/B was claimed because this tranche was
+  explicitly proof-only.
+- Next build an opt-in execution prototype that consumes the proof before
+  rendering, then run identity guards, all 66 strict rows, and five-or-more
+  balanced baseline/candidate/equivalent-Go pairs across the original three
+  owners plus broader admitted applications. This matters because the semantic
+  ownership blocker is now closed without weakening Able reference identity.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-interprocedural-nominal-ownership-proof-retained.{md,json}`.
+
+## 2026-07-31 — Nominal ownership execution retained opt-in (v12)
+
+- Retained `ablec --experimental-nominal-ownership`, a structural generated
+  caller-owned-result ABI for proven direct and one-field embedded fresh
+  nominal successors. Complete native-interface implementation sets use one
+  generated typed dispatcher; all uncertain alias/lifetime cases remain on
+  fresh allocation.
+- Preserved old-source reads inside successor implementations with local Go
+  value slots. Embedded results reconstruct the returned outer nominal
+  field-by-field so the temporary successor does not escape through a copied
+  pointer field.
+- Five unlike applications passed 900/900 balanced
+  baseline/candidate/equivalent-Go timing processes and 50/50 exact
+  allocation-counter processes. Candidate time improved 7.81%-20.44%;
+  allocated bytes fell 33.12%-76.46% and objects 17.50%-66.36%.
+- Candidate/Go time remains 2.674x-5.499x on this launch-dominated set, so the
+  compiled parity mission remains open.
+- The strengthened candidate census generated 66/66 strict applications,
+  resolved 66/66 final Go dependency graphs, and linked `pkg/interpreter` in
+  zero rows. Generated source grew 0.465%-0.963% and binaries
+  0.197%-0.295% across the measured rows.
+- Focused ownership and identity guards, broad interface/imported-alias/
+  Result/Option guards, `cmd/ablec`, and the generated-boundary analyzer pass.
+  No individual test or generation exceeded one minute.
+- Removed three superseded disk-backed prototype workspaces totaling about
+  2.0 GiB, then removed the final prototype, three census workspaces, and stale
+  extern-Go cache totaling 3,571,620 KiB after compact evidence publication.
+  No ownership task directory remains under `/var/tmp`, and no Able task
+  directory remains under `/tmp`.
+- No runtime, interpreter, bytecode VM, stdlib, language, dependency,
+  benchmark, frozen-workspace, or WASM change was needed.
+- Next promote the proven rule to ordinary compiled builds with an explicit
+  diagnostic opt-out, rerun the semantic and 66-row dependency gates, execute
+  a broad verifier subset, and refresh affected frontier rows. This matters
+  because ordinary users do not yet receive the validated allocation and
+  timing gains.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-nominal-ownership-execution-retained.{md,json}`.
+
+## 2026-07-31 — Nominal ownership lowering retained by default (v12)
+
+- Promoted the proven caller-owned nominal-result execution path to ordinary
+  compiled builds. Added `--no-nominal-ownership` and
+  `Options.DisableNominalOwnership` as explicit diagnostic opt-outs; retained
+  the former experimental spelling for compatibility.
+- Preserved the fail-closed ownership boundary. Proof-report collection
+  remains independent of execution, and no application, benchmark, container,
+  source-family, or non-primitive nominal rule was added.
+- An independent 120-triplet cohort passed 1,800/1,800 public-verifier
+  processes. Default time improved 3.51%-19.18% across Graph, Packet, Tree,
+  Audio, and Scene; default/Go remains 3.015x-6.043x.
+- Fifty exact allocation processes passed. Default main-phase bytes fell
+  33.12%-76.44% and allocation objects fell 17.50%-66.36%.
+- The official pinned-Go scorecard passed 25 Able and 25 Go runs. The refreshed
+  132-row aggregate changed exactly five compiled rows and preserved 127; the
+  regenerated frontier exact check passes with zero actionable groups.
+- The default census generated 66/66 strict applications, resolved 66/66 Go
+  dependency graphs, and linked `pkg/interpreter` in zero rows. Eighteen broad
+  products also passed public verification.
+- Focused ownership and CLI tests, broad interface/imported-alias/Result/Option
+  guards, `cmd/ablec`, and the boundary census tests pass within the one-minute
+  rule. No runtime, interpreter, VM, stdlib, language, dependency, benchmark,
+  frozen-workspace, or WASM source changed.
+- The evidence ledger correctly selects 12 invalidations caused by
+  compiler-production scope drift: 11 compiled closures plus the cross-family
+  architecture-ownership closure. They were not advanced without their own
+  fresh measurements.
+- Removed the exact 2,240,196 KiB disk-backed task workspace after compact
+  evidence publication. No ownership-default task directory remains under
+  `/tmp` or `/var/tmp`.
+- Next refresh those 12 closures with repeated verifier-backed default and
+  pinned-Go measurements, dependency gates, and per-closure evidence updates;
+  reconcile the cross-family closure last. This matters because the next
+  lowering owner must come from a current compiler-wide baseline.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-nominal-ownership-default-retained.{md,json}`.
+
+## 2026-07-31 — Compiled performance closures refreshed (v12)
+
+- Replaced the historical compiled scorecard fragments with one current
+  66-application default-compiler cohort against fresh pinned Go 1.26.5
+  references.
+- All 330 Able and 330 Go primary processes passed public verification with no
+  timeout. A second independent Fib, I Before E, and Matrix cohort added 30
+  verified processes.
+- Compiled target status is now 9 meets and 57 misses; the geometric-mean
+  Able/Go ratio is 4.2187x. Eight of eleven rows with Go runtimes above 100 ms
+  meet the target.
+- Fib, I Before E, and Matrix passed both independent cohorts and are now
+  established target guards. The combined 132-row frontier has 13 established
+  guards, no unestablished meets, and zero actionable groups.
+- Resolved all 66 emitted Go dependency graphs; zero contained
+  `pkg/interpreter`.
+- Refreshed evidence for all 11 compiled closures, reconciled the shared
+  cross-family architecture closure last, and advanced the shared ledger
+  snapshot atomically. All 23 closures are current with zero invalidations.
+- Removed the exact 4,323,248 KiB disk-backed refresh workspace after
+  publication. No Able task directory remains under `/tmp` or `/var/tmp`.
+- Retained no additional compiler, runtime, interpreter, VM, parser, stdlib,
+  language, benchmark, dependency, frozen-workspace, or WASM change.
+- Next profile K-Nucleotide, Versioned Telemetry Pipeline, and Inventory
+  Reconciliation with repeated main-only CPU and exact allocation profiles.
+  This matters because their unlike text/map, telemetry/storage, and
+  nominal-record paths are the strongest current surface for finding one
+  broadly material lowering/runtime owner.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.{md,json}`.
+
+## 2026-07-31 — Current-default three-application owner closure (v12)
+
+- Regenerated strict current-default products for K-Nucleotide, Versioned
+  Telemetry Pipeline, and Inventory Reconciliation. All three public verifiers
+  passed, all three dependency graphs contain 96 packages, and none links
+  `pkg/interpreter`.
+- Collected 130 verified Able main-only CPU profiles, 9 lightweight allocation
+  runs, and 3 exact allocation-shape profiles. Fifteen repeated Go CPU profiles
+  and 9 Go allocation runs passed the same public verifiers.
+- K-Nucleotide and Inventory are dominated by primitive boxing, hashing, and
+  equality at the explicit runtime-backed HashMap boundary. Telemetry instead
+  allocates 13,208,878 fresh `Sample` pointers into a native specialized
+  Array, 98.89% of its exact allocation profile.
+- Allocation/GC is the only material parent in all three, but its concrete
+  descendants are different. No exact legal compiler/runtime leaf reaches all
+  three, so no A/B prototype or production code was retained.
+- No compiler, runtime, interpreter, VM, parser, canonical stdlib, language,
+  dependency, benchmark, fixture, frozen workspace, or WASM source changed.
+- Removed the exact 190,420 KiB disk-backed profiling workspace after compact
+  evidence publication.
+- Next run a current-default whole-corpus primitive-boxing boundary census,
+  grouped by semantic boundary rather than container name. This matters
+  because only repeated reach through unrelated boundaries could authorize a
+  general rule that keeps primitives native longer.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.{md,json}`.
+
+## 2026-07-31 — Current-default primitive-boxing boundary census closed (v12)
+
+- Generated all 66 strict current-default applications and resolved all 66
+  dependency graphs; zero products linked `pkg/interpreter`.
+- Classified direct-main-reachable primitive encodes into 40 exact
+  category/callee/semantic-parent identities covering 307 static sites.
+  Nineteen identities reach three applications, but only five span three
+  workload groups.
+- The five broad identities are two one-shot `main` output conversions and
+  three canonical runtime-backed `HashMap` service conversions. Concurrent
+  `main_ctx`, Channel, and Mutex variants remain confined to one or two
+  workload groups.
+- Representative generated-source inspection confirmed native Go computation
+  through Fib, Distance Field, Versioned Telemetry Pipeline, and Concurrent
+  Event Routing until explicit print, Future, or runtime-service ABI.
+- No legal non-named category cleared the admission gate, so no runtime
+  profile, A/B prototype, or production source change was made.
+- Focused analyzer and wrapper checks pass. Removed the exact 364,736 KiB
+  disk-backed workspace and its pointer; no task artifact used `/tmp`.
+- Next run the mode-aware selector and release checks once. If they remain
+  empty and green, refresh the v12 correctness/stdlib completeness selection
+  audit rather than manufacture another closed performance experiment.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-current-default-primitive-boxing-boundary-census-no-go.{md,json}`.
+
+## 2026-07-31 — Mode-aware release and correctness gate retained (v12)
+
+- Confirmed the mode-aware selector emits zero bytes: all 23 performance
+  closures are current and the 132-row frontier has zero actionable groups.
+- Reconciled stale checked release observers to current census, cost, native
+  hot-tier, cross-engine, workload-depth, and architecture source identities.
+  Their no-candidate decisions did not change.
+- The canonical stdlib gate reproduced a general typechecker regression in
+  both modes: synthesized inferred type labels were reparsed as source types,
+  losing imported interface/union/alias identity and generic application
+  shape.
+- Retained canonical inferred `Type` facts beside synthesized labels, used
+  invariant canonical rebinding, and restored top-level nullable lifting for
+  otherwise equivalent callable values without weakening callable invariance.
+- Canonical stdlib passed in tree-walker (20 seconds) and bytecode (15
+  seconds). The full v12 gate passed 280 seeded fixtures, all fixture/parity
+  shards, and all 86 compiler batches; the slowest batch was 53.568 seconds.
+- No compiler execution, generated runtime, runtime, interpreter execution,
+  bytecode VM, parser, AST, language, canonical stdlib, dependency, benchmark,
+  frozen-workspace, or WASM change was made.
+- Next reconcile the block-comment contradiction between §2 and §6.9 as an
+  editorial-only spec tranche. This matters because one lexical authority
+  prevents false parser work and false performance invalidations while no
+  general lowering owner is selected.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-mode-aware-release-correctness-gate-retained.{md,json}`.
+
+## 2026-07-31 — Block-comment contract editorial reconciliation retained (v12)
+
+- Reconciled §2 with §6.9: Able supports `##` line comments and does not
+  support block comments. Removed the resolved marker from
+  `spec/TODO_v12.md`.
+- Proved the existing contract through the tree-sitter grammar, focused parser
+  controls, a passing comment-free module, and parser rejection of an
+  otherwise identical `/* ... */` probe. No parser or AST change was needed.
+- The spec fingerprint correctly invalidated all 23 performance closures for
+  the sole reason `scope-content-drift:v12-spec`. Rebased only the reviewed
+  spec scope; the final selector reports 23 current closures and zero
+  selections.
+- The five-node architecture chain refreshed four evidence records and five
+  checked reports for the spec rebase, then three evidence records and four
+  checked reports after attaching the durable record. No decision-bearing
+  field or checked Markdown changed.
+- The complete v12 gate passed in 686.23 seconds at 1,287,204 KiB peak RSS:
+  280 seeded fixtures, the 132-row zero-actionable frontier, all interpreter
+  and parity lanes, and all 86 compiler batches. The slowest batch was 49.427
+  seconds; the canonical compiler outlier took 14.300 seconds.
+- A tighter initial 55-second cumulative batch cap produced one noisy timeout.
+  Three isolated cold-cache repetitions of its named test averaged 22.664
+  seconds, and the clean full rerun passed the batch below one minute.
+- Canonical stdlib passed in tree-walker (20 seconds) and bytecode (15
+  seconds). No execution, runtime, VM, compiler, stdlib, benchmark,
+  dependency, frozen-workspace, or WASM behavior changed.
+- Removed the exact 2,845,840 KiB disk-backed task workspace after
+  publication. No Able task directory remains under `/tmp` or `/var/tmp`.
+- Next canonicalize the already-selected invariant-only v12 variance boundary
+  across §4.1.7 and the forward indexes. This matters because exact invariant
+  instantiations preserve native Go carriers without recursive boxing,
+  copying, or dynamic-boundary adapters.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-block-comment-contract-editorial-reconciliation-retained.{md,json}`.
+
+## 2026-07-31 — Invariant-only v12 variance reconciliation retained
+
+- Replaced the stale §4.1.7 variance-syntax TBD with the already-retained
+  option-A contract: all v12 type parameters are invariant, recursive
+  `A -> B` conversion does not imply `F A -> F B`, and callable signatures
+  have neither parameter contravariance nor result covariance.
+- Removed the resolved variance item from `spec/TODO_v12.md` and reconciled
+  the active typechecker handoff and retained decision note with the completed
+  checker and fail-closed compiler implementation.
+- Proved the grammar/AST has no variance declaration. A normal `Box<T>`
+  control passed; `out T`, `in T`, `+T`, and `-T` probes were parser errors;
+  no declaration appeared in 834 active Able source files.
+- Focused parser, invariant/callable checker, compiler fail-closed,
+  tree-walker, bytecode, and strict compiled fixtures passed.
+- The spec edit invalidated all 23 closures solely through
+  `scope-content-drift:v12-spec`. Every closure, input, benchmark, and
+  non-spec production scope was unchanged; the final selector is 23 current,
+  zero invalidated.
+- Both architecture refreshes preserved all decision-bearing JSON and checked
+  Markdown. The full gate passed in 781.36 seconds at 1,342,220 KiB peak RSS;
+  all 86 compiler batches passed with a 47.109-second maximum.
+- Canonical stdlib passed in tree-walker (20 seconds) and bytecode (15
+  seconds). No executable language, compiler, interpreter, VM, runtime,
+  stdlib, benchmark, dependency, frozen, or WASM behavior changed.
+- Removed the exact 2,486,660 KiB disk-backed workspace; no Able task
+  directory remains under `/tmp` or `/var/tmp`.
+- Next reconcile §6.1.1's stale integer-default configurability marker with
+  the fixed contextual-typing/`i32` implementation. This matters because one
+  primitive default prevents configuration-dependent carriers and ABI
+  boundaries.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-variance-invariant-v12-editorial-reconciliation-retained.{md,json}`.
+
+## 2026-07-31 — Fixed integer default and contextual native carriers retained
+
+- Replaced the stale configurable/TBC integer-default phrase with the fixed
+  v12 rule: an unconstrained unsuffixed integer defaults to `i32`, a fitting
+  concrete context may adopt it, and an explicit suffix fixes its source type.
+- Preserved the longstanding lazy `OverflowError` behavior for an evaluated
+  unconstrained value outside `i32`; no incompatible eager diagnostic was
+  introduced.
+- Fixed three general gaps: explicit suffix/type mismatches now diagnose,
+  pending generic literals adopt resolved explicit or expected-result
+  contexts, and compiler specialization preserves that resolved carrier.
+  Checked tree-walker and bytecode execution now consume the same resolved
+  numeric inference fact before materializing a literal.
+- The first complete gate exposed an over-broad call-site precedence rule that
+  broke imported/shadowed callable repair. Narrowing protection to generics
+  reached by direct unsuffixed integer literals restored those guards while
+  retaining native contextual `int64`; focused controls passed three times.
+- A strict control proved native Go `int32`, `uint8`, `int64`, and `uint64`
+  carriers plus separate `int32`/`int64` generic specializations, with no
+  `runtime.Value`, `big.Int`, bridge, or interpreter fallback in the relevant
+  generated body.
+- The clean full gate passed in 636.54 seconds at 1,283,560 KiB peak RSS. All
+  86 compiler batches passed; the maximum was 44.557 seconds. Canonical stdlib
+  passed in tree-walker (19 seconds) and bytecode (15 seconds).
+- Reconciled all four changed checked scopes. The final selector has 23
+  current closures and zero selection; all five architecture nodes are
+  current with no decision change. No benchmark speedup is claimed because
+  the corrected wide contextual programs had no valid pre-fix runtime.
+- No canonical stdlib, runtime representation, dependency, benchmark, frozen
+  workspace, or WASM behavior changed. Removed the exact 3,243,448 KiB owned
+  build workspace/cache; no owned Able task directory remains under `/tmp` or
+  `/var/tmp`.
+- Next resolve §6.3.2's wrapping, saturating, and checked integer helper names
+  and contracts. This matters because one portable primitive API can express
+  native non-raising arithmetic without weakening default overflow safety or
+  adding boxed/dynamic boundaries.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-integer-literal-contextual-native-carrier-retained.{md,json}`.
+
+## 2026-07-31 — Fixed-integer alternative arithmetic retained (v12)
+
+- Canonicalized reserved `wrapping_*`, `saturating_*`, and `checked_*`
+  add/sub/mul methods for all ten fixed-width integer primitives. Ordinary
+  operators remain raising; checked overflow returns nullable `nil`.
+- Retained shared runtime/interpreter behavior and direct native compiler
+  lowering. Narrow widths use Go primitive carriers, wide widths use
+  `runtime.Int128`/`runtime.Uint128`, and checked results use native nullable
+  carriers without an interpreter/member bridge in strict generated bodies.
+- Added all-type cross-engine fixtures plus focused runtime, checker,
+  interpreter, compiler, registration, and generated-source guards.
+- The compiled CLI gate exposed a general specialized-generic boundary bug:
+  runtime struct encoding omitted concrete type arguments. Generated generic
+  nominals now preserve those arguments across runtime-visible boundaries and
+  in-place apply; no BigInt, Result, matcher, or container special case was
+  added.
+- All five previously failing numeric compiled suites pass (32.75–39.85
+  seconds), and the complete generated-Go CLI lane passes in 990.043 seconds.
+  The default release gate, all 86 compiler batches, and canonical stdlib
+  tree-walker/bytecode modes pass.
+- The final ledger has 23 current closures and zero invalidations; the
+  five-node architecture chain is current. No benchmark speedup is claimed
+  because the API and corrected programs had no valid pre-change runtime.
+- Removed the exact 12,487,148 KiB owned workspace, generated probe, and
+  caches. No Able task directory remains under `/tmp` or `/var/tmp`.
+- Next resolve the remaining full-inference/HKT limits spec-first. This
+  matters because one exact static boundary preserves deterministic native Go
+  carriers and rejects unsupported polymorphism instead of introducing
+  implicit boxing or compiled/interpreter crossings.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-fixed-integer-alternative-arithmetic-retained.md`.
+
+## 2026-07-31 — Rank-1 inference and interface-HKT static boundary retained
+
+- Canonicalized ordinary v12 inference as local, invariant, and rank-1.
+  Ordinary generic parameters bind concrete value types; the only
+  higher-kinded abstraction is an explicit interface self pattern such as
+  `for C _`, fixed by a matching implementation before lowering.
+- Kept type-constructor aliases compile-time-only while unbound. Runtime value
+  annotations now reject `Array _`, an unbound constructor alias, and an
+  ordinary generic parameter applied as a constructor. Explicit extern/kernel
+  erased `_` signatures retain their deliberate host ABI behavior.
+- Added focused checker guards and the
+  `04_01_hkt_static_boundary_diag` cross-engine fixture. Existing concrete
+  `Enumerable` compiler guards still prove specialized native nominal calls
+  without dynamic member or interpreter bridges.
+- Canonical stdlib passed in tree-walker and bytecode modes. The complete
+  default v12 gate passed in 1,012.90 seconds at 1,836,920 KiB peak RSS,
+  including 283 seeded fixtures, 284 fixture directories, all 86 compiler
+  batches, and a 56.493-second maximum batch. No individual test exceeded one
+  minute.
+- Rebased the sole changed spec scope. The final ledger has 23 current
+  closures, zero invalidations, and no selection; the five-node architecture
+  chain is current. No benchmark speedup is claimed because this tranche
+  closes unsupported static programs and preserves an already-native accepted
+  path.
+- No parser, AST, interpreter, VM, compiler lowering, runtime representation,
+  canonical stdlib, dependency, benchmark, frozen workspace, or WASM change
+  was required.
+- Removed 3,176,180 KiB of exact owned build/cache artifacts from disk-backed
+  `/var/tmp` and RAM-backed `/tmp`; no Able task directory remains in either
+  location.
+- Next define shared-data race and ownership behavior for `spawn`. This
+  entails inventorying mutable captures and synchronization paths, selecting
+  a spec-first race-free contract, and adding only necessary guards. It is
+  important because native Go references and goroutines should remain native
+  without defensive copying, boxing, or a runtime ownership boundary.
+- Record:
+  `v12/docs/perf-baselines/2026-07-31-rank1-interface-hkt-static-boundary-retained.{md,json}`.

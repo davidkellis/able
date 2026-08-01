@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -135,7 +136,40 @@ func collectExecFixtures(t *testing.T, root string) []string {
 		}
 	}
 	walk(root)
-	return dirs
+	return selectExecFixtureBatch(t, dirs)
+}
+
+func selectExecFixtureBatch(t *testing.T, dirs []string) []string {
+	t.Helper()
+	rawIndex := os.Getenv("ABLE_EXEC_FIXTURE_BATCH_INDEX")
+	rawCount := os.Getenv("ABLE_EXEC_FIXTURE_BATCH_COUNT")
+	if rawIndex == "" && rawCount == "" {
+		return dirs
+	}
+	if rawIndex == "" || rawCount == "" {
+		t.Fatal("ABLE_EXEC_FIXTURE_BATCH_INDEX and ABLE_EXEC_FIXTURE_BATCH_COUNT must be set together")
+	}
+	index, indexErr := strconv.Atoi(rawIndex)
+	count, countErr := strconv.Atoi(rawCount)
+	if indexErr != nil || countErr != nil || count <= 0 || index < 0 || index >= count {
+		t.Fatalf("invalid exec fixture batch %q of %q", rawIndex, rawCount)
+	}
+	selected := make([]string, 0, (len(dirs)+count-1)/count)
+	for fixtureIndex, dir := range dirs {
+		if fixtureIndex%count == index {
+			selected = append(selected, dir)
+		}
+	}
+	return selected
+}
+
+func TestSelectExecFixtureBatch(t *testing.T) {
+	dirs := []string{"a", "b", "c", "d", "e"}
+	t.Setenv("ABLE_EXEC_FIXTURE_BATCH_INDEX", "1")
+	t.Setenv("ABLE_EXEC_FIXTURE_BATCH_COUNT", "2")
+	if got, want := selectExecFixtureBatch(t, dirs), []string{"b", "d"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("selected batch = %v, want %v", got, want)
+	}
 }
 
 func runExecFixture(t *testing.T, dir string, execMode testExecMode) {

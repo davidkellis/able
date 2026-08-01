@@ -455,12 +455,13 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				_, isGenericTarget = genericNames[variant.typeName]
 			}
 			if !isGenericTarget {
-				if err := i.registerUnnamedImpl(ifaceName, canonicalDef.InterfaceArgs, variant, unionSignatures, baseConstraintSig, targetDescription, isBuiltin); err != nil {
+				if err := i.registerUnnamedImpl(ifaceName, canonicalDef.InterfaceArgs, variant, unionSignatures, baseConstraintSig, targetDescription, i.currentPackage, canonicalDef.IsPrivate, isBuiltin); err != nil {
 					return nil, err
 				}
 			}
 			entry := implEntry{
 				interfaceName:      ifaceName,
+				packageName:        i.currentPackage,
 				methods:            methods,
 				definition:         &canonicalDef,
 				registrationTarget: def.TargetType,

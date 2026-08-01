@@ -1,5 +1,6 @@
 package iface_defs
 
 interface Renderable for Self {
+  fn duplicate(self: Self) -> Self
   fn render(self: Self) -> String
 }

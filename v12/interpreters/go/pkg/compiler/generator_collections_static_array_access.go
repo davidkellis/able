@@ -122,7 +122,7 @@ func (g *generator) compileIndexExpression(ctx *compileContext, expr *ast.IndexE
 	return lines, converted, expected, true
 }
 
-func (g *generator) compileArrayMethodIntrinsicCall(
+func (g *generator) compilePrimitiveMethodIntrinsicCall(
 	ctx *compileContext,
 	objNode ast.Expression,
 	objExpr string,
@@ -132,7 +132,13 @@ func (g *generator) compileArrayMethodIntrinsicCall(
 	expected string,
 	callNode string,
 ) ([]string, string, string, bool) {
-	if g == nil || ctx == nil || !g.isStaticArrayType(objType) {
+	if g == nil || ctx == nil {
+		return nil, "", "", false
+	}
+	if lines, expr, resultType, ok := g.compileFixedIntegerArithmeticMethodCall(ctx, objExpr, objType, methodName, args, expected); ok {
+		return lines, expr, resultType, true
+	}
+	if !g.isStaticArrayType(objType) {
 		return nil, "", "", false
 	}
 	effectiveExpected := expected

@@ -1,0 +1,200 @@
+{
+  "kind": "able-compiled-closure-refresh",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": {
+    "disposition": "retained-current-baseline",
+    "compiled_closures_advanced": 11,
+    "cross_family_closures_advanced": 1,
+    "production_code_changed": false,
+    "runtime_changed": false,
+    "interpreter_changed": false,
+    "bytecode_changed": false,
+    "stdlib_changed": false,
+    "language_changed": false,
+    "benchmark_changed": false,
+    "wasm_changed": false
+  },
+  "measurement": {
+    "compiled_applications": 66,
+    "runs_per_implementation": 5,
+    "primary_able_verified_processes": 330,
+    "primary_go_verified_processes": 330,
+    "crossing_able_verified_processes": 15,
+    "crossing_go_verified_processes": 15,
+    "verified_processes_total": 690,
+    "timeouts": 0,
+    "verification_failures": 0,
+    "cpu_affinity_pool": "12-15",
+    "go_toolchain": "go1.26.5",
+    "timeout_seconds": 55,
+    "compiled_build_args": [
+      "--no-fallbacks"
+    ]
+  },
+  "compiled_summary": {
+    "rows": 66,
+    "target_meets": 9,
+    "target_misses": 57,
+    "geometric_mean_able_go_ratio": 4.2187,
+    "sustained_reference_rows": 11,
+    "sustained_target_meets": 8,
+    "sustained_target_misses": 3
+  },
+  "new_established_guards": [
+    {
+      "benchmark": "fib",
+      "cohort_ratios": [
+        0.9658721406961291,
+        1.0437414863024066
+      ],
+      "pooled_ratio": 1.0034794304260108
+    },
+    {
+      "benchmark": "i_before_e",
+      "cohort_ratios": [
+        0.5571030640668524,
+        0.7394957983193278
+      ],
+      "pooled_ratio": 0.6397562833206397
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "cohort_ratios": [
+        1.005413766434648,
+        0.9857654691585166
+      ],
+      "pooled_ratio": 0.9955976972570267
+    }
+  ],
+  "dependency_verification": {
+    "generated_modules": 66,
+    "resolved_dependency_graphs": 66,
+    "failed_dependency_graphs": 0,
+    "interpreter_linked_graphs": 0,
+    "command": "go list -mod=mod -deps ."
+  },
+  "closures": [
+    {
+      "id": "compiled-target-guards",
+      "rows": 6,
+      "misses": 0,
+      "maximum_ratio": 0.975044489508753,
+      "disposition": "target-guard"
+    },
+    {
+      "id": "compiled-current-control",
+      "rows": 3,
+      "misses": 1,
+      "maximum_ratio": 1.1427147263154616,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "id": "compiled-sudoku-quotient",
+      "rows": 1,
+      "misses": 1,
+      "maximum_ratio": 2.1151307103247956,
+      "disposition": "closed-insufficient-breadth"
+    },
+    {
+      "id": "compiled-float-numeric",
+      "rows": 4,
+      "misses": 4,
+      "maximum_ratio": 3.8461538461538463,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "id": "compiled-wide-numeric",
+      "rows": 3,
+      "misses": 3,
+      "maximum_ratio": 13.125,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "id": "compiled-byte-output",
+      "rows": 2,
+      "misses": 2,
+      "maximum_ratio": 2.3255813953488373,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "id": "compiled-text-map",
+      "rows": 9,
+      "misses": 8,
+      "maximum_ratio": 21.03225806451613,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "id": "compiled-regex",
+      "rows": 6,
+      "misses": 6,
+      "maximum_ratio": 12.830188679245284,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "id": "compiled-concurrency",
+      "rows": 23,
+      "misses": 23,
+      "maximum_ratio": 23.829787234042552,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "id": "compiled-iterator-control",
+      "rows": 9,
+      "misses": 9,
+      "maximum_ratio": 11.05263157894737,
+      "disposition": "closed-no-shared-leaf"
+    },
+    {
+      "id": "compiled-architecture-target-budget",
+      "rows": 6,
+      "misses": 6,
+      "maximum_ratio": 21.03225806451613,
+      "disposition": "closed-rejected-candidate"
+    },
+    {
+      "id": "cross-family-architecture-ownership",
+      "compiled_rows": 12,
+      "bytecode_scope_changed": false,
+      "disposition": "closed-no-shared-leaf"
+    }
+  ],
+  "frontier": {
+    "selected_rows": 132,
+    "compiled_rows": 66,
+    "bytecode_rows": 66,
+    "target_meets": 13,
+    "target_misses": 119,
+    "established_guards": 13,
+    "unestablished_snapshot_meets": 0,
+    "actionable_groups": 0
+  },
+  "inputs": {
+    "scorecard": {
+      "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-scorecard.json",
+      "sha256": "c6b810eeb7e73c5d3617ba197243cc4cf05cba737cb6e5b2298e89082522ae07"
+    },
+    "go_references": {
+      "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-go-references.json",
+      "sha256": "7dd1e3237701acc793ac6e2772a77a70e96e8b14221cd8faeaa32eba8d31619e"
+    },
+    "crossing_cohort": {
+      "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-b.json",
+      "sha256": "817a265b344838fff91bfa131810b1a57a988194c80420c82bcd6a0a33beb86e"
+    },
+    "variance": {
+      "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-variance.json",
+      "sha256": "593b8b018b351029fac001a4710407d9d7998e2b70c657beca10432b817d9dd9"
+    },
+    "stdlib_source_state": {
+      "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-stdlib-source-state.json",
+      "sha256": "d8126a7ee93174b48c3c597839bac1620f3ab7b6babe10e23eb0f95c1d3bc28b"
+    }
+  },
+  "next": {
+    "action": "Profile K-Nucleotide, Versioned Telemetry Pipeline, and one unlike allocation-heavy nominal/interface application under the current default compiler.",
+    "why": "The full refresh isolates the largest sustained residuals after native ownership lowering.",
+    "entails": "Capture repeated main-only CPU and exact allocation profiles, map material leaves to emitted Go and lowering provenance, and admit a prototype only for one general owner repeated across all three.",
+    "importance": "Fresh cross-family ownership evidence is required to remove the next real compiled overhead without benchmark-specific or non-primitive nominal special cases."
+  }
+}

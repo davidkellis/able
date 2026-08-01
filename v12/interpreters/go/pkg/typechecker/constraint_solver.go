@@ -176,7 +176,7 @@ func (c *Checker) obligationSatisfied(ob ConstraintObligation, res interfaceReso
 	return true, ""
 }
 
-func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, args []Type) (bool, string) {
+func (c *Checker) typeImplementsInterfaceUncached(subject Type, iface InterfaceType, args []Type) (bool, string) {
 	if implementsIntrinsicInterface(subject, iface.InterfaceName, args) {
 		return true, ""
 	}
@@ -226,6 +226,9 @@ func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, arg
 		return true, ""
 	} else if detail != "" {
 		implDetail = detail
+	}
+	if isAmbiguousImplementationDetail(implDetail) {
+		return false, implDetail
 	}
 	if ok, detail := c.methodSetProvidesInterface(subject, iface, args); ok {
 		return true, ""

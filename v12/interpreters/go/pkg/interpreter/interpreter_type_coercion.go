@@ -10,6 +10,14 @@ import (
 )
 
 func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	return i.coerceValueToTypeForPackage(typeExpr, value, i.currentPackage)
+}
+
+func (i *Interpreter) coerceValueToTypeInEnv(typeExpr ast.TypeExpression, value runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	return i.coerceValueToTypeForPackage(typeExpr, value, i.packageNameForEnvironment(env))
+}
+
+func (i *Interpreter) coerceValueToTypeForPackage(typeExpr ast.TypeExpression, value runtime.Value, packageName string) (runtime.Value, error) {
 	value = bytecodeMaterializeRawValue(bytecodeSlotReadValue(value))
 	if coerced, ok, err := i.tryFastArrayTypeCoercion(typeExpr, value); ok {
 		return coerced, err
@@ -95,7 +103,7 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 				if info, ok := parseTypeExpression(typeExpr); ok && len(info.typeArgs) > 0 {
 					ifaceArgs = info.typeArgs
 				}
-				return i.coerceToInterfaceValue(name, value, ifaceArgs)
+				return i.coerceToInterfaceValueForPackage(name, value, ifaceArgs, packageName)
 			}
 		}
 	case *ast.GenericTypeExpression:
@@ -112,7 +120,7 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 				}
 			}
 			if _, ok := i.interfaces[name]; ok {
-				return i.coerceToInterfaceValue(name, value, info.typeArgs)
+				return i.coerceToInterfaceValueForPackage(name, value, info.typeArgs, packageName)
 			}
 		}
 	}
@@ -196,6 +204,10 @@ func (i *Interpreter) tryFastArrayTypeCoercion(typeExpr ast.TypeExpression, valu
 }
 
 func (i *Interpreter) castValueToTypeRaw(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	return i.castValueToTypeRawForPackage(typeExpr, value, i.currentPackage)
+}
+
+func (i *Interpreter) castValueToTypeRawForPackage(typeExpr ast.TypeExpression, value runtime.Value, packageName string) (runtime.Value, error) {
 	value = bytecodeMaterializeRawValue(bytecodeSlotReadValue(value))
 	rawValue := value
 	switch v := value.(type) {
@@ -340,7 +352,7 @@ func (i *Interpreter) castValueToTypeRaw(typeExpr ast.TypeExpression, value runt
 			if info, ok := parseTypeExpression(typeExpr); ok && len(info.typeArgs) > 0 {
 				ifaceArgs = info.typeArgs
 			}
-			return i.coerceToInterfaceValue(name, value, ifaceArgs)
+			return i.coerceToInterfaceValueForPackage(name, value, ifaceArgs, packageName)
 		}
 	}
 	if i.matchesType(typeExpr, value) {
@@ -354,7 +366,15 @@ func (i *Interpreter) castValueToTypeRaw(typeExpr ast.TypeExpression, value runt
 }
 
 func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
-	casted, err := i.castValueToTypeRaw(typeExpr, value)
+	return i.castValueToTypeForPackage(typeExpr, value, i.currentPackage)
+}
+
+func (i *Interpreter) castValueToTypeInEnv(typeExpr ast.TypeExpression, value runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	return i.castValueToTypeForPackage(typeExpr, value, i.packageNameForEnvironment(env))
+}
+
+func (i *Interpreter) castValueToTypeForPackage(typeExpr ast.TypeExpression, value runtime.Value, packageName string) (runtime.Value, error) {
+	casted, err := i.castValueToTypeRawForPackage(typeExpr, value, packageName)
 	if err == nil {
 		return casted, nil
 	}
@@ -418,7 +438,11 @@ func (i *Interpreter) interfaceDispatchSets(interfaceName string) (map[string]st
 }
 
 func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, ifaceArgs []ast.TypeExpression, info typeInfo) (map[string]runtime.Value, bool, error) {
-	cacheKey := i.makeInterfaceMethodDictionaryCacheKey(info, interfaceName, ifaceArgs)
+	return i.buildInterfaceMethodDictionaryForPackage(interfaceName, ifaceArgs, info, i.currentPackage)
+}
+
+func (i *Interpreter) buildInterfaceMethodDictionaryForPackage(interfaceName string, ifaceArgs []ast.TypeExpression, info typeInfo, packageName string) (map[string]runtime.Value, bool, error) {
+	cacheKey := i.makeInterfaceMethodDictionaryCacheKeyForPackage(info, interfaceName, ifaceArgs, packageName)
 	if cached, ok := i.lookupInterfaceMethodDictionaryCache(cacheKey); ok {
 		if cached.err != nil {
 			return nil, false, cached.err
@@ -460,9 +484,9 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 			var method runtime.Value
 			var err error
 			if len(ifaceArgs) == 0 {
-				method, err = i.findMethodCached(targetInfo, methodName, ifaceName)
+				method, err = i.findMethodCachedForPackage(targetInfo, methodName, ifaceName, packageName)
 			} else {
-				method, err = i.findMethod(targetInfo, methodName, ifaceName, ifaceArgs)
+				method, err = i.findMethodForPackage(targetInfo, methodName, ifaceName, ifaceArgs, packageName)
 			}
 			if err != nil {
 				return err
@@ -503,6 +527,10 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 }
 
 func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime.Value, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
+	return i.coerceToInterfaceValueForPackage(interfaceName, value, ifaceArgs, i.currentPackage)
+}
+
+func (i *Interpreter) coerceToInterfaceValueForPackage(interfaceName string, value runtime.Value, ifaceArgs []ast.TypeExpression, packageName string) (runtime.Value, error) {
 	interfaceName = i.canonicalInterfaceName(interfaceName)
 	if ifaceVal, ok := value.(*runtime.InterfaceValue); ok {
 		if i.interfaceMatches(ifaceVal, interfaceName, ifaceArgs) {
@@ -563,7 +591,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 	if !ok {
 		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
 	}
-	okImpl, err := i.typeImplementsInterface(info, interfaceName, ifaceArgs, make(map[interfaceImplCacheKey]struct{}))
+	okImpl, err := i.typeImplementsInterfaceForPackage(info, interfaceName, ifaceArgs, make(map[interfaceImplCacheKey]struct{}), packageName)
 	if err != nil {
 		return nil, err
 	}
@@ -574,7 +602,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 		}
 		return nil, fmt.Errorf("Type '%s' does not implement interface %s", typeDesc, interfaceName)
 	}
-	implEntry, implErr := i.lookupImplEntry(info, interfaceName, ifaceArgs)
+	implEntry, implErr := i.lookupImplEntryForPackage(info, interfaceName, ifaceArgs, packageName)
 	if implErr != nil || implEntry == nil {
 		// In compiled no-bootstrap mode, build interface value using the compiled
 		// interface method resolver instead of the interpreter's impl registry.
@@ -618,7 +646,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 			return nil, implErr
 		}
 	}
-	methods, sharedMethods, err := i.buildInterfaceMethodDictionary(interfaceName, ifaceArgs, info)
+	methods, sharedMethods, err := i.buildInterfaceMethodDictionaryForPackage(interfaceName, ifaceArgs, info, packageName)
 	if err != nil {
 		return nil, err
 	}

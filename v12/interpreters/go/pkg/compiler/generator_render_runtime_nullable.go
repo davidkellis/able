@@ -62,6 +62,14 @@ func (g *generator) renderRuntimeNullableFromHelper(buf *bytes.Buffer, spec nati
 	case "uint8", "uint16", "uint32", "uint64":
 		fmt.Fprintf(buf, "\traw, err := bridge.AsUint(value, %d)\n", g.intBits(spec.InnerType))
 		fmt.Fprintf(buf, "\tconverted := %s(raw)\n", spec.InnerType)
+	case "runtime.Int128":
+		fmt.Fprintf(buf, "\tconverted, ok := runtime.Int128FromValue(value)\n")
+		fmt.Fprintf(buf, "\tif !ok { return %s{}, fmt.Errorf(\"type mismatch: expected i128\") }\n", spec.CarrierType)
+		fmt.Fprintf(buf, "\tvar err error\n")
+	case "runtime.Uint128":
+		fmt.Fprintf(buf, "\tconverted, ok := runtime.Uint128FromValue(value)\n")
+		fmt.Fprintf(buf, "\tif !ok { return %s{}, fmt.Errorf(\"type mismatch: expected u128\") }\n", spec.CarrierType)
+		fmt.Fprintf(buf, "\tvar err error\n")
 	default:
 		if spec.ValueCarrier {
 			fmt.Fprintf(buf, "\treturn %s{}, fmt.Errorf(\"unsupported native nullable type %s\")\n", spec.CarrierType, spec.InnerType)
@@ -128,6 +136,8 @@ func (g *generator) renderRuntimeNullableToHelper(buf *bytes.Buffer, spec native
 	case "uint", "uint8", "uint16", "uint32", "uint64":
 		suffix, _ := g.integerTypeSuffix(spec.InnerType)
 		fmt.Fprintf(buf, "\treturn bridge.ToUint(uint64(%s), runtime.IntegerType(%q))\n", valueExpr, suffix)
+	case "runtime.Int128", "runtime.Uint128":
+		fmt.Fprintf(buf, "\treturn %s.IntegerValue()\n", valueExpr)
 	default:
 		fmt.Fprintf(buf, "\tpanic(fmt.Errorf(\"unsupported native nullable type %s\"))\n", spec.InnerType)
 	}

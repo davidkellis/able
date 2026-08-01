@@ -60,6 +60,13 @@ func (g *generator) compileNativeInterfaceMethodCall(ctx *compileContext, call *
 		args = append(args, ctx.executionContextExpr)
 	}
 	callExpr := fmt.Sprintf("%s.%s(%s)", receiverExpr, methodGoName, strings.Join(args, ", "))
+	ownershipArgs := args
+	if g.executionContextsEnabled() && ctx.executionContextExpr != "" {
+		ownershipArgs = args[:len(args)-1]
+	}
+	if ownedCall, ok := g.nominalOwnershipInterfaceCall(ctx, call, receiverExpr, receiverType, method, ownershipArgs); ok {
+		callExpr = ownedCall
+	}
 	resultTemp := ctx.newTemp()
 	controlTemp := ctx.newTemp()
 	lines := append([]string{}, argLines...)

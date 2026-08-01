@@ -69,6 +69,9 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 	case *ast.NilLiteral:
 		return runtime.NilValue{}, nil
 	case *ast.IntegerLiteral:
+		if value, ok, err := i.contextualNumericLiteralValue(n); ok {
+			return value, err
+		}
 		suffix := runtime.IntegerI32
 		if n.IntegerType != nil {
 			suffix = runtime.IntegerType(*n.IntegerType)
@@ -108,7 +111,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 			return nil, err
 		}
 		targetType := i.canonicalizeTypeExpressionCached(n.TargetType, env, i.typeExpressionReferencesAliasCached(n.TargetType))
-		return i.castValueToType(targetType, value)
+		return i.castValueToTypeInEnv(targetType, value, env)
 	case *ast.StringInterpolation:
 		var builder strings.Builder
 		for _, part := range n.Parts {
@@ -215,6 +218,9 @@ func (i *Interpreter) evaluateExpressionLeafFastPath(node ast.Expression, env *r
 	case *ast.NilLiteral:
 		return runtime.NilValue{}, true, nil
 	case *ast.IntegerLiteral:
+		if value, ok, err := i.contextualNumericLiteralValue(n); ok {
+			return value, true, err
+		}
 		suffix := runtime.IntegerI32
 		if n.IntegerType != nil {
 			suffix = runtime.IntegerType(*n.IntegerType)

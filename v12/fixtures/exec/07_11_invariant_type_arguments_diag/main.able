@@ -1,0 +1,8 @@
+package exec_07_11_invariant_type_arguments_diag
+
+fn takes(values: Array i32) -> void {}
+
+fn main() -> void {
+  values: Array i8 := [7]
+  takes(values)
+}

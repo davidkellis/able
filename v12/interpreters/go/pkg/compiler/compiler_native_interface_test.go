@@ -96,6 +96,52 @@ func TestCompilerNativeInterfaceExecutes(t *testing.T) {
 	compileAndRunSource(t, "ablec-native-interface-", source)
 }
 
+func TestCompilerNativeInterfaceSelfReturnStaysOnCarrier(t *testing.T) {
+	source := strings.Join([]string{
+		"extern go fn __able_os_exit(code: i32) -> void {}",
+		"",
+		"interface Duplicable for Self {",
+		"  fn duplicate(self: Self) -> Self",
+		"  fn label(self: Self) -> String",
+		"}",
+		"",
+		"struct Box { value: String }",
+		"",
+		"impl Duplicable for Box {",
+		"  fn duplicate(self: Self) -> Self { Box { value: self.value } }",
+		"  fn label(self: Self) -> String { self.value }",
+		"}",
+		"",
+		"fn duplicate_label(value: Duplicable) -> String {",
+		"  value.duplicate().label()",
+		"}",
+		"",
+		"fn main() {",
+		"  if duplicate_label(Box { value: \"native-self\" }) == \"native-self\" {",
+		"    __able_os_exit(0)",
+		"  }",
+		"  __able_os_exit(1)",
+		"}",
+		"",
+	}, "\n")
+
+	result := compileNoFallbackSource(t, source)
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_duplicate_label")
+	if !ok {
+		t.Fatalf("could not find compiled duplicate_label function")
+	}
+	if !strings.Contains(body, "value.duplicate()") || !strings.Contains(body, ".label()") {
+		t.Fatalf("expected Self return chaining to stay on the native interface carrier:\n%s", body)
+	}
+	for _, fragment := range []string{"runtime.Value", "bridge.MatchType(", "__able_method_call_node(", "__able_try_cast("} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected Self return chaining to avoid %q:\n%s", fragment, body)
+		}
+	}
+
+	compileAndRunSource(t, "ablec-native-interface-self-return-", source)
+}
+
 func TestCompilerTypedInterfaceAssignmentStaysNative(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

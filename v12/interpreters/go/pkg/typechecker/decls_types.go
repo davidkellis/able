@@ -20,7 +20,11 @@ func (c *declarationCollector) collectTypeAliasDefinition(def *ast.TypeAliasDefi
 		return
 	}
 	params, paramScope := c.convertGenericParams(def.GenericParams)
-	target := c.resolveTypeExpression(def.TargetType, paramScope)
+	target := c.resolveTypeExpressionWithOptions(
+		def.TargetType,
+		paramScope,
+		typeResolutionOptions{allowTypeConstructors: true},
+	)
 	if target == nil {
 		target = UnknownType{}
 	}
@@ -74,17 +78,20 @@ func (c *declarationCollector) resolveTypeExpressionWithOptions(expr ast.TypeExp
 			case "f32", "f64":
 				return FloatType{Suffix: name}
 			default:
-			if !opts.skipArityCheck && !opts.allowTypeConstructors && !shouldSkipTypeArgumentCheck(name, c.localTypeNames, c.declNodes) {
-				if decl, ok := c.env.Lookup(name); ok {
-					if expected, ok := expectedTypeArgumentCount(name, decl); ok && expected > 0 {
-						c.diags = append(c.diags, typeArgumentArityDiagnostic(name, expected, 0, t))
-					}
+				if !opts.skipArityCheck && !opts.allowTypeConstructors && !shouldSkipTypeArgumentCheck(name, c.localTypeNames, c.declNodes) {
+					if decl, ok := c.env.Lookup(name); ok {
+						if expected, ok := expectedTypeArgumentCount(name, decl); ok && expected > 0 {
+							c.diags = append(c.diags, typeArgumentArityDiagnostic(name, expected, 0, t))
+						}
 					} else if expected, ok := builtinTypeArgumentArity[name]; ok && expected > 0 {
 						c.diags = append(c.diags, typeArgumentArityDiagnostic(name, expected, 0, t))
 					}
 				}
 				if decl, ok := c.env.Lookup(name); ok {
 					if alias, ok := decl.(AliasType); ok {
+						if !opts.allowTypeConstructors && typeExpressionContainsUnboundParameter(alias.Definition.TargetType) {
+							c.diags = append(c.diags, unboundValueTypeDiagnostic(t))
+						}
 						inst, _ := instantiateAlias(alias, nil)
 						return inst
 					}
@@ -94,6 +101,9 @@ func (c *declarationCollector) resolveTypeExpressionWithOptions(expr ast.TypeExp
 			}
 		}
 	case *ast.GenericTypeExpression:
+		if !opts.allowTypeConstructors && typeExpressionContainsUnboundParameter(t) {
+			c.diags = append(c.diags, unboundValueTypeDiagnostic(t))
+		}
 		var baseName string
 		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
 			baseName = simple.Name.Name
@@ -125,6 +135,13 @@ func (c *declarationCollector) resolveTypeExpressionWithOptions(expr ast.TypeExp
 		argOpts.allowTypeConstructors = true
 		for i, arg := range t.Arguments {
 			args[i] = c.resolveTypeExpressionWithOptions(arg, typeParams, argOpts)
+		}
+		if !opts.allowTypeConstructors && c.genericApplicationHasExpectedArity(baseName, base, len(args)) {
+			for _, arg := range t.Arguments {
+				if c.typeArgumentIsBareConstructor(arg) {
+					c.diags = append(c.diags, c.bareConstructorTypeArgumentDiagnostic(arg))
+				}
+			}
 		}
 		if baseName != "" && !opts.skipArityCheck && !shouldSkipTypeArgumentCheck(baseName, c.localTypeNames, c.declNodes) {
 			if _, known := c.env.Lookup(baseName); known {
@@ -182,6 +199,98 @@ func (c *declarationCollector) resolveTypeExpressionWithOptions(expr ast.TypeExp
 		})
 	}
 	return UnknownType{}
+}
+
+func (c *declarationCollector) genericApplicationHasExpectedArity(baseName string, base Type, actual int) bool {
+	if baseName == "" {
+		return true
+	}
+	if _, known := c.env.Lookup(baseName); known {
+		expected, ok := expectedTypeArgumentCount(baseName, base)
+		return !ok || expected == actual
+	}
+	expected, ok := builtinTypeArgumentArity[baseName]
+	return !ok || expected == actual
+}
+
+func (c *declarationCollector) typeArgumentIsBareConstructor(expr ast.TypeExpression) bool {
+	simple, ok := expr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return false
+	}
+	name := simple.Name.Name
+	if decl, ok := c.env.Lookup(name); ok {
+		if alias, ok := decl.(AliasType); ok {
+			return typeExpressionContainsUnboundParameter(alias.Definition.TargetType)
+		}
+		expected, known := expectedTypeArgumentCount(name, decl)
+		return known && expected > 0
+	}
+	expected, known := builtinTypeArgumentArity[name]
+	return known && expected > 0
+}
+
+func (c *declarationCollector) bareConstructorTypeArgumentDiagnostic(expr ast.TypeExpression) Diagnostic {
+	simple, ok := expr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return unboundValueTypeDiagnostic(expr)
+	}
+	name := simple.Name.Name
+	if decl, ok := c.env.Lookup(name); ok {
+		if _, alias := decl.(AliasType); alias {
+			return unboundValueTypeDiagnostic(expr)
+		}
+		if expected, known := expectedTypeArgumentCount(name, decl); known {
+			return typeArgumentArityDiagnostic(name, expected, 0, expr)
+		}
+	}
+	if expected, known := builtinTypeArgumentArity[name]; known {
+		return typeArgumentArityDiagnostic(name, expected, 0, expr)
+	}
+	return unboundValueTypeDiagnostic(expr)
+}
+
+func typeExpressionContainsUnboundParameter(expr ast.TypeExpression) bool {
+	switch t := expr.(type) {
+	case *ast.WildcardTypeExpression:
+		return true
+	case *ast.SimpleTypeExpression:
+		return t != nil && t.Name != nil && t.Name.Name == "_"
+	case *ast.GenericTypeExpression:
+		if typeExpressionContainsUnboundParameter(t.Base) {
+			return true
+		}
+		for _, arg := range t.Arguments {
+			if typeExpressionContainsUnboundParameter(arg) {
+				return true
+			}
+		}
+	case *ast.FunctionTypeExpression:
+		for _, param := range t.ParamTypes {
+			if typeExpressionContainsUnboundParameter(param) {
+				return true
+			}
+		}
+		return typeExpressionContainsUnboundParameter(t.ReturnType)
+	case *ast.NullableTypeExpression:
+		return typeExpressionContainsUnboundParameter(t.InnerType)
+	case *ast.ResultTypeExpression:
+		return typeExpressionContainsUnboundParameter(t.InnerType)
+	case *ast.UnionTypeExpression:
+		for _, member := range t.Members {
+			if typeExpressionContainsUnboundParameter(member) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func unboundValueTypeDiagnostic(node ast.Node) Diagnostic {
+	return Diagnostic{
+		Message: "typechecker: runtime value types must bind every type argument; type constructors are limited to interface self patterns, implementation targets, and type aliases",
+		Node:    node,
+	}
 }
 
 func (c *declarationCollector) instantiateUnionType(union UnionType, args []Type) UnionType {

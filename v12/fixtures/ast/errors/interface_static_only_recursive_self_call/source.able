@@ -1,0 +1,9 @@
+struct Pair <T> { first: T, second: T }
+
+interface DuplicatePair for Self {
+  fn duplicate_pair(self: Self) -> Pair Self
+}
+
+fn reject(value: DuplicatePair) -> void {
+  value.duplicate_pair()
+}

@@ -366,7 +366,7 @@ func (vm *bytecodeVM) arrayIndexSlotCompareMaybeCast(instr *bytecodeInstruction,
 	if instr.name == "i32" && bytecodeValueIsI32(value) {
 		return value, nil
 	}
-	casted, err := vm.interp.castValueToType(vm.canonicalRuntimeTypeExpression(instr.typeExpr), value)
+	casted, err := vm.interp.castValueToTypeInEnv(vm.canonicalRuntimeTypeExpression(instr.typeExpr), value, vm.env)
 	if err != nil {
 		return nil, err
 	}

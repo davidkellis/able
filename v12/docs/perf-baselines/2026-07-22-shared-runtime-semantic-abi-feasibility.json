@@ -160,7 +160,7 @@
   "sources": {
     "backend_adr": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
-      "sha256": "11619c3d571fceca5456192337beb9497dbfafa5be786c3206f1b8743c5bee5b"
+      "sha256": "56c6cb9851b34c4393fd99735cc7653d843c523f233b2cbe5b2a8ddb7ef938ad"
     },
     "bytecode_architecture_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -172,7 +172,7 @@
     },
     "compiled_runtime": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/compiler/generator_render_runtime.go",
-      "sha256": "f2592ad97d5ad8cf9726da81bf728d981df30e70adc8f74efc374814916c3bac"
+      "sha256": "1046edb0095df9f4a9cf52e248fe6fe0cd2b7aca659c806a5de4f05329d6c5bc"
     },
     "environment": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/environment.go",
@@ -180,11 +180,11 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-shared-runtime-semantic-abi.json",
-      "sha256": "772aa9f428a19d949d8e722b6c4450ec3f38e535997311534949008862109d54"
+      "sha256": "1a0e806943182a10d155431431dd706a740f494c7e983a258713c0656d3ef631"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "7e90ed56f56a3a31be3611bb7ece0c91fc0302ebc25e84dbfe29dba60a2cde55"
+      "sha256": "4c903dffcd1cc6e5d3e498f12a276a780412a0f1a723f41263b67fd453f8f5bf"
     },
     "runtime_values": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/runtime/values.go",
@@ -192,7 +192,7 @@
     },
     "spec": {
       "path": "/home/david/sync/projects/able/spec/full_spec_v12.md",
-      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+      "sha256": "35fddd094cae276cc0652612dd6ed309b88ab2778ffa17e425b40949be27dd6d"
     },
     "vm_dispatch": {
       "path": "/home/david/sync/projects/able/v12/interpreters/go/pkg/interpreter/bytecode_vm_run.go",
@@ -224,7 +224,7 @@
   "target_model": [
     {
       "benchmark": "fixed_width_128",
-      "compiled_equivalent_target_excess_reduction_percent": 48.119596,
+      "compiled_equivalent_target_excess_reduction_percent": 48.236365,
       "family": "wide-numeric",
       "hottest_program": "ordered_select_checksum",
       "hottest_program_instruction_share_percent": 46.735683,
@@ -232,7 +232,7 @@
     },
     {
       "benchmark": "distance_field",
-      "compiled_equivalent_target_excess_reduction_percent": 59.296473,
+      "compiled_equivalent_target_excess_reduction_percent": 59.086811,
       "family": "float-numeric",
       "hottest_program": "main",
       "hottest_program_instruction_share_percent": 56.410349,
@@ -240,7 +240,7 @@
     },
     {
       "benchmark": "word_frequency",
-      "compiled_equivalent_target_excess_reduction_percent": 39.60079,
+      "compiled_equivalent_target_excess_reduction_percent": 40.052725,
       "family": "text-map",
       "hottest_program": "split",
       "hottest_program_instruction_share_percent": 40.23112,
@@ -248,7 +248,7 @@
     },
     {
       "benchmark": "array_slice_window",
-      "compiled_equivalent_target_excess_reduction_percent": 63.445889,
+      "compiled_equivalent_target_excess_reduction_percent": 62.839718,
       "family": "array-iterator",
       "hottest_program": "rolling_checksum",
       "hottest_program_instruction_share_percent": 63.488427,
@@ -256,7 +256,7 @@
     },
     {
       "benchmark": "reverse_complement",
-      "compiled_equivalent_target_excess_reduction_percent": 52.974522,
+      "compiled_equivalent_target_excess_reduction_percent": 53.23548,
       "family": "byte-text",
       "hottest_program": "reverse_complement_fasta",
       "hottest_program_instruction_share_percent": 53.408536,

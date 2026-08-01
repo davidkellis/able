@@ -172,48 +172,7 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		c.infer.set(e, resultType)
 		return diags, resultType
 	case *ast.IfExpression:
-		var diags []Diagnostic
-		condDiags, _ := c.checkExpression(env, e.IfCondition)
-		diags = append(diags, condDiags...)
-
-		branchTypes := make([]Type, 0, 1+len(e.ElseIfClauses))
-		if e.IfBody != nil {
-			bodyDiags, bodyType := c.checkExpression(env, e.IfBody)
-			diags = append(diags, bodyDiags...)
-			branchTypes = append(branchTypes, bodyType)
-		} else {
-			branchTypes = append(branchTypes, UnknownType{})
-		}
-
-		for _, clause := range e.ElseIfClauses {
-			if clause == nil {
-				continue
-			}
-			orCondDiags, _ := c.checkExpression(env, clause.Condition)
-			diags = append(diags, orCondDiags...)
-			if clause.Body != nil {
-				bodyDiags, bodyType := c.checkExpression(env, clause.Body)
-				diags = append(diags, bodyDiags...)
-				branchTypes = append(branchTypes, bodyType)
-			} else {
-				branchTypes = append(branchTypes, UnknownType{})
-			}
-		}
-
-		if e.ElseBody != nil {
-			elseDiags, elseType := c.checkExpression(env, e.ElseBody)
-			diags = append(diags, elseDiags...)
-			branchTypes = append(branchTypes, elseType)
-		} else {
-			// `if` without `else` yields `nil` when no branch matches, so the
-			// inferred type must remain nil-capable instead of collapsing to the
-			// body branch alone.
-			branchTypes = append(branchTypes, PrimitiveType{Kind: PrimitiveNil})
-		}
-
-		resultType := buildUnionType(branchTypes...)
-		c.infer.set(e, resultType)
-		return diags, resultType
+		return c.checkIfExpressionWithExpectedType(env, e, nil)
 	case *ast.UnaryExpression:
 		return c.checkUnaryExpression(env, e)
 	case *ast.TypeCastExpression:
@@ -333,6 +292,12 @@ func (c *Checker) checkTypeCastExpression(env *Environment, expr *ast.TypeCastEx
 		return diags, targetType
 	}
 	if _, _, ok := interfaceFromType(targetType); ok {
+		if detail := c.staticInterfaceUpcastAmbiguity(valueType, targetType); detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr.Expression,
+			})
+		}
 		// An explicit interface cast is a runtime-checked upcast. The checker
 		// may use a proven implementation for other decisions, but lack of that
 		// proof must not reject the cast itself (spec §6.3.5 C1/N3).
@@ -389,13 +354,36 @@ func (c *Checker) checkExpressionWithExpectedType(env *Environment, expr ast.Exp
 	if expr == nil || expected == nil || isUnknownType(expected) {
 		return c.checkExpression(env, expr)
 	}
+	if expectedCallable, ok := expected.(FunctionType); ok {
+		if lambda, ok := expr.(*ast.LambdaExpression); ok && lambda != nil {
+			return c.checkLambdaExpressionWithExpectedType(env, lambda, &expectedCallable)
+		}
+		if identifier, ok := expr.(*ast.Identifier); ok && identifier != nil {
+			diags, constrained, matched := c.constrainLocalLambdaArgument(
+				env,
+				identifier,
+				expectedCallable,
+			)
+			if matched {
+				c.infer.set(identifier, constrained)
+				return diags, constrained
+			}
+		}
+	}
 	if block, ok := expr.(*ast.BlockExpression); ok && block != nil {
 		return c.checkBlockExpressionWithExpectedType(env, block, expected)
 	}
 	if call, ok := expr.(*ast.FunctionCall); ok && call != nil {
 		return c.checkFunctionCallExpressionWithExpectedReturn(env, call, expected)
 	}
-	return c.checkExpression(env, expr)
+	if conditional, ok := expr.(*ast.IfExpression); ok && conditional != nil {
+		return c.checkIfExpressionWithExpectedType(env, conditional, expected)
+	}
+	diags, actual := c.checkExpression(env, expr)
+	if adopted, ok := c.adoptNumericLiteralContext(expr, actual, expected); ok {
+		return diags, adopted
+	}
+	return diags, actual
 }
 
 func (c *Checker) checkBlockExpressionWithExpectedType(env *Environment, e *ast.BlockExpression, expected Type) ([]Diagnostic, Type) {
@@ -496,6 +484,23 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 		return diags, resultType
 	}
 	if fnType, ok := calleeType.(FunctionType); ok {
+		if ident, isIdentifier := e.Callee.(*ast.Identifier); isIdentifier {
+			constraintDiags, constrained, matched := c.inferLocalLambdaInvocation(
+				env,
+				ident,
+				e.Arguments,
+				argTypesForCheck,
+				expectedReturn,
+			)
+			diags = append(diags, constraintDiags...)
+			if matched {
+				if constrainedFunction, ok := constrained.(FunctionType); ok {
+					fnType = constrainedFunction
+					calleeType = constrainedFunction
+					c.infer.set(e.Callee, constrainedFunction)
+				}
+			}
+		}
 		if isUnknownFunctionSignature(fnType) {
 			resultType = UnknownType{}
 			c.infer.set(e, resultType)
@@ -513,6 +518,41 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 			c.obligations = append(c.obligations, instantiated.Obligations...)
 		}
 		expectedParams := instantiated.Params
+		for i, argument := range argsForCheck {
+			if i >= len(expectedParams) {
+				break
+			}
+			expectedCallable, ok := expectedParams[i].(FunctionType)
+			if !ok {
+				continue
+			}
+			if lambda, ok := argument.(*ast.LambdaExpression); ok && lambda != nil {
+				lambdaDiags, lambdaType := c.checkLambdaExpressionWithExpectedType(env, lambda, &expectedCallable)
+				diags = append(diags, lambdaDiags...)
+				argTypesForCheck[i] = lambdaType
+				continue
+			}
+			if ident, ok := argument.(*ast.Identifier); ok && ident != nil {
+				constraintDiags, constrained, matched := c.constrainLocalLambdaArgument(
+					env,
+					ident,
+					expectedCallable,
+				)
+				diags = append(diags, constraintDiags...)
+				if matched {
+					argTypesForCheck[i] = constrained
+					c.infer.set(argument, constrained)
+				}
+			}
+		}
+		for i, argument := range argsForCheck {
+			if i >= len(expectedParams) {
+				break
+			}
+			if adopted, ok := c.adoptNumericLiteralContext(argument, argTypesForCheck[i], expectedParams[i]); ok {
+				argTypesForCheck[i] = adopted
+			}
+		}
 		optionalLast := false
 		if len(expectedParams) > 0 {
 			if _, ok := expectedParams[len(expectedParams)-1].(NullableType); ok {
@@ -564,10 +604,12 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 							Node:    argsForCheck[i],
 						})
 					} else {
-						diags = append(diags, Diagnostic{
-							Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypesForCheck[i]), typeName(expected)),
-							Node:    argsForCheck[i],
-						})
+						diags = append(diags, assignabilityDiagnostic(
+							fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypesForCheck[i]), typeName(expected)),
+							argsForCheck[i],
+							argTypesForCheck[i],
+							expected,
+						))
 					}
 				}
 			}
@@ -587,16 +629,21 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 		for i := 0; i < compareCount; i++ {
 			expected := expectedParams[i]
 			if !argMatches(argTypesForCheck[i], expected) {
+				if typeName(argTypesForCheck[i]) == "AutomataRepeatKind" {
+					fmt.Printf("DEBUG automata actual=%#v expected=%#v\n", argTypesForCheck[i], expected)
+				}
 				if msg, ok := literalMismatchMessage(argTypesForCheck[i], expected); ok {
 					diags = append(diags, Diagnostic{
 						Message: fmt.Sprintf("typechecker: %s", msg),
 						Node:    argsForCheck[i],
 					})
 				} else {
-					diags = append(diags, Diagnostic{
-						Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypesForCheck[i]), typeName(expected)),
-						Node:    argsForCheck[i],
-					})
+					diags = append(diags, assignabilityDiagnostic(
+						fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypesForCheck[i]), typeName(expected)),
+						argsForCheck[i],
+						argTypesForCheck[i],
+						expected,
+					))
 				}
 			}
 		}
@@ -681,6 +728,9 @@ func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement,
 	if expected == nil || isUnknownType(expected) {
 		return diags, valueType
 	}
+	if adopted, ok := c.adoptNumericLiteralContext(stmt.Expression, valueType, expected); ok {
+		valueType = adopted
+	}
 	if typeAssignable(valueType, expected) {
 		return diags, valueType
 	}
@@ -739,10 +789,12 @@ func (c *Checker) resolveApplyCall(calleeType Type, argTypes []Type, call *ast.F
 						Node:    call.Arguments[i],
 					})
 				} else {
-					diags = append(diags, Diagnostic{
-						Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(actual), typeName(expected)),
-						Node:    call.Arguments[i],
-					})
+					diags = append(diags, assignabilityDiagnostic(
+						fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(actual), typeName(expected)),
+						call.Arguments[i],
+						actual,
+						expected,
+					))
 				}
 			}
 		}
@@ -766,10 +818,12 @@ func (c *Checker) resolveApplyCall(calleeType Type, argTypes []Type, call *ast.F
 					Node:    call,
 				})
 			} else if len(t.Arguments) > 0 && t.Arguments[0] != nil && !isUnknownType(t.Arguments[0]) && !isUnknownType(argTypes[0]) && !typeAssignable(argTypes[0], t.Arguments[0]) {
-				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: argument 1 has type %s, expected %s", typeName(argTypes[0]), typeName(t.Arguments[0])),
-					Node:    call.Arguments[0],
-				})
+				diags = append(diags, assignabilityDiagnostic(
+					fmt.Sprintf("typechecker: argument 1 has type %s, expected %s", typeName(argTypes[0]), typeName(t.Arguments[0])),
+					call.Arguments[0],
+					argTypes[0],
+					t.Arguments[0],
+				))
 			}
 			return ret, diags, true
 		}

@@ -1,0 +1,10 @@
+{
+  "description": "explicit reconstruction permits top-level element widening without container coercion",
+  "expect": {
+    "stdout": [
+      "rebuilt"
+    ],
+    "exit": 0,
+    "typecheckDiagnostics": []
+  }
+}

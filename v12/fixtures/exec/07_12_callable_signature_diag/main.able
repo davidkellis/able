@@ -1,0 +1,9 @@
+package exec_07_12_callable_signature_diag
+
+fn takes(callable: (i32) -> i32) -> void {}
+
+fn small(value: i8) -> i8 { value }
+
+fn main() -> void {
+  takes(small)
+}

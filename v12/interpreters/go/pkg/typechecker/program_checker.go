@@ -42,6 +42,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 	var diagnostics []ModuleDiagnostic
 	inferred := make(map[string]InferenceMap)
 	methodSelections := make(map[string]MethodSelectionMap)
+	patternCoverage := make(map[string]PatternCoverageMap)
 	seenAliases := make(map[string]aliasDeclInfo)
 	for _, mod := range program.Modules {
 		if mod == nil || mod.AST == nil {
@@ -59,6 +60,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 		if mod.Package != "" {
 			inferred[mod.Package] = checker.Inference()
 			methodSelections[mod.Package] = checker.MethodSelections()
+			patternCoverage[mod.Package] = checker.PatternCoverage()
 		}
 
 		for _, diag := range importDiags {
@@ -95,6 +97,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 		Packages:    pc.clonePackageSummaries(),
 		Inferred:    inferred,
 		Methods:     methodSelections,
+		Coverage:    patternCoverage,
 	}, nil
 }
 

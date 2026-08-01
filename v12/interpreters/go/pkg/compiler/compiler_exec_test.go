@@ -121,7 +121,7 @@ methods Choice T {
 
 fn main() -> void {
   absent: Choice i32 = nil
-  print(absent.or_else({ => 5_i32 }).map<i32>({ value => (value as i32) + 2_i32 }).unwrap_or(0_i32))
+  print(absent.or_else(fn() -> Choice i32 { 5_i32 }).map<i32>({ value => (value as i32) + 2_i32 }).unwrap_or(0_i32))
 }
 `
 	entryPath := filepath.Join(workDir, "app.able")

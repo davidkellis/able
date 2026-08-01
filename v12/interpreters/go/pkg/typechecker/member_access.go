@@ -401,13 +401,23 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			}
 		}
 		if ty.Methods != nil {
-			if methodType, ok := c.interfaceMemberFunction(ty, nil, ty, memberName); ok {
+			if methodType, safetyDiags, ok := c.interfaceMemberFunctionForAccess(env, expr, ty, nil, ty, memberName); ok {
+				diags = append(diags, safetyDiags...)
+				if len(safetyDiags) > 0 {
+					c.infer.set(expr, UnknownType{})
+					return diags, UnknownType{}
+				}
 				final := c.finalizeMemberAccessType(expr, wrapType, methodType)
 				return diags, final
 			}
 		}
 		if res := c.interfaceFromName(ty.InterfaceName); res.err == "" {
-			if methodType, ok := c.interfaceMemberFunction(res.iface, res.args, ty, memberName); ok {
+			if methodType, safetyDiags, ok := c.interfaceMemberFunctionForAccess(env, expr, res.iface, res.args, ty, memberName); ok {
+				diags = append(diags, safetyDiags...)
+				if len(safetyDiags) > 0 {
+					c.infer.set(expr, UnknownType{})
+					return diags, UnknownType{}
+				}
 				final := c.finalizeMemberAccessType(expr, wrapType, methodType)
 				return diags, final
 			}
@@ -443,7 +453,12 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 					return diags, final
 				}
 			}
-			if methodType, ok := c.interfaceMemberFunction(iface, ty.Arguments, ty, memberName); ok {
+			if methodType, safetyDiags, ok := c.interfaceMemberFunctionForAccess(env, expr, iface, ty.Arguments, ty, memberName); ok {
+				diags = append(diags, safetyDiags...)
+				if len(safetyDiags) > 0 {
+					c.infer.set(expr, UnknownType{})
+					return diags, UnknownType{}
+				}
 				final := c.finalizeMemberAccessType(expr, wrapType, methodType)
 				return diags, final
 			}
@@ -452,7 +467,12 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 				if len(args) == 0 {
 					args = res.args
 				}
-				if methodType, ok := c.interfaceMemberFunction(res.iface, args, ty, memberName); ok {
+				if methodType, safetyDiags, ok := c.interfaceMemberFunctionForAccess(env, expr, res.iface, args, ty, memberName); ok {
+					diags = append(diags, safetyDiags...)
+					if len(safetyDiags) > 0 {
+						c.infer.set(expr, UnknownType{})
+						return diags, UnknownType{}
+					}
 					final := c.finalizeMemberAccessType(expr, wrapType, methodType)
 					return diags, final
 				}

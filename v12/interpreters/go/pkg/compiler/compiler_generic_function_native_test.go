@@ -39,6 +39,43 @@ func TestCompilerInferredGenericFunctionCallStaysNative(t *testing.T) {
 	}
 }
 
+func TestCompilerContextualGenericIntegerLiteralsUseResolvedNativeCarrier(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"fn id<T>(value: T) -> T { value }",
+		"",
+		"fn main() -> i64 {",
+		"  explicit := id<i64>(3_000_000_000)",
+		"  inferred: i64 := id(3_000_000_001)",
+		"  explicit + inferred",
+		"}",
+		"",
+	}, "\n"))
+
+	body, ok := findCompiledFunction(result, "__able_compiled_fn_main")
+	if !ok {
+		t.Fatalf("could not find compiled main function")
+	}
+	for _, fragment := range []string{
+		"__able_compiled_fn_id_spec(int64(3000000000))",
+		"__able_compiled_fn_id_spec(int64(3000000001))",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected contextual generic literal to use %q:\n%s", fragment, body)
+		}
+	}
+	for _, fragment := range []string{"runtime.Value", "new(big.Int)", "bridge.AsInt("} {
+		if strings.Contains(body, fragment) {
+			t.Fatalf("expected contextual generic literals to avoid %q:\n%s", fragment, body)
+		}
+	}
+	compiledSrc := string(result.Files["compiled.go"])
+	if !strings.Contains(compiledSrc, "func __able_compiled_fn_id_spec(value int64) (int64, *__ableControl)") {
+		t.Fatalf("expected resolved i64 generic specialization to stay native:\n%s", compiledSrc)
+	}
+}
+
 func TestCompilerGenericAliasFunctionCallsStayNative(t *testing.T) {
 	result := compileNoFallbackSource(t, strings.Join([]string{
 		"package demo",

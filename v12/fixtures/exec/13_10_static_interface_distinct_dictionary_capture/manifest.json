@@ -1,0 +1,13 @@
+{
+  "description": "separate static upcasts retain distinct visible implementations for one concrete type",
+  "setup": ["iface_defs.able", "factory_a.able", "factory_b.able"],
+  "expect": {
+    "stdout": [
+      "A:Ada",
+      "B:Bob",
+      "A:Ada",
+      "B:Bob"
+    ],
+    "exit": 0
+  }
+}

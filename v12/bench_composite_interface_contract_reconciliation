@@ -1,0 +1,671 @@
+#!/usr/bin/env python3
+"""Validate the evidence used to rebase the v12 spec performance scope."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import statistics
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+BASELINES = SCRIPT_DIR / "docs/perf-baselines"
+PREFIX = BASELINES / "2026-07-30-composite-interface-contract"
+DEFAULT_INVALIDATION = Path(f"{PREFIX}-pre-reconciliation-invalidation.json")
+DEFAULT_STATIC = Path(f"{PREFIX}-strict-static-census.json")
+DEFAULT_BOUNDARY = Path(f"{PREFIX}-boundary-audit.json")
+DEFAULT_COMPILED = Path(f"{PREFIX}-compiled-cohorts.json")
+DEFAULT_GO_FORWARD = Path(f"{PREFIX}-go-references-forward.json")
+DEFAULT_GO_REVERSE = Path(f"{PREFIX}-go-references-reverse.json")
+DEFAULT_BYTECODE_FORWARD = Path(f"{PREFIX}-bytecode-forward.json")
+DEFAULT_BYTECODE_REVERSE = Path(f"{PREFIX}-bytecode-reverse.json")
+DEFAULT_INTERPRETER_FORWARD = Path(f"{PREFIX}-interpreter-references-forward.json")
+DEFAULT_INTERPRETER_REVERSE = Path(f"{PREFIX}-interpreter-references-reverse.json")
+DEFAULT_CLOSURE_LEDGER = SCRIPT_DIR / "bench-performance-closure-ledger.json"
+DEFAULT_SELECTION = SCRIPT_DIR / "bench-selection-manifest.json"
+DEFAULT_JSON = Path(f"{PREFIX}-performance-evidence-reconciliation.json")
+DEFAULT_MARKDOWN = Path(f"{PREFIX}-performance-evidence-reconciliation.md")
+
+EXPECTED_REASON = "scope-content-drift:v12-spec"
+COMPILED_BENCHMARKS = [
+    "reverse_complement",
+    "concurrent_event_routing",
+    "distance_field",
+    "array_slice_window",
+    "quicksort",
+    "policy_record_dispatch",
+    "fib",
+    "k_nucleotide",
+    "fixed_width_128",
+    "sudoku_masks",
+]
+BYTECODE_BENCHMARKS = [
+    "reverse_complement",
+    "future_await_race",
+    "monte_carlo_pi",
+    "document_audit",
+    "nbody",
+    "config_validation_extraction",
+    "fib",
+    "i_before_e",
+    "rational_series",
+]
+LANGUAGES = ["python", "ruby"]
+RUNS_PER_COHORT = 5
+VOLATILE_SPREAD_PERCENT = 15.0
+
+
+def load(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid {label}: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be an object")
+    return value
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def display(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return str(path.resolve())
+
+
+def input_record(path: Path) -> dict[str, str]:
+    return {"path": display(path), "sha256": sha256(path)}
+
+
+def mean(values: list[float]) -> float:
+    if not values:
+        raise ValueError("cannot average an empty sample set")
+    return statistics.fmean(values)
+
+
+def spread_percent(means: list[float]) -> float:
+    if len(means) != 2 or min(means) <= 0:
+        raise ValueError("two positive cohort means are required")
+    return (max(means) / min(means) - 1.0) * 100.0
+
+
+def sample_times(samples: Any, label: str) -> list[float]:
+    if not isinstance(samples, list) or len(samples) != RUNS_PER_COHORT:
+        raise ValueError(f"{label} needs exactly five samples")
+    if any(sample.get("status") != "ok" for sample in samples):
+        raise ValueError(f"{label} contains a failed sample")
+    result = [float(sample["real_seconds"]) for sample in samples]
+    if any(value <= 0 for value in result):
+        raise ValueError(f"{label} contains a non-positive duration")
+    return result
+
+
+def validate_invalidation(value: dict[str, Any]) -> dict[str, Any]:
+    summary = value.get("summary")
+    closures = value.get("closures")
+    if (
+        value.get("kind") != "able-performance-evidence-invalidation-report"
+        or not isinstance(summary, dict)
+        or not isinstance(closures, list)
+        or summary.get("closure_count") != 23
+        or summary.get("invalidated_count") != 23
+        or summary.get("current_count") != 0
+        or summary.get("reason_counts") != {EXPECTED_REASON: 23}
+    ):
+        raise ValueError("pre-reconciliation evidence is not the 23-closure v12 spec drift")
+    if any(row.get("reasons") != [EXPECTED_REASON] for row in closures):
+        raise ValueError("a closure has an invalidation reason other than v12 spec drift")
+    return summary
+
+
+def validate_static(value: dict[str, Any], selection: dict[str, Any]) -> dict[str, Any]:
+    rows = value.get("rows")
+    summary = value.get("summary")
+    modes = selection.get("modes")
+    if (
+        value.get("kind") != "able-composite-interface-contract-strict-static-census"
+        or not isinstance(rows, list)
+        or not isinstance(summary, dict)
+        or not isinstance(modes, dict)
+    ):
+        raise ValueError("strict static census has an unexpected schema")
+    compiled = modes.get("compiled")
+    bytecode = modes.get("bytecode")
+    actual = [row.get("benchmark") for row in rows]
+    if (
+        not isinstance(compiled, list)
+        or not isinstance(bytecode, list)
+        or set(compiled) != set(bytecode)
+        or actual != compiled
+        or len(rows) != 66
+    ):
+        raise ValueError("strict static census does not cover the shared 66-source corpus")
+    for row in rows:
+        if (
+            row.get("generation_exit") != 0
+            or not row.get("strict_no_fallbacks")
+            or not row.get("matches_prior_generated_module")
+            or not row.get("matches_prior_compact_scope_counts")
+        ):
+            raise ValueError(f"{row.get('benchmark')} changed or failed strict generation")
+    expected = {
+        "selected_sources": 66,
+        "successful": 66,
+        "failed": 0,
+        "strict_no_fallbacks": True,
+        "generated_modules_matching_prior": 66,
+        "compact_scope_counts_matching_prior": 66,
+    }
+    if any(summary.get(key) != expected_value for key, expected_value in expected.items()):
+        raise ValueError("strict static census summary is incomplete")
+    return summary
+
+
+def validate_boundary(value: dict[str, Any]) -> dict[str, Any]:
+    rows = value.get("rows")
+    totals = value.get("totals")
+    if (
+        value.get("telemetry_mode") != "dynamic-boundary"
+        or value.get("benchmarks") != COMPILED_BENCHMARKS
+        or not isinstance(rows, list)
+        or len(rows) != len(COMPILED_BENCHMARKS)
+        or not isinstance(totals, dict)
+    ):
+        raise ValueError("compiled boundary audit has the wrong cohort")
+    for row in rows:
+        if (
+            row.get("status") != "ok"
+            or row.get("verification") != "verified"
+            or row.get("interpreter_dependency") is not False
+            or not row.get("strict_no_fallbacks")
+            or not isinstance(row.get("telemetry"), dict)
+        ):
+            raise ValueError(f"{row.get('benchmark')} failed a strict dependency guard")
+    if totals.get("runtime_service_call") != 0:
+        raise ValueError("review cohort unexpectedly crossed a runtime-service boundary")
+    return {
+        "benchmarks": len(rows),
+        "verified": len(rows),
+        "interpreter_dependencies": sum(
+            row["interpreter_dependency"] is not False for row in rows
+        ),
+        "telemetry_totals": totals,
+    }
+
+
+def closure_coverage(ledger: dict[str, Any]) -> list[dict[str, Any]]:
+    closures = ledger.get("closures")
+    if not isinstance(closures, list) or len(closures) != 23:
+        raise ValueError("closure ledger does not contain 23 closures")
+    compiled = set(COMPILED_BENCHMARKS)
+    bytecode = set(BYTECODE_BENCHMARKS)
+    result = []
+    for closure in closures:
+        sources = closure.get("benchmark_sources")
+        modes = closure.get("modes")
+        if not isinstance(sources, list) or not isinstance(modes, list):
+            raise ValueError("closure ledger has malformed coverage")
+        names = {Path(record["path"]).stem for record in sources}
+        selected = set()
+        if "compiled" in modes:
+            selected |= compiled
+        if "bytecode" in modes:
+            selected |= bytecode
+        hits = sorted(names & selected)
+        if not hits:
+            raise ValueError(f"review cohorts do not cover {closure.get('id')}")
+        result.append({"id": closure["id"], "modes": modes, "benchmarks": hits})
+    return result
+
+
+def reference_rows(
+    value: dict[str, Any],
+    benchmarks: list[str],
+    language: str | None,
+    label: str,
+) -> dict[str, dict[str, Any]]:
+    rows = value.get("rows")
+    if not isinstance(rows, list):
+        raise ValueError(f"{label} needs rows")
+    expected_count = len(benchmarks) if language is None else len(benchmarks) * len(LANGUAGES)
+    if len(rows) != expected_count:
+        raise ValueError(f"{label} has the wrong row count")
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        family = row.get("language_family") if language is not None else "go"
+        key = f"{row.get('benchmark')}:{family}"
+        validation = row.get("validation")
+        if (
+            row.get("requested_runs") != RUNS_PER_COHORT
+            or row.get("ok_runs") != RUNS_PER_COHORT
+            or row.get("timeouts") != 0
+            or row.get("failures") != 0
+            or not isinstance(validation, str)
+            or not validation.startswith("verified")
+        ):
+            raise ValueError(f"{label} row {key} is incomplete")
+        sample_times(row.get("samples"), f"{label} {key}")
+        result[key] = row
+    expected_keys = {
+        f"{benchmark}:{family}"
+        for benchmark in benchmarks
+        for family in (["go"] if language is None else LANGUAGES)
+    }
+    if set(result) != expected_keys:
+        raise ValueError(f"{label} has the wrong benchmark/language set")
+    return result
+
+
+def compiled_measurements(
+    compiled: dict[str, Any],
+    go_forward: dict[str, Any],
+    go_reverse: dict[str, Any],
+) -> list[dict[str, Any]]:
+    rows = compiled.get("rows")
+    if (
+        compiled.get("kind") != "able-preserved-compiled-cohorts"
+        or compiled.get("runs_per_cohort") != RUNS_PER_COHORT
+        or compiled.get("cohort_count") != 2
+        or compiled.get("ordering_policy") != "forward_then_reverse"
+        or not compiled.get("build_phase_completed_before_timing")
+        or not isinstance(rows, list)
+        or [row.get("benchmark") for row in rows] != COMPILED_BENCHMARKS
+    ):
+        raise ValueError("compiled evidence does not use the preserved two-cohort contract")
+    refs = [
+        reference_rows(go_forward, COMPILED_BENCHMARKS, None, "forward Go references"),
+        reference_rows(go_reverse, list(reversed(COMPILED_BENCHMARKS)), None, "reverse Go references"),
+    ]
+    result = []
+    for row in rows:
+        benchmark = row["benchmark"]
+        cohorts = row.get("cohorts")
+        aggregate = row.get("aggregate")
+        build_args = row.get("artifact", {}).get("build_args")
+        if (
+            not isinstance(cohorts, list)
+            or len(cohorts) != 2
+            or not isinstance(aggregate, dict)
+            or not aggregate.get("complete_and_verified")
+            or build_args != ["--no-fallbacks"]
+        ):
+            raise ValueError(f"{benchmark} has incomplete strict compiled evidence")
+        able_cohort_samples = []
+        for index, cohort in enumerate(cohorts, 1):
+            validation = cohort.get("validation")
+            if (
+                cohort.get("requested_runs") != RUNS_PER_COHORT
+                or cohort.get("ok_runs") != RUNS_PER_COHORT
+                or cohort.get("timeouts") != 0
+                or cohort.get("failures") != 0
+                or not cohort.get("complete_and_verified")
+                or not isinstance(validation, dict)
+                or validation.get("status") != "verified"
+            ):
+                raise ValueError(f"{benchmark} compiled cohort {index} is incomplete")
+            able_cohort_samples.append(
+                sample_times(cohort.get("samples"), f"{benchmark} compiled cohort {index}")
+            )
+        go_cohort_samples = [
+            sample_times(ref[f"{benchmark}:go"]["samples"], f"{benchmark} Go cohort {index}")
+            for index, ref in enumerate(refs, 1)
+        ]
+        able_means = [mean(samples) for samples in able_cohort_samples]
+        go_means = [mean(samples) for samples in go_cohort_samples]
+        able_mean = mean([value for cohort in able_cohort_samples for value in cohort])
+        go_mean = mean([value for cohort in go_cohort_samples for value in cohort])
+        result.append(
+            {
+                "benchmark": benchmark,
+                "mode": "compiled",
+                "able_samples": 10,
+                "reference_samples": {"go": 10},
+                "able_mean_seconds": able_mean,
+                "reference_means_seconds": {"go": go_mean},
+                "ratios_to_reference": {"go": able_mean / go_mean},
+                "able_cohort_spread_percent": spread_percent(able_means),
+                "reference_cohort_spread_percent": {"go": spread_percent(go_means)},
+                "volatile": max(spread_percent(able_means), spread_percent(go_means))
+                > VOLATILE_SPREAD_PERCENT,
+                "all_outputs_verified": True,
+            }
+        )
+    return result
+
+
+def bytecode_map(value: dict[str, Any], expected: list[str], label: str) -> dict[str, dict[str, Any]]:
+    rows = value.get("rows")
+    if not isinstance(rows, list) or [row.get("benchmark") for row in rows] != expected:
+        raise ValueError(f"{label} has the wrong application order")
+    result = {}
+    for row in rows:
+        able = row.get("able")
+        validation = able.get("validation") if isinstance(able, dict) else None
+        if (
+            row.get("mode") != "bytecode"
+            or not isinstance(able, dict)
+            or able.get("ok_runs") != RUNS_PER_COHORT
+            or able.get("timeouts") != 0
+            or able.get("failures") != 0
+            or not isinstance(validation, dict)
+            or validation.get("status") != "verified"
+            or validation.get("verified_runs") != RUNS_PER_COHORT
+        ):
+            raise ValueError(f"{row.get('benchmark')} has incomplete {label} evidence")
+        sample_times(able.get("samples"), f"{label} {row.get('benchmark')}")
+        result[row["benchmark"]] = row
+    return result
+
+
+def bytecode_measurements(
+    forward: dict[str, Any],
+    reverse: dict[str, Any],
+    refs_forward: dict[str, Any],
+    refs_reverse: dict[str, Any],
+) -> list[dict[str, Any]]:
+    cohorts = [
+        bytecode_map(forward, BYTECODE_BENCHMARKS, "forward bytecode"),
+        bytecode_map(reverse, list(reversed(BYTECODE_BENCHMARKS)), "reverse bytecode"),
+    ]
+    references = [
+        reference_rows(refs_forward, BYTECODE_BENCHMARKS, "interpreted", "forward interpreter references"),
+        reference_rows(
+            refs_reverse,
+            list(reversed(BYTECODE_BENCHMARKS)),
+            "interpreted",
+            "reverse interpreter references",
+        ),
+    ]
+    result = []
+    for benchmark in BYTECODE_BENCHMARKS:
+        able_samples = [
+            sample_times(cohort[benchmark]["able"]["samples"], f"{benchmark} bytecode cohort {index}")
+            for index, cohort in enumerate(cohorts, 1)
+        ]
+        reference_samples = {
+            family: [
+                sample_times(
+                    reference[f"{benchmark}:{family}"]["samples"],
+                    f"{benchmark} {family} cohort {index}",
+                )
+                for index, reference in enumerate(references, 1)
+            ]
+            for family in LANGUAGES
+        }
+        able_means = [mean(samples) for samples in able_samples]
+        able_mean = mean([value for samples in able_samples for value in samples])
+        reference_means = {
+            family: mean([value for samples in family_samples for value in samples])
+            for family, family_samples in reference_samples.items()
+        }
+        reference_spreads = {
+            family: spread_percent([mean(samples) for samples in family_samples])
+            for family, family_samples in reference_samples.items()
+        }
+        able_spread = spread_percent(able_means)
+        result.append(
+            {
+                "benchmark": benchmark,
+                "mode": "bytecode",
+                "able_samples": 10,
+                "reference_samples": {"python": 10, "ruby": 10},
+                "able_mean_seconds": able_mean,
+                "reference_means_seconds": reference_means,
+                "ratios_to_reference": {
+                    family: able_mean / reference_mean
+                    for family, reference_mean in reference_means.items()
+                },
+                "able_cohort_spread_percent": able_spread,
+                "reference_cohort_spread_percent": reference_spreads,
+                "volatile": max([able_spread, *reference_spreads.values()])
+                > VOLATILE_SPREAD_PERCENT,
+                "all_outputs_verified": True,
+            }
+        )
+    return result
+
+
+def build_report(paths: dict[str, Path] | None = None) -> dict[str, Any]:
+    paths = paths or {
+        "invalidation": DEFAULT_INVALIDATION,
+        "static": DEFAULT_STATIC,
+        "boundary": DEFAULT_BOUNDARY,
+        "compiled": DEFAULT_COMPILED,
+        "go_forward": DEFAULT_GO_FORWARD,
+        "go_reverse": DEFAULT_GO_REVERSE,
+        "bytecode_forward": DEFAULT_BYTECODE_FORWARD,
+        "bytecode_reverse": DEFAULT_BYTECODE_REVERSE,
+        "interpreter_forward": DEFAULT_INTERPRETER_FORWARD,
+        "interpreter_reverse": DEFAULT_INTERPRETER_REVERSE,
+        "closure_ledger": DEFAULT_CLOSURE_LEDGER,
+        "selection": DEFAULT_SELECTION,
+    }
+    values = {key: load(path, key.replace("_", " ")) for key, path in paths.items()}
+    invalidation = validate_invalidation(values["invalidation"])
+    static = validate_static(values["static"], values["selection"])
+    boundary = validate_boundary(values["boundary"])
+    coverage = closure_coverage(values["closure_ledger"])
+    compiled = compiled_measurements(
+        values["compiled"], values["go_forward"], values["go_reverse"]
+    )
+    bytecode = bytecode_measurements(
+        values["bytecode_forward"],
+        values["bytecode_reverse"],
+        values["interpreter_forward"],
+        values["interpreter_reverse"],
+    )
+    measurements = compiled + bytecode
+    verified_processes = (
+        sum(row["able_samples"] for row in measurements)
+        + sum(sum(row["reference_samples"].values()) for row in measurements)
+    )
+    evidence_inputs = {
+        key: input_record(path)
+        for key, path in paths.items()
+        if key not in {"closure_ledger", "selection"}
+    }
+    return {
+        "kind": "able-composite-interface-contract-performance-evidence-reconciliation",
+        "schema_version": 1,
+        "date": "2026-07-30",
+        "decision": "rebaseline-reviewed-v12-spec-scope",
+        "inputs": evidence_inputs,
+        "scope_review": {
+            "reviewed_closures": invalidation["closure_count"],
+            "sole_invalidation_reason": EXPECTED_REASON,
+            "selected_sources": static["selected_sources"],
+            "strict_generation_successes": static["successful"],
+            "generated_modules_matching_prior": static[
+                "generated_modules_matching_prior"
+            ],
+            "compact_scope_counts_matching_prior": static[
+                "compact_scope_counts_matching_prior"
+            ],
+            "boundary_guard": boundary,
+            "closure_coverage": coverage,
+        },
+        "measurement_policy": {
+            "compiled_benchmarks": COMPILED_BENCHMARKS,
+            "bytecode_benchmarks": BYTECODE_BENCHMARKS,
+            "coverage": "minimum mode-specific application sets covering all 23 closures",
+            "cohorts_per_benchmark_mode": 2,
+            "processes_per_cohort": RUNS_PER_COHORT,
+            "application_order": "forward_then_reverse",
+            "bytecode_reference_order": "python_ruby_then_ruby_python",
+            "volatile_above_cohort_spread_percent": VOLATILE_SPREAD_PERCENT,
+            "arithmetic_mean_used": True,
+        },
+        "summary": {
+            "closure_count": len(coverage),
+            "compiled_rows": len(compiled),
+            "bytecode_rows": len(bytecode),
+            "benchmark_mode_rows": len(measurements),
+            "verified_processes": verified_processes,
+            "failed_processes": 0,
+            "timed_out_processes": 0,
+            "volatile_rows": sum(bool(row["volatile"]) for row in measurements),
+            "stable_rows": sum(not row["volatile"] for row in measurements),
+            "performance_candidate_admitted": False,
+            "closure_rebaseline_admitted": True,
+        },
+        "cleanup": {
+            "disk_backed_task_workspace_kib": 1515636,
+            "project_python_cache_kib": 48,
+            "task_workspace_removed": True,
+            "project_python_cache_removed": True,
+            "ram_backed_tmp_artifacts": 0,
+        },
+        "measurements": measurements,
+        "conclusion": (
+            "All 66 shared benchmark sources remain valid under the composite-interface "
+            "Self-pattern rule, and all 66 strict generated modules plus their compact "
+            "native-boundary counts exactly match the prior census. The ten compiled and "
+            "nine bytecode set-cover cohorts provide 470 verified Able/Go/Python/Ruby "
+            "processes across all 23 closures. No production execution path changed, so "
+            "the data admit a reviewed v12-spec scope rebase and no optimization candidate."
+        ),
+        "next_lane": "interface-dictionary-capture-contract",
+    }
+
+
+def markdown(report: dict[str, Any]) -> str:
+    summary = report["summary"]
+    scope = report["scope_review"]
+    lines = [
+        "# Composite-interface contract performance-evidence reconciliation",
+        "",
+        "Date: 2026-07-30",
+        "",
+        "## Decision",
+        "",
+        f"**{report['decision']}**.",
+        "",
+        report["conclusion"],
+        "",
+        "This is an evidence rebase, not a performance win. No compiler, runtime, "
+        "interpreter, VM, stdlib, dependency, benchmark, or WASM production change is retained.",
+        "",
+        "## Scope and native-boundary proof",
+        "",
+        f"- All {scope['reviewed_closures']} closures were invalidated only by "
+        f"`{scope['sole_invalidation_reason']}`.",
+        f"- Strict generation: {scope['strict_generation_successes']}/"
+        f"{scope['selected_sources']} selected sources.",
+        f"- Generated modules matching the prior census: "
+        f"{scope['generated_modules_matching_prior']}/{scope['selected_sources']}.",
+        f"- Compact native-boundary counts matching the prior census: "
+        f"{scope['compact_scope_counts_matching_prior']}/{scope['selected_sources']}.",
+        f"- Set-cover dependency guard: {scope['boundary_guard']['verified']} verified "
+        "strict applications, zero interpreter dependencies, zero runtime-service crossings.",
+        "",
+        "## Repeated-process evidence",
+        "",
+        f"All {summary['verified_processes']} Able/reference processes verified; zero failed "
+        "or timed out. Each benchmark/mode and each reference has two opposite-order "
+        "five-process cohorts. `volatile` means at least one Able/reference cohort spread "
+        "exceeds 15%; volatile rows remain descriptive and do not admit a candidate.",
+        "",
+        "| Benchmark | Mode | Able mean | Cohort spread | Reference ratio | Volatile |",
+        "| --- | --- | ---: | ---: | --- | :---: |",
+    ]
+    for row in report["measurements"]:
+        ratios = " / ".join(
+            f"{row['ratios_to_reference'][name]:.2f}x {name.title()}"
+            for name in row["ratios_to_reference"]
+        )
+        reference_spread = max(row["reference_cohort_spread_percent"].values())
+        lines.append(
+            f"| {row['benchmark']} | {row['mode']} | "
+            f"{row['able_mean_seconds']:.4f}s | Able "
+            f"{row['able_cohort_spread_percent']:.2f}% / ref "
+            f"{reference_spread:.2f}% | {ratios} | "
+            f"{'yes' if row['volatile'] else 'no'} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Interpretation",
+            "",
+            "The new contract changes only front-end acceptance of invalid composite "
+            "interface declarations. Complete strict generation proves that no benchmark "
+            "or canonical-stdlib relationship is newly invalid. Exact generated-module and "
+            "static native-boundary equality proves there is no changed compiled execution "
+            "shape to profile as a candidate. The repeated cohorts confirm current execution "
+            "without converting workstation variance into a causal claim.",
+            "",
+            "All 23 closure families are intersected by the mode-specific set-cover cohorts. "
+            "The reviewed shared spec scope can therefore be rebased while every earlier "
+            "performance disposition remains unchanged.",
+            "",
+            "## Cleanup",
+            "",
+            "The exact 1,515,636 KiB disk-backed task workspace and 48 KiB "
+            "task-created project Python cache were removed after retaining the checked "
+            "evidence. No task artifact used RAM-backed `/tmp`, and no task-owned "
+            "workspace remains.",
+            "",
+            "## Next",
+            "",
+            "Specify the interface-dictionary capture contract at static upcasts before "
+            "attempting further native interface lowering.",
+            "",
+            "Why: generic methods, default bodies, `Self` returns, and ambiguity at upcast "
+            "remain unresolved in the v12 spec. Those semantics determine when a compiled "
+            "interface value can keep a native Go dictionary instead of falling back to a "
+            "runtime representation.",
+            "",
+            "What it entails: define dictionary capture and ambiguity rules in the spec, "
+            "add shared checker/interpreter fixtures, implement the same rule in tree-walker, "
+            "bytecode, and strict compiled lowering only where required, then rerun the "
+            "evidence selector and repeated set-cover guards. Do not begin WASM.",
+            "",
+            "Why it matters: settling the semantic boundary first makes later reductions in "
+            "boxing or compiled/interpreted crossings sound, general, and applicable to "
+            "unlike programs.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def write_or_check(path: Path, content: str, check: bool, label: str) -> None:
+    if check:
+        try:
+            existing = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            raise SystemExit(f"checked {label} is missing: {path}") from None
+        if existing != content:
+            raise SystemExit(f"checked {label} is stale: {path}")
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json-out", type=Path, default=DEFAULT_JSON)
+    parser.add_argument("--markdown-out", type=Path, default=DEFAULT_MARKDOWN)
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        report = build_report()
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise SystemExit(str(error)) from None
+    json_text = json.dumps(report, indent=2, sort_keys=True) + "\n"
+    markdown_text = markdown(report)
+    write_or_check(args.json_out, json_text, args.check, "reconciliation JSON")
+    write_or_check(args.markdown_out, markdown_text, args.check, "reconciliation Markdown")
+    print(report["decision"])
+
+
+if __name__ == "__main__":
+    main()

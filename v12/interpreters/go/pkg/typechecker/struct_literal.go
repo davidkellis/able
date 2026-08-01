@@ -236,6 +236,9 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 				})
 			}
 		}
+		if adopted, ok := c.adoptNumericLiteralContext(valueExpr, valueType, expected); ok {
+			valueType = adopted
+		}
 
 		chosen := expected
 		if (chosen == nil || isUnknownType(chosen) || isTypeParameter(chosen)) && valueType != nil && !isUnknownType(valueType) {

@@ -1,0 +1,8 @@
+{
+  "description": "an unannotated local lambda is monomorphic and rejects conflicting complete static callable constraints",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/exec/07_15_local_lambda_conflicting_constraints_diag/main.able:9:13 typechecker: local lambda 'callback' has conflicting callable constraints fn(i32) -> i32 and fn(i64) -> i64"
+    ]
+  }
+}

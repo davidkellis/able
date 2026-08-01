@@ -135,13 +135,10 @@ python3 "$ROOT_DIR/bench_cross_engine_structural_strategy_test.py"
 python3 "$ROOT_DIR/bench_portable_vm_backend_adr_test.py"
 python3 "$ROOT_DIR/bench_shared_runtime_semantic_abi_test.py"
 python3 "$ROOT_DIR/bench_shared_runtime_closed_region_cutover_test.py"
+python3 "$ROOT_DIR/bench_architecture_evidence_chain_test.py"
 "$ROOT_DIR/bench_bytecode_semantic_region_feasibility" --check
-"$ROOT_DIR/bench_bytecode_native_hot_tier_budget" --check
 "$ROOT_DIR/bench_cross_engine_architecture_budget" --check
-"$ROOT_DIR/bench_cross_engine_structural_strategy" --check
-"$ROOT_DIR/bench_portable_vm_backend_adr" --check
-"$ROOT_DIR/bench_shared_runtime_semantic_abi" --check
-"$ROOT_DIR/bench_shared_runtime_closed_region_cutover" --check
+"$ROOT_DIR/bench_architecture_evidence_chain" --check
 
 echo ">>> Checking feature-to-application coverage"
 "$ROOT_DIR/bench_feature_coverage_check"
@@ -170,6 +167,7 @@ fi
 
 COMPILER_HEAVY_RELEASE_TESTS_EGREP='^(TestCompilerExecFixtures|TestCompilerExecFixtureFallbacks|TestCompilerStrictDispatchForStdlibHeavyFixtures|TestCompilerInterfaceLookupBypassForStaticFixtures(Batch[1-4])?|TestCompilerBoundaryFallbackMarkerForStaticFixtures(Batch[0-9]+)?)$'
 COMPILER_CORE_OUTLIER_TESTS_EGREP='^TestCompiler.*ParityFixtures(Batch[0-9]+)?$'
+COMPILER_SHORT_OUTLIER_TESTS_EGREP='^TestCompilerCanonicalStdlibExpectationResultArgumentStaysConcrete$'
 
 echo ">>> Running Go tests"
 (
@@ -196,7 +194,9 @@ echo ">>> Running Go tests"
 
   run_compiler_short_batches() {
     local batch_size="$1"
+    local -a listed_tests=()
     local -a compiler_tests=()
+    local -a outlier_tests=()
     local -a batch_tests=()
     local total=0
     local batch_count=0
@@ -206,7 +206,7 @@ echo ">>> Running Go tests"
     local name=""
     local list_pattern="${FILTER:-^Test}"
 
-    mapfile -t compiler_tests < <(
+    mapfile -t listed_tests < <(
       env \
         ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
         GOCACHE="$gocache" \
@@ -214,8 +214,15 @@ echo ">>> Running Go tests"
         go test -short ./pkg/compiler -list "$list_pattern" |
         grep '^Test'
     )
+    for name in "${listed_tests[@]}"; do
+      if [[ "$name" =~ $COMPILER_SHORT_OUTLIER_TESTS_EGREP ]]; then
+        outlier_tests+=("$name")
+      else
+        compiler_tests+=("$name")
+      fi
+    done
     total=${#compiler_tests[@]}
-    if [[ "$total" -eq 0 ]]; then
+    if [[ "$total" -eq 0 && ${#outlier_tests[@]} -eq 0 ]]; then
       echo "No compiler tests found." >&2
       exit 1
     fi
@@ -239,12 +246,42 @@ echo ">>> Running Go tests"
         ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
         go test -short -timeout "$GO_TEST_TIMEOUT" ./pkg/compiler -run "$regex" -count=1
     done
+
+    for name in "${outlier_tests[@]}"; do
+      echo ">>> Running compiler short-mode outlier ${name}"
+      env \
+        ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+        GOCACHE="$gocache" \
+        ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+        go test -short -timeout "$GO_TEST_TIMEOUT" ./pkg/compiler \
+          -run "^${name}$" -count=1
+    done
+  }
+
+  run_exec_fixture_batches() {
+    local label="$1"
+    local test_name="$2"
+    local exec_mode="$3"
+    local batch_count="$4"
+    local i=0
+
+    for ((i=0; i<batch_count; i++)); do
+      echo ">>> Running ${label} batch $((i + 1))/${batch_count}"
+      env \
+        ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+        GOCACHE="$gocache" \
+        ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+        ABLE_EXEC_FIXTURE_BATCH_INDEX="$i" \
+        ABLE_EXEC_FIXTURE_BATCH_COUNT="$batch_count" \
+        go test -timeout "$GO_TEST_TIMEOUT" ./pkg/interpreter \
+          -run "^${test_name}$" -count=1 -exec-mode="$exec_mode"
+    done
   }
 
   if [[ "$RUN_ALL" == true ]]; then
     mapfile -t fast_pkgs < <(
       printf '%s\n' "${all_pkgs[@]}" |
-        grep -Ev '^able/interpreter-go/pkg/(compiler|parser)$'
+        grep -Ev '^able/interpreter-go/pkg/(compiler|interpreter|parser)$'
     )
 
     echo ">>> Running parser package with fixture corpus (full mode)"
@@ -259,14 +296,50 @@ echo ">>> Running Go tests"
       ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
       go test -short -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" "${fast_pkgs[@]}"
 
+    if [[ -z "$FILTER" ]]; then
+      echo ">>> Running interpreter package without aggregate fixture tables"
+      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+        GOCACHE="$gocache" \
+        ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+        go test -short -timeout "$GO_TEST_TIMEOUT" ./pkg/interpreter \
+          -skip '^(TestExecFixtures|TestExecFixtureParity)$' -count=1
+
+      run_exec_fixture_batches \
+        "treewalker exec fixtures" \
+        "TestExecFixtures" \
+        "treewalker" \
+        "8"
+      run_exec_fixture_batches \
+        "treewalker/bytecode exec parity" \
+        "TestExecFixtureParity" \
+        "treewalker" \
+        "8"
+    else
+      echo ">>> Running filtered interpreter package"
+      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+        GOCACHE="$gocache" \
+        ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+        go test -short -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" \
+          ./pkg/interpreter -count=1
+    fi
+
     echo ">>> Running compiler package in bounded short-mode batches"
-    run_compiler_short_batches "25"
+    run_compiler_short_batches "10"
 
     echo ">>> Running bytecode fixture pass"
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
-      GOCACHE="$gocache" \
-      ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
-      go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" ./pkg/interpreter -count=1 -exec-mode=bytecode
+    if [[ -z "$FILTER" ]]; then
+      run_exec_fixture_batches \
+        "bytecode exec fixtures" \
+        "TestExecFixtures" \
+        "bytecode" \
+        "8"
+    else
+      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \
+        GOCACHE="$gocache" \
+        ABLE_COMPILER_EXEC_GOCACHE="$gocache" \
+        go test -timeout "$GO_TEST_TIMEOUT" "${RUN_FLAG[@]}" \
+          ./pkg/interpreter -count=1 -exec-mode=bytecode
+    fi
   else
     run_go_test_base() {
       ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" \

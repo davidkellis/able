@@ -155,6 +155,7 @@ type CheckResult struct {
 	Packages    map[string]PackageSummary
 	Inferred    map[string]InferenceMap
 	Methods     map[string]MethodSelectionMap
+	Coverage    map[string]PatternCoverageMap
 }
 
 type packageExports struct {

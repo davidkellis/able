@@ -1,0 +1,184 @@
+{
+  "kind": "exact-self-benchmark-coverage-audit",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "repository_commit": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+  "decision": {
+    "status": "closed-no-natural-workload",
+    "retain_benchmark_change": false,
+    "retain_production_change": false,
+    "run_ab": false,
+    "reason": "No selected or sibling application source returns exact top-level Self through an interface value; creating or rewriting a workload solely to heat the path would be synthetic."
+  },
+  "cleanup": {
+    "task_created_var_tmp_kib_removed": 16,
+    "task_created_var_tmp_files_removed": 3,
+    "tmp_able_entries_remaining": 0,
+    "new_python_caches_remaining": 0
+  },
+  "inputs": {
+    "selection_manifest": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "5e05af7e06f328284c91639fc58e8a4ff822c637fd641b36943505dfb3822097",
+      "compiled_applications": 66,
+      "bytecode_applications": 66,
+      "unique_applications": 66
+    },
+    "scoreboard": {
+      "path": "v12/docs/perf-baselines/external-scoreboard-current.json",
+      "sha256": "3652695dc7b1576ed4729ef30a7688b171114cda9b4ce269132fd868b37849f3"
+    },
+    "external_suite": {
+      "path": "/home/david/sync/projects/benchmarks",
+      "commit": "f049e3f483cf5584681c4f0ef160eab773dea4dd",
+      "benchmark_directories": 67,
+      "verifier_files": 67,
+      "portable_selected": 66,
+      "diagnostic_only": [
+        "sudoku"
+      ],
+      "infrastructure_directories": [
+        "able-base"
+      ]
+    }
+  },
+  "coverage": {
+    "selected_interface_source_files": 11,
+    "selected_interface_declarations": 12,
+    "selected_exact_self_return_matches": 0,
+    "external_source_exact_self_return_matches_excluding_target": 0,
+    "interface_names": [
+      "Oscillator",
+      "GraphVisitor",
+      "PacketCodec",
+      "DecisionPolicy",
+      "DistanceField",
+      "SignalKernel",
+      "StateHandler",
+      "StatefulStage",
+      "FoldAlgebra",
+      "ReadableBuffer",
+      "CalibrationPolicy",
+      "ReadableWindow"
+    ],
+    "imported_exact_self_surfaces": [
+      "Clone",
+      "Default",
+      "Extend",
+      "Numeric",
+      "Fractional"
+    ],
+    "selected_clone_extend_collect_calls": 0,
+    "concrete_numeric_observation": {
+      "benchmark": "wide_integer_records",
+      "methods": [
+        "min",
+        "max",
+        "abs"
+      ],
+      "receiver_types": [
+        "UInt128",
+        "Int128"
+      ],
+      "interface_value_created": false,
+      "captured_dictionary_return_exercised": false
+    }
+  },
+  "ranked_candidates": [
+    {
+      "rank": 1,
+      "benchmark": "versioned_telemetry_pipeline",
+      "able_seconds": 2.068,
+      "go_seconds": 0.2078,
+      "able_go_ratio": 9.951876804619827,
+      "direct_native_interface_adapters": 3,
+      "verified_runs": 5,
+      "exact_self_interface_results": 0,
+      "admitted": false,
+      "reason": "Its policy and readable-window methods naturally return primitive or optional values; exact Self would replace the application contract."
+    },
+    {
+      "rank": 2,
+      "benchmark": "generic_slot_buffer",
+      "able_seconds": 0.076,
+      "go_seconds": 0.0052,
+      "able_go_ratio": 14.615384615384615,
+      "direct_native_interface_adapters": 1,
+      "verified_runs": 5,
+      "exact_self_interface_results": 0,
+      "admitted": false,
+      "reason": "ReadableBuffer.read naturally returns an optional element, not the buffer."
+    },
+    {
+      "rank": 3,
+      "benchmark": "concurrent_stateful_pipeline",
+      "able_seconds": 0.066,
+      "go_seconds": 0.0056,
+      "able_go_ratio": 11.785714285714286,
+      "direct_native_interface_adapters": 3,
+      "verified_runs": 5,
+      "exact_self_interface_results": 0,
+      "admitted": false,
+      "reason": "StatefulStage.apply naturally returns StageStep; exact Self would change state ownership and pipeline semantics."
+    },
+    {
+      "rank": 4,
+      "benchmark": "concurrent_graph_visitors",
+      "able_seconds": 0.03,
+      "go_seconds": 0.0044,
+      "able_go_ratio": 6.8181818181818175,
+      "direct_native_interface_adapters": 4,
+      "verified_runs": 5,
+      "exact_self_interface_results": 0,
+      "admitted": false,
+      "reason": "GraphVisitor.inspect naturally returns VisitState rather than the visitor."
+    },
+    {
+      "rank": 5,
+      "benchmark": "concurrent_state_machines",
+      "able_seconds": 0.026,
+      "go_seconds": 0.0048,
+      "able_go_ratio": 5.416666666666667,
+      "direct_native_interface_adapters": 4,
+      "verified_runs": 5,
+      "exact_self_interface_results": 0,
+      "admitted": false,
+      "reason": "StateHandler.apply naturally returns MachineState; exact Self would redesign the machine."
+    },
+    {
+      "rank": 6,
+      "benchmark": "wide_integer_records",
+      "able_seconds": 0.074,
+      "go_seconds": 0.0247,
+      "able_go_ratio": 2.9959514170040484,
+      "direct_native_interface_adapters": 2,
+      "verified_runs": 5,
+      "exact_self_method_names": [
+        "min",
+        "max",
+        "abs"
+      ],
+      "interface_value_created": false,
+      "admitted": false,
+      "reason": "All exact-Self numeric calls use statically concrete nominal receivers and results."
+    }
+  ],
+  "next": {
+    "objective": "Refresh interpreter-free main-phase CPU and exact-allocation profiles for the three largest current compiled absolute-excess workloads.",
+    "benchmarks": [
+      {
+        "name": "versioned_telemetry_pipeline",
+        "absolute_excess_seconds": 1.8602
+      },
+      {
+        "name": "k_nucleotide",
+        "absolute_excess_seconds": 1.5251
+      },
+      {
+        "name": "sudoku_masks",
+        "absolute_excess_seconds": 1.2476
+      }
+    ],
+    "admission_rule": "Advance only one exact generated-code or generated-runtime owner repeated in all three unlike applications, then require balanced five-or-more-pair baseline/candidate/Go verification."
+  }
+}

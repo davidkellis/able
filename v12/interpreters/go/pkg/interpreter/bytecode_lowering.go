@@ -202,6 +202,13 @@ func emitExpression(ctx *bytecodeLoweringContext, i *Interpreter, expr ast.Expre
 		ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: runtime.NilValue{}})
 		return nil
 	case *ast.IntegerLiteral:
+		if value, ok, err := i.contextualNumericLiteralValue(n); ok {
+			if err != nil {
+				return err
+			}
+			ctx.emit(bytecodeInstruction{op: bytecodeOpConst, value: value, node: n})
+			return nil
+		}
 		suffix := runtime.IntegerI32
 		if n.IntegerType != nil {
 			suffix = runtime.IntegerType(*n.IntegerType)

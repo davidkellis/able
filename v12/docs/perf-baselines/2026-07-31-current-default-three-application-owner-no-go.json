@@ -1,0 +1,219 @@
+{
+  "kind": "able-current-default-three-application-owner-closure",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-no-production-code",
+  "reason": "No exact general compiler or generated-runtime leaf is material in all three applications.",
+  "toolchain": {
+    "go": "go1.26.5 linux/amd64",
+    "ablec_sha256": "ff4dfcc2d98117f1f48e177649f3b5a2a4e593a343e034563de60d38d9c04d74",
+    "git_head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5"
+  },
+  "protocol": {
+    "strict_no_fallbacks": true,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "process_timeout_seconds": 55,
+    "cpu_affinity": "12",
+    "gomaxprocs": 1,
+    "able_cpu_profiles": 130,
+    "able_lightweight_allocation_profiles": 9,
+    "able_exact_allocation_shape_profiles": 3,
+    "go_cpu_profiles": 15,
+    "go_lightweight_allocation_profiles": 9,
+    "verified_processes": 169,
+    "all_processes_under_one_minute": true
+  },
+  "applications": [
+    {
+      "benchmark": "k_nucleotide",
+      "able_source_sha256": "933749cb33f84a88274e010f7459d027be839a42162f0d559eca8a1920aa8a2a",
+      "go_source_sha256": "8f1ec0923f819b16a7a63adbb1f3d7165c526e7df73462e8edf865d6a39c9a29",
+      "generated_main_sha256": "a473c8fb7bde297c744be72f517b0df13d89330a13a5ab8088354303117a02e1",
+      "binary_sha256": "827766a3ebf7a062af0db2de789cf50869678e3c502a83ec48ff5bfdd7128e4a",
+      "binary_bytes": 15513168,
+      "dependencies": 96,
+      "interpreter_dependency": false,
+      "stdout_sha256": "d628623daa677c00673df8d4961d14eb271b4112cdcb65b8233f07b69d7b49b8",
+      "scoreboard": {
+        "able_seconds": 1.5,
+        "go_seconds": 0.062,
+        "able_go_ratio": 24.193548387096776
+      },
+      "cpu": {
+        "able_profile_processes": 20,
+        "able_merged_samples_seconds": 41.51,
+        "go_profile_processes": 5,
+        "go_calls_per_process": 100,
+        "go_merged_samples_seconds": 27.2,
+        "owners": [
+          {"name": "primitive_hashmap_key_equal", "flat_percent": 13.01, "cumulative_percent": 16.86},
+          {"name": "primitive_hashmap_hash", "flat_percent": 6.53, "cumulative_percent": 11.3},
+          {"name": "generated_hashmap_find_entry", "flat_percent": 4.7, "cumulative_percent": 23.3},
+          {"name": "bridge_to_uint", "cumulative_percent": 26.04},
+          {"name": "bridge_to_int", "cumulative_percent": 15.2},
+          {"name": "runtime_mallocgc", "cumulative_percent": 30.57}
+        ]
+      },
+      "allocation": {
+        "able_mean_bytes": 598183514.6666666,
+        "able_mean_objects": 12232486.0,
+        "able_mean_gc": 274.6666666666667,
+        "go_mean_bytes": 4959208.0,
+        "go_mean_objects": 85.0,
+        "go_mean_gc": 2.0,
+        "exact_profile_objects": 12251704,
+        "largest_sites": [
+          {"name": "bridge.ToUint", "objects": 7999998, "percent": 65.3},
+          {"name": "bridge.ToInt", "objects": 3961373, "percent": 32.33}
+        ],
+        "boundary": "runtime-backed HashMap raw_get/raw_set"
+      }
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "able_source_sha256": "8701c4502963c99452439b882584aef3c8ea6b64bea024ae29447f75f9e6de20",
+      "go_source_sha256": "df321a44087aff77a18fc4bb8eaed98dec670a11d86e99e66b23485788197c67",
+      "generated_main_sha256": "95647b973991ef5505e576b14ba5300b831e346346b0d7d566eac5ace1564853",
+      "binary_sha256": "a6ba381dfcf663d99e547dab8983af9b19a3562cc1f0f04113846186cf83a3d9",
+      "binary_bytes": 12970680,
+      "dependencies": 96,
+      "interpreter_dependency": false,
+      "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86",
+      "scoreboard": {
+        "able_seconds": 2.25,
+        "go_seconds": 0.2057,
+        "able_go_ratio": 10.938259601361207
+      },
+      "cpu": {
+        "able_profile_processes": 10,
+        "able_merged_samples_seconds": 25.37,
+        "go_profile_processes": 5,
+        "go_calls_per_process": 10,
+        "go_merged_samples_seconds": 9.9,
+        "owners": [
+          {"name": "checked_signed_multiply", "flat_percent": 24.24},
+          {"name": "signed_divmod", "flat_percent": 16.91},
+          {"name": "checked_signed_add", "flat_percent": 11.63},
+          {"name": "runtime_mallocgc", "cumulative_percent": 19.31},
+          {"name": "adaptive_policy_adapter", "cumulative_percent": 7.96},
+          {"name": "linear_policy_adapter", "cumulative_percent": 5.68}
+        ]
+      },
+      "allocation": {
+        "able_mean_bytes": 430788288.0,
+        "able_mean_objects": 13325303.0,
+        "able_mean_gc": 351.3333333333333,
+        "go_mean_bytes": 17096.0,
+        "go_mean_objects": 21.0,
+        "go_mean_gc": 0.0,
+        "exact_profile_objects": 13357379,
+        "largest_site": {
+          "name": "fresh Sample pointer",
+          "objects": 13208878,
+          "percent": 98.89,
+          "boundary": "native specialized Array Sample storage",
+          "runtime_value_conversion": false
+        }
+      }
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "able_source_sha256": "16c408486e1f3fb1003c795b5ed0ee63b310cd2fecba4a85d9b4081c381e8d9f",
+      "go_source_sha256": "958b1a85bff5e471739a502ff0af5eaf886fade65c6601aeee74b69d8ae76b44",
+      "generated_main_sha256": "a05e248bf4d2fcb7e7e951416e1f27c4ca958ebe0b9f90aeeb01c22cf91006b2",
+      "binary_sha256": "612a7ca38897a0162b63424a1ebbc1e336ca1fc51158fda3a22f8bbffc195baa",
+      "binary_bytes": 10578648,
+      "dependencies": 96,
+      "interpreter_dependency": false,
+      "stdout_sha256": "37dc8fb8d62ba404bd385852de356d7ccbd468da2b3d20b4f0a535263d6ffcf3",
+      "scoreboard": {
+        "able_seconds": 0.14,
+        "go_seconds": 0.0092,
+        "able_go_ratio": 15.217391304347828
+      },
+      "cpu": {
+        "able_profile_processes": 100,
+        "able_merged_samples_seconds": 10.43,
+        "go_profile_processes": 5,
+        "go_calls_per_process": 200,
+        "go_merged_samples_seconds": 4.78,
+        "owners": [
+          {"name": "primitive_hashmap_key_equal", "flat_percent": 13.71, "cumulative_percent": 17.45},
+          {"name": "primitive_hashmap_hash", "flat_percent": 8.53, "cumulative_percent": 14.96},
+          {"name": "generated_hashmap_find_entry", "flat_percent": 6.04, "cumulative_percent": 37.2},
+          {"name": "bridge_to_dynamic_i64", "cumulative_percent": 21.86},
+          {"name": "runtime_mallocgc", "cumulative_percent": 14.38}
+        ]
+      },
+      "allocation": {
+        "able_mean_bytes": 14875450.666666666,
+        "able_mean_objects": 282727.6666666667,
+        "able_mean_gc": 11.0,
+        "go_mean_bytes": 296000.0,
+        "go_mean_objects": 41.0,
+        "go_mean_gc": 0.0,
+        "exact_profile_objects": 314054,
+        "largest_site": {
+          "name": "bridge.ToDynamicI64",
+          "objects": 270336,
+          "percent": 86.08,
+          "boundary": "runtime-backed HashMap and Map interface"
+        }
+      }
+    }
+  ],
+  "owner_matrix": [
+    {
+      "owner": "primitive_runtime_boxing",
+      "k_nucleotide": "dominant-runtime-hashmap",
+      "versioned_telemetry_pipeline": "absent-from-hot-sample-path",
+      "inventory_reconciliation": "dominant-runtime-hashmap",
+      "disposition": "breadth-two-and-named-container-boundary"
+    },
+    {
+      "owner": "nominal_pointer_allocation",
+      "k_nucleotide": "absent-as-shared-leaf",
+      "versioned_telemetry_pipeline": "dominant-native-array-storage",
+      "inventory_reconciliation": "absent-as-shared-leaf",
+      "disposition": "breadth-one"
+    },
+    {
+      "owner": "checked_integer_arithmetic",
+      "k_nucleotide": "not-dominant",
+      "versioned_telemetry_pipeline": "dominant",
+      "inventory_reconciliation": "small",
+      "disposition": "closed-route-and-insufficient-material-breadth"
+    },
+    {
+      "owner": "allocation_and_gc",
+      "k_nucleotide": "material-boxing-descendants",
+      "versioned_telemetry_pipeline": "material-nominal-descendant",
+      "inventory_reconciliation": "material-boxing-descendants",
+      "disposition": "aggregate-consequence-not-one-lowering-rule"
+    }
+  ],
+  "candidate": null,
+  "ab_cohort": null,
+  "production_changes": [],
+  "closed_routes_not_reopened": [
+    "interpreter and GC ballast",
+    "checked arithmetic",
+    "broad execution-context ABI",
+    "named-container rules",
+    "non-primitive nominal special cases",
+    "benchmark-specific lowering",
+    "WASM"
+  ],
+  "cleanup": {
+    "workspace": "/var/tmp/able-v12-current-owner-profile-Ael6Gj",
+    "removed_kib": 190420,
+    "ram_backed_tmp_used": false
+  },
+  "next": {
+    "tranche": "current-default whole-corpus primitive-boxing boundary census",
+    "why": "Primitive boxing is dominant in two applications but absent from the third, so current evidence cannot distinguish a HashMap-only cost from a general semantic-boundary cost.",
+    "entails": "Generate all 66 strict applications, classify primitive-to-runtime.Value conversions by semantic boundary and lowering provenance, then profile at least three unlike applications for any broadly reached non-named category before admitting a prototype.",
+    "importance": "A shared boundary category could preserve native Go primitive carriers longer and reduce representation crossings without named-container or benchmark-specific lowering."
+  }
+}

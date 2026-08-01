@@ -108,6 +108,11 @@ func (i *Interpreter) resolvePrimitiveInterfaceMethodCallable(receiver runtime.V
 	if !ok {
 		return nil, false, nil
 	}
+	if ifaceFilter == "" {
+		if method, ok := i.primitiveFixedIntegerArithmeticNativeMethod(typeName, methodName); ok {
+			return method, true, nil
+		}
+	}
 
 	switch methodName {
 	case "clone":

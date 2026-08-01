@@ -62,6 +62,9 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 		var diags []Diagnostic
 		var expected Type = UnknownType{}
 		if pat.TypeAnnotation != nil {
+			if typeExpressionContainsUnboundParameter(pat.TypeAnnotation) {
+				diags = append(diags, unboundValueTypeDiagnostic(pat.TypeAnnotation))
+			}
 			expected = c.resolveTypeReference(pat.TypeAnnotation)
 		}
 		innerType := valueType
@@ -164,6 +167,9 @@ func (c *Checker) resolveTypeReferenceWithOptions(expr ast.TypeExpression, skipA
 			}
 			if typ, ok := c.global.Lookup(name); ok {
 				if alias, ok := typ.(AliasType); ok {
+					if typeExpressionContainsUnboundParameter(alias.Definition.TargetType) {
+						c.addDiagnostic(unboundValueTypeDiagnostic(t))
+					}
 					inst, subst := instantiateAlias(alias, nil)
 					c.verifyAliasConstraints(alias, subst, t)
 					return inst

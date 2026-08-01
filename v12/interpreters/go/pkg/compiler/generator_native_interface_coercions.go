@@ -376,11 +376,11 @@ func (g *generator) nativeInterfaceWrapLines(ctx *compileContext, expected strin
 		lines = append(lines, controlLines...)
 		return lines, convertedTemp, true
 	}
-	if adapter, ok := g.nativeInterfaceAdapterForActual(info, actual); ok {
+	if adapter, ok := g.nativeInterfaceAdapterForActualInPackage(info, actual, ctx.packageName); ok {
 		return nil, fmt.Sprintf("%s(%s)", adapter.WrapHelper, expr), true
 	}
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
-		if adapter == nil || adapter.GoType == "" {
+		if adapter == nil || adapter.GoType == "" || !g.nativeInterfaceAdapterVisibleInPackage(adapter, ctx.packageName) {
 			continue
 		}
 		if g.sameNominalStructFamily(adapter.GoType, actual) {

@@ -136,6 +136,8 @@ bench-scoreboard-check:
         --selection-manifest ./v12/bench-selection-manifest.json \
         --require-runs 5
     python3 ./v12/bench_scorecard_evidence_check_test.py
+    python3 ./v12/bench_composite_interface_contract_reconciliation_test.py
+    ./v12/bench_composite_interface_contract_reconciliation --check
     ./v12/bench_performance_evidence_ledger --check
 
 # Require complete repeated Able/reference evidence for every reviewed row.
@@ -180,12 +182,18 @@ bench-architecture-budget-check:
     python3 ./v12/bench_shared_runtime_semantic_abi_test.py
     python3 ./v12/bench_bytecode_semantic_region_feasibility_test.py
     python3 ./v12/bench_bytecode_native_hot_tier_budget_test.py
+    python3 ./v12/bench_architecture_evidence_chain_test.py
     ./v12/bench_cross_engine_architecture_budget --check
-    ./v12/bench_cross_engine_structural_strategy --check
-    ./v12/bench_portable_vm_backend_adr --check
-    ./v12/bench_shared_runtime_semantic_abi --check
     ./v12/bench_bytecode_semantic_region_feasibility --check
-    ./v12/bench_bytecode_native_hot_tier_budget --check
+    ./v12/bench_architecture_evidence_chain --check
+
+# Check or safely refresh the topologically ordered architecture evidence.
+bench-architecture-evidence-chain-check:
+    python3 ./v12/bench_architecture_evidence_chain_test.py
+    ./v12/bench_architecture_evidence_chain --check
+
+bench-architecture-evidence-chain-refresh:
+    ./v12/bench_architecture_evidence_chain --refresh
 
 # Compare the remaining cross-engine structural routes without running benchmarks.
 bench-structural-strategy-check:
@@ -249,6 +257,12 @@ bench-evidence-ledger-check:
 bench-runtime-contract-reconciliation-check:
     python3 ./v12/bench_runtime_contract_reconciliation_test.py
     ./v12/bench_runtime_contract_reconciliation --check
+
+# Check the reviewed v12-spec scope rebase after the composite-interface
+# Self-pattern contract became canonical.
+bench-composite-interface-contract-reconciliation-check:
+    python3 ./v12/bench_composite_interface_contract_reconciliation_test.py
+    ./v12/bench_composite_interface_contract_reconciliation --check
 
 # Check the repeated call/return cell pilot and prove its rejected live path
 # remains fully reverted.

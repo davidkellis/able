@@ -1,0 +1,45 @@
+package exec_10_18_recursive_self_static_safety
+
+## Recursive Self is structural for concrete and constrained calls. Only an
+## exact top-level Self result is reconstructed through an interface value.
+
+struct Pair <T> { first: T, second: T }
+struct Box { value: i32 }
+
+interface DuplicatePair for Self {
+  fn duplicate_pair(self: Self) -> Pair Self
+}
+
+interface CloneView for Self {
+  fn clone(self: Self) -> Self
+  fn label(self: Self) -> String
+}
+
+impl DuplicatePair for Box {
+  fn duplicate_pair(self: Self) -> Pair Self {
+    Pair { first: self, second: self }
+  }
+}
+
+impl CloneView for Box {
+  fn clone(self: Self) -> Self { self }
+  fn label(self: Self) -> String { `box-${self.value}` }
+}
+
+fn duplicate<T: DuplicatePair>(value: T) -> Pair T {
+  value.duplicate_pair()
+}
+
+fn main() -> void {
+  box := Box { value: 7 }
+
+  direct := box.duplicate_pair()
+  print(`${direct.first.value}:${direct.second.value}`)
+
+  generic := duplicate(box)
+  print(`${generic.first.value}:${generic.second.value}`)
+
+  captured: CloneView = box
+  cloned := captured.clone()
+  print(cloned.label())
+}

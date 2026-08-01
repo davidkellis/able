@@ -9,11 +9,12 @@ func registerBuiltins(env *Environment) {
 	boolType := PrimitiveType{Kind: PrimitiveBool}
 	i32Type := IntegerType{Suffix: "i32"}
 	i64Type := IntegerType{Suffix: "i64"}
+	u8Type := IntegerType{Suffix: "u8"}
 	u64Type := IntegerType{Suffix: "u64"}
 	anyType := UnknownType{}
 	stringType := PrimitiveType{Kind: PrimitiveString}
 	charType := PrimitiveType{Kind: PrimitiveChar}
-	byteArrayType := ArrayType{Element: i32Type}
+	byteArrayType := ArrayType{Element: u8Type}
 
 	procYield := FunctionType{
 		Params: nil,

@@ -341,15 +341,16 @@ func (g *generator) renderStructTo(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "\tif err != nil {\n")
 	fmt.Fprintf(buf, "\t\treturn nil, err\n")
 	fmt.Fprintf(buf, "\t}\n")
+	typeArgs := g.renderStructRuntimeTypeArguments(info)
 	if info.Kind == ast.StructKindPositional {
-		fmt.Fprintf(buf, "\tout := &runtime.StructInstanceValue{Definition: def, Positional: make([]runtime.Value, 0, %d)}\n", len(info.Fields))
+		fmt.Fprintf(buf, "\tout := &runtime.StructInstanceValue{Definition: def, TypeArguments: %s, Positional: make([]runtime.Value, 0, %d)}\n", typeArgs, len(info.Fields))
 		fmt.Fprintf(buf, "\tseen[value] = out\n")
 		for _, field := range info.Fields {
 			g.renderValueToRuntimeWithSeen(buf, "value."+field.GoName, field.GoType, "out.Positional", "seen")
 		}
 		fmt.Fprintf(buf, "\treturn out, nil\n")
 	} else {
-		fmt.Fprintf(buf, "\tout, fields := runtime.NewStructInstancePositionalSized(def, %d, nil)\n", len(info.Fields))
+		fmt.Fprintf(buf, "\tout, fields := runtime.NewStructInstancePositionalSized(def, %d, %s)\n", len(info.Fields), typeArgs)
 		fmt.Fprintf(buf, "\t_ = fields\n")
 		fmt.Fprintf(buf, "\tseen[value] = out\n")
 		for idx, field := range info.Fields {
@@ -495,6 +496,7 @@ func (g *generator) renderStructApply(buf *bytes.Buffer, info *structInfo) {
 	fmt.Fprintf(buf, "\tinst.Definition = updated.Definition\n")
 	fmt.Fprintf(buf, "\tinst.Fields = updated.Fields\n")
 	fmt.Fprintf(buf, "\tinst.Positional = updated.Positional\n")
+	fmt.Fprintf(buf, "\tinst.TypeArguments = updated.TypeArguments\n")
 	fmt.Fprintf(buf, "\treturn nil\n")
 	fmt.Fprintf(buf, "}\n\n")
 }

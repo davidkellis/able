@@ -6,19 +6,19 @@
   "sources": {
     "spec": {
       "path": "spec/full_spec_v12.md",
-      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+      "sha256": "35fddd094cae276cc0652612dd6ed309b88ab2778ffa17e425b40949be27dd6d"
     },
     "frontier": {
       "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
+      "sha256": "96dcfc3a443b0f5de892b229a9e2a40789087c6558dbac3f58da46ce9245c25e"
     },
-  "architecture_budget": {
-    "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
+    "architecture_budget": {
+      "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
       "sha256": "6150341f26ecb9b9d4e79dc4bcf7e1743702882b09e281573ca039a74d50c15b"
     },
-  "region_feasibility": {
-    "path": "v12/docs/perf-baselines/2026-07-22-bytecode-semantic-region-tier-feasibility.json",
-      "sha256": "f541284451e2fbee038e526531658a2f0c274369ff7fe233c04b7cc0e2a07210"
+    "region_feasibility": {
+      "path": "v12/docs/perf-baselines/2026-07-22-bytecode-semantic-region-tier-feasibility.json",
+      "sha256": "2dec65210d2b13a7e7d328e5335ddb02f14907410cffed30c57ab0a255e70b4e"
     },
     "typed_region_gate": {
       "path": "v12/docs/perf-baselines/2026-07-18-bytecode-typed-loop-block-gate.md",
@@ -322,11 +322,31 @@
       "dropped_programs": 0,
       "dynamic_instructions": 60446436,
       "proof_rows": [
-        {"opcode": "LoadSlotStructField", "proof": "primitive-field-integer", "dynamic_instructions": 6816906},
-        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 5000006},
-        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 3283452},
-        {"opcode": "Cast", "proof": "primitive-numeric-cast", "dynamic_instructions": 3000000},
-        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 2000002}
+        {
+          "opcode": "LoadSlotStructField",
+          "proof": "primitive-field-integer",
+          "dynamic_instructions": 6816906
+        },
+        {
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 5000006
+        },
+        {
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare",
+          "dynamic_instructions": 3283452
+        },
+        {
+          "opcode": "Cast",
+          "proof": "primitive-numeric-cast",
+          "dynamic_instructions": 3000000
+        },
+        {
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 2000002
+        }
       ]
     },
     {
@@ -338,9 +358,21 @@
       "dropped_programs": 0,
       "dynamic_instructions": 78000165,
       "proof_rows": [
-        {"opcode": "LoadSlot", "proof": "primitive-slot-float", "dynamic_instructions": 22000024},
-        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-float-compare", "dynamic_instructions": 8000000},
-        {"opcode": "StoreSlot", "proof": "primitive-slot-float", "dynamic_instructions": 2000024}
+        {
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-float",
+          "dynamic_instructions": 22000024
+        },
+        {
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-float-compare",
+          "dynamic_instructions": 8000000
+        },
+        {
+          "opcode": "StoreSlot",
+          "proof": "primitive-slot-float",
+          "dynamic_instructions": 2000024
+        }
       ]
     },
     {
@@ -352,10 +384,26 @@
       "dropped_programs": 0,
       "dynamic_instructions": 21367576,
       "proof_rows": [
-        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 1086208},
-        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 373888},
-        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 202507},
-        {"opcode": "LoadSlotStructField", "proof": "primitive-field-integer", "dynamic_instructions": 191368}
+        {
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 1086208
+        },
+        {
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 373888
+        },
+        {
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare",
+          "dynamic_instructions": 202507
+        },
+        {
+          "opcode": "LoadSlotStructField",
+          "proof": "primitive-field-integer",
+          "dynamic_instructions": 191368
+        }
       ]
     },
     {
@@ -367,10 +415,26 @@
       "dropped_programs": 0,
       "dynamic_instructions": 17591889,
       "proof_rows": [
-        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 944384},
-        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 333976},
-        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 157215},
-        {"opcode": "LoadSlotStructField", "proof": "primitive-field-integer", "dynamic_instructions": 130879}
+        {
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 944384
+        },
+        {
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 333976
+        },
+        {
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare",
+          "dynamic_instructions": 157215
+        },
+        {
+          "opcode": "LoadSlotStructField",
+          "proof": "primitive-field-integer",
+          "dynamic_instructions": 130879
+        }
       ]
     },
     {
@@ -382,11 +446,31 @@
       "dropped_programs": 0,
       "dynamic_instructions": 8751239,
       "proof_rows": [
-        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 1020268},
-        {"opcode": "Cast", "proof": "primitive-numeric-cast", "dynamic_instructions": 612002},
-        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 312259},
-        {"opcode": "LoadImplicitSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 312001},
-        {"opcode": "StoreImplicitSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 312001}
+        {
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 1020268
+        },
+        {
+          "opcode": "Cast",
+          "proof": "primitive-numeric-cast",
+          "dynamic_instructions": 612002
+        },
+        {
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare",
+          "dynamic_instructions": 312259
+        },
+        {
+          "opcode": "LoadImplicitSlot",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 312001
+        },
+        {
+          "opcode": "StoreImplicitSlot",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 312001
+        }
       ]
     },
     {
@@ -398,10 +482,26 @@
       "dropped_programs": 0,
       "dynamic_instructions": 60602670,
       "proof_rows": [
-        {"opcode": "LoadSlot", "proof": "primitive-slot-integer", "dynamic_instructions": 6033694},
-        {"opcode": "StoreSlotNew", "proof": "primitive-slot-integer", "dynamic_instructions": 4033365},
-        {"opcode": "JumpIfBinaryCompareFalse", "proof": "primitive-integer-compare", "dynamic_instructions": 2033356},
-        {"opcode": "Cast", "proof": "primitive-numeric-cast", "dynamic_instructions": 2000288}
+        {
+          "opcode": "LoadSlot",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 6033694
+        },
+        {
+          "opcode": "StoreSlotNew",
+          "proof": "primitive-slot-integer",
+          "dynamic_instructions": 4033365
+        },
+        {
+          "opcode": "JumpIfBinaryCompareFalse",
+          "proof": "primitive-integer-compare",
+          "dynamic_instructions": 2033356
+        },
+        {
+          "opcode": "Cast",
+          "proof": "primitive-numeric-cast",
+          "dynamic_instructions": 2000288
+        }
       ]
     }
   ],
@@ -410,9 +510,24 @@
     "runs_per_row": 3,
     "retained": false,
     "rows": [
-      {"benchmark": "concurrent_event_routing", "baseline_seconds": 2.99, "candidate_seconds": 3.0833, "change_percent": 3.120401},
-      {"benchmark": "word_frequency", "baseline_seconds": 1.3967, "candidate_seconds": 1.41, "change_percent": 0.952245},
-      {"benchmark": "array_slice_window", "baseline_seconds": 0.7033, "candidate_seconds": 0.8233, "change_percent": 17.06242}
+      {
+        "benchmark": "concurrent_event_routing",
+        "baseline_seconds": 2.99,
+        "candidate_seconds": 3.0833,
+        "change_percent": 3.120401
+      },
+      {
+        "benchmark": "word_frequency",
+        "baseline_seconds": 1.3967,
+        "candidate_seconds": 1.41,
+        "change_percent": 0.952245
+      },
+      {
+        "benchmark": "array_slice_window",
+        "baseline_seconds": 0.7033,
+        "candidate_seconds": 0.8233,
+        "change_percent": 17.06242
+      }
     ],
     "disposition": "Rejected after all three unlike guard workloads regressed; the extra hint branch cost more than the narrower type switch saved."
   },

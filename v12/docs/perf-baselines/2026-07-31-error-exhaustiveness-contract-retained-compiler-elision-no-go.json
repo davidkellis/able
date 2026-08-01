@@ -1,0 +1,188 @@
+{
+  "kind": "able-error-exhaustiveness-contract-decision",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-option-a-contract-and-positive-checker-facts-reject-compiler-branch-elision",
+  "contract": {
+    "open_interface_rule": "only an unguarded universal or whole-interface typed pattern covers an open interface component",
+    "typed_binding_equals_typed_discard": true,
+    "guarded_clauses_contribute_coverage": false,
+    "concrete_implementation_enumeration_closes_interface": false,
+    "ordinary_partial_match_remains_valid": true,
+    "partial_rescue_repropagates": true
+  },
+  "retained": {
+    "specification": true,
+    "positive_only_typechecker_facts": true,
+    "cross_runtime_fixture": "v12/fixtures/exec/08_01_error_exhaustiveness_open_set",
+    "parser": false,
+    "ast": false,
+    "treewalker_execution": false,
+    "bytecode_execution": false,
+    "compiler_execution": false,
+    "runtime": false,
+    "stdlib": false,
+    "dependency": false,
+    "benchmark": false,
+    "wasm": false
+  },
+  "compiler_candidate": {
+    "rule": "omit generated non-exhaustive-match and unmatched-rescue branches after a positive checker proof",
+    "general_rule": true,
+    "baseline_ablec_sha256": "61d18ff5131badb0a3328c1576a9b5a2a1af504a7fdb9456161a1d30aec75813",
+    "candidate_ablec_sha256": "15ab1ad6bbfcaff60a6fba81022927c9b5227605b561cea4c29938479226cce7",
+    "verifier_approved_processes": 60,
+    "failures": 0,
+    "timeouts": 0,
+    "disposition": "rejected-no-broad-repeatable-runtime-improvement"
+  },
+  "applications": [
+    {
+      "benchmark": "policy_record_dispatch",
+      "workload": "interface-and-record-policy-dispatch",
+      "baseline": {
+        "generated_fallback_guards": 350,
+        "generated_go_bytes": 8966340,
+        "binary_bytes": 22125200,
+        "wall_seconds_mean": 0.073,
+        "user_seconds_mean": 0.051,
+        "gc_mean": 7.0
+      },
+      "candidate": {
+        "generated_fallback_guards": 206,
+        "generated_go_bytes": 8900709,
+        "binary_bytes": 22065120,
+        "wall_seconds_mean": 0.067,
+        "user_seconds_mean": 0.052,
+        "gc_mean": 7.4
+      },
+      "candidate_delta_percent": {
+        "generated_fallback_guards": -41.14,
+        "generated_go_bytes": -0.732,
+        "binary_bytes": -0.2715,
+        "wall_seconds": -8.219,
+        "user_seconds": 1.961
+      },
+      "go_wall_seconds_mean": 0.0051,
+      "candidate_to_go_wall_ratio": 13.14
+    },
+    {
+      "benchmark": "sensor_calibration",
+      "workload": "numeric-calibration-and-result-control",
+      "baseline": {
+        "generated_fallback_guards": 216,
+        "generated_go_bytes": 4699245,
+        "binary_bytes": 13867216,
+        "wall_seconds_mean": 0.03,
+        "user_seconds_mean": 0.016,
+        "gc_mean": 1.0
+      },
+      "candidate": {
+        "generated_fallback_guards": 165,
+        "generated_go_bytes": 4676212,
+        "binary_bytes": 13849392,
+        "wall_seconds_mean": 0.031,
+        "user_seconds_mean": 0.016,
+        "gc_mean": 0.0
+      },
+      "candidate_delta_percent": {
+        "generated_fallback_guards": -23.61,
+        "generated_go_bytes": -0.49,
+        "binary_bytes": -0.1285,
+        "wall_seconds": 3.333,
+        "user_seconds": 0.0
+      },
+      "go_wall_seconds_mean": 0.006,
+      "candidate_to_go_wall_ratio": 5.17
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "workload": "sustained-versioned-telemetry-processing",
+      "baseline": {
+        "generated_fallback_guards": 171,
+        "generated_go_bytes": 4435971,
+        "binary_bytes": 12959112,
+        "wall_seconds_mean": 2.043,
+        "user_seconds_mean": 2.009,
+        "gc_mean": 159.0
+      },
+      "candidate": {
+        "generated_fallback_guards": 155,
+        "generated_go_bytes": 4428723,
+        "binary_bytes": 12952320,
+        "wall_seconds_mean": 2.076,
+        "user_seconds_mean": 2.041,
+        "gc_mean": 159.0
+      },
+      "candidate_delta_percent": {
+        "generated_fallback_guards": -9.36,
+        "generated_go_bytes": -0.1634,
+        "binary_bytes": -0.0524,
+        "wall_seconds": 1.615,
+        "user_seconds": 1.593
+      },
+      "go_wall_seconds_mean": 0.1929,
+      "candidate_to_go_wall_ratio": 10.76
+    }
+  ],
+  "measurement": {
+    "cpu_affinity": 12,
+    "gomaxprocs": 1,
+    "timeout_seconds": 58,
+    "able_processes_per_application_and_variant": 10,
+    "balanced_cohorts": [
+      "forward-baseline-then-candidate",
+      "reverse-candidate-then-baseline"
+    ],
+    "go_reference_processes_per_application": 10,
+    "public_verifier_required": true,
+    "compiled_no_fallbacks": true
+  },
+  "pre_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 0,
+    "invalidated_count": 23,
+    "reason_counts_before_compiler_withdrawal": {
+      "scope-content-drift:v12-spec": 23,
+      "scope-content-drift:compiler-production": 12
+    },
+    "reason_counts_after_compiler_withdrawal": {
+      "scope-content-drift:v12-spec": 23
+    }
+  },
+  "post_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "compiled_selected": [],
+    "bytecode_selected": []
+  },
+  "architecture_chain": {
+    "nodes": 5,
+    "source_pin_evidence_updates": 4,
+    "checked_report_updates": 5,
+    "decision_drift": false,
+    "markdown_drift": false
+  },
+  "verification": {
+    "focused_typechecker": "pass",
+    "focused_treewalker": "pass",
+    "focused_bytecode": "pass",
+    "focused_treewalker_bytecode_parity": "pass",
+    "focused_strict_compiler": "pass",
+    "full_run_all_tests": "pass",
+    "exec_coverage_seeded": 274,
+    "fixture_directories": 275,
+    "compiler_tests": 844,
+    "canonical_compiler_outlier_seconds": 14.089,
+    "maximum_compiler_batch_seconds": 37.4,
+    "full_suite_seconds": 585.91,
+    "full_suite_peak_rss_kib": 1878412
+  },
+  "spec": {
+    "before_sha256": "e0a95d57e549a79c20db73640db2f16022ab4ab5627cf30a16eca90626c9fb35",
+    "after_sha256": "d4750c58afeb48d47405307c700fd56cc7eb0218932ab4174f60f6fffc11422a",
+    "before_scope_tree_sha256": "f669dd4445ebce3f934f6c83847700c580c25c70cef4954444002202de33186a",
+    "after_scope_tree_sha256": "53e6a3f4117ca7c46f3cb08d47eaab956a926ec5fea6174f67220c013ba72ceb"
+  }
+}

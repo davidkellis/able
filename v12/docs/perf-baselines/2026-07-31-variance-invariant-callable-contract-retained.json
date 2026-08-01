@@ -1,0 +1,73 @@
+{
+  "kind": "able-variance-invariant-callable-contract-retained",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain",
+  "language_contract": {
+    "generic_arguments": "invariant after alias normalization and substitution",
+    "callables": "equivalent complete signatures only",
+    "top_level_conversions": [
+      "numeric widening and literal fitting",
+      "union injection",
+      "nullable injection",
+      "proven unambiguous concrete-to-interface upcast"
+    ],
+    "recursive_conversion": false,
+    "declared_variance": "deferred beyond v12"
+  },
+  "implementation": {
+    "coded_diagnostics": [
+      "invariant-type-argument",
+      "callable-signature-mismatch"
+    ],
+    "compiler_fail_closed": true,
+    "runtime_adapter_added": false,
+    "interpreter_fallback_added": false,
+    "named_nominal_special_case_added": false,
+    "production_generator_changed": false,
+    "production_runtime_changed": false,
+    "external_stdlib_changed": false,
+    "wasm_changed": false
+  },
+  "strict_static_census": {
+    "record": "v12/docs/perf-baselines/2026-07-31-variance-invariant-callable-strict-static-census.json",
+    "selected_rows": 66,
+    "successful_rows": 66,
+    "failed_rows": 0,
+    "rows_matching_prior_compiled_body_boundary_categories": 66,
+    "aggregate_boundary_categories_match_authority": true,
+    "generated_module_hashes_matching_authority": 0,
+    "generated_module_hashes_changed": 66,
+    "hash_change_review": "Canonical callable parsing and exact type facts changed support/type metadata. Every row was reviewed for strict generation and complete compiled-body boundary-category equality."
+  },
+  "evidence": {
+    "focused_typechecker": "pass",
+    "focused_parser": "pass",
+    "focused_compiler": "pass",
+    "treewalker_fixtures": "pass",
+    "bytecode_fixtures": "pass",
+    "strict_compiler_fixtures": "pass",
+    "complete_fast_suite": {
+      "result": "pass",
+      "elapsed_seconds": 582.25,
+      "peak_rss_kib": 1868384,
+      "compiler_short_batches": 85,
+      "slowest_compiler_batch_seconds": 46.300,
+      "canonical_outlier_seconds": 13.939
+    },
+    "performance_ledger": "23 current closures, 0 invalidated",
+    "architecture_evidence_chain": "5 nodes current"
+  },
+  "cleanup": {
+    "disk_task_workspace_removed_kib": 7944748,
+    "ram_extern_cache_removed_kib": 36968,
+    "python_cache_removed_kib": 44,
+    "remaining_able_tmp_directories": 0
+  },
+  "next": {
+    "tranche": "monomorphic local-lambda callable-constraint closure",
+    "why": "An unannotated locally bound lambda used at incompatible static signatures can still retain an erased runtime.Value callable carrier.",
+    "entails": "Collect all static callable constraints, infer one exact signature when possible, diagnose incompatible constraints before generation, and verify the broad strict census.",
+    "importance": "Closes a remaining avoidable compiled/dynamic boundary using a general inference rule."
+  }
+}

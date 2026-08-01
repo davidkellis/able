@@ -1,0 +1,326 @@
+{
+  "kind": "able-nominal-ownership-execution",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": {
+    "disposition": "retained-opt-in-execution",
+    "diagnostic_tooling_retained": true,
+    "production_execution_change": true,
+    "storage_reuse_enabled": true,
+    "default_compilation_changed": false,
+    "carrier_selection_changed": false,
+    "runtime_changed": false,
+    "interpreter_changed": false,
+    "stdlib_changed": false,
+    "language_changed": false,
+    "wasm_changed": false
+  },
+  "execution_rule": {
+    "flag": "--experimental-nominal-ownership",
+    "direct_successor": "copy the proven fresh result into caller-owned nominal storage",
+    "embedded_successor": "reconstruct a one-field-path outer nominal result around caller-owned successor storage",
+    "native_interface_dispatch": "complete generated type switch routes every proven implementation to the same owned-result ABI",
+    "nested_successor": "use a local Go value slot until the enclosing owned result is complete",
+    "fail_closed": [
+      "parameter-origin source",
+      "dynamic or unresolved dispatch",
+      "retained alias",
+      "stored alias",
+      "returned alias",
+      "captured source",
+      "conditional or nonstraight replacement",
+      "incomplete interface implementation set",
+      "embedded result path deeper than one field"
+    ]
+  },
+  "strict_census": {
+    "selected": 66,
+    "successful": 66,
+    "failed": 0,
+    "dependency_resolved": 66,
+    "dependency_failed": 0,
+    "interpreter_linked_rows": 0,
+    "candidate_call_sites": 10,
+    "eligible_transfers": 9,
+    "eligible_direct_transfers": 7,
+    "eligible_embedded_field_transfers": 2,
+    "eligible_interface_transfers": 3,
+    "applications_with_eligible_transfers": 6,
+    "distinct_eligible_nominals": 7,
+    "generated_bytes": 288134658,
+    "generated_go_lines": 7082742,
+    "generated_files": 3316,
+    "generation_ms": {
+      "minimum": 356,
+      "maximum": 11892,
+      "mean": 3752.818181818182
+    },
+    "raw_aggregate_sha256": "4fd7450ef59d3b6809099e8dc1230ac9923f4975d60b44c6cc2153ca2af9b7c1"
+  },
+  "balanced_timing": {
+    "cohorts_per_application": 60,
+    "orders": 6,
+    "verified_processes": 900,
+    "cpu_affinity": "12-15",
+    "environment": {
+      "GOMAXPROCS": "4",
+      "GOGC": "50",
+      "GOMEMLIMIT": "1GiB"
+    },
+    "rows": [
+      {
+        "benchmark": "concurrent_graph_visitors",
+        "baseline_seconds_mean": 0.010098634,
+        "candidate_seconds_mean": 0.009300404,
+        "go_seconds_mean": 0.002967317,
+        "candidate_delta_percent": -7.9,
+        "candidate_go_ratio": 3.134
+      },
+      {
+        "benchmark": "concurrent_packet_codecs",
+        "baseline_seconds_mean": 0.011100501,
+        "candidate_seconds_mean": 0.008831773,
+        "go_seconds_mean": 0.002521753,
+        "candidate_delta_percent": -20.44,
+        "candidate_go_ratio": 3.502
+      },
+      {
+        "benchmark": "concurrent_tree_folds",
+        "baseline_seconds_mean": 0.007804195,
+        "candidate_seconds_mean": 0.0069587,
+        "go_seconds_mean": 0.002602771,
+        "candidate_delta_percent": -10.83,
+        "candidate_go_ratio": 2.674
+      },
+      {
+        "benchmark": "concurrent_audio_voices",
+        "baseline_seconds_mean": 0.014985665,
+        "candidate_seconds_mean": 0.013814706,
+        "go_seconds_mean": 0.002512086,
+        "candidate_delta_percent": -7.81,
+        "candidate_go_ratio": 5.499
+      },
+      {
+        "benchmark": "concurrent_scene_tiles",
+        "baseline_seconds_mean": 0.00807708,
+        "candidate_seconds_mean": 0.007218172,
+        "go_seconds_mean": 0.002117001,
+        "candidate_delta_percent": -10.63,
+        "candidate_go_ratio": 3.41
+      }
+    ]
+  },
+  "allocation_ab": {
+    "runs_per_product": 5,
+    "phase": "main",
+    "rows": [
+      {
+        "benchmark": "concurrent_graph_visitors",
+        "baseline_bytes_mean": 1202038.4,
+        "candidate_bytes_mean": 803896,
+        "bytes_delta_percent": -33.12,
+        "baseline_objects_mean": 46907,
+        "candidate_objects_mean": 38698.2,
+        "objects_delta_percent": -17.5
+      },
+      {
+        "benchmark": "concurrent_packet_codecs",
+        "baseline_bytes_mean": 2409574.4,
+        "candidate_bytes_mean": 567096,
+        "bytes_delta_percent": -76.46,
+        "baseline_objects_mean": 49410,
+        "candidate_objects_mean": 16620,
+        "objects_delta_percent": -66.36
+      },
+      {
+        "benchmark": "concurrent_tree_folds",
+        "baseline_bytes_mean": 929992,
+        "candidate_bytes_mean": 536990.4,
+        "bytes_delta_percent": -42.26,
+        "baseline_objects_mean": 24779.2,
+        "candidate_objects_mean": 16591.4,
+        "objects_delta_percent": -33.04
+      },
+      {
+        "benchmark": "concurrent_audio_voices",
+        "baseline_bytes_mean": 3689876.8,
+        "candidate_bytes_mean": 1591516.8,
+        "bytes_delta_percent": -56.87,
+        "baseline_objects_mean": 98546.2,
+        "candidate_objects_mean": 65775.4,
+        "objects_delta_percent": -33.25
+      },
+      {
+        "benchmark": "concurrent_scene_tiles",
+        "baseline_bytes_mean": 1197830.4,
+        "candidate_bytes_mean": 406584,
+        "bytes_delta_percent": -66.06,
+        "baseline_objects_mean": 37088.6,
+        "candidate_objects_mean": 24784,
+        "objects_delta_percent": -33.18
+      }
+    ]
+  },
+  "artifact_cost": {
+    "rows": [
+      {
+        "benchmark": "concurrent_graph_visitors",
+        "owned_variants": 14,
+        "generated_bytes_delta_percent": 0.882,
+        "binary_bytes_delta_percent": 0.286
+      },
+      {
+        "benchmark": "concurrent_packet_codecs",
+        "owned_variants": 16,
+        "generated_bytes_delta_percent": 0.963,
+        "binary_bytes_delta_percent": 0.293
+      },
+      {
+        "benchmark": "concurrent_tree_folds",
+        "owned_variants": 12,
+        "generated_bytes_delta_percent": 0.859,
+        "binary_bytes_delta_percent": 0.295
+      },
+      {
+        "benchmark": "concurrent_audio_voices",
+        "owned_variants": 10,
+        "generated_bytes_delta_percent": 0.628,
+        "binary_bytes_delta_percent": 0.232
+      },
+      {
+        "benchmark": "concurrent_scene_tiles",
+        "owned_variants": 8,
+        "generated_bytes_delta_percent": 0.465,
+        "binary_bytes_delta_percent": 0.197
+      }
+    ]
+  },
+  "sites": [
+    {
+      "benchmark": "concurrent_audio_voices",
+      "nominal": "PhaseState",
+      "eligible": false,
+      "blockers": [
+        "source-not-locally-fresh"
+      ]
+    },
+    {
+      "benchmark": "concurrent_audio_voices",
+      "nominal": "MixState",
+      "eligible": true,
+      "replacement": "direct"
+    },
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "nominal": "VisitState",
+      "eligible": true,
+      "replacement": "direct",
+      "dispatch": "native-interface"
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "nominal": "CursorState",
+      "eligible": true,
+      "replacement": "embedded-field",
+      "dispatch": "native-interface"
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "nominal": "PacketStats",
+      "eligible": true,
+      "replacement": "direct"
+    },
+    {
+      "benchmark": "concurrent_scene_tiles",
+      "nominal": "TileState",
+      "eligible": true,
+      "replacement": "direct"
+    },
+    {
+      "benchmark": "concurrent_tree_folds",
+      "nominal": "FoldState",
+      "eligible": true,
+      "replacement": "embedded-field",
+      "dispatch": "native-interface"
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "nominal": "WaveTask",
+      "eligible": true,
+      "replacement": "direct",
+      "site_count": 3
+    }
+  ],
+  "inputs": {
+    "selection": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "5e05af7e06f328284c91639fc58e8a4ff822c637fd641b36943505dfb3822097"
+    },
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
+    },
+    "compiler": {
+      "path": "v12/interpreters/go/pkg/compiler/compiler.go",
+      "sha256": "35e17b1754509aa58bda92e7d5460a82a8bfd5ef6a0c14c42cd5a3a93730f7b2"
+    },
+    "nominal_ownership": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_ownership.go",
+      "sha256": "ace3ff258199c415ef74351f91399df802f9fbcc05f79d09de99ca0bc668bddc"
+    },
+    "nominal_ownership_calls": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_ownership_calls.go",
+      "sha256": "58654c73bd0136c001710430d61ab0ac32487b36e732cc23586433524318d882"
+    },
+    "nominal_ownership_execution": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_ownership_execution.go",
+      "sha256": "52a8394aed1774d38df873231f1507954384480b02bf5a292106a59e22d249dc"
+    },
+    "nominal_ownership_execution_tests": {
+      "path": "v12/interpreters/go/pkg/compiler/compiler_nominal_ownership_execution_test.go",
+      "sha256": "bc764cf62dd6c5a941f345bde7d85027ed6694caea14c5d4092ee9ace2f706c0"
+    },
+    "native_interface_calls": {
+      "path": "v12/interpreters/go/pkg/compiler/generator_native_interface_calls.go",
+      "sha256": "d5053f9edd622d56e69bcf2cf476a899dd6a9197584e9839c7c2fea82111f681"
+    },
+    "resolved_method_calls": {
+      "path": "v12/interpreters/go/pkg/compiler/generator_resolved_method_calls.go",
+      "sha256": "f7323c0a6317d0cc969b864febe079dd0616cd28504584ce5177616f538f0955"
+    },
+    "static_named_calls": {
+      "path": "v12/interpreters/go/pkg/compiler/generator_static_named_calls.go",
+      "sha256": "c7bc03da10303850edc21f34a2b52f8d579cc5bf4c676920a22fd2eab73bcf10"
+    },
+    "ablec": {
+      "path": "v12/interpreters/go/cmd/ablec/main.go",
+      "sha256": "a1a1e9a473327545b26cac4dcc31932c5c6879868a2e32bb1dde7b92bf0e288f"
+    },
+    "census_driver": {
+      "path": "v12/bench_compiled_static_boundary_census",
+      "sha256": "948aa25389a9395bf4a8fab57faa9d3bc635c86e9247d871696a527f55786009"
+    }
+  },
+  "verification": {
+    "focused_ownership_guards_seconds": 5.055,
+    "interface_alias_result_option_guards_seconds": 39.63,
+    "ablec_tests_seconds": 5.283,
+    "generated_boundary_census_tests_seconds": 0.002,
+    "public_output_verification": true,
+    "strict_census_complete": true,
+    "dependency_census_complete": true,
+    "go_version": "go1.26.5 linux/amd64"
+  },
+  "cleanup": {
+    "final_raw_workspaces_removed_kib": 3571620,
+    "superseded_prototype_workspaces_removed_approx_gib": 2.0,
+    "remaining_ownership_task_directories": 0,
+    "remaining_tmp_able_directories": 0
+  },
+  "next": {
+    "action": "Promote the proven ownership execution rule to ordinary compiled builds while retaining an explicit diagnostic opt-out.",
+    "why": "The opt-in path improved all five unlike applications and passed all 66 strict generation and dependency rows, but ordinary users do not receive those gains yet.",
+    "entails": "Invert option plumbing, keep baseline opt-out coverage, rerun identity and interface guards, execute a broad verifier subset, repeat the 66-row strict dependency census, and refresh compiled frontier rows.",
+    "importance": "This converts a validated allocation reduction into normal compiled Able performance while preserving a controlled comparison path and the fail-closed semantic boundary."
+  }
+}

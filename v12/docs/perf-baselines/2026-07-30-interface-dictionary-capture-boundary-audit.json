@@ -1,0 +1,167 @@
+{
+  "generated_at": "2026-07-31T02:54:34.720250Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "reverse_complement",
+    "concurrent_event_routing",
+    "distance_field",
+    "array_slice_window",
+    "quicksort",
+    "policy_record_dispatch",
+    "fib",
+    "k_nucleotide",
+    "fixed_width_128",
+    "sudoku_masks"
+  ],
+  "timeout_seconds": 90,
+  "telemetry_build": true,
+  "telemetry_mode": "dynamic-boundary",
+  "rows": [
+    {
+      "benchmark": "reverse_complement",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 0,
+        "residual_polymorphic_call": 1,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 3,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "distance_field",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 1,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "array_slice_window",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 1,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 1,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "quicksort",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 21,
+        "host_abi_call": 20,
+        "residual_polymorphic_call": 21,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 2,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "fib",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 2,
+        "host_abi_call": 1,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 22,
+        "host_abi_call": 21,
+        "residual_polymorphic_call": 36,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 2,
+        "host_abi_call": 2,
+        "residual_polymorphic_call": 2,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "explicit_dynamic_call": 101,
+        "host_abi_call": 100,
+        "residual_polymorphic_call": 101,
+        "runtime_service_call": 0
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "explicit_dynamic_call": 156,
+    "residual_polymorphic_call": 169,
+    "host_abi_call": 148,
+    "runtime_service_call": 0
+  }
+}

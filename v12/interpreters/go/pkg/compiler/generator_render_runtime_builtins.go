@@ -6,6 +6,7 @@ import (
 )
 
 func (g *generator) renderRuntimeBuiltinHelpers(buf *bytes.Buffer) {
+	g.renderRuntimeIntegerMethodHelpers(buf)
 	fmt.Fprintf(buf, "func __able_slice_len[T any](items []T) int {\n")
 	fmt.Fprintf(buf, "\treturn len(items)\n")
 	fmt.Fprintf(buf, "}\n\n")

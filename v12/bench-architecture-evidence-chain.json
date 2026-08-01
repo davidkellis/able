@@ -1,0 +1,57 @@
+{
+  "kind": "able-architecture-evidence-chain",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "bytecode-native-hot-tier",
+      "generator": "v12/bench_bytecode_native_hot_tier_budget",
+      "evidence": "v12/bench-bytecode-native-hot-tier-design.json",
+      "checked_json": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
+      "checked_markdown": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.md",
+      "dependencies": []
+    },
+    {
+      "id": "cross-engine-structural-strategy",
+      "generator": "v12/bench_cross_engine_structural_strategy",
+      "evidence": "v12/bench-cross-engine-structural-strategy.json",
+      "checked_json": "v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.json",
+      "checked_markdown": "v12/docs/perf-baselines/2026-07-22-cross-engine-structural-strategy-reconciliation.md",
+      "dependencies": [
+        "bytecode-native-hot-tier"
+      ]
+    },
+    {
+      "id": "portable-vm-backend-adr",
+      "generator": "v12/bench_portable_vm_backend_adr",
+      "evidence": "v12/bench-portable-vm-backend-adr.json",
+      "checked_json": "v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
+      "checked_markdown": "v12/design/portable-vm-backend-abi.md",
+      "dependencies": [
+        "bytecode-native-hot-tier",
+        "cross-engine-structural-strategy"
+      ]
+    },
+    {
+      "id": "shared-runtime-semantic-abi",
+      "generator": "v12/bench_shared_runtime_semantic_abi",
+      "evidence": "v12/bench-shared-runtime-semantic-abi.json",
+      "checked_json": "v12/docs/perf-baselines/2026-07-22-shared-runtime-semantic-abi-feasibility.json",
+      "checked_markdown": "v12/design/shared-runtime-semantic-abi-feasibility.md",
+      "dependencies": [
+        "bytecode-native-hot-tier",
+        "portable-vm-backend-adr"
+      ]
+    },
+    {
+      "id": "shared-runtime-closed-region",
+      "generator": "v12/bench_shared_runtime_closed_region_cutover",
+      "evidence": "v12/bench-shared-runtime-closed-region-cutover.json",
+      "checked_json": "v12/docs/perf-baselines/2026-07-22-shared-runtime-closed-region-cutover-decision.json",
+      "checked_markdown": "v12/design/shared-runtime-closed-region-cutover.md",
+      "dependencies": [
+        "bytecode-native-hot-tier",
+        "shared-runtime-semantic-abi"
+      ]
+    }
+  ]
+}

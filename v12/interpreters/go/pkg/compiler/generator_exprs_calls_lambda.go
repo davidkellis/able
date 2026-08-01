@@ -266,7 +266,7 @@ func (g *generator) compileDynamicCall(ctx *compileContext, call *ast.FunctionCa
 						lines = append(lines, controllerLines...)
 						return lines, expr, retType, true
 					}
-					if intrLines, expr, retType, ok := g.compileArrayMethodIntrinsicCall(ctx, callee.Object, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
+					if intrLines, expr, retType, ok := g.compilePrimitiveMethodIntrinsicCall(ctx, callee.Object, objExpr, objType, ident.Name, call.Arguments, expected, callNode); ok {
 						lines = append(lines, intrLines...)
 						return lines, expr, retType, true
 					}

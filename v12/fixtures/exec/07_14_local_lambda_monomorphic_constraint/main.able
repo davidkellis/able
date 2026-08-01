@@ -1,0 +1,12 @@
+package exec_07_14_local_lambda_monomorphic_constraint
+
+fn apply(callback: i32 -> i32, value: i32) -> i32 {
+  callback(value)
+}
+
+fn main() -> void {
+  callback := { value => value }
+  left := apply(callback, 20)
+  right := apply(callback, 22)
+  print(left + right)
+}

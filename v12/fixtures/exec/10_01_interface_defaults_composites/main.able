@@ -16,6 +16,8 @@ interface Greeter {
   fn greet(self: Self) -> String { "hello" }
 }
 
+interface NamedGreeter for T = Named + Greeter
+
 struct Note { label: String }
 struct Badge {}
 
@@ -24,6 +26,8 @@ impl Named for Note {
 }
 
 impl Tagged for Note {}
+
+impl Greeter for Note {}
 
 impl Greeter for Badge {}
 
@@ -34,6 +38,10 @@ fn main() -> void {
   combo: NamedTagged = note
   print(combo.name())
   print(combo.tag())
+
+  mixed: NamedGreeter = note
+  print(mixed.name())
+  print(mixed.greet())
 
   badge: Greeter = Badge {}
   print(badge.greet())

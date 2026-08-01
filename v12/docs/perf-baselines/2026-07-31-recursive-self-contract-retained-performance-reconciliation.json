@@ -1,0 +1,127 @@
+{
+  "kind": "able-recursive-self-contract-retained-performance-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-option-a-and-atomically-rebaseline-reviewed-scopes",
+  "contract": {
+    "known_receiver_substitution": "structural-and-recursive",
+    "dynamic_safe": [
+      "exact dispatch receiver Self",
+      "exact top-level Self result",
+      "types without Self"
+    ],
+    "static_only": "every other non-receiver Self occurrence",
+    "recursive_constraints": "finite canonical proof graph with anchored identical back-edges"
+  },
+  "active_source_audit": {
+    "parsed_files": 760,
+    "parse_failures": 0,
+    "ordinary_nested_self_results": 1,
+    "ordinary_nested_self_result": "Integral.div_mod -> DivModResult Self",
+    "audited_existential_calls": 0,
+    "proposal_evidence": {
+      "path": "v12/docs/perf-baselines/2026-07-31-recursive-self-semantics-proposal.json",
+      "sha256": "75390a7f4079c2c0fa8d665d3ad3f85d1543cd0bada92b2b8f3471cb95024a92"
+    }
+  },
+  "strict_static_census": {
+    "selected": 66,
+    "successful": 66,
+    "failed": 0,
+    "generation_seconds": {
+      "minimum": 0.312,
+      "maximum": 11.366,
+      "arithmetic_mean": 3.520409090909091
+    },
+    "generated_module_hashes_matching_prior": 66,
+    "aggregate_boundary_categories_matching_prior": 15,
+    "interpreter_dependency_in_retained_guards": false,
+    "current_report_sha256": "3d75e4f9f746e8f4ed2c6405437d64f0f87c320292e25c8c2517dc0fd3a7e14f",
+    "comparison_authority": {
+      "path": "v12/docs/perf-baselines/2026-07-30-interface-dictionary-capture-strict-static-census.json",
+      "sha256": "ba115b6965135d45494090d8c7bba51c2cf076aba8f731579c0334bc11daf0b4"
+    }
+  },
+  "invalidation": {
+    "selected_closures": 23,
+    "reasons": [
+      "scope-content-drift:v12-spec",
+      "scope-content-drift:compiler-production"
+    ],
+    "report": {
+      "path": "v12/docs/perf-baselines/2026-07-31-recursive-self-contract-pre-reconciliation-invalidation.json",
+      "sha256": "5ae75014782442901601d157a289a62ded2a78b82b06d1709d4f409e6fa53a76"
+    }
+  },
+  "verification": {
+    "typechecker_package": "pass",
+    "interpreter_exec_fixtures_and_parity": "pass",
+    "focused_compiler": "pass",
+    "cmd_ablec": "pass",
+    "fixture_export_check": "pass",
+    "canonical_integral_div_mod": {
+      "treewalker": "pass",
+      "bytecode": "pass",
+      "strict_compiled": "pass",
+      "output": [
+        "3:2",
+        "3:2"
+      ]
+    },
+    "monolithic_compiler_package": {
+      "status": "aggregate-timeout",
+      "timeout_seconds": 900,
+      "named_active_rows_independent_seconds": 4.9,
+      "semantic_failures_reported": 0,
+      "authoritative_gate": "bounded release compiler lane"
+    },
+    "bounded_compiler_release_lane": {
+      "status": "pass",
+      "elapsed_seconds": 5161.91,
+      "peak_rss_kib": 2791020,
+      "per_process_timeout_seconds": 120,
+      "lanes": [
+        "compiler bridge",
+        "compiler core batches",
+        "compiler core outliers",
+        "fallback audit",
+        "full compiled fixture matrix",
+        "strict-dispatch audit",
+        "interface-lookup audit",
+        "boundary audit"
+      ]
+    },
+    "cleanup": {
+      "disk_backed_task_workspace_removed_kib": 26284576,
+      "ram_backed_extern_cache_removed_kib": 22900,
+      "remaining_tmp_able_paths": 0,
+      "remaining_var_tmp_able_paths": 0
+    }
+  },
+  "performance_conclusion": {
+    "valid_generated_execution_changed": false,
+    "optimization_candidate_admitted": false,
+    "closure_dispositions_changed": false
+  },
+  "production_changes_excluded": [
+    "parser",
+    "ast",
+    "interpreter execution",
+    "bytecode vm",
+    "runtime",
+    "canonical stdlib",
+    "dependency",
+    "benchmark",
+    "frozen workspace",
+    "wasm",
+    "recursive boxing",
+    "variance",
+    "named-container lowering"
+  ],
+  "next": {
+    "goal": "Use the reconciled selector and admit performance work only after a real checked invalidation names an exact shared owner.",
+    "why": "The retained correctness contract leaves all 66 valid generated modules byte-for-byte unchanged.",
+    "entails": "Keep the ledger and architecture chain green; after a real trigger, refresh only named closures and require repeated verifier-backed evidence across at least three unlike applications.",
+    "importance": "This keeps native lowering work focused on genuine boxing or compiled/interpreted boundaries rather than a correctness-only scope hash."
+  }
+}

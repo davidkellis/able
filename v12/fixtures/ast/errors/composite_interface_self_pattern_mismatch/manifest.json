@@ -1,0 +1,12 @@
+{
+  "description": "Composite interface self pattern must be compatible with every explicit base self pattern",
+  "expect": {
+    "result": {
+      "kind": "nil"
+    },
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/ast/errors/composite_interface_self_pattern_mismatch/source.able:5:40 typechecker: composite interface 'StringComposite' self type 'String' is incompatible with base interface 'IntegerOnly' self type 'i32'"
+    ]
+  },
+  "entry": "module.json"
+}

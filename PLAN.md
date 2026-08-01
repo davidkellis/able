@@ -40,13 +40,15 @@ bytecode comparison is
 
 Start from:
 
-- `v12/docs/perf-baselines/2026-07-30-guarded-generated-local-cleanup-retained.md`
-- `v12/docs/perf-baselines/2026-07-30-post-readiness-release-consolidation-inventory.md`
-- `v12/docs/perf-baselines/2026-07-30-extern-plugin-toolchain-release-readiness-retained.md`
-- `v12/docs/perf-baselines/2026-07-30-full-compiled-static-native-boundary-census.md`
-- `v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md`
-- `v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md`
-- `v12/docs/perf-baselines/2026-07-21-performance-evidence-invalidation-ledger.md`
+- `v12/docs/perf-baselines/2026-07-31-rank1-interface-hkt-static-boundary-retained.md`
+- `v12/docs/perf-baselines/2026-07-31-fixed-integer-alternative-arithmetic-retained.md`
+- `v12/docs/perf-baselines/2026-07-31-integer-literal-contextual-native-carrier-retained.md`
+- `v12/docs/perf-baselines/2026-07-31-variance-invariant-v12-editorial-reconciliation-retained.md`
+- `v12/docs/perf-baselines/2026-07-31-block-comment-contract-editorial-reconciliation-retained.md`
+- `v12/docs/perf-baselines/2026-07-31-mode-aware-release-correctness-gate-retained.md`
+- `v12/docs/perf-baselines/2026-07-31-current-default-primitive-boxing-boundary-census-no-go.md`
+- `v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md`
+- `v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md`
 - `v12/docs/perf-baselines/external-scoreboard-current.md`
 - `v12/docs/perf-baselines/2026-07-24-static-interpreter-package-cut-retained.md`
 
@@ -54,43 +56,34 @@ The chronological completed state is in `LOG.md` and `v12/LOG.md`. Detailed
 performance decisions live under `v12/docs/perf-baselines/`; completed task
 narratives do not belong in this plan.
 
-Strict fallback-free compiled applications must remain interpreter-free.
-Primitive native carriers, shared nominal lowering, explicit dynamic-boundary
-boxing, the fail-closed active fixture-target policy, and the full-mode parser
-fixture lane remain authoritative.
-
-The guarded cleanup removed the four inventoried generated paths and
-1,742,116 KiB of reproducible cache state after proving that they contained no
-tracked files and had no active process owner. The final release candidate is
-112 paths after the cleanup records are included. Its complement is exactly
-the unchanged 34-path deferred WASM boundary; no generated-local or unmatched
-path remains.
-
-The current scorecard contains 66 compiled and 66 bytecode rows. The combined
-frontier has ten guards, 122 misses, zero actionable groups, and 277.200421
-seconds of aggregate target excess. All 23 checked closures are current with
-zero invalidations. The completed boundary census admits no new safe lowering
-mechanism shared by three unlike applications.
+All 23 performance-evidence closures are current. The default compiled corpus
+has 66/66 verifier-backed rows, 66/66 resolved strict dependency graphs, and
+zero interpreter links. Nine compiled rows now have established target guards;
+57 remain misses. The full compiled Able/Go geometric-mean ratio is 4.2187x,
+while 8 of the 11 rows with Go runtimes above 100 ms meet the target.
 
 ### Next tranche
 
-Verify the authorized exact local consolidation, then obtain explicit
-maintainer authorization before publishing it.
+Resolve the remaining shared-data race and ownership guidance for v12
+concurrency.
 
-Why: the exact 112-path staging and one local commit are authorized, but no
-remote mutation is authorized.
+Why: `spawn` already maps to Go goroutines and Able nominal values already use
+native carriers, but the language does not yet state whether unsynchronized
+shared mutation is invalid, undefined, or dynamically checked. Leaving that
+open makes native compiled concurrency behavior and interpreter behavior hard
+to align without accidentally introducing defensive copies or runtime checks.
 
-What it entails: confirm the local commit is exactly one ahead of
-`origin/master`, has parent `418886c70aee64b92b5bb3266ee5fe6453ac4320`,
-contains exactly the reviewed 112 paths, leaves an empty index, and preserves
-the unchanged 34-path deferred WASM worktree. Then, only if separately
-authorized, push that one commit to the intended remote branch. Do not use a
-broad refspec, reset, rewrite history, or touch WASM.
+What it entails: inventory captures, mutable nominal carriers, channels,
+mutexes, interpreter scheduling, and compiled goroutine lowering; select the
+race-free source contract in the spec first; then add only the diagnostics,
+cross-engine fixtures, or native-lowering guards required by that decision.
 
-Why it matters: independent post-commit verification protects the exact
-native-carrier and interpreter-free boundary, while separate publication
-authorization prevents deferred WASM or an unintended ref from reaching
-shared history.
+Why it matters: a source-level race and ownership rule can preserve direct
+native Go references and synchronization while avoiding implicit copying,
+boxing, or a runtime ownership layer at the compiled/interpreted boundary.
+
+The completed inference/HKT tranche is recorded in
+`v12/docs/perf-baselines/2026-07-31-rank1-interface-hkt-static-boundary-retained.md`.
 
 Do not repeat closed checked-arithmetic, Array, frame, stack, register,
 call/member/index, GC, launch-floor, or global default execution-context

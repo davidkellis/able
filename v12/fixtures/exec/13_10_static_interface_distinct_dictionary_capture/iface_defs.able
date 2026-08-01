@@ -1,0 +1,8 @@
+package iface_defs
+
+struct Item { label: String }
+
+interface Renderable for Self {
+  fn duplicate(self: Self) -> Self
+  fn render(self: Self) -> String
+}

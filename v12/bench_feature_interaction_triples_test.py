@@ -244,7 +244,7 @@ class FeatureInteractionTripleTests(unittest.TestCase):
         self.assertEqual(summary["improved_triples"], 165)
         self.assertAlmostEqual(
             summary["performance_frontier_total_excess_seconds"],
-            278.369263,
+            277.200421,
             places=6,
         )
 

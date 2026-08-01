@@ -1,0 +1,13 @@
+{
+  "description": "open Error coverage treats typed bindings as catch-alls while concrete and guarded handlers remain refutable",
+  "expect": {
+    "stdout": [
+      "ok 7",
+      "error first",
+      "other second",
+      "outer second",
+      "guard zero"
+    ],
+    "exit": 0
+  }
+}

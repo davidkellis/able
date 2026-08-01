@@ -678,7 +678,7 @@ func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromSlots(entry *bytecodeCall
 					} else if ok {
 						arg = coerced
 					} else {
-						coerced, err := vm.interp.coerceValueToType(paramType, arg)
+						coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, entry.inlineFn.Closure)
 						if err != nil {
 							vm.releaseSlotFrame(slots)
 							vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
@@ -750,7 +750,7 @@ func (vm *bytecodeVM) tryInlineCachedCallNameDirectFromStack(entry *bytecodeCall
 				} else if ok {
 					arg = coerced
 				} else {
-					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, entry.inlineFn.Closure)
 					if err != nil {
 						vm.releaseSlotFrame(slots)
 						vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)

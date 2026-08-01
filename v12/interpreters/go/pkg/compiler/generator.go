@@ -106,6 +106,9 @@ type generator struct {
 	goPreludeDecls                      []string
 	inferredTypes                       map[string]typechecker.InferenceMap
 	callerOwnedResults                  map[*functionInfo]*structInfo
+	nominalOwnershipExecutionSites      map[*ast.FunctionCall]*nominalOwnershipExecutionSite
+	nominalOwnershipVariants            map[*functionInfo]*nominalOwnershipVariant
+	nominalOwnershipInterfaceDispatches map[string]*nominalOwnershipInterfaceDispatch
 	environmentIndependent              map[*functionInfo]bool
 	environmentIndependentGoNames       map[string]bool
 	typedBoundaryShapes                 []typedBoundaryShape

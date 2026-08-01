@@ -32,8 +32,12 @@ type Checker struct {
 	localTypeNames       map[string]struct{}
 	functionDecls        map[*ast.FunctionDefinition]FunctionType
 	methodSelections     MethodSelectionMap
+	patternCoverage      PatternCoverageMap
 	activeMemberAccess   *ast.MemberAccessExpression
 	lastMethodSelection  MethodSelection
+	constraintProofs     map[string]*constraintProof
+	constraintProofStack []string
+	inferredTypeLabels   map[ast.TypeExpression]Type
 
 	builtinImplementations []ImplementationSpec
 	pendingDiagnostics     []Diagnostic
@@ -48,6 +52,16 @@ const (
 	SeverityWarning DiagnosticSeverity = "warning"
 )
 
+// DiagnosticCode identifies diagnostics that downstream tools must handle
+// semantically rather than by matching their human-readable message.
+type DiagnosticCode string
+
+const (
+	DiagnosticCodeStaticOnlyInterfaceMethod DiagnosticCode = "static-only-interface-method"
+	DiagnosticCodeInvariantTypeArgument     DiagnosticCode = "invariant-type-argument"
+	DiagnosticCodeCallableSignatureMismatch DiagnosticCode = "callable-signature-mismatch"
+)
+
 // DiagnosticNote captures secondary context for a diagnostic.
 type DiagnosticNote struct {
 	Message string
@@ -57,6 +71,7 @@ type DiagnosticNote struct {
 // Diagnostic represents a type-checking error or warning.
 type Diagnostic struct {
 	Severity DiagnosticSeverity
+	Code     DiagnosticCode
 	Message  string
 	Node     ast.Node
 	Notes    []DiagnosticNote
@@ -83,12 +98,14 @@ type ExportedSymbol struct {
 // New returns a checker instance.
 func New() *Checker {
 	c := &Checker{
-		infer:            make(InferenceMap),
-		methodSelections: make(MethodSelectionMap),
-		global:           NewEnvironment(nil),
-		nodeOrigins:      nil,
-		returnTypeStack:  nil,
-		rescueDepth:      0,
+		infer:              make(InferenceMap),
+		methodSelections:   make(MethodSelectionMap),
+		patternCoverage:    make(PatternCoverageMap),
+		inferredTypeLabels: make(map[ast.TypeExpression]Type),
+		global:             NewEnvironment(nil),
+		nodeOrigins:        nil,
+		returnTypeStack:    nil,
+		rescueDepth:        0,
 	}
 	c.initBuiltinInterfaces()
 	return c
@@ -128,6 +145,15 @@ func (c *Checker) MethodSelections() MethodSelectionMap {
 	return c.methodSelections.Clone()
 }
 
+// PatternCoverage exposes positive exhaustiveness facts from the last checked
+// module.
+func (c *Checker) PatternCoverage() PatternCoverageMap {
+	if c == nil {
+		return nil
+	}
+	return c.patternCoverage.Clone()
+}
+
 // CheckModule performs typechecking on a module AST and returns diagnostics.
 func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	if module == nil {
@@ -136,8 +162,12 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	// Reset inference map between runs.
 	c.infer = make(InferenceMap)
 	c.methodSelections = make(MethodSelectionMap)
+	c.patternCoverage = make(PatternCoverageMap)
 	c.activeMemberAccess = nil
 	c.lastMethodSelection = MethodSelection{}
+	c.constraintProofs = make(map[string]*constraintProof)
+	c.constraintProofStack = nil
+	c.inferredTypeLabels = make(map[ast.TypeExpression]Type)
 	c.returnTypeStack = nil
 	c.functionGenericStack = nil
 	c.rescueDepth = 0

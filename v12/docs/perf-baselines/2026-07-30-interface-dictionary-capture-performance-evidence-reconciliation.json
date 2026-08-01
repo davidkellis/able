@@ -1,0 +1,69 @@
+{
+  "kind": "able-interface-dictionary-capture-performance-evidence-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "rebaseline-reviewed-interface-dictionary-production-scopes",
+  "inputs": {
+    "pre_invalidation": "c14bb547cb03e17a764c2df0f9bf6f04e4084dfa9995ae09a32bc94d665856a7",
+    "strict_static_census": "2026-07-30-interface-dictionary-capture-strict-static-census.json",
+    "boundary_audit": "1f02e13fd996877c9c9c154a8bc576c887f155f07f30cd4b1a1bd26bbcce103c",
+    "compiled_cohorts": "6ff23dd610e3dc52ea3eca9850605e88fd8c1533a77197850c321978043a3450",
+    "go_references_forward": "7c05573084ef73403431ebfd146ee734f681a67301c50ff2a4d7ffc032a2e60c",
+    "go_references_reverse": "f33d60195f599ae2f1b41bc72a3748b06d8a459d4240ffa5c98dca91daca41fe",
+    "bytecode_forward": "a95a85fd01cc64e0cb92b5842507470edeac01f72ae8f1dff756e5575132c2e0",
+    "bytecode_reverse": "9c2a9a2ead396cc4b7c6d6a0309e0d4647c9140682691c217dd16289ae0bd360",
+    "interpreter_references_forward": "92d43b8911ddfb60cac64b326f57c8074646d4bc69353934c3ab638eeacf1c9f",
+    "interpreter_references_reverse": "5cd27e1ebfefc6b61e3b2f0128715c649262afeb5b232c8f1d05615edba1f104"
+  },
+  "scope_review": {
+    "closure_count": 23,
+    "invalidated_count_before_reconciliation": 23,
+    "strict_generation_successes": 66,
+    "strict_generation_failures": 0,
+    "boundary_verified": 10,
+    "interpreter_dependencies": 0,
+    "runtime_service_calls": 0
+  },
+  "measurement_policy": {
+    "cpu_affinity_pool": "12,13,14,15",
+    "cohorts_per_benchmark_mode": 2,
+    "processes_per_cohort": 5,
+    "application_order": "forward_then_reverse",
+    "volatile_above_cohort_spread_percent": 15,
+    "arithmetic_mean_used": true,
+    "host_state": "sustained-unrelated-load; cohort agreement required; no causal speed claim"
+  },
+  "summary": {
+    "compiled_rows": 10,
+    "bytecode_rows": 9,
+    "verified_processes": 470,
+    "failed_processes": 0,
+    "timed_out_processes": 0,
+    "volatile_rows": 5,
+    "stable_rows": 14,
+    "performance_candidate_admitted": false,
+    "closure_rebaseline_admitted": true
+  },
+  "measurements": [
+    {"benchmark":"reverse_complement","mode":"compiled","able_mean_seconds":0.044,"able_cohort_spread_percent":20.0,"ratios":{"go":1.36},"volatile":true},
+    {"benchmark":"concurrent_event_routing","mode":"compiled","able_mean_seconds":0.036,"able_cohort_spread_percent":25.0,"ratios":{"go":2.98},"volatile":true},
+    {"benchmark":"distance_field","mode":"compiled","able_mean_seconds":0.035,"able_cohort_spread_percent":33.33,"ratios":{"go":1.13},"volatile":true},
+    {"benchmark":"array_slice_window","mode":"compiled","able_mean_seconds":0.030,"able_cohort_spread_percent":0.0,"ratios":{"go":2.90},"volatile":false},
+    {"benchmark":"quicksort","mode":"compiled","able_mean_seconds":1.803,"able_cohort_spread_percent":3.96,"ratios":{"go":0.39},"volatile":false},
+    {"benchmark":"policy_record_dispatch","mode":"compiled","able_mean_seconds":0.075,"able_cohort_spread_percent":14.29,"ratios":{"go":6.25},"volatile":false},
+    {"benchmark":"fib","mode":"compiled","able_mean_seconds":3.590,"able_cohort_spread_percent":1.69,"ratios":{"go":0.68},"volatile":false},
+    {"benchmark":"k_nucleotide","mode":"compiled","able_mean_seconds":1.504,"able_cohort_spread_percent":4.63,"ratios":{"go":12.38},"volatile":false},
+    {"benchmark":"fixed_width_128","mode":"compiled","able_mean_seconds":0.094,"able_cohort_spread_percent":13.64,"ratios":{"go":7.89},"volatile":false},
+    {"benchmark":"sudoku_masks","mode":"compiled","able_mean_seconds":1.500,"able_cohort_spread_percent":7.18,"ratios":{"go":1.21},"volatile":false},
+    {"benchmark":"reverse_complement","mode":"bytecode","able_mean_seconds":3.943,"able_cohort_spread_percent":51.95,"ratios":{"python":130.78,"ruby":50.09},"volatile":true},
+    {"benchmark":"future_await_race","mode":"bytecode","able_mean_seconds":0.135,"able_cohort_spread_percent":4.55,"ratios":{"python":4.45,"ruby":2.59},"volatile":true},
+    {"benchmark":"monte_carlo_pi","mode":"bytecode","able_mean_seconds":2.420,"able_cohort_spread_percent":2.85,"ratios":{"python":1.61,"ruby":1.52},"volatile":false},
+    {"benchmark":"document_audit","mode":"bytecode","able_mean_seconds":0.281,"able_cohort_spread_percent":3.62,"ratios":{"python":20.03,"ruby":6.35},"volatile":false},
+    {"benchmark":"nbody","mode":"bytecode","able_mean_seconds":8.878,"able_cohort_spread_percent":0.41,"ratios":{"python":40.45,"ruby":25.98},"volatile":false},
+    {"benchmark":"config_validation_extraction","mode":"bytecode","able_mean_seconds":1.218,"able_cohort_spread_percent":3.00,"ratios":{"python":70.59,"ruby":31.06},"volatile":false},
+    {"benchmark":"fib","mode":"bytecode","able_mean_seconds":0.184,"able_cohort_spread_percent":4.44,"ratios":{"python":0.04,"ruby":0.04},"volatile":false},
+    {"benchmark":"i_before_e","mode":"bytecode","able_mean_seconds":0.468,"able_cohort_spread_percent":0.86,"ratios":{"python":5.37,"ruby":3.81},"volatile":false},
+    {"benchmark":"rational_series","mode":"bytecode","able_mean_seconds":3.940,"able_cohort_spread_percent":0.20,"ratios":{"python":37.78,"ruby":28.88},"volatile":false}
+  ],
+  "next_lane": "interface-heavy-native-dictionary-runtime-reach"
+}

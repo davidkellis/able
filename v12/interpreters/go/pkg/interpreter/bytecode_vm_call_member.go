@@ -568,6 +568,9 @@ func (vm *bytecodeVM) execCallMember(instr bytecodeInstruction, currentProgram *
 	if callNode != nil {
 		traceNode = callNode
 	}
+	if interfaceValue, ok := receiver.(*runtime.InterfaceValue); ok && vm.interp.interfaceMethodReturnsSelf(interfaceValue, instr.name) {
+		return vm.execInterfaceSelfReturnMember(instr, interfaceValue, receiverIndex, argBase, callNode)
+	}
 	statsEnabled := vm.interp != nil && vm.interp.bytecodeStatsEnabled
 	useMethodCache := vm.canUseMemberMethodCacheForReceiver(instr.name, true, receiver)
 

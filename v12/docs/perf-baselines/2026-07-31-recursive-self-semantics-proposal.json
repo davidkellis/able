@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "status": "proposal_complete_decision_pending",
+  "recommended_option": "per_method_object_safety_with_recursive_static_substitution",
+  "source_fingerprints": {
+    "spec/full_spec_v12.md": "d4750c58afeb48d47405307c700fd56cc7eb0218932ab4174f60f6fffc11422a",
+    "v12/interpreters/go/pkg/typechecker/type_substitution.go": "29c913688c77f317e8a3fe099d9833fe43936035aff819ebb34ca0313b695c21",
+    "v12/interpreters/go/pkg/compiler/generator_native_interface_shapes.go": "a274c10dfb336d0e1deed53f4953c9797114b45a6c1afb42ca487b9f26cf560e",
+    "v12/interpreters/go/pkg/interpreter/interface_self_returns.go": "4dd8260572eb9b346667e8337b5781ef2ff701da648a3a9bf8ad0cc3d44be147",
+    "../able-stdlib/src/core/numeric.able": "f6b3d35f6fcff9542453f112a0d09dbb90dee4594ccc95bf1df989587b3f2513"
+  },
+  "source_roots": [
+    "v12/fixtures",
+    "v12/examples",
+    "../able-stdlib/src"
+  ],
+  "census": {
+    "able_files": 760,
+    "parse_failures": 0,
+    "interface_signature_occurrences": {
+      "exact_self_parameters": 162,
+      "higher_kinded_self_parameters": 3,
+      "exact_top_level_self_results": 19,
+      "higher_kinded_self_results": 2,
+      "ordinary_nested_nominal_self_results": 1,
+      "interface_where_clauses_containing_self": 0
+    },
+    "ordinary_nested_result": {
+      "path": "../able-stdlib/src/core/numeric.able",
+      "interface": "Integral",
+      "method": "div_mod",
+      "result": "DivModResult Self",
+      "dynamic_calls_found": 0
+    }
+  },
+  "recommendation": {
+    "recursive_static_substitution": true,
+    "object_safety_is_per_method": true,
+    "exact_top_level_self_result_dynamic": true,
+    "nested_self_result_dynamic": false,
+    "non_receiver_self_parameter_dynamic": false,
+    "recursive_value_lifting": false,
+    "named_nominal_lowering": false,
+    "recursive_constraint_rule": "finite_canonical_obligation_graph_with_anchored_identical_back_edges"
+  },
+  "reproduction": {
+    "temporary_cases": 4,
+    "typecheck_passes": 4,
+    "treewalker_passes": 4,
+    "bytecode_passes": 4,
+    "strict_compiled": {
+      "direct_recursive_constraint": "pass",
+      "nested_nominal_result_build": "pass",
+      "nested_nominal_result_execution": "return type mismatch: expected DuplicatePair",
+      "nested_nullable_result": "rejected_two_fallbacks",
+      "nested_nullable_parameter": "rejected_one_fallback"
+    },
+    "nested_nominal_graph_contains_interpreter": false
+  },
+  "verification": {
+    "focused_typechecker_seconds": 0.003,
+    "focused_interpreter_seconds": 0.043,
+    "focused_compiler_seconds": 2.262,
+    "full_suite": {
+      "passed": true,
+      "wall_seconds": 769.83,
+      "peak_rss_kib": 1322092,
+      "seeded_exec_fixtures": 274,
+      "planned_exec_fixtures": 0,
+      "fixture_directories": 275,
+      "scorecard_rows": 132,
+      "actionable_frontier_groups": 0,
+      "compiler_tests": 844,
+      "canonical_compiler_outlier_seconds": 14.213,
+      "slowest_bounded_compiler_batch_seconds": 46.769
+    },
+    "performance_closures": 23,
+    "performance_invalidations": 0,
+    "compiled_selection": null,
+    "bytecode_selection": null,
+    "architecture_chain_current": true
+  },
+  "cleanup": {
+    "task_workspace_removed_kib": 2566140,
+    "task_inventory_removed": true
+  },
+  "production_behavior_changed": false,
+  "specification_changed": false,
+  "stdlib_changed": false,
+  "wasm_changed": false
+}

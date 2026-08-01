@@ -1,0 +1,8 @@
+{
+  "description": "runtime value annotations reject unbound type constructors",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/exec/04_01_hkt_static_boundary_diag/main.able:4:11 typechecker: runtime value types must bind every type argument; type constructors are limited to interface self patterns, implementation targets, and type aliases"
+    ]
+  }
+}

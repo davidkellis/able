@@ -167,7 +167,7 @@ Defines how raw text is converted into tokens.
 *   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas.
 *   **Operators:** Symbols with specific meanings (See Section [6.3](#63-operators)). Includes assignment/declaration operators `:=` and `=`.
 *   **Literals:** Source code representations of fixed values (See Section [4.2](#42-primitive-types) and Section [6.1](#61-literals)).
-*   **Comments:** Line comments start with `##` and continue to the end of the line. Block comment syntax is TBD.
+*   **Comments:** Line comments start with `##` and continue to the end of the line. Block comments are not supported (see §6.9).
     ```able
     x := 1 ## Assign 1 to x (line comment)
     ```
@@ -241,7 +241,7 @@ A type expression is the syntactic representation used in the Able source code t
     *   The wildcard placeholder `_` is explicitly used in its position. See Section [4.4](#44-reserved-identifier-_-in-types).
 *   **Concrete Type:** A type expression denotes a **concrete type** if *all* of its inherent type parameters (and those of any nested types) are bound to specific types or type variables. Values can only have concrete types.
     *   Examples: `i32`, `String`, `Array bool`, `Map String (Array i32)`, `Point`, `?String`.
-*   **Polymorphic Type / Type Constructor:** A type expression denotes a **polymorphic type** (or acts as a **type constructor**) if it has one or more unbound type parameters. Type constructors cannot be the type of a runtime value directly but are used in contexts like interface implementations (`impl Mappable A for Array`) or potentially as type arguments themselves (if full HKTs are supported). Interface-typed existentials such as `Display` are concrete runtime types; `Display _` (an interface with an unbound parameter) is not a concrete type unless all its parameters are bound. When using interface names in type positions (existential/dynamic types), all interface type parameters must be fully bound. For example, `Display` is valid, `Display String` (if parameterized) is valid, but `Mappable _` is not a valid type and cannot appear in type positions.
+*   **Polymorphic Type / Type Constructor:** A type expression denotes a **polymorphic type** (or acts as a **type constructor**) if it has one or more unbound type parameters. Type constructors are compile-time expressions, never runtime values. V12 permits them only in type-constructor aliases, explicit interface self patterns, and the matching implementation targets described in §§4.1.7 and 10.2.3. They are not ordinary type arguments. Interface-typed existentials such as `Display` are concrete runtime types; `Display _` (an interface with an unbound parameter) is not a concrete type unless all its parameters are bound. When using interface names in type positions (existential/dynamic types), all interface type parameters must be fully bound. For example, `Display` is valid, `Display String` (if parameterized) is valid, but `Mappable _` is not a valid type and cannot appear in type positions.
     *   Examples:
         *   `Array` (parameter is unspecified) - represents the "Array-ness" ready to accept an element type.
         *   `Array _` (parameter explicitly unbound) - same as above.
@@ -332,16 +332,49 @@ Type constraints restrict the types that can be used for a generic type paramete
 - There is no general structural subtyping in Able. Interface implementations do not create a static subtyping lattice. Instead, use:
   - Algebraic unions for disjunction of alternatives.
   - Existential/interface types for dynamic dispatch views.
-- Type argument inference occurs at function call sites from argument and expected return types. It does not permit leaving unbound parameters in value annotations. Where the compiler cannot infer generics, specify them explicitly, e.g., `identity<i64>(0)`.
+- Type argument inference is rank-1 and local to one function, method, or
+  struct-literal call. It unifies the complete invariant argument shapes and
+  then the expected result shape. It neither generalizes a local value binding
+  nor infers a type parameter's kind from an application such as `F T`.
+- Every ordinary type parameter has value-type kind: after substitution it
+  denotes one fully bound type. All call-site type arguments must therefore
+  resolve to concrete types. Where inference cannot bind every parameter,
+  specify concrete arguments explicitly, e.g., `identity<i64>(0)`, or reject
+  the call.
+- Higher-rank and impredicative inference are not part of v12. A polymorphic
+  callable may be introduced only by an explicitly generic function or
+  anonymous-function declaration; an unannotated local lambda remains
+  monomorphic as specified in §7.2.2.
 
 #### 4.1.7. Variance, Coercion, and Higher-Kinded Types (minimal rules)
 
 - Variance:
-  - Type parameters are invariant unless a type explicitly declares variance in its definition (TBD syntax). Stdlib containers are invariant by default (`Array T` is invariant in `T`).
+  - All type parameters are invariant in v12. V12 provides no syntax for declaring covariance or contravariance, so no type can opt out of invariance. A conversion valid for `A` to `B` does not imply a conversion from `F A` to `F B`; this includes stdlib containers (`Array T` is invariant in `T`). Function types likewise require equivalent complete signatures; v12 defines neither parameter contravariance nor result covariance.
 - Coercion:
   - There is no implicit subtyping-based coercion. Coercions occur only via explicit constructors/conversions or unions (upcast into a union). Numeric widening follows operator rules in §6.3.2; no silent narrowing.
 - HKTs (higher-kinded interfaces):
-  - Supported at the interface level via `for M _` patterns (e.g., `interface Mappable A for M _`). Implementations target type constructors as in §10.2.3. HKTs for concrete types beyond interface usage (e.g., first-class type constructors in arbitrary positions) are intentionally limited and may be expanded later.
+  - V12 has one higher-kinded form: an explicit interface self pattern such as
+    `for M _` (or a multi-parameter pattern containing additional `_`
+    positions). The pattern binds `M` as a compile-time constructor within
+    that interface. `Self A` and `M A` may appear in its signatures, defaults,
+    constraints, and matching implementation validation.
+  - An implementation supplies the constructor through its bare target, as in
+    `impl Mappable A for Array`. Selection from a concrete receiver fixes that
+    constructor before a call is lowered. The constructor is not inferred as
+    an ordinary call-site type argument and is not carried at runtime.
+  - A type alias may contain `_` and thereby name a compile-time constructor.
+    Such an alias is not a valid parameter, field, local, or return annotation
+    until every parameter is bound. A parameterized alias such as
+    `type Items T = Array T` is the ordinary way to produce concrete alias
+    applications.
+  - Ordinary generic parameters cannot be applied as constructors (`F T`),
+    and a bare or partially applied constructor cannot be passed as an
+    ordinary type argument. V12 has no first-class constructor values,
+    constructor-valued fields, higher-rank constructor arguments, kind
+    inference, or runtime constructor dictionaries.
+  - The only erased `_` value signatures are explicit host `extern`/kernel
+    ABI declarations. They mark a deliberate dynamic host boundary and do not
+    extend the source-language HKT system.
 
 ### 4.2. Primitive Types
 
@@ -1081,6 +1114,20 @@ Typed patterns refine a match by requiring the value to conform to a given type.
     ```
 *   **Semantics**: Acts as a runtime type guard within `match`/`rescue`. This does not introduce new static subtyping; it narrows within the matched branch only.
 
+Static refutability is always relative to the subject's resolved static type.
+An unguarded `_` or binding identifier is irrefutable. A typed binding and a
+typed discard have identical coverage: either is irrefutable for a subject
+domain wholly contained by its annotation. A struct pattern is irrefutable for
+an exact struct domain only when each present nested pattern and type
+annotation is irrefutable; unmentioned named fields do not make it refutable.
+Ordinary Array patterns are refutable because an Array type does not prove its
+runtime length. A guard makes its complete clause refutable for static
+coverage, regardless of the pattern.
+
+Refutable patterns remain legal in assignment and declaration. Static
+irrefutability is a positive optimization fact, not an acceptance requirement.
+When no proof is available, implementations retain the runtime mismatch path.
+
 Typed patterns in `:=`/`=`:
 
 - Typed patterns are also permitted on the left-hand side of `:=` and `=` within struct, array, or standalone identifier patterns. The assignment/declaration succeeds only if the runtime value conforms to the annotated type; otherwise evaluation yields an `Error` value (for example `"Typed pattern mismatch in assignment"`).
@@ -1185,13 +1232,13 @@ Literals are the source code representation of fixed values.
 #### 6.1.1. Integer Literals
 
 -   **Syntax:** A sequence of digits `0-9`. Underscores `_` can be included anywhere except the start/end for readability and are ignored. Prefixes `0x` (hex), `0o` (octal), `0b` (binary) are supported.
--   **Type:** By default, integer literals are inferred as `i32` (this default is configurable/TBC). Type suffixes can explicitly specify the type: `_i8`, `_u8`, `_i16`, `_u16`, `_i32`, `_u32`, `_i64`, `_u64`, `_i128`, `_u128`.
+-   **Type:** An unsuffixed integer literal with no resolving context defaults to `i32`. This v12 default is fixed and is not configurable. A resolving numeric context may adopt the literal when it fits, as defined below. Type suffixes can explicitly specify the type: `_i8`, `_u8`, `_i16`, `_u16`, `_i32`, `_u32`, `_i64`, `_u64`, `_i128`, `_u128`.
 -   **Examples:** `123`, `0`, `1_000_000`, `42_i64`, `255_u8`, `0xff`, `0b1010_1111`, `0o777_i16`.
 
 ##### Literal Typing & Context
 
 1.  **Default types:** Unsuffixed integer literals start life as `i32`. Float literals default to `f64` (see §6.1.2). These defaults apply only when no other information constrains the literal.
-2.  **Explicit suffix wins:** Supplying a suffix (`42_u8`, `0xff_i64`) locks the literal to that type. Subsequent contexts must accept that exact type; otherwise compilation fails.
+2.  **Explicit suffix wins:** Supplying a suffix (`42_u8`, `0xff_i64`) locks the literal's source type. It never contextually adopts another type. Subsequent contexts must accept that source type through ordinary assignability (including a permitted widening); otherwise compilation fails.
 3.  **Contextual adoption:** When a literal appears in a context that requires a specific integer type (variable declaration with annotation, parameter type, struct field, return expression, typed pattern, etc.), the compiler attempts to adopt that type. Adoption succeeds if—and only if—the literal’s value fits within the target type’s representable range. Otherwise it is a compile-time error (`"literal 300 does not fit in u8"`).
     *   **Examples:**
         ```able
@@ -1206,7 +1253,7 @@ Literals are the source code representation of fixed values.
 6.  **No hidden rounding:** Integer literals never auto-convert to floats unless the context explicitly requires a floating-point type (e.g., `f64`, `f32`). In such contexts, the literal adopts the requested float type with an exact conversion if representable; otherwise the value is rounded according to IEEE-754 rules.
 7.  **Diagnostics:**
     -   Literal-too-wide for context ⇒ compile-time error pointing to the literal and the expected type.
-    -   Literal used with no resolving context and exceeding the default type (e.g., `3_000_000_000` with default `i32`) ⇒ compile-time error unless a suffix or explicit context is supplied.
+    -   Literal used with no resolving context and exceeding the default type (e.g., `3_000_000_000` with default `i32`) ⇒ remains an `i32`-typed literal and raises `OverflowError` when evaluated unless a suffix or explicit context is supplied. Implementations may diagnose the inevitable overflow earlier.
     -   Tooling SHOULD surface notes suggesting adding a suffix or annotation when inference stalls.
 
 #### 6.1.2. Floating-Point Literals
@@ -1402,7 +1449,35 @@ Operators are evaluated in a specific order determined by precedence (higher bin
     *   Integer overflow (O1):
         -   Checked by default. On overflow in `+`, `-`, `*`, raises a runtime exception `OverflowError { message: "integer overflow" }`.
         -   Division and remainder by zero already raise `DivisionByZeroError`.
-        -   Library provides explicit alternatives (names TBD): `wrapping_add/sub/mul`, `saturating_add/sub/mul`, `checked_add/sub/mul -> ?T` for performance-critical or specific semantics.
+        -   Every fixed-width integer type `T` (`i8`, `i16`, `i32`, `i64`,
+            `i128`, `u8`, `u16`, `u32`, `u64`, and `u128`) provides these
+            intrinsic instance methods:
+            -   `wrapping_add(self: T, rhs: T) -> T`
+            -   `wrapping_sub(self: T, rhs: T) -> T`
+            -   `wrapping_mul(self: T, rhs: T) -> T`
+            -   `saturating_add(self: T, rhs: T) -> T`
+            -   `saturating_sub(self: T, rhs: T) -> T`
+            -   `saturating_mul(self: T, rhs: T) -> T`
+            -   `checked_add(self: T, rhs: T) -> ?T`
+            -   `checked_sub(self: T, rhs: T) -> ?T`
+            -   `checked_mul(self: T, rhs: T) -> ?T`
+        -   These methods do not apply numeric promotion: receiver and
+            argument must have the same concrete integer type. The ordinary
+            left-to-right method-call evaluation order applies, and each
+            operand is evaluated exactly once.
+        -   Wrapping arithmetic computes the mathematical result modulo
+            `2^N`, where `N` is the type width. A signed result reinterprets
+            that bit pattern using two's-complement representation.
+        -   Saturating arithmetic returns the exact mathematical result when
+            representable and otherwise clamps to the type's minimum or
+            maximum value.
+        -   Checked arithmetic returns the exact result when representable and
+            `nil` on overflow. It does not raise `OverflowError` for arithmetic
+            overflow.
+        -   These names are reserved intrinsic methods on the primitive
+            integer types. User method sets and implementations cannot replace
+            their behavior. They do not change the raising semantics of the
+            corresponding operators.
 *   **Comparison (`>`, `<`, `>=`, `<=`, `==`, `!=`):** Compare values, result `bool`. Equality/ordering behavior relies on standard library interfaces (`PartialEq`, `Eq`, `PartialOrd`, `Ord`). See §14.
 *   **Logical (`&&`, `||`, `!`):**
     *   Truthiness-based semantics (see §6.11). All operands are accepted; values are interpreted for truthiness.
@@ -2325,6 +2400,10 @@ fn process(x: i32) -> String {
 
 - Generic parameters in `fn` definitions may be omitted at call sites; the compiler infers them from argument types and, when needed, the expected return type at the call site.
 - The expected type may come from assignment targets, explicit type annotations, or return positions (explicit `return` or implicit final-expression returns). This expected type participates in generic inference for the call expression so chained calls (e.g., `iter.collect()`) can infer their output type from the enclosing context.
+- Inference is invariant and rank-1. It binds ordinary parameters to concrete
+  types only; it does not infer that an ordinary parameter is a type
+  constructor from syntax such as `F T`, and it does not pass polymorphic
+  constructors between calls.
 - Annotations in value positions must be concrete. To accept values of a polymorphic family (e.g., any `Array T`), introduce a generic parameter and use it in the annotation: `fn f<T>(xs: Array T) { ... }`.
 - When inference is insufficient or ambiguous, provide explicit generics: `identity<i64>(0)`.
 - It is a compile-time error to annotate parameters, locals, or fields with unbound type constructors (e.g., `Array`, `Map String _`).
@@ -2416,6 +2495,15 @@ adder = { x: i32, y: i32 => x + y }
 get_zero = { => 0 }
 complex_lambda = { x, y => temp = x + y; temp * temp }
 ```
+
+An unannotated lambda stored in a local binding is monomorphic, whether the
+binding is introduced by `:=` or by the implicit-declaration behavior of `=`.
+Each use in a complete static callable context constrains the binding to that
+exact parameter and result signature. All such constraints must agree after alias
+canonicalization; incompatible complete signatures are a compile-time callable
+signature mismatch rather than permission to erase the binding to a dynamic
+callable carrier. A use that is explicitly dynamic does not supply a static
+signature, and an explicitly generic lambda retains its declared polymorphism.
 
 #### 7.2.3. Closures
 
@@ -2789,8 +2877,24 @@ SubjectExpression match {
 1.  **Sequential Evaluation**: `SubjectExpression` evaluated once. `case` clauses checked top-to-bottom.
 2.  **First Match Wins**: The first `PatternX` that matches *and* whose `GuardX` (if present) is true selects the clause.
 3.  **Execution & Result**: The chosen `ResultExpressionListX` is executed. The `match` expression evaluates to the value of the last expression in that list.
-4.  **Exhaustiveness**: Compiler SHOULD check for exhaustiveness (especially for unions). Non-exhaustive matches MAY warn/error at compile time and SHOULD raise an exception at runtime. A `case _ => ...` usually ensures exhaustiveness.
-    *   Open sets: When matching on an existential/interface type (e.g., `Error`), the set of possible concrete variants is open. Exhaustiveness for that component requires either a wildcard `case _ => ...` or at least `case _: Error => ...` to cover the open set.
+4.  **Exhaustiveness**: Compilers SHOULD compute a conservative positive
+    exhaustiveness proof from the subject's resolved static type. Only
+    unguarded clauses contribute static coverage. An unguarded wildcard or
+    binding identifier covers the complete remaining domain. A typed binding
+    (`case value: T`) and typed discard (`case _: T`) cover the same semantic
+    subset. Closed unions are covered component by component after semantic
+    normalization.
+    *   Open sets: An existential/interface type (for example `Error`) is an
+        open component. It is covered only by an unguarded universal pattern
+        or an unguarded typed pattern whose annotation contains that whole
+        interface component. Thus both `case error: Error` and
+        `case _: Error` cover the open `Error` component. Enumerating concrete
+        implementations never exhausts an interface, regardless of which
+        implementations are visible during compilation.
+    *   Compatibility: Failure to prove exhaustiveness does not make an
+        ordinary v12 match invalid. A checker MAY warn, but the runtime
+        no-match path remains and raises `Non-exhaustive match`. A compiler
+        MAY omit that path only when the positive proof succeeds.
 5.  **Type Compatibility**: All `ResultExpressionListX` must yield compatible types. The `match` expression's type is this common type.
     *   Unification rules as for `if/elsif/else`:
         -   Union common supertype (C1); `nil` with `T` yields `?T` (N1).
@@ -3261,9 +3365,26 @@ Within the interface definition (and corresponding `impl` blocks):
 *   **If `interface ... { ... }` (without `for`) is used:**
     *   `Self` refers to the concrete type provided in the `impl ... for Target` block (e.g., if `impl MyIface for i32`, then `Self` is `i32` within that impl).
 
-Note on recursive `Self` constraints:
+When the receiver's concrete type is known, `Self` substitution is structural
+and recursive. This applies during implementation validation, concrete method
+resolution, fully qualified interface calls, and calls through a statically
+constrained type parameter. Substitution descends through function parameters
+and results, nominal applications, nullable and union types, Arrays, ranges,
+futures, callable types, generic constraints, and `where` obligations. Thus an
+implementation for `Box` of a method returning `Pair Self` returns
+`Pair Box`; it does not introduce an interface value or a runtime conversion.
+For a higher-kinded self pattern such as `for F _`, the existing constructor
+rule still applies: `Self` denotes `F`, and `Self T` becomes `F T`.
 
-- Interfaces may reference `Self` in their own signatures (e.g., `fn next(self: Self) -> ?Self`). Recursive constraints over `Self` (e.g., requiring `Self: Interface` within the same interface) are allowed only when well-founded (no infinite regress) and remain an advanced feature; implementations must satisfy such constraints explicitly. Full formal rules are out of scope for v12 and may be tightened in a future revision.
+Recursive constraints over `Self` use a finite proof graph. An obligation is
+keyed by its fully instantiated subject type, interface, and interface
+arguments. Revisiting the identical key closes a back-edge only when that key
+is anchored by an implementation or another canonical conformance proof
+currently being validated. Every distinct non-cyclic leaf must still be
+satisfied. Mutually recursive constraints require anchors for every interface
+in the cycle. A cycle whose instantiated arguments keep growing never revisits
+an identical key and is rejected as not well-founded. An unanchored cycle
+cannot prove its own conformance.
 
 #### 10.1.4. Examples of Interface Definitions
 
@@ -3312,18 +3433,47 @@ Define an interface as a combination of other interfaces.
 interface NewInterfaceName [GenericParams] [for SelfTypePattern] = Interface1 [Args] + Interface2 [Args] + ...
 ```
 -   Implementing `NewInterfaceName` requires implementing all constituent interfaces (`Interface1`, `Interface2`, etc.).
--   *(TBD: The exact rules for how `for` clauses (or their absence) interact across constituents and the composite definition need clarification. Assume for now that if a `for` clause is present, it must be consistent across all constituents that require one. If constituents use the implicit self type form, the composite likely inherits that semantic.)*
+-   A missing `for` clause and the trivial pattern `for Self` both use the
+    **implicit self form**. Any other `for SelfTypePattern` uses the
+    **explicit self form**.
+-   An implicit composite may contain only implicit constituents. It does not
+    silently inherit an explicit constituent's target restriction. If any
+    constituent has an explicit self pattern, the composite must declare its
+    own explicit self pattern.
+-   An explicit composite may combine explicit and implicit constituents. An
+    implicit constituent adopts the composite's self pattern for that
+    composition.
+-   For every explicit constituent, substitute the type arguments supplied by
+    the composite's constituent reference into that constituent's self
+    pattern. The composite is valid only when every target admitted by the
+    composite self pattern is also admitted by the substituted constituent
+    pattern. Equivalently, the composite target set must be a subset of each
+    explicit constituent target set.
+-   Compatibility is structural and uses the same placeholder, wildcard, and
+    type-constructor matching rules as `impl` target validation (§10.2.1).
+    An incompatible or under-specified composite is a compile-time error; the
+    diagnostic must identify the composite, the conflicting constituent, and
+    both effective self patterns.
 
 **Example:**
 ```able
-## Assuming Reader, Writer interfaces exist (likely using 'for T' or implicit self)
+## Reader and Writer both use implicit self.
 interface ReadWrite = Reader + Writer
 
-## Assuming Display/Clone are defined 'for T'
+## Display and Clone are both declared `for T`.
 interface DisplayClone for T = Display + Clone
 
-## Assuming Hashable/Eq use implicit self type
-interface HashableEq = Hashable + Eq
+## An explicit composite may add an implicit constituent.
+interface DisplayGreeter for T = Display + Greeter
+
+## Generic arguments are substituted before checking target-set containment.
+interface ArrayReadable<T> for Array T = Readable<T> + Greeter
+
+## Invalid: IntegerOnly admits only i32, while this composite admits String.
+interface StringIntegerOnly for String = IntegerOnly
+
+## Invalid: an implicit composite cannot inherit Display's explicit `for T`.
+interface UnderSpecified = Display + Greeter
 ```
 
 ### 10.2. Implementations (`impl`)
@@ -3390,6 +3540,11 @@ impl Mappable A for Option {
 }
 ```
 *(Note: This syntax is only applicable when the interface was defined using the `for M _` pattern.)*
+
+The constructor target in this syntax is compile-time conformance evidence.
+It is fixed by the implementation target and concrete receiver before a
+method call is lowered. It is never a runtime value, an ordinary inferred type
+argument, or permission to erase `Self A`/`Self B` into a dynamic carrier.
 
 #### 10.2.4. Examples of Implementations
 
@@ -3602,12 +3757,21 @@ Using an interface name as a type denotes a dynamic/existential interface value:
     -   In constraint positions (`T: Display` or `where T: Display`), `Display` is a static bound; calls are resolved at compile time.
     -   In type positions (`x: Display`, `Array Display`, `Error | T`), `Display` is a dynamic/existential; calls are resolved at runtime.
 *   **Dictionary-based dispatch:** Interface-typed values carry an implementation dictionary captured at upcast time. The dictionary includes methods from the interface itself plus any interfaces the interface type implements (including base interfaces and explicit `impl` relationships).
-    -   Default methods are included as callable entries when no override is provided.
-    -   Generic interface methods are callable on interface-typed values; type arguments are supplied at the call site and checked statically.
-    -   `Self` in return position is treated as the interface type in dynamic calls (e.g., `Clone.clone` on a `Clone` interface value returns a `Clone` interface value).
-*   **Import-Scoped Model:** The concrete implementation used for a dynamic/interface-typed value is fixed at the upcast site (where a concrete value is converted to an interface type) based on impls in scope there. Consumers do not need that impl in scope to call methods on the received interface value.
+    -   Every implicit or explicit upcast whose concrete source type is known selects one visible unnamed implementation using §10.2.5. If multiple applicable implementations have no single most-specific winner, the upcast is a compile-time error even when no interface method is called. A runtime-checked cast whose source type is not statically known applies the same selection rule when evaluated and raises an ambiguity error rather than choosing by declaration or import order.
+    -   Each method slot is fixed when the dictionary is captured. An explicit implementation method occupies its slot; otherwise the interface default occupies it. Calls made by a default body through `self` use that same captured interface view, so an override in another slot remains observable.
+    -   Generic interface methods are callable on interface-typed values. Call-site type arguments instantiate the already-captured method slot and its constraint dictionaries; they do not rerun implementation selection.
+    -   Dynamic call safety is classified per interface method from its raw signature, before substituting the hidden concrete receiver. The dispatch receiver may be exactly `self: Self`. All other parameters and results must contain no `Self`, except for the exact-result rule below. A method that is static-only does not invalidate its interface declaration or implementation; attempting to select or call that method through an interface-typed value is a compile-time error.
+    -   An exact top-level `Self` return type is dynamically safe and is treated as the same fully bound interface type. The returned concrete value is wrapped with the originating interface definition, interface arguments, and captured dictionary (e.g., `Clone.clone` on a `Clone` interface value returns a `Clone` value carrying the same dictionary). Consumer scope never re-resolves that result.
+    -   Every other non-receiver occurrence of `Self` makes the method static-only. This includes an additional `Self` parameter; `Self` nested in a parameter or result under nullable, nominal, union, result, Array, future, range, or callable construction; a higher-kinded application such as `Self T`; and a method-level constraint or obligation that exposes or equates the hidden concrete self type. Such methods remain valid for concrete receivers, fully qualified interface calls with a known concrete receiver, and calls through one statically constrained type parameter.
+    -   A compiler or runtime must not make a static-only method dynamically callable by recursively boxing fields, reinterpreting a nominal carrier, assuming undeclared variance, or erasing generic arguments. In particular, `Pair Box` is not implicitly transformed into `Pair Interface`. This is the general existential boundary rule and does not authorize special handling for any named nominal or container type.
+*   **Import-Scoped Model:** The concrete implementation used for a dynamic/interface-typed value is fixed at the upcast site (where a concrete value is converted to an interface type) based on impls in scope there. Copies, parameter passing, returns, storage, and `Self`-returning interface calls retain that captured choice. Consumers do not need the implementation in scope, and newly visible implementations cannot replace it.
 
-*   **Exhaustiveness reminder:** Because interface types represent open sets of implementors, pattern matching on an interface-typed value is only exhaustively covered with a wildcard or an explicit `case _: Interface` clause.
+*   **Exhaustiveness reminder:** Because interface types represent open sets
+    of implementors, visible concrete implementations never exhaust an
+    interface-typed value. An unguarded wildcard/binding or a typed pattern
+    covering the whole interface does: `case value: Interface` and
+    `case _: Interface` have identical coverage. Guarded clauses do not
+    contribute to a static exhaustiveness proof.
 
 
 ## 11. Error Handling
@@ -3671,7 +3835,8 @@ Policy:
     ```
 -   **`Result T` (`!Type`)**: Represents the result of an operation that can succeed with a value of type `T` or fail with an error. Defined implicitly as the union `Error | T`. This follows the `FailureVariant | SuccessVariant` convention. The `!` shorthand is purely syntactic and does not depend on the variant order in user-declared unions.
     ```able
-    ## The 'Error' interface (built-in or standard library, TBD)
+    ## Required core interface. Runtimes seed this contract during bootstrap;
+    ## able.core.interfaces provides its canonical standard-library definition.
     interface Error {
         fn message(self: Self) -> String
         fn cause(self: Self) -> ?Error
@@ -3901,6 +4066,16 @@ Language-defined raises map to these errors:
 
 -   Only values implementing `Error` may be raised with `raise`. Attempting to `raise` a non-`Error` value is a compile-time error.
 -   `rescue` matches on the concrete error value (existential `Error`), including specific types like `DivisionByZeroError` and a catch-all `case _: Error`.
+-   A rescue clause list may intentionally be partial. If no clause matches,
+    the original raised value continues propagating.
+-   An unguarded wildcard/binding or whole-`Error` typed handler proves
+    handler-selection exhaustiveness. `case error: Error` and
+    `case _: Error` have identical coverage. Concrete error handlers never
+    collectively exhaust the open `Error` interface, and guarded handlers do
+    not contribute static coverage.
+-   A compiler may omit only the unmatched-handler re-propagation branch after
+    a positive proof. That proof does not imply that a selected handler body
+    cannot itself raise, rethrow, return, or otherwise transfer control.
 ```
 
 ##### Rethrow
@@ -3971,8 +4146,8 @@ struct Cancelled;
 struct Failed { error: FutureError }
 union FutureStatus = Pending | Resolved | Cancelled | Failed
 
-## Represents an error occurring during async execution (details TBD).
-struct FutureError { details: String } ## Example structure
+## Represents an error occurring during async execution.
+struct FutureError { details: String }
 impl Error for FutureError {
   fn message(self: Self) -> String { self.details }
   fn cause(self: Self) -> ?Error { nil } ## May wrap underlying error in future
@@ -4473,7 +4648,7 @@ The `dynimport` statement binds identifiers from dynamically defined packages (c
     -   Import-scoped resolution: An implementation `(Interface, TargetType)` participates in implicit method resolution at a call site only if the `impl` is in scope at that site (defined locally or exported by a package that has been imported) and both `Interface` and `TargetType` are visible.
     -   Interface-typed values (dynamic dispatch) carry their implementation dictionary. If a package constructs a value of type `Interface` using a visible `impl` and returns it, consumers can call interface methods on that value even if the `impl` is not in scope in the consumer package.
     -   Unnamed coherence (per package scope): For any visible pair `(Interface, TargetType)`, at most one unnamed (default) `impl` may be in scope. If multiple unnamed implementations are in scope, it is a compile-time error in that package until imports are adjusted.
-    -   Named implementations are never chosen implicitly. They require explicit selection (see Named Impl Invocation TBD) and follow the same visibility/import rules as other top-level items. Named impl identifiers must be unique within the importing scope; if collisions occur, use selective import with renaming (`import pkg.{ImplName::Alias}`).
+    -   Named implementations are never chosen implicitly. They require explicit selection using the function-position form defined in §10.3.3 and follow the same visibility/import rules as other top-level items. Named impl identifiers must be unique within the importing scope; if collisions occur, use selective import with renaming (`import pkg.{ImplName::Alias}`).
     -   No orphan restriction: Packages may define `impl Interface for TargetType` even if they do not own the interface or the type. Which implementation is used is determined solely by what impls are in scope in the using package (via its imports).
 
     -   Specificity with multiple visible impls: If more than one unnamed `impl` is visible for the same `(Interface, TargetType)`, and one is strictly more specific (§10.2.5), the more specific one is chosen; otherwise, ambiguity is a compile-time error. Use imports to hide the undesired impl or call explicitly via a named implementation.
@@ -5399,17 +5574,13 @@ builds remain slim but tests can still share package scope.
 - `able.test.reporters` supplies default reporters used by the CLI.
 - `able.spec` is the default spec-style DSL; importing it registers a framework.
 
-# Todo
+# Open Work Index
 
-*   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Future`), IO, string methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
-*   **Type System Details:** Full inference rules, Variance, Coercion (if any), HKT limitations/capabilities.
-*   **Interface Dictionary Semantics:** Finalize dictionary capture at upcast (including generic methods, defaults, and `Self` return behavior) and specify ambiguity handling.
-*   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.
-*   **Ranges:** Concrete type vs existential for `..` and `...` results.
-*   **Tooling:** Compiler, Package manager commands.
+Language-design questions intentionally left unresolved in this specification
+are tracked in `spec/TODO_v12.md`. Implementation selection and sequencing live
+in `PLAN.md`. Those forward-looking indexes do not alter the normative rules
+above.
 
-# Unresolved questions
-
-* Shared Data in Concurrency (12.5): Unresolved—awaiting "races and ownership patterns" note with examples.
-* HKTs/Variance/Coercion: Unresolved—awaiting minimal rules.
-* Self Interpretation (10.1.3): Unresolved—no recursive details yet.
+Completed standard-library, range, named-implementation, and tooling work is
+recorded in the project logs and design records rather than repeated as a
+trailing specification todo list.

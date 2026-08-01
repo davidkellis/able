@@ -5,6 +5,8 @@
       "tag:core",
       "core",
       "tag:core",
+      "core",
+      "hello",
       "hello"
     ],
     "exit": 0

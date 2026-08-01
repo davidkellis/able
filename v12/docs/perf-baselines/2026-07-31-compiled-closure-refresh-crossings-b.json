@@ -1,0 +1,553 @@
+{
+  "generated_at": "2026-07-31T22:50:11.310887Z",
+  "suite": "custom",
+  "benchmarks": [
+    "fib",
+    "i_before_e",
+    "matrixmultiply"
+  ],
+  "modes": [
+    "compiled"
+  ],
+  "bytecode_runtime_calls": 1,
+  "languages": [
+    "go"
+  ],
+  "external_results_json": "/home/david/sync/projects/benchmarks/results.json",
+  "reference_json": null,
+  "go_reference_json": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-go-references-b.json",
+  "cpu_affinity": "12-15",
+  "cpu_affinity_pool": "12-15",
+  "experimental_execution_context": false,
+  "go_toolchain": {
+    "selector": "go1.26.5",
+    "go_version": "go version go1.26.5 linux/amd64"
+  },
+  "rows": [
+    {
+      "benchmark": "fib",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "fib",
+        "mode": "compiled",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 3.448,
+        "avg_user_seconds": 3.404,
+        "avg_sys_seconds": 0.01,
+        "avg_gc": 0.0,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 3.45,
+            "user_seconds": 3.33,
+            "sys_seconds": 0.01,
+            "gc_count": 0.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 3.33,
+            "user_seconds": 3.31,
+            "sys_seconds": 0.01,
+            "gc_count": 0.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 3.57,
+            "user_seconds": 3.54,
+            "sys_seconds": 0.01,
+            "gc_count": 0.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 3.4,
+            "user_seconds": 3.37,
+            "sys_seconds": 0.01,
+            "gc_count": 0.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 3.49,
+            "user_seconds": 3.47,
+            "sys_seconds": 0.01,
+            "gc_count": 0.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/fib/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/fib.able",
+          "sha256": "96683db985102a2ae6d82919b95c1da572febe499cccd2490971dcd9647019cd"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "12",
+          "executor_policy": "serial"
+        },
+        "go_toolchain": {
+          "selector": "go1.26.5",
+          "go_version": "go version go1.26.5 linux/amd64"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "12",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [
+          "45"
+        ],
+        "provenance": "measured",
+        "sha256": "95bbf9f0c95afbe98e34f228b5cc8dd77d73f4c848cd184b0737a3b0c3b51db4",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/fib/verify.rb",
+          "sha256": "c3242e379a44e83a6e37824332f46400381539567a31c6bb0e9f2a1d1a0164af"
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 3.3035,
+          "reference_implementation": "go version go1.26.5 linux/amd64",
+          "ratio": 1.0437414863024066,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/fib/go-1.26/app.go",
+            "sha256": "d35840666fee5c1c2c45f44086e1c379331fb844bbba93e8542d8a848898d705",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 3.297396252,
+              "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 3.327797945,
+              "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 3.317241492,
+              "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 3.433020538,
+              "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 3.141931466,
+              "stdout_sha256": "231e154363ef69683f6dca862f5a448e786ccc90485636bc20a86e2e470a2188"
+            }
+          ],
+          "execution_contract": {
+            "mode": "compiled",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "12",
+            "executor_policy": "serial"
+          },
+          "reference_toolchain": {
+            "selector": "go1.26.5",
+            "go_version": "go version go1.26.5 linux/amd64",
+            "expected_go_version": "go version go1.26.5 linux/amd64"
+          }
+        }
+      }
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "i_before_e",
+        "mode": "compiled",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 0.044,
+        "avg_user_seconds": 0.028,
+        "avg_sys_seconds": 0.012,
+        "avg_gc": 2.0,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 0.05,
+            "user_seconds": 0.03,
+            "sys_seconds": 0.02,
+            "gc_count": 2.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 0.04,
+            "user_seconds": 0.02,
+            "sys_seconds": 0.01,
+            "gc_count": 2.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 0.05,
+            "user_seconds": 0.03,
+            "sys_seconds": 0.01,
+            "gc_count": 2.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 0.04,
+            "user_seconds": 0.03,
+            "sys_seconds": 0.01,
+            "gc_count": 2.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 0.04,
+            "user_seconds": 0.03,
+            "sys_seconds": 0.01,
+            "gc_count": 2.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/i-before-e/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/i_before_e/i_before_e.able",
+          "sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "12",
+          "executor_policy": "serial"
+        },
+        "go_toolchain": {
+          "selector": "go1.26.5",
+          "go_version": "go version go1.26.5 linux/amd64"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "12",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [
+          {
+            "argument": "wordlist.txt",
+            "path": "/home/david/sync/projects/benchmarks/i-before-e/wordlist.txt",
+            "sha256": "3f16130220645692ed49c7134e24a18504c2ca55b3c012f7290e3e77c63b1a89"
+          }
+        ],
+        "program_args": [
+          "wordlist.txt"
+        ],
+        "provenance": "measured",
+        "sha256": "517c24ccf416b9ebe6ba60f8997d8d4eba78de0384ce74901d69d7088ae0ca65",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/i-before-e/verify.rb",
+          "sha256": "1bf066caeed31e9715c2084461b144176990cfa29a2742a32c1a25942898eaec"
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 0.0595,
+          "reference_implementation": "go version go1.26.5 linux/amd64",
+          "ratio": 0.7394957983193278,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/i-before-e/go-1.26/app.go",
+            "sha256": "63386a111f2fd35ff949092a419c99ce7dcf21e81b24575ece330f7729df65c0",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 0.059126897,
+              "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 0.062007104,
+              "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 0.058771144,
+              "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 0.059236036,
+              "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.058202117,
+              "stdout_sha256": "981f0d37a277be25f359c097e10df2ef68009fea2d3e322aeed3a65d0fbaca39"
+            }
+          ],
+          "execution_contract": {
+            "mode": "compiled",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "12",
+            "executor_policy": "serial"
+          },
+          "reference_toolchain": {
+            "selector": "go1.26.5",
+            "go_version": "go version go1.26.5 linux/amd64",
+            "expected_go_version": "go version go1.26.5 linux/amd64"
+          }
+        }
+      }
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "compiled",
+      "able": {
+        "benchmark": "matrixmultiply",
+        "mode": "compiled",
+        "ok_runs": 5,
+        "timeouts": 0,
+        "failures": 0,
+        "avg_real_seconds": 1.018,
+        "avg_user_seconds": 0.994,
+        "avg_sys_seconds": 0.016,
+        "avg_gc": 4.0,
+        "samples": [
+          {
+            "run": 1,
+            "status": "ok",
+            "real_seconds": 1.03,
+            "user_seconds": 1.0,
+            "sys_seconds": 0.02,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 2,
+            "status": "ok",
+            "real_seconds": 1.02,
+            "user_seconds": 1.0,
+            "sys_seconds": 0.01,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 3,
+            "status": "ok",
+            "real_seconds": 1.01,
+            "user_seconds": 0.99,
+            "sys_seconds": 0.02,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 4,
+            "status": "ok",
+            "real_seconds": 1.02,
+            "user_seconds": 0.99,
+            "sys_seconds": 0.01,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          },
+          {
+            "run": 5,
+            "status": "ok",
+            "real_seconds": 1.01,
+            "user_seconds": 0.99,
+            "sys_seconds": 0.02,
+            "gc_count": 4.0,
+            "ns_per_op": null,
+            "bytes_per_op": null,
+            "allocs_per_op": null,
+            "stdout_sha256": "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          }
+        ],
+        "validation": {
+          "status": "verified",
+          "verifier": "/home/david/sync/projects/benchmarks/matrixmultiply/verify.rb",
+          "verified_runs": 5,
+          "failed_runs": 0,
+          "stdout_sha256": [
+            "bce2053ea5fdc1351bf8d28398b346b894f8cf35c0e047effdca9dbb47e81d0c"
+          ]
+        },
+        "source": {
+          "path": "/home/david/sync/projects/able/v12/examples/benchmarks/matrixmultiply.able",
+          "sha256": "ac3f407e202dd793db41431eb7b5b26e0c60472583e552624bad5ceca404c123"
+        },
+        "execution_contract": {
+          "mode": "compiled",
+          "logical_cpu_budget": 1,
+          "cpu_affinity": "12",
+          "executor_policy": "serial"
+        },
+        "go_toolchain": {
+          "selector": "go1.26.5",
+          "go_version": "go version go1.26.5 linux/amd64"
+        }
+      },
+      "execution_contract": {
+        "mode": "compiled",
+        "logical_cpu_budget": 1,
+        "cpu_affinity": "12",
+        "executor_policy": "serial"
+      },
+      "benchmark_contract": {
+        "input_files": [],
+        "program_args": [
+          "1000"
+        ],
+        "provenance": "measured",
+        "sha256": "37e16337960b014ec03eac2963813084056e64c6b06de27eaf23299783da2bcd",
+        "verifier": {
+          "path": "/home/david/sync/projects/benchmarks/matrixmultiply/verify.rb",
+          "sha256": "add2e76e5c84912baa86d6323094475ed52ac85c3d49e3583fdf39dcf4fedd0d"
+        }
+      },
+      "comparisons": {
+        "go": {
+          "reference_real_seconds": 1.0327,
+          "reference_implementation": "go version go1.26.5 linux/amd64",
+          "ratio": 0.9857654691585166,
+          "reference_source": {
+            "path": "/home/david/sync/projects/benchmarks/matrixmultiply/go-1.26/app.go",
+            "sha256": "4b77c1e4f0add1763c830c9da22a9d92c43d14e48432bab021e2146e3ccb1e42",
+            "provenance": "measured"
+          },
+          "reference_samples": [
+            {
+              "run": 1,
+              "status": "ok",
+              "real_seconds": 1.027114517,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 2,
+              "status": "ok",
+              "real_seconds": 1.039633905,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 3,
+              "status": "ok",
+              "real_seconds": 1.105737988,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 4,
+              "status": "ok",
+              "real_seconds": 1.049513664,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            },
+            {
+              "run": 5,
+              "status": "ok",
+              "real_seconds": 0.941427553,
+              "stdout_sha256": "0dfcf69f5c73589f22465d7054ec20cd1aa43a7a1829c57673b147a49290fc13"
+            }
+          ],
+          "execution_contract": {
+            "mode": "compiled",
+            "logical_cpu_budget": 1,
+            "cpu_affinity": "12",
+            "executor_policy": "serial"
+          },
+          "reference_toolchain": {
+            "selector": "go1.26.5",
+            "go_version": "go version go1.26.5 linux/amd64",
+            "expected_go_version": "go version go1.26.5 linux/amd64"
+          }
+        }
+      }
+    }
+  ]
+}

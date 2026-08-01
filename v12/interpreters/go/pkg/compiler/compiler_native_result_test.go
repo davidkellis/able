@@ -401,7 +401,7 @@ func TestCompilerVoidCallableCoercionPropagatesReturnedErrorCarrier(t *testing.T
 		"}",
 		"",
 		"fn main() -> bool {",
-		"  captures(fn() { fail() })",
+		"  captures(fn() -> void { fail() })",
 		"}",
 		"",
 	}, "\n"))

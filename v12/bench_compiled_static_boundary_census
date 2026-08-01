@@ -10,6 +10,10 @@ jobs=2
 timeout_seconds=60
 output_json=""
 workdir=""
+collect_nominal_effects=1
+collect_nominal_ownership=1
+experimental_nominal_ownership=0
+disable_nominal_ownership_execution=0
 
 usage() {
   cat <<'EOF'
@@ -20,6 +24,14 @@ Options:
   --timeout SEC     Per-module generation bound (default: 60)
   --workdir DIR     Disk-backed disposable workspace
   --output-json     Durable aggregate JSON report
+  --no-nominal-effects
+                     Do not collect the opt-in typed nominal-effect report
+  --no-nominal-ownership
+                     Do not collect the opt-in ownership-transfer proof report
+  --experimental-nominal-ownership
+                     Legacy compatibility flag for the default ownership path
+  --no-nominal-ownership-execution
+                     Disable caller-owned nominal-result generation
   -h, --help        Show this help
 
 The command generates every compiled row selected by bench-selection-manifest.json
@@ -55,6 +67,18 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 ]] || die "missing --output-json value"
       output_json="$1"
       ;;
+    --no-nominal-effects)
+      collect_nominal_effects=0
+      ;;
+    --no-nominal-ownership)
+      collect_nominal_ownership=0
+      ;;
+    --experimental-nominal-ownership)
+      experimental_nominal_ownership=1
+      ;;
+    --no-nominal-ownership-execution)
+      disable_nominal_ownership_execution=1
+      ;;
     -h|--help)
       usage
       exit 0
@@ -68,6 +92,9 @@ done
 
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || die "--jobs must be positive"
 [[ "$timeout_seconds" =~ ^[1-9][0-9]*$ ]] || die "--timeout must be positive"
+if [[ "$experimental_nominal_ownership" -eq 1 && "$disable_nominal_ownership_execution" -eq 1 ]]; then
+  die "--experimental-nominal-ownership and --no-nominal-ownership-execution are mutually exclusive"
+fi
 [[ -n "$workdir" ]] || die "--workdir is required"
 [[ -n "$output_json" ]] || die "--output-json is required"
 workdir="$(realpath -m "$workdir")"
@@ -97,6 +124,10 @@ export ABLE_CENSUS_SCRIPT_DIR="$SCRIPT_DIR"
 export ABLE_CENSUS_TIMEOUT="$timeout_seconds"
 export ABLE_CENSUS_ABLEC="$ablec"
 export ABLE_CENSUS_ANALYZER="$analyzer"
+export ABLE_CENSUS_COLLECT_NOMINAL_EFFECTS="$collect_nominal_effects"
+export ABLE_CENSUS_COLLECT_NOMINAL_OWNERSHIP="$collect_nominal_ownership"
+export ABLE_CENSUS_EXPERIMENTAL_NOMINAL_OWNERSHIP="$experimental_nominal_ownership"
+export ABLE_CENSUS_DISABLE_NOMINAL_OWNERSHIP_EXECUTION="$disable_nominal_ownership_execution"
 
 run_census_row() {
   set -euo pipefail
@@ -110,7 +141,22 @@ run_census_row() {
   run_from="$(realpath "$(bench_external_run_dir "$benchmark_repo" "$bench")")"
   local row_dir="$ABLE_CENSUS_WORKDIR/build/$bench"
   local module_dir="$row_dir/module"
+  local effects_path="$row_dir/nominal-effects.json"
+  local ownership_path="$row_dir/nominal-ownership.json"
   mkdir -p "$module_dir"
+  local effect_args=()
+  if [[ "$ABLE_CENSUS_COLLECT_NOMINAL_EFFECTS" -eq 1 ]]; then
+    effect_args+=(--nominal-effects-json "$effects_path")
+  fi
+  if [[ "$ABLE_CENSUS_COLLECT_NOMINAL_OWNERSHIP" -eq 1 ]]; then
+    effect_args+=(--nominal-ownership-json "$ownership_path")
+  fi
+  if [[ "$ABLE_CENSUS_EXPERIMENTAL_NOMINAL_OWNERSHIP" -eq 1 ]]; then
+    effect_args+=(--experimental-nominal-ownership)
+  fi
+  if [[ "$ABLE_CENSUS_DISABLE_NOMINAL_OWNERSHIP_EXECUTION" -eq 1 ]]; then
+    effect_args+=(--no-nominal-ownership)
+  fi
 
   local source_only=()
   if bench_external_source_root_only "$bench"; then
@@ -125,7 +171,8 @@ run_census_row() {
       env ABLE_PATH= ABLE_MODULE_PATHS= \
       ABLE_STDLIB_ROOT="$ABLE_CENSUS_REPO_ROOT/../able-stdlib/src" \
       "${source_only[@]}" \
-      "$ABLE_CENSUS_ABLEC" -main -pkg main -o "$module_dir" --no-fallbacks "$target"
+      "$ABLE_CENSUS_ABLEC" -main -pkg main -o "$module_dir" --no-fallbacks \
+      "${effect_args[@]}" "$target"
   ) >"$row_dir/generate.stdout" 2>"$row_dir/generate.stderr"
   rc=$?
   set -e
@@ -134,8 +181,13 @@ run_census_row() {
 
   local analysis_path="$row_dir/analyzer.json"
   local module_sha="" module_bytes=0 module_lines=0 module_files=0
+  local dependency_exit=-1 interpreter_dependency=false
   if [[ "$rc" -eq 0 ]]; then
-    "$ABLE_CENSUS_ANALYZER" "$module_dir" >"$analysis_path"
+    local analyzer_args=()
+    if [[ "$ABLE_CENSUS_COLLECT_NOMINAL_EFFECTS" -eq 1 ]]; then
+      analyzer_args+=(--nominal-effects-json "$effects_path")
+    fi
+    "$ABLE_CENSUS_ANALYZER" "${analyzer_args[@]}" "$module_dir" >"$analysis_path"
     module_sha="$(
       cd "$module_dir"
       find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
@@ -143,22 +195,46 @@ run_census_row() {
     module_bytes="$(find "$module_dir" -maxdepth 1 -type f -printf '%s\n' | awk '{sum += $1} END {print sum + 0}')"
     module_lines="$(find "$module_dir" -maxdepth 1 -name '*.go' -type f -print0 | xargs -0 wc -l | tail -n 1 | awk '{print $1}')"
     module_files="$(find "$module_dir" -maxdepth 1 -type f | wc -l)"
+    set +e
+    (
+      cd "$module_dir"
+      env GOCACHE="$ABLE_CENSUS_WORKDIR/gocache" go list -mod=mod -deps .
+    ) >"$row_dir/dependencies.txt" 2>"$row_dir/dependencies.stderr"
+    dependency_exit=$?
+    set -e
+    if [[ "$dependency_exit" -eq 0 ]] &&
+      rg -q '^able/interpreter-go/pkg/interpreter$' "$row_dir/dependencies.txt"; then
+      interpreter_dependency=true
+    fi
+    if [[ "$ABLE_CENSUS_COLLECT_NOMINAL_EFFECTS" -eq 0 ]]; then
+      printf '{}\n' >"$effects_path"
+    fi
+    if [[ "$ABLE_CENSUS_COLLECT_NOMINAL_OWNERSHIP" -eq 0 ]]; then
+      printf '{}\n' >"$ownership_path"
+    fi
   else
     printf '{}\n' >"$analysis_path"
+    printf '{}\n' >"$effects_path"
+    printf '{}\n' >"$ownership_path"
   fi
 
   python3 - \
     "$bench" "$target" "$rc" "$elapsed_ms" "$module_sha" \
     "$module_bytes" "$module_lines" "$module_files" \
-    "$analysis_path" "$row_dir/generate.stderr" \
+    "$analysis_path" "$effects_path" "$ownership_path" "$row_dir/generate.stderr" \
+    "$dependency_exit" "$interpreter_dependency" "$row_dir/dependencies.stderr" \
     "$ABLE_CENSUS_WORKDIR/results/$bench.json" <<'PY'
 import json
 import pathlib
 import sys
 
 (bench, target, rc, elapsed_ms, module_sha, module_bytes, module_lines,
- module_files, analysis_path, stderr_path, output_path) = sys.argv[1:]
+ module_files, analysis_path, effects_path, ownership_path, stderr_path,
+ dependency_exit, interpreter_dependency, dependency_stderr_path,
+ output_path) = sys.argv[1:]
 analysis = json.loads(pathlib.Path(analysis_path).read_text())
+effects = json.loads(pathlib.Path(effects_path).read_text())
+ownership = json.loads(pathlib.Path(ownership_path).read_text())
 if analysis:
     analysis["directory"] = "<disposed-generated-module>"
 row = {
@@ -171,10 +247,18 @@ row = {
     "module_bytes": int(module_bytes),
     "module_go_lines": int(module_lines),
     "module_files": int(module_files),
+    "dependency_exit": int(dependency_exit),
+    "interpreter_dependency": interpreter_dependency == "true",
     "analysis": analysis or None,
+    "nominal_effects": effects or None,
+    "nominal_ownership": ownership or None,
 }
 if int(rc):
     row["generation_stderr"] = pathlib.Path(stderr_path).read_text(
+        errors="replace"
+    )[-4000:]
+if int(dependency_exit) > 0:
+    row["dependency_stderr"] = pathlib.Path(dependency_stderr_path).read_text(
         errors="replace"
     )[-4000:]
 pathlib.Path(output_path).write_text(json.dumps(row, sort_keys=True) + "\n")
@@ -187,7 +271,7 @@ export -f run_census_row
 
 xargs -r -n1 -P"$jobs" bash -c 'run_census_row "$1"' _ <"$benchmarks_file"
 
-python3 - "$MANIFEST" "$FRONTIER" "$workdir/results" "$output_json" "$timeout_seconds" <<'PY'
+python3 - "$MANIFEST" "$FRONTIER" "$workdir/results" "$output_json" "$timeout_seconds" "$experimental_nominal_ownership" "$disable_nominal_ownership_execution" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -197,6 +281,8 @@ manifest_path, frontier_path, results_dir, output_path = map(
     pathlib.Path, sys.argv[1:5]
 )
 timeout = sys.argv[5]
+experimental_nominal_ownership = sys.argv[6] == "1"
+disable_nominal_ownership_execution = sys.argv[7] == "1"
 manifest = json.loads(manifest_path.read_text())
 frontier = json.loads(frontier_path.read_text())
 selected = manifest["modes"]["compiled"]
@@ -226,6 +312,11 @@ for benchmark in selected:
     rows.append(row)
 
 categories = {}
+semantic_parents = {}
+nominal_effect_totals = {}
+nominal_type_effects = []
+nominal_ownership_totals = {}
+nominal_ownership_sites = []
 for row in rows:
     analysis = row.get("analysis")
     if not analysis:
@@ -252,22 +343,119 @@ for row in rows:
                     "excess_seconds": row["timing"]["excess_seconds"],
                 }
             )
+    identities = analysis["scopes"]["main_direct_reachable"].get(
+        "semantic_parent_boundaries", {}
+    )
+    for category, callees in identities.items():
+        for callee, parents in callees.items():
+            for parent, sites in parents.items():
+                key = "\x1f".join((category, callee, parent))
+                summary = semantic_parents.setdefault(
+                    key,
+                    {
+                        "category": category,
+                        "callee": callee,
+                        "semantic_parent": parent,
+                        "applications": 0,
+                        "static_sites": 0,
+                        "aggregate_excess_seconds": 0.0,
+                        "rows": [],
+                    },
+                )
+                summary["applications"] += 1
+                summary["static_sites"] += sites
+                summary["aggregate_excess_seconds"] += row["timing"]["excess_seconds"]
+                summary["rows"].append(
+                    {
+                        "benchmark": row["benchmark"],
+                        "sites": sites,
+                        "excess_seconds": row["timing"]["excess_seconds"],
+                        "group": row["timing"]["group"],
+                        "target_status": row["timing"]["target_status"],
+                        "disposition": row["timing"]["disposition"],
+                        "profile_freshness": row["timing"]["profile_freshness"],
+                        "profile_owner": row["timing"]["owner"],
+                    }
+                )
+    effects = row.get("nominal_effects")
+    if effects:
+        for key, value in effects.get("totals", {}).items():
+            nominal_effect_totals[key] = nominal_effect_totals.get(key, 0) + value
+        for nominal in effects.get("nominal_types", []):
+            nominal_type_effects.append(
+                {
+                    "benchmark": row["benchmark"],
+                    **nominal,
+                }
+            )
+    ownership = row.get("nominal_ownership")
+    if ownership:
+        for key, value in ownership.get("totals", {}).items():
+            nominal_ownership_totals[key] = nominal_ownership_totals.get(key, 0) + value
+        for site in ownership.get("call_sites") or []:
+            nominal_ownership_sites.append(
+                {
+                    "benchmark": row["benchmark"],
+                    **site,
+                }
+            )
 for summary in categories.values():
     summary["rows"].sort(key=lambda item: (-item["excess_seconds"], item["benchmark"]))
     summary["aggregate_excess_seconds"] = round(
         summary["aggregate_excess_seconds"], 9
     )
+for summary in semantic_parents.values():
+    summary["rows"].sort(key=lambda item: (-item["excess_seconds"], item["benchmark"]))
+    summary["aggregate_excess_seconds"] = round(
+        summary["aggregate_excess_seconds"], 9
+    )
+semantic_parent_rows = sorted(
+    semantic_parents.values(),
+    key=lambda item: (
+        -item["applications"],
+        -item["aggregate_excess_seconds"],
+        -item["static_sites"],
+        item["category"],
+        item["callee"],
+        item["semantic_parent"],
+    ),
+)
+nominal_type_effects.sort(
+    key=lambda item: (
+        item["benchmark"],
+        item["package"],
+        item["nominal"],
+    )
+)
+nominal_ownership_sites.sort(
+    key=lambda item: (
+        item["benchmark"],
+        item["package"],
+        item["caller"],
+        item["source_binding"],
+        item.get("method", ""),
+    )
+)
 
 payload = {
     "kind": "able-full-compiled-static-native-boundary-census",
-    "schema_version": 1,
+    "schema_version": 4,
     "selection_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
     "frontier_sha256": hashlib.sha256(frontier_path.read_bytes()).hexdigest(),
     "generation_timeout_seconds": int(timeout),
+    "experimental_nominal_ownership": experimental_nominal_ownership,
+    "nominal_ownership_execution_enabled": not disable_nominal_ownership_execution,
     "selected_rows": len(selected),
     "successful_rows": sum(row["generation_exit"] == 0 for row in rows),
     "failed_rows": sum(row["generation_exit"] != 0 for row in rows),
+    "dependency_failed_rows": sum(row["dependency_exit"] != 0 for row in rows),
+    "interpreter_linked_rows": sum(row["interpreter_dependency"] for row in rows),
     "categories": categories,
+    "semantic_parent_boundaries": semantic_parent_rows,
+    "nominal_effect_totals": nominal_effect_totals,
+    "nominal_type_effects": nominal_type_effects,
+    "nominal_ownership_totals": nominal_ownership_totals,
+    "nominal_ownership_sites": nominal_ownership_sites,
     "rows": rows,
 }
 pathlib.Path(output_path).write_text(

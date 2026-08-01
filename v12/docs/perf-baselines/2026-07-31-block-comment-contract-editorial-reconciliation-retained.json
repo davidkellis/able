@@ -1,0 +1,103 @@
+{
+  "kind": "able-block-comment-contract-editorial-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-existing-line-comment-only-contract-and-rebase-reviewed-v12-spec-scope",
+  "behavior_change": false,
+  "contract": {
+    "line_comment_prefix": "##",
+    "block_comments_supported": false,
+    "grammar_rule": "v12/parser/tree-sitter-able/grammar/declarations.js",
+    "canonical_sections": [
+      "2 Lexical Structure",
+      "6.9 Lexical Details"
+    ]
+  },
+  "spec": {
+    "before_sha256": "709468672e761782a0aba6b69e9576e421f707d9315452d5790ddabef71097f7",
+    "after_sha256": "ddb493eab0ea6ee2f06844ad2e0b6d0d80dc060c19c239122fa82c9b98890a9f",
+    "before_scope_tree_sha256": "e49c125c826dfafd1a9e52f550f1bcc46d5bd3854d0331428ca050de6a103ee1",
+    "after_scope_tree_sha256": "987737c2aa5493bee012f7dfd7125ba5ad0bdd3ee19bbedaa9819e057c7881cd",
+    "todo_after_sha256": "d7666d14274974ac2b4ec9c76df4e73aee30727dc7b6b3ba3e2efb058654b4e2"
+  },
+  "parser_proof": {
+    "focused_comment_tests": "pass",
+    "comment_free_control": "typecheck-ok",
+    "block_comment_probe": "parser-rejected",
+    "production_parser_change": false,
+    "ast_change": false
+  },
+  "pre_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 0,
+    "invalidated_count": 23,
+    "sole_reason": "scope-content-drift:v12-spec"
+  },
+  "post_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "compiled_selected": [],
+    "bytecode_selected": []
+  },
+  "architecture_chain": {
+    "nodes": 5,
+    "spec_rebase_evidence_updates": 4,
+    "spec_rebase_checked_report_updates": 5,
+    "record_attachment_evidence_updates": 3,
+    "record_attachment_checked_report_updates": 4,
+    "decision_drift": false,
+    "markdown_drift": false
+  },
+  "verification": {
+    "full_run_all_tests": "pass",
+    "seeded_exec_fixtures": 280,
+    "frontier_rows": 132,
+    "frontier_actionable_groups": 0,
+    "compiler_batches": 86,
+    "maximum_compiler_batch_seconds": 49.427,
+    "canonical_compiler_outlier_seconds": 14.3,
+    "full_suite_seconds": 686.23,
+    "full_suite_peak_rss_kib": 1287204,
+    "canonical_stdlib_treewalker": "pass",
+    "canonical_stdlib_treewalker_seconds": 20,
+    "canonical_stdlib_bytecode": "pass",
+    "canonical_stdlib_bytecode_seconds": 15,
+    "stdlib_gate_seconds": 36.69,
+    "stdlib_gate_peak_rss_kib": 866364
+  },
+  "timeout_noise_audit": {
+    "initial_batch_cap_seconds": 55,
+    "initial_batch_result": "cumulative-batch-timeout",
+    "named_test_elapsed_at_timeout_seconds": 3,
+    "isolated_warm_seconds": 3.561,
+    "isolated_cold_seconds": [
+      22.617,
+      22.138,
+      23.237
+    ],
+    "isolated_cold_mean_seconds": 22.664,
+    "clean_batch_seconds": 49.427,
+    "individual_test_over_one_minute": false
+  },
+  "cleanup": {
+    "disk_backed_workspace_kib": 2845840,
+    "workspace_removed": true,
+    "remaining_able_task_directories_tmp": 0,
+    "remaining_able_task_directories_var_tmp": 0
+  },
+  "production_changes": {
+    "language_semantics": false,
+    "parser": false,
+    "ast": false,
+    "typechecker": false,
+    "treewalker": false,
+    "bytecode_vm": false,
+    "compiler": false,
+    "runtime": false,
+    "stdlib": false,
+    "dependency": false,
+    "benchmark": false,
+    "wasm": false
+  }
+}

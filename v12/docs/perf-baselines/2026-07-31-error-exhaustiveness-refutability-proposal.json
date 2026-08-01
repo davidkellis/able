@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "status": "proposal_complete_decision_pending",
+  "recommended_option": "conservative_positive_proof_with_runtime_fallback",
+  "source_roots": [
+    "v12/fixtures",
+    "v12/examples",
+    "../able-stdlib/src"
+  ],
+  "census": {
+    "able_files": 759,
+    "parse_failures": 0,
+    "match_expressions": {
+      "total": 915,
+      "with_unguarded_universal": 351,
+      "with_unguarded_error_typed_pattern": 102,
+      "with_error_typed_pattern_and_no_universal": 84,
+      "with_neither_syntactic_form": 480,
+      "with_guarded_universal": 4,
+      "guarded_universal_clauses": 6,
+      "pattern_nodes": {
+        "array": 4,
+        "identifier": 110,
+        "literal": 405,
+        "struct": 356,
+        "typed": 872,
+        "wildcard": 300
+      }
+    },
+    "rescue_expressions": {
+      "total": 71,
+      "with_unguarded_universal": 26,
+      "with_error_typed_pattern_and_no_universal": 42,
+      "with_only_concrete_or_refutable_handlers": 3,
+      "pattern_nodes": {
+        "array": 0,
+        "identifier": 16,
+        "literal": 1,
+        "struct": 2,
+        "typed": 44,
+        "wildcard": 10
+      }
+    }
+  },
+  "recommendation": {
+    "guarded_clauses_contribute_coverage": false,
+    "typed_binding_equals_typed_discard_for_coverage": true,
+    "concrete_implementations_close_open_interface": false,
+    "ordinary_partial_match_remains_valid": true,
+    "partial_rescue_remains_valid": true,
+    "compiler_consumes_positive_proofs_only": true
+  },
+  "verification": {
+    "focused_typechecker_seconds": 0.003,
+    "focused_interpreter_parity_seconds": 0.338,
+    "focused_strict_compiler_seconds": 4.798,
+    "full_suite": {
+      "passed": true,
+      "wall_seconds": 765.48,
+      "peak_rss_kib": 1837420,
+      "compiler_tests": 844,
+      "canonical_compiler_outlier_seconds": 13.986,
+      "slowest_bounded_compiler_batch_seconds": 45.516
+    },
+    "performance_closures": 23,
+    "performance_invalidations": 0,
+    "compiled_selection": null,
+    "bytecode_selection": null,
+    "architecture_chain_current": true
+  },
+  "cleanup": {
+    "task_workspace_removed_kib": 2700016,
+    "able_tmp_paths_remaining": 0,
+    "new_python_caches_remaining": 0
+  },
+  "production_behavior_changed": false,
+  "specification_changed": false,
+  "wasm_changed": false
+}

@@ -26,23 +26,36 @@ file attribution in `ModuleDiagnostic`, and returns a `CheckResult` containing:
 - diagnostics;
 - privacy-aware `PackageSummary` data (symbols, structs, interfaces,
   functions, implementations, and method sets); and
-- an `InferenceMap` for each checked package.
+- an `InferenceMap`, method-selection map, and positive-only
+  `PatternCoverageMap` for each checked package.
 
-Inference facts are side tables keyed by AST nodes. They must not become a
-second AST schema. `PrepareProgramForEvaluation` deliberately performs only
-the declaration-side preparation that runtime evaluation requires; it is not a
-replacement for diagnostics or a licence to give unchecked programs different
-language semantics.
+Inference, method-selection, and pattern-coverage facts are side tables keyed
+by AST nodes. They must not become a second AST schema. Pattern coverage
+records only sound positive exhaustiveness proofs; absence means every runtime
+fallback remains required. `PrepareProgramForEvaluation` deliberately
+performs only the declaration-side preparation that runtime evaluation
+requires; it is not a replacement for diagnostics or a licence to give
+unchecked programs different language semantics.
+
+Checked numeric-literal inference facts are also execution inputs. Both Go
+interpreter modes use the resolved fact when materializing an unsuffixed
+literal in a concrete numeric context, and the compiler uses the same fact to
+choose its native Go carrier and generic specialization. With no resolving
+context, the fixed v12 default remains `i32`; an explicit suffix remains the
+source type and cannot be contextually retargeted.
 
 ## Current checked surface
 
 The Go checker has declaration collection, scoped body checking, inference,
 patterns, overload and member resolution, generic substitution, interface/impl
 and method-set constraint solving, concurrency helper diagnostics, package
-imports, re-exports, visibility checks, and source-hinted diagnostics. The
-focused `checker_*_test.go` files and `program_checker_test.go` are the
-executable inventory; this list is a navigation aid, not an independent
-language authority.
+imports, re-exports, visibility checks, conservative match/rescue
+exhaustiveness facts, and source-hinted diagnostics. Coverage treats guarded
+clauses and unproven patterns as refutable and never closes an interface by
+enumerating visible implementations. The focused `checker_*_test.go` files,
+`pattern_coverage_test.go`, and `program_checker_test.go` are the executable
+inventory; this list is a navigation aid, not an independent language
+authority.
 
 For one module, `CheckModule` gathers declarations, applies a prelude, checks
 bodies, resolves obligations, validates implementations, and accumulates
@@ -66,7 +79,9 @@ checked. Use the program-wide entry point whenever imports or visibility matter.
   accepts `strict`, `warn`, or `off` only as an explicit diagnostic policy for
   fixture/debug workflows; it does not alter Able runtime rules.
 - Compiler analysis uses the same `ProgramChecker` result rather than creating
-  a compiler-specific type model.
+  a compiler-specific type model. The retained compiler does not currently
+  consume coverage facts: its branch-elision candidate failed the broad
+  verifier-backed runtime bar and was removed.
 
 Diagnostic text and severity are part of tooling compatibility. Add structured
 context through `ModuleDiagnostic`, `SourceHint`, and diagnostic notes rather
@@ -77,12 +92,23 @@ from loader node origins.
 ## Selecting new checker work
 
 There is no active checker implementation candidate solely from this roadmap.
-The spec's open type-system items—full inference/variance/coercion rules and
-interface-dictionary details—need language decisions before a checker
-implementation is selected. Static named-implementation import collisions,
-selector renaming, and explicit source re-exports are now covered through the
-shared AST and program-wide package surface. See
+The v12 inference/HKT boundary is now closed: inference is local and rank-1,
+ordinary parameters have value-type kind, and constructor abstraction exists
+only through explicit interface self patterns and matching implementation
+targets. Runtime annotations reject unbound constructors while explicit host
+extern signatures retain their deliberate erased boundary. Static interface upcasts
+reject implementation ambiguity under §10.3.4; named-implementation import
+collisions, selector renaming, and explicit source re-exports are also covered
+through the shared AST and program-wide package surface. See
 `reexport-named-implementation-import-audit.md`.
+
+The retained variance decision is
+`variance-existential-coercion-proposal.md` option A. V12 has no
+variance-declaration syntax: all type parameters are invariant, and callable
+types require equivalent complete signatures. The checker implementation and
+fail-closed compiler diagnostics are complete. Any future declared-variance
+work is a post-v12 language, AST, soundness, and representation decision; it
+is not selected checker work.
 
 A new checker change must begin with all of the following:
 

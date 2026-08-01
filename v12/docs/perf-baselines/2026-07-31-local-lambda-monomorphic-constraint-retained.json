@@ -1,0 +1,140 @@
+{
+  "kind": "able-local-lambda-monomorphic-constraint-retained",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain",
+  "language_contract": {
+    "local_unannotated_lambda": "monomorphic",
+    "static_constraint_contexts": [
+      "callable argument",
+      "direct invocation",
+      "typed binding",
+      "function return",
+      "expected-type block or conditional branch"
+    ],
+    "compatible_constraints": "one exact normalized callable signature",
+    "incompatible_constraints": "coded callable-signature-mismatch before generation",
+    "explicit_dynamic_use": "does not constrain",
+    "explicit_generic_lambda": "retains declared polymorphism"
+  },
+  "implementation": {
+    "production_scopes": [
+      "spec/full_spec_v12.md",
+      "v12/interpreters/go/pkg/typechecker"
+    ],
+    "function_type_pattern_resolution_added": true,
+    "compiler_generator_changed": false,
+    "runtime_changed": false,
+    "interpreter_changed": false,
+    "bytecode_vm_changed": false,
+    "external_stdlib_changed": false,
+    "wasm_changed": false
+  },
+  "focused_evidence": {
+    "typechecker_cases": [
+      "compatible constraints",
+      "implicit declaration through =",
+      "conflicting constraints and first-use note",
+      "direct invocation",
+      "typed binding",
+      "return context",
+      "explicit dynamic use",
+      "lexical shadowing",
+      "reassignment"
+    ],
+    "fixtures": [
+      "07_02_lambdas_closures_capture",
+      "07_14_local_lambda_monomorphic_constraint",
+      "07_15_local_lambda_conflicting_constraints_diag"
+    ],
+    "fixture_modes_passed": [
+      "treewalker",
+      "bytecode",
+      "strict compiled"
+    ]
+  },
+  "strict_static_census": {
+    "authority": "2026-07-31-variance-invariant-callable-strict-static-census.json",
+    "successful_rows": 66,
+    "failed_rows": 0,
+    "rows_matching_authority_boundary_maps": 66,
+    "module_hashes_matching_prefinal_candidate": 66,
+    "aggregate_boundary_categories_match_authority": true,
+    "compiled_body_boundary_categories": {
+      "array_runtime_conversion": 43,
+      "bridge_decode": 1230,
+      "bridge_encode": 3777,
+      "bridge_error": 10213,
+      "bridge_other": 1538,
+      "callable_runtime_conversion": 276,
+      "control_error_conversion": 24665,
+      "erased_or_dynamic_call": 1859,
+      "interface_runtime_conversion": 3316,
+      "native_interface_adapter": 1192,
+      "native_union_wrap_or_projection": 27485,
+      "primitive_or_any_runtime_conversion": 7187,
+      "runtime_value_constructor": 30,
+      "struct_runtime_conversion": 3862,
+      "union_runtime_conversion": 288
+    },
+    "raw_census_retained": false,
+    "raw_census_sha256": "58011ecb88b11d361927734739a69e2dd133610bb3be73d865e38587bd54eaeb"
+  },
+  "balanced_ab": {
+    "repetitions_per_variant": 5,
+    "all_executions_verified": true,
+    "generated_go_byte_identical": true,
+    "trimpath_binaries_byte_identical": true,
+    "applications": [
+      {
+        "benchmark": "binary_event_log",
+        "baseline_mean_seconds": 0.046,
+        "candidate_mean_seconds": 0.042,
+        "trimpath_binary_sha256": "cb63f6d01c009ee6ce5406eddda7032bc20c0e08be0e27b2505678870cf1d8f3",
+        "external_scorecard_able_go_ratio": 9.27835
+      },
+      {
+        "benchmark": "concurrent_document_pipeline",
+        "baseline_mean_seconds": 0.0,
+        "candidate_mean_seconds": 0.0,
+        "trimpath_binary_sha256": "8c8099b4a5c8a6723cbcd75a281d00abaafea04ff0441db7a5911af320957012",
+        "external_scorecard_able_go_ratio": 10.23256
+      },
+      {
+        "benchmark": "versioned_telemetry_pipeline",
+        "baseline_mean_seconds": 2.152,
+        "candidate_mean_seconds": 2.144,
+        "trimpath_binary_sha256": "5cdf206fd9233529fcce4e28b5bb0d6bdfd234fb5b2d252bafb458cce49a49b7",
+        "external_scorecard_able_go_ratio": 9.95188
+      }
+    ],
+    "interpretation": "valid generated programs are identical; timing differences are noise"
+  },
+  "evidence_state": {
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "selected_closures": [],
+    "architecture_evidence_nodes": 5,
+    "complete_suite": {
+      "passed": true,
+      "elapsed_seconds": 718.50,
+      "peak_rss_kib": 1846056,
+      "compiler_batches": 85,
+      "slowest_compiler_batch_seconds": 38.659,
+      "canonical_outlier_seconds": 15.074
+    }
+  },
+  "cleanup": {
+    "disk_backed_task_workspace_kib": 14363772,
+    "removed": true,
+    "remaining_able_temp_directories": 0,
+    "remaining_repository_python_caches": 0
+  },
+  "next": {
+    "tranche": "refresh interpreter-free CPU and allocation profiles across the three measured unlike applications",
+    "selection_rule": "advance only the largest material owner shared by all three and backed by a general compiler/runtime lowering rule",
+    "verification": "five or more balanced verifier-backed baseline/candidate/Go pairs",
+    "importance": "the callable rule is closed and valid output is unchanged, while the three Go gaps remain roughly 9-10x"
+  }
+}

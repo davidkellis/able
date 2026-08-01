@@ -1,11 +1,11 @@
 {
   "kind": "able-performance-frontier",
   "schema_version": 2,
-  "generated_from": "2026-07-30T18:18:40.955882Z",
+  "generated_from": "2026-07-31T22:45:38.198870Z",
   "sources": {
     "scorecard": {
       "path": "v12/docs/perf-baselines/external-scoreboard-current.json",
-      "sha256": "3652695dc7b1576ed4729ef30a7688b171114cda9b4ce269132fd868b37849f3"
+      "sha256": "0e0881fe6b76cd81c185cbaf2cc3c58ee42ced043f1af444f3741687739ec58f"
     },
     "selection_manifest": {
       "path": "v12/bench-selection-manifest.json",
@@ -14,24 +14,24 @@
     },
     "evidence_manifest": {
       "path": "v12/bench-performance-frontier-evidence.json",
-      "sha256": "f9113788815c9000194573e3c7d7a2ceed70baa1c5db1aede1e32714aba718e7"
+      "sha256": "3b2144689d5d60a6dd7d9c2a37a6c74a4e0d7c6db8ea2911860297abb592b432"
     },
     "stability_manifest": {
       "path": "v12/bench-performance-stability.json",
-      "sha256": "05d2d68df5bd3ce200cbd6d13f6ef2bcc3cfa8fbee461cb40187d7093bcf3963"
+      "sha256": "35b82cc364bc8eaa2633ad1c79c040f50bf971aba57ff42a7a7d1aa56eb8e6c8"
     }
   },
   "summary": {
     "selected_rows": 132,
     "compiled_rows": 66,
     "bytecode_rows": 66,
-    "target_meets": 10,
-    "target_misses": 122,
-    "established_guards": 10,
+    "target_meets": 13,
+    "target_misses": 119,
+    "established_guards": 13,
     "unestablished_snapshot_meets": 0,
-    "compiled_established_guards": 6,
+    "compiled_established_guards": 9,
     "bytecode_established_guards": 4,
-    "total_excess_seconds": 277.2004210526316,
+    "total_excess_seconds": 274.67726315789474,
     "disposition_rows": {
       "closed-insufficient-breadth": 1,
       "closed-no-shared-leaf": 62,
@@ -48,14 +48,16 @@
       "row_count": 6,
       "miss_count": 0,
       "total_excess_seconds": 0.0,
-      "maximum_ratio": 1.0099852676379113,
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "maximum_ratio": 0.975044489508753,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
       "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
       "rationale": "All six rows remain below the 1.052632x target threshold. Fresh strict builds verify without the interpreter, and the primitive nullable carrier has zero reach in every material protected owner. QuickSort reaches only an absent outer main result; PiDigits also has direct verifier-backed nullable A/B evidence.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md",
@@ -70,16 +72,18 @@
     {
       "id": "compiled-current-control",
       "row_count": 3,
-      "miss_count": 3,
-      "total_excess_seconds": 1.374526315789474,
-      "maximum_ratio": 1.268474855207773,
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "miss_count": 1,
+      "total_excess_seconds": 0.2891578947368423,
+      "maximum_ratio": 1.1427147263154616,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
       "owner": "Fib direct recursion, Matrix primitive nested arithmetic, and TapeLang flat dispatch remain separate generated bodies.",
       "rationale": "Post-carrier strict builds have no nullable reach in Fib or Matrix application bodies. TapeLang reaches the carrier only for 14 one-time parser-stack pops; its profiled execute and Tape owners have zero reach. The prior exact owners therefore remain causally current and expose no shared compiler/runtime child.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-current-control-reconciliation.md",
@@ -99,15 +103,17 @@
       "id": "compiled-sudoku-quotient",
       "row_count": 1,
       "miss_count": 1,
-      "total_excess_seconds": 1.2097894736842105,
-      "maximum_ratio": 2.7366369710467704,
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "total_excess_seconds": 0.8047368421052633,
+      "maximum_ratio": 2.1151307103247956,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-insufficient-breadth",
       "exact_leaf_breadth": 1,
       "owner": "The nullable carrier reaches only main's allocation-free absent result after all work. The hot search retains two signed-i32 divmod calls in square_index; the helper is 12.53% cumulative in two retained profiles and material only in Sudoku.",
       "rationale": "Fresh current-source strict generation verifies without the interpreter and finds zero nullable-i32, runtime.Value, or bridge references in find_best_empty, solve, solve_with_masks, and square_index. The positive-operand helper branch already performs native Go slash and percent. Rational uses distinct Int128 DivMod, Regex quotient is cold, and K-Nucleotide quotient formatting is negligible. Perfect helper removal still leaves a 2.393736x Able/Go ratio.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-sudoku-quotient-reconciliation.md",
@@ -125,15 +131,17 @@
       "id": "compiled-float-numeric",
       "row_count": 4,
       "miss_count": 4,
-      "total_excess_seconds": 0.15242105263157896,
-      "maximum_ratio": 2.768361581920904,
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "total_excess_seconds": 0.1163157894736842,
+      "maximum_ratio": 3.8461538461538463,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Native float64 arithmetic and math.Sqrt recur across Distance Field, N-Body, and RMS Norm; Mandelbrot is a direct fused float64 pixel loop. All four generated application bodies contain zero nullable-f64 sites.",
       "rationale": "N-Body Array<f64> reads and writes are direct native Elements operations. The nullable change reaches only N-Body's allocation-free ignored i32 loop result, so no changed residual has three-row breadth. Remaining float bridges are one-or-two-call output boundaries; bytecode raw-float alternatives remain closed.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-float-numeric-reconciliation.md",
@@ -150,15 +158,17 @@
       "id": "compiled-wide-numeric",
       "row_count": 3,
       "miss_count": 3,
-      "total_excess_seconds": 0.20357894736842105,
-      "maximum_ratio": 17.966101694915253,
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "total_excess_seconds": 0.14378947368421055,
+      "maximum_ratio": 13.125,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Material arithmetic uses direct runtime.Int128 and runtime.Uint128 carriers; the shared retained profile owner remains package-environment SwapEnv/sync/atomic.StorePointer. All nullable-wide references are dormant support with zero construction or call sites.",
       "rationale": "The nullable carrier has zero material reach in all three rows and does not invalidate package publication. General execution-context and package-linkage alternatives already regressed unrelated N-Body and K-Nucleotide; pointer results are shared nominal UInt128, Int128, Rational, and record encodings that cannot be specialized by name.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-wide-numeric-reconciliation.md",
@@ -174,15 +184,17 @@
       "id": "compiled-byte-output",
       "row_count": 2,
       "miss_count": 2,
-      "total_excess_seconds": 0.07400000000000001,
-      "maximum_ratio": 3.75,
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "total_excess_seconds": 0.0436842105263158,
+      "maximum_ratio": 2.3255813953488373,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
       "owner": "FASTA, Reverse Complement, and unlike Mandelbrot control all use native []uint8 backing and borrowed output with zero application-body nullable-u8 or runtime-byte conversions. Material owners remain direct FASTA arithmetic, Reverse transform/backing/GC work, and Mandelbrot pixel rendering.",
       "rationale": "The nullable carrier has zero material byte reach. The only three-row shared output descendant is the required once-per-process IoHandle and IOError|i32 host boundary; prior profiles do not make it material in all three. The retained write_all copy removal remains causal, and Array growth still lacks three-application breadth.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-byte-output-reconciliation.md",
@@ -197,16 +209,20 @@
     {
       "id": "compiled-text-map",
       "row_count": 9,
-      "miss_count": 9,
-      "total_excess_seconds": 2.0156842105263157,
-      "maximum_ratio": 23.796711509715994,
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "miss_count": 8,
+      "total_excess_seconds": 1.5502105263157895,
+      "maximum_ratio": 21.03225806451613,
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
-      "rationale": "All nine strict rows verify and omit the interpreter. The map rows share only the named HashMap kernel's explicit dynamic conversion boundary, which cannot authorize a named-container compiler rule. Parsing and ToInt remain common only to Sensor Calibration and Transaction Ledger Audit, while Manifest's residual is String/nominal work. No admissible exact successor reaches three unlike applications.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
+      "rationale": "The two map rows verify and omit the interpreter, but their shared exact owner is the named HashMap kernel's explicit runtime-service conversion boundary. The unlike Telemetry control has no hot runtime.Value conversion, so primitive boxing has material breadth two and allocation/GC remains only an aggregate parent. No admissible exact successor reaches three unlike applications.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -234,15 +250,17 @@
       "id": "compiled-regex",
       "row_count": 6,
       "miss_count": 6,
-      "total_excess_seconds": 0.35547368421052633,
-      "maximum_ratio": 18.11320754716981,
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "total_excess_seconds": 0.2506315789473684,
+      "maximum_ratio": 12.830188679245284,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 6,
       "owner": "The primitive nullable carrier reaches canonical NFA acceptance in all six rows. Fresh Config, Log, and Stream profiles show the accepting scan at 1.19%-5.41% flat with zero result allocations or dynamic conversions; larger repeated owners remain closure, move, and thread upsert.",
       "rationale": "Generated acceptance functions already use direct value-plus-valid results and native int32 Arrays. Their sampled lines are the native scan and accepts_state call, while nullable match boilerplate and bridges receive zero samples. Removing the scan requires the previously rejected state index; arenas, character specialization, and other carrier/call alternatives also failed broad gates.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md",
@@ -258,15 +276,17 @@
       "id": "compiled-concurrency",
       "row_count": 23,
       "miss_count": 23,
-      "total_excess_seconds": 0.8826315789473684,
-      "maximum_ratio": 19.649122807017545,
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "total_excess_seconds": 0.7198947368421053,
+      "maximum_ratio": 23.829787234042552,
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "rationale": "All 23 rows verify with 96-package interpreter-free graphs. Channel-handle reach is unchanged at 238,838 events across 14 rows and mutex-handle reach is unchanged at 43,016 events across three rows; retained normal-binary profiles keep channel recovery below one percent. Await's exact nullable callback residual has breadth one. The retained ToInt global cache slowed TapeLang by 4.17%, currentGID is material in only two rows, and nominal struct work is material in only two and cannot receive special cases. No open changed owner remains.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -288,15 +308,19 @@
       "id": "compiled-iterator-control",
       "row_count": 9,
       "miss_count": 9,
-      "total_excess_seconds": 2.2057894736842107,
-      "maximum_ratio": 16.097560975609756,
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "total_excess_seconds": 2.0323157894736843,
+      "maximum_ratio": 11.05263157894737,
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
-      "rationale": "Ten main-only CPU profiles, three exact allocation-counter processes, and one exact allocation-shape process per unlike reached application all verify. Checked arithmetic reaches only Binary and Telemetry and is already closed. Allocation/GC is the only common ancestor, while concrete nominal values have different escaping return/storage lifetimes and cannot be copied without changing identity and alias-visible mutation. No exact admissible successor reaches all three.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
+      "rationale": "Ten Telemetry main-only CPU profiles, three exact allocation-counter processes, and one exact allocation-shape process verify. Fresh Sample pointers are 98.89% of its exact allocation shape but do not occur as the material leaf in the two map controls. Checked arithmetic is already closed, and allocation/GC is only a common ancestor. No exact admissible successor reaches all three.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -4577,19 +4601,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.036,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.8181818181818175,
+      "worst_ratio": 7.199999999999999,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0044,
-      "target_budget_seconds": 0.0046315789473684215,
-      "excess_seconds": 0.02536842105263158,
+      "fastest_reference_real_seconds": 0.005,
+      "target_budget_seconds": 0.005263157894736842,
+      "excess_seconds": 0.030736842105263156,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0044,
-          "ratio": 6.8181818181818175
+          "real_seconds": 0.005,
+          "ratio": 7.199999999999999
         }
       ],
       "able_source": {
@@ -4598,12 +4622,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -4648,17 +4676,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.112,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 19.649122807017545,
+      "worst_ratio": 23.829787234042552,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0057,
-      "target_budget_seconds": 0.006,
-      "excess_seconds": 0.106,
+      "fastest_reference_real_seconds": 0.0047,
+      "target_budget_seconds": 0.004947368421052632,
+      "excess_seconds": 0.10705263157894737,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0057,
-          "ratio": 19.649122807017545
+          "real_seconds": 0.0047,
+          "ratio": 23.829787234042552
         }
       ],
       "able_source": {
@@ -4667,12 +4695,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -4696,19 +4726,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.072,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.545454545454545,
+      "worst_ratio": 3.0434782608695654,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.011,
-      "target_budget_seconds": 0.011578947368421052,
-      "excess_seconds": 0.060421052631578945,
+      "fastest_reference_real_seconds": 0.0138,
+      "target_budget_seconds": 0.014526315789473682,
+      "excess_seconds": 0.02747368421052632,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.011,
-          "ratio": 6.545454545454545
+          "real_seconds": 0.0138,
+          "ratio": 3.0434782608695654
         }
       ],
       "able_source": {
@@ -4717,12 +4747,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -4752,19 +4786,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 2.448,
+      "able_real_seconds": 2.356,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.9344224749980914,
+      "worst_ratio": 0.975044489508753,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 2.6198,
-      "target_budget_seconds": 2.7576842105263157,
+      "fastest_reference_real_seconds": 2.4163,
+      "target_budget_seconds": 2.543473684210526,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 2.6198,
-          "ratio": 0.9344224749980914
+          "real_seconds": 2.4163,
+          "ratio": 0.975044489508753
         }
       ],
       "able_source": {
@@ -4773,12 +4807,14 @@
         "provenance": "measured"
       },
       "group": "compiled-target-guards",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
       "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md",
@@ -4824,19 +4860,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.09,
+      "able_real_seconds": 0.072,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.278350515463917,
+      "worst_ratio": 9.0,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0097,
-      "target_budget_seconds": 0.010210526315789474,
-      "excess_seconds": 0.07978947368421052,
+      "fastest_reference_real_seconds": 0.008,
+      "target_budget_seconds": 0.008421052631578947,
+      "excess_seconds": 0.06357894736842104,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0097,
-          "ratio": 9.278350515463917
+          "real_seconds": 0.008,
+          "ratio": 9.0
         }
       ],
       "able_source": {
@@ -4845,12 +4881,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -4893,19 +4933,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 10.714,
+      "able_real_seconds": 7.374,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.0060282822212623,
+      "worst_ratio": 0.6166015837312172,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 10.6498,
-      "target_budget_seconds": 11.210315789473684,
+      "fastest_reference_real_seconds": 11.9591,
+      "target_budget_seconds": 12.588526315789473,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 10.6498,
-          "ratio": 1.0060282822212623
+          "real_seconds": 11.9591,
+          "ratio": 0.6166015837312172
         }
       ],
       "able_source": {
@@ -4914,12 +4954,14 @@
         "provenance": "measured"
       },
       "group": "compiled-target-guards",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
       "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md",
@@ -4965,19 +5007,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.042,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.461538461538463,
+      "worst_ratio": 6.557377049180327,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0065,
-      "target_budget_seconds": 0.006842105263157894,
-      "excess_seconds": 0.03515789473684211,
+      "fastest_reference_real_seconds": 0.0061,
+      "target_budget_seconds": 0.006421052631578947,
+      "excess_seconds": 0.033578947368421055,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0065,
-          "ratio": 6.461538461538463
+          "real_seconds": 0.0061,
+          "ratio": 6.557377049180327
         }
       ],
       "able_source": {
@@ -4986,12 +5028,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5015,19 +5059,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.04,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.30232558139535,
+      "worst_ratio": 5.660377358490566,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0043,
-      "target_budget_seconds": 0.004526315789473684,
-      "excess_seconds": 0.03547368421052632,
+      "fastest_reference_real_seconds": 0.0053,
+      "target_budget_seconds": 0.005578947368421052,
+      "excess_seconds": 0.024421052631578948,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0043,
-          "ratio": 9.30232558139535
+          "real_seconds": 0.0053,
+          "ratio": 5.660377358490566
         }
       ],
       "able_source": {
@@ -5036,12 +5080,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5065,19 +5111,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.044,
+      "able_real_seconds": 0.026,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 10.232558139534882,
+      "worst_ratio": 5.531914893617021,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0043,
-      "target_budget_seconds": 0.004526315789473684,
-      "excess_seconds": 0.039473684210526314,
+      "fastest_reference_real_seconds": 0.0047,
+      "target_budget_seconds": 0.004947368421052632,
+      "excess_seconds": 0.021052631578947368,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0043,
-          "ratio": 10.232558139534882
+          "real_seconds": 0.0047,
+          "ratio": 5.531914893617021
         }
       ],
       "able_source": {
@@ -5086,12 +5132,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5115,19 +5163,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.054,
+      "able_real_seconds": 0.034,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.818181818181818,
+      "worst_ratio": 5.3125,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0055,
-      "target_budget_seconds": 0.005789473684210526,
-      "excess_seconds": 0.048210526315789475,
+      "fastest_reference_real_seconds": 0.0064,
+      "target_budget_seconds": 0.006736842105263158,
+      "excess_seconds": 0.027263157894736843,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0055,
-          "ratio": 9.818181818181818
+          "real_seconds": 0.0064,
+          "ratio": 5.3125
         }
       ],
       "able_source": {
@@ -5136,12 +5184,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5165,19 +5215,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.02,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.8181818181818175,
+      "worst_ratio": 4.166666666666667,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0044,
-      "target_budget_seconds": 0.0046315789473684215,
-      "excess_seconds": 0.02536842105263158,
+      "fastest_reference_real_seconds": 0.0048,
+      "target_budget_seconds": 0.005052631578947368,
+      "excess_seconds": 0.014947368421052633,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0044,
-          "ratio": 6.8181818181818175
+          "real_seconds": 0.0048,
+          "ratio": 4.166666666666667
         }
       ],
       "able_source": {
@@ -5186,12 +5236,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5217,17 +5269,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.5,
+      "worst_ratio": 6.25,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.004,
-      "target_budget_seconds": 0.004210526315789474,
-      "excess_seconds": 0.025789473684210525,
+      "fastest_reference_real_seconds": 0.0048,
+      "target_budget_seconds": 0.005052631578947368,
+      "excess_seconds": 0.02494736842105263,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.004,
-          "ratio": 7.5
+          "real_seconds": 0.0048,
+          "ratio": 6.25
         }
       ],
       "able_source": {
@@ -5236,12 +5288,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5265,19 +5319,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.034,
+      "able_real_seconds": 0.032,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 7.555555555555556,
+      "worst_ratio": 4.571428571428571,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0045,
-      "target_budget_seconds": 0.004736842105263157,
-      "excess_seconds": 0.029263157894736845,
+      "fastest_reference_real_seconds": 0.007,
+      "target_budget_seconds": 0.007368421052631579,
+      "excess_seconds": 0.02463157894736842,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0045,
-          "ratio": 7.555555555555556
+          "real_seconds": 0.007,
+          "ratio": 4.571428571428571
         }
       ],
       "able_source": {
@@ -5286,12 +5340,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5317,17 +5373,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.666666666666667,
+      "worst_ratio": 5.769230769230769,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0045,
-      "target_budget_seconds": 0.004736842105263157,
-      "excess_seconds": 0.02526315789473684,
+      "fastest_reference_real_seconds": 0.0052,
+      "target_budget_seconds": 0.0054736842105263155,
+      "excess_seconds": 0.024526315789473684,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0045,
-          "ratio": 6.666666666666667
+          "real_seconds": 0.0052,
+          "ratio": 5.769230769230769
         }
       ],
       "able_source": {
@@ -5336,12 +5392,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5365,19 +5423,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.038,
+      "able_real_seconds": 0.036,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 8.26086956521739,
+      "worst_ratio": 6.206896551724138,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0046,
-      "target_budget_seconds": 0.004842105263157894,
-      "excess_seconds": 0.03315789473684211,
+      "fastest_reference_real_seconds": 0.0058,
+      "target_budget_seconds": 0.006105263157894736,
+      "excess_seconds": 0.029894736842105262,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0046,
-          "ratio": 8.26086956521739
+          "real_seconds": 0.0058,
+          "ratio": 6.206896551724138
         }
       ],
       "able_source": {
@@ -5386,12 +5444,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5415,19 +5475,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.026,
+      "able_real_seconds": 0.032,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.416666666666667,
+      "worst_ratio": 4.923076923076923,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0048,
-      "target_budget_seconds": 0.005052631578947368,
-      "excess_seconds": 0.02094736842105263,
+      "fastest_reference_real_seconds": 0.0065,
+      "target_budget_seconds": 0.006842105263157894,
+      "excess_seconds": 0.025157894736842108,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0048,
-          "ratio": 5.416666666666667
+          "real_seconds": 0.0065,
+          "ratio": 4.923076923076923
         }
       ],
       "able_source": {
@@ -5436,12 +5496,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5465,19 +5527,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.066,
+      "able_real_seconds": 0.064,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 11.785714285714286,
+      "worst_ratio": 8.64864864864865,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0056,
-      "target_budget_seconds": 0.0058947368421052625,
-      "excess_seconds": 0.06010526315789474,
+      "fastest_reference_real_seconds": 0.0074,
+      "target_budget_seconds": 0.007789473684210527,
+      "excess_seconds": 0.056210526315789475,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0056,
-          "ratio": 11.785714285714286
+          "real_seconds": 0.0074,
+          "ratio": 8.64864864864865
         }
       ],
       "able_source": {
@@ -5486,12 +5548,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5515,19 +5579,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.042,
+      "able_real_seconds": 0.034,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 8.4,
+      "worst_ratio": 5.573770491803279,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.005,
-      "target_budget_seconds": 0.005263157894736842,
-      "excess_seconds": 0.03673684210526316,
+      "fastest_reference_real_seconds": 0.0061,
+      "target_budget_seconds": 0.006421052631578947,
+      "excess_seconds": 0.027578947368421057,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.005,
-          "ratio": 8.4
+          "real_seconds": 0.0061,
+          "ratio": 5.573770491803279
         }
       ],
       "able_source": {
@@ -5536,12 +5600,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5567,17 +5633,17 @@
       "stability_classification": null,
       "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.333333333333334,
+      "worst_ratio": 3.252032520325203,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0075,
-      "target_budget_seconds": 0.007894736842105262,
-      "excess_seconds": 0.03210526315789474,
+      "fastest_reference_real_seconds": 0.0123,
+      "target_budget_seconds": 0.012947368421052631,
+      "excess_seconds": 0.02705263157894737,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0075,
-          "ratio": 5.333333333333334
+          "real_seconds": 0.0123,
+          "ratio": 3.252032520325203
         }
       ],
       "able_source": {
@@ -5586,12 +5652,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5615,19 +5683,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.042,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 8.750000000000002,
+      "worst_ratio": 4.411764705882353,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0048,
-      "target_budget_seconds": 0.005052631578947368,
-      "excess_seconds": 0.03694736842105263,
+      "fastest_reference_real_seconds": 0.0068,
+      "target_budget_seconds": 0.007157894736842104,
+      "excess_seconds": 0.022842105263157893,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0048,
-          "ratio": 8.750000000000002
+          "real_seconds": 0.0068,
+          "ratio": 4.411764705882353
         }
       ],
       "able_source": {
@@ -5636,12 +5704,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5665,19 +5735,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.032,
+      "able_real_seconds": 0.028,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.9565217391304355,
+      "worst_ratio": 5.714285714285714,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0046,
-      "target_budget_seconds": 0.004842105263157894,
-      "excess_seconds": 0.027157894736842107,
+      "fastest_reference_real_seconds": 0.0049,
+      "target_budget_seconds": 0.005157894736842105,
+      "excess_seconds": 0.022842105263157896,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0046,
-          "ratio": 6.9565217391304355
+          "real_seconds": 0.0049,
+          "ratio": 5.714285714285714
         }
       ],
       "able_source": {
@@ -5686,12 +5756,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5715,19 +5787,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.048,
+      "able_real_seconds": 0.036,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 12.631578947368421,
+      "worst_ratio": 6.31578947368421,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0038,
-      "target_budget_seconds": 0.004,
-      "excess_seconds": 0.044,
+      "fastest_reference_real_seconds": 0.0057,
+      "target_budget_seconds": 0.006,
+      "excess_seconds": 0.03,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0038,
-          "ratio": 12.631578947368421
+          "real_seconds": 0.0057,
+          "ratio": 6.31578947368421
         }
       ],
       "able_source": {
@@ -5736,12 +5808,14 @@
         "provenance": "measured"
       },
       "group": "compiled-regex",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 6,
       "owner": "The primitive nullable carrier reaches canonical NFA acceptance in all six rows. Fresh Config, Log, and Stream profiles show the accepting scan at 1.19%-5.41% flat with zero result allocations or dynamic conversions; larger repeated owners remain closure, move, and thread upsert.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md",
@@ -5759,19 +5833,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.02,
+      "able_real_seconds": 0.036,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.2631578947368425,
+      "worst_ratio": 6.666666666666666,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0038,
-      "target_budget_seconds": 0.004,
-      "excess_seconds": 0.016,
+      "fastest_reference_real_seconds": 0.0054,
+      "target_budget_seconds": 0.00568421052631579,
+      "excess_seconds": 0.030315789473684206,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0038,
-          "ratio": 5.2631578947368425
+          "real_seconds": 0.0054,
+          "ratio": 6.666666666666666
         }
       ],
       "able_source": {
@@ -5780,12 +5854,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -5828,19 +5906,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.046,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.583333333333334,
+      "worst_ratio": 7.636363636363638,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0048,
-      "target_budget_seconds": 0.005052631578947368,
-      "excess_seconds": 0.040947368421052635,
+      "fastest_reference_real_seconds": 0.0055,
+      "target_budget_seconds": 0.005789473684210526,
+      "excess_seconds": 0.03621052631578948,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0048,
-          "ratio": 9.583333333333334
+          "real_seconds": 0.0055,
+          "ratio": 7.636363636363638
         }
       ],
       "able_source": {
@@ -5849,12 +5927,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -5878,19 +5958,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.042,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 3.0434782608695654,
+      "worst_ratio": 2.7027027027027026,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0138,
-      "target_budget_seconds": 0.014526315789473682,
-      "excess_seconds": 0.02747368421052632,
+      "fastest_reference_real_seconds": 0.0148,
+      "target_budget_seconds": 0.015578947368421053,
+      "excess_seconds": 0.024421052631578948,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0138,
-          "ratio": 3.0434782608695654
+          "real_seconds": 0.0148,
+          "ratio": 2.7027027027027026
         }
       ],
       "able_source": {
@@ -5899,12 +5979,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -5947,19 +6031,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.038,
+      "able_real_seconds": 0.06,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.5850340136054424,
+      "worst_ratio": 3.8461538461538463,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0147,
-      "target_budget_seconds": 0.015473684210526315,
-      "excess_seconds": 0.022526315789473686,
+      "fastest_reference_real_seconds": 0.0156,
+      "target_budget_seconds": 0.016421052631578947,
+      "excess_seconds": 0.04357894736842105,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0147,
-          "ratio": 2.5850340136054424
+          "real_seconds": 0.0156,
+          "ratio": 3.8461538461538463
         }
       ],
       "able_source": {
@@ -5968,12 +6052,14 @@
         "provenance": "measured"
       },
       "group": "compiled-float-numeric",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Native float64 arithmetic and math.Sqrt recur across Distance Field, N-Body, and RMS Norm; Mandelbrot is a direct fused float64 pixel loop. All four generated application bodies contain zero nullable-f64 sites.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-float-numeric-reconciliation.md",
@@ -5992,19 +6078,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.038,
+      "able_real_seconds": 0.02,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.268292682926829,
+      "worst_ratio": 3.6363636363636367,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0041,
-      "target_budget_seconds": 0.00431578947368421,
-      "excess_seconds": 0.03368421052631579,
+      "fastest_reference_real_seconds": 0.0055,
+      "target_budget_seconds": 0.005789473684210526,
+      "excess_seconds": 0.014210526315789476,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0041,
-          "ratio": 9.268292682926829
+          "real_seconds": 0.0055,
+          "ratio": 3.6363636363636367
         }
       ],
       "able_source": {
@@ -6013,12 +6099,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -6061,19 +6151,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.048,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.94478527607362,
+      "worst_ratio": 2.3121387283236996,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0163,
-      "target_budget_seconds": 0.0171578947368421,
-      "excess_seconds": 0.0308421052631579,
+      "fastest_reference_real_seconds": 0.0173,
+      "target_budget_seconds": 0.018210526315789472,
+      "excess_seconds": 0.02178947368421053,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0163,
-          "ratio": 2.94478527607362
+          "real_seconds": 0.0173,
+          "ratio": 2.3121387283236996
         }
       ],
       "able_source": {
@@ -6082,12 +6172,14 @@
         "provenance": "measured"
       },
       "group": "compiled-byte-output",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
       "owner": "FASTA, Reverse Complement, and unlike Mandelbrot control all use native []uint8 backing and borrowed output with zero application-body nullable-u8 or runtime-byte conversions. Material owners remain direct FASTA arithmetic, Reverse transform/backing/GC work, and Mandelbrot pixel rendering.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-byte-output-reconciliation.md",
@@ -6102,22 +6194,22 @@
     {
       "benchmark": "fib",
       "mode": "compiled",
-      "target_status": "miss",
-      "established_guard_status": "not-applicable",
-      "stability_classification": null,
-      "able_real_seconds": 4.008,
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 3.416,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.268474855207773,
+      "worst_ratio": 0.9658721406961291,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 3.1597,
-      "target_budget_seconds": 3.3259999999999996,
-      "excess_seconds": 0.6820000000000004,
+      "fastest_reference_real_seconds": 3.5367,
+      "target_budget_seconds": 3.7228421052631577,
+      "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 3.1597,
-          "ratio": 1.268474855207773
+          "real_seconds": 3.5367,
+          "ratio": 0.9658721406961291
         }
       ],
       "able_source": {
@@ -6126,12 +6218,14 @@
         "provenance": "measured"
       },
       "group": "compiled-current-control",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
       "owner": "Fib direct recursion, Matrix primitive nested arithmetic, and TapeLang flat dispatch remain separate generated bodies.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-current-control-reconciliation.md",
@@ -6145,7 +6239,35 @@
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-go-reference.json",
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-compiled.json",
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-go-reference.json"
-      ]
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 1.0034794304260108,
+        "cohort_ratios": [
+          0.9658721406961291,
+          1.0437414863024066
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "96683db985102a2ae6d82919b95c1da572febe499cccd2490971dcd9647019cd",
+        "reference_source_sha256": {
+          "go": "d35840666fee5c1c2c45f44086e1c379331fb844bbba93e8542d8a848898d705"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-scorecard.json",
+            "sha256": "c6b810eeb7e73c5d3617ba197243cc4cf05cba737cb6e5b2298e89082522ae07"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-b.json",
+            "sha256": "817a265b344838fff91bfa131810b1a57a988194c80420c82bcd6a0a33beb86e"
+          }
+        ],
+        "rationale": "Both independent post-ownership-default five-process cohorts meet the target with verifier-backed pinned-Go references."
+      }
     },
     {
       "benchmark": "fixed_width_128",
@@ -6153,19 +6275,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.106,
+      "able_real_seconds": 0.084,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 17.966101694915253,
+      "worst_ratio": 13.125,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0059,
-      "target_budget_seconds": 0.006210526315789473,
-      "excess_seconds": 0.09978947368421053,
+      "fastest_reference_real_seconds": 0.0064,
+      "target_budget_seconds": 0.006736842105263158,
+      "excess_seconds": 0.07726315789473685,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0059,
-          "ratio": 17.966101694915253
+          "real_seconds": 0.0064,
+          "ratio": 13.125
         }
       ],
       "able_source": {
@@ -6174,12 +6296,14 @@
         "provenance": "measured"
       },
       "group": "compiled-wide-numeric",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Material arithmetic uses direct runtime.Int128 and runtime.Uint128 carriers; the shared retained profile owner remains package-environment SwapEnv/sync/atomic.StorePointer. All nullable-wide references are dormant support with zero construction or call sites.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-wide-numeric-reconciliation.md",
@@ -6197,19 +6321,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.038,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 8.636363636363635,
+      "worst_ratio": 6.666666666666667,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0044,
-      "target_budget_seconds": 0.0046315789473684215,
-      "excess_seconds": 0.033368421052631575,
+      "fastest_reference_real_seconds": 0.0045,
+      "target_budget_seconds": 0.004736842105263157,
+      "excess_seconds": 0.02526315789473684,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0044,
-          "ratio": 8.636363636363635
+          "real_seconds": 0.0045,
+          "ratio": 6.666666666666667
         }
       ],
       "able_source": {
@@ -6218,12 +6342,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -6247,19 +6373,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.036,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.3731343283582085,
+      "worst_ratio": 4.285714285714286,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0067,
-      "target_budget_seconds": 0.0070526315789473685,
-      "excess_seconds": 0.028947368421052628,
+      "fastest_reference_real_seconds": 0.007,
+      "target_budget_seconds": 0.007368421052631579,
+      "excess_seconds": 0.02263157894736842,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0067,
-          "ratio": 5.3731343283582085
+          "real_seconds": 0.007,
+          "ratio": 4.285714285714286
         }
       ],
       "able_source": {
@@ -6268,12 +6394,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -6297,19 +6425,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.076,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 14.615384615384615,
+      "worst_ratio": 5.172413793103448,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0052,
-      "target_budget_seconds": 0.0054736842105263155,
-      "excess_seconds": 0.07052631578947369,
+      "fastest_reference_real_seconds": 0.0058,
+      "target_budget_seconds": 0.006105263157894736,
+      "excess_seconds": 0.023894736842105264,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0052,
-          "ratio": 14.615384615384615
+          "real_seconds": 0.0058,
+          "ratio": 5.172413793103448
         }
       ],
       "able_source": {
@@ -6318,12 +6446,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -6363,22 +6495,22 @@
     {
       "benchmark": "i_before_e",
       "mode": "compiled",
-      "target_status": "miss",
-      "established_guard_status": "not-applicable",
-      "stability_classification": null,
-      "able_real_seconds": 0.068,
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.0725552050473188,
+      "worst_ratio": 0.5571030640668524,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0634,
-      "target_budget_seconds": 0.06673684210526315,
-      "excess_seconds": 0.001263157894736855,
+      "fastest_reference_real_seconds": 0.0718,
+      "target_budget_seconds": 0.07557894736842105,
+      "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0634,
-          "ratio": 1.0725552050473188
+          "real_seconds": 0.0718,
+          "ratio": 0.5571030640668524
         }
       ],
       "able_source": {
@@ -6387,12 +6519,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -6414,7 +6550,35 @@
         "v12/docs/perf-baselines/2026-07-20-generic-hash-map-index-gate.md",
         "v12/docs/perf-baselines/2026-07-21-manifest-normalization-application-gate.md",
         "v12/docs/perf-baselines/2026-07-21-manifest-normalization-compiled-main-profile.txt"
-      ]
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.6397562833206397,
+        "cohort_ratios": [
+          0.5571030640668524,
+          0.7394957983193278
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9",
+        "reference_source_sha256": {
+          "go": "63386a111f2fd35ff949092a419c99ce7dcf21e81b24575ece330f7729df65c0"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-scorecard.json",
+            "sha256": "c6b810eeb7e73c5d3617ba197243cc4cf05cba737cb6e5b2298e89082522ae07"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-b.json",
+            "sha256": "817a265b344838fff91bfa131810b1a57a988194c80420c82bcd6a0a33beb86e"
+          }
+        ],
+        "rationale": "Both independent post-ownership-default five-process cohorts meet the target with verifier-backed pinned-Go references."
+      }
     },
     {
       "benchmark": "inventory_reconciliation",
@@ -6422,19 +6586,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.14,
+      "able_real_seconds": 0.1,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 14.73684210526316,
+      "worst_ratio": 10.869565217391305,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0095,
-      "target_budget_seconds": 0.009999999999999998,
-      "excess_seconds": 0.13,
+      "fastest_reference_real_seconds": 0.0092,
+      "target_budget_seconds": 0.009684210526315788,
+      "excess_seconds": 0.09031578947368421,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0095,
-          "ratio": 14.73684210526316
+          "real_seconds": 0.0092,
+          "ratio": 10.869565217391305
         }
       ],
       "able_source": {
@@ -6443,12 +6607,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -6478,19 +6646,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 1.216,
+      "able_real_seconds": 0.56,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.8234577097582447,
+      "worst_ratio": 0.356302093274798,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 1.4767,
-      "target_budget_seconds": 1.5544210526315787,
+      "fastest_reference_real_seconds": 1.5717,
+      "target_budget_seconds": 1.654421052631579,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 1.4767,
-          "ratio": 0.8234577097582447
+          "real_seconds": 1.5717,
+          "ratio": 0.356302093274798
         }
       ],
       "able_source": {
@@ -6499,12 +6667,14 @@
         "provenance": "measured"
       },
       "group": "compiled-target-guards",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
       "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md",
@@ -6550,19 +6720,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 1.592,
+      "able_real_seconds": 1.304,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 23.796711509715994,
+      "worst_ratio": 21.03225806451613,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0669,
-      "target_budget_seconds": 0.07042105263157894,
-      "excess_seconds": 1.5215789473684211,
+      "fastest_reference_real_seconds": 0.062,
+      "target_budget_seconds": 0.06526315789473684,
+      "excess_seconds": 1.2387368421052631,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0669,
-          "ratio": 23.796711509715994
+          "real_seconds": 0.062,
+          "ratio": 21.03225806451613
         }
       ],
       "able_source": {
@@ -6571,12 +6741,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -6606,19 +6780,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.066,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 16.097560975609756,
+      "worst_ratio": 9.75609756097561,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
       "fastest_reference_real_seconds": 0.0041,
       "target_budget_seconds": 0.00431578947368421,
-      "excess_seconds": 0.06168421052631579,
+      "excess_seconds": 0.03568421052631579,
       "comparisons": [
         {
           "language": "go",
           "real_seconds": 0.0041,
-          "ratio": 16.097560975609756
+          "ratio": 9.75609756097561
         }
       ],
       "able_source": {
@@ -6627,12 +6801,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -6675,19 +6853,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.042,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 10.24390243902439,
+      "worst_ratio": 8.16326530612245,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0041,
-      "target_budget_seconds": 0.00431578947368421,
-      "excess_seconds": 0.03768421052631579,
+      "fastest_reference_real_seconds": 0.0049,
+      "target_budget_seconds": 0.005157894736842105,
+      "excess_seconds": 0.034842105263157896,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0041,
-          "ratio": 10.24390243902439
+          "real_seconds": 0.0049,
+          "ratio": 8.16326530612245
         }
       ],
       "able_source": {
@@ -6696,12 +6874,14 @@
         "provenance": "measured"
       },
       "group": "compiled-regex",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 6,
       "owner": "The primitive nullable carrier reaches canonical NFA acceptance in all six rows. Fresh Config, Log, and Stream profiles show the accepting scan at 1.19%-5.41% flat with zero result allocations or dynamic conversions; larger repeated owners remain closure, move, and thread upsert.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md",
@@ -6719,19 +6899,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.11,
+      "able_real_seconds": 0.072,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.0637898686679175,
+      "worst_ratio": 1.161290322580645,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0533,
-      "target_budget_seconds": 0.056105263157894734,
-      "excess_seconds": 0.053894736842105266,
+      "fastest_reference_real_seconds": 0.062,
+      "target_budget_seconds": 0.06526315789473684,
+      "excess_seconds": 0.006736842105263152,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0533,
-          "ratio": 2.0637898686679175
+          "real_seconds": 0.062,
+          "ratio": 1.161290322580645
         }
       ],
       "able_source": {
@@ -6740,12 +6920,14 @@
         "provenance": "measured"
       },
       "group": "compiled-float-numeric",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Native float64 arithmetic and math.Sqrt recur across Distance Field, N-Body, and RMS Norm; Mandelbrot is a direct fused float64 pixel loop. All four generated application bodies contain zero nullable-f64 sites.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-float-numeric-reconciliation.md",
@@ -6764,19 +6946,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.044,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.166666666666666,
+      "worst_ratio": 6.976744186046512,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0048,
-      "target_budget_seconds": 0.005052631578947368,
-      "excess_seconds": 0.03894736842105263,
+      "fastest_reference_real_seconds": 0.0043,
+      "target_budget_seconds": 0.004526315789473684,
+      "excess_seconds": 0.025473684210526315,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0048,
-          "ratio": 9.166666666666666
+          "real_seconds": 0.0043,
+          "ratio": 6.976744186046512
         }
       ],
       "able_source": {
@@ -6785,12 +6967,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -6817,22 +7003,22 @@
     {
       "benchmark": "matrixmultiply",
       "mode": "compiled",
-      "target_status": "miss",
-      "established_guard_status": "not-applicable",
-      "stability_classification": null,
-      "able_real_seconds": 1.186,
+      "target_status": "meets",
+      "established_guard_status": "established",
+      "stability_classification": "established-meet",
+      "able_real_seconds": 1.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.1580900302704813,
+      "worst_ratio": 1.005413766434648,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 1.0241,
-      "target_budget_seconds": 1.0779999999999998,
-      "excess_seconds": 0.1080000000000001,
+      "fastest_reference_real_seconds": 1.0344,
+      "target_budget_seconds": 1.0888421052631578,
+      "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 1.0241,
-          "ratio": 1.1580900302704813
+          "real_seconds": 1.0344,
+          "ratio": 1.005413766434648
         }
       ],
       "able_source": {
@@ -6841,12 +7027,14 @@
         "provenance": "measured"
       },
       "group": "compiled-current-control",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
       "owner": "Fib direct recursion, Matrix primitive nested arithmetic, and TapeLang flat dispatch remain separate generated bodies.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-current-control-reconciliation.md",
@@ -6860,7 +7048,35 @@
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-matrix-c2-go-reference.json",
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-compiled.json",
         "v12/docs/perf-baselines/2026-07-21-truthiness-cast-control-closures-tape-c2-go-reference.json"
-      ]
+      ],
+      "stability": {
+        "classification": "established-meet",
+        "established_guard_status": "established",
+        "pooled_ratio": 0.9955976972570267,
+        "cohort_ratios": [
+          1.005413766434648,
+          0.9857654691585166
+        ],
+        "limiting_reference": "go",
+        "able_samples": 10,
+        "reference_samples": 10,
+        "able_source_sha256": "ac3f407e202dd793db41431eb7b5b26e0c60472583e552624bad5ceca404c123",
+        "reference_source_sha256": {
+          "go": "4b77c1e4f0add1763c830c9da22a9d92c43d14e48432bab021e2146e3ccb1e42"
+        },
+        "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+        "evidence": [
+          {
+            "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-scorecard.json",
+            "sha256": "c6b810eeb7e73c5d3617ba197243cc4cf05cba737cb6e5b2298e89082522ae07"
+          },
+          {
+            "path": "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-b.json",
+            "sha256": "817a265b344838fff91bfa131810b1a57a988194c80420c82bcd6a0a33beb86e"
+          }
+        ],
+        "rationale": "Both independent post-ownership-default five-process cohorts meet the target with verifier-backed pinned-Go references."
+      }
     },
     {
       "benchmark": "monte_carlo_pi",
@@ -6868,19 +7084,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 0.204,
+      "able_real_seconds": 0.14,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.007905138339921,
+      "worst_ratio": 0.5518328734726056,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.2024,
-      "target_budget_seconds": 0.21305263157894735,
+      "fastest_reference_real_seconds": 0.2537,
+      "target_budget_seconds": 0.2670526315789473,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.2024,
-          "ratio": 1.007905138339921
+          "real_seconds": 0.2537,
+          "ratio": 0.5518328734726056
         }
       ],
       "able_source": {
@@ -6889,12 +7105,14 @@
         "provenance": "measured"
       },
       "group": "compiled-target-guards",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
       "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md",
@@ -6940,19 +7158,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.022,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.976744186046512,
+      "worst_ratio": 4.782608695652174,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0043,
-      "target_budget_seconds": 0.004526315789473684,
-      "excess_seconds": 0.025473684210526315,
+      "fastest_reference_real_seconds": 0.0046,
+      "target_budget_seconds": 0.004842105263157894,
+      "excess_seconds": 0.017157894736842105,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0043,
-          "ratio": 6.976744186046512
+          "real_seconds": 0.0046,
+          "ratio": 4.782608695652174
         }
       ],
       "able_source": {
@@ -6961,12 +7179,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -6990,19 +7210,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.036,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 6.666666666666666,
+      "worst_ratio": 5.660377358490566,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0054,
-      "target_budget_seconds": 0.00568421052631579,
-      "excess_seconds": 0.030315789473684206,
+      "fastest_reference_real_seconds": 0.0053,
+      "target_budget_seconds": 0.005578947368421052,
+      "excess_seconds": 0.024421052631578948,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0054,
-          "ratio": 6.666666666666666
+          "real_seconds": 0.0053,
+          "ratio": 5.660377358490566
         }
       ],
       "able_source": {
@@ -7011,12 +7231,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -7040,19 +7262,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.046,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.787234042553191,
+      "worst_ratio": 6.0,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0047,
-      "target_budget_seconds": 0.004947368421052632,
-      "excess_seconds": 0.04105263157894737,
+      "fastest_reference_real_seconds": 0.005,
+      "target_budget_seconds": 0.005263157894736842,
+      "excess_seconds": 0.024736842105263158,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0047,
-          "ratio": 9.787234042553191
+          "real_seconds": 0.005,
+          "ratio": 6.0
         }
       ],
       "able_source": {
@@ -7061,12 +7283,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -7090,19 +7314,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.098,
+      "able_real_seconds": 0.08,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.768361581920904,
+      "worst_ratio": 2.0671834625323,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0354,
-      "target_budget_seconds": 0.03726315789473684,
-      "excess_seconds": 0.060736842105263165,
+      "fastest_reference_real_seconds": 0.0387,
+      "target_budget_seconds": 0.040736842105263155,
+      "excess_seconds": 0.03926315789473685,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0354,
-          "ratio": 2.768361581920904
+          "real_seconds": 0.0387,
+          "ratio": 2.0671834625323
         }
       ],
       "able_source": {
@@ -7111,12 +7335,14 @@
         "provenance": "measured"
       },
       "group": "compiled-float-numeric",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Native float64 arithmetic and math.Sqrt recur across Distance Field, N-Body, and RMS Norm; Mandelbrot is a direct fused float64 pixel loop. All four generated application bodies contain zero nullable-f64 sites.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-float-numeric-reconciliation.md",
@@ -7135,19 +7361,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.046,
+      "able_real_seconds": 0.042,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 12.105263157894736,
+      "worst_ratio": 11.05263157894737,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
       "fastest_reference_real_seconds": 0.0038,
       "target_budget_seconds": 0.004,
-      "excess_seconds": 0.041999999999999996,
+      "excess_seconds": 0.038000000000000006,
       "comparisons": [
         {
           "language": "go",
           "real_seconds": 0.0038,
-          "ratio": 12.105263157894736
+          "ratio": 11.05263157894737
         }
       ],
       "able_source": {
@@ -7156,12 +7382,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -7204,19 +7434,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 1.234,
+      "able_real_seconds": 1.2,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.0099852676379113,
+      "worst_ratio": 0.9649404953361209,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 1.2218,
-      "target_budget_seconds": 1.2861052631578946,
+      "fastest_reference_real_seconds": 1.2436,
+      "target_budget_seconds": 1.3090526315789472,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 1.2218,
-          "ratio": 1.0099852676379113
+          "real_seconds": 1.2436,
+          "ratio": 0.9649404953361209
         }
       ],
       "able_source": {
@@ -7225,12 +7455,14 @@
         "provenance": "measured"
       },
       "group": "compiled-target-guards",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
       "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md",
@@ -7276,19 +7508,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.096,
+      "able_real_seconds": 0.068,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 18.11320754716981,
+      "worst_ratio": 12.830188679245284,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
       "fastest_reference_real_seconds": 0.0053,
       "target_budget_seconds": 0.005578947368421052,
-      "excess_seconds": 0.09042105263157894,
+      "excess_seconds": 0.062421052631578954,
       "comparisons": [
         {
           "language": "go",
           "real_seconds": 0.0053,
-          "ratio": 18.11320754716981
+          "ratio": 12.830188679245284
         }
       ],
       "able_source": {
@@ -7297,12 +7529,14 @@
         "provenance": "measured"
       },
       "group": "compiled-regex",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 6,
       "owner": "The primitive nullable carrier reaches canonical NFA acceptance in all six rows. Fresh Config, Log, and Stream profiles show the accepting scan at 1.19%-5.41% flat with zero result allocations or dynamic conversions; larger repeated owners remain closure, move, and thread upsert.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md",
@@ -7320,19 +7554,19 @@
       "target_status": "meets",
       "established_guard_status": "established",
       "stability_classification": "established-meet",
-      "able_real_seconds": 1.914,
+      "able_real_seconds": 1.782,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 0.7137529832935561,
+      "worst_ratio": 0.6564744888561429,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 2.6816,
-      "target_budget_seconds": 2.8227368421052628,
+      "fastest_reference_real_seconds": 2.7145,
+      "target_budget_seconds": 2.8573684210526316,
       "excess_seconds": 0.0,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 2.6816,
-          "ratio": 0.7137529832935561
+          "real_seconds": 2.7145,
+          "ratio": 0.6564744888561429
         }
       ],
       "able_source": {
@@ -7341,12 +7575,14 @@
         "provenance": "measured"
       },
       "group": "compiled-target-guards",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "target-guard",
       "exact_leaf_breadth": 0,
       "owner": "Different protected owners: Base64 host codec work, Binary Trees node allocation/GC, JSON host decoding, Monte Carlo scalar arithmetic, PiDigits BigInt kernels, and QuickSort recursion.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-target-guards-reconciliation.md",
@@ -7392,19 +7628,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.07,
+      "able_real_seconds": 0.05,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 5.185185185185186,
+      "worst_ratio": 3.703703703703704,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
       "fastest_reference_real_seconds": 0.0135,
       "target_budget_seconds": 0.014210526315789472,
-      "excess_seconds": 0.055789473684210535,
+      "excess_seconds": 0.03578947368421053,
       "comparisons": [
         {
           "language": "go",
           "real_seconds": 0.0135,
-          "ratio": 5.185185185185186
+          "ratio": 3.703703703703704
         }
       ],
       "able_source": {
@@ -7413,12 +7649,14 @@
         "provenance": "measured"
       },
       "group": "compiled-wide-numeric",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Material arithmetic uses direct runtime.Int128 and runtime.Uint128 carriers; the shared retained profile owner remains package-environment SwapEnv/sync/atomic.StorePointer. All nullable-wide references are dormant support with zero construction or call sites.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-wide-numeric-reconciliation.md",
@@ -7436,19 +7674,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.068,
+      "able_real_seconds": 0.046,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 12.592592592592593,
+      "worst_ratio": 10.0,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0054,
-      "target_budget_seconds": 0.00568421052631579,
-      "excess_seconds": 0.06231578947368421,
+      "fastest_reference_real_seconds": 0.0046,
+      "target_budget_seconds": 0.004842105263157894,
+      "excess_seconds": 0.0411578947368421,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0054,
-          "ratio": 12.592592592592593
+          "real_seconds": 0.0046,
+          "ratio": 10.0
         }
       ],
       "able_source": {
@@ -7457,12 +7695,14 @@
         "provenance": "measured"
       },
       "group": "compiled-regex",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 6,
       "owner": "The primitive nullable carrier reaches canonical NFA acceptance in all six rows. Fresh Config, Log, and Stream profiles show the accepting scan at 1.19%-5.41% flat with zero result allocations or dynamic conversions; larger repeated owners remain closure, move, and thread upsert.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md",
@@ -7480,19 +7720,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.07,
+      "able_real_seconds": 0.048,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 14.000000000000002,
+      "worst_ratio": 10.434782608695652,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.005,
-      "target_budget_seconds": 0.005263157894736842,
-      "excess_seconds": 0.06473684210526316,
+      "fastest_reference_real_seconds": 0.0046,
+      "target_budget_seconds": 0.004842105263157894,
+      "excess_seconds": 0.0431578947368421,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.005,
-          "ratio": 14.000000000000002
+          "real_seconds": 0.0046,
+          "ratio": 10.434782608695652
         }
       ],
       "able_source": {
@@ -7501,12 +7741,14 @@
         "provenance": "measured"
       },
       "group": "compiled-regex",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 6,
       "owner": "The primitive nullable carrier reaches canonical NFA acceptance in all six rows. Fresh Config, Log, and Stream profiles show the accepting scan at 1.19%-5.41% flat with zero result allocations or dynamic conversions; larger repeated owners remain closure, move, and thread upsert.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md",
@@ -7524,19 +7766,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.062,
+      "able_real_seconds": 0.044,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 11.481481481481481,
+      "worst_ratio": 9.361702127659573,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0054,
-      "target_budget_seconds": 0.00568421052631579,
-      "excess_seconds": 0.05631578947368421,
+      "fastest_reference_real_seconds": 0.0047,
+      "target_budget_seconds": 0.004947368421052632,
+      "excess_seconds": 0.03905263157894737,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0054,
-          "ratio": 11.481481481481481
+          "real_seconds": 0.0047,
+          "ratio": 9.361702127659573
         }
       ],
       "able_source": {
@@ -7545,12 +7787,14 @@
         "provenance": "measured"
       },
       "group": "compiled-regex",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 6,
       "owner": "The primitive nullable carrier reaches canonical NFA acceptance in all six rows. Fresh Config, Log, and Stream profiles show the accepting scan at 1.19%-5.41% flat with zero result allocations or dynamic conversions; larger repeated owners remain closure, move, and thread upsert.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-regex-reconciliation.md",
@@ -7568,19 +7812,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.06,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 3.75,
+      "worst_ratio": 2.3255813953488373,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.016,
-      "target_budget_seconds": 0.016842105263157894,
-      "excess_seconds": 0.0431578947368421,
+      "fastest_reference_real_seconds": 0.0172,
+      "target_budget_seconds": 0.018105263157894735,
+      "excess_seconds": 0.021894736842105265,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.016,
-          "ratio": 3.75
+          "real_seconds": 0.0172,
+          "ratio": 2.3255813953488373
         }
       ],
       "able_source": {
@@ -7589,12 +7833,14 @@
         "provenance": "measured"
       },
       "group": "compiled-byte-output",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
       "owner": "FASTA, Reverse Complement, and unlike Mandelbrot control all use native []uint8 backing and borrowed output with zero application-body nullable-u8 or runtime-byte conversions. Material owners remain direct FASTA arithmetic, Reverse transform/backing/GC work, and Mandelbrot pixel rendering.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-byte-output-reconciliation.md",
@@ -7612,19 +7858,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.03,
+      "able_real_seconds": 0.04,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.142857142857143,
+      "worst_ratio": 3.1746031746031744,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.014,
-      "target_budget_seconds": 0.014736842105263158,
-      "excess_seconds": 0.015263157894736841,
+      "fastest_reference_real_seconds": 0.0126,
+      "target_budget_seconds": 0.013263157894736841,
+      "excess_seconds": 0.02673684210526316,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.014,
-          "ratio": 2.142857142857143
+          "real_seconds": 0.0126,
+          "ratio": 3.1746031746031744
         }
       ],
       "able_source": {
@@ -7633,12 +7879,14 @@
         "provenance": "measured"
       },
       "group": "compiled-float-numeric",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Native float64 arithmetic and math.Sqrt recur across Distance Field, N-Body, and RMS Norm; Mandelbrot is a direct fused float64 pixel loop. All four generated application bodies contain zero nullable-f64 sites.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-float-numeric-reconciliation.md",
@@ -7657,19 +7905,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.058,
+      "able_real_seconds": 0.034,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 10.357142857142858,
+      "worst_ratio": 6.1818181818181825,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0056,
-      "target_budget_seconds": 0.0058947368421052625,
-      "excess_seconds": 0.05210526315789474,
+      "fastest_reference_real_seconds": 0.0055,
+      "target_budget_seconds": 0.005789473684210526,
+      "excess_seconds": 0.028210526315789478,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0056,
-          "ratio": 10.357142857142858
+          "real_seconds": 0.0055,
+          "ratio": 6.1818181818181825
         }
       ],
       "able_source": {
@@ -7678,12 +7926,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -7713,19 +7965,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 1.966,
+      "able_real_seconds": 1.602,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.7366369710467704,
+      "worst_ratio": 2.1151307103247956,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.7184,
-      "target_budget_seconds": 0.7562105263157894,
-      "excess_seconds": 1.2097894736842105,
+      "fastest_reference_real_seconds": 0.7574,
+      "target_budget_seconds": 0.7972631578947368,
+      "excess_seconds": 0.8047368421052633,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.7184,
-          "ratio": 2.7366369710467704
+          "real_seconds": 0.7574,
+          "ratio": 2.1151307103247956
         }
       ],
       "able_source": {
@@ -7734,12 +7986,14 @@
         "provenance": "measured"
       },
       "group": "compiled-sudoku-quotient",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-insufficient-breadth",
       "exact_leaf_breadth": 1,
       "owner": "The nullable carrier reaches only main's allocation-free absent result after all work. The hot search retains two signed-i32 divmod calls in square_index; the helper is 12.53% cumulative in two retained profiles and material only in Sudoku.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-sudoku-quotient-reconciliation.md",
@@ -7759,19 +8013,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 3.768,
+      "able_real_seconds": 3.668,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 1.24590814403333,
+      "worst_ratio": 1.1427147263154616,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 3.0243,
-      "target_budget_seconds": 3.1834736842105262,
-      "excess_seconds": 0.5845263157894736,
+      "fastest_reference_real_seconds": 3.2099,
+      "target_budget_seconds": 3.378842105263158,
+      "excess_seconds": 0.2891578947368423,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 3.0243,
-          "ratio": 1.24590814403333
+          "real_seconds": 3.2099,
+          "ratio": 1.1427147263154616
         }
       ],
       "able_source": {
@@ -7780,12 +8034,14 @@
         "provenance": "measured"
       },
       "group": "compiled-current-control",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
       "owner": "Fib direct recursion, Matrix primitive nested arithmetic, and TapeLang flat dispatch remain separate generated bodies.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-current-control-reconciliation.md",
@@ -7807,19 +8063,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.068,
+      "able_real_seconds": 0.03,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.066666666666668,
+      "worst_ratio": 4.225352112676056,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0075,
-      "target_budget_seconds": 0.007894736842105262,
-      "excess_seconds": 0.060105263157894745,
+      "fastest_reference_real_seconds": 0.0071,
+      "target_budget_seconds": 0.0074736842105263155,
+      "excess_seconds": 0.022526315789473682,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0075,
-          "ratio": 9.066666666666668
+          "real_seconds": 0.0071,
+          "ratio": 4.225352112676056
         }
       ],
       "able_source": {
@@ -7828,12 +8084,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -7863,19 +8123,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.12,
+      "able_real_seconds": 0.102,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 11.214953271028037,
+      "worst_ratio": 10.408163265306122,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0107,
-      "target_budget_seconds": 0.011263157894736841,
-      "excess_seconds": 0.10873684210526316,
+      "fastest_reference_real_seconds": 0.0098,
+      "target_budget_seconds": 0.01031578947368421,
+      "excess_seconds": 0.09168421052631578,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0107,
-          "ratio": 11.214953271028037
+          "real_seconds": 0.0098,
+          "ratio": 10.408163265306122
         }
       ],
       "able_source": {
@@ -7884,12 +8144,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",
@@ -7919,19 +8183,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.07,
+      "able_real_seconds": 0.06,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 15.90909090909091,
+      "worst_ratio": 13.953488372093023,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0044,
-      "target_budget_seconds": 0.0046315789473684215,
-      "excess_seconds": 0.06536842105263159,
+      "fastest_reference_real_seconds": 0.0043,
+      "target_budget_seconds": 0.004526315789473684,
+      "excess_seconds": 0.055473684210526314,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0044,
-          "ratio": 15.90909090909091
+          "real_seconds": 0.0043,
+          "ratio": 13.953488372093023
         }
       ],
       "able_source": {
@@ -7940,12 +8204,14 @@
         "provenance": "measured"
       },
       "group": "compiled-concurrency",
-      "profile_freshness": "current-post-captured-callable-reach-and-zero-reach-strict-controls",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Post-nullable strict reach finds native primitive-nullable carriers in four rows. Channel Rollup, Future Await Race, and Future Pipeline consume them directly; only Await Channel Mux retains a nullable callback cast through an explicit runtime-callable ABI. Retained post-spawn profiles keep bridge.ToInt as the sole three-row exact leaf.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-concurrency-reconciliation.md",
@@ -7969,19 +8235,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 2.068,
+      "able_real_seconds": 1.988,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.951876804619827,
+      "worst_ratio": 9.66456003889159,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.2078,
-      "target_budget_seconds": 0.21873684210526315,
-      "excess_seconds": 1.849263157894737,
+      "fastest_reference_real_seconds": 0.2057,
+      "target_budget_seconds": 0.21652631578947368,
+      "excess_seconds": 1.7714736842105263,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.2078,
-          "ratio": 9.951876804619827
+          "real_seconds": 0.2057,
+          "ratio": 9.66456003889159
         }
       ],
       "able_source": {
@@ -7990,12 +8256,16 @@
         "provenance": "measured"
       },
       "group": "compiled-iterator-control",
-      "profile_freshness": "current-post-captured-callable-three-application-cpu-and-exact-allocation-profile",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-versioned-telemetry-main-only-cpu-and-exact-allocation-profile",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "Post-carrier profiles split among Binary Event Log parsing, checked arithmetic, HashMap and Result work; Manifest String, Result/Option and nominal normalization; and Telemetry checked arithmetic, escaping Sample storage, policy-interface dispatch, and GC.",
+      "owner": "Current-default Telemetry remains split among checked arithmetic, fresh Sample pointer storage, policy-interface adapters, and GC; current K-Nucleotide and Inventory profiles instead resolve to runtime-backed HashMap primitive boxing.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-statically-monomorphic-captured-callable-retained.md",
@@ -8038,19 +8308,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.074,
+      "able_real_seconds": 0.06,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 2.9959514170040484,
+      "worst_ratio": 2.158273381294964,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0247,
-      "target_budget_seconds": 0.026,
-      "excess_seconds": 0.048,
+      "fastest_reference_real_seconds": 0.0278,
+      "target_budget_seconds": 0.029263157894736838,
+      "excess_seconds": 0.03073684210526316,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0247,
-          "ratio": 2.9959514170040484
+          "real_seconds": 0.0278,
+          "ratio": 2.158273381294964
         }
       ],
       "able_source": {
@@ -8059,12 +8329,14 @@
         "provenance": "measured"
       },
       "group": "compiled-wide-numeric",
-      "profile_freshness": "causally-current-post-captured-callable-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "causally-current-ownership-default-refresh-over-retained-exact-profiles",
+      "artifact_identity": "ownership-default-66-row-timing-plus-66-interpreter-free-dependency-census",
       "disposition": "closed-rejected-candidate",
       "exact_leaf_breadth": 3,
       "owner": "Material arithmetic uses direct runtime.Int128 and runtime.Uint128 carriers; the shared retained profile owner remains package-environment SwapEnv/sync/atomic.StorePointer. All nullable-wide references are dormant support with zero construction or call sites.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-wide-numeric-reconciliation.md",
@@ -8082,19 +8354,19 @@
       "target_status": "miss",
       "established_guard_status": "not-applicable",
       "stability_classification": null,
-      "able_real_seconds": 0.048,
+      "able_real_seconds": 0.032,
       "target_ratio": 1.0526315789473684,
-      "worst_ratio": 9.230769230769232,
+      "worst_ratio": 5.423728813559323,
       "worst_ratio_reference": "go",
       "fastest_reference": "go",
-      "fastest_reference_real_seconds": 0.0052,
-      "target_budget_seconds": 0.0054736842105263155,
-      "excess_seconds": 0.04252631578947368,
+      "fastest_reference_real_seconds": 0.0059,
+      "target_budget_seconds": 0.006210526315789473,
+      "excess_seconds": 0.02578947368421053,
       "comparisons": [
         {
           "language": "go",
-          "real_seconds": 0.0052,
-          "ratio": 9.230769230769232
+          "real_seconds": 0.0059,
+          "ratio": 5.423728813559323
         }
       ],
       "able_source": {
@@ -8103,12 +8375,16 @@
         "provenance": "measured"
       },
       "group": "compiled-text-map",
-      "profile_freshness": "current-post-captured-callable-reach-and-profile-reconciliation",
-      "artifact_identity": "post-captured-callable-66-row-reach-plus-six-strict-controls-and-three-current-profile-cohorts",
+      "profile_freshness": "current-default-repeated-k-nucleotide-and-inventory-main-only-cpu-and-exact-allocation-profiles",
+      "artifact_identity": "current-default-three-application-product-and-profile-cohort",
       "disposition": "closed-no-shared-leaf",
       "exact_leaf_breadth": 0,
-      "owner": "The retained primitive nullable carrier materially reaches five primitive-valued map paths, Manifest Normalization's Option<String>, and the Result<i64> matches in Sensor Calibration and Transaction Ledger Audit. I Before E and Unicode Scalar Pipeline have no material reach.",
+      "owner": "Fresh current-default profiles put primitive boxing, hashing, and equality at the runtime-backed HashMap boundary in K-Nucleotide and Inventory Reconciliation; Versioned Telemetry Pipeline instead allocates Sample pointers into a native specialized Array.",
       "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.md",
+        "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.md",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-retained.json",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.md",
         "v12/docs/perf-baselines/2026-07-30-post-captured-callable-compiled-closure-reconciliation.json",
         "v12/docs/perf-baselines/2026-07-30-post-nullable-compiled-text-map-reconciliation.md",

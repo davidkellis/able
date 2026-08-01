@@ -1,0 +1,131 @@
+{
+  "kind": "able-mode-aware-evidence-release-gate",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "retain-no-production-change-no-actionable-performance-owner",
+  "selector": {
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "selected_by_mode": {
+      "compiled": [],
+      "bytecode": []
+    }
+  },
+  "scoreboard": {
+    "selected_rows": 132,
+    "successful_able_and_reference_samples_per_row": 5
+  },
+  "selection": {
+    "compiled_rows": 66,
+    "bytecode_rows": 66,
+    "sha256": "17d7babe33c64c1f17eef97eaabf7bbfba156b0bba20062fd7617e32b259f7fb"
+  },
+  "strict_dependency": {
+    "rows": [
+      {
+        "benchmark": "reverse_complement",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "concurrent_event_routing",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "distance_field",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "array_slice_window",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "quicksort",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "policy_record_dispatch",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "fib",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "k_nucleotide",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "fixed_width_128",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      },
+      {
+        "benchmark": "sudoku_masks",
+        "status": "ok",
+        "verification": "verified",
+        "strict_no_fallbacks": true,
+        "interpreter_dependency": false,
+        "runtime_service_call": 0
+      }
+    ],
+    "totals": {
+      "explicit_dynamic_call": 156,
+      "residual_polymorphic_call": 169,
+      "host_abi_call": 148,
+      "runtime_service_call": 0
+    }
+  },
+  "release_gates": {
+    "normal_fast_suite": "passed",
+    "compiler_test_count": 844,
+    "ordinary_compiler_batch_size": 10,
+    "canonical_compiler_outlier_seconds": 14.648,
+    "treewalker_stdlib_seconds": 22,
+    "bytecode_stdlib_seconds": 17,
+    "exec_fixture_batch_count_per_lane": 8
+  },
+  "retained_changes": {
+    "production_execution": false,
+    "stdlib": false,
+    "wasm": false,
+    "fixture_coverage_metadata": true,
+    "bounded_test_orchestration": true,
+    "checked_evidence_metadata": true
+  }
+}

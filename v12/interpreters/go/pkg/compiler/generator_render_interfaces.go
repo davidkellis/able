@@ -167,7 +167,7 @@ func (g *generator) renderNativeInterfaceBoundaryDirectAdapters(buf *bytes.Buffe
 		if !ok || adapter == nil || adapter.GoType == "" {
 			continue
 		}
-		renderKey := info.Key + "::" + adapter.GoType
+		renderKey := info.Key + "::" + nativeInterfaceAdapterIdentity(adapter)
 		if _, rendered := g.nativeInterfaceRenderedAdapters[renderKey]; rendered {
 			continue
 		}
@@ -219,7 +219,7 @@ func (g *generator) renderNativeInterfaceConcreteAdaptersForInfo(buf *bytes.Buff
 		if adapter == nil || adapter.GoType == "" {
 			continue
 		}
-		renderKey := info.Key + "::" + adapter.GoType
+		renderKey := info.Key + "::" + nativeInterfaceAdapterIdentity(adapter)
 		if _, ok := g.nativeInterfaceRenderedAdapters[renderKey]; ok {
 			continue
 		}
@@ -756,6 +756,11 @@ func (g *generator) renderNativeInterfaceConcreteAdapter(buf *bytes.Buffer, info
 		fmt.Fprintf(buf, "\tif control != nil {\n")
 		fmt.Fprintf(buf, "\t\treturn %s, control\n", zeroExpr)
 		fmt.Fprintf(buf, "\t}\n")
+		if method.ReturnsSelf && impl.CompiledReturnGoType == adapter.GoType {
+			fmt.Fprintf(buf, "\treturn %s(result), nil\n", adapter.WrapHelper)
+			fmt.Fprintf(buf, "}\n\n")
+			continue
+		}
 		if impl.CompiledReturnGoType == method.ReturnGoType {
 			fmt.Fprintf(buf, "\treturn result, nil\n")
 			fmt.Fprintf(buf, "}\n\n")

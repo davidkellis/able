@@ -17,14 +17,14 @@ proxy, not as a promised JIT result or a mathematical bound.
 | Measure | Result |
 | --- | ---: |
 | Common selected applications | 66 |
-| Proxy target meets | 36 |
-| Proxy target misses | 30 |
+| Proxy target meets | 42 |
+| Proxy target misses | 24 |
 | Current bytecode target excess | 268.726526s |
-| Proxy target excess | 16.818105s |
-| Target excess removed by proxy | 93.74% |
+| Proxy target excess | 12.570211s |
+| Target excess removed by proxy | 95.32% |
 
 Native-equivalent execution would be transformative, but it is not sufficient
-for the product target: 30 of 66 rows still miss when replaced wholesale by
+for the product target: 24 of 66 rows still miss when replaced wholesale by
 the current compiled engine. Concurrency, regex, text/map, nominal, and several
 control-heavy rows therefore also depend on compiler/runtime improvements.
 
@@ -36,10 +36,10 @@ only an equal-cost reach-sizing model. It cannot prove a speedup.
 
 | Application | Family | Instruction share | Required fraction to target | Modeled target ratio | Excess removed | Material? |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| `monte_carlo_pi` | stochastic-numeric | 41.79% | 53.89% | 1.23x | 77.56% | yes |
-| `rms_norm` | float-array | 11.76% | 90.97% | 9.27x | 12.93% | no |
-| `fixed_width_128` | wide-numeric | 6.62% | 97.12% | 23.37x | 6.81% | no |
-| `future_await_race` | concurrency | 48.20% | 101.80% | 3.21x | 47.35% | yes |
+| `monte_carlo_pi` | stochastic-numeric | 41.79% | 52.76% | 1.21x | 79.22% | yes |
+| `rms_norm` | float-array | 11.76% | 91.14% | 9.28x | 12.91% | no |
+| `fixed_width_128` | wide-numeric | 6.62% | 96.89% | 23.37x | 6.83% | no |
+| `future_await_race` | concurrency | 48.20% | 96.51% | 3.10x | 49.94% | yes |
 
 Only Monte Carlo Pi clears the predeclared 25% target-excess reduction gate.
 RMS Norm and Fixed Width 128 require roughly 84% and 98% compiled-equivalent
@@ -57,12 +57,12 @@ equal-cost reach models, not performance measurements.
 
 | Application | Family | Hottest program | Program share | Primitive share | Max primitive span | Hottest-program excess removed | Contract eligible? |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| `fixed_width_128` | wide-numeric | `ordered_select_checksum` | 46.74% | 34.38% | 7 | 48.12% | no |
-| `distance_field` | float-numeric | `main` | 56.41% | 35.90% | 4 | 59.30% | no |
-| `concurrent_event_routing` | concurrency-text | `split` | 38.50% | 35.16% | 4 | 38.51% | no |
-| `word_frequency` | text-map | `split` | 40.23% | 35.09% | 4 | 39.60% | no |
-| `array_slice_window` | array-iterator | `rolling_checksum` | 63.49% | 34.71% | 6 | 63.45% | no |
-| `reverse_complement` | byte-text | `reverse_complement_fasta` | 53.41% | 43.40% | 4 | 52.97% | no |
+| `fixed_width_128` | wide-numeric | `ordered_select_checksum` | 46.74% | 34.38% | 7 | 48.24% | no |
+| `distance_field` | float-numeric | `main` | 56.41% | 35.90% | 4 | 59.09% | no |
+| `concurrent_event_routing` | concurrency-text | `split` | 38.50% | 35.16% | 4 | 38.67% | no |
+| `word_frequency` | text-map | `split` | 40.23% | 35.09% | 4 | 40.05% | no |
+| `array_slice_window` | array-iterator | `rolling_checksum` | 63.49% | 34.71% | 6 | 62.84% | no |
+| `reverse_complement` | byte-text | `reverse_complement_fasta` | 53.41% | 43.40% | 4 | 53.24% | no |
 
 Work is coarse enough by source function—the hottest program owns roughly
 38% to 63% of instructions—but not by the pointer-free leaf execution unit.

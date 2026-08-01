@@ -5,7 +5,10 @@
       "u8 200",
       "i8 -5",
       "f32-int 10",
-      "f32-round true"
+      "f32-round true",
+      "wide 3000000000",
+      "generic-explicit 3000000001",
+      "generic-inferred 3000000002"
     ],
     "exit": 0
   }

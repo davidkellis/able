@@ -131,7 +131,11 @@ func (g *generator) compileStaticNamedFunctionCall(ctx *compileContext, call *as
 			args = append(args, zeroExpr)
 		}
 		callTarget := g.compiledContextCallTargetName(ctx, ctx.packageName, info)
-		if resultInfo := g.callerOwnedResultInfo(info); resultInfo != nil && !ctx.analysisOnly {
+		if ownedArgs, ownedTarget, ownedLines, owned := g.nominalOwnershipStaticCall(ctx, call, info, args, callTarget); owned && !ctx.analysisOnly {
+			preLines = append(preLines, ownedLines...)
+			args = ownedArgs
+			callTarget = ownedTarget
+		} else if resultInfo := g.callerOwnedResultInfo(info); resultInfo != nil && !ctx.analysisOnly {
 			resultSlot := ""
 			if ctx.callerOwnedResultSlot != "" && ctx.callerOwnedTailExpr == call {
 				resultSlot = ctx.callerOwnedResultSlot

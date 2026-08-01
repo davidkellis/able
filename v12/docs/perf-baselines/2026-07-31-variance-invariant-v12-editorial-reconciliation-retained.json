@@ -1,0 +1,112 @@
+{
+  "kind": "able-variance-invariant-v12-editorial-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-invariant-only-v12-contract-and-rebase-reviewed-v12-spec-scope",
+  "behavior_change": false,
+  "contract": {
+    "type_parameters": "invariant",
+    "variance_declaration_syntax": false,
+    "recursive_conversion": false,
+    "callable_parameter_contravariance": false,
+    "callable_result_covariance": false,
+    "complete_callable_signature_equivalence": true,
+    "top_level_conversions_preserved": true
+  },
+  "authority": {
+    "retained_decision": "v12/design/variance-existential-coercion-proposal.md",
+    "implementation_record": "v12/docs/perf-baselines/2026-07-31-variance-invariant-callable-contract-retained.json",
+    "spec_before_sha256": "ddb493eab0ea6ee2f06844ad2e0b6d0d80dc060c19c239122fa82c9b98890a9f",
+    "spec_after_sha256": "0965a0a48b49f5eaed9392d75b7dbf6e74965a04c2547286d39397dc0812bdcd",
+    "spec_scope_before_sha256": "987737c2aa5493bee012f7dfd7125ba5ad0bdd3ee19bbedaa9819e057c7881cd",
+    "spec_scope_after_sha256": "5f3a8573e88d3ec612a05a429948fcb1bb63981cd7dd7f6983a83bcc71cf1095",
+    "todo_before_sha256": "d7666d14274974ac2b4ec9c76df4e73aee30727dc7b6b3ba3e2efb058654b4e2",
+    "todo_after_sha256": "1789c1764b89bcb380293468c4f3008ea430a4435bddc31239326eb8b2158cac",
+    "typechecker_plan_before_sha256": "a007d4e7bd6b10577eab3461a4b46cab81c5a8653e59a9e0d95182a5ef737bad",
+    "typechecker_plan_after_sha256": "c7d6c944f6014d4178099841e001e7d21ba7d248c629fd8654fc5858190cf1bc",
+    "variance_proposal_before_sha256": "56e1f43388db6ed65f70390fb97a2203f839fa501fe58240b5d2452b760e1d70",
+    "variance_proposal_after_sha256": "e2cae8960f47b1853f91892e373fe710a82333864f25b8ed53226ce2d0788cd8"
+  },
+  "grammar_ast_proof": {
+    "generic_parameter_fields": [
+      "name",
+      "constraints",
+      "is_inferred"
+    ],
+    "variance_field": false,
+    "active_able_sources_scanned": 834,
+    "variance_declarations_found": 0,
+    "ordinary_generic_control": "typecheck-ok",
+    "candidate_declarations_rejected_by_parser": [
+      "out T",
+      "in T",
+      "+T",
+      "-T"
+    ]
+  },
+  "pre_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 0,
+    "invalidated_count": 23,
+    "sole_reason": "scope-content-drift:v12-spec"
+  },
+  "post_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "compiled_selected": [],
+    "bytecode_selected": []
+  },
+  "architecture_chain": {
+    "nodes": 5,
+    "spec_rebase_evidence_updates": 4,
+    "spec_rebase_checked_report_updates": 5,
+    "record_attachment_evidence_updates": 3,
+    "record_attachment_checked_report_updates": 4,
+    "decision_drift": false,
+    "markdown_drift": false
+  },
+  "verification": {
+    "focused_parser": "pass",
+    "focused_typechecker": "pass",
+    "focused_compiler_fail_closed": "pass",
+    "focused_treewalker_fixtures": "pass",
+    "focused_bytecode_fixtures": "pass",
+    "focused_strict_compiled_fixtures": "pass",
+    "full_run_all_tests": "pass",
+    "seeded_exec_fixtures": 280,
+    "frontier_rows": 132,
+    "frontier_actionable_groups": 0,
+    "compiler_batches": 86,
+    "maximum_compiler_batch_seconds": 47.109,
+    "canonical_compiler_outlier_seconds": 14.753,
+    "full_suite_seconds": 781.36,
+    "full_suite_peak_rss_kib": 1342220,
+    "canonical_stdlib_treewalker": "pass",
+    "canonical_stdlib_treewalker_seconds": 20,
+    "canonical_stdlib_bytecode": "pass",
+    "canonical_stdlib_bytecode_seconds": 15,
+    "stdlib_gate_seconds": 36.06,
+    "stdlib_gate_peak_rss_kib": 879304
+  },
+  "cleanup": {
+    "disk_backed_workspace_kib": 2486660,
+    "workspace_removed": true,
+    "remaining_able_task_directories_tmp": 0,
+    "remaining_able_task_directories_var_tmp": 0
+  },
+  "production_changes": {
+    "language_semantics": false,
+    "parser": false,
+    "ast": false,
+    "typechecker": false,
+    "treewalker": false,
+    "bytecode_vm": false,
+    "compiler": false,
+    "runtime": false,
+    "stdlib": false,
+    "dependency": false,
+    "benchmark": false,
+    "wasm": false
+  }
+}

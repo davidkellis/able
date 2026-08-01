@@ -188,6 +188,7 @@ func (c *Checker) collectImplementationMatches(subject Type, iface InterfaceType
 			}
 			continue
 		}
+		c.anchorCurrentConstraintProof()
 		if len(spec.Obligations) > 0 {
 			populated := populateObligationSubjects(spec.Obligations, subject)
 			substituted := substituteObligations(populated, substitution)

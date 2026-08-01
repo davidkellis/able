@@ -6,6 +6,7 @@ import exec_13_08_static_interface_dictionary_capture.iface_defs.{Renderable}
 private struct Hidden { label: String }
 
 private impl Renderable for Hidden {
+  fn duplicate(self: Self) -> Self { Hidden { label: self.label } }
   fn render(self: Self) -> String { self.label }
 }
 

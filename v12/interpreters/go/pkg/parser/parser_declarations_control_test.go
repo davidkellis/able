@@ -323,6 +323,36 @@ func TestParseFunctionTypeMultiParam(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseFnKeywordFunctionTypes(t *testing.T) {
+	source := `fn register(empty: fn() -> i32, unary: fn(i32) -> String) {}`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+	if len(mod.Body) != 1 {
+		t.Fatalf("expected one declaration, got %d", len(mod.Body))
+	}
+	fn, ok := mod.Body[0].(*ast.FunctionDefinition)
+	if !ok || len(fn.Params) != 2 {
+		t.Fatalf("expected two-parameter function, got %#v", mod.Body[0])
+	}
+	empty, ok := fn.Params[0].ParamType.(*ast.FunctionTypeExpression)
+	if !ok || len(empty.ParamTypes) != 0 {
+		t.Fatalf("expected zero-parameter callable type, got %#v", fn.Params[0].ParamType)
+	}
+	unary, ok := fn.Params[1].ParamType.(*ast.FunctionTypeExpression)
+	if !ok || len(unary.ParamTypes) != 1 {
+		t.Fatalf("expected unary callable type, got %#v", fn.Params[1].ParamType)
+	}
+}
+
 func TestParseIteratorLiteral(t *testing.T) {
 	source := `items := Iterator {
  	next := 1

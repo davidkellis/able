@@ -274,6 +274,9 @@ func parseFunctionParameterTypes(node *sitter.Node, source []byte) ([]ast.TypeEx
 	if node == nil {
 		return nil, false
 	}
+	if params, ok := parseFnKeywordParameterTypes(node, source); ok {
+		return params, true
+	}
 
 	current := node
 	for {
@@ -313,6 +316,29 @@ func parseFunctionParameterTypes(node *sitter.Node, source []byte) ([]ast.TypeEx
 		return nil, false
 	}
 	return []ast.TypeExpression{param}, true
+}
+
+func parseFnKeywordParameterTypes(node *sitter.Node, source []byte) ([]ast.TypeExpression, bool) {
+	text := strings.TrimSpace(sliceContent(node, source))
+	if !strings.HasPrefix(text, "fn(") || !strings.HasSuffix(text, ")") {
+		return nil, false
+	}
+	parsed := parseTypeExpression(node, source)
+	applied, ok := parsed.(*ast.GenericTypeExpression)
+	if !ok {
+		return nil, false
+	}
+	base, ok := applied.Base.(*ast.SimpleTypeExpression)
+	if !ok || base.Name == nil || base.Name.Name != "fn" {
+		return nil, false
+	}
+	if len(applied.Arguments) == 1 {
+		if empty, ok := applied.Arguments[0].(*ast.SimpleTypeExpression); ok &&
+			empty.Name != nil && empty.Name.Name == "()" {
+			return []ast.TypeExpression{}, true
+		}
+	}
+	return applied.Arguments, true
 }
 
 func parseTypeParameters(node *sitter.Node, source []byte) ([]*ast.GenericParameter, error) {

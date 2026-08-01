@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -38,12 +39,20 @@ func run(args []string) int {
 	dynamicBoundaryTelemetry := fs.Bool("dynamic-boundary-telemetry", false, "emit debug-only dynamic-boundary counters in generated code")
 	callPathTelemetry := fs.Bool("call-path-telemetry", false, "emit debug-only generated call-path counters in generated code")
 	typedBoundaryTelemetry := fs.Bool("typed-boundary-telemetry", false, "emit debug-only typed/runtime boundary counters in generated code")
+	nominalEffectsJSON := fs.String("nominal-effects-json", "", "write conservative typed nominal callable effects to this JSON file")
+	nominalOwnershipJSON := fs.String("nominal-ownership-json", "", "write fail-closed nominal ownership-transfer proofs to this JSON file")
+	experimentalNominalOwnership := fs.Bool("experimental-nominal-ownership", false, "legacy compatibility flag; proven caller-owned nominal-result lowering is enabled by default")
+	noNominalOwnership := fs.Bool("no-nominal-ownership", false, "disable proven caller-owned nominal-result lowering for diagnostic comparison")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *noExperimentalMonoArrays {
 		*experimentalMonoArrays = true
+	}
+	if *experimentalNominalOwnership && *noNominalOwnership {
+		fmt.Fprintln(os.Stderr, "ablec: --experimental-nominal-ownership and --no-nominal-ownership are mutually exclusive")
+		return 2
 	}
 
 	entry := fs.Arg(0)
@@ -111,6 +120,10 @@ func run(args []string) int {
 		EmitDynamicBoundaryTelemetry: *dynamicBoundaryTelemetry,
 		EmitCallPathTelemetry:        *callPathTelemetry,
 		EmitTypedBoundaryTelemetry:   *typedBoundaryTelemetry,
+		CollectNominalEffects:        *nominalEffectsJSON != "",
+		CollectNominalOwnership:      *nominalOwnershipJSON != "",
+		ExperimentalNominalOwnership: *experimentalNominalOwnership,
+		DisableNominalOwnership:      *noNominalOwnership,
 	})
 	result, err := comp.Compile(program)
 	if err != nil {
@@ -119,6 +132,18 @@ func run(args []string) int {
 	}
 	for _, warning := range result.Warnings {
 		fmt.Fprintln(os.Stderr, warning)
+	}
+	if *nominalEffectsJSON != "" {
+		if err := writeNominalEffectsJSON(*nominalEffectsJSON, result.NominalEffects); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+	}
+	if *nominalOwnershipJSON != "" {
+		if err := writeNominalOwnershipJSON(*nominalOwnershipJSON, result.NominalOwnership); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
 	}
 	if err := result.Write(*outputDir); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -143,6 +168,36 @@ func run(args []string) int {
 	}
 
 	return 0
+}
+
+func writeNominalEffectsJSON(path string, report *compiler.NominalEffectReport) error {
+	if report == nil {
+		return fmt.Errorf("ablec: nominal effect report was not collected")
+	}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return fmt.Errorf("ablec: encode nominal effects: %w", err)
+	}
+	data = append(data, '\n')
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("ablec: write nominal effects: %w", err)
+	}
+	return nil
+}
+
+func writeNominalOwnershipJSON(path string, report *compiler.NominalOwnershipReport) error {
+	if report == nil {
+		return fmt.Errorf("ablec: nominal ownership report was not collected")
+	}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return fmt.Errorf("ablec: encode nominal ownership: %w", err)
+	}
+	data = append(data, '\n')
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("ablec: write nominal ownership: %w", err)
+	}
+	return nil
 }
 
 func resolveAblecExperimentalMonoArraysFromEnv() (bool, error) {

@@ -1,0 +1,94 @@
+package exec_06_03_fixed_integer_alternative_arithmetic
+
+fn signed_i8() -> void {
+  max := 127_i8
+  one := 1_i8
+  two := 2_i8
+  min := max.wrapping_add(one)
+  print(`i8 ${max.wrapping_add(one)} ${min.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${min.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${min.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn signed_i16() -> void {
+  max := 32767_i16
+  one := 1_i16
+  two := 2_i16
+  min := max.wrapping_add(one)
+  print(`i16 ${max.wrapping_add(one)} ${min.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${min.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${min.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn signed_i32() -> void {
+  max := 2147483647_i32
+  one := 1_i32
+  two := 2_i32
+  min := max.wrapping_add(one)
+  print(`i32 ${max.wrapping_add(one)} ${min.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${min.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${min.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn signed_i64() -> void {
+  max := 9223372036854775807_i64
+  one := 1_i64
+  two := 2_i64
+  min := max.wrapping_add(one)
+  print(`i64 ${max.wrapping_add(one)} ${min.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${min.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${min.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn signed_i128() -> void {
+  max := 170141183460469231731687303715884105727_i128
+  one := 1_i128
+  two := 2_i128
+  min := max.wrapping_add(one)
+  print(`i128 ${max.wrapping_add(one)} ${min.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${min.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${min.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn unsigned_u8() -> void {
+  max := 255_u8
+  zero := 0_u8
+  one := 1_u8
+  two := 2_u8
+  print(`u8 ${max.wrapping_add(one)} ${zero.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${zero.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${zero.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn unsigned_u16() -> void {
+  max := 65535_u16
+  zero := 0_u16
+  one := 1_u16
+  two := 2_u16
+  print(`u16 ${max.wrapping_add(one)} ${zero.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${zero.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${zero.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn unsigned_u32() -> void {
+  max := 4294967295_u32
+  zero := 0_u32
+  one := 1_u32
+  two := 2_u32
+  print(`u32 ${max.wrapping_add(one)} ${zero.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${zero.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${zero.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn unsigned_u64() -> void {
+  max := 18446744073709551615_u64
+  zero := 0_u64
+  one := 1_u64
+  two := 2_u64
+  print(`u64 ${max.wrapping_add(one)} ${zero.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${zero.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${zero.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn unsigned_u128() -> void {
+  max := 340282366920938463463374607431768211455_u128
+  zero := 0_u128
+  one := 1_u128
+  two := 2_u128
+  print(`u128 ${max.wrapping_add(one)} ${zero.wrapping_sub(one)} ${max.wrapping_mul(two)} | ${max.saturating_add(one)} ${zero.saturating_sub(one)} ${max.saturating_mul(two)} | ${max.checked_add(one)} ${zero.checked_sub(one)} ${max.checked_mul(two)} | ${one.checked_add(one)} ${two.checked_sub(one)} ${two.checked_mul(two)}`)
+}
+
+fn main() -> void {
+  signed_i8()
+  signed_i16()
+  signed_i32()
+  signed_i64()
+  signed_i128()
+  unsigned_u8()
+  unsigned_u16()
+  unsigned_u32()
+  unsigned_u64()
+  unsigned_u128()
+}

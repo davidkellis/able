@@ -137,10 +137,7 @@ func (g *generator) nativeInterfaceMethodImpl(goType string, method *nativeInter
 		if !matches {
 			continue
 		}
-		returnWildcard := method.ReturnGoType == "runtime.Value" || method.ReturnGoType == "any"
-		if !returnWildcard &&
-			!g.canCoerceStaticExpr(method.ReturnGoType, returnGoType) &&
-			!g.typeExprEquivalentModuloGenerics(method.ReturnTypeExpr, returnTypeExpr, leftVars, rightVars) {
+		if !g.nativeInterfaceImplReturnMatches(goType, method, returnTypeExpr, returnGoType, leftVars, rightVars) {
 			continue
 		}
 		candidate := &nativeInterfaceAdapterMethod{
@@ -165,6 +162,14 @@ func (g *generator) nativeInterfaceMethodImpl(goType string, method *nativeInter
 }
 
 func (g *generator) nativeInterfaceMethodImplExactOnly(goType string, method *nativeInterfaceMethod) *nativeInterfaceAdapterMethod {
+	return g.nativeInterfaceMethodImplExactOnlyForDefinition(goType, method, nil)
+}
+
+func (g *generator) nativeInterfaceMethodImplExactOnlyForDefinition(
+	goType string,
+	method *nativeInterfaceMethod,
+	definition *ast.ImplementationDefinition,
+) *nativeInterfaceAdapterMethod {
 	if g == nil || method == nil || goType == "" {
 		return nil
 	}
@@ -173,6 +178,9 @@ func (g *generator) nativeInterfaceMethodImplExactOnly(goType string, method *na
 		impl := candidateInfo.impl
 		info := candidateInfo.info
 		if impl == nil || info == nil || !info.Compileable || impl.ImplName != "" {
+			continue
+		}
+		if definition != nil && impl.ImplDefinition != definition {
 			continue
 		}
 		g.refreshRepresentableFunctionInfo(info)
@@ -221,10 +229,7 @@ func (g *generator) nativeInterfaceMethodImplExactOnly(goType string, method *na
 		if !matches {
 			continue
 		}
-		returnWildcard := method.ReturnGoType == "runtime.Value" || method.ReturnGoType == "any"
-		if !returnWildcard &&
-			!g.canCoerceStaticExpr(method.ReturnGoType, returnGoType) &&
-			!g.typeExprEquivalentModuloGenerics(method.ReturnTypeExpr, returnTypeExpr, leftVars, rightVars) {
+		if !g.nativeInterfaceImplReturnMatches(goType, method, returnTypeExpr, returnGoType, leftVars, rightVars) {
 			continue
 		}
 		candidate := &nativeInterfaceAdapterMethod{
@@ -246,4 +251,25 @@ func (g *generator) nativeInterfaceMethodImplExactOnly(goType string, method *na
 		found = candidate
 	}
 	return found
+}
+
+func (g *generator) nativeInterfaceImplReturnMatches(
+	goType string,
+	method *nativeInterfaceMethod,
+	returnTypeExpr ast.TypeExpression,
+	returnGoType string,
+	leftVars map[string]string,
+	rightVars map[string]string,
+) bool {
+	if method == nil {
+		return false
+	}
+	if method.ReturnsSelf {
+		return returnGoType == goType || g.nominalStructCarrierCoercible(goType, returnGoType)
+	}
+	if method.ReturnGoType == "runtime.Value" || method.ReturnGoType == "any" {
+		return true
+	}
+	return g.canCoerceStaticExpr(method.ReturnGoType, returnGoType) ||
+		g.typeExprEquivalentModuloGenerics(method.ReturnTypeExpr, returnTypeExpr, leftVars, rightVars)
 }

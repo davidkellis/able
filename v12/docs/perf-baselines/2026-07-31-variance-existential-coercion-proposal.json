@@ -1,0 +1,150 @@
+{
+  "kind": "able-variance-existential-coercion-proposal",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "recommend-option-a-await-maintainer-selection",
+  "production_behavior_changed": false,
+  "recommended_contract": {
+    "type_parameters": "invariant",
+    "callable_types": "complete-signature-equivalence",
+    "top_level_numeric_widening": "preserved",
+    "top_level_union_injection": "preserved",
+    "top_level_interface_upcast": "preserved",
+    "recursive_conversion_under_type_constructor": false,
+    "declared_variance_syntax": "deferred"
+  },
+  "active_source_audit": {
+    "roots": [
+      "v12/fixtures",
+      "v12/examples",
+      "../able-stdlib/src",
+      "../able-stdlib/tests"
+    ],
+    "able_files": 829,
+    "parse_failures": 0,
+    "generic_struct_declarations": 74,
+    "generic_union_declarations": 8,
+    "files_with_array": 204,
+    "files_with_map_or_hash_map": 33,
+    "files_with_future": 6,
+    "variance_declarations_or_keywords": 0
+  },
+  "implementation_findings": [
+    "AppliedType arguments use one-way recursive assignability",
+    "Array, Map, Range, Iterator, Future, and nullable types use one-way recursive assignability",
+    "some StructInstanceType comparisons omit bound-argument equality",
+    "FunctionType.Name is constant and incompatible signatures reach fallback equality",
+    "strict generated Array conversion crosses runtime.Value and changes aliasing",
+    "strict generated callable mismatch constructs a runtime.Value adapter",
+    "direct ablec treats ordinary checker mismatches as warnings"
+  ],
+  "reproductions": [
+    {
+      "case": "Box i8 to Box i32",
+      "checker": "accept",
+      "treewalker": "7",
+      "bytecode": "7",
+      "strict_compiled": "7"
+    },
+    {
+      "case": "mutable Array i8 to Array i32",
+      "checker": "accept",
+      "treewalker": "300",
+      "bytecode": "300",
+      "strict_compiled": "7",
+      "conclusion": "observable aliasing divergence"
+    },
+    {
+      "case": "Future i8 to Future i32 parameter",
+      "checker": "accept",
+      "treewalker": "accept",
+      "bytecode": "accept",
+      "strict_compiled": "accept"
+    },
+    {
+      "case": "i8 callable used as i32 callable with 300",
+      "checker": "accept",
+      "treewalker": "parameter mismatch",
+      "bytecode": "return mismatch",
+      "strict_compiled": "8-bit overflow"
+    },
+    {
+      "case": "Box Cat to Box Display",
+      "checker": "reject",
+      "direct_ablec": "warn-build-run-Miso"
+    },
+    {
+      "case": "Box Cat as Box Display",
+      "checker": "reject",
+      "direct_ablec": "warn-build-run-Miso"
+    },
+    {
+      "case": "Producer Cat to Producer Display",
+      "checker": "reject",
+      "direct_ablec": "warn-build-runtime-type-mismatch"
+    },
+    {
+      "case": "element-wise Box Display reconstruction",
+      "checker": "accept",
+      "treewalker": "Miso",
+      "bytecode": "Miso",
+      "strict_compiled": "Miso"
+    }
+  ],
+  "strict_compiler": {
+    "fallbacks_allowed": false,
+    "interpreter_dependency": false,
+    "runtime_dependency": true
+  },
+  "options": {
+    "A": "invariant-only v12; recommended",
+    "B": "declared variance now; defer",
+    "C": "conversion on use; reject",
+    "D": "recursive existential lifting; reject"
+  },
+  "retained_changes": [
+    "design proposal",
+    "dated markdown evidence",
+    "dated json evidence",
+    "forward roadmap and open-work references",
+    "checked baseline metadata for the pre-existing recursive-Self fixture diagnostic",
+    "session logs"
+  ],
+  "verification": {
+    "focused_recursive_self_fixture_parity": "pass",
+    "complete_v12_suite": "pass",
+    "complete_v12_suite_elapsed_seconds": 654.74,
+    "complete_v12_suite_peak_rss_kib": 1374380,
+    "slowest_bounded_compiler_batch_seconds": 42.778,
+    "canonical_stdlib_outlier_seconds": 14.717,
+    "performance_evidence_current_closures": 23,
+    "performance_evidence_invalidations": 0,
+    "mode_aware_selector": "empty",
+    "architecture_evidence_chain_nodes": 5,
+    "baseline_note": "The first full-suite attempt exposed an omitted checked diagnostic for the already-retained interface_static_only_recursive_self_call fixture. Only baseline metadata was corrected before the successful focused and complete reruns.",
+    "removed_task_workspace_kib": 3010692,
+    "remaining_able_temp_directories": 0
+  },
+  "excluded_changes": [
+    "specification semantics",
+    "parser",
+    "ast",
+    "typechecker",
+    "interpreter",
+    "bytecode vm",
+    "compiler",
+    "runtime",
+    "canonical stdlib",
+    "dependency",
+    "new fixture source or behavior",
+    "benchmark",
+    "frozen workspace",
+    "wasm"
+  ],
+  "next": {
+    "goal": "Obtain a maintainer decision on option A before implementation.",
+    "why": "Enforcement changes which currently accepted programs receive diagnostics even though the canonical text already points to invariance.",
+    "entails": "After selection, add recursive type equivalence and complete callable comparison, coded fail-closed diagnostics, cross-runtime fixtures, full-suite and 66-program census verification, and scoped evidence reconciliation.",
+    "importance": "Invalid conversions must stop before aliasing changes or runtime.Value adapters; valid programs must retain exact native Go carriers."
+  }
+}

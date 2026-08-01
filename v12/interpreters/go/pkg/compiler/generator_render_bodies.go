@@ -92,6 +92,7 @@ func (g *generator) tryRenderCompiledFunctionBody(buf *bytes.Buffer, info *funct
 		g.renderCompiledFunctionBody(buf, info, lines, retExpr)
 	}
 	g.renderCallerOwnedResultVariant(buf, info)
+	g.renderNominalOwnershipVariant(buf, info)
 	rendered[info] = struct{}{}
 	return true
 }
@@ -251,6 +252,7 @@ func (g *generator) tryRenderCompiledMethodBody(buf *bytes.Buffer, method *metho
 	}
 	g.renderCompiledMethodBody(buf, info, lines, retExpr)
 	g.renderCallerOwnedResultVariant(buf, info)
+	g.renderNominalOwnershipVariant(buf, info)
 	rendered[method] = struct{}{}
 	return true
 }

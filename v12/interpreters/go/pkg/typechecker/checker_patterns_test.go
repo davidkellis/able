@@ -71,6 +71,27 @@ func TestTypedPatternAllowsIntegerWidening(t *testing.T) {
 		t.Fatalf("expected no diagnostics for widening integer typed pattern, got %v", diags)
 	}
 }
+
+func TestTypedPatternRejectsExplicitIntegerLiteralNarrowing(t *testing.T) {
+	checker := New()
+	u64 := ast.IntegerTypeU64
+	assign := ast.Assign(
+		ast.TypedP(ast.ID("value"), ast.Ty("i32")),
+		ast.IntTyped(1, &u64),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected one explicit literal mismatch diagnostic, got %v", diags)
+	}
+	if want := "literal 1_u64 has type u64, expected i32"; !strings.Contains(diags[0].Message, want) {
+		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Message)
+	}
+}
+
 func TestTypedArrayPatternMismatchDoesNotProduceDiagnostic(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(

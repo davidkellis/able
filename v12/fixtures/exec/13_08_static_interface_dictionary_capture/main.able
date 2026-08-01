@@ -9,4 +9,6 @@ import exec_13_08_static_interface_dictionary_capture.factory.{make_renderable}
 fn main() -> void {
   renderable: Renderable = make_renderable("Ada")
   print(renderable.render())
+  duplicate: Renderable = renderable.duplicate()
+  print(duplicate.render())
 }

@@ -178,6 +178,7 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 	if bindings == nil {
 		bindings = make(map[string]ast.TypeExpression)
 	}
+	callSiteBindings := make(map[string]ast.TypeExpression)
 	// Do not seed free-function generic bindings from the enclosing compile
 	// context by raw generic name. Function generic names are local to the
 	// callee; inheriting outer bindings here lets unrelated generics with the
@@ -196,6 +197,7 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 				continue
 			}
 			bindings[gp.Name.Name] = concreteArg
+			callSiteBindings[gp.Name.Name] = concreteArg
 		}
 	}
 	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil {
@@ -238,7 +240,31 @@ func (g *generator) specializedFunctionBindings(ctx *compileContext, call *ast.F
 			_ = g.bindSpecializedCallArgument(info.Package, paramType, concreteExpr, genericNames, bindings)
 		}
 	}
+	contextualLiteralBindings := make(map[string]ast.TypeExpression)
+	for idx, arg := range call.Arguments {
+		literal, ok := arg.(*ast.IntegerLiteral)
+		if !ok || literal == nil || literal.IntegerType != nil || idx >= len(info.Params) {
+			continue
+		}
+		paramType := g.functionParamTypeExpr(info, idx)
+		if paramType == nil {
+			paramType = info.Params[idx].TypeExpr
+		}
+		for name := range g.typeExprVariableNames(paramType) {
+			if _, generic := genericNames[name]; !generic {
+				continue
+			}
+			if resolved := callSiteBindings[name]; resolved != nil {
+				contextualLiteralBindings[name] = resolved
+			}
+		}
+	}
 	g.repairConcreteSpecializedCallBindings(ctx, call, info, genericNames, bindings)
+	// A direct unsuffixed literal may carry a provisional i32 argument type even
+	// after the checker has resolved its generic context. Preserve only those
+	// affected generic bindings. Other inferred call-site labels must still
+	// yield to the repair pass's package-qualified nominal and callable facts.
+	applyTypeBindings(bindings, contextualLiteralBindings)
 	if expectedExpr := g.specializationExpectedTypeExpr(ctx, expected); expectedExpr != nil {
 		if _, _, _, _, ok := interfaceExprInfo(g, info.Package, expectedExpr); ok {
 			returnBindings := cloneTypeBindings(bindings)

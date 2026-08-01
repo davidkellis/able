@@ -3,6 +3,8 @@ package compiler
 import (
 	"strings"
 	"testing"
+
+	"able/interpreter-go/pkg/ast"
 )
 
 func TestCompilerForwardTypedLocalLambdaStaysNativeThroughNestedUse(t *testing.T) {
@@ -65,30 +67,47 @@ func TestCompilerForwardTypedLocalLambdaKeepsDynamicUseErased(t *testing.T) {
 }
 
 func TestCompilerForwardTypedLocalLambdaRejectsConflictingCallableUses(t *testing.T) {
-	result := compileNoFallbackSource(t, strings.Join([]string{
-		"package demo",
-		"",
-		"fn apply_i32(callback: i32 -> i32) -> i32 { callback(1) }",
-		"fn apply_i64(callback: i64 -> i64) -> i64 { callback(2_i64) }",
-		"",
-		"fn main() -> i64 {",
-		"  callback := { value => value }",
-		"  (apply_i32(callback) as i64) + apply_i64(callback)",
-		"}",
-		"",
-	}, "\n"))
-
-	body := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
-	if !strings.Contains(body, "var callback __able_fn_runtime_Value_to_runtime_Value") {
-		t.Fatalf("expected conflicting callable constraints to retain the erased carrier:\n%s", body)
+	lambda := ast.NewLambdaExpression(
+		[]*ast.FunctionParameter{ast.Param("value", nil)},
+		ast.ID("value"),
+		nil,
+		nil,
+		nil,
+		false,
+	)
+	consumer := func(name, scalar string) *ast.FunctionDefinition {
+		return ast.Fn(
+			name,
+			[]*ast.FunctionParameter{
+				ast.Param("callback", ast.FnType(
+					[]ast.TypeExpression{ast.Ty(scalar)},
+					ast.Ty(scalar),
+				)),
+			},
+			[]ast.Statement{ast.CallExpr(ast.ID("callback"), ast.Int(1))},
+			ast.Ty(scalar),
+			nil,
+			nil,
+			false,
+			false,
+		)
 	}
-	for _, fragment := range []string{
-		"__able_fn_int32_to_int32_from_runtime_value",
-		"__able_fn_int64_to_int64_from_runtime_value",
-	} {
-		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected conflicting callable constraints to preserve %q adapter:\n%s", fragment, body)
-		}
+	module := ast.NewModule([]ast.Statement{
+		consumer("apply_i32", "i32"),
+		consumer("apply_i64", "i64"),
+		ast.Assign(ast.ID("callback"), lambda),
+		ast.Call("apply_i32", ast.ID("callback")),
+		ast.Call("apply_i64", ast.ID("callback")),
+	}, nil, ast.NewPackageStatement([]*ast.Identifier{ast.ID("demo")}, false))
+
+	_, err := New(Options{PackageName: "compiled", RequireNoFallbacks: true}).
+		Compile(testProgramFromModule("demo", module))
+	if err == nil {
+		t.Fatal("expected compiler to reject conflicting local callable constraints")
+	}
+	if !strings.Contains(err.Error(), "callable signature mismatch rejected") ||
+		!strings.Contains(err.Error(), "local lambda 'callback' has conflicting callable constraints") {
+		t.Fatalf("unexpected compiler error: %v", err)
 	}
 }
 
@@ -309,7 +328,7 @@ func TestCompilerForwardTypedLocalLambdaKeepsStoredNestedUseErased(t *testing.T)
 }
 
 func TestCompilerForwardTypedLocalLambdaRejectsConflictingNestedInvocations(t *testing.T) {
-	result := compileNoFallbackSource(t, strings.Join([]string{
+	_, err := compileNoFallbackSourceResult(t, strings.Join([]string{
 		"package demo",
 		"",
 		"fn apply_i32(callback: i32 -> i32) -> i32 { callback(1) }",
@@ -323,18 +342,12 @@ func TestCompilerForwardTypedLocalLambdaRejectsConflictingNestedInvocations(t *t
 		"}",
 		"",
 	}, "\n"))
-
-	body := mustCompiledFunctionBody(t, result, "__able_compiled_fn_main")
-	if !strings.Contains(body, "var callback __able_fn_runtime_Value_to_runtime_Value") {
-		t.Fatalf("expected conflicting nested invocation signatures to retain the erased carrier:\n%s", body)
+	if err == nil {
+		t.Fatal("expected compiler to reject conflicting nested callable constraints")
 	}
-	for _, fragment := range []string{
-		"bridge.ToInt(int64(int32(1))",
-		"bridge.ToDynamicI64(int64(int64(2)))",
-	} {
-		if !strings.Contains(body, fragment) {
-			t.Fatalf("expected conflicting nested signatures to preserve runtime argument %q:\n%s", fragment, body)
-		}
+	if !strings.Contains(err.Error(), "callable signature mismatch rejected") ||
+		!strings.Contains(err.Error(), "local lambda 'callback' has conflicting callable constraints") {
+		t.Fatalf("unexpected compiler error: %v", err)
 	}
 }
 

@@ -1,0 +1,27 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "ExternFunctionBody",
+      "target": "go",
+      "signature": {
+        "type": "FunctionDefinition",
+        "id": { "type": "Identifier", "name": "host_value" },
+        "params": [],
+        "body": { "type": "BlockExpression", "body": [] },
+        "returnType": {
+          "type": "SimpleTypeExpression",
+          "name": { "type": "Identifier", "name": "i64" }
+        }
+      },
+      "body": "return int64(7)"
+    },
+    {
+      "type": "FunctionCall",
+      "callee": { "type": "Identifier", "name": "host_value" },
+      "arguments": [],
+      "isTrailingLambda": false
+    }
+  ]
+}

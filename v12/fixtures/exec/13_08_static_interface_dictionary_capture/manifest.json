@@ -3,6 +3,7 @@
   "setup": ["iface_defs.able", "factory.able"],
   "expect": {
     "stdout": [
+      "Ada",
       "Ada"
     ],
     "exit": 0

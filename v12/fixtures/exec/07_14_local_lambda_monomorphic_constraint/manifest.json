@@ -1,0 +1,10 @@
+{
+  "description": "compatible static uses solve an unannotated local lambda to one monomorphic callable signature",
+  "expect": {
+    "stdout": [
+      "42"
+    ],
+    "exit": 0,
+    "typecheckDiagnostics": []
+  }
+}

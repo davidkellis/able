@@ -79,6 +79,11 @@ func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value run
 			}
 		}
 	}
+	if info, ok := parseTypeExpression(canonical); ok && info.name != "" {
+		if _, isInterface := i.interfaces[i.canonicalInterfaceName(info.name)]; isInterface {
+			return i.coerceValueToTypeInEnv(canonical, value, env)
+		}
+	}
 	if !i.matchesType(canonical, value) {
 		expected := typeExpressionToString(canonical)
 		actual := value.Kind().String()
@@ -87,7 +92,7 @@ func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value run
 		}
 		return nil, fmt.Errorf("Return type mismatch: expected %s, got %s", expected, actual)
 	}
-	coerced, err := i.coerceValueToType(canonical, value)
+	coerced, err := i.coerceValueToTypeInEnv(canonical, value, env)
 	if err != nil {
 		return nil, err
 	}
@@ -127,9 +132,11 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 					argValues = append(argValues, val)
 				}
 				if hasInjectedReceiver {
-					return i.callCallableValueWithInjectedReceiver(callable, injectedReceiver, argValues, env, call, false)
+					result, err := i.callCallableValueWithInjectedReceiver(callable, injectedReceiver, argValues, env, call, false)
+					return i.preserveInterfaceMethodSelfReturn(target, ident.Name, result, err)
 				}
-				return i.callCallableValue(callable, argValues, env, call)
+				result, err := i.callCallableValue(callable, argValues, env, call)
+				return i.preserveInterfaceMethodSelfReturn(target, ident.Name, result, err)
 			}
 		}
 		// When a member access appears in callee position, prefer methods over fields so
@@ -146,7 +153,11 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			argValues = append(argValues, val)
 		}
-		return i.callCallableValue(calleeVal, argValues, env, call)
+		result, err := i.callCallableValue(calleeVal, argValues, env, call)
+		if ident, ok := member.Member.(*ast.Identifier); ok && ident != nil {
+			return i.preserveInterfaceMethodSelfReturn(target, ident.Name, result, err)
+		}
+		return result, err
 	}
 	if ident, ok := call.Callee.(*ast.Identifier); ok && ident != nil {
 		calleeVal, found := env.Lookup(ident.Name)
@@ -337,7 +348,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				arg := bindArgs[idx]
 				paramType := i.canonicalizeTypeExpressionCached(param.ParamType, fn.Closure, i.typeExpressionReferencesAliasCached(param.ParamType))
 				if paramType != nil && !callPlan.paramUsesGeneric(idx) && !i.coerceValueToTypeWouldBeNoOp(paramType) && !inlineCoercionUnnecessaryWithInterpreter(i, paramType, arg) {
-					coerced, err := i.coerceValueToType(paramType, arg)
+					coerced, err := i.coerceValueToTypeInEnv(paramType, arg, env)
 					if err != nil {
 						return nil, err
 					}

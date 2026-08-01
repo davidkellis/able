@@ -1,0 +1,12 @@
+package exec_07_13_explicit_invariant_reconstruction
+
+fn takes(values: Array i32) -> void {
+  print("rebuilt")
+}
+
+fn main() -> void {
+  small: i8 := 7
+  original: Array i8 := [small]
+  rebuilt: Array i32 := [small]
+  takes(rebuilt)
+}

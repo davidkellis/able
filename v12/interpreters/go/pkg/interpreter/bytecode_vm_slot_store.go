@@ -476,7 +476,7 @@ func (vm *bytecodeVM) typedSlotAssignmentValues(instr bytecodeInstruction, value
 			Message: fmt.Sprintf("Typed pattern mismatch in assignment: expected %s, got %s", expected, actual),
 		}, false, nil
 	}
-	coerced, err := vm.interp.coerceValueToType(typeExpr, value)
+	coerced, err := vm.interp.coerceValueToTypeInEnv(typeExpr, value, vm.env)
 	if err != nil {
 		return nil, nil, false, err
 	}

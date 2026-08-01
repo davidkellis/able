@@ -52,6 +52,7 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 		collector.registerTypeDeclaration(stmt)
 	}
 	collector.refreshTypeDeclarations(module.Body)
+	collector.validateCompositeInterfaceSelfPatterns(module.Body)
 	for _, stmt := range module.Body {
 		collector.visitStatement(stmt)
 	}
@@ -148,7 +149,13 @@ func (c *declarationCollector) registerExternFunction(def *ast.ExternFunctionBod
 	sig := def.Signature
 	name := sig.ID.Name
 	owner := fmt.Sprintf("extern fn %s", functionName(sig))
-	fnType := c.functionTypeFromDefinition(sig, nil, owner, sig)
+	fnType := c.functionTypeFromDefinitionWithOptions(
+		sig,
+		nil,
+		owner,
+		sig,
+		typeResolutionOptions{allowTypeConstructors: true},
+	)
 	if prev, exists := c.declNodes[name]; exists {
 		if existing, ok := c.env.Lookup(name); ok {
 			if hasExactFunctionSignature(existing, fnType) {

@@ -30,18 +30,28 @@ type typeExpressionCacheKey struct {
 }
 
 func (i *Interpreter) makeInterfaceImplCacheKey(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) interfaceImplCacheKey {
+	return i.makeInterfaceImplCacheKeyForPackage(info, interfaceName, ifaceArgs, i.currentPackage)
+}
+
+func (i *Interpreter) makeInterfaceImplCacheKeyForPackage(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, packageName string) interfaceImplCacheKey {
 	return interfaceImplCacheKey{
 		typeName:      i.cachedTypeInfoName(info),
 		interfaceName: interfaceName,
 		ifaceArgs:     makeTypeExpressionSliceKey(ifaceArgs),
+		packageName:   packageName,
 	}
 }
 
 func (i *Interpreter) makeInterfaceMethodDictionaryCacheKey(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) interfaceMethodDictionaryCacheKey {
+	return i.makeInterfaceMethodDictionaryCacheKeyForPackage(info, interfaceName, ifaceArgs, i.currentPackage)
+}
+
+func (i *Interpreter) makeInterfaceMethodDictionaryCacheKeyForPackage(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, packageName string) interfaceMethodDictionaryCacheKey {
 	return interfaceMethodDictionaryCacheKey{
 		typeName:      i.cachedTypeInfoName(info),
 		interfaceName: interfaceName,
 		ifaceArgs:     makeTypeExpressionSliceKey(ifaceArgs),
+		packageName:   packageName,
 	}
 }
 
@@ -295,8 +305,12 @@ func (i *Interpreter) cachedTypeExpressionFromInfo(info typeInfo) ast.TypeExpres
 }
 
 func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) (*implCandidate, error) {
+	return i.lookupImplEntryForPackage(info, interfaceName, ifaceArgs, i.currentPackage)
+}
+
+func (i *Interpreter) lookupImplEntryForPackage(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, packageName string) (*implCandidate, error) {
 	interfaceName = i.canonicalInterfaceName(interfaceName)
-	cacheKey := i.makeInterfaceImplCacheKey(info, interfaceName, ifaceArgs)
+	cacheKey := i.makeInterfaceImplCacheKeyForPackage(info, interfaceName, ifaceArgs, packageName)
 	if cached, ok := i.lookupSelectedInterfaceImplCache(cacheKey); ok {
 		if cached.err != nil {
 			return nil, cached.err
@@ -306,13 +320,17 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string, iface
 		}
 		return &cached.candidate, nil
 	}
-	best, err := i.lookupImplEntryUncached(info, interfaceName, ifaceArgs)
+	best, err := i.lookupImplEntryUncachedForPackage(info, interfaceName, ifaceArgs, packageName)
 	i.storeSelectedInterfaceImplCache(cacheKey, best, err)
 	return best, err
 }
 
 func (i *Interpreter) lookupImplEntryUncached(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) (*implCandidate, error) {
-	matches, err := i.collectImplCandidates(info, interfaceName, "", ifaceArgs)
+	return i.lookupImplEntryUncachedForPackage(info, interfaceName, ifaceArgs, i.currentPackage)
+}
+
+func (i *Interpreter) lookupImplEntryUncachedForPackage(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, packageName string) (*implCandidate, error) {
+	matches, err := i.collectImplCandidatesForPackage(info, interfaceName, "", ifaceArgs, packageName)
 	if len(matches) == 0 {
 		return nil, err
 	}
@@ -343,15 +361,19 @@ func (i *Interpreter) lookupImplEntryUncached(info typeInfo, interfaceName strin
 }
 
 func (i *Interpreter) findMethodCached(info typeInfo, methodName string, interfaceFilter string) (runtime.Value, error) {
+	return i.findMethodCachedForPackage(info, methodName, interfaceFilter, i.currentPackage)
+}
+
+func (i *Interpreter) findMethodCachedForPackage(info typeInfo, methodName string, interfaceFilter string, packageName string) (runtime.Value, error) {
 	typeName := i.cachedTypeInfoName(info)
-	key := methodCacheKey{typeName: typeName, methodName: methodName, ifaceFilter: interfaceFilter}
+	key := methodCacheKey{typeName: typeName, methodName: methodName, ifaceFilter: interfaceFilter, packageName: packageName}
 	i.methodCacheMu.RLock()
 	entry, ok := i.methodCache[key]
 	i.methodCacheMu.RUnlock()
 	if ok {
 		return entry.method, entry.err
 	}
-	method, err := i.findMethod(info, methodName, interfaceFilter, nil)
+	method, err := i.findMethodForPackage(info, methodName, interfaceFilter, nil, packageName)
 	i.methodCacheMu.Lock()
 	if existing, exists := i.methodCache[key]; exists {
 		i.methodCacheMu.Unlock()
@@ -363,11 +385,15 @@ func (i *Interpreter) findMethodCached(info typeInfo, methodName string, interfa
 }
 
 func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
+	return i.findMethodForPackage(info, methodName, interfaceFilter, ifaceArgs, i.currentPackage)
+}
+
+func (i *Interpreter) findMethodForPackage(info typeInfo, methodName string, interfaceFilter string, ifaceArgs []ast.TypeExpression, packageName string) (runtime.Value, error) {
 	interfaceFilter = i.canonicalInterfaceName(interfaceFilter)
 	var matches []implCandidate
 	var err error
 	if interfaceFilter == "" {
-		matches, err = i.collectImplCandidates(info, "", methodName, nil)
+		matches, err = i.collectImplCandidatesForPackage(info, "", methodName, nil, packageName)
 	} else {
 		names := i.interfaceSearchNames(interfaceFilter, make(map[string]struct{}))
 		if len(names) == 0 {
@@ -375,7 +401,7 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 		}
 		var constraintErr error
 		for _, name := range names {
-			candidates, candErr := i.collectImplCandidates(info, name, methodName, ifaceArgs)
+			candidates, candErr := i.collectImplCandidatesForPackage(info, name, methodName, ifaceArgs, packageName)
 			if candErr != nil && constraintErr == nil {
 				constraintErr = candErr
 			}
@@ -543,6 +569,10 @@ func (i *Interpreter) interfaceExtendsInterface(candidate string, target string,
 }
 
 func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, visited map[interfaceImplCacheKey]struct{}) (bool, error) {
+	return i.typeImplementsInterfaceForPackage(info, interfaceName, ifaceArgs, visited, i.currentPackage)
+}
+
+func (i *Interpreter) typeImplementsInterfaceForPackage(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, visited map[interfaceImplCacheKey]struct{}, packageName string) (bool, error) {
 	interfaceName = i.canonicalInterfaceName(interfaceName)
 	if info.name == "" || interfaceName == "" {
 		return false, nil
@@ -550,7 +580,7 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 	if interfaceName == "Error" && info.name == "Error" {
 		return true, nil
 	}
-	cacheKey := i.makeInterfaceImplCacheKey(info, interfaceName, ifaceArgs)
+	cacheKey := i.makeInterfaceImplCacheKeyForPackage(info, interfaceName, ifaceArgs, packageName)
 	if cached, ok := i.lookupInterfaceImplCache(cacheKey); ok {
 		return cached.ok, cached.err
 	}
@@ -566,7 +596,7 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 				i.storeInterfaceImplCache(cacheKey, false, nil)
 				return false, nil
 			}
-			okImpl, err := i.typeImplementsInterface(info, baseInfo.name, baseInfo.typeArgs, visited)
+			okImpl, err := i.typeImplementsInterfaceForPackage(info, baseInfo.name, baseInfo.typeArgs, visited, packageName)
 			if err != nil || !okImpl {
 				i.storeInterfaceImplCache(cacheKey, okImpl, err)
 				return okImpl, err
@@ -578,7 +608,7 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 			return true, nil
 		}
 	}
-	entry, err := i.lookupImplEntry(info, interfaceName, ifaceArgs)
+	entry, err := i.lookupImplEntryForPackage(info, interfaceName, ifaceArgs, packageName)
 	if err != nil {
 		// In compiled no-bootstrap mode, trust the compiled dispatch table.
 		if i.compiledImplChecker != nil && i.compiledImplChecker(info.name, interfaceName) {

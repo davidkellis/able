@@ -62,6 +62,51 @@ func __able_wrap_fn_main(value runtime.Value) {
 	if got := compiled.HeapNominalLiterals["Record"]; got != 1 {
 		t.Fatalf("Record heap literals = %d, want 1", got)
 	}
+	for _, identity := range []struct {
+		category string
+		callee   string
+		parent   string
+		want     int
+	}{
+		{"runtime_value_type", "runtime.Value", "__able_compiled_fn_main", 1},
+		{"bridge_encode", "bridge.ToInt", "__able_compiled_fn_main", 1},
+		{
+			"struct_runtime_conversion",
+			"__able_struct_Record_from",
+			"__able_compiled_fn_main",
+			1,
+		},
+		{
+			"native_interface_adapter",
+			"__able_iface_Policy_wrap_ptr_Record",
+			"__able_compiled_fn_main",
+			1,
+		},
+		{
+			"erased_or_dynamic_call",
+			"__able_method_call_node",
+			"__able_compiled_fn_main",
+			1,
+		},
+		{
+			"heap_nominal_literal",
+			"&Record",
+			"__able_compiled_fn_main",
+			1,
+		},
+	} {
+		got := compiled.SemanticParentBoundaries[identity.category][identity.callee][identity.parent]
+		if got != identity.want {
+			t.Fatalf(
+				"%s/%s/%s sites = %d, want %d",
+				identity.category,
+				identity.callee,
+				identity.parent,
+				got,
+				identity.want,
+			)
+		}
+	}
 	if got := result.Scopes["entry_wrapper"].Functions; got != 1 {
 		t.Fatalf("entry wrappers = %d, want 1", got)
 	}

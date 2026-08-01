@@ -1,0 +1,9 @@
+{
+  "description": "Static interface upcasts reject incomparable implementation candidates before dispatch",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/ast/errors/interface_upcast_impl_ambiguity/source.able:35:20 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper Unknown"
+    ]
+  },
+  "entry": "module.json"
+}

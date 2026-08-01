@@ -7,6 +7,9 @@ import (
 
 func (c *Checker) lookupMethod(object Type, name string, allowMethodSets bool, allowTypeQualified bool) (FunctionType, bool, string) {
 	c.lastMethodSelection = MethodSelection{}
+	if builtin, ok := builtinFixedIntegerArithmeticMethod(object, name); ok {
+		return builtin, true, ""
+	}
 	bestFn, bestScore, found, detail := c.lookupMethodInMethodSets(object, name, allowMethodSets, allowTypeQualified)
 	methodSetSelection := c.lastMethodSelection
 	c.lastMethodSelection = MethodSelection{}

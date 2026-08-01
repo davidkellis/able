@@ -1,0 +1,7 @@
+package exec_04_01_hkt_static_boundary_diag
+
+struct Bad {
+  values: Array _
+}
+
+fn main() -> void {}

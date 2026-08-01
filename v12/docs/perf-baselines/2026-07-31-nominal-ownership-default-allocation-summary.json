@@ -1,0 +1,586 @@
+{
+  "kind": "able-nominal-ownership-default-allocation-ab",
+  "rows": [
+    {
+      "allocated_bytes_delta_percent": -33.11629875956156,
+      "allocations_delta_percent": -17.49875283011627,
+      "benchmark": "concurrent_graph_visitors",
+      "means": {
+        "default": {
+          "allocated_bytes": 803873.6,
+          "allocations": 38698.2,
+          "frees": 6960.0,
+          "gc_count": 0.0
+        },
+        "optout": {
+          "allocated_bytes": 1201897.6,
+          "allocations": 46906.2,
+          "frees": 38706.0,
+          "gc_count": 1.0
+        }
+      },
+      "runs": 5,
+      "samples": {
+        "default": [
+          {
+            "allocated_bytes": 803864,
+            "allocations": 38698,
+            "frees": 6960,
+            "gc_count": 0,
+            "heap_allocated_delta": 803864,
+            "heap_objects_delta": 31738,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 803912,
+            "allocations": 38699,
+            "frees": 6960,
+            "gc_count": 0,
+            "heap_allocated_delta": 803912,
+            "heap_objects_delta": 31739,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 803864,
+            "allocations": 38698,
+            "frees": 6960,
+            "gc_count": 0,
+            "heap_allocated_delta": 803864,
+            "heap_objects_delta": 31738,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 803864,
+            "allocations": 38698,
+            "frees": 6960,
+            "gc_count": 0,
+            "heap_allocated_delta": 803864,
+            "heap_objects_delta": 31738,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 803864,
+            "allocations": 38698,
+            "frees": 6960,
+            "gc_count": 0,
+            "heap_allocated_delta": 803864,
+            "heap_objects_delta": 31738,
+            "phase": "main"
+          }
+        ],
+        "optout": [
+          {
+            "allocated_bytes": 1201856,
+            "allocations": 46906,
+            "frees": 38706,
+            "gc_count": 1,
+            "heap_allocated_delta": 170528,
+            "heap_objects_delta": 8200,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1201856,
+            "allocations": 46906,
+            "frees": 38706,
+            "gc_count": 1,
+            "heap_allocated_delta": 170528,
+            "heap_objects_delta": 8200,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1201856,
+            "allocations": 46906,
+            "frees": 38706,
+            "gc_count": 1,
+            "heap_allocated_delta": 170528,
+            "heap_objects_delta": 8200,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1202064,
+            "allocations": 46907,
+            "frees": 38706,
+            "gc_count": 1,
+            "heap_allocated_delta": 170736,
+            "heap_objects_delta": 8201,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1201856,
+            "allocations": 46906,
+            "frees": 38706,
+            "gc_count": 1,
+            "heap_allocated_delta": 170528,
+            "heap_objects_delta": 8200,
+            "phase": "main"
+          }
+        ]
+      }
+    },
+    {
+      "allocated_bytes_delta_percent": -76.43674722820451,
+      "allocations_delta_percent": -66.35887429765047,
+      "benchmark": "concurrent_packet_codecs",
+      "means": {
+        "default": {
+          "allocated_bytes": 567192.0,
+          "allocations": 16620.6,
+          "frees": 20.0,
+          "gc_count": 0.0
+        },
+        "optout": {
+          "allocated_bytes": 2407104.0,
+          "allocations": 49405.6,
+          "frees": 47072.0,
+          "gc_count": 2.0
+        }
+      },
+      "runs": 5,
+      "samples": {
+        "default": [
+          {
+            "allocated_bytes": 567096,
+            "allocations": 16620,
+            "frees": 20,
+            "gc_count": 0,
+            "heap_allocated_delta": 567096,
+            "heap_objects_delta": 16600,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 567096,
+            "allocations": 16620,
+            "frees": 20,
+            "gc_count": 0,
+            "heap_allocated_delta": 567096,
+            "heap_objects_delta": 16600,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 567256,
+            "allocations": 16621,
+            "frees": 20,
+            "gc_count": 0,
+            "heap_allocated_delta": 567256,
+            "heap_objects_delta": 16601,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 567256,
+            "allocations": 16621,
+            "frees": 20,
+            "gc_count": 0,
+            "heap_allocated_delta": 567256,
+            "heap_objects_delta": 16601,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 567256,
+            "allocations": 16621,
+            "frees": 20,
+            "gc_count": 0,
+            "heap_allocated_delta": 567256,
+            "heap_objects_delta": 16601,
+            "phase": "main"
+          }
+        ],
+        "optout": [
+          {
+            "allocated_bytes": 2407088,
+            "allocations": 49405,
+            "frees": 48122,
+            "gc_count": 2,
+            "heap_allocated_delta": 56080,
+            "heap_objects_delta": 1283,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 2407104,
+            "allocations": 49406,
+            "frees": 45609,
+            "gc_count": 2,
+            "heap_allocated_delta": 176752,
+            "heap_objects_delta": 3797,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 2407088,
+            "allocations": 49405,
+            "frees": 48161,
+            "gc_count": 2,
+            "heap_allocated_delta": 54144,
+            "heap_objects_delta": 1244,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 2407088,
+            "allocations": 49405,
+            "frees": 48305,
+            "gc_count": 2,
+            "heap_allocated_delta": 47296,
+            "heap_objects_delta": 1100,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 2407152,
+            "allocations": 49407,
+            "frees": 45163,
+            "gc_count": 2,
+            "heap_allocated_delta": 198144,
+            "heap_objects_delta": 4244,
+            "phase": "main"
+          }
+        ]
+      }
+    },
+    {
+      "allocated_bytes_delta_percent": -42.25412691722079,
+      "allocations_delta_percent": -33.04222896622975,
+      "benchmark": "concurrent_tree_folds",
+      "means": {
+        "default": {
+          "allocated_bytes": 537032.0,
+          "allocations": 16591.6,
+          "frees": 10.0,
+          "gc_count": 0.0
+        },
+        "optout": {
+          "allocated_bytes": 929992.0,
+          "allocations": 24779.2,
+          "frees": 10.0,
+          "gc_count": 0.0
+        }
+      },
+      "runs": 5,
+      "samples": {
+        "default": [
+          {
+            "allocated_bytes": 537096,
+            "allocations": 16592,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 537096,
+            "heap_objects_delta": 16582,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 536936,
+            "allocations": 16591,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 536936,
+            "heap_objects_delta": 16581,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 536936,
+            "allocations": 16591,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 536936,
+            "heap_objects_delta": 16581,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 537096,
+            "allocations": 16592,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 537096,
+            "heap_objects_delta": 16582,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 537096,
+            "allocations": 16592,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 537096,
+            "heap_objects_delta": 16582,
+            "phase": "main"
+          }
+        ],
+        "optout": [
+          {
+            "allocated_bytes": 930120,
+            "allocations": 24780,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 930120,
+            "heap_objects_delta": 24770,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 929960,
+            "allocations": 24779,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 929960,
+            "heap_objects_delta": 24769,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 929960,
+            "allocations": 24779,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 929960,
+            "heap_objects_delta": 24769,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 929960,
+            "allocations": 24779,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 929960,
+            "heap_objects_delta": 24769,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 929960,
+            "allocations": 24779,
+            "frees": 10,
+            "gc_count": 0,
+            "heap_allocated_delta": 929960,
+            "heap_objects_delta": 24769,
+            "phase": "main"
+          }
+        ]
+      }
+    },
+    {
+      "allocated_bytes_delta_percent": -56.8850132346579,
+      "allocations_delta_percent": -33.25567141703232,
+      "benchmark": "concurrent_audio_voices",
+      "means": {
+        "default": {
+          "allocated_bytes": 1591337.6,
+          "allocations": 65774.4,
+          "frees": 47404.2,
+          "gc_count": 1.0
+        },
+        "optout": {
+          "allocated_bytes": 3690915.2,
+          "allocations": 98546.8,
+          "frees": 89196.6,
+          "gc_count": 2.8
+        }
+      },
+      "runs": 5,
+      "samples": {
+        "default": [
+          {
+            "allocated_bytes": 1591264,
+            "allocations": 65774,
+            "frees": 47404,
+            "gc_count": 1,
+            "heap_allocated_delta": 369824,
+            "heap_objects_delta": 18370,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1591264,
+            "allocations": 65774,
+            "frees": 47404,
+            "gc_count": 1,
+            "heap_allocated_delta": 369824,
+            "heap_objects_delta": 18370,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1591472,
+            "allocations": 65775,
+            "frees": 47404,
+            "gc_count": 1,
+            "heap_allocated_delta": 370032,
+            "heap_objects_delta": 18371,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1591264,
+            "allocations": 65774,
+            "frees": 47404,
+            "gc_count": 1,
+            "heap_allocated_delta": 369824,
+            "heap_objects_delta": 18370,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1591424,
+            "allocations": 65775,
+            "frees": 47405,
+            "gc_count": 1,
+            "heap_allocated_delta": 369960,
+            "heap_objects_delta": 18370,
+            "phase": "main"
+          }
+        ],
+        "optout": [
+          {
+            "allocated_bytes": 3688624,
+            "allocations": 98543,
+            "frees": 95585,
+            "gc_count": 3,
+            "heap_allocated_delta": 59720,
+            "heap_objects_delta": 2958,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 3688736,
+            "allocations": 98544,
+            "frees": 95583,
+            "gc_count": 3,
+            "heap_allocated_delta": 59880,
+            "heap_objects_delta": 2961,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 3694376,
+            "allocations": 98553,
+            "frees": 93354,
+            "gc_count": 3,
+            "heap_allocated_delta": 148736,
+            "heap_objects_delta": 5199,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 3688624,
+            "allocations": 98543,
+            "frees": 66433,
+            "gc_count": 2,
+            "heap_allocated_delta": 1148168,
+            "heap_objects_delta": 32110,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 3694216,
+            "allocations": 98551,
+            "frees": 95028,
+            "gc_count": 3,
+            "heap_allocated_delta": 86080,
+            "heap_objects_delta": 3523,
+            "phase": "main"
+          }
+        ]
+      }
+    },
+    {
+      "allocated_bytes_delta_percent": -66.07263062292981,
+      "allocations_delta_percent": -33.177310548254724,
+      "benchmark": "concurrent_scene_tiles",
+      "means": {
+        "default": {
+          "allocated_bytes": 406433.6,
+          "allocations": 24783.6,
+          "frees": 12.0,
+          "gc_count": 0.0
+        },
+        "optout": {
+          "allocated_bytes": 1197952.0,
+          "allocations": 37088.6,
+          "frees": 23233.8,
+          "gc_count": 1.0
+        }
+      },
+      "runs": 5,
+      "samples": {
+        "default": [
+          {
+            "allocated_bytes": 406520,
+            "allocations": 24784,
+            "frees": 12,
+            "gc_count": 0,
+            "heap_allocated_delta": 406520,
+            "heap_objects_delta": 24772,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 406360,
+            "allocations": 24783,
+            "frees": 12,
+            "gc_count": 0,
+            "heap_allocated_delta": 406360,
+            "heap_objects_delta": 24771,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 406360,
+            "allocations": 24783,
+            "frees": 12,
+            "gc_count": 0,
+            "heap_allocated_delta": 406360,
+            "heap_objects_delta": 24771,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 406408,
+            "allocations": 24784,
+            "frees": 12,
+            "gc_count": 0,
+            "heap_allocated_delta": 406408,
+            "heap_objects_delta": 24772,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 406520,
+            "allocations": 24784,
+            "frees": 12,
+            "gc_count": 0,
+            "heap_allocated_delta": 406520,
+            "heap_objects_delta": 24772,
+            "phase": "main"
+          }
+        ],
+        "optout": [
+          {
+            "allocated_bytes": 1197568,
+            "allocations": 37087,
+            "frees": 36106,
+            "gc_count": 1,
+            "heap_allocated_delta": 13256,
+            "heap_objects_delta": 981,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1197568,
+            "allocations": 37087,
+            "frees": 35573,
+            "gc_count": 1,
+            "heap_allocated_delta": -10424,
+            "heap_objects_delta": 1514,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1197728,
+            "allocations": 37088,
+            "frees": 36130,
+            "gc_count": 1,
+            "heap_allocated_delta": -28056,
+            "heap_objects_delta": 958,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1198960,
+            "allocations": 37092,
+            "frees": 3994,
+            "gc_count": 1,
+            "heap_allocated_delta": 1128688,
+            "heap_objects_delta": 33098,
+            "phase": "main"
+          },
+          {
+            "allocated_bytes": 1197936,
+            "allocations": 37089,
+            "frees": 4366,
+            "gc_count": 1,
+            "heap_allocated_delta": 1121664,
+            "heap_objects_delta": 32723,
+            "phase": "main"
+          }
+        ]
+      }
+    }
+  ],
+  "schema_version": 1
+}

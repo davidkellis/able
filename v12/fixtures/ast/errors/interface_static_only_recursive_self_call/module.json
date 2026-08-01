@@ -1,0 +1,165 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Pair"
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        }
+      ],
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "first"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "second"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "DuplicatePair"
+      },
+      "selfTypePattern": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Self"
+        }
+      },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "duplicate_pair"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "GenericTypeExpression",
+            "base": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Pair"
+              }
+            },
+            "arguments": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "reject"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "DuplicatePair"
+            }
+          }
+        }
+      ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "duplicate_pair"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

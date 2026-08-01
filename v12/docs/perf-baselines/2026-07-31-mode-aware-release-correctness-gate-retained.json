@@ -1,0 +1,107 @@
+{
+  "kind": "able-v12-mode-aware-release-correctness-gate",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-general-typechecker-correction-no-performance-candidate",
+  "repository": {
+    "head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "origin_master": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5"
+  },
+  "authority_sha256": {
+    "agents": "e316d6b2840b868e60bab2c49e7fa01c0c371a4b4d55b2a75c9f6861e7d3b958",
+    "v12_spec": "709468672e761782a0aba6b69e9576e421f707d9315452d5790ddabef71097f7",
+    "v12_todo": "876f08a9e2409a5bf22d409d46ec85f48a747a437361c0323e4ad0cd32da47a5",
+    "exec_coverage": "9b192bd9d066e0a5fb49450750ae7d073a178d89ec7e205395a27a9bd6264d36",
+    "parser_coverage": "f96ea97ccf9ca4c54bdf64613921e0fdf7827a6d1fa8aa5d51c4ca9d8f628c9f",
+    "typechecker_contract": "a007d4e7bd6b10577eab3461a4b46cab81c5a8653e59a9e0d95182a5ef737bad",
+    "compiler_lowering_spec": "bc06053f6c0efe628461a0ee05d4166b3c4890fc9d006e6b08a3e4ab8e7cefbd",
+    "native_lowering_guardrails": "6a36aeb7e3da455c6c28874ddf064ead26f03671fa9ec8a6cca97b3dda5f4f1e",
+    "frontier": "3b2144689d5d60a6dd7d9c2a37a6c74a4e0d7c6db8ea2911860297abb592b432",
+    "closure_ledger": "40c0478fce5f72d8d8356aed43776358b62a61e88201eddac0fbbdbd2d1eb125"
+  },
+  "selection": {
+    "closures": 23,
+    "invalidated": 0,
+    "selector_bytes": 0,
+    "frontier_rows": 132,
+    "actionable_groups": 0,
+    "architecture_nodes": 5
+  },
+  "correctness_gap": {
+    "reproduced_treewalker": true,
+    "reproduced_bytecode": true,
+    "cause": "synthesized inferred type labels were reparsed as explicit source types and callable invariance preceded nullable lifting",
+    "general_fix": [
+      "retain canonical inferred types beside synthesized AST labels",
+      "use canonical invariant equivalence when rebinding inferred parameters",
+      "dispatch callable equivalence through the target type so nullable lifting remains available"
+    ],
+    "named_container_rule": false,
+    "benchmark_specific_rule": false
+  },
+  "observer_state": {
+    "compiled_boundary_rows": 66,
+    "compiled_dependency_graphs": 66,
+    "compiled_interpreter_links": 0,
+    "native_hot_tier_meets": 42,
+    "native_hot_tier_misses": 24,
+    "cross_engine_meets": 13,
+    "cross_engine_misses": 119,
+    "cross_engine_total_excess": 274.67726315789474,
+    "material_workload_depth_gap": false
+  },
+  "validation": {
+    "typechecker_package": "pass",
+    "canonical_assertions_check": "pass",
+    "canonical_stdlib_treewalker": {
+      "status": "pass",
+      "seconds": 20
+    },
+    "canonical_stdlib_bytecode": {
+      "status": "pass",
+      "seconds": 15
+    },
+    "full_v12_gate": "pass",
+    "seeded_exec_fixtures": 280,
+    "planned_exec_fixtures": 0,
+    "fixture_directories": 281,
+    "compiler_batches": 86,
+    "canonical_compiler_seconds": 16.657,
+    "slowest_compiler_batch_seconds": 53.568
+  },
+  "canonical_stdlib": {
+    "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "modified_by_tranche": false,
+    "preexisting_dirty_state_preserved": true
+  },
+  "changes": {
+    "typechecker": true,
+    "release_observers": true,
+    "compiler_execution": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "interpreter_execution": false,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "parser": false,
+    "ast": false,
+    "language": false,
+    "dependency": false,
+    "benchmark_measurement": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "cleanup": {
+    "task_workspace_root": "/var/tmp",
+    "task_workspace_kib": 3273884,
+    "extern_go_cache_kib": 36968,
+    "task_workspace_removed": true,
+    "extern_go_cache_removed": true
+  },
+  "next": {
+    "id": "canonical-block-comment-editorial-reconciliation",
+    "why": "Spec section 2 says TBD while the more specific section 6.9 and parser contract say block comments are unsupported.",
+    "entails": "Prove current parser behavior, edit only the stale section 2 sentence and resolved TODO, run parser and release gates, reconcile reviewed spec evidence, and rerun selection.",
+    "importance": "One lexical authority prevents false parser work and false native-lowering invalidations while the performance selector remains empty."
+  }
+}

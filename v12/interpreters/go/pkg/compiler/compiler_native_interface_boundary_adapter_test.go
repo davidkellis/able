@@ -151,3 +151,44 @@ func TestCompilerWideIntegerMatcherAdapterBoxesOnlyAtGenericBoundary(t *testing.
 		t.Fatalf("expected wide primitive matcher adapters to use the shared runtime integer encoding")
 	}
 }
+
+func TestCompilerSpecializedGenericStructBoundaryPreservesRuntimeTypeArguments(t *testing.T) {
+	result := compileNoFallbackSource(t, strings.Join([]string{
+		"package demo",
+		"",
+		"interface Matcher T for Self {",
+		"  fn matches(self: Self, value: T) -> bool",
+		"}",
+		"",
+		"struct EqMatcher T { expected: T }",
+		"",
+		"impl Matcher T for EqMatcher T {",
+		"  fn matches(self: Self, value: T) -> bool { value == self.expected }",
+		"}",
+		"",
+		"fn accept(matcher: Matcher (Result i32), actual: Result i32) -> bool {",
+		"  matcher.matches(actual)",
+		"}",
+		"",
+		"fn main() -> bool {",
+		"  accept(EqMatcher { expected: 42 }, 42)",
+		"}",
+		"",
+	}, "\n"))
+
+	compiledSrc := string(result.Files["compiled.go"])
+	toSeen, ok := findCompiledFunction(result, "__able_struct_EqMatcher_Result_i32_to_seen")
+	if !ok {
+		t.Fatalf("expected specialized EqMatcher<Result<i32>> runtime converter:\n%s", compiledSrc)
+	}
+	if !strings.Contains(toSeen, "[]ast.TypeExpression{ast.Result(ast.Ty(\"i32\"))}") {
+		t.Fatalf("expected specialized generic struct runtime conversion to retain Result<i32> identity:\n%s", toSeen)
+	}
+	apply, ok := findCompiledFunction(result, "__able_struct_EqMatcher_Result_i32_apply")
+	if !ok {
+		t.Fatalf("expected specialized EqMatcher<Result<i32>> apply helper")
+	}
+	if !strings.Contains(apply, "inst.TypeArguments = updated.TypeArguments") {
+		t.Fatalf("expected specialized generic struct apply to retain runtime type arguments:\n%s", apply)
+	}
+}

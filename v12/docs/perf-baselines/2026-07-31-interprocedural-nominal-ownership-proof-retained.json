@@ -1,0 +1,207 @@
+{
+  "kind": "able-interprocedural-nominal-ownership-proof",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": {
+    "diagnostic_tooling_retained": true,
+    "fresh_aggregate_effect_correction_retained": true,
+    "production_execution_change": false,
+    "storage_reuse_enabled": false,
+    "carrier_selection_changed": false,
+    "wasm_changed": false,
+    "disposition": "retained-proof-only"
+  },
+  "strict_census": {
+    "selected": 66,
+    "successful": 66,
+    "failed": 0,
+    "interpreter_linked_rows": 0,
+    "callables": 34885,
+    "fresh_successors": 434,
+    "candidate_call_sites": 10,
+    "eligible_transfers": 9,
+    "eligible_direct_transfers": 7,
+    "eligible_embedded_field_transfers": 2,
+    "eligible_interface_transfers": 3,
+    "applications_with_eligible_transfers": 6,
+    "distinct_eligible_nominals": 7,
+    "generated_bytes": 285336889,
+    "generated_go_lines": 7060431,
+    "generated_files": 3316,
+    "generation_ms": {
+      "minimum": 395,
+      "maximum": 16081,
+      "mean": 4405.333333333333
+    },
+    "aggregate_sha256": "493a0eab29a93517df5f0779839d6dfce7317af7e6d09159923441f93e41ded8"
+  },
+  "sites": [
+    {
+      "benchmark": "concurrent_audio_voices",
+      "nominal": "PhaseState",
+      "caller": "concurrent_audio_voices.concurrent_audio_voices.synthesize_voice",
+      "source_binding": "phase",
+      "method": "advance",
+      "dispatch": "direct",
+      "replacement": "direct-replacement",
+      "eligible": false,
+      "blockers": [
+        "source-not-locally-fresh"
+      ]
+    },
+    {
+      "benchmark": "concurrent_audio_voices",
+      "nominal": "MixState",
+      "caller": "concurrent_audio_voices.concurrent_audio_voices.synthesize_voice",
+      "source_binding": "state",
+      "method": "record",
+      "dispatch": "direct",
+      "replacement": "direct-replacement",
+      "eligible": true
+    },
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "nominal": "VisitState",
+      "caller": "concurrent_graph_visitors.concurrent_graph_visitors.traverse",
+      "source_binding": "state",
+      "method": "inspect",
+      "dispatch": "native-interface",
+      "replacement": "direct-replacement",
+      "targets": 2,
+      "eligible": true
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "nominal": "CursorState",
+      "caller": "concurrent_packet_codecs.concurrent_packet_codecs.decode_stream",
+      "source_binding": "cursor",
+      "method": "decode",
+      "dispatch": "native-interface",
+      "replacement": "embedded-field-replacement",
+      "result_path": [
+        "cursor"
+      ],
+      "targets": 2,
+      "eligible": true
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "nominal": "PacketStats",
+      "caller": "concurrent_packet_codecs.concurrent_packet_codecs.decode_stream",
+      "source_binding": "stats",
+      "method": "record",
+      "dispatch": "direct",
+      "replacement": "direct-replacement",
+      "eligible": true
+    },
+    {
+      "benchmark": "concurrent_scene_tiles",
+      "nominal": "TileState",
+      "caller": "concurrent_scene_tiles.concurrent_scene_tiles.render_tile",
+      "source_binding": "state",
+      "method": "record",
+      "dispatch": "direct",
+      "replacement": "direct-replacement",
+      "eligible": true
+    },
+    {
+      "benchmark": "concurrent_tree_folds",
+      "nominal": "FoldState",
+      "caller": "concurrent_tree_folds.concurrent_tree_folds.fold_tree",
+      "source_binding": "state",
+      "method": "combine",
+      "dispatch": "native-interface",
+      "replacement": "embedded-field-replacement",
+      "result_path": [
+        "state"
+      ],
+      "targets": 2,
+      "eligible": true
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "nominal": "WaveTask",
+      "caller": "dependency_wave_validation.dependency_wave_validation.build_task",
+      "source_binding": "task",
+      "method": "include_dependency",
+      "dispatch": "direct",
+      "replacement": "direct-replacement",
+      "site_count": 3,
+      "eligible": true
+    }
+  ],
+  "proof_blockers": [
+    "source-not-locally-fresh",
+    "retained-alias",
+    "stored-alias",
+    "stored-in-aggregate",
+    "returned-alias",
+    "captured-by-nested-callable",
+    "captured-or-dynamic-call",
+    "conditional-or-nonstraight-replacement",
+    "result-not-unconditionally-replacing-source"
+  ],
+  "inputs": {
+    "selection": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "5e05af7e06f328284c91639fc58e8a4ff822c637fd641b36943505dfb3822097"
+    },
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
+    },
+    "compiler": {
+      "path": "v12/interpreters/go/pkg/compiler/compiler.go",
+      "sha256": "12d9f7c91189a20a467d6e1d026cdb19362b3046e0e396aba27af51506c62dd7"
+    },
+    "nominal_effects": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_effects.go",
+      "sha256": "f123fc8956dab5d5097a2d58127b08f7dacd7fa793c6f8693d5426752da3dea4"
+    },
+    "nominal_effect_analysis": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_effect_analysis.go",
+      "sha256": "d15c4b173988f82021f9533e2d7d00004809d848cf50a5361b72a84d1f199fc4"
+    },
+    "nominal_ownership": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_ownership.go",
+      "sha256": "5d24fa82d889701d44e94c858e3b08cf6f6711ee5699ef140f2a84f784bdc56b"
+    },
+    "nominal_ownership_calls": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_ownership_calls.go",
+      "sha256": "a708a9535f36e918e325e032c95a7c16d7dc565a38401ee925432a838848aff8"
+    },
+    "nominal_ownership_tests": {
+      "path": "v12/interpreters/go/pkg/compiler/compiler_nominal_ownership_test.go",
+      "sha256": "9d1f1ceac0bf155ecd8c7ece7dd7f03d12102849f4a4019f000ea8e7dd311ca7"
+    },
+    "ablec": {
+      "path": "v12/interpreters/go/cmd/ablec/main.go",
+      "sha256": "0046cb7790b82a3a9bec26ad57e1525aa78c8cfa4547010b6b44b7fd096b88a2"
+    },
+    "census_driver": {
+      "path": "v12/bench_compiled_static_boundary_census",
+      "sha256": "340606103f60a41bfb35a9e64e4ba032937ccbde7950d1be49215f86e5c0c10d"
+    }
+  },
+  "verification": {
+    "focused_ownership_and_effect_tests": true,
+    "caller_identity_guards": true,
+    "interface_and_imported_alias_guards": true,
+    "ablec_tests": true,
+    "generated_boundary_census_tests": true,
+    "strict_census_complete": true,
+    "runtime_ab_required_this_tranche": false
+  },
+  "cleanup": {
+    "removed_disk_backed_workspace_kib": 808376,
+    "removed_extern_go_cache_kib": 8180,
+    "repository_python_cache_removed": true,
+    "remaining_able_task_directories": 0
+  },
+  "next": {
+    "action": "Build an opt-in generated execution prototype consuming ownership proofs, then run verifier-backed repeated baseline/candidate/equivalent-Go measurements.",
+    "why": "Nine sites across six unlike applications now have the caller-side identity proof missing from the prior allocation ceiling.",
+    "entails": "Move proof availability before rendering, add one structural direct/embedded caller-owned storage path, preserve all fail-closed cases, run semantic guards and 66 strict rows, then measure at least five balanced triplets across the three original owners and additional admitted applications.",
+    "importance": "This can remove a measured shared nominal allocation wall without interpreter crossings, boxing, weakened reference semantics, or nominal/container/benchmark-specific lowering."
+  }
+}

@@ -11,6 +11,18 @@ import (
 
 func compileNoFallbackSource(t *testing.T, source string) *Result {
 	t.Helper()
+	result, err := compileNoFallbackSourceResult(t, source)
+	if err != nil {
+		t.Fatalf("compile with no fallbacks: %v", err)
+	}
+	if len(result.Fallbacks) != 0 {
+		t.Fatalf("expected no fallbacks, got %v", result.Fallbacks)
+	}
+	return result
+}
+
+func compileNoFallbackSourceResult(t *testing.T, source string) (*Result, error) {
+	t.Helper()
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "package.yml"), []byte("name: demo\n"), 0o600); err != nil {
 		t.Fatalf("write package.yml: %v", err)
@@ -35,13 +47,7 @@ func compileNoFallbackSource(t *testing.T, source string) *Result {
 		PackageName:        "main",
 		RequireNoFallbacks: true,
 	}).Compile(program)
-	if err != nil {
-		t.Fatalf("compile with no fallbacks: %v", err)
-	}
-	if len(result.Fallbacks) != 0 {
-		t.Fatalf("expected no fallbacks, got %v", result.Fallbacks)
-	}
-	return result
+	return result, err
 }
 
 func TestCompilerNoFallbacksForLocalFunctionDefinitionStatement(t *testing.T) {

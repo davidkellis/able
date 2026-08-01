@@ -1,0 +1,66 @@
+{
+  "kind": "able-canonical-spec-editorial-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-editorial-reconciliation-and-rebase-reviewed-v12-spec-scope",
+  "behavior_change": false,
+  "spec": {
+    "before_sha256": "88cbd43eb7cc4cd9e22839bb6248b4fcccdcae94f35f12669ebc14220b9ebc71",
+    "after_sha256": "e0a95d57e549a79c20db73640db2f16022ab4ab5627cf30a16eca90626c9fb35",
+    "before_scope_tree_sha256": "73fa7f66e0cbbff95aba5c47b9e8ad97fc24151cb46c3c43120c8c1e91f59f72",
+    "after_scope_tree_sha256": "f669dd4445ebce3f934f6c83847700c580c25c70cef4954444002202de33186a",
+    "reconciled_sections": [
+      "11.2.1 Error core-interface ownership",
+      "12.2.3 FutureError details field",
+      "13.5 named implementation invocation cross-reference",
+      "trailing open-work index"
+    ]
+  },
+  "pre_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 0,
+    "invalidated_count": 23,
+    "sole_reason": "scope-content-drift:v12-spec"
+  },
+  "post_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "compiled_selected": [],
+    "bytecode_selected": []
+  },
+  "architecture_chain": {
+    "nodes": 5,
+    "spec_rebase_evidence_updates": 4,
+    "spec_rebase_checked_report_updates": 5,
+    "record_attachment_evidence_updates": 3,
+    "record_attachment_checked_report_updates": 4,
+    "decision_drift": false,
+    "markdown_drift": false
+  },
+  "verification": {
+    "focused_parser": "pass",
+    "focused_typechecker": "pass",
+    "focused_treewalker_bytecode_parity": "pass",
+    "focused_strict_compiler": "pass",
+    "full_run_all_tests": "pass",
+    "compiler_tests": 844,
+    "canonical_compiler_outlier_seconds": 14.798,
+    "maximum_compiler_batch_seconds": 48.09,
+    "full_suite_seconds": 789.02,
+    "full_suite_peak_rss_kib": 1279232
+  },
+  "production_changes": {
+    "language_semantics": false,
+    "parser": false,
+    "typechecker": false,
+    "treewalker": false,
+    "bytecode_vm": false,
+    "compiler": false,
+    "runtime": false,
+    "stdlib": false,
+    "dependency": false,
+    "benchmark": false,
+    "wasm": false
+  }
+}

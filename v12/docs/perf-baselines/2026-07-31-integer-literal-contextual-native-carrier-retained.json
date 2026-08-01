@@ -1,0 +1,131 @@
+{
+  "kind": "able-integer-literal-contextual-native-carrier",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-fixed-i32-default-and-general-contextual-carrier-corrections",
+  "behavior_change": true,
+  "contract": {
+    "unconstrained_unsuffixed_default": "i32",
+    "default_configurable": false,
+    "contextual_adoption_requires_fit": true,
+    "explicit_suffix_retargeting": false,
+    "ordinary_integer_widening_preserved": true,
+    "unconstrained_default_overflow": "lazy-OverflowError"
+  },
+  "retained_corrections": {
+    "explicit_suffix_incompatible_typed_context_diagnostic": true,
+    "generic_pending_literal_adopts_explicit_type_argument": true,
+    "generic_pending_literal_adopts_expected_return": true,
+    "compiler_resolved_type_argument_precedes_provisional_literal_repair": true,
+    "checked_treewalker_contextual_materialization": true,
+    "checked_bytecode_contextual_materialization": true
+  },
+  "native_control": {
+    "unconstrained_go_carrier": "int32",
+    "context_u8_go_carrier": "uint8",
+    "context_i64_go_carrier": "int64",
+    "explicit_u64_go_carrier": "uint64",
+    "generic_default_go_carrier": "int32",
+    "generic_i64_go_carrier": "int64",
+    "strict_no_fallbacks": true,
+    "treewalker_bytecode_compiled_parity": true,
+    "contextual_generic_runtime_value_in_body": false,
+    "contextual_generic_bridge_conversion_in_body": false
+  },
+  "authority": {
+    "spec_before_sha256": "0965a0a48b49f5eaed9392d75b7dbf6e74965a04c2547286d39397dc0812bdcd",
+    "spec_after_sha256": "a7444934c9c4f334d33064b1a64cc91afbe4b02d3be86dc7a0947605c8124382",
+    "todo_before_sha256": "1789c1764b89bcb380293468c4f3008ea430a4435bddc31239326eb8b2158cac",
+    "todo_after_sha256": "7e398204d18a1297a7bd613e05124abdef032cf05fb402203ac0bf0a9178f31d"
+  },
+  "pre_reconciliation_selector": {
+    "closure_count": 23,
+    "current_count": 0,
+    "invalidated_count": 23,
+    "reason_counts": {
+      "scope-content-drift:bytecode-production": 12,
+      "scope-content-drift:compiler-production": 12,
+      "scope-content-drift:shared-interpreter-semantics": 23,
+      "scope-content-drift:v12-spec": 23
+    }
+  },
+  "scope_changes": {
+    "v12-spec": {
+      "before": "5f3a8573e88d3ec612a05a429948fcb1bb63981cd7dd7f6983a83bcc71cf1095",
+      "after": "b826ae4cb5ce7f808c1a09970bc94ef4e5887c3417a08246aaeaab2669cd5934"
+    },
+    "compiler-production": {
+      "before": "966c9bc4019d041afba919692be637fcf927ff20fb77491557b67b33d2a0912c",
+      "after": "03b8e875814cc407d30db52ed2ccaf32fb6ae9f26a955a8a41a172d37cf1ab37"
+    },
+    "bytecode-production": {
+      "before": "bb0b3faf35a1fbeff82bf352038cba56a85360b59f6d527601532403fd639779",
+      "after": "86a80ecf779388e0efe7bfc23ad9d8d27e53e3cad5fe47127726055860b7210d"
+    },
+    "shared-interpreter-semantics": {
+      "before": "1b11fd944a7527cd2df26025afb8445d09a992b91c36346e1866721957c16683",
+      "after": "3d12546e4216ac2910d78673333cda0a9e324dae47fff6472517ac7130370807"
+    }
+  },
+  "verification": {
+    "focused_parser": "pass",
+    "full_typechecker_package": "pass",
+    "focused_treewalker_fixtures": "pass",
+    "focused_bytecode_fixtures": "pass",
+    "focused_strict_compiled_fixtures": "pass",
+    "focused_compiler_native_generic": "pass",
+    "lazy_default_overflow": "pass",
+    "seeded_exec_fixtures": 281,
+    "planned_exec_fixtures": 0,
+    "exec_fixture_directories": 282,
+    "full_run_all_tests": "pass",
+    "full_run_all_tests_wall_seconds": 636.54,
+    "full_run_all_tests_peak_rss_kb": 1283560,
+    "compiler_short_batches": 86,
+    "compiler_slowest_batch": 76,
+    "compiler_slowest_batch_seconds": 44.557,
+    "canonical_compiler_outlier_seconds": 14.866,
+    "canonical_stdlib_treewalker": "pass",
+    "canonical_stdlib_treewalker_seconds": 19,
+    "canonical_stdlib_bytecode": "pass",
+    "canonical_stdlib_bytecode_seconds": 15,
+    "canonical_stdlib_combined_wall_seconds": 36.16,
+    "canonical_stdlib_peak_rss_kb": 859144,
+    "initial_full_gate_finding": "broad-call-site-binding-precedence-broke-imported-shadowed-callable-repair",
+    "initial_full_gate_resolution": "protect-only-generics-reached-by-direct-unsuffixed-integer-literals",
+    "focused_resolution_repeat_count": 3
+  },
+  "post_reconciliation_selector": {
+    "status": "current",
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "selected_closures": []
+  },
+  "architecture_chain": {
+    "status": "current",
+    "node_count": 5,
+    "decision_changed": false
+  },
+  "cleanup": {
+    "status": "complete",
+    "removed_kib": 3243448,
+    "removed_paths": [
+      "/var/tmp/able-v12-integer-default-editorial-20260731",
+      "/tmp/able-v12-extern-go"
+    ],
+    "remaining_owned_able_task_directories": 0
+  },
+  "production_changes": {
+    "language_contract": true,
+    "typechecker": true,
+    "treewalker": true,
+    "bytecode_vm": true,
+    "compiler": true,
+    "runtime_representation": false,
+    "canonical_stdlib": false,
+    "dependency": false,
+    "benchmark": false,
+    "wasm_behavior": false
+  }
+}

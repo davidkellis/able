@@ -94,83 +94,83 @@
     {
       "disposition": "closed-no-shared-leaf",
       "id": "compiled-iterator-control",
-      "maximum_ratio": 16.097560975609756,
+      "maximum_ratio": 11.05263157894737,
       "miss_count": 9,
       "mode": "compiled",
       "row_count": 9,
-      "total_excess_seconds": 2.2057894736842107
+      "total_excess_seconds": 2.0323157894736843
     },
     {
       "disposition": "closed-no-shared-leaf",
       "id": "compiled-text-map",
-      "maximum_ratio": 23.796711509715994,
-      "miss_count": 9,
+      "maximum_ratio": 21.03225806451613,
+      "miss_count": 8,
       "mode": "compiled",
       "row_count": 9,
-      "total_excess_seconds": 2.0156842105263157
-    },
-    {
-      "disposition": "closed-no-shared-leaf",
-      "id": "compiled-current-control",
-      "maximum_ratio": 1.268474855207773,
-      "miss_count": 3,
-      "mode": "compiled",
-      "row_count": 3,
-      "total_excess_seconds": 1.374526315789474
+      "total_excess_seconds": 1.5502105263157895
     },
     {
       "disposition": "closed-insufficient-breadth",
       "id": "compiled-sudoku-quotient",
-      "maximum_ratio": 2.7366369710467704,
+      "maximum_ratio": 2.1151307103247956,
       "miss_count": 1,
       "mode": "compiled",
       "row_count": 1,
-      "total_excess_seconds": 1.2097894736842105
+      "total_excess_seconds": 0.8047368421052633
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "compiled-concurrency",
-      "maximum_ratio": 19.649122807017545,
+      "maximum_ratio": 23.829787234042552,
       "miss_count": 23,
       "mode": "compiled",
       "row_count": 23,
-      "total_excess_seconds": 0.8826315789473684
+      "total_excess_seconds": 0.7198947368421053
+    },
+    {
+      "disposition": "closed-no-shared-leaf",
+      "id": "compiled-current-control",
+      "maximum_ratio": 1.1427147263154616,
+      "miss_count": 1,
+      "mode": "compiled",
+      "row_count": 3,
+      "total_excess_seconds": 0.2891578947368423
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "compiled-regex",
-      "maximum_ratio": 18.11320754716981,
+      "maximum_ratio": 12.830188679245284,
       "miss_count": 6,
       "mode": "compiled",
       "row_count": 6,
-      "total_excess_seconds": 0.35547368421052633
+      "total_excess_seconds": 0.2506315789473684
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "compiled-wide-numeric",
-      "maximum_ratio": 17.966101694915253,
+      "maximum_ratio": 13.125,
       "miss_count": 3,
       "mode": "compiled",
       "row_count": 3,
-      "total_excess_seconds": 0.20357894736842105
+      "total_excess_seconds": 0.14378947368421055
     },
     {
       "disposition": "closed-rejected-candidate",
       "id": "compiled-float-numeric",
-      "maximum_ratio": 2.768361581920904,
+      "maximum_ratio": 3.8461538461538463,
       "miss_count": 4,
       "mode": "compiled",
       "row_count": 4,
-      "total_excess_seconds": 0.15242105263157896
+      "total_excess_seconds": 0.1163157894736842
     },
     {
       "disposition": "closed-no-shared-leaf",
       "id": "compiled-byte-output",
-      "maximum_ratio": 3.75,
+      "maximum_ratio": 2.3255813953488373,
       "miss_count": 2,
       "mode": "compiled",
       "row_count": 2,
-      "total_excess_seconds": 0.07400000000000001
+      "total_excess_seconds": 0.0436842105263158
     },
     {
       "disposition": "target-guard",
@@ -184,7 +184,7 @@
     {
       "disposition": "target-guard",
       "id": "compiled-target-guards",
-      "maximum_ratio": 1.0099852676379113,
+      "maximum_ratio": 0.975044489508753,
       "miss_count": 0,
       "mode": "compiled",
       "row_count": 6,
@@ -196,9 +196,9 @@
     {
       "mode": "compiled",
       "row_count": 66,
-      "target_meets": 6,
-      "target_misses": 60,
-      "total_excess_seconds": 8.473894736842105
+      "target_meets": 9,
+      "target_misses": 57,
+      "total_excess_seconds": 5.950736842105264
     },
     {
       "mode": "bytecode",
@@ -226,21 +226,21 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-cross-engine-architecture-budget.json",
-      "sha256": "82f425f0ad3a11b470b84d12b832897ed37c0c592d069d3d38cfc3249dc3ea6a"
+      "sha256": "13f5ccf7ecead5bd08db5246e6da1ce524666fe5b843c6fcad38c8e43bd477cc"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
+      "sha256": "96dcfc3a443b0f5de892b229a9e2a40789087c6558dbac3f58da46ce9245c25e"
     }
   },
   "summary": {
-    "bytecode_excess_share_percent": 96.943044,
+    "bytecode_excess_share_percent": 97.833553,
     "candidate_eligible": false,
     "decision": "no-go-current-cross-engine-local-mechanism",
     "minimum_unlike_families": 3,
     "selected_rows": 132,
-    "target_meets": 10,
-    "target_misses": 122,
-    "total_excess_seconds": 277.2004210526316
+    "target_meets": 13,
+    "target_misses": 119,
+    "total_excess_seconds": 274.67726315789474
   }
 }

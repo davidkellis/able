@@ -139,15 +139,17 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 					}
 				}
 				if !assignable {
-					diags = append(diags, Diagnostic{
-						Message: fmt.Sprintf(
+					diags = append(diags, assignabilityDiagnostic(
+						fmt.Sprintf(
 							"typechecker: function '%s' body returns %s, expected %s",
 							defName(def),
 							formatTypeForReturnDiagnostic(bodyType),
 							formatTypeForReturnDiagnostic(expectedReturn),
 						),
-						Node: def.Body,
-					})
+						def.Body,
+						bodyType,
+						expectedReturn,
+					))
 				}
 			}
 		}
@@ -286,6 +288,14 @@ func interfaceFromType(t Type) (InterfaceType, []Type, bool) {
 }
 
 func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpression) ([]Diagnostic, Type) {
+	return c.checkLambdaExpressionWithExpectedType(env, expr, nil)
+}
+
+func (c *Checker) checkLambdaExpressionWithExpectedType(
+	env *Environment,
+	expr *ast.LambdaExpression,
+	expected *FunctionType,
+) ([]Diagnostic, Type) {
 	if expr == nil {
 		return nil, UnknownType{}
 	}
@@ -367,6 +377,8 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 		paramType := Type(UnknownType{})
 		if param.ParamType != nil {
 			paramType = c.resolveTypeReference(param.ParamType)
+		} else if expected != nil && idx < len(expected.Params) {
+			paramType = expected.Params[idx]
 		}
 		paramTypes[idx] = paramType
 		if target, ok := param.Name.(ast.AssignmentTarget); ok {
@@ -385,10 +397,12 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 	)
 	if expr.ReturnType != nil {
 		expectedReturn = c.resolveTypeReference(expr.ReturnType)
+	} else if expected != nil {
+		expectedReturn = expected.Return
 	}
 
 	c.pushReturnType(expectedReturn)
-	bodyDiags, inferredReturn := c.checkExpression(lambdaEnv, expr.Body)
+	bodyDiags, inferredReturn := c.checkExpressionWithExpectedType(lambdaEnv, expr.Body, expectedReturn)
 	c.popReturnType()
 
 	diags = append(diags, bodyDiags...)
@@ -422,11 +436,14 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 			}
 			if coerced, ok := normalizeResultReturn(bodyType, expectedReturn); ok {
 				bodyType = coerced
-			} else if !typeAssignable(bodyType, expectedReturn) {
-				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: lambda body returns %s, expected %s", typeName(bodyType), typeName(expectedReturn)),
-					Node:    expr.Body,
-				})
+			} else if !typeAssignable(bodyType, expectedReturn) &&
+				!c.typeAssignableToExpectedInterfaceMember(bodyType, expectedReturn) {
+				diags = append(diags, assignabilityDiagnostic(
+					fmt.Sprintf("typechecker: lambda body returns %s, expected %s", typeName(bodyType), typeName(expectedReturn)),
+					expr.Body,
+					bodyType,
+					expectedReturn,
+				))
 			}
 		}
 		bodyType = expectedReturn

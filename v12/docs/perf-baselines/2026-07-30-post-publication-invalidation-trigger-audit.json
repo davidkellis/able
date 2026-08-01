@@ -1,0 +1,161 @@
+{
+  "kind": "able-v12-post-publication-invalidation-trigger-audit",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "no-performance-evidence-invalidation",
+  "repository": {
+    "head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "origin_master": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "index_empty": true
+  },
+  "external_catalog": {
+    "git_head": "f049e3f483cf5584681c4f0ef160eab773dea4dd",
+    "git_dirty": true,
+    "portable_applications": 66,
+    "canonical_able_sources": 67,
+    "diagnostic_sources": 1,
+    "bounded_local_fixtures": 79,
+    "combined_programs": 145,
+    "feature_families": 15,
+    "normative_sections": 16,
+    "operation_categories": 21,
+    "sufficient_operation_categories": 18,
+    "insufficient_operation_categories": 0,
+    "intentional_local_only_categories": 3,
+    "actionable_frontier_linked_depth_gaps": 0,
+    "source_contract_check": "pass",
+    "modified_by_audit": false
+  },
+  "canonical_stdlib": {
+    "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "git_dirty": true,
+    "source_file_count": 70,
+    "source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+    "recorded_state_equal": true,
+    "modified_by_audit": false
+  },
+  "performance_state": {
+    "scoreboard_rows": 132,
+    "compiled_rows": 66,
+    "bytecode_rows": 66,
+    "successful_samples_per_row": 5,
+    "retained_source_reports": 34,
+    "retained_reference_reports": 34,
+    "frontier_guards": 10,
+    "frontier_misses": 122,
+    "actionable_groups": 0,
+    "target_excess_seconds": 277.200421,
+    "closure_entries": 23,
+    "current_closures": 23,
+    "invalidated_closures": 0,
+    "selector_bytes": 0,
+    "selector_rows": 0,
+    "selection_sha256": "17d7babe33c64c1f17eef97eaabf7bbfba156b0bba20062fd7617e32b259f7fb",
+    "scoreboard_sha256": "3652695dc7b1576ed4729ef30a7688b171114cda9b4ce269132fd868b37849f3",
+    "frontier_sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76",
+    "frontier_evidence_sha256": "f9113788815c9000194573e3c7d7a2ceed70baa1c5db1aede1e32714aba718e7",
+    "closure_ledger_sha256": "e91bc0ea504ec7e79615b01265cba0359da1378790f596bde33af9345ba35c62"
+  },
+  "production_scopes": [
+    {
+      "id": "bytecode-production",
+      "file_count": 203,
+      "tree_sha256": "4c6b98eafd856f6bda13884e8b32004bf5af2842b4fcf6d2990e8c9321cd39a1"
+    },
+    {
+      "id": "canonical-stdlib",
+      "file_count": 70,
+      "tree_sha256": "382d256e2fb380220dcdd62a5cf83109fa72297f23d70bdd1ffe2d8daebed047"
+    },
+    {
+      "id": "compiler-production",
+      "file_count": 287,
+      "tree_sha256": "8d46f0dc50ca92902be4574bacad9d8159c396b5b3411d6efff1220c4b76eab3"
+    },
+    {
+      "id": "runtime-production",
+      "file_count": 40,
+      "tree_sha256": "73b8d6fcd4ee148ca8f928e139b0c69f37f7fcecc7b778dfecfcc9561ec8209d"
+    },
+    {
+      "id": "shared-interpreter-semantics",
+      "file_count": 137,
+      "tree_sha256": "29a8ffcc6236fa35b10dc33605017f2d7d71d410232068d1c02c8a1034f12326"
+    },
+    {
+      "id": "v12-spec",
+      "file_count": 1,
+      "tree_sha256": "7083f1656a3452236a372c9b20e8efdcdf6f122681e04f7d6d8607099603e71f"
+    }
+  ],
+  "test_maintenance": {
+    "path": "v12/bench_feature_interaction_triples_test.py",
+    "old_expected_target_excess_seconds": 278.369263,
+    "new_expected_target_excess_seconds": 277.200421,
+    "sha256": "36958a8d93e2ca3213893cb494ed4f36f8414e0d224af651da2e26190c4bcaa7",
+    "production_scope": false,
+    "evidence_changed": false
+  },
+  "validation": {
+    "external_scoreboard_check": "pass",
+    "scorecard_evidence_check": "pass",
+    "performance_frontier_check": "pass",
+    "performance_evidence_ledger_check": "pass",
+    "performance_evidence_selector_empty": true,
+    "selection_protocol_check": "pass",
+    "catalog_protocol_check": "pass",
+    "focused_corrected_test": "pass",
+    "initial_catalog_protocol_failure": "stale test-only aggregate-excess expectation",
+    "final_all_fast_protocols": "pass"
+  },
+  "cleanup": {
+    "generated_path": "v12/__pycache__",
+    "generated_files": 6,
+    "reported_kib": 44,
+    "removed_by_guarded_cleanup": true,
+    "final_cleanup_preview_empty": true,
+    "task_workspace_root": "/var/tmp",
+    "task_workspace_kib_before_final_removal": 76,
+    "task_workspace_removed": true
+  },
+  "worktree": {
+    "pre_record_expanded_paths": 40,
+    "pre_record_tracked_modified": 12,
+    "pre_record_untracked": 28,
+    "pre_record_porcelain_z_bytes": 1750,
+    "pre_record_porcelain_z_sha256": "2ca54199105c31f1770a8b3b665ee2304e22a4523e2a260e728be0dc97bcdb80",
+    "deferred_wasm_paths": 34,
+    "deferred_wasm_path_list_bytes": 1414,
+    "deferred_wasm_path_list_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "deferred_wasm_content_matches": 34,
+    "final_non_wasm_candidate_paths": 8,
+    "final_candidate_lf_bytes": 382,
+    "final_candidate_lf_sha256": "e5a7141fa1aac3693272b8409df162b0be7d67bad88abbe8cb8d5dea536ad850",
+    "final_candidate_nul_bytes": 382,
+    "final_candidate_nul_sha256": "cfbc6b5737eaaf4af2e1fbcf38773938d1f05724b9ad452e16cb9cbe40790ec3",
+    "final_expanded_paths": 42,
+    "index_empty": true
+  },
+  "changes": {
+    "test_only": true,
+    "documentation": true,
+    "production": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "benchmark_measurement": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "dependency": false,
+    "fixture": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "v12-correctness-stdlib-completeness-selection-audit",
+    "why": "No current performance closure was invalidated, so there is no admissible compiler or VM candidate to implement.",
+    "entails": "Read the v12 spec, TODO, active non-WASM design plans, current tests, and broad catalog to identify one already-specified reproducible correctness or canonical-stdlib completeness gap, map it across both Go interpreters and compiled lowering, and define semantic guards before implementation.",
+    "importance": "Semantic completeness can expose legitimate native-lowering work and broaden executable applications without manufacturing a benchmark-specific or already-closed performance route."
+  }
+}

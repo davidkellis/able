@@ -1,0 +1,130 @@
+{
+  "kind": "able-v12-correctness-stdlib-completeness-selection-audit",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "no-implementation-gap-selected",
+  "repository": {
+    "head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "origin_master": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "pre_audit_expanded_paths": 42,
+    "pre_audit_status_bytes": 1922,
+    "index_empty": true
+  },
+  "authority_sha256": {
+    "agents": "e316d6b2840b868e60bab2c49e7fa01c0c371a4b4d55b2a75c9f6861e7d3b958",
+    "plan": "b8dfba8c2739b6aae822b9aebf6948d5d7626a7ac8f9af6082e4c296ac5f992f",
+    "v12_spec": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080",
+    "v12_todo": "f2ff4fcfdf2136aa0debd19f4fa7abc0c4c26af65e56976782355db6e727e4b6",
+    "exec_coverage": "9d6140e35e5a2434a7b9b56632832dc5d4f6683109491b953abf336c0b15c388",
+    "parser_coverage": "f96ea97ccf9ca4c54bdf64613921e0fdf7827a6d1fa8aa5d51c4ca9d8f628c9f",
+    "typechecker_contract": "1dc0d0f58da11eb644777189f00fea935c43eb270b100846734af5b8bb28ad67",
+    "testing_contract": "330ca8129e443ddeef94ad4d9007166c6e57572f8e9cfe4d17768df433a07ee4",
+    "compiler_lowering_spec": "bc06053f6c0efe628461a0ee05d4166b3c4890fc9d006e6b08a3e4ab8e7cefbd",
+    "native_lowering_guardrails": "6a36aeb7e3da455c6c28874ddf064ead26f03671fa9ec8a6cca97b3dda5f4f1e",
+    "interface_dictionary_contract": "8c173d1d0cc838ac2afee321e7c265d3349237856e5743772efa2f587abe2a6b"
+  },
+  "classification": {
+    "language_decision_required": [
+      "block-comment-syntax",
+      "variance-inference-coercion-hkt-rules",
+      "checked-wrapping-saturating-arithmetic-api",
+      "composite-interface-self-pattern-composition",
+      "open-set-pattern-exhaustiveness",
+      "range-result-representation",
+      "recursive-self-constraints",
+      "concurrency-shared-data-ownership"
+    ],
+    "minimum_contract_complete": [
+      "future-error",
+      "runtime-non-exhaustive-match"
+    ],
+    "stale_or_broad_completed_prose": [
+      "named-implementation-invocation-tbd-reference",
+      "interface-dictionary-semantics-todo",
+      "broad-standard-library-implementation-todo",
+      "broad-tooling-package-manager-todo"
+    ],
+    "already_specified_reproducible_implementation_gaps": 0,
+    "selected_implementation_gap": null
+  },
+  "coverage": {
+    "seeded_exec_fixtures": 272,
+    "planned_exec_fixtures": 0,
+    "fixture_directories": 273,
+    "portable_applications": 66,
+    "canonical_able_benchmark_sources": 67,
+    "diagnostic_benchmark_sources": 1,
+    "bounded_local_fixtures": 79,
+    "combined_programs": 145,
+    "feature_families": 15,
+    "normative_sections": 16,
+    "insufficient_operation_categories": 0,
+    "actionable_depth_gaps": 0
+  },
+  "focused_interface_fixtures": [
+    "10_01_interface_defaults_composites",
+    "10_04_interface_dispatch_defaults_generics",
+    "10_05_interface_named_impl_defaults",
+    "13_08_static_interface_dictionary_capture"
+  ],
+  "validation": {
+    "exec_coverage": "pass",
+    "parser_composite_interface_tests": "pass",
+    "typechecker_interface_tests": "pass",
+    "interface_fixtures_treewalker": "pass",
+    "interface_fixtures_bytecode": "pass",
+    "interface_fixtures_compiled_strict": "pass",
+    "canonical_stdlib_treewalker_suite": "pass",
+    "canonical_stdlib_bytecode_suite": "pass",
+    "catalog_protocol": "pass",
+    "scoreboard_evidence": "pass",
+    "performance_closures": 23,
+    "performance_invalidations": 0,
+    "performance_selector_bytes": 0
+  },
+  "canonical_stdlib": {
+    "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "modified_by_audit": false
+  },
+  "cleanup": {
+    "project_gocache_mib": 266,
+    "project_tmp_empty": true,
+    "extern_cache_kib": 66812,
+    "project_cleanup_final_empty": true,
+    "extern_cache_removed": true,
+    "task_workspace_root": "/var/tmp",
+    "task_workspace_removed": true
+  },
+  "worktree": {
+    "final_non_wasm_candidate_paths": 10,
+    "final_candidate_lf_bytes": 564,
+    "final_candidate_lf_sha256": "f0c52b1e3ebda5d69bc8262f000cf29d00f7a42f0d55bd3cbc006d98286575cd",
+    "final_candidate_nul_bytes": 564,
+    "final_candidate_nul_sha256": "4a4e29e99beb7cfea44678e20b99de94aeabc7b46c4810058b12ce96f94fc2a7",
+    "deferred_wasm_paths": 34,
+    "final_expanded_paths": 44,
+    "index_empty": true
+  },
+  "changes": {
+    "documentation_only": true,
+    "production": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "canonical_stdlib": false,
+    "parser": false,
+    "ast": false,
+    "fixture": false,
+    "benchmark_measurement": false,
+    "dependency": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "composite-interface-self-pattern-contract",
+    "why": "No implementable correctness gap exists, while spec section 10.1.5 explicitly leaves mixed composite-interface for/Self rules undecided.",
+    "entails": "Inventory accepted forms, decide rejection or normalization for mixed explicit/implicit self patterns, specify substitution and diagnostics, and add cross-mode semantic fixtures before any implementation change.",
+    "importance": "One canonical composite-interface shape keeps tree-walker, bytecode, and native compiled adapters aligned and prevents unnecessary dynamic-boundary fallback."
+  }
+}

@@ -1,0 +1,272 @@
+{
+  "kind": "able-read-only-nominal-carrier-feasibility-gate",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-proof-census-tooling-no-production-carrier-rule",
+  "reason": "The same conservative whole-program proof does not admit EventRecord, DocumentTask/DocumentScore, and Sample. The three generated-only ceilings require distinct lifetime and adapter assumptions.",
+  "toolchain": {
+    "go": "go1.26.5 linux/amd64",
+    "git_head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5"
+  },
+  "proof": {
+    "scope": "generated functions directly reachable from __able_compiled_fn_main, including local generated support callees",
+    "required_facts": [
+      "reachable construction",
+      "zero reachable resolved or unresolved field mutation",
+      "zero pointer identity comparison",
+      "zero runtime or host identity exposure",
+      "zero native-interface identity exposure",
+      "zero opaque field boundary",
+      "flat primitive field carriers",
+      "zero unresolved mutation-capable call"
+    ],
+    "allowed_contexts": [
+      "native union wrap and projection",
+      "specialized native pointer storage"
+    ],
+    "limitations": [
+      "This is a fail-closed feasibility census, not a compiler authorization fact.",
+      "A future production rule must derive equivalent facts from typed Able IR and preserve them through callable and runtime-service adapters."
+    ]
+  },
+  "strict_census": {
+    "selected_applications": 66,
+    "successful_applications": 66,
+    "failed_applications": 0,
+    "declared_unique_nominal_names": 368,
+    "constructed_unique_nominal_names": 261,
+    "constructed_nominal_instantiations": 1103,
+    "eligible_nominal_instantiations": 56,
+    "eligible_unique_nominal_names": 32,
+    "applications_with_an_eligible_instantiation": 30,
+    "blocker_instantiations": {
+      "runtime-or-host-identity-exposure": 900,
+      "opaque-field-boundary": 417,
+      "non-primitive-field-carrier": 320,
+      "native-interface-identity-exposure": 58,
+      "unresolved-field-mutation": 58,
+      "unknown-mutation-capable-call": 48,
+      "reachable-field-mutation": 25
+    },
+    "blocker_applications": {
+      "runtime-or-host-identity-exposure": 52,
+      "opaque-field-boundary": 60,
+      "non-primitive-field-carrier": 45,
+      "native-interface-identity-exposure": 28,
+      "unresolved-field-mutation": 12,
+      "unknown-mutation-capable-call": 23,
+      "reachable-field-mutation": 16
+    },
+    "raw_ephemeral_report_sha256": "c5d51e6300c16aac4e073c45af911cb333c40fc3cd8ae19e5135b6b53cbcd9b9",
+    "raw_ephemeral_report_retained": false
+  },
+  "canonical_stdlib": {
+    "source_files": 70,
+    "source_lines": 19090,
+    "struct_declarations": 258,
+    "syntactic_member_assignment_sites": 240,
+    "source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+    "git_head": "219eff222c28406487231713753641bc49ee5b9a",
+    "git_dirty_before_and_after": true,
+    "changed_by_tranche": false,
+    "coverage_note": "Canonical stdlib instantiated by the 66 strict applications is included in each generated whole-program proof. The separate source inventory records uninstantiated declarations and mutation syntax."
+  },
+  "profiled_nominal_proofs": [
+    {
+      "benchmark": "binary_event_log",
+      "nominal": "EventRecord",
+      "reachable_heap_literals": 2,
+      "field_writes": 0,
+      "unknown_mutation_capable_calls": 1,
+      "runtime_or_host_conversions": 0,
+      "native_union_sites": 3,
+      "specialized_pointer_storage_sites": 0,
+      "eligible": false,
+      "blockers": [
+        "unknown-mutation-capable-call"
+      ]
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "nominal": "DocumentTask",
+      "reachable_heap_literals": 4,
+      "field_writes": 0,
+      "unknown_mutation_capable_calls": 0,
+      "runtime_or_host_conversions": 3,
+      "opaque_field_boundary_sites": 3,
+      "native_union_sites": 0,
+      "specialized_pointer_storage_sites": 0,
+      "eligible": false,
+      "blockers": [
+        "runtime-or-host-identity-exposure",
+        "opaque-field-boundary"
+      ]
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "nominal": "DocumentScore",
+      "reachable_heap_literals": 30,
+      "field_writes": 0,
+      "unknown_mutation_capable_calls": 0,
+      "runtime_or_host_conversions": 3,
+      "opaque_field_boundary_sites": 3,
+      "native_union_sites": 0,
+      "specialized_pointer_storage_sites": 0,
+      "eligible": false,
+      "blockers": [
+        "runtime-or-host-identity-exposure",
+        "opaque-field-boundary"
+      ]
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "nominal": "Sample",
+      "reachable_heap_literals": 4,
+      "field_writes": 0,
+      "unknown_mutation_capable_calls": 1,
+      "runtime_or_host_conversions": 0,
+      "native_union_sites": 4,
+      "specialized_pointer_storage_sites": 3,
+      "eligible": false,
+      "blockers": [
+        "unknown-mutation-capable-call"
+      ]
+    }
+  ],
+  "generated_only_ceilings": [
+    {
+      "benchmark": "binary_event_log",
+      "mechanism": "one audited caller-owned EventRecord slot plus one immutable default",
+      "candidate_generated_sha256": "c75a3950932136c4009e69d1813f1f6dc41d0b33bfc990438fc266ef1a1de68c",
+      "verified_processes": 90,
+      "baseline": {
+        "allocated_bytes_samples": [9321784, 9321800, 9321768, 9321800, 9321768],
+        "allocated_bytes_mean": 9321784.0,
+        "allocation_samples": [171070, 171070, 171069, 171070, 171069],
+        "allocation_mean": 171069.6,
+        "precise_time_processes": 25,
+        "precise_time_mean_seconds": 0.049591675
+      },
+      "candidate": {
+        "allocated_bytes_samples": [6765928, 6765896, 6765928, 6765912, 6765912],
+        "allocated_bytes_mean": 6765915.2,
+        "allocation_samples": [117823, 117822, 117823, 117823, 117822],
+        "allocation_mean": 117822.6,
+        "precise_time_processes": 25,
+        "precise_time_mean_seconds": 0.047563410
+      },
+      "go": {
+        "allocated_bytes_mean": 3416.0,
+        "allocation_mean": 26.0,
+        "precise_time_processes": 25,
+        "precise_time_mean_seconds": 0.006224724
+      },
+      "delta": {
+        "allocated_bytes_percent": -27.418237,
+        "allocations_percent": -31.125928,
+        "time_percent": -4.089930,
+        "candidate_go_time_ratio": 7.641047
+      },
+      "production_disposition": "not-general-retain-no-code"
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "mechanism": "application-only native typed Go channels bypassing runtime.Value conversion",
+      "candidate_generated_sha256": "727ce96ecf0ae3d093875101979fb483736e8e7eb76cdd5278442650cf261c37",
+      "verified_processes": 90,
+      "baseline": {
+        "allocated_bytes_samples": [648136, 648056, 648744, 648264, 647992],
+        "allocated_bytes_mean": 648238.4,
+        "allocation_samples": [10479, 10478, 10484, 10479, 10477],
+        "allocation_mean": 10479.4,
+        "precise_time_processes": 25,
+        "precise_time_mean_seconds": 0.005518423
+      },
+      "candidate": {
+        "allocated_bytes_samples": [150872, 150712, 150712, 150712, 150872],
+        "allocated_bytes_mean": 150776.0,
+        "allocation_samples": [2228, 2227, 2227, 2227, 2228],
+        "allocation_mean": 2227.4,
+        "precise_time_processes": 25,
+        "precise_time_mean_seconds": 0.004261938
+      },
+      "go": {
+        "allocated_bytes_mean": 63920.0,
+        "allocation_mean": 62.0,
+        "precise_time_processes": 25,
+        "precise_time_mean_seconds": 0.002220692
+      },
+      "delta": {
+        "allocated_bytes_percent": -76.740656,
+        "allocations_percent": -78.744966,
+        "time_percent": -22.768910,
+        "candidate_go_time_ratio": 1.919193
+      },
+      "production_disposition": "runtime-channel-semantics-not-proven-retain-no-code"
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "mechanism": "stack-local Sample followed by audited in-place replacement of the existing ring slot",
+      "candidate_generated_sha256": "8872e8dc22a148dff7da0b9471181a72e35bb88c2e64c144813fae4a0a16b997",
+      "verified_processes": 15,
+      "baseline": {
+        "allocated_bytes_samples": [430788144, 430788096, 430788224, 430788208, 430788144],
+        "allocated_bytes_mean": 430788163.2,
+        "allocation_samples": [13325303, 13325303, 13325303, 13325303, 13325303],
+        "allocation_mean": 13325303.0,
+        "time_samples_seconds": [2.05, 1.95, 1.94, 1.97, 2.07],
+        "time_mean_seconds": 1.996
+      },
+      "candidate": {
+        "allocated_bytes_samples": [8102352, 8102352, 8102352, 8102368, 8102368],
+        "allocated_bytes_mean": 8102358.4,
+        "allocation_samples": [116424, 116425, 116425, 116425, 116425],
+        "allocation_mean": 116424.8,
+        "time_samples_seconds": [1.48, 1.52, 1.47, 1.56, 1.48],
+        "time_mean_seconds": 1.502
+      },
+      "go": {
+        "allocated_bytes_mean": 17096.0,
+        "allocation_mean": 21.0,
+        "time_samples_seconds": [0.19, 0.19, 0.26, 0.23, 0.22],
+        "time_mean_seconds": 0.218
+      },
+      "delta": {
+        "allocated_bytes_percent": -98.119178,
+        "allocations_percent": -99.126288,
+        "time_percent": -24.749499,
+        "candidate_go_time_ratio": 6.889908
+      },
+      "production_disposition": "mutates-existing-identity-under-application-lifetime-assumption-retain-no-code"
+    }
+  ],
+  "verification": {
+    "focused_analyzer_tests": "pass",
+    "caller_owned_and_loop_alias_guards": "pass",
+    "static_boundary_census_contract_tests": "pass",
+    "all_processes_under_one_minute": true,
+    "public_verifier_failures": 0
+  },
+  "retained_changes": [
+    "generated boundary census schema 3 nominal feasibility facts",
+    "positive and fail-closed negative analyzer tests",
+    "dated decision record"
+  ],
+  "production_changes": [],
+  "external_stdlib_changes": [],
+  "runtime_changes": [],
+  "interpreter_changes": [],
+  "wasm_changes": [],
+  "cleanup": {
+    "workspace": "/var/tmp/able-readonly-nominal-gate-20260731",
+    "removed_kib": 1443920,
+    "ram_backed_tmp_used": false,
+    "remaining_tmp_able_directories": 0
+  },
+  "next": {
+    "tranche": "typed nominal mutation, capture, and callable-effect summaries",
+    "why": "Unknown mutation-capable callable flow blocks both EventRecord and Sample and recurs for 48 constructed instantiations in 23 strict applications. The same missing effect fact also closed earlier caller-owned reuse work.",
+    "entails": "Add a conservative fixed-point effect summary over functions, methods, and statically resolved lambdas; record nominal parameter field writes, capture or storage, return aliasing, unknown or dynamic calls, and propagate summaries through direct and monomorphic callable edges. Reuse the alias and conditional-retention guards, then rerun all 66 strict applications before considering any carrier change.",
+    "importance": "This turns immutable-by-use from a benchmark observation into a typed compiler fact. It is prerequisite infrastructure for sound Go value carriers and other allocation removal while preserving Able reference identity."
+  }
+}

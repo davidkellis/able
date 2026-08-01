@@ -1,0 +1,240 @@
+{
+  "kind": "able-three-application-native-nominal-profile-closure",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-no-production-code",
+  "reason": "No exact general compiler or generated-runtime owner is material and safely removable in all three applications.",
+  "toolchain": {
+    "go": "go1.26.5 linux/amd64",
+    "ablec_sha256": "8b93aa13336d973854f3573c2b7e6fcb751847844c1444f80551dc63481a1d30",
+    "git_head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5"
+  },
+  "protocol": {
+    "strict_no_fallbacks": true,
+    "gogc": 50,
+    "gomemlimit": "1GiB",
+    "process_timeout_seconds": 58,
+    "serial_cpu_affinity": "12",
+    "concurrent_cpu_affinity": "12-15",
+    "able_cpu_profiles": 350,
+    "able_lightweight_allocation_profiles": 9,
+    "able_exact_allocation_shape_profiles": 3,
+    "go_cpu_profiles": 15,
+    "go_lightweight_allocation_profiles": 9,
+    "all_processes_under_one_minute": true
+  },
+  "applications": [
+    {
+      "benchmark": "binary_event_log",
+      "able_source_sha256": "658bf062ac063af7302544b1e9d2bc30d21c5c3b535e48634f40c20ba2c8d2ea",
+      "go_source_sha256": "f9d5afe5d21a6bd2f73cb9c8ca9dd003fcd0b1993f695846ea82343f5c2bd2bf",
+      "module_sha256": "f80e66831574e3061f4477ef5ccc23880147b10065d11f8b83279fbb1d30c137",
+      "binary_sha256": "5466e6ff7a3c07afa417295a32b2f3b839a66123f00e1512aedeaa5b22e5ca21",
+      "binary_bytes": 13924232,
+      "dependencies": 96,
+      "interpreter_dependency": false,
+      "stdout_sha256": "fb075dc8606582c1e6a1d5e520fa8dda237fc7304044b84b3f8f3a2c6b1c36e9",
+      "scoreboard": {
+        "able_seconds": 0.09,
+        "go_seconds": 0.0097,
+        "able_go_ratio": 9.278350515463917
+      },
+      "execution_contract": {
+        "gomaxprocs": 1,
+        "cpu_affinity": "12",
+        "executor": "serial"
+      },
+      "cpu": {
+        "able_profile_processes": 40,
+        "able_merged_samples_seconds": 1.76,
+        "go_profile_processes": 5,
+        "go_calls_per_process": 100,
+        "go_merged_samples_seconds": 2.29,
+        "owners": [
+          {"name": "checked_signed_multiply", "flat_percent": 21.02},
+          {"name": "primitive_hashmap_equality", "flat_percent": 8.52},
+          {"name": "checked_signed_add", "flat_percent": 8.52},
+          {"name": "signed_divmod", "flat_percent": 6.82},
+          {"name": "parse_event", "cumulative_percent": 47.16},
+          {"name": "runtime_mallocgc", "cumulative_percent": 13.64}
+        ]
+      },
+      "allocation": {
+        "able_mean_bytes": 9321784.0,
+        "able_mean_objects": 171069.66666666666,
+        "able_mean_gc": 8.0,
+        "go_mean_bytes": 3416.0,
+        "go_mean_objects": 26.0,
+        "go_mean_gc": 0.0,
+        "largest_nominal_site": {
+          "type": "EventRecord",
+          "objects": 53248,
+          "percent_of_exact_objects": 31.13,
+          "boundary": "native static union return"
+        }
+      }
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "able_source_sha256": "5c5d8a577a404fdc73e355a9b8997ff36acd04e8ca974e07bde0729e78a7dc16",
+      "go_source_sha256": "bfdfcfe86bf39725d48357a348aded4a167aa0853a3a229998a6aebba18b6976",
+      "module_sha256": "918204f1d282e43c06181308addb5d61d0a05dfeb01034d525525605ca64960a",
+      "binary_sha256": "4aaaf7e33e3a4a055ca155c2e69c629d0602b0166a27feea7a0ce44cd99ad2f8",
+      "binary_bytes": 13623248,
+      "dependencies": 96,
+      "interpreter_dependency": false,
+      "stdout_sha256": "60b369f137cf022522072c4abfd911091aa3c77597528906f58b62610f438120",
+      "scoreboard": {
+        "able_seconds": 0.044,
+        "go_seconds": 0.0043,
+        "able_go_ratio": 10.232558139534882
+      },
+      "execution_contract": {
+        "gomaxprocs": 4,
+        "cpu_affinity": "12-15",
+        "executor": "goroutine"
+      },
+      "cpu": {
+        "able_profile_processes": 300,
+        "able_merged_samples_seconds": 0.54,
+        "go_profile_processes": 5,
+        "go_calls_per_process": 200,
+        "go_merged_samples_seconds": 0.72,
+        "owners": [
+          {"name": "runtime_channel_state", "cumulative_percent": 12.96},
+          {"name": "generated_channel_send", "cumulative_percent": 18.52},
+          {"name": "score_line", "cumulative_percent": 12.96},
+          {"name": "checked_signed_add", "flat_percent": 1.85},
+          {"name": "checked_signed_multiply", "flat_percent": 1.85}
+        ]
+      },
+      "allocation": {
+        "able_mean_bytes": 647554.6666666666,
+        "able_mean_objects": 10471.0,
+        "able_mean_gc": 0.0,
+        "go_mean_bytes": 63957.333333333336,
+        "go_mean_objects": 62.333333333333336,
+        "go_mean_gc": 0.0,
+        "nominal_sites": [
+          {
+            "type": "DocumentTask",
+            "direct_objects": 1024,
+            "boundary": "runtime-backed typed Channel payload"
+          },
+          {
+            "type": "DocumentScore",
+            "direct_objects": 1028,
+            "boundary": "runtime-backed typed Channel payload"
+          }
+        ],
+        "runtime_struct_instances": 2052,
+        "native_struct_reconstructions": 2056
+      }
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "able_source_sha256": "8701c4502963c99452439b882584aef3c8ea6b64bea024ae29447f75f9e6de20",
+      "go_source_sha256": "df321a44087aff77a18fc4bb8eaed98dec670a11d86e99e66b23485788197c67",
+      "module_sha256": "dfcb7e4c75d5cb54f6e6f4ec1fb190e78845147e1f7c689dc3bb9e256cd35136",
+      "binary_sha256": "4ee47f92a6c34bb1cfa0a098bb7cbc3cc87e242e3e6ea0647ffbefbd4677b642",
+      "binary_bytes": 12949752,
+      "dependencies": 96,
+      "interpreter_dependency": false,
+      "stdout_sha256": "824f93580f56e01b938c047701218b04041ebaaab783db5d29c0f2eafae11a86",
+      "scoreboard": {
+        "able_seconds": 2.068,
+        "go_seconds": 0.2078,
+        "able_go_ratio": 9.951876804619827
+      },
+      "execution_contract": {
+        "gomaxprocs": 1,
+        "cpu_affinity": "12",
+        "executor": "serial"
+      },
+      "cpu": {
+        "able_profile_processes": 10,
+        "able_merged_samples_seconds": 19.4,
+        "go_profile_processes": 5,
+        "go_calls_per_process": 10,
+        "go_merged_samples_seconds": 10.97,
+        "owners": [
+          {"name": "checked_signed_multiply", "flat_percent": 25.15},
+          {"name": "signed_divmod", "cumulative_percent": 17.99},
+          {"name": "checked_signed_add", "flat_percent": 10.88},
+          {"name": "runtime_mallocgc", "cumulative_percent": 20.93},
+          {"name": "adaptive_policy_adapter", "cumulative_percent": 12.16},
+          {"name": "linear_policy_adapter", "cumulative_percent": 6.24}
+        ]
+      },
+      "allocation": {
+        "able_mean_bytes": 430788213.3333333,
+        "able_mean_objects": 13325303.0,
+        "able_mean_gc": 351.0,
+        "go_mean_bytes": 17096.0,
+        "go_mean_objects": 21.0,
+        "go_mean_gc": 0.0,
+        "largest_nominal_site": {
+          "type": "Sample",
+          "objects": 13208878,
+          "percent_of_exact_objects": 99.13,
+          "boundary": "native specialized Array Sample storage",
+          "runtime_value_conversion": false
+        }
+      }
+    }
+  ],
+  "owner_matrix": [
+    {
+      "owner": "checked_integer_arithmetic",
+      "binary_event_log": "material",
+      "concurrent_document_pipeline": "sparse",
+      "versioned_telemetry_pipeline": "material",
+      "disposition": "closed-route-and-insufficient-material-breadth"
+    },
+    {
+      "owner": "nominal_pointer_allocation",
+      "binary_event_log": "material-native-union",
+      "concurrent_document_pipeline": "material-runtime-channel",
+      "versioned_telemetry_pipeline": "dominant-native-generic-storage",
+      "disposition": "aggregate-parent-with-distinct-identity-lifetimes"
+    },
+    {
+      "owner": "runtime_nominal_conversion",
+      "binary_event_log": "error-and-hashmap-only",
+      "concurrent_document_pipeline": "material-channel-payload",
+      "versioned_telemetry_pipeline": "absent-from-hot-sample-path",
+      "disposition": "insufficient-breadth"
+    },
+    {
+      "owner": "allocation_and_gc",
+      "binary_event_log": "material",
+      "concurrent_document_pipeline": "allocation-count-material-cpu-shallow",
+      "versioned_telemetry_pipeline": "material",
+      "disposition": "aggregate-consequence-not-one-lowering-rule"
+    }
+  ],
+  "candidate": null,
+  "ab_cohort": null,
+  "production_changes": [],
+  "closed_routes_not_reopened": [
+    "checked arithmetic",
+    "broad execution-context ABI",
+    "typed scheduler/channel ABI redesign",
+    "named-container rules",
+    "non-primitive nominal special cases",
+    "benchmark-specific lowering",
+    "interpreter ballast",
+    "WASM"
+  ],
+  "cleanup": {
+    "workspace": "/var/tmp/able-three-app-profile-refresh-20260731",
+    "removed_kib": 494304,
+    "ram_backed_tmp_used": false
+  },
+  "next": {
+    "tranche": "read-only nominal-carrier feasibility gate",
+    "why": "Three unlike applications have material immutable-by-use record allocation, but the current compiler cannot prove that Go value copying preserves Able reference semantics.",
+    "entails": "Define a fail-closed whole-program read-only and identity-observability proof, census all 66 strict applications and canonical stdlib, exercise positive native-union/generic-storage/runtime-service cases and negative alias-mutation controls, and construct generated-only ceilings before any shared carrier prototype.",
+    "importance": "A sound proof could remove unobservable nominal allocations with Go value carriers while preserving pointer carriers for every mutable or uncertain case."
+  }
+}

@@ -205,7 +205,7 @@ func (vm *bytecodeVM) tryInlineCall(callee runtime.Value, args []runtime.Value, 
 				} else if ok {
 					arg = coerced
 				} else {
-					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, vm.env)
 					if err != nil {
 						vm.releaseSlotFrame(slots)
 						vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
@@ -350,7 +350,7 @@ func (vm *bytecodeVM) tryInlineResolvedCallFromStack(fn *runtime.FunctionValue, 
 					} else if ok {
 						arg = coerced
 					} else {
-						coerced, err := vm.interp.coerceValueToType(paramType, arg)
+						coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, vm.env)
 						if err != nil {
 							vm.releaseSlotFrame(slots)
 							vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
@@ -380,7 +380,7 @@ func (vm *bytecodeVM) tryInlineResolvedCallFromStack(fn *runtime.FunctionValue, 
 				} else if ok {
 					arg = coerced
 				} else {
-					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, vm.env)
 					if err != nil {
 						vm.releaseSlotFrame(slots)
 						vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
@@ -485,7 +485,7 @@ func (vm *bytecodeVM) tryInlineSelfCallFromStack(fn *runtime.FunctionValue, argB
 				} else if ok {
 					arg = coerced
 				} else {
-					coerced, err := vm.interp.coerceValueToType(paramType, arg)
+					coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, vm.env)
 					if err != nil {
 						vm.releaseSlotFrame(slots)
 						vm.releaseI32RegisterFrame(calleeI32Values, calleeI32Valid)
@@ -557,7 +557,7 @@ func (vm *bytecodeVM) tryInlineSelfCallWithArg(fn *runtime.FunctionValue, arg ru
 			} else if ok {
 				arg = coerced
 			} else {
-				coerced, err := vm.interp.coerceValueToType(paramType, arg)
+				coerced, err := vm.interp.coerceValueToTypeInEnv(paramType, arg, vm.env)
 				if err != nil {
 					return nil, err
 				}

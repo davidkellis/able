@@ -1,0 +1,516 @@
+{
+  "allocation_ceiling": {
+    "rows": [
+      {
+        "allocations_delta_percent": -17.5,
+        "baseline_allocations_mean": 46907.33,
+        "baseline_bytes_mean": 1202101.33,
+        "benchmark": "concurrent_graph_visitors",
+        "bytes_delta_percent": -33.13,
+        "candidate_allocations_mean": 38698.0,
+        "candidate_bytes_mean": 803864.0
+      },
+      {
+        "allocations_delta_percent": -33.16,
+        "baseline_allocations_mean": 49405.33,
+        "baseline_bytes_mean": 2407093.33,
+        "benchmark": "concurrent_packet_codecs",
+        "bytes_delta_percent": -21.77,
+        "candidate_allocations_mean": 33023.33,
+        "candidate_bytes_mean": 1883125.33
+      },
+      {
+        "allocations_delta_percent": -33.04,
+        "baseline_allocations_mean": 24779.0,
+        "baseline_bytes_mean": 929960.0,
+        "benchmark": "concurrent_tree_folds",
+        "bytes_delta_percent": -42.24,
+        "candidate_allocations_mean": 16592.33,
+        "candidate_bytes_mean": 537133.33
+      }
+    ],
+    "runs_per_variant": 3
+  },
+  "balanced_timing_ceiling": {
+    "cohorts": 10,
+    "output_hashes": {
+      "concurrent_graph_visitors": "399e7fd8eae623db1fb6fe83ba5d08b46a747fca2d7e51ec6536aab65b50c9ee",
+      "concurrent_packet_codecs": "cf10b00cfd2619f5162ee99687f8e059e9333c4597169846846468fa20c230a5",
+      "concurrent_tree_folds": "ea4c3694c769a63e64e13afa98ee33a5a2edcd8d1ec0cd821c01bb257b2166d7"
+    },
+    "rows": [
+      {
+        "baseline_seconds_mean": 0.006963,
+        "benchmark": "concurrent_graph_visitors",
+        "candidate_delta_percent": -6.6,
+        "candidate_go_ratio": 2.953,
+        "candidate_seconds_mean": 0.006504,
+        "go_seconds_mean": 0.002203
+      },
+      {
+        "baseline_seconds_mean": 0.008537,
+        "benchmark": "concurrent_packet_codecs",
+        "candidate_delta_percent": -7.11,
+        "candidate_go_ratio": 3.485,
+        "candidate_seconds_mean": 0.00793,
+        "go_seconds_mean": 0.002275
+      },
+      {
+        "baseline_seconds_mean": 0.006901,
+        "benchmark": "concurrent_tree_folds",
+        "candidate_delta_percent": -18.68,
+        "candidate_go_ratio": 2.783,
+        "candidate_seconds_mean": 0.005612,
+        "go_seconds_mean": 0.002017
+      }
+    ],
+    "verified_processes": 90
+  },
+  "date": "2026-07-31",
+  "inputs": {
+    "boundary_census": {
+      "path": "v12/interpreters/go/cmd/able-generated-boundary-census/main.go",
+      "sha256": "a7da0e988795b34659e646b10428c63345ea493b05ac1326f42a2845fb51b17b"
+    },
+    "boundary_census_nominal_effect_links": {
+      "path": "v12/interpreters/go/cmd/able-generated-boundary-census/nominal_effect_links.go",
+      "sha256": "46c51fde6b3467fc94f008647264315afd0db0e2ba25d1351f158a0d11d6eff5"
+    },
+    "boundary_census_nominal_proofs": {
+      "path": "v12/interpreters/go/cmd/able-generated-boundary-census/nominal_proofs.go",
+      "sha256": "9869756209ff5bfa6f195b60816791840907e702ed9b4829e45d31f0fe3ea15f"
+    },
+    "census_driver": {
+      "path": "v12/bench_compiled_static_boundary_census",
+      "sha256": "e878812b8d7c9548421d37f07c8865134c9ad67a25a6e7f24544d8f6c311d333"
+    },
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
+    },
+    "nominal_effects": {
+      "path": "v12/interpreters/go/pkg/compiler/nominal_effects.go",
+      "sha256": "1ec01aa932d45e12e009fbfad2ce803b9504b82e3bf4e4984b246a53540fe50c"
+    },
+    "selection": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "5e05af7e06f328284c91639fc58e8a4ff822c637fd641b36943505dfb3822097"
+    }
+  },
+  "decision": {
+    "diagnostic_tooling_retained": true,
+    "disposition": "closed-missing-caller-alias-liveness-proof",
+    "production_change": false
+  },
+  "excluded_changes": [
+    "compiler carrier selection",
+    "generated runtime",
+    "runtime",
+    "interpreter",
+    "bytecode VM",
+    "stdlib",
+    "language",
+    "dependency",
+    "benchmark",
+    "WASM"
+  ],
+  "five_newly_clear_rows": [
+    {
+      "benchmark": "binary_event_log",
+      "effect_links": [
+        {
+          "generated_call_site": {
+            "argument_indexes": [
+              0
+            ],
+            "callee": "__able_tmp_5",
+            "caller": "__able_compiled_method_Result__map_spec",
+            "column": 34,
+            "file": "compiled.go",
+            "line": 30703
+          },
+          "resolution": "indirect-callable-candidate-set",
+          "typed_callable_candidates": [
+            {
+              "callable": "binary_event_log.binary_event_log.main::lambda@602",
+              "kind": "lambda",
+              "package": "binary_event_log.binary_event_log",
+              "parameter_index": 0,
+              "parameter_name": "record",
+              "read_only_non_escaping": true
+            },
+            {
+              "callable": "binary_event_log.binary_event_log.main::lambda@603",
+              "kind": "lambda",
+              "package": "binary_event_log.binary_event_log",
+              "parameter_index": 0,
+              "parameter_name": "current",
+              "read_only_non_escaping": true
+            }
+          ]
+        }
+      ],
+      "generated_proof": {
+        "blockers": [
+          "unknown-mutation-capable-call"
+        ],
+        "eligible": false,
+        "native_interface_sites": 0,
+        "native_union_sites": 3,
+        "non_primitive_field_sites": 0,
+        "opaque_field_boundary_sites": 0,
+        "pointer_identity_comparisons": 0,
+        "reachable_field_writes": 0,
+        "reachable_heap_literals": 2,
+        "runtime_or_host_conversions": 0,
+        "specialized_pointer_storage_sites": 0,
+        "unknown_mutation_capable_call_sites": [
+          {
+            "argument_indexes": [
+              0
+            ],
+            "callee": "__able_tmp_5",
+            "caller": "__able_compiled_method_Result__map_spec",
+            "column": 34,
+            "file": "compiled.go",
+            "line": 30703
+          }
+        ],
+        "unknown_mutation_capable_calls": 1,
+        "unresolved_field_writes": 0
+      },
+      "nominal": "EventRecord"
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "effect_links": [
+        {
+          "generated_call_site": {
+            "argument_indexes": [
+              0
+            ],
+            "callee": "__able_tmp_5",
+            "caller": "__able_compiled_method_Result__map_spec_ctx",
+            "column": 34,
+            "file": "compiled.go",
+            "line": 38587
+          },
+          "resolution": "indirect-callable-candidate-set",
+          "typed_callable_candidates": [
+            {
+              "callable": "concurrent_event_routing.concurrent_event_routing.work::lambda@681",
+              "kind": "lambda",
+              "package": "concurrent_event_routing.concurrent_event_routing",
+              "parameter_index": 0,
+              "parameter_name": "record",
+              "read_only_non_escaping": true
+            }
+          ]
+        }
+      ],
+      "generated_proof": {
+        "blockers": [
+          "unknown-mutation-capable-call"
+        ],
+        "eligible": false,
+        "native_interface_sites": 0,
+        "native_union_sites": 2,
+        "non_primitive_field_sites": 0,
+        "opaque_field_boundary_sites": 0,
+        "pointer_identity_comparisons": 0,
+        "reachable_field_writes": 0,
+        "reachable_heap_literals": 1,
+        "runtime_or_host_conversions": 0,
+        "specialized_pointer_storage_sites": 0,
+        "unknown_mutation_capable_call_sites": [
+          {
+            "argument_indexes": [
+              0
+            ],
+            "callee": "__able_tmp_5",
+            "caller": "__able_compiled_method_Result__map_spec_ctx",
+            "column": 34,
+            "file": "compiled.go",
+            "line": 38587
+          }
+        ],
+        "unknown_mutation_capable_calls": 1,
+        "unresolved_field_writes": 0
+      },
+      "nominal": "EventRecord"
+    },
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "effect_links": [
+        {
+          "generated_call_site": {
+            "argument_indexes": [
+              1
+            ],
+            "callee": "visitor.__able_ctx_inspect",
+            "caller": "__able_compiled_fn_traverse_ctx",
+            "column": 37,
+            "file": "compiled.go",
+            "line": 49041
+          },
+          "resolution": "interface-method-candidate-set",
+          "typed_callable_candidates": [
+            {
+              "callable": "concurrent_graph_visitors.concurrent_graph_visitors.impl GraphVisitor for StripeVisitor.inspect",
+              "generated_go_name": "impl_GraphVisitor_inspect_0_a",
+              "kind": "method",
+              "package": "concurrent_graph_visitors.concurrent_graph_visitors",
+              "parameter_index": 2,
+              "parameter_name": "state",
+              "read_only_non_escaping": true
+            },
+            {
+              "callable": "concurrent_graph_visitors.concurrent_graph_visitors.impl GraphVisitor for ThresholdVisitor.inspect",
+              "generated_go_name": "impl_GraphVisitor_inspect_0",
+              "kind": "method",
+              "package": "concurrent_graph_visitors.concurrent_graph_visitors",
+              "parameter_index": 2,
+              "parameter_name": "state",
+              "read_only_non_escaping": true
+            }
+          ]
+        }
+      ],
+      "generated_proof": {
+        "blockers": [
+          "unknown-mutation-capable-call"
+        ],
+        "eligible": false,
+        "native_interface_sites": 0,
+        "native_union_sites": 0,
+        "non_primitive_field_sites": 0,
+        "opaque_field_boundary_sites": 0,
+        "pointer_identity_comparisons": 0,
+        "reachable_field_writes": 0,
+        "reachable_heap_literals": 1,
+        "runtime_or_host_conversions": 0,
+        "specialized_pointer_storage_sites": 0,
+        "unknown_mutation_capable_call_sites": [
+          {
+            "argument_indexes": [
+              1
+            ],
+            "callee": "visitor.__able_ctx_inspect",
+            "caller": "__able_compiled_fn_traverse_ctx",
+            "column": 37,
+            "file": "compiled.go",
+            "line": 49041
+          }
+        ],
+        "unknown_mutation_capable_calls": 1,
+        "unresolved_field_writes": 0
+      },
+      "nominal": "VisitState"
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "effect_links": [
+        {
+          "generated_call_site": {
+            "argument_indexes": [
+              1
+            ],
+            "callee": "codec.__able_ctx_decode",
+            "caller": "__able_compiled_fn_decode_stream_ctx",
+            "column": 35,
+            "file": "compiled.go",
+            "line": 42720
+          },
+          "resolution": "interface-method-candidate-set",
+          "typed_callable_candidates": [
+            {
+              "callable": "concurrent_packet_codecs.concurrent_packet_codecs.impl PacketCodec for DeltaCodec.decode",
+              "generated_go_name": "impl_PacketCodec_decode_0",
+              "kind": "method",
+              "package": "concurrent_packet_codecs.concurrent_packet_codecs",
+              "parameter_index": 2,
+              "parameter_name": "cursor",
+              "read_only_non_escaping": true
+            },
+            {
+              "callable": "concurrent_packet_codecs.concurrent_packet_codecs.impl PacketCodec for RunCodec.decode",
+              "generated_go_name": "impl_PacketCodec_decode_0_a",
+              "kind": "method",
+              "package": "concurrent_packet_codecs.concurrent_packet_codecs",
+              "parameter_index": 2,
+              "parameter_name": "cursor",
+              "read_only_non_escaping": true
+            }
+          ]
+        }
+      ],
+      "generated_proof": {
+        "blockers": [
+          "unknown-mutation-capable-call"
+        ],
+        "eligible": false,
+        "native_interface_sites": 0,
+        "native_union_sites": 0,
+        "non_primitive_field_sites": 0,
+        "opaque_field_boundary_sites": 0,
+        "pointer_identity_comparisons": 0,
+        "reachable_field_writes": 0,
+        "reachable_heap_literals": 1,
+        "runtime_or_host_conversions": 0,
+        "specialized_pointer_storage_sites": 0,
+        "unknown_mutation_capable_call_sites": [
+          {
+            "argument_indexes": [
+              1
+            ],
+            "callee": "codec.__able_ctx_decode",
+            "caller": "__able_compiled_fn_decode_stream_ctx",
+            "column": 35,
+            "file": "compiled.go",
+            "line": 42720
+          }
+        ],
+        "unknown_mutation_capable_calls": 1,
+        "unresolved_field_writes": 0
+      },
+      "nominal": "CursorState"
+    },
+    {
+      "benchmark": "concurrent_tree_folds",
+      "effect_links": [
+        {
+          "generated_call_site": {
+            "argument_indexes": [
+              3
+            ],
+            "callee": "algebra.__able_ctx_combine",
+            "caller": "__able_compiled_fn_fold_tree_ctx",
+            "column": 35,
+            "file": "compiled.go",
+            "line": 42535
+          },
+          "resolution": "interface-method-candidate-set",
+          "typed_callable_candidates": [
+            {
+              "callable": "concurrent_tree_folds.concurrent_tree_folds.impl FoldAlgebra for AdditiveFold.combine",
+              "generated_go_name": "impl_FoldAlgebra_combine_0",
+              "kind": "method",
+              "package": "concurrent_tree_folds.concurrent_tree_folds",
+              "parameter_index": 4,
+              "parameter_name": "state",
+              "read_only_non_escaping": true
+            },
+            {
+              "callable": "concurrent_tree_folds.concurrent_tree_folds.impl FoldAlgebra for MultiplicativeFold.combine",
+              "generated_go_name": "impl_FoldAlgebra_combine_0_a",
+              "kind": "method",
+              "package": "concurrent_tree_folds.concurrent_tree_folds",
+              "parameter_index": 4,
+              "parameter_name": "state",
+              "read_only_non_escaping": true
+            }
+          ]
+        }
+      ],
+      "generated_proof": {
+        "blockers": [
+          "unknown-mutation-capable-call"
+        ],
+        "eligible": false,
+        "native_interface_sites": 0,
+        "native_union_sites": 0,
+        "non_primitive_field_sites": 0,
+        "opaque_field_boundary_sites": 0,
+        "pointer_identity_comparisons": 0,
+        "reachable_field_writes": 0,
+        "reachable_heap_literals": 1,
+        "runtime_or_host_conversions": 0,
+        "specialized_pointer_storage_sites": 0,
+        "unknown_mutation_capable_call_sites": [
+          {
+            "argument_indexes": [
+              3
+            ],
+            "callee": "algebra.__able_ctx_combine",
+            "caller": "__able_compiled_fn_fold_tree_ctx",
+            "column": 35,
+            "file": "compiled.go",
+            "line": 42535
+          }
+        ],
+        "unknown_mutation_capable_calls": 1,
+        "unresolved_field_writes": 0
+      },
+      "nominal": "FoldState"
+    }
+  ],
+  "kind": "able-nominal-effect-generated-site-join-no-go",
+  "retained_changes": [
+    "compiler nominal callable summaries expose generated Go names",
+    "generated boundary census reports exact unknown-call caller/callee/argument/source sites",
+    "generated boundary census optionally joins those sites to typed callable candidate sets",
+    "full census driver passes the typed effect report into the analyzer"
+  ],
+  "cleanup": {
+    "disk_backed_workspace_kib_removed": 1313444,
+    "remaining_able_task_directories": 0,
+    "ram_backed_tmp_used": false
+  },
+  "next": {
+    "task": "add an opt-in interprocedural ownership-transfer analysis without selecting carriers or reusing storage",
+    "why": "the shared owner is material in three unlike applications, but callee effects do not prove caller alias/liveness",
+    "entails": "track nominal provenance, aliases, before/after uses, unconditional consumption/replacement, complete native-interface implementation sets, and embedded fresh successor fields; fail closed for retained old values, capture/storage, return aliases, dynamic calls, and conditional candidates",
+    "importance": "ownership is the missing semantic proof for safe caller-owned storage or value-carrier lowering without weakening Able reference identity"
+  },
+  "schema_version": 1,
+  "semantic_no_go": {
+    "existing_negative_guards": [
+      "retained old result",
+      "callee capture/storage",
+      "conditional candidate"
+    ],
+    "reason": "in-place successor reuse merges the old and new Able struct identities; callable noncapture does not prove that the caller has no retained alias or later read of the old value",
+    "required_missing_fact": "interprocedural caller alias, liveness, and ownership-transfer proof across direct calls, native interface candidate sets, and embedded result fields"
+  },
+  "shared_owner": {
+    "applications": [
+      "concurrent_graph_visitors",
+      "concurrent_packet_codecs",
+      "concurrent_tree_folds"
+    ],
+    "generated_only_ceiling": "overwrite the consumed receiver with the fresh successor only after auditing the three exact programs",
+    "mechanism": "loop-carried flat nominal state enters native interface dispatch and a fresh successor returns directly or through a fresh step record"
+  },
+  "strict_census": {
+    "all_candidates_read_only_non_escaping": {
+      "indirect-callable-candidate-set": 6,
+      "interface-method-candidate-set": 8
+    },
+    "applications_with_links": 23,
+    "failed": 0,
+    "linked_unknown_call_sites": 125,
+    "module_identity_sha256": "79da1219d9b03ed191fc148626c44bd5d5be86d5294aa74129bdbfbb63a57b1b",
+    "raw_ephemeral_report_sha256": "dfeeb50f170a16f799eaab661d815e88072cf62c0bd0078f038357035a93d2e9",
+    "raw_report_retained": false,
+    "resolution_counts": {
+      "indirect-callable-candidate-set": 7,
+      "interface-method-candidate-set": 15,
+      "unresolved": 103
+    },
+    "selected": 66,
+    "successful": 66
+  },
+  "verification": {
+    "allocation_processes_verified": 18,
+    "architecture_chain_nodes_current": 5,
+    "balanced_timing_processes_verified": 90,
+    "compiler_cli_tests_passed": true,
+    "focused_analyzer_tests_passed": true,
+    "focused_caller_owned_semantic_guards_passed": true,
+    "interpreter_dependency_absent_in_profiled_modules": 3,
+    "ledger_current_closures": 23,
+    "ledger_invalidations": 0,
+    "strict_generation_failures": 0,
+    "strict_generation_successes": 66
+  }
+}

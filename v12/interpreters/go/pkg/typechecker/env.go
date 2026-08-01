@@ -1,16 +1,27 @@
 package typechecker
 
+import "able/interpreter-go/pkg/ast"
+
 // Environment represents a lexical scope used during typechecking.
 type Environment struct {
-	parent  *Environment
-	symbols map[string]Type
+	parent       *Environment
+	symbols      map[string]Type
+	localLambdas map[string]*localLambdaBinding
+}
+
+type localLambdaBinding struct {
+	expression     *ast.LambdaExpression
+	declarationEnv *Environment
+	signature      *FunctionType
+	constraintNode ast.Node
 }
 
 // NewEnvironment creates a new environment with an optional parent.
 func NewEnvironment(parent *Environment) *Environment {
 	return &Environment{
-		parent:  parent,
-		symbols: make(map[string]Type),
+		parent:       parent,
+		symbols:      make(map[string]Type),
+		localLambdas: make(map[string]*localLambdaBinding),
 	}
 }
 
@@ -41,6 +52,44 @@ func (e *Environment) Lookup(name string) (Type, bool) {
 		return e.parent.Lookup(name)
 	}
 	return nil, false
+}
+
+func (e *Environment) defineLocalLambda(name string, expression *ast.LambdaExpression) {
+	if e == nil || name == "" || expression == nil {
+		return
+	}
+	e.localLambdas[name] = &localLambdaBinding{
+		expression:     expression,
+		declarationEnv: e,
+	}
+}
+
+func (e *Environment) lookupLocalLambda(name string) (*localLambdaBinding, bool) {
+	if e == nil || name == "" {
+		return nil, false
+	}
+	if _, shadowsParent := e.symbols[name]; shadowsParent {
+		binding, ok := e.localLambdas[name]
+		return binding, ok
+	}
+	if e.parent != nil {
+		return e.parent.lookupLocalLambda(name)
+	}
+	return nil, false
+}
+
+func (e *Environment) clearLocalLambda(name string) bool {
+	if e == nil || name == "" {
+		return false
+	}
+	if _, exists := e.symbols[name]; exists {
+		delete(e.localLambdas, name)
+		return true
+	}
+	if e.parent != nil {
+		return e.parent.clearLocalLambda(name)
+	}
+	return false
 }
 
 // Assign updates an existing binding if present in the scope chain.

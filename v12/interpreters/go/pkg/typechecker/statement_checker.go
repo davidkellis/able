@@ -68,12 +68,14 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 			diags = append(diags, c.bindPattern(env, s.Left, UnknownType{}, true, intent)...)
 		}
 		expectedType := Type(UnknownType{})
+		reassignsExistingIdentifier := false
 		if typed, ok := s.Left.(*ast.TypedPattern); ok && typed.TypeAnnotation != nil {
-			expectedType = c.resolveTypeReference(typed.TypeAnnotation)
+			expectedType = c.resolveLocalTypeReference(env, typed.TypeAnnotation)
 		} else if s.Operator == ast.AssignmentAssign {
 			if ident, ok := s.Left.(*ast.Identifier); ok && ident.Name != "" {
 				if existing, ok := env.Lookup(ident.Name); ok {
 					expectedType = existing
+					reassignsExistingIdentifier = true
 				}
 			}
 		}
@@ -82,12 +84,39 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 		if typ == nil {
 			typ = UnknownType{}
 		}
+		if detail := c.staticInterfaceUpcastAmbiguity(typ, expectedType); detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    s.Right,
+			})
+		}
 		if s.Operator == ast.AssignmentDeclare {
-			return append(diags, c.bindPattern(env, s.Left, typ, true, intent)...)
+			diags = append(diags, c.bindPattern(env, s.Left, typ, true, intent)...)
+			ident, identifierBinding := s.Left.(*ast.Identifier)
+			lambda, lambdaBinding := s.Right.(*ast.LambdaExpression)
+			if identifierBinding && lambdaBinding && ident != nil && ident.Name != "" &&
+				lambda != nil {
+				if fnType, ok := typ.(FunctionType); ok && !completeMonomorphicFunctionType(fnType) {
+					env.defineLocalLambda(ident.Name, lambda)
+				}
+			}
+			return diags
 		}
 		if s.Operator == ast.AssignmentAssign {
 			assignIntent := &patternIntent{allowFallback: true}
-			return append(diags, c.bindPattern(env, s.Left, typ, false, assignIntent)...)
+			diags = append(diags, c.bindPattern(env, s.Left, typ, false, assignIntent)...)
+			if ident, ok := s.Left.(*ast.Identifier); ok && ident != nil {
+				if reassignsExistingIdentifier {
+					env.clearLocalLambda(ident.Name)
+				} else if lambda, ok := s.Right.(*ast.LambdaExpression); ok &&
+					lambda != nil {
+					if fnType, ok := typ.(FunctionType); ok &&
+						!completeMonomorphicFunctionType(fnType) {
+						env.defineLocalLambda(ident.Name, lambda)
+					}
+				}
+			}
+			return diags
 		}
 		return diags
 	case *ast.WhileLoop:

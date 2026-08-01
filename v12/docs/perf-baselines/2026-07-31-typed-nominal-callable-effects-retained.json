@@ -1,0 +1,174 @@
+{
+  "kind": "able-typed-nominal-callable-effects-retained",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-opt-in-analysis-no-production-lowering-change",
+  "toolchain": {
+    "git_head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "go": "go1.26.5 linux/amd64"
+  },
+  "analysis": {
+    "callable_kinds": [
+      "top-level function",
+      "method",
+      "local function",
+      "statically resolved lambda"
+    ],
+    "fixed_point_facts": [
+      "field-or-index mutation",
+      "capture-or-storage",
+      "return alias",
+      "unknown-or-dynamic call"
+    ],
+    "type_flow": "bidirectional concrete nominal parameter propagation through direct and monomorphic callable edges",
+    "fail_closed_edges": [
+      "ambiguous callable rebinding",
+      "interface dispatch",
+      "unresolved or dynamic call"
+    ],
+    "aggregate_flow": "typed whole-reference aliases plus struct, Array, and Map literal storage are tracked without treating field-value reads as record escape",
+    "kernel_effect": "__able_array_write argument 2 is captured into Array storage",
+    "carrier_selection": false,
+    "ordinary_compile_opt_in": false
+  },
+  "strict_census": {
+    "selected": 66,
+    "successful": 66,
+    "failed": 0,
+    "totals": {
+      "callables": 34885,
+      "parameters": 55814,
+      "nominal_parameters": 23281,
+      "read_only_non_escaping_nominal_parameters": 11292,
+      "mutation_parameters": 3586,
+      "capture_parameters": 460,
+      "return_alias_parameters": 1337,
+      "unknown_call_parameters": 8303
+    },
+    "prior_unknown_join": {
+      "rows": 48,
+      "applications": 23,
+      "all_safe": {
+        "rows": 20,
+        "applications": 14
+      },
+      "resolved_capture": {
+        "rows": 2,
+        "applications": 2,
+        "members": [
+          "manifest_normalization:ManifestRecord",
+          "versioned_telemetry_pipeline:Sample"
+        ]
+      },
+      "typed_unknown_remains": {
+        "rows": 21,
+        "applications": 14
+      },
+      "unmatched_generated_helpers": {
+        "rows": 5,
+        "applications": 5,
+        "nominal": "RegexSetMatch"
+      },
+      "precisely_resolved_rows": 22
+    },
+    "newly_clear_generated_feasibility_rows": [
+      "binary_event_log:EventRecord",
+      "concurrent_event_routing:EventRecord",
+      "concurrent_graph_visitors:VisitState",
+      "concurrent_packet_codecs:CursorState",
+      "concurrent_tree_folds:FoldState"
+    ]
+  },
+  "profiled_nominals": {
+    "binary_event_log:EventRecord": {
+      "parameter_instances": 4,
+      "read_only_non_escaping": 4,
+      "mutation": 0,
+      "capture": 0,
+      "return_alias": 0,
+      "unknown_call": 0
+    },
+    "versioned_telemetry_pipeline:Sample": {
+      "parameter_instances": 6,
+      "read_only_non_escaping": 2,
+      "mutation": 0,
+      "capture": 4,
+      "return_alias": 0,
+      "unknown_call": 0
+    }
+  },
+  "generated_output_control": {
+    "effect_enabled": {
+      "selected": 66,
+      "successful": 66,
+      "failed": 0,
+      "raw_ephemeral_sha256": "58857f3652df39eda3750de286501c50e7447bf9374b16b4c368fdcfc8ba502d"
+    },
+    "effect_disabled": {
+      "selected": 66,
+      "successful": 66,
+      "failed": 0,
+      "raw_ephemeral_sha256": "a4bf9d1c524fb7a8e6fc580930aa405159864457ff0c5efa6b5772e1987749b3"
+    },
+    "module_hash_mismatches": 0,
+    "generated_analysis_mismatches": 0,
+    "aggregate_boundary_categories_equal": true,
+    "semantic_parent_boundaries_equal": true,
+    "raw_reports_retained": false,
+    "binary_event_log_top_level_go_sha256_both": "4198279afdaa61da80ef56a2180e128b99fdb89cbf8497f9c6b2a43338e426da",
+    "runtime_ab_required": false,
+    "runtime_ab_reason": "complete generated-output equality proves executable code is unchanged"
+  },
+  "verification": {
+    "focused_effect_tests_seconds": 1.1,
+    "combined_caller_owned_and_effect_guards_seconds": 2.889,
+    "cmd_boundary_census_seconds": 0.002,
+    "cmd_ablec_seconds": 5.032,
+    "binary_event_log_public_verifier": "pass",
+    "versioned_telemetry_public_verifier": "pass",
+    "strict_dependency_graphs_include_interpreter": false,
+    "short_compiler_package": {
+      "status": "aggregate-timeout",
+      "timeout_seconds": 60,
+      "active_named_row": "TestCompilerPersistentSortedQueueMethodsStayNative",
+      "named_row_independent_status": "pass",
+      "named_row_independent_seconds": 2.347,
+      "observed_individual_test_over_60_seconds": false
+    }
+  },
+  "performance_evidence": {
+    "pre_reconciliation_invalidated_closures": 12,
+    "reason": "scope-content-drift:compiler-production",
+    "generated_execution_changed": false,
+    "closure_dispositions_changed": false,
+    "optimization_candidate_admitted": false
+  },
+  "production_changes_excluded": [
+    "generated runtime",
+    "runtime",
+    "interpreter",
+    "bytecode vm",
+    "parser",
+    "ast",
+    "language spec",
+    "dependency",
+    "canonical stdlib",
+    "benchmark",
+    "frozen workspace",
+    "wasm",
+    "nominal carrier",
+    "named-container lowering",
+    "non-primitive nominal special case"
+  ],
+  "cleanup": {
+    "disk_backed_task_workspaces_removed_kib": 1761224,
+    "remaining_tmp_able_paths": 0,
+    "remaining_var_tmp_able_paths": 0
+  },
+  "next": {
+    "goal": "Join typed callable facts to exact generated boundary and storage sites for the five newly clear rows.",
+    "why": "Callable non-mutation is proven, but identity, ownership, encoding, and storage lifetime still govern safe native Go value carriers.",
+    "entails": "Link generated call sites to summaries, inventory conversion/writeback/allocation/storage descendants, require one material shared owner in three unlike applications, and only then run a guarded five-or-more-pair production A/B cohort.",
+    "importance": "This is the shortest sound route to less boxing and allocation without weakening Able reference semantics or crossing into the interpreter."
+  }
+}

@@ -1,0 +1,5 @@
+package math
+
+import dep.{base}
+
+answer := base + 2

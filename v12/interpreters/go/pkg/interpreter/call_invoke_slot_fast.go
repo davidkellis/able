@@ -31,7 +31,7 @@ func invokeFunctionBindArgsForSlotLayout(i *Interpreter, fn *runtime.FunctionVal
 			return nil, argsMutable, err
 		}
 		if !ok {
-			coerced, err = i.coerceValueToType(paramType, arg)
+			coerced, err = i.coerceValueToTypeInEnv(paramType, arg, fn.Closure)
 			if err != nil {
 				return nil, argsMutable, err
 			}

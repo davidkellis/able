@@ -1,0 +1,6 @@
+package app
+
+import math.{answer}
+
+print(answer)
+answer

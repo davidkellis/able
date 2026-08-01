@@ -1,0 +1,12 @@
+package factory_b
+
+import exec_13_10_static_interface_distinct_dictionary_capture.iface_defs.{Item, Renderable}
+
+private impl Renderable for Item {
+  fn duplicate(self: Self) -> Self { Item { label: self.label } }
+  fn render(self: Self) -> String { `B:${self.label}` }
+}
+
+fn make_b(label: String) -> Renderable {
+  Item { label }
+}

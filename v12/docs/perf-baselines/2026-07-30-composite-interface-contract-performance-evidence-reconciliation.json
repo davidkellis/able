@@ -1,0 +1,776 @@
+{
+  "cleanup": {
+    "disk_backed_task_workspace_kib": 1515636,
+    "project_python_cache_kib": 48,
+    "project_python_cache_removed": true,
+    "ram_backed_tmp_artifacts": 0,
+    "task_workspace_removed": true
+  },
+  "conclusion": "All 66 shared benchmark sources remain valid under the composite-interface Self-pattern rule, and all 66 strict generated modules plus their compact native-boundary counts exactly match the prior census. The ten compiled and nine bytecode set-cover cohorts provide 470 verified Able/Go/Python/Ruby processes across all 23 closures. No production execution path changed, so the data admit a reviewed v12-spec scope rebase and no optimization candidate.",
+  "date": "2026-07-30",
+  "decision": "rebaseline-reviewed-v12-spec-scope",
+  "inputs": {
+    "boundary": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-boundary-audit.json",
+      "sha256": "61e367caf2495ed744682175961e973bf6e515c9d5201701cccd94e4892edd16"
+    },
+    "bytecode_forward": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-bytecode-forward.json",
+      "sha256": "b1f8c7839084c3041bc0278542a2158651c8a52956f07bc834187c2fe68f01f8"
+    },
+    "bytecode_reverse": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-bytecode-reverse.json",
+      "sha256": "8f718468d45b33ee513772910aad30df932422fbdfb953f1fc6ae22c702ff4af"
+    },
+    "compiled": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-compiled-cohorts.json",
+      "sha256": "50968f8e916e4108ebf500a7945fcbbaad39b3a9d374420c9acfc4ee5aa4e083"
+    },
+    "go_forward": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-go-references-forward.json",
+      "sha256": "637e369e465eae02f38f82c22353cef611c128b1650917bac81c8f96ccaadb72"
+    },
+    "go_reverse": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-go-references-reverse.json",
+      "sha256": "4335dfc88ecd30a1ce3466f361a685381e716055d5a954a866be82294621eeef"
+    },
+    "interpreter_forward": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-interpreter-references-forward.json",
+      "sha256": "d7ef9fb9839994ff6b301530149d80314f6fc7ff37632ca0a4d5c764c0df5881"
+    },
+    "interpreter_reverse": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-interpreter-references-reverse.json",
+      "sha256": "7fc949835358f05257d91449072fa687cb7509ea2577197ca38f4388e087044f"
+    },
+    "invalidation": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-pre-reconciliation-invalidation.json",
+      "sha256": "72f57e04fb436bb3bc4cda0ca48cca8fdd97fef8ff5e90c855f4bd8a4f0a0929"
+    },
+    "static": {
+      "path": "v12/docs/perf-baselines/2026-07-30-composite-interface-contract-strict-static-census.json",
+      "sha256": "9d389143b18dc600f0a4b8fd1b3491d4df989239d1318a84ba12e76a27b5dd61"
+    }
+  },
+  "kind": "able-composite-interface-contract-performance-evidence-reconciliation",
+  "measurement_policy": {
+    "application_order": "forward_then_reverse",
+    "arithmetic_mean_used": true,
+    "bytecode_benchmarks": [
+      "reverse_complement",
+      "future_await_race",
+      "monte_carlo_pi",
+      "document_audit",
+      "nbody",
+      "config_validation_extraction",
+      "fib",
+      "i_before_e",
+      "rational_series"
+    ],
+    "bytecode_reference_order": "python_ruby_then_ruby_python",
+    "cohorts_per_benchmark_mode": 2,
+    "compiled_benchmarks": [
+      "reverse_complement",
+      "concurrent_event_routing",
+      "distance_field",
+      "array_slice_window",
+      "quicksort",
+      "policy_record_dispatch",
+      "fib",
+      "k_nucleotide",
+      "fixed_width_128",
+      "sudoku_masks"
+    ],
+    "coverage": "minimum mode-specific application sets covering all 23 closures",
+    "processes_per_cohort": 5,
+    "volatile_above_cohort_spread_percent": 15.0
+  },
+  "measurements": [
+    {
+      "able_cohort_spread_percent": 19.999999999999996,
+      "able_mean_seconds": 0.044,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "reverse_complement",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 2.696072583273931
+      },
+      "reference_cohort_spread_percent": {
+        "go": 10.949645937556806
+      },
+      "reference_means_seconds": {
+        "go": 0.0163200354
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 23.52941176470591,
+      "able_mean_seconds": 0.038,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "concurrent_event_routing",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 7.61329540229284
+      },
+      "reference_cohort_spread_percent": {
+        "go": 0.5492568464342318
+      },
+      "reference_means_seconds": {
+        "go": 0.0049912683
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 0.0,
+      "able_mean_seconds": 0.03,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "distance_field",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 1.735548674824991
+      },
+      "reference_cohort_spread_percent": {
+        "go": 88.67203731106481
+      },
+      "reference_means_seconds": {
+        "go": 0.0172855999
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 0.0,
+      "able_mean_seconds": 0.03,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "array_slice_window",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 6.344794534932376
+      },
+      "reference_cohort_spread_percent": {
+        "go": 30.820310160220533
+      },
+      "reference_means_seconds": {
+        "go": 0.0047282855
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 4.092920353982299,
+      "able_mean_seconds": 1.845,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "quicksort",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 0.6695688768538486
+      },
+      "reference_cohort_spread_percent": {
+        "go": 6.151118844439285
+      },
+      "reference_means_seconds": {
+        "go": 2.7555044205000003
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 14.28571428571428,
+      "able_mean_seconds": 0.075,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "policy_record_dispatch",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 14.56031800045133
+      },
+      "reference_cohort_spread_percent": {
+        "go": 15.367964309115024
+      },
+      "reference_means_seconds": {
+        "go": 0.0051509864
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 0.5876068376068355,
+      "able_mean_seconds": 3.755,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "fib",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 1.1299978695898887
+      },
+      "reference_cohort_spread_percent": {
+        "go": 8.824456512576306
+      },
+      "reference_means_seconds": {
+        "go": 3.3230151145
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 4.636591478696728,
+      "able_mean_seconds": 1.6329999999999998,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "k_nucleotide",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 27.805357336012065
+      },
+      "reference_cohort_spread_percent": {
+        "go": 3.546347185173926
+      },
+      "reference_means_seconds": {
+        "go": 0.05872968939999999
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 10.204081632653072,
+      "able_mean_seconds": 0.10300000000000001,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "fixed_width_128",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 18.655353963425945
+      },
+      "reference_cohort_spread_percent": {
+        "go": 5.091779744067071
+      },
+      "reference_means_seconds": {
+        "go": 0.0055212032
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 4.35339308578746,
+      "able_mean_seconds": 1.596,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "sudoku_masks",
+      "mode": "compiled",
+      "ratios_to_reference": {
+        "go": 2.3923555612946505
+      },
+      "reference_cohort_spread_percent": {
+        "go": 9.336210282593393
+      },
+      "reference_means_seconds": {
+        "go": 0.6671249148
+      },
+      "reference_samples": {
+        "go": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 52.1416333523701,
+      "able_mean_seconds": 4.415,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "reverse_complement",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 168.01716824161483,
+        "ruby": 57.3002186540004
+      },
+      "reference_cohort_spread_percent": {
+        "python": 8.411181745616258,
+        "ruby": 7.8943004426700325
+      },
+      "reference_means_seconds": {
+        "python": 0.026277076599999998,
+        "ruby": 0.07705031679999999
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 2.6315789473684292,
+      "able_mean_seconds": 0.154,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "future_await_race",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 4.800943468940534,
+        "ruby": 3.144789063794274
+      },
+      "reference_cohort_spread_percent": {
+        "python": 20.311126673208733,
+        "ruby": 4.809021609835051
+      },
+      "reference_means_seconds": {
+        "python": 0.0320770284,
+        "ruby": 0.0489698981
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 0.5895357406042745,
+      "able_mean_seconds": 2.722,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "monte_carlo_pi",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 1.7336518066393376,
+        "ruby": 1.5996017419006672
+      },
+      "reference_cohort_spread_percent": {
+        "python": 5.307979644276561,
+        "ruby": 3.08347522274659
+      },
+      "reference_means_seconds": {
+        "python": 1.5700961344,
+        "ruby": 1.7016735658000002
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 0.6849315068493178,
+      "able_mean_seconds": 0.29300000000000004,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "document_audit",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 18.4355688289414,
+        "ruby": 6.751346260496244
+      },
+      "reference_cohort_spread_percent": {
+        "python": 18.87079855859057,
+        "ruby": 12.723346883857168
+      },
+      "reference_means_seconds": {
+        "python": 0.0158931901,
+        "ruby": 0.0433987517
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 0.4386881136410947,
+      "able_mean_seconds": 9.595,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "nbody",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 42.58238676652144,
+        "ruby": 26.601041545081955
+      },
+      "reference_cohort_spread_percent": {
+        "python": 2.296840409366818,
+        "ruby": 1.3963227916788723
+      },
+      "reference_means_seconds": {
+        "python": 0.22532790500000002,
+        "ruby": 0.3607001622
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 6.382978723404253,
+      "able_mean_seconds": 1.358,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "config_validation_extraction",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 69.53894817087065,
+        "ruby": 33.5923110870834
+      },
+      "reference_cohort_spread_percent": {
+        "python": 31.671414169369317,
+        "ruby": 3.085242162338475
+      },
+      "reference_means_seconds": {
+        "python": 0.0195286244,
+        "ruby": 0.0404259176
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 5.714285714285716,
+      "able_mean_seconds": 0.21600000000000003,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "fib",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 0.03855655206698228,
+        "ruby": 0.0484954072543441
+      },
+      "reference_cohort_spread_percent": {
+        "python": 0.6074156154548982,
+        "ruby": 0.9459798886912285
+      },
+      "reference_means_seconds": {
+        "python": 5.6021606814,
+        "ruby": 4.4540300253
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": false
+    },
+    {
+      "able_cohort_spread_percent": 7.279693486590033,
+      "able_mean_seconds": 0.541,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "i_before_e",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 5.943692193597082,
+        "ruby": 4.338300948538229
+      },
+      "reference_cohort_spread_percent": {
+        "python": 16.425638354698748,
+        "ruby": 8.11629831346259
+      },
+      "reference_means_seconds": {
+        "python": 0.0910208642,
+        "ruby": 0.1247031975
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": true
+    },
+    {
+      "able_cohort_spread_percent": 0.14197823000472454,
+      "able_mean_seconds": 4.229,
+      "able_samples": 10,
+      "all_outputs_verified": true,
+      "benchmark": "rational_series",
+      "mode": "bytecode",
+      "ratios_to_reference": {
+        "python": 37.618594353299365,
+        "ruby": 28.464340823188966
+      },
+      "reference_cohort_spread_percent": {
+        "python": 9.705387590057502,
+        "ruby": 7.44972615379822
+      },
+      "reference_means_seconds": {
+        "python": 0.11241781020000001,
+        "ruby": 0.1485718579
+      },
+      "reference_samples": {
+        "python": 10,
+        "ruby": 10
+      },
+      "volatile": false
+    }
+  ],
+  "next_lane": "interface-dictionary-capture-contract",
+  "schema_version": 1,
+  "scope_review": {
+    "boundary_guard": {
+      "benchmarks": 10,
+      "interpreter_dependencies": 0,
+      "telemetry_totals": {
+        "explicit_dynamic_call": 156,
+        "host_abi_call": 148,
+        "residual_polymorphic_call": 169,
+        "runtime_service_call": 0
+      },
+      "verified": 10
+    },
+    "closure_coverage": [
+      {
+        "benchmarks": [
+          "reverse_complement"
+        ],
+        "id": "bytecode-byte-output",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "future_await_race"
+        ],
+        "id": "bytecode-concurrency",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "monte_carlo_pi"
+        ],
+        "id": "bytecode-float-numeric",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "document_audit"
+        ],
+        "id": "bytecode-iterator-control",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "nbody"
+        ],
+        "id": "bytecode-portable-workload-admission",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "config_validation_extraction"
+        ],
+        "id": "bytecode-regex",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "reverse_complement"
+        ],
+        "id": "bytecode-register-architecture",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "reverse_complement"
+        ],
+        "id": "bytecode-semantic-boundary-reach",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "fib"
+        ],
+        "id": "bytecode-target-guards",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "i_before_e"
+        ],
+        "id": "bytecode-text-map",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "rational_series"
+        ],
+        "id": "bytecode-wide-numeric",
+        "modes": [
+          "bytecode"
+        ]
+      },
+      {
+        "benchmarks": [
+          "concurrent_event_routing",
+          "distance_field",
+          "fixed_width_128",
+          "k_nucleotide",
+          "policy_record_dispatch"
+        ],
+        "id": "compiled-architecture-target-budget",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "reverse_complement"
+        ],
+        "id": "compiled-byte-output",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "concurrent_event_routing"
+        ],
+        "id": "compiled-concurrency",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "fib"
+        ],
+        "id": "compiled-current-control",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "distance_field"
+        ],
+        "id": "compiled-float-numeric",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "array_slice_window"
+        ],
+        "id": "compiled-iterator-control",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "policy_record_dispatch"
+        ],
+        "id": "compiled-regex",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "sudoku_masks"
+        ],
+        "id": "compiled-sudoku-quotient",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "quicksort"
+        ],
+        "id": "compiled-target-guards",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "k_nucleotide"
+        ],
+        "id": "compiled-text-map",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "fixed_width_128"
+        ],
+        "id": "compiled-wide-numeric",
+        "modes": [
+          "compiled"
+        ]
+      },
+      {
+        "benchmarks": [
+          "array_slice_window",
+          "document_audit",
+          "nbody",
+          "quicksort",
+          "sudoku_masks"
+        ],
+        "id": "cross-family-architecture-ownership",
+        "modes": [
+          "bytecode",
+          "compiled"
+        ]
+      }
+    ],
+    "compact_scope_counts_matching_prior": 66,
+    "generated_modules_matching_prior": 66,
+    "reviewed_closures": 23,
+    "selected_sources": 66,
+    "sole_invalidation_reason": "scope-content-drift:v12-spec",
+    "strict_generation_successes": 66
+  },
+  "summary": {
+    "benchmark_mode_rows": 19,
+    "bytecode_rows": 9,
+    "closure_count": 23,
+    "closure_rebaseline_admitted": true,
+    "compiled_rows": 10,
+    "failed_processes": 0,
+    "performance_candidate_admitted": false,
+    "stable_rows": 9,
+    "timed_out_processes": 0,
+    "verified_processes": 470,
+    "volatile_rows": 10
+  }
+}

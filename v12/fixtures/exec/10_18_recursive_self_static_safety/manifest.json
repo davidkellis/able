@@ -1,0 +1,11 @@
+{
+  "description": "recursive Self stays structural for static calls while exact Self remains dynamically safe",
+  "expect": {
+    "stdout": [
+      "7:7",
+      "7:7",
+      "box-7"
+    ],
+    "exit": 0
+  }
+}

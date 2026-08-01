@@ -147,6 +147,52 @@
       "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
     },
     {
+      "benchmark": "fib",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 1.0034794304260108,
+      "cohort_ratios": [
+        0.9658721406961291,
+        1.0437414863024066
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "96683db985102a2ae6d82919b95c1da572febe499cccd2490971dcd9647019cd",
+      "reference_source_sha256": {
+        "go": "d35840666fee5c1c2c45f44086e1c379331fb844bbba93e8542d8a848898d705"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-scorecard.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-b.json"
+      ],
+      "rationale": "Both independent post-ownership-default five-process cohorts meet the target with verifier-backed pinned-Go references."
+    },
+    {
+      "benchmark": "i_before_e",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.6397562833206397,
+      "cohort_ratios": [
+        0.5571030640668524,
+        0.7394957983193278
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "4cabfaeebf777072eb41a2411a7b9467386be7fcb55303ede708d8da50f057d9",
+      "reference_source_sha256": {
+        "go": "63386a111f2fd35ff949092a419c99ce7dcf21e81b24575ece330f7729df65c0"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-scorecard.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-b.json"
+      ],
+      "rationale": "Both independent post-ownership-default five-process cohorts meet the target with verifier-backed pinned-Go references."
+    },
+    {
       "benchmark": "json",
       "mode": "compiled",
       "classification": "established-meet",
@@ -168,6 +214,29 @@
         "v12/docs/perf-baselines/2026-07-28-mode-aware-benchmark-contract-stability-compiled.json"
       ],
       "rationale": "Both independent current-contract five-process cohorts meet the target with verifier-backed matched references."
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "mode": "compiled",
+      "classification": "established-meet",
+      "pooled_ratio": 0.9955976972570267,
+      "cohort_ratios": [
+        1.005413766434648,
+        0.9857654691585166
+      ],
+      "limiting_reference": "go",
+      "able_samples": 10,
+      "reference_samples": 10,
+      "able_source_sha256": "ac3f407e202dd793db41431eb7b5b26e0c60472583e552624bad5ceca404c123",
+      "reference_source_sha256": {
+        "go": "4b77c1e4f0add1763c830c9da22a9d92c43d14e48432bab021e2146e3ccb1e42"
+      },
+      "evidence_stdlib_source_tree_sha256": "6a412c872ee66752de7c4417a5eda99806a7631da3b880c55574c6a640b82d9b",
+      "evidence": [
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-scorecard.json",
+        "v12/docs/perf-baselines/2026-07-31-compiled-closure-refresh-crossings-b.json"
+      ],
+      "rationale": "Both independent post-ownership-default five-process cohorts meet the target with verifier-backed pinned-Go references."
     },
     {
       "benchmark": "monte_carlo_pi",

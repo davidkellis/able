@@ -1,0 +1,24 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "print"
+      },
+      "arguments": [
+        {
+          "type": "StringLiteral",
+          "value": "wasm host output"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "IntegerLiteral",
+      "value": 3
+    }
+  ]
+}

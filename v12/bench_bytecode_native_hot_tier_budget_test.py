@@ -37,11 +37,11 @@ class BytecodeNativeHotTierBudgetTests(unittest.TestCase):
         )
         self.assertFalse(summary["prototype_admitted"])
         self.assertEqual(summary["common_bytecode_compiled_application_count"], 66)
-        self.assertEqual(summary["compiled_native_proxy_target_meets"], 36)
-        self.assertEqual(summary["compiled_native_proxy_target_misses"], 30)
+        self.assertEqual(summary["compiled_native_proxy_target_meets"], 42)
+        self.assertEqual(summary["compiled_native_proxy_target_misses"], 24)
         self.assertAlmostEqual(
             summary["compiled_native_proxy_target_excess_seconds"],
-            16.818105262,
+            12.570210525,
             places=9,
         )
         self.assertGreater(

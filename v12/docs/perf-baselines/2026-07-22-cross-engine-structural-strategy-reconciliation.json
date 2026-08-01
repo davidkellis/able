@@ -107,7 +107,7 @@
           "current_seconds": 9.172,
           "current_target_excess_seconds": 8.805263158,
           "family": "wide-numeric",
-          "modeled_seconds": 0.106,
+          "modeled_seconds": 0.084,
           "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
@@ -119,7 +119,7 @@
           "current_seconds": 6.26,
           "current_target_excess_seconds": 5.919157895,
           "family": "float-numeric",
-          "modeled_seconds": 0.038,
+          "modeled_seconds": 0.06,
           "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
@@ -131,7 +131,7 @@
           "current_seconds": 4.694,
           "current_target_excess_seconds": 4.639684211,
           "family": "concurrency-text",
-          "modeled_seconds": 0.054,
+          "modeled_seconds": 0.034,
           "modeled_target_excess_seconds": 0.0,
           "passes_materiality_gate": true,
           "phase_one_governing": false,
@@ -143,36 +143,36 @@
           "current_seconds": 1.45,
           "current_target_excess_seconds": 1.424315789,
           "family": "text-map",
-          "modeled_seconds": 0.048,
-          "modeled_target_excess_seconds": 0.022315789,
+          "modeled_seconds": 0.032,
+          "modeled_target_excess_seconds": 0.006315789,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
           "target_budget_seconds": 0.02568421052631579,
-          "target_excess_reduction_percent": 98.433227
+          "target_excess_reduction_percent": 99.556574
         },
         {
           "benchmark": "array_slice_window",
           "current_seconds": 0.658,
           "current_target_excess_seconds": 0.628421053,
           "family": "array-iterator",
-          "modeled_seconds": 0.03,
-          "modeled_target_excess_seconds": 0.000421053,
+          "modeled_seconds": 0.036,
+          "modeled_target_excess_seconds": 0.006421053,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
           "target_budget_seconds": 0.029578947368421052,
-          "target_excess_reduction_percent": 99.932998
+          "target_excess_reduction_percent": 98.978224
         },
         {
           "benchmark": "reverse_complement",
           "current_seconds": 4.12,
           "current_target_excess_seconds": 4.093263158,
           "family": "byte-text",
-          "modeled_seconds": 0.06,
-          "modeled_target_excess_seconds": 0.033263158,
+          "modeled_seconds": 0.04,
+          "modeled_target_excess_seconds": 0.013263158,
           "passes_materiality_gate": true,
           "phase_one_governing": true,
           "target_budget_seconds": 0.026736842105263156,
-          "target_excess_reduction_percent": 99.187368
+          "target_excess_reduction_percent": 99.675976
         }
       ]
     },
@@ -295,7 +295,7 @@
   "sources": {
     "closure_ledger": {
       "path": "/home/david/sync/projects/able/v12/bench-performance-closure-ledger.json",
-      "sha256": "e91bc0ea504ec7e79615b01265cba0359da1378790f596bde33af9345ba35c62"
+      "sha256": "8bc6bcb6e47b1676e1b72b12bb0995f8f0494432f46fc250184d4fe2a507e282"
     },
     "compiled_boundary_census": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-compiled-full-typed-semantic-boundary-census.json",
@@ -307,15 +307,15 @@
     },
     "evidence": {
       "path": "/home/david/sync/projects/able/v12/bench-cross-engine-structural-strategy.json",
-      "sha256": "482a29422b50ba60b98acf0a74f1bfa4f0307fc9a92c47697edc9c45d98b6f25"
+      "sha256": "5abd35f0c814e0e0ce2c0da628bb3fbed42c89f31435cb989a793e3d98c0b969"
     },
     "frontier": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
-      "sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76"
+      "sha256": "96dcfc3a443b0f5de892b229a9e2a40789087c6558dbac3f58da46ce9245c25e"
     },
     "native_tier_budget": {
       "path": "/home/david/sync/projects/able/v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "7e90ed56f56a3a31be3611bb7ece0c91fc0302ebc25e84dbfe29dba60a2cde55"
+      "sha256": "4c903dffcd1cc6e5d3e498f12a276a780412a0f1a723f41263b67fd453f8f5bf"
     }
   },
   "summary": {
@@ -329,8 +329,8 @@
     "performance_capable_route_count": 1,
     "prototype_admitted": false,
     "selected_rows": 132,
-    "target_misses": 122,
-    "total_target_excess_seconds": 277.2004210526316
+    "target_misses": 119,
+    "total_target_excess_seconds": 274.67726315789474
   },
   "target_guards": [
     {

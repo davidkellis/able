@@ -132,6 +132,7 @@ func (c *Checker) checkRescueExpression(env *Environment, expr *ast.RescueExpres
 		c.popRescueContext()
 	}
 
+	c.recordPatternCoverage(env, expr, errorType, expr.Clauses)
 	c.infer.set(expr, resultType)
 	return diags, resultType
 }

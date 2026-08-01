@@ -157,6 +157,7 @@ func (g *generator) renderCompiled() ([]byte, error) {
 		// has settled so their interface-adapter switch tables are complete.
 		g.renderNativeInterfaceBoundaryHelpersFinal(&body)
 		g.renderNativeInterfaceApplyRuntimeHelpers(&body)
+		g.renderNominalOwnershipInterfaceDispatches(&body)
 		g.renderNativeCallables(&body)
 		g.renderNominalCoercions(&body)
 		g.renderTypedBoundaryTelemetryMetadata(&body)

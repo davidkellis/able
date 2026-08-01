@@ -1,0 +1,82 @@
+{
+  "kind": "able-rank1-interface-hkt-static-boundary",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": "retain-rank1-inference-and-compile-time-interface-constructor-boundary",
+  "contract": {
+    "ordinary_inference": "local-invariant-rank1",
+    "ordinary_type_parameters": "concrete-value-types",
+    "interface_self_constructor_patterns": true,
+    "constructor_impl_targets": true,
+    "constructor_aliases": "compile-time-only-until-bound",
+    "first_class_constructor_values": false,
+    "constructor_call_site_inference": false,
+    "higher_rank_inference": false,
+    "impredicative_inference": false,
+    "runtime_constructor_dictionaries": false,
+    "erased_value_signatures": "explicit-extern-kernel-abi-only"
+  },
+  "inventory": {
+    "canonical_hkt_interfaces": 1,
+    "canonical_constructor_impls": 12,
+    "runtime_unbound_field_leak_reproduced": true,
+    "runtime_constructor_alias_leak_reproduced": true,
+    "ordinary_hkt_callable_usable": false
+  },
+  "implementation": {
+    "runtime_annotations_reject_unbound_constructors": true,
+    "ordinary_applied_generic_parameter_diagnostic": true,
+    "well_formed_outer_arity_required_before_nested_constructor_diagnostic": true,
+    "extern_erasure_preserved": true,
+    "parser_change": false,
+    "ast_change": false,
+    "compiler_change": false,
+    "runtime_change": false,
+    "stdlib_change": false,
+    "wasm_change": false
+  },
+  "verification": {
+    "focused_typechecker": "pass",
+    "focused_treewalker_fixture": "pass",
+    "focused_bytecode_fixture": "pass",
+    "focused_parity_fixture": "pass",
+    "strict_native_enumerable_guard": "pass",
+    "canonical_stdlib_treewalker": "pass",
+    "canonical_stdlib_bytecode": "pass",
+    "full_run_all_tests": "pass",
+    "seeded_exec_fixtures": 283,
+    "fixture_directories": 284,
+    "compiler_batches": 86,
+    "maximum_compiler_batch_seconds": 56.493,
+    "canonical_compiler_outlier_seconds": 16.373,
+    "full_suite_seconds": 1012.9,
+    "full_suite_peak_rss_kib": 1836920,
+    "individual_test_over_one_minute": false
+  },
+  "timeout_noise_audit": {
+    "aggregate_package_cap_seconds": 60,
+    "named_test_elapsed_at_timeout_seconds": 7,
+    "isolated_process_seconds": [
+      18.31,
+      17.22,
+      16.65
+    ],
+    "isolated_process_mean_seconds": 17.393
+  },
+  "evidence": {
+    "spec_before_sha256": "959b72c59bb19131897086c29d2b114f51131da4bf06ae9ae5676545554a692c",
+    "spec_after_sha256": "35fddd094cae276cc0652612dd6ed309b88ab2778ffa17e425b40949be27dd6d",
+    "spec_scope_before_sha256": "b3d251ee1b90d8ddd7d7410a00f9bdf6df99f50cf361262ca1e3eb0d1b85a56c",
+    "spec_scope_after_sha256": "e16ca4db0d71270150a6fea676f3b4df0ee8540f49cf2583b76eeff46bdb0b51",
+    "pre_reconciliation_invalidated_closures": 23,
+    "pre_reconciliation_sole_reason": "scope-content-drift:v12-spec",
+    "post_reconciliation_current_closures": 23,
+    "post_reconciliation_invalidated_closures": 0,
+    "selected_compiled": [],
+    "selected_bytecode": [],
+    "architecture_nodes": 5,
+    "decision_drift": false
+  },
+  "performance_claim": "none-correctness-and-static-boundary-only",
+  "next": "resolve-shared-data-race-and-ownership-guidance"
+}

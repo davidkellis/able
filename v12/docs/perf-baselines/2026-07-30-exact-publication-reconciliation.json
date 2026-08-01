@@ -1,0 +1,119 @@
+{
+  "kind": "able-v12-exact-publication-reconciliation",
+  "schema_version": 1,
+  "date": "2026-07-30",
+  "decision": "published-and-converged",
+  "repository": {
+    "head": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "origin_master": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "remote_master": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "ahead": 0,
+    "behind": 0,
+    "index_empty": true,
+    "index_tree": "0c9eadbe760ce51f2843cd011dcf637ad005e899"
+  },
+  "published_commit": {
+    "sha": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+    "parent": "418886c70aee64b92b5bb3266ee5fe6453ac4320",
+    "tree": "0c9eadbe760ce51f2843cd011dcf637ad005e899",
+    "subject": "perf(v12): consolidate verified native lowering work",
+    "paths": 112,
+    "added_paths": 57,
+    "modified_paths": 55,
+    "additions": 34817,
+    "deletions": 1680,
+    "pathspec_bytes": 7868,
+    "pathspec_sha256": "6ab8db8d4ede1872794ff79deca560dbdf901d782b498acca5c6a11a71549790",
+    "exact_candidate_match": true
+  },
+  "publication": {
+    "remote": "origin",
+    "ref": "refs/heads/master",
+    "refspec": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5:refs/heads/master",
+    "force": false,
+    "tags": false,
+    "secondary_refs": 0,
+    "verified_live_after_push": true
+  },
+  "pre_record_worktree": {
+    "paths": 34,
+    "tracked_modified": 8,
+    "untracked": 26,
+    "staged": 0,
+    "generated_local": 0,
+    "porcelain_z_bytes": 1516,
+    "porcelain_z_sha256": "6b8e529a5469bc7993cdd9d134df22ac08581647b7ce792e990b401a6eab0e6f"
+  },
+  "deferred_wasm": {
+    "paths": 34,
+    "tracked": 8,
+    "untracked": 26,
+    "path_list_bytes": 1414,
+    "path_list_sha256": "7f29de27f03da83138df19696be182a5139aa6536ba0bdb363a1a23ffafd1f4e",
+    "identity_matches_inventory": true,
+    "published_intersection_paths": 0,
+    "modified_by_publication": false,
+    "modified_by_reconciliation": false
+  },
+  "performance_state": {
+    "scoreboard_rows": 132,
+    "compiled_rows": 66,
+    "bytecode_rows": 66,
+    "frontier_guards": 10,
+    "frontier_misses": 122,
+    "actionable_groups": 0,
+    "target_excess_seconds": 277.200421,
+    "closure_entries": 23,
+    "current_closures": 23,
+    "invalidated_closures": 0,
+    "extern_builder_sha256": "8f388d679a079093a6e48ec6f0d1938ba8a12d475ed9565f6832b952b2e3b276",
+    "scoreboard_sha256": "3652695dc7b1576ed4729ef30a7688b171114cda9b4ce269132fd868b37849f3",
+    "frontier_sha256": "d819bb32c402d690b9e89926b5bb8a0fddd6f18d9b966f8c85b3d9f73baa0a76",
+    "closure_ledger_sha256": "e91bc0ea504ec7e79615b01265cba0359da1378790f596bde33af9345ba35c62"
+  },
+  "validation": {
+    "remote_convergence": "pass",
+    "published_commit_boundary": "pass",
+    "deferred_wasm_identity": "pass",
+    "performance_evidence_identity": "pass",
+    "cleanup_preview_empty": true,
+    "task_workspace_kib": 24,
+    "task_workspace_removed": true,
+    "complete_release_suite_retained_for_exact_published_source": true
+  },
+  "documentation_candidate": {
+    "paths": 5,
+    "lf_path_bytes": 170,
+    "lf_path_sha256": "5a82e862fddbcbbca884260cc9aeefd19abc4ad66e996faf45bb89da1bff978b",
+    "nul_pathspec_bytes": 170,
+    "nul_pathspec_sha256": "6c1b2dcd876f587044d8e9ff80f9edaf5b608564cada444f238a9c127ef53097",
+    "final_nonself_rows": 3,
+    "final_nonself_lines": 60730,
+    "final_nonself_bytes": 4179497,
+    "final_nonself_manifest_bytes": 307,
+    "final_nonself_manifest_sha256": "fd572408e9998f034b05a8787de2b96b5a7637e776079cea5618783b528b594d",
+    "final_visible_paths": 39,
+    "final_deferred_paths": 34
+  },
+  "changes": {
+    "documentation_only": true,
+    "production": false,
+    "compiler": false,
+    "runtime": false,
+    "interpreter": false,
+    "bytecode_vm": false,
+    "benchmark_measurement": false,
+    "canonical_stdlib": false,
+    "language": false,
+    "dependency": false,
+    "fixture": false,
+    "frozen_v10_v11": false,
+    "wasm": false
+  },
+  "next": {
+    "id": "post-publication-invalidation-trigger-audit",
+    "why": "The published frontier has zero actionable groups and all 23 closures are current; another production candidate requires a changed evidence identity with one exact material owner in three unlike programs.",
+    "entails": "Compare published source and evidence identities with the current external benchmark catalog, canonical stdlib state, correctness results, and new observer output. Recompute only affected evidence when an identity changed; otherwise retain no code and record an empty selector.",
+    "importance": "Evidence-driven admission protects native carriers and interpreter-free compiled graphs from speculative, benchmark-specific, or already-closed optimization routes."
+  }
+}

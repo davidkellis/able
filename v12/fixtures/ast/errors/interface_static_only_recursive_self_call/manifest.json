@@ -1,0 +1,9 @@
+{
+  "description": "Interface-value calls reject methods whose result contains recursive Self",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/ast/errors/interface_static_only_recursive_self_call/source.able:8:3 typechecker: interface method 'DuplicatePair.duplicate_pair' is static-only on interface values: the result contains Self but is not exactly Self"
+    ]
+  },
+  "entry": "module.json"
+}

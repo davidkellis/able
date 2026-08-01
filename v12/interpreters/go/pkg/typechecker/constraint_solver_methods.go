@@ -28,6 +28,7 @@ func (c *Checker) methodSetProvidesInterface(subject Type, iface InterfaceType, 
 		if !satisfied {
 			continue
 		}
+		c.anchorCurrentConstraintProof()
 		ok, obligationDetail, ob := c.obligationSetSatisfied(obligations)
 		if ok {
 			return true, ""

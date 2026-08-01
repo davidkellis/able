@@ -20,6 +20,9 @@ type runtimeDiagnosticContext struct {
 	callStack []runtimeCallFrame
 }
 
+func (ctx *runtimeDiagnosticContext) freezeCallStack() {
+}
+
 type runtimeDiagnosticError struct {
 	err     error
 	context *runtimeDiagnosticContext

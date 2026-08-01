@@ -1,0 +1,82 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "IntegerOnly"
+      },
+      "selfTypePattern": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "StringComposite"
+      },
+      "selfTypePattern": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "String"
+        }
+      },
+      "signatures": [],
+      "baseInterfaces": [
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "IntegerOnly"
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "NilLiteral",
+      "value": null
+    }
+  ]
+}

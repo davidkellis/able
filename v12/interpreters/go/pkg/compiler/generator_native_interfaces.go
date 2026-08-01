@@ -18,17 +18,20 @@ type nativeInterfaceMethod struct {
 	ParamTypeExprs    []ast.TypeExpression
 	ReturnGoType      string
 	ReturnTypeExpr    ast.TypeExpression
+	ReturnsSelf       bool
 	OptionalLast      bool
 	DefaultDefinition *ast.FunctionDefinition
 }
 
 type nativeInterfaceAdapter struct {
-	GoType      string
-	TypeExpr    ast.TypeExpression
-	Token       string
-	AdapterType string
-	WrapHelper  string
-	Methods     map[string]*nativeInterfaceAdapterMethod
+	GoType         string
+	TypeExpr       ast.TypeExpression
+	Token          string
+	AdapterType    string
+	WrapHelper     string
+	ImplPackage    string
+	ImplDefinition *ast.ImplementationDefinition
+	Methods        map[string]*nativeInterfaceAdapterMethod
 }
 
 type nativeInterfaceAdapterMethod struct {
@@ -163,11 +166,18 @@ func (g *generator) nativeInterfaceAdapterForActualSeen(info *nativeInterfaceInf
 	if ifacePkg, _, _, _, ok := interfaceExprInfo(g, "", info.TypeExpr); ok {
 		interfaceFullyBound = g.typeExprFullyBound(ifacePkg, info.TypeExpr)
 	}
+	var found *nativeInterfaceAdapter
 	for _, adapter := range g.nativeInterfaceKnownAdapters(info) {
 		if adapter != nil && adapter.GoType == actual {
-			g.recordNativeInterfaceExplicitAdapter(info, adapter)
-			return adapter, true
+			if found != nil && found != adapter {
+				return nil, false
+			}
+			found = adapter
 		}
+	}
+	if found != nil {
+		g.recordNativeInterfaceExplicitAdapter(info, found)
+		return found, true
 	}
 	if strings.HasPrefix(actual, "__able_iface_") {
 		return nil, false
@@ -249,66 +259,6 @@ func (g *generator) nativeInterfaceConcreteActualMatchesSeen(info *nativeInterfa
 		}
 	}
 	return false
-}
-
-func (g *generator) recordNativeInterfaceExplicitAdapter(info *nativeInterfaceInfo, adapter *nativeInterfaceAdapter) {
-	if g == nil || info == nil || adapter == nil || adapter.GoType == "" {
-		return
-	}
-	if g.nativeInterfaceExplicitAdapters == nil {
-		g.nativeInterfaceExplicitAdapters = make(map[string]map[string]*nativeInterfaceAdapter)
-	}
-	adapters := g.nativeInterfaceExplicitAdapters[info.Key]
-	if adapters == nil {
-		adapters = make(map[string]*nativeInterfaceAdapter)
-		g.nativeInterfaceExplicitAdapters[info.Key] = adapters
-	}
-	adapters[adapter.GoType] = adapter
-	for _, existing := range info.Adapters {
-		if existing != nil && existing.GoType == adapter.GoType {
-			return
-		}
-	}
-	info.Adapters = append(info.Adapters, adapter)
-}
-
-func (g *generator) nativeInterfaceKnownAdapters(info *nativeInterfaceInfo) []*nativeInterfaceAdapter {
-	if g == nil || info == nil {
-		return nil
-	}
-	if g.nativeInterfaceRefreshAllowed() && (info.AdapterVersion != g.nativeInterfaceAdapterVersion ||
-		(len(info.Adapters) == 0 && len(g.nativeInterfaceExplicitAdapters[info.Key]) == 0)) {
-		g.refreshNativeInterfaceAdapters(info)
-	}
-	adapterMap := make(map[string]*nativeInterfaceAdapter)
-	for _, adapter := range info.Adapters {
-		if adapter == nil || adapter.GoType == "" {
-			continue
-		}
-		adapterMap[adapter.GoType] = adapter
-	}
-	if extra := g.nativeInterfaceExplicitAdapters[info.Key]; extra != nil {
-		for goType, adapter := range extra {
-			if adapter == nil || goType == "" {
-				continue
-			}
-			if _, exists := adapterMap[goType]; exists {
-				continue
-			}
-			adapterMap[goType] = adapter
-		}
-	}
-	if len(adapterMap) == 0 {
-		return nil
-	}
-	adapters := make([]*nativeInterfaceAdapter, 0, len(adapterMap))
-	for _, adapter := range adapterMap {
-		adapters = append(adapters, adapter)
-	}
-	sort.Slice(adapters, func(i, j int) bool {
-		return adapters[i].GoType < adapters[j].GoType
-	})
-	return adapters
 }
 
 func nativeInterfaceMethodNamed(info *nativeInterfaceInfo, name string) *nativeInterfaceMethod {
@@ -783,10 +733,11 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 		interfaceFullyBound = g.typeExprFullyBound(ifacePkg, info.TypeExpr)
 	}
 	adapterMap := make(map[string]*nativeInterfaceAdapter)
+	seenImplAdapters := make(map[*ast.ImplementationDefinition]map[string]struct{})
 	for _, candidateInfo := range g.nativeInterfaceImplCandidates() {
 		impl := candidateInfo.impl
 		fn := candidateInfo.info
-		if impl == nil || fn == nil || !g.nativeInterfaceDispatchCandidateEligible(fn) || impl.ImplName != "" {
+		if impl == nil || impl.ImplDefinition == nil || fn == nil || !g.nativeInterfaceDispatchCandidateEligible(fn) || impl.ImplName != "" {
 			continue
 		}
 		g.refreshRepresentableFunctionInfo(fn)
@@ -817,6 +768,15 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 			if carrier.goType == "" || carrier.typeExpr == nil {
 				continue
 			}
+			seenCarriers := seenImplAdapters[impl.ImplDefinition]
+			if seenCarriers == nil {
+				seenCarriers = make(map[string]struct{})
+				seenImplAdapters[impl.ImplDefinition] = seenCarriers
+			}
+			if _, seen := seenCarriers[carrier.goType]; seen {
+				continue
+			}
+			seenCarriers[carrier.goType] = struct{}{}
 			// Native interface-to-interface adapters must go through the
 			// compatibility-checked direct-adapter path below. Treating another
 			// interface carrier as a nominal concrete target here can emit empty
@@ -860,7 +820,7 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 			complete := true
 			methodImpls := make(map[string]*nativeInterfaceAdapterMethod, len(info.Methods))
 			for _, method := range info.Methods {
-				found := g.nativeInterfaceMethodImpl(carrier.goType, method)
+				found := g.nativeInterfaceMethodImplExactOnlyForDefinition(carrier.goType, method, impl.ImplDefinition)
 				if found == nil {
 					complete = false
 					break
@@ -879,19 +839,24 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 			if !complete {
 				continue
 			}
-			if _, exists := adapterMap[carrier.goType]; exists {
-				continue
-			}
 			token := g.nativeUnionTypeToken(carrier.goType)
-			adapter := &nativeInterfaceAdapter{
-				GoType:      carrier.goType,
-				TypeExpr:    carrier.typeExpr,
-				Token:       token,
-				AdapterType: info.GoType + "_adapter_" + token,
-				WrapHelper:  info.GoType + "_wrap_" + token,
-				Methods:     methodImpls,
+			for _, existing := range adapterMap {
+				if existing != nil && existing.GoType == carrier.goType {
+					token = sanitizeIdent(token + "_" + fn.Package + "_" + fn.GoName)
+					break
+				}
 			}
-			adapterMap[carrier.goType] = adapter
+			adapter := &nativeInterfaceAdapter{
+				GoType:         carrier.goType,
+				TypeExpr:       carrier.typeExpr,
+				Token:          token,
+				AdapterType:    info.GoType + "_adapter_" + token,
+				WrapHelper:     info.GoType + "_wrap_" + token,
+				ImplPackage:    fn.Package,
+				ImplDefinition: impl.ImplDefinition,
+				Methods:        methodImpls,
+			}
+			adapterMap[nativeInterfaceAdapterIdentity(adapter)] = adapter
 			if len(info.Methods) == 0 {
 				g.recordNativeInterfaceExplicitAdapter(info, adapter)
 			}
@@ -923,7 +888,7 @@ func (g *generator) refreshNativeInterfaceAdapters(info *nativeInterfaceInfo) {
 		adapters = append(adapters, adapter)
 	}
 	sort.Slice(adapters, func(i, j int) bool {
-		return adapters[i].GoType < adapters[j].GoType
+		return nativeInterfaceAdapterIdentity(adapters[i]) < nativeInterfaceAdapterIdentity(adapters[j])
 	})
 	info.Adapters = adapters
 	info.AdapterVersion = g.nativeInterfaceAdapterVersion

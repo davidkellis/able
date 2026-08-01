@@ -16,6 +16,32 @@ The kernel bridges described in `spec/full_spec_v12.md` remain implemented insid
 the runtime; this ABI only provides the host-facing pieces the WASM runtime
 cannot implement on its own.
 
+## Current implementation status
+
+The ABI below remains a design contract, not a claim that every import/export
+has been wired. The executable staging boundary is currently:
+
+- Go/WASM exposes `__able_eval_request_json` to accept fixture-style,
+  pre-parsed AST modules in tree-walker or bytecode mode.
+- The initial output bridge is executable: the Go `js/wasm` adapter calls
+  `globalThis.able_host.write_stdout(string)` and `write_stderr(string)` for
+  the evaluator's host-provided `print` helper and structured failures. It
+  preserves these ABI method names but uses UTF-8 JavaScript strings because
+  the Go runtime owns the low-level WebAssembly import object.
+- The WASM build deliberately omits the native source loader, typechecker, and
+  Go-plugin extern host. Dynamic source parsing and Go extern functions fail
+  explicitly instead of falling back to browser-specific behavior.
+- Filesystem/module-root loading, timer wakeups, raw-memory `able_host`
+  imports, and browser extern callbacks are not implemented yet. The portable
+  JavaScript source resolver and request builder receive bytes through an
+  injected provider; the Node CLI supplies its filesystem adapter. Neither
+  path claims to use this runtime filesystem ABI. A headless Firefox smoke now
+  proves the Go/WASM bootstrap, parsing of approved Able source modules,
+  virtual-source composition, and named output callbacks.
+
+This separation keeps the validated AST-evaluation bridge usable today while
+leaving the full host surface below as a narrow, future implementation target.
+
 ## Conventions
 
 - **Import module name:** `able_host`.
@@ -39,6 +65,11 @@ cannot implement on its own.
 
 The host must decode the UTF-8 bytes at `ptr..ptr+len` and forward them to the
 appropriate output stream.
+
+The current Go/JS prototype adapter uses the equivalent named JavaScript
+methods `able_host.write_stdout(string)` and `able_host.write_stderr(string)`.
+Those calls are covered by `just wasm-smoke`; they are not a claim that the
+raw pointer/length imports above have been wired for all embeddings.
 
 ### Time + timers
 

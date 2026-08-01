@@ -66,6 +66,9 @@
     "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
     "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1"
   ],
+  "errors/composite_interface_self_pattern_mismatch": [
+    "typechecker: v12/fixtures/ast/errors/composite_interface_self_pattern_mismatch/source.able:5:40 typechecker: composite interface 'StringComposite' self type 'String' is incompatible with base interface 'IntegerOnly' self type 'i32'"
+  ],
   "errors/constraint_interface_arity": [
     "typechecker: v12/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
     "typechecker: v12/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1"
@@ -91,6 +94,12 @@
   ],
   "errors/interface_self_pattern_mismatch": [
     "typechecker: v12/fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
+  ],
+  "errors/interface_static_only_recursive_self_call": [
+    "typechecker: v12/fixtures/ast/errors/interface_static_only_recursive_self_call/source.able:8:3 typechecker: interface method 'DuplicatePair.duplicate_pair' is static-only on interface values: the result contains Self but is not exactly Self"
+  ],
+  "errors/interface_upcast_impl_ambiguity": [
+    "typechecker: v12/fixtures/ast/errors/interface_upcast_impl_ambiguity/source.able:35:20 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper Unknown"
   ],
   "errors/logic_operand_type": [],
   "errors/method_scope_missing_import": [],

@@ -1,16 +1,3 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-import { Language, Parser } from "web-tree-sitter";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const DEFAULT_LANGUAGE_WASM_PATH = path.resolve(
-  __dirname,
-  "../parser/tree-sitter-able/tree-sitter-able.wasm",
-);
-
 const WRAPPER_TYPES = new Set([
   "expression_statement",
   "low_precedence_pipe_expression",
@@ -63,14 +50,9 @@ const ASSIGNMENT_OPERATORS = new Set([
   ".>>=",
 ]);
 
-export async function createAbleParser(languageWasmPath = DEFAULT_LANGUAGE_WASM_PATH) {
-  await Parser.init();
-  const language = await Language.load(languageWasmPath);
-  const parser = new Parser();
-  parser.setLanguage(language);
-  return parser;
-}
-
+// parseSourceToAstModule maps a caller-owned tree-sitter parser result into
+// fixture-style AST JSON. It has no Node or web-tree-sitter import, so browser
+// and Node parser bootstraps can share one mapping contract.
 export function parseSourceToAstModule(parser, source) {
   const tree = parser.parse(source);
   try {

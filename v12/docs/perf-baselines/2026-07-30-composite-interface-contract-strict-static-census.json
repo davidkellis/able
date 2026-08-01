@@ -1,0 +1,3236 @@
+{
+  "date": "2026-07-30",
+  "decision": "all-selected-sources-remain-valid-and-generated-modules-unchanged",
+  "inputs": {
+    "analyzer_source": {
+      "path": "v12/interpreters/go/cmd/able-generated-boundary-census/main.go",
+      "sha256": "77552fc13d0a68a3ba1efcc74fb65ddc4304996cc08bd77c1a5d4aca55a4035b"
+    },
+    "prior_census": {
+      "path": "v12/docs/perf-baselines/2026-07-30-full-compiled-static-native-boundary-census.json",
+      "sha256": "c9738f938d81027578d874fedf0aac313adfc449163fd12ff9270dfefa83166c"
+    },
+    "runner": {
+      "path": "v12/bench_compiled_static_boundary_census",
+      "sha256": "b46f7da391ae7c60521aa0bdc83fffe73c4ecb25fc5f3e71449e51e043216e51"
+    },
+    "selection_manifest": {
+      "path": "v12/bench-selection-manifest.json",
+      "sha256": "5e05af7e06f328284c91639fc58e8a4ff822c637fd641b36943505dfb3822097"
+    }
+  },
+  "kind": "able-composite-interface-contract-strict-static-census",
+  "rows": [
+    {
+      "benchmark": "array_slice_window",
+      "generation_exit": 0,
+      "generation_ms": 606,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1651070,
+      "module_files": 32,
+      "module_go_lines": 43233,
+      "module_sha256": "cd6b442ce0d613ffc8530881a8e2f58e4e0e8bb25aeeb3bf8b5dc25edf5d03dd",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 29,
+            "bridge_error": 15,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 129,
+            "erased_or_dynamic_call": 5,
+            "interface_runtime_conversion": 11,
+            "native_interface_adapter": 3,
+            "native_union_wrap_or_projection": 101,
+            "primitive_or_any_runtime_conversion": 24,
+            "struct_runtime_conversion": 3,
+            "union_runtime_conversion": 1
+          },
+          "functions": 246,
+          "heap_nominal_literal_sites": 134,
+          "runtime_value_type_sites": 88
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "bridge_error": 2,
+            "control_error_conversion": 1,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 6,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 8,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/array_slice_window/array_slice_window.able"
+    },
+    {
+      "benchmark": "await_channel_mux",
+      "generation_exit": 0,
+      "generation_ms": 736,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1939893,
+      "module_files": 28,
+      "module_go_lines": 49010,
+      "module_sha256": "5ed30f4056c6931675f240bed01f686f900c7e5cf445310e68d76e20816b0d4e",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 20,
+            "bridge_encode": 37,
+            "bridge_error": 12,
+            "bridge_other": 3,
+            "callable_runtime_conversion": 8,
+            "control_error_conversion": 165,
+            "erased_or_dynamic_call": 10,
+            "interface_runtime_conversion": 19,
+            "native_interface_adapter": 4,
+            "native_union_wrap_or_projection": 99,
+            "primitive_or_any_runtime_conversion": 27,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 490,
+          "heap_nominal_literal_sites": 132,
+          "runtime_value_type_sites": 99
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 5,
+            "bridge_encode": 6,
+            "bridge_other": 3,
+            "callable_runtime_conversion": 1,
+            "control_error_conversion": 28,
+            "erased_or_dynamic_call": 4,
+            "interface_runtime_conversion": 4,
+            "native_union_wrap_or_projection": 5
+          },
+          "functions": 6,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 14
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/await_channel_mux/await_channel_mux.able"
+    },
+    {
+      "benchmark": "base64",
+      "generation_exit": 0,
+      "generation_ms": 388,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1247794,
+      "module_files": 28,
+      "module_go_lines": 33163,
+      "module_sha256": "20e47792efa537b189b45b1d13ded344beb408be81141f56b90062f1cf564ee0",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 28,
+            "bridge_error": 1,
+            "bridge_other": 3,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 68,
+            "erased_or_dynamic_call": 4,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 90,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 206,
+          "heap_nominal_literal_sites": 122,
+          "runtime_value_type_sites": 47
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 3,
+            "bridge_error": 1,
+            "erased_or_dynamic_call": 3,
+            "native_union_wrap_or_projection": 2
+          },
+          "functions": 3,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 3
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/base64/base64.able"
+    },
+    {
+      "benchmark": "backup_dedup",
+      "generation_exit": 0,
+      "generation_ms": 8077,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4689206,
+      "module_files": 56,
+      "module_go_lines": 119474,
+      "module_sha256": "d51931ab508c97980abd6c79ce86ac85fc88ceba38e3980c34629ef8d39e31a9",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 19,
+            "bridge_encode": 75,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 498,
+            "erased_or_dynamic_call": 34,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 657,
+          "heap_nominal_literal_sites": 326,
+          "runtime_value_type_sites": 276
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 7,
+            "bridge_error": 1,
+            "control_error_conversion": 5,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 1
+          },
+          "functions": 9,
+          "heap_nominal_literal_sites": 6,
+          "runtime_value_type_sites": 4
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/backup_dedup/backup_dedup.able"
+    },
+    {
+      "benchmark": "binary_event_log",
+      "generation_exit": 0,
+      "generation_ms": 17421,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4799749,
+      "module_files": 56,
+      "module_go_lines": 121497,
+      "module_sha256": "6edaf5bbc96a9b8bf2ba3d878eea67ffcd5e88a98365827e151e39410b599420",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 20,
+            "bridge_encode": 77,
+            "bridge_error": 235,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 501,
+            "erased_or_dynamic_call": 35,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 548,
+            "primitive_or_any_runtime_conversion": 133,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 70,
+            "union_runtime_conversion": 2
+          },
+          "functions": 668,
+          "heap_nominal_literal_sites": 331,
+          "runtime_value_type_sites": 279
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 8,
+            "bridge_error": 5,
+            "control_error_conversion": 6,
+            "erased_or_dynamic_call": 2,
+            "native_union_wrap_or_projection": 16,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 19,
+          "heap_nominal_literal_sites": 8,
+          "runtime_value_type_sites": 6
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/binary_event_log/binary_event_log.able"
+    },
+    {
+      "benchmark": "binarytrees",
+      "generation_exit": 0,
+      "generation_ms": 6691,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4524570,
+      "module_files": 48,
+      "module_go_lines": 110717,
+      "module_sha256": "dcabb10d5d317790ebb164fcef56735d2147d5162ea4ae036e644447d4105283",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 65,
+            "bridge_error": 179,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 435,
+            "erased_or_dynamic_call": 36,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 55,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1089,
+          "heap_nominal_literal_sites": 216,
+          "runtime_value_type_sites": 314
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 3,
+            "bridge_error": 2,
+            "control_error_conversion": 9,
+            "erased_or_dynamic_call": 5,
+            "struct_runtime_conversion": 2
+          },
+          "functions": 7,
+          "heap_nominal_literal_sites": 5,
+          "runtime_value_type_sites": 7
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/binarytrees.able"
+    },
+    {
+      "benchmark": "channel_rollup",
+      "generation_exit": 0,
+      "generation_ms": 9403,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5465487,
+      "module_files": 60,
+      "module_go_lines": 132230,
+      "module_sha256": "4cf3356b216696502816805741144dc305b312b50d2e7d709482eaca8453ca8d",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 22,
+            "bridge_encode": 83,
+            "bridge_error": 233,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 523,
+            "erased_or_dynamic_call": 35,
+            "interface_runtime_conversion": 80,
+            "native_interface_adapter": 25,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 137,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1346,
+          "heap_nominal_literal_sites": 333,
+          "runtime_value_type_sites": 405
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 13,
+            "bridge_error": 2,
+            "control_error_conversion": 20,
+            "erased_or_dynamic_call": 2,
+            "native_union_wrap_or_projection": 1
+          },
+          "functions": 12,
+          "heap_nominal_literal_sites": 6,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/channel_rollup/channel_rollup.able"
+    },
+    {
+      "benchmark": "concurrent_audio_voices",
+      "generation_exit": 0,
+      "generation_ms": 6475,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4700477,
+      "module_files": 48,
+      "module_go_lines": 114302,
+      "module_sha256": "732d307c5b589201ad81b8701b58e6777e2afdd7cddf35f68462a1fc887bcc8c",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 442,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 61,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1107,
+          "heap_nominal_literal_sites": 291,
+          "runtime_value_type_sites": 320
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "control_error_conversion": 16,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 4,
+            "struct_runtime_conversion": 8
+          },
+          "functions": 13,
+          "heap_nominal_literal_sites": 63,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_audio_voices/concurrent_audio_voices.able"
+    },
+    {
+      "benchmark": "concurrent_document_pipeline",
+      "generation_exit": 0,
+      "generation_ms": 8087,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5330244,
+      "module_files": 56,
+      "module_go_lines": 129018,
+      "module_sha256": "9d9034eb98b09b96b007851428846236674730a0b8347f3a3036624a989f7f2c",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 22,
+            "bridge_encode": 82,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 514,
+            "erased_or_dynamic_call": 35,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 73,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1314,
+          "heap_nominal_literal_sites": 364,
+          "runtime_value_type_sites": 361
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 12,
+            "bridge_error": 1,
+            "control_error_conversion": 17,
+            "erased_or_dynamic_call": 2,
+            "native_union_wrap_or_projection": 1,
+            "struct_runtime_conversion": 4
+          },
+          "functions": 14,
+          "heap_nominal_literal_sites": 38,
+          "runtime_value_type_sites": 20
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_document_pipeline/concurrent_document_pipeline.able"
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "generation_exit": 0,
+      "generation_ms": 11042,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 6069458,
+      "module_files": 68,
+      "module_go_lines": 145813,
+      "module_sha256": "a46c10da084a136d29f0a0e3671de510444042888dd4e4320e09278f9dba7b70",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 26,
+            "bridge_encode": 94,
+            "bridge_error": 238,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 545,
+            "erased_or_dynamic_call": 38,
+            "interface_runtime_conversion": 81,
+            "native_interface_adapter": 31,
+            "native_union_wrap_or_projection": 554,
+            "primitive_or_any_runtime_conversion": 144,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 90,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1485,
+          "heap_nominal_literal_sites": 451,
+          "runtime_value_type_sites": 504
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 3,
+            "bridge_encode": 16,
+            "bridge_error": 9,
+            "control_error_conversion": 21,
+            "erased_or_dynamic_call": 2,
+            "native_interface_adapter": 5,
+            "native_union_wrap_or_projection": 30,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 5
+          },
+          "functions": 29,
+          "heap_nominal_literal_sites": 63,
+          "runtime_value_type_sites": 23
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able"
+    },
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "generation_exit": 0,
+      "generation_ms": 8143,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5476851,
+      "module_files": 60,
+      "module_go_lines": 132735,
+      "module_sha256": "bd8936144229121b96df893d99f9ab6416ee3538c5082fb71a322040c5f8a3af",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 180,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 483,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 29,
+            "native_union_wrap_or_projection": 438,
+            "primitive_or_any_runtime_conversion": 123,
+            "struct_runtime_conversion": 82,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1287,
+          "heap_nominal_literal_sites": 339,
+          "runtime_value_type_sites": 502
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "bridge_error": 1,
+            "control_error_conversion": 16,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 4,
+            "struct_runtime_conversion": 8
+          },
+          "functions": 18,
+          "heap_nominal_literal_sites": 36,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_graph_visitors/concurrent_graph_visitors.able"
+    },
+    {
+      "benchmark": "concurrent_packet_codecs",
+      "generation_exit": 0,
+      "generation_ms": 6538,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4748959,
+      "module_files": 48,
+      "module_go_lines": 115122,
+      "module_sha256": "57aee6ebfccfdeead232963ca3d25a9b7f66c8836d8e8bdd2c51e98122f78bff",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 444,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 61,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1115,
+          "heap_nominal_literal_sites": 294,
+          "runtime_value_type_sites": 320
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "control_error_conversion": 18,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 4,
+            "struct_runtime_conversion": 8
+          },
+          "functions": 15,
+          "heap_nominal_literal_sites": 47,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_packet_codecs/concurrent_packet_codecs.able"
+    },
+    {
+      "benchmark": "concurrent_policy_callbacks",
+      "generation_exit": 0,
+      "generation_ms": 8513,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5491913,
+      "module_files": 56,
+      "module_go_lines": 131956,
+      "module_sha256": "8fe475fc920ba36c7785d1a2328752b876cad8c37826bb80fe3ba5b187ca1d25",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 26,
+            "bridge_encode": 82,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 518,
+            "erased_or_dynamic_call": 39,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 24,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 73,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1324,
+          "heap_nominal_literal_sites": 410,
+          "runtime_value_type_sites": 361
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 6,
+            "bridge_encode": 12,
+            "bridge_error": 1,
+            "control_error_conversion": 21,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 2,
+            "native_union_wrap_or_projection": 1,
+            "struct_runtime_conversion": 4
+          },
+          "functions": 18,
+          "heap_nominal_literal_sites": 25,
+          "runtime_value_type_sites": 20
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_policy_callbacks/concurrent_policy_callbacks.able"
+    },
+    {
+      "benchmark": "concurrent_scene_tiles",
+      "generation_exit": 0,
+      "generation_ms": 6444,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4695802,
+      "module_files": 48,
+      "module_go_lines": 114229,
+      "module_sha256": "d49bbadab39e50ed95de6ddaff981e0be2f47b12df62f2d550e21ca68d023f23",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 442,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 61,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1107,
+          "heap_nominal_literal_sites": 320,
+          "runtime_value_type_sites": 320
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "control_error_conversion": 16,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 4,
+            "struct_runtime_conversion": 8
+          },
+          "functions": 10,
+          "heap_nominal_literal_sites": 47,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_scene_tiles/concurrent_scene_tiles.able"
+    },
+    {
+      "benchmark": "concurrent_signal_dispatch",
+      "generation_exit": 0,
+      "generation_ms": 8323,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5442103,
+      "module_files": 56,
+      "module_go_lines": 130949,
+      "module_sha256": "90f75de13a766e2092057bac1205248c7b551562c73ef34f3d2d7e7524e6563f",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 26,
+            "bridge_encode": 82,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 518,
+            "erased_or_dynamic_call": 39,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 24,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 73,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1320,
+          "heap_nominal_literal_sites": 419,
+          "runtime_value_type_sites": 361
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 6,
+            "bridge_encode": 12,
+            "bridge_error": 1,
+            "control_error_conversion": 21,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 2,
+            "native_union_wrap_or_projection": 1,
+            "struct_runtime_conversion": 4
+          },
+          "functions": 16,
+          "heap_nominal_literal_sites": 20,
+          "runtime_value_type_sites": 20
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_signal_dispatch/concurrent_signal_dispatch.able"
+    },
+    {
+      "benchmark": "concurrent_state_machines",
+      "generation_exit": 0,
+      "generation_ms": 6503,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4650032,
+      "module_files": 48,
+      "module_go_lines": 113129,
+      "module_sha256": "4aa6dd01b28aafbd60d4a7d3344fac7dc65f06099a4b07aeba8e73ab2be3a14d",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 442,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 61,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1095,
+          "heap_nominal_literal_sites": 299,
+          "runtime_value_type_sites": 320
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "control_error_conversion": 16,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 4,
+            "struct_runtime_conversion": 8
+          },
+          "functions": 6,
+          "heap_nominal_literal_sites": 32,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_state_machines/concurrent_state_machines.able"
+    },
+    {
+      "benchmark": "concurrent_stateful_pipeline",
+      "generation_exit": 0,
+      "generation_ms": 6487,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4661526,
+      "module_files": 48,
+      "module_go_lines": 113331,
+      "module_sha256": "f6de241dee3929b0499659abe84e92186aba6147cf7eb93df653548f6b1b3d9e",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 21,
+            "bridge_encode": 69,
+            "bridge_error": 179,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 449,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 25,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 61,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1102,
+          "heap_nominal_literal_sites": 273,
+          "runtime_value_type_sites": 327
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 6,
+            "bridge_error": 2,
+            "control_error_conversion": 21,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 3,
+            "struct_runtime_conversion": 8
+          },
+          "functions": 10,
+          "heap_nominal_literal_sites": 17,
+          "runtime_value_type_sites": 18
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_stateful_pipeline/concurrent_stateful_pipeline.able"
+    },
+    {
+      "benchmark": "concurrent_stencil_reduction",
+      "generation_exit": 0,
+      "generation_ms": 8188,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5370546,
+      "module_files": 56,
+      "module_go_lines": 129583,
+      "module_sha256": "e886e4963a1414204acf9ae5c88b8dfe15f1c67e9816fd33ef94e3a1762785bd",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 26,
+            "bridge_encode": 82,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 518,
+            "erased_or_dynamic_call": 39,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 73,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1316,
+          "heap_nominal_literal_sites": 372,
+          "runtime_value_type_sites": 361
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 6,
+            "bridge_encode": 12,
+            "bridge_error": 1,
+            "control_error_conversion": 21,
+            "erased_or_dynamic_call": 6,
+            "native_union_wrap_or_projection": 1,
+            "struct_runtime_conversion": 4
+          },
+          "functions": 16,
+          "heap_nominal_literal_sites": 46,
+          "runtime_value_type_sites": 20
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_stencil_reduction/concurrent_stencil_reduction.able"
+    },
+    {
+      "benchmark": "concurrent_text_index",
+      "generation_exit": 0,
+      "generation_ms": 10026,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5910662,
+      "module_files": 68,
+      "module_go_lines": 142293,
+      "module_sha256": "35bbc19daec72061ebdd3a6ee1bf00604e353d124427507612d2a99e4520f06e",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 31,
+            "bridge_encode": 96,
+            "bridge_error": 232,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 549,
+            "erased_or_dynamic_call": 43,
+            "interface_runtime_conversion": 81,
+            "native_interface_adapter": 28,
+            "native_union_wrap_or_projection": 525,
+            "primitive_or_any_runtime_conversion": 143,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 87,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1460,
+          "heap_nominal_literal_sites": 379,
+          "runtime_value_type_sites": 504
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 8,
+            "bridge_encode": 18,
+            "bridge_error": 3,
+            "control_error_conversion": 25,
+            "erased_or_dynamic_call": 7,
+            "native_interface_adapter": 2,
+            "native_union_wrap_or_projection": 1,
+            "struct_runtime_conversion": 2
+          },
+          "functions": 17,
+          "heap_nominal_literal_sites": 22,
+          "runtime_value_type_sites": 23
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_text_index/concurrent_text_index.able"
+    },
+    {
+      "benchmark": "concurrent_transform_chain",
+      "generation_exit": 0,
+      "generation_ms": 8413,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5413023,
+      "module_files": 56,
+      "module_go_lines": 130346,
+      "module_sha256": "33a84a455073f2f72c654dd38552158b04ab1d572ea272faec467ac5f1c28fbb",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 26,
+            "bridge_encode": 82,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 518,
+            "erased_or_dynamic_call": 39,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 73,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1318,
+          "heap_nominal_literal_sites": 374,
+          "runtime_value_type_sites": 361
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 6,
+            "bridge_encode": 12,
+            "bridge_error": 1,
+            "control_error_conversion": 21,
+            "erased_or_dynamic_call": 6,
+            "native_union_wrap_or_projection": 1,
+            "struct_runtime_conversion": 4
+          },
+          "functions": 17,
+          "heap_nominal_literal_sites": 48,
+          "runtime_value_type_sites": 20
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_transform_chain/concurrent_transform_chain.able"
+    },
+    {
+      "benchmark": "concurrent_tree_folds",
+      "generation_exit": 0,
+      "generation_ms": 6725,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4718060,
+      "module_files": 48,
+      "module_go_lines": 114612,
+      "module_sha256": "485f4725b82c4a7360ec8a811073c3b06fd7d2a20e7cf9d2309e9b1a4ae2f461",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 442,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 61,
+            "union_runtime_conversion": 1
+          },
+          "functions": 1105,
+          "heap_nominal_literal_sites": 290,
+          "runtime_value_type_sites": 320
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "control_error_conversion": 16,
+            "erased_or_dynamic_call": 6,
+            "native_interface_adapter": 4,
+            "struct_runtime_conversion": 8
+          },
+          "functions": 9,
+          "heap_nominal_literal_sites": 20,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/concurrent_tree_folds/concurrent_tree_folds.able"
+    },
+    {
+      "benchmark": "config_validation_extraction",
+      "generation_exit": 0,
+      "generation_ms": 19511,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 8865563,
+      "module_files": 80,
+      "module_go_lines": 209602,
+      "module_sha256": "52966fdd1f22a7b84aced1955c660114b079cb5a7b2e3d4795ca09195c288712",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 23,
+            "bridge_encode": 79,
+            "bridge_error": 362,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 646,
+            "erased_or_dynamic_call": 45,
+            "interface_runtime_conversion": 99,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 1071,
+            "primitive_or_any_runtime_conversion": 175,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 126,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1031,
+          "heap_nominal_literal_sites": 1033,
+          "runtime_value_type_sites": 451
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 4,
+            "bridge_error": 42,
+            "control_error_conversion": 18,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 253,
+            "primitive_or_any_runtime_conversion": 10,
+            "struct_runtime_conversion": 11
+          },
+          "functions": 117,
+          "heap_nominal_literal_sites": 393,
+          "runtime_value_type_sites": 13
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/config_validation_extraction/config_validation_extraction.able"
+    },
+    {
+      "benchmark": "dependency_plan",
+      "generation_exit": 0,
+      "generation_ms": 1185,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 2217304,
+      "module_files": 44,
+      "module_go_lines": 57058,
+      "module_sha256": "347ed12f406996f8944b2753873f79e7cfffba78e77fc965a9b9f450496cd1be",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 29,
+            "bridge_error": 15,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 164,
+            "erased_or_dynamic_call": 5,
+            "interface_runtime_conversion": 19,
+            "native_interface_adapter": 6,
+            "native_union_wrap_or_projection": 95,
+            "primitive_or_any_runtime_conversion": 34,
+            "struct_runtime_conversion": 22,
+            "union_runtime_conversion": 1
+          },
+          "functions": 335,
+          "heap_nominal_literal_sites": 177,
+          "runtime_value_type_sites": 251
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "bridge_error": 1,
+            "erased_or_dynamic_call": 1
+          },
+          "functions": 14,
+          "heap_nominal_literal_sites": 4,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/dependency_plan/dependency_plan.able"
+    },
+    {
+      "benchmark": "dependency_wave_validation",
+      "generation_exit": 0,
+      "generation_ms": 1652,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 2719886,
+      "module_files": 48,
+      "module_go_lines": 66498,
+      "module_sha256": "353fb221d7b5e3796f2b217129da0380e93e58cfccd962461372cf90a4df675d",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 22,
+            "bridge_encode": 53,
+            "bridge_error": 43,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 197,
+            "erased_or_dynamic_call": 8,
+            "interface_runtime_conversion": 18,
+            "native_interface_adapter": 8,
+            "native_union_wrap_or_projection": 119,
+            "primitive_or_any_runtime_conversion": 75,
+            "struct_runtime_conversion": 30,
+            "union_runtime_conversion": 1
+          },
+          "functions": 725,
+          "heap_nominal_literal_sites": 233,
+          "runtime_value_type_sites": 301
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 3,
+            "bridge_encode": 15,
+            "bridge_error": 7,
+            "control_error_conversion": 22,
+            "erased_or_dynamic_call": 2,
+            "native_interface_adapter": 1,
+            "native_union_wrap_or_projection": 23,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 6
+          },
+          "functions": 27,
+          "heap_nominal_literal_sites": 51,
+          "runtime_value_type_sites": 24
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/dependency_wave_validation/dependency_wave_validation.able"
+    },
+    {
+      "benchmark": "discrete_event_simulation",
+      "generation_exit": 0,
+      "generation_ms": 702,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1717155,
+      "module_files": 32,
+      "module_go_lines": 44767,
+      "module_sha256": "e2f3c5aedeb65cce41bca6bfa80b4e13da5d6b2aaa82158fa11c121aed6ec772",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 29,
+            "bridge_error": 13,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 128,
+            "erased_or_dynamic_call": 5,
+            "interface_runtime_conversion": 11,
+            "native_interface_adapter": 3,
+            "native_union_wrap_or_projection": 95,
+            "primitive_or_any_runtime_conversion": 23,
+            "struct_runtime_conversion": 2,
+            "union_runtime_conversion": 1
+          },
+          "functions": 251,
+          "heap_nominal_literal_sites": 151,
+          "runtime_value_type_sites": 87
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "erased_or_dynamic_call": 1
+          },
+          "functions": 6,
+          "heap_nominal_literal_sites": 12,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/discrete_event_simulation/discrete_event_simulation.able"
+    },
+    {
+      "benchmark": "distance_field",
+      "generation_exit": 0,
+      "generation_ms": 808,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 2343390,
+      "module_files": 40,
+      "module_go_lines": 58741,
+      "module_sha256": "b91ab8814ece584f31e3408b20092798634c98d6e2336d249b6a69b1e24fe140",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 58,
+            "bridge_error": 20,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 174,
+            "erased_or_dynamic_call": 5,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 147,
+            "primitive_or_any_runtime_conversion": 111,
+            "struct_runtime_conversion": 78,
+            "union_runtime_conversion": 32
+          },
+          "functions": 447,
+          "heap_nominal_literal_sites": 388,
+          "runtime_value_type_sites": 149
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "control_error_conversion": 1,
+            "erased_or_dynamic_call": 1,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 5,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/distance_field/distance_field.able"
+    },
+    {
+      "benchmark": "document_audit",
+      "generation_exit": 0,
+      "generation_ms": 12928,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5115191,
+      "module_files": 60,
+      "module_go_lines": 130367,
+      "module_sha256": "13d0fedb37605b9ee2d3cc52fe290f4b705fec509b5e7e95556d75e9ee337f8e",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 75,
+            "bridge_error": 241,
+            "bridge_other": 41,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 531,
+            "erased_or_dynamic_call": 38,
+            "interface_runtime_conversion": 88,
+            "native_interface_adapter": 29,
+            "native_union_wrap_or_projection": 565,
+            "primitive_or_any_runtime_conversion": 141,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 726,
+          "heap_nominal_literal_sites": 327,
+          "runtime_value_type_sites": 342
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "bridge_error": 1,
+            "control_error_conversion": 4,
+            "erased_or_dynamic_call": 1,
+            "interface_runtime_conversion": 1,
+            "native_interface_adapter": 1,
+            "native_union_wrap_or_projection": 3
+          },
+          "functions": 7,
+          "heap_nominal_literal_sites": 1,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/document_audit/document_audit.able"
+    },
+    {
+      "benchmark": "fasta_generation",
+      "generation_exit": 0,
+      "generation_ms": 6535,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 3924302,
+      "module_files": 44,
+      "module_go_lines": 100959,
+      "module_sha256": "100fa20a468ed20d0b769d7c898d3fabd6123632c39eaf374b86f25add7731af",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 18,
+            "bridge_encode": 61,
+            "bridge_error": 177,
+            "bridge_other": 16,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 419,
+            "erased_or_dynamic_call": 29,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 434,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 52,
+            "union_runtime_conversion": 1
+          },
+          "functions": 534,
+          "heap_nominal_literal_sites": 211,
+          "runtime_value_type_sites": 242
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {},
+          "functions": 9,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 0
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/fasta_generation/fasta_generation.able"
+    },
+    {
+      "benchmark": "fib",
+      "generation_exit": 0,
+      "generation_ms": 6316,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 3955740,
+      "module_files": 48,
+      "module_go_lines": 101855,
+      "module_sha256": "e7a7ce417225d4168d12cf4a8da71ed0d440a1cbe17b1c2f6fa9fdcb6080f7a7",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 426,
+            "erased_or_dynamic_call": 32,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 53,
+            "union_runtime_conversion": 1
+          },
+          "functions": 548,
+          "heap_nominal_literal_sites": 211,
+          "runtime_value_type_sites": 245
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "erased_or_dynamic_call": 1
+          },
+          "functions": 5,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/fib.able"
+    },
+    {
+      "benchmark": "fixed_width_128",
+      "generation_exit": 0,
+      "generation_ms": 858,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 2740550,
+      "module_files": 36,
+      "module_go_lines": 70129,
+      "module_sha256": "27021e7c2988cbd00d8eaf198f6343eb7e37311080057addb1bccb22498dc635",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 47,
+            "bridge_error": 20,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 146,
+            "erased_or_dynamic_call": 5,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 180,
+            "primitive_or_any_runtime_conversion": 91,
+            "struct_runtime_conversion": 58,
+            "union_runtime_conversion": 24
+          },
+          "functions": 392,
+          "heap_nominal_literal_sites": 475,
+          "runtime_value_type_sites": 129
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "control_error_conversion": 2,
+            "erased_or_dynamic_call": 1,
+            "primitive_or_any_runtime_conversion": 2,
+            "struct_runtime_conversion": 2
+          },
+          "functions": 15,
+          "heap_nominal_literal_sites": 36,
+          "runtime_value_type_sites": 3
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/fixed_width_128/fixed_width_128.able"
+    },
+    {
+      "benchmark": "future_await_race",
+      "generation_exit": 0,
+      "generation_ms": 329,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1318944,
+      "module_files": 16,
+      "module_go_lines": 33584,
+      "module_sha256": "ca9ec2520b87ee648cb4d06199ca00be003e875799e0cc1509264d041845d275",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 19,
+            "bridge_encode": 36,
+            "bridge_error": 1,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 100,
+            "erased_or_dynamic_call": 11,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 86,
+            "struct_runtime_conversion": 3
+          },
+          "functions": 386,
+          "heap_nominal_literal_sites": 128,
+          "runtime_value_type_sites": 75
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 4,
+            "bridge_encode": 10,
+            "bridge_error": 1,
+            "control_error_conversion": 33,
+            "erased_or_dynamic_call": 11,
+            "struct_runtime_conversion": 2
+          },
+          "functions": 6,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 19
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/future_await_race/future_await_race.able"
+    },
+    {
+      "benchmark": "future_pipeline",
+      "generation_exit": 0,
+      "generation_ms": 398,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1339192,
+      "module_files": 16,
+      "module_go_lines": 33955,
+      "module_sha256": "6f3068a311b5d59578f1875e73e7194acac39b5b936ca7463b2b469c4f4da6b8",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 21,
+            "bridge_encode": 39,
+            "bridge_error": 3,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 90,
+            "erased_or_dynamic_call": 12,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 86,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 392,
+          "heap_nominal_literal_sites": 128,
+          "runtime_value_type_sites": 76
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 6,
+            "bridge_encode": 13,
+            "bridge_error": 3,
+            "control_error_conversion": 23,
+            "erased_or_dynamic_call": 12
+          },
+          "functions": 9,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 20
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/future_pipeline/future_pipeline.able"
+    },
+    {
+      "benchmark": "generic_slot_buffer",
+      "generation_exit": 0,
+      "generation_ms": 1073,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1949802,
+      "module_files": 32,
+      "module_go_lines": 50942,
+      "module_sha256": "675857fb28463a9b0bb715c3ad36dacd663d66ad6991946b22dbc76b0fdf6e49",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 16,
+            "bridge_encode": 33,
+            "bridge_error": 27,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 158,
+            "erased_or_dynamic_call": 11,
+            "interface_runtime_conversion": 18,
+            "native_interface_adapter": 5,
+            "native_union_wrap_or_projection": 109,
+            "primitive_or_any_runtime_conversion": 41,
+            "struct_runtime_conversion": 2,
+            "union_runtime_conversion": 1
+          },
+          "functions": 279,
+          "heap_nominal_literal_sites": 141,
+          "runtime_value_type_sites": 110
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "bridge_error": 3,
+            "erased_or_dynamic_call": 1,
+            "native_interface_adapter": 1,
+            "native_union_wrap_or_projection": 2
+          },
+          "functions": 12,
+          "heap_nominal_literal_sites": 4,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/generic_slot_buffer/generic_slot_buffer.able"
+    },
+    {
+      "benchmark": "i_before_e",
+      "generation_exit": 0,
+      "generation_ms": 8140,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4620155,
+      "module_files": 56,
+      "module_go_lines": 117887,
+      "module_sha256": "7cdf75a8893d50480fee3f0580ebfccb66aa405010f234c1b7f4ebc3f9f560c4",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 69,
+            "bridge_error": 230,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 493,
+            "erased_or_dynamic_call": 34,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 650,
+          "heap_nominal_literal_sites": 320,
+          "runtime_value_type_sites": 273
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 1
+          },
+          "functions": 2,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/i_before_e/i_before_e.able"
+    },
+    {
+      "benchmark": "inventory_reconciliation",
+      "generation_exit": 0,
+      "generation_ms": 1204,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 2188938,
+      "module_files": 44,
+      "module_go_lines": 56681,
+      "module_sha256": "e3aba087cc65e375ebb6aea6ae5a2a6d787da4650f6097afea823cadada6e230",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 18,
+            "bridge_encode": 42,
+            "bridge_error": 18,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 176,
+            "erased_or_dynamic_call": 8,
+            "interface_runtime_conversion": 19,
+            "native_interface_adapter": 9,
+            "native_union_wrap_or_projection": 99,
+            "primitive_or_any_runtime_conversion": 37,
+            "struct_runtime_conversion": 20,
+            "union_runtime_conversion": 1
+          },
+          "functions": 329,
+          "heap_nominal_literal_sites": 168,
+          "runtime_value_type_sites": 211
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 5,
+            "bridge_error": 1,
+            "control_error_conversion": 3,
+            "erased_or_dynamic_call": 1,
+            "native_interface_adapter": 2
+          },
+          "functions": 9,
+          "heap_nominal_literal_sites": 6,
+          "runtime_value_type_sites": 3
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/inventory_reconciliation/inventory_reconciliation.able"
+    },
+    {
+      "benchmark": "json",
+      "generation_exit": 0,
+      "generation_ms": 8456,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4826248,
+      "module_files": 60,
+      "module_go_lines": 123221,
+      "module_sha256": "f29adfe6bef2200ce452b5867e4728a322c87fe14e15d4b7b3bf530d3d0ca1f3",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 71,
+            "bridge_error": 238,
+            "bridge_other": 42,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 496,
+            "erased_or_dynamic_call": 36,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 571,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 667,
+          "heap_nominal_literal_sites": 329,
+          "runtime_value_type_sites": 276
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 3,
+            "bridge_error": 1,
+            "erased_or_dynamic_call": 3,
+            "native_union_wrap_or_projection": 3
+          },
+          "functions": 3,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 3
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/json/json.able"
+    },
+    {
+      "benchmark": "k_nucleotide",
+      "generation_exit": 0,
+      "generation_ms": 10070,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5656211,
+      "module_files": 68,
+      "module_go_lines": 141346,
+      "module_sha256": "c2235ff5b08223b7aa8451f56b592bcf10fd733c0a8d1196af53807e3ce49c29",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 19,
+            "bridge_encode": 111,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 5,
+            "control_error_conversion": 607,
+            "erased_or_dynamic_call": 40,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 594,
+            "primitive_or_any_runtime_conversion": 206,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 144,
+            "union_runtime_conversion": 34
+          },
+          "functions": 885,
+          "heap_nominal_literal_sites": 591,
+          "runtime_value_type_sites": 365
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 11,
+            "bridge_error": 1,
+            "callable_runtime_conversion": 1,
+            "control_error_conversion": 8,
+            "erased_or_dynamic_call": 4,
+            "native_union_wrap_or_projection": 6
+          },
+          "functions": 32,
+          "heap_nominal_literal_sites": 11,
+          "runtime_value_type_sites": 8
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/k_nucleotide/k_nucleotide.able"
+    },
+    {
+      "benchmark": "lexical_rollup",
+      "generation_exit": 0,
+      "generation_ms": 12964,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5111054,
+      "module_files": 60,
+      "module_go_lines": 130309,
+      "module_sha256": "b7b13fec7ad0da75c24738c9d8a29d5b9a82951aa4d3df767179af02e33eca98",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 75,
+            "bridge_error": 241,
+            "bridge_other": 41,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 531,
+            "erased_or_dynamic_call": 38,
+            "interface_runtime_conversion": 88,
+            "native_interface_adapter": 29,
+            "native_union_wrap_or_projection": 565,
+            "primitive_or_any_runtime_conversion": 141,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 726,
+          "heap_nominal_literal_sites": 327,
+          "runtime_value_type_sites": 342
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "bridge_error": 1,
+            "control_error_conversion": 4,
+            "erased_or_dynamic_call": 1,
+            "interface_runtime_conversion": 1,
+            "native_interface_adapter": 1,
+            "native_union_wrap_or_projection": 3
+          },
+          "functions": 7,
+          "heap_nominal_literal_sites": 1,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/lexical_rollup/lexical_rollup.able"
+    },
+    {
+      "benchmark": "log_routing_redaction",
+      "generation_exit": 0,
+      "generation_ms": 19357,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 8858966,
+      "module_files": 80,
+      "module_go_lines": 209538,
+      "module_sha256": "66b02fe8483b00092c93ed8bddc4f2e4d78ddce2bb2173832c9433bbfcc1d4f1",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 23,
+            "bridge_encode": 79,
+            "bridge_error": 362,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 647,
+            "erased_or_dynamic_call": 45,
+            "interface_runtime_conversion": 99,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 1078,
+            "primitive_or_any_runtime_conversion": 175,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 127,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1032,
+          "heap_nominal_literal_sites": 1034,
+          "runtime_value_type_sites": 451
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 6,
+            "bridge_error": 55,
+            "control_error_conversion": 25,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 322,
+            "primitive_or_any_runtime_conversion": 12,
+            "struct_runtime_conversion": 15
+          },
+          "functions": 141,
+          "heap_nominal_literal_sites": 428,
+          "runtime_value_type_sites": 16
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/log_routing_redaction/log_routing_redaction.able"
+    },
+    {
+      "benchmark": "mandelbrot",
+      "generation_exit": 0,
+      "generation_ms": 6490,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 3901361,
+      "module_files": 44,
+      "module_go_lines": 100510,
+      "module_sha256": "e489ef65dff61b12d57814647a8070c17f3a6d0dd49c93be64ea7304b338881a",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 18,
+            "bridge_encode": 61,
+            "bridge_error": 177,
+            "bridge_other": 16,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 419,
+            "erased_or_dynamic_call": 29,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 434,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 52,
+            "union_runtime_conversion": 1
+          },
+          "functions": 529,
+          "heap_nominal_literal_sites": 211,
+          "runtime_value_type_sites": 242
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {},
+          "functions": 4,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 0
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/mandelbrot/mandelbrot.able"
+    },
+    {
+      "benchmark": "manifest_normalization",
+      "generation_exit": 0,
+      "generation_ms": 12662,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4759265,
+      "module_files": 56,
+      "module_go_lines": 120711,
+      "module_sha256": "f868398ba59abd284b288239c7e8959e67a5596da14e217604da83853bdd7841",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 20,
+            "bridge_encode": 69,
+            "bridge_error": 231,
+            "bridge_other": 41,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 481,
+            "erased_or_dynamic_call": 34,
+            "interface_runtime_conversion": 74,
+            "native_interface_adapter": 23,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 129,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 67,
+            "union_runtime_conversion": 2
+          },
+          "functions": 660,
+          "heap_nominal_literal_sites": 393,
+          "runtime_value_type_sites": 270
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 1,
+            "bridge_error": 6,
+            "bridge_other": 2,
+            "control_error_conversion": 3,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 15,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 16,
+          "heap_nominal_literal_sites": 41,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/manifest_normalization/manifest_normalization.able"
+    },
+    {
+      "benchmark": "matrixmultiply",
+      "generation_exit": 0,
+      "generation_ms": 6303,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 3979022,
+      "module_files": 48,
+      "module_go_lines": 102336,
+      "module_sha256": "d25bd3a9bed6b9f3f5c7f3af091bc169a4ca272ca82cb7717b7c9f0b92dc9208",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 426,
+            "erased_or_dynamic_call": 32,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 53,
+            "union_runtime_conversion": 1
+          },
+          "functions": 549,
+          "heap_nominal_literal_sites": 211,
+          "runtime_value_type_sites": 245
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "erased_or_dynamic_call": 1
+          },
+          "functions": 6,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/matrixmultiply.able"
+    },
+    {
+      "benchmark": "monte_carlo_pi",
+      "generation_exit": 0,
+      "generation_ms": 365,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1123264,
+      "module_files": 16,
+      "module_go_lines": 30143,
+      "module_sha256": "c0b544b9312707da904cc5117daf3fa56308c1f58c8f94258358048ddb4a48a7",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 26,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 65,
+            "erased_or_dynamic_call": 1,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 86,
+            "primitive_or_any_runtime_conversion": 4,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 195,
+          "heap_nominal_literal_sites": 122,
+          "runtime_value_type_sites": 44
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "erased_or_dynamic_call": 1,
+            "primitive_or_any_runtime_conversion": 4
+          },
+          "functions": 3,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/monte_carlo_pi/monte_carlo_pi.able"
+    },
+    {
+      "benchmark": "mutex_await_journal",
+      "generation_exit": 0,
+      "generation_ms": 372,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1331670,
+      "module_files": 16,
+      "module_go_lines": 33980,
+      "module_sha256": "fbbab8065992e46f783330501ae92c497e5fe6a5692b8f35397004d21febaebf",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 19,
+            "bridge_encode": 31,
+            "callable_runtime_conversion": 5,
+            "control_error_conversion": 78,
+            "erased_or_dynamic_call": 5,
+            "interface_runtime_conversion": 4,
+            "native_union_wrap_or_projection": 86,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 383,
+          "heap_nominal_literal_sites": 123,
+          "runtime_value_type_sites": 64
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 6,
+            "bridge_encode": 7,
+            "callable_runtime_conversion": 1,
+            "control_error_conversion": 16,
+            "erased_or_dynamic_call": 5,
+            "interface_runtime_conversion": 1
+          },
+          "functions": 7,
+          "heap_nominal_literal_sites": 4,
+          "runtime_value_type_sites": 11
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/mutex_await_journal/mutex_await_journal.able"
+    },
+    {
+      "benchmark": "mutex_ledger",
+      "generation_exit": 0,
+      "generation_ms": 637,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1853524,
+      "module_files": 28,
+      "module_go_lines": 46815,
+      "module_sha256": "215609bb781bb1cb4c0c9ade2a5a36ec15f326ebaf4029a7608ceb1648113efc",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 34,
+            "bridge_error": 11,
+            "bridge_other": 4,
+            "callable_runtime_conversion": 6,
+            "control_error_conversion": 137,
+            "erased_or_dynamic_call": 7,
+            "interface_runtime_conversion": 17,
+            "native_interface_adapter": 4,
+            "native_union_wrap_or_projection": 100,
+            "primitive_or_any_runtime_conversion": 27,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 481,
+          "heap_nominal_literal_sites": 127,
+          "runtime_value_type_sites": 95
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 7,
+            "bridge_other": 4,
+            "control_error_conversion": 12,
+            "erased_or_dynamic_call": 2,
+            "interface_runtime_conversion": 4,
+            "native_union_wrap_or_projection": 8
+          },
+          "functions": 8,
+          "heap_nominal_literal_sites": 4,
+          "runtime_value_type_sites": 15
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/mutex_ledger/mutex_ledger.able"
+    },
+    {
+      "benchmark": "mutex_work_queue",
+      "generation_exit": 0,
+      "generation_ms": 693,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1879791,
+      "module_files": 28,
+      "module_go_lines": 47488,
+      "module_sha256": "1a211df01d3c3ffed2e47fe068682685acf7e2e662487de20f9e33da36cdbbca",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 15,
+            "bridge_encode": 35,
+            "bridge_error": 11,
+            "bridge_other": 4,
+            "callable_runtime_conversion": 7,
+            "control_error_conversion": 142,
+            "erased_or_dynamic_call": 6,
+            "interface_runtime_conversion": 18,
+            "native_interface_adapter": 4,
+            "native_union_wrap_or_projection": 100,
+            "primitive_or_any_runtime_conversion": 27,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 487,
+          "heap_nominal_literal_sites": 127,
+          "runtime_value_type_sites": 96
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 8,
+            "bridge_other": 4,
+            "callable_runtime_conversion": 1,
+            "control_error_conversion": 17,
+            "erased_or_dynamic_call": 1,
+            "interface_runtime_conversion": 5,
+            "native_union_wrap_or_projection": 8
+          },
+          "functions": 11,
+          "heap_nominal_literal_sites": 4,
+          "runtime_value_type_sites": 16
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/mutex_work_queue/mutex_work_queue.able"
+    },
+    {
+      "benchmark": "nbody",
+      "generation_exit": 0,
+      "generation_ms": 7648,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4952566,
+      "module_files": 60,
+      "module_go_lines": 124458,
+      "module_sha256": "635d60492106574784d4224516668539a26e632dc146b6edb9bb09ddbe0f812f",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 96,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 533,
+            "erased_or_dynamic_call": 36,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 497,
+            "primitive_or_any_runtime_conversion": 187,
+            "struct_runtime_conversion": 128,
+            "union_runtime_conversion": 33
+          },
+          "functions": 766,
+          "heap_nominal_literal_sites": 471,
+          "runtime_value_type_sites": 332
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "control_error_conversion": 1,
+            "erased_or_dynamic_call": 2,
+            "primitive_or_any_runtime_conversion": 2,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 10,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 4
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/nbody.able"
+    },
+    {
+      "benchmark": "option_result_config",
+      "generation_exit": 0,
+      "generation_ms": 480,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 1432219,
+      "module_files": 24,
+      "module_go_lines": 37535,
+      "module_sha256": "3f6adb38618db40da016c430900638337c086e96de1a34ad5a740d7c6c1d70a7",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 15,
+            "bridge_encode": 26,
+            "bridge_error": 26,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 5,
+            "control_error_conversion": 70,
+            "erased_or_dynamic_call": 2,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 97,
+            "primitive_or_any_runtime_conversion": 38,
+            "struct_runtime_conversion": 4,
+            "union_runtime_conversion": 1
+          },
+          "functions": 234,
+          "heap_nominal_literal_sites": 131,
+          "runtime_value_type_sites": 65
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 1,
+            "bridge_error": 6,
+            "callable_runtime_conversion": 1,
+            "control_error_conversion": 3,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 11,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1,
+            "union_runtime_conversion": 1
+          },
+          "functions": 16,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/option_result_config/option_result_config.able"
+    },
+    {
+      "benchmark": "pidigits",
+      "generation_exit": 0,
+      "generation_ms": 6410,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4143698,
+      "module_files": 52,
+      "module_go_lines": 106477,
+      "module_sha256": "b26f5a0cd498e6b02b00adf6e2dbb8f69a706869a21adc66e9ece41c6dc425d0",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 64,
+            "bridge_error": 177,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 426,
+            "erased_or_dynamic_call": 33,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 436,
+            "primitive_or_any_runtime_conversion": 112,
+            "struct_runtime_conversion": 53,
+            "union_runtime_conversion": 1
+          },
+          "functions": 586,
+          "heap_nominal_literal_sites": 223,
+          "runtime_value_type_sites": 246
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "erased_or_dynamic_call": 2
+          },
+          "functions": 7,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/pidigits/pidigits.able"
+    },
+    {
+      "benchmark": "policy_record_dispatch",
+      "generation_exit": 0,
+      "generation_ms": 21463,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 9041898,
+      "module_files": 80,
+      "module_go_lines": 213916,
+      "module_sha256": "1bbdbe981ba3c81a7fb9aee305544c7061eae0661bc0342fff67697d3a7865d9",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 27,
+            "bridge_encode": 91,
+            "bridge_error": 370,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 660,
+            "erased_or_dynamic_call": 45,
+            "interface_runtime_conversion": 99,
+            "native_interface_adapter": 31,
+            "native_union_wrap_or_projection": 1095,
+            "primitive_or_any_runtime_conversion": 176,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 127,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1066,
+          "heap_nominal_literal_sites": 1117,
+          "runtime_value_type_sites": 459
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 3,
+            "bridge_encode": 8,
+            "bridge_error": 49,
+            "control_error_conversion": 22,
+            "erased_or_dynamic_call": 1,
+            "native_interface_adapter": 5,
+            "native_union_wrap_or_projection": 277,
+            "primitive_or_any_runtime_conversion": 11,
+            "struct_runtime_conversion": 12
+          },
+          "functions": 133,
+          "heap_nominal_literal_sites": 443,
+          "runtime_value_type_sites": 16
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/policy_record_dispatch/policy_record_dispatch.able"
+    },
+    {
+      "benchmark": "quicksort",
+      "generation_exit": 0,
+      "generation_ms": 8294,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4649519,
+      "module_files": 56,
+      "module_go_lines": 118459,
+      "module_sha256": "f9ba841a4a084cced2afe8ae7ff59f385ad17aabfcb47eb5483067a3ce0bf7a5",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 70,
+            "bridge_error": 230,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 493,
+            "erased_or_dynamic_call": 35,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 652,
+          "heap_nominal_literal_sites": 320,
+          "runtime_value_type_sites": 274
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "erased_or_dynamic_call": 2,
+            "native_union_wrap_or_projection": 1
+          },
+          "functions": 4,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/quicksort/quicksort.able"
+    },
+    {
+      "benchmark": "rational_series",
+      "generation_exit": 0,
+      "generation_ms": 953,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 2795268,
+      "module_files": 36,
+      "module_go_lines": 71010,
+      "module_sha256": "fc779c7134f30fb28fad16fdcfcceea68f3019b6f831f5e4345e0015f1b3e4fb",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 50,
+            "bridge_error": 20,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 147,
+            "erased_or_dynamic_call": 6,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 182,
+            "primitive_or_any_runtime_conversion": 93,
+            "struct_runtime_conversion": 60,
+            "union_runtime_conversion": 23
+          },
+          "functions": 397,
+          "heap_nominal_literal_sites": 488,
+          "runtime_value_type_sites": 132
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "control_error_conversion": 4,
+            "erased_or_dynamic_call": 2,
+            "primitive_or_any_runtime_conversion": 4,
+            "struct_runtime_conversion": 4
+          },
+          "functions": 19,
+          "heap_nominal_literal_sites": 50,
+          "runtime_value_type_sites": 6
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/rational_series/rational_series.able"
+    },
+    {
+      "benchmark": "regex_set_audit",
+      "generation_exit": 0,
+      "generation_ms": 18900,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 8827437,
+      "module_files": 80,
+      "module_go_lines": 209011,
+      "module_sha256": "ad4d6b10bd9e71b8c968f758a15d98c2e99a27dbaec51793eaf6094be16f72d0",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 23,
+            "bridge_encode": 78,
+            "bridge_error": 360,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 647,
+            "erased_or_dynamic_call": 45,
+            "interface_runtime_conversion": 99,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 1071,
+            "primitive_or_any_runtime_conversion": 175,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 127,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1029,
+          "heap_nominal_literal_sites": 1030,
+          "runtime_value_type_sites": 451
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 1,
+            "bridge_error": 35,
+            "control_error_conversion": 13,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 259,
+            "primitive_or_any_runtime_conversion": 10,
+            "struct_runtime_conversion": 11
+          },
+          "functions": 109,
+          "heap_nominal_literal_sites": 363,
+          "runtime_value_type_sites": 11
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/regex_set_audit/regex_set_audit.able"
+    },
+    {
+      "benchmark": "regex_stream_audit",
+      "generation_exit": 0,
+      "generation_ms": 19756,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 8837780,
+      "module_files": 80,
+      "module_go_lines": 209171,
+      "module_sha256": "6785479512656ff3d2a288aa3e442934eeeace97bfb7476cd8e48daca986d1c4",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 23,
+            "bridge_encode": 78,
+            "bridge_error": 364,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 646,
+            "erased_or_dynamic_call": 45,
+            "interface_runtime_conversion": 99,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 1075,
+            "primitive_or_any_runtime_conversion": 175,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 126,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1029,
+          "heap_nominal_literal_sites": 1030,
+          "runtime_value_type_sites": 451
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 3,
+            "bridge_error": 42,
+            "control_error_conversion": 19,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 259,
+            "primitive_or_any_runtime_conversion": 11,
+            "struct_runtime_conversion": 12
+          },
+          "functions": 131,
+          "heap_nominal_literal_sites": 376,
+          "runtime_value_type_sites": 14
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/regex_stream_audit/regex_stream_audit.able"
+    },
+    {
+      "benchmark": "regex_suffix_audit",
+      "generation_exit": 0,
+      "generation_ms": 20168,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 8840105,
+      "module_files": 80,
+      "module_go_lines": 209215,
+      "module_sha256": "5f7da4b495f551b908eb6b30026ac5a89149787de3c5bf8010d1be182a1367c5",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 23,
+            "bridge_encode": 78,
+            "bridge_error": 363,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 647,
+            "erased_or_dynamic_call": 45,
+            "interface_runtime_conversion": 99,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 1074,
+            "primitive_or_any_runtime_conversion": 175,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 127,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1030,
+          "heap_nominal_literal_sites": 1049,
+          "runtime_value_type_sites": 451
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 3,
+            "bridge_error": 29,
+            "control_error_conversion": 18,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 144,
+            "primitive_or_any_runtime_conversion": 9,
+            "struct_runtime_conversion": 11
+          },
+          "functions": 122,
+          "heap_nominal_literal_sites": 416,
+          "runtime_value_type_sites": 12
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/regex_suffix_audit/regex_suffix_audit.able"
+    },
+    {
+      "benchmark": "reverse_complement",
+      "generation_exit": 0,
+      "generation_ms": 7913,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4669947,
+      "module_files": 56,
+      "module_go_lines": 118718,
+      "module_sha256": "e38851eea2bb5432c610586be937c82ccc3a08476979ba8ec8b72f42d21612d6",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 68,
+            "bridge_error": 230,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 493,
+            "erased_or_dynamic_call": 33,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 654,
+          "heap_nominal_literal_sites": 320,
+          "runtime_value_type_sites": 272
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "native_union_wrap_or_projection": 1
+          },
+          "functions": 6,
+          "heap_nominal_literal_sites": 0,
+          "runtime_value_type_sites": 0
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/reverse_complement/reverse_complement.able"
+    },
+    {
+      "benchmark": "rms_norm",
+      "generation_exit": 0,
+      "generation_ms": 747,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 2346602,
+      "module_files": 40,
+      "module_go_lines": 58813,
+      "module_sha256": "9a694f236f1cfcc49b1930fd1f7876b1947c0a54c947cc181a34110d37235903",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 14,
+            "bridge_encode": 59,
+            "bridge_error": 20,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 174,
+            "erased_or_dynamic_call": 6,
+            "interface_runtime_conversion": 3,
+            "native_union_wrap_or_projection": 147,
+            "primitive_or_any_runtime_conversion": 111,
+            "struct_runtime_conversion": 78,
+            "union_runtime_conversion": 32
+          },
+          "functions": 447,
+          "heap_nominal_literal_sites": 388,
+          "runtime_value_type_sites": 150
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "control_error_conversion": 1,
+            "erased_or_dynamic_call": 2,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 4,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 3
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/rms_norm/rms_norm.able"
+    },
+    {
+      "benchmark": "sensor_calibration",
+      "generation_exit": 0,
+      "generation_ms": 8182,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4760700,
+      "module_files": 56,
+      "module_go_lines": 120824,
+      "module_sha256": "0157d63924a99ec03d478b83df16fa4840573a8ecd88c267d706408200af2999",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 21,
+            "bridge_encode": 69,
+            "bridge_error": 234,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 500,
+            "erased_or_dynamic_call": 34,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 552,
+            "primitive_or_any_runtime_conversion": 133,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 70,
+            "union_runtime_conversion": 2
+          },
+          "functions": 660,
+          "heap_nominal_literal_sites": 324,
+          "runtime_value_type_sites": 274
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 3,
+            "bridge_encode": 1,
+            "bridge_error": 4,
+            "control_error_conversion": 7,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 20,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 13,
+          "heap_nominal_literal_sites": 4,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/sensor_calibration/sensor_calibration.able"
+    },
+    {
+      "benchmark": "sudoku_masks",
+      "generation_exit": 0,
+      "generation_ms": 8108,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4696541,
+      "module_files": 56,
+      "module_go_lines": 119531,
+      "module_sha256": "734b1ca06910db7354a6dfd4bc75f1f4df370a00e49f541383a3d391a208dc29",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 69,
+            "bridge_error": 231,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 493,
+            "erased_or_dynamic_call": 34,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 536,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 659,
+          "heap_nominal_literal_sites": 321,
+          "runtime_value_type_sites": 273
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "bridge_error": 1,
+            "erased_or_dynamic_call": 1,
+            "native_union_wrap_or_projection": 4
+          },
+          "functions": 12,
+          "heap_nominal_literal_sites": 1,
+          "runtime_value_type_sites": 1
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/sudoku_masks/sudoku_masks.able"
+    },
+    {
+      "benchmark": "tapelang_alphabet",
+      "generation_exit": 0,
+      "generation_ms": 8019,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4723447,
+      "module_files": 56,
+      "module_go_lines": 120100,
+      "module_sha256": "a6e7ec8536902d52c287abe40d3df2ec25551b7dcf1b1d0f4e192a151b295a18",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 18,
+            "bridge_encode": 68,
+            "bridge_error": 232,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 493,
+            "erased_or_dynamic_call": 33,
+            "interface_runtime_conversion": 77,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 533,
+            "primitive_or_any_runtime_conversion": 132,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 69,
+            "union_runtime_conversion": 2
+          },
+          "functions": 661,
+          "heap_nominal_literal_sites": 345,
+          "runtime_value_type_sites": 272
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_error": 2,
+            "native_union_wrap_or_projection": 1
+          },
+          "functions": 13,
+          "heap_nominal_literal_sites": 25,
+          "runtime_value_type_sites": 0
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/tapelang_alphabet/tapelang_alphabet.able"
+    },
+    {
+      "benchmark": "transaction_ledger_audit",
+      "generation_exit": 0,
+      "generation_ms": 9791,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5263943,
+      "module_files": 68,
+      "module_go_lines": 132864,
+      "module_sha256": "255bb915b6fd737bc28ef2e8292b58b3e6a0a107f19f7a7734beea291ab77152",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 23,
+            "bridge_encode": 81,
+            "bridge_error": 232,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 526,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 81,
+            "native_interface_adapter": 28,
+            "native_union_wrap_or_projection": 538,
+            "primitive_or_any_runtime_conversion": 144,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 86,
+            "union_runtime_conversion": 2
+          },
+          "functions": 735,
+          "heap_nominal_literal_sites": 358,
+          "runtime_value_type_sites": 395
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 2,
+            "bridge_encode": 5,
+            "bridge_error": 3,
+            "control_error_conversion": 6,
+            "erased_or_dynamic_call": 1,
+            "native_interface_adapter": 2,
+            "native_union_wrap_or_projection": 14,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 16,
+          "heap_nominal_literal_sites": 7,
+          "runtime_value_type_sites": 4
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/transaction_ledger_audit/transaction_ledger_audit.able"
+    },
+    {
+      "benchmark": "unicode_scalar_pipeline",
+      "generation_exit": 0,
+      "generation_ms": 5986,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 3630056,
+      "module_files": 40,
+      "module_go_lines": 93929,
+      "module_sha256": "9a669ad61a528b19f8f766224df1baf75ff91014df4067d90eb5da281e9468fa",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 18,
+            "bridge_encode": 63,
+            "bridge_error": 172,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 405,
+            "erased_or_dynamic_call": 31,
+            "interface_runtime_conversion": 68,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 423,
+            "primitive_or_any_runtime_conversion": 109,
+            "struct_runtime_conversion": 48,
+            "union_runtime_conversion": 1
+          },
+          "functions": 491,
+          "heap_nominal_literal_sites": 203,
+          "runtime_value_type_sites": 215
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 2,
+            "bridge_error": 7,
+            "control_error_conversion": 6,
+            "erased_or_dynamic_call": 2,
+            "native_interface_adapter": 2,
+            "native_union_wrap_or_projection": 22,
+            "primitive_or_any_runtime_conversion": 2,
+            "struct_runtime_conversion": 2
+          },
+          "functions": 21,
+          "heap_nominal_literal_sites": 9,
+          "runtime_value_type_sites": 4
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/unicode_scalar_pipeline/unicode_scalar_pipeline.able"
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "generation_exit": 0,
+      "generation_ms": 9700,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5349273,
+      "module_files": 56,
+      "module_go_lines": 129490,
+      "module_sha256": "d9496d9361f37e2143462e0019c10247109b5e5be4a0418c1e7afa839bc0ead7",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 27,
+            "bridge_encode": 83,
+            "bridge_error": 229,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 506,
+            "erased_or_dynamic_call": 40,
+            "interface_runtime_conversion": 74,
+            "native_interface_adapter": 23,
+            "native_union_wrap_or_projection": 531,
+            "primitive_or_any_runtime_conversion": 129,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 71,
+            "union_runtime_conversion": 2
+          },
+          "functions": 1317,
+          "heap_nominal_literal_sites": 349,
+          "runtime_value_type_sites": 360
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 7,
+            "bridge_encode": 13,
+            "bridge_error": 4,
+            "control_error_conversion": 24,
+            "erased_or_dynamic_call": 7,
+            "native_union_wrap_or_projection": 13,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 5
+          },
+          "functions": 20,
+          "heap_nominal_literal_sites": 20,
+          "runtime_value_type_sites": 23
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able"
+    },
+    {
+      "benchmark": "versioned_telemetry_pipeline",
+      "generation_exit": 0,
+      "generation_ms": 10724,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4485237,
+      "module_files": 48,
+      "module_go_lines": 114762,
+      "module_sha256": "5822887524eb1d35314c87c326c15f0b88839b927b93f5d2fc7cef598116995d",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 19,
+            "bridge_encode": 64,
+            "bridge_error": 188,
+            "bridge_other": 21,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 460,
+            "erased_or_dynamic_call": 38,
+            "interface_runtime_conversion": 75,
+            "native_interface_adapter": 26,
+            "native_union_wrap_or_projection": 454,
+            "primitive_or_any_runtime_conversion": 131,
+            "struct_runtime_conversion": 58,
+            "union_runtime_conversion": 1
+          },
+          "functions": 586,
+          "heap_nominal_literal_sites": 228,
+          "runtime_value_type_sites": 273
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 1,
+            "bridge_error": 2,
+            "control_error_conversion": 1,
+            "erased_or_dynamic_call": 1,
+            "native_interface_adapter": 3,
+            "native_union_wrap_or_projection": 6,
+            "primitive_or_any_runtime_conversion": 1,
+            "struct_runtime_conversion": 1
+          },
+          "functions": 15,
+          "heap_nominal_literal_sites": 12,
+          "runtime_value_type_sites": 2
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/versioned_telemetry_pipeline/versioned_telemetry_pipeline.able"
+    },
+    {
+      "benchmark": "wide_integer_records",
+      "generation_exit": 0,
+      "generation_ms": 6481,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 4747098,
+      "module_files": 52,
+      "module_go_lines": 120355,
+      "module_sha256": "99f0f7c6dc1077ab139128613adc0d342e0c428c59585126306c494a456f4203",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "bridge_decode": 18,
+            "bridge_encode": 85,
+            "bridge_error": 168,
+            "bridge_other": 5,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 487,
+            "erased_or_dynamic_call": 33,
+            "interface_runtime_conversion": 66,
+            "native_interface_adapter": 22,
+            "native_union_wrap_or_projection": 559,
+            "primitive_or_any_runtime_conversion": 172,
+            "struct_runtime_conversion": 110,
+            "union_runtime_conversion": 30
+          },
+          "functions": 706,
+          "heap_nominal_literal_sites": 696,
+          "runtime_value_type_sites": 283
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_encode": 3,
+            "bridge_error": 6,
+            "control_error_conversion": 7,
+            "erased_or_dynamic_call": 3,
+            "native_interface_adapter": 2,
+            "native_union_wrap_or_projection": 63,
+            "primitive_or_any_runtime_conversion": 5,
+            "struct_runtime_conversion": 5
+          },
+          "functions": 49,
+          "heap_nominal_literal_sites": 115,
+          "runtime_value_type_sites": 8
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/wide_integer_records/wide_integer_records.able"
+    },
+    {
+      "benchmark": "word_frequency",
+      "generation_exit": 0,
+      "generation_ms": 9224,
+      "matches_prior_compact_scope_counts": true,
+      "matches_prior_generated_module": true,
+      "module_bytes": 5137590,
+      "module_files": 68,
+      "module_go_lines": 130280,
+      "module_sha256": "83cbd5b29285e83bca951b17dcde32ac635e900f088418913da0a61a6c7d105f",
+      "scopes": {
+        "compiled_body": {
+          "boundary_categories": {
+            "array_runtime_conversion": 1,
+            "bridge_decode": 22,
+            "bridge_encode": 81,
+            "bridge_error": 230,
+            "bridge_other": 39,
+            "callable_runtime_conversion": 4,
+            "control_error_conversion": 523,
+            "erased_or_dynamic_call": 37,
+            "interface_runtime_conversion": 81,
+            "native_interface_adapter": 27,
+            "native_union_wrap_or_projection": 525,
+            "primitive_or_any_runtime_conversion": 143,
+            "runtime_value_constructor": 1,
+            "struct_runtime_conversion": 85,
+            "union_runtime_conversion": 2
+          },
+          "functions": 725,
+          "heap_nominal_literal_sites": 354,
+          "runtime_value_type_sites": 394
+        },
+        "main_direct_reachable": {
+          "boundary_categories": {
+            "bridge_decode": 1,
+            "bridge_encode": 5,
+            "bridge_error": 1,
+            "control_error_conversion": 3,
+            "erased_or_dynamic_call": 1,
+            "native_interface_adapter": 1,
+            "native_union_wrap_or_projection": 1
+          },
+          "functions": 5,
+          "heap_nominal_literal_sites": 3,
+          "runtime_value_type_sites": 3
+        }
+      },
+      "strict_no_fallbacks": true,
+      "target": "v12/examples/benchmarks/word_frequency/word_frequency.able"
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "compact_scope_counts_matching_prior": 66,
+    "failed": 0,
+    "generated_modules_matching_prior": 66,
+    "generation_ms_max": 21463,
+    "generation_ms_mean": 7305.818181818182,
+    "generation_ms_min": 329,
+    "selected_sources": 66,
+    "strict_no_fallbacks": true,
+    "successful": 66
+  }
+}

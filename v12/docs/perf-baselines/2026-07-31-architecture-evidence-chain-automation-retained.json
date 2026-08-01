@@ -1,0 +1,71 @@
+{
+  "kind": "able-architecture-evidence-chain-automation-retained",
+  "date": "2026-07-31",
+  "decision": "retain-release-tooling-only",
+  "chain": {
+    "manifest": "v12/bench-architecture-evidence-chain.json",
+    "node_count": 5,
+    "nodes": [
+      "bytecode-native-hot-tier",
+      "cross-engine-structural-strategy",
+      "portable-vm-backend-adr",
+      "shared-runtime-semantic-abi",
+      "shared-runtime-closed-region"
+    ],
+    "current_refresh": {
+      "evidence_updates": 0,
+      "checked_report_updates": 0
+    }
+  },
+  "transaction_contract": {
+    "temporary_workspace": "/var/tmp",
+    "allowed_json_changes": "sha256 values in records with source paths",
+    "non_source_json_identical": true,
+    "markdown_identical": true,
+    "atomic_writes": true,
+    "rollback_on_any_failure": true,
+    "final_full_chain_check": true
+  },
+  "verification": {
+    "synthetic_tests": 5,
+    "synthetic_seconds_approx": 1.2,
+    "existing_node_contract_suites": 5,
+    "full_run_all_tests": "pass",
+    "compiler_tests": 844,
+    "canonical_compiler_test_seconds": 14.69,
+    "maximum_compiler_batch_seconds": 48.77,
+    "cleaned_temporary_bytes": 37906702,
+    "remaining_tmp_able_paths": 0,
+    "remaining_var_tmp_able_paths": 0,
+    "scoreboard_rows": 132,
+    "successful_able_and_reference_samples_per_row": 5,
+    "frontier_actionable_groups": 0
+  },
+  "selector_after": {
+    "closure_count": 23,
+    "current_count": 23,
+    "invalidated_count": 0,
+    "selected_by_mode": {
+      "compiled": [],
+      "bytecode": []
+    }
+  },
+  "production_changes": {
+    "compiler": false,
+    "generated_runtime": false,
+    "runtime": false,
+    "tree_walker": false,
+    "bytecode_vm": false,
+    "stdlib": false,
+    "language": false,
+    "dependencies": false,
+    "benchmarks": false,
+    "fixtures": false,
+    "wasm": false
+  },
+  "next": {
+    "action": "wait-for-genuine-mode-aware-closure-invalidation",
+    "profiling_admitted_now": false,
+    "reason": "No exact unresolved owner is selected in either performance mode."
+  }
+}

@@ -34,12 +34,27 @@ type Options struct {
 	// between native generated values and the shared runtime representation.
 	// It is selection instrumentation and must remain absent from normal builds.
 	EmitTypedBoundaryTelemetry bool
+	// CollectNominalEffects computes conservative typed callable effects for
+	// diagnostics. The result does not select carriers or alter generated Go.
+	CollectNominalEffects bool
+	// CollectNominalOwnership computes fail-closed interprocedural ownership
+	// transfer proofs for diagnostics. Report collection remains independent
+	// from the default generated ownership execution path.
+	CollectNominalOwnership bool
+	// ExperimentalNominalOwnership is retained for source compatibility.
+	// Proven caller-owned nominal-result lowering is enabled by default.
+	ExperimentalNominalOwnership bool
+	// DisableNominalOwnership disables caller-owned nominal-result lowering for
+	// diagnostic baselines. Ordinary compilation must leave this false.
+	DisableNominalOwnership bool
 }
 
 type Result struct {
-	Files     map[string][]byte
-	Warnings  []string
-	Fallbacks []FallbackInfo
+	Files            map[string][]byte
+	Warnings         []string
+	Fallbacks        []FallbackInfo
+	NominalEffects   *NominalEffectReport
+	NominalOwnership *NominalOwnershipReport
 }
 
 type Compiler struct {
@@ -68,6 +83,14 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	var warnings []string
 	for _, diag := range check.Diagnostics {
 		message := typechecker.DescribeModuleDiagnostic(diag)
+		switch diag.Diagnostic.Code {
+		case typechecker.DiagnosticCodeStaticOnlyInterfaceMethod:
+			return nil, fmt.Errorf("compiler: static-only interface method call rejected: %s", message)
+		case typechecker.DiagnosticCodeInvariantTypeArgument:
+			return nil, fmt.Errorf("compiler: invariant type argument mismatch rejected: %s", message)
+		case typechecker.DiagnosticCodeCallableSignatureMismatch:
+			return nil, fmt.Errorf("compiler: callable signature mismatch rejected: %s", message)
+		}
 		warnings = append(warnings, message)
 	}
 	gen := newGenerator(c.opts)
@@ -84,6 +107,13 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	// dynamic modules are allowed to keep explicit boundary call sites compiled.
 	gen.resolveCompileabilityFixedPoint()
 	gen.resolveCallerOwnedResults()
+	var nominalOwnership *NominalOwnershipReport
+	if !c.opts.DisableNominalOwnership {
+		executionReport := gen.prepareNominalOwnershipExecution()
+		if c.opts.CollectNominalOwnership {
+			nominalOwnership = executionReport
+		}
+	}
 	gen.discardRedundantImplFallbackSpecializations()
 	appendDynamicFeatureWarnings(gen, dynamicReport)
 	fallbacks := gen.collectFallbacks()
@@ -99,8 +129,21 @@ func (c *Compiler) Compile(program *driver.Program) (*Result, error) {
 	if err := c.validateFallbackPolicy(fallbacks, dynamicReport); err != nil {
 		return nil, err
 	}
+	var nominalEffects *NominalEffectReport
+	if c.opts.CollectNominalEffects {
+		nominalEffects = gen.resolveNominalParameterEffects()
+	}
+	if c.opts.CollectNominalOwnership && nominalOwnership == nil {
+		nominalOwnership = gen.resolveNominalOwnership()
+	}
 	gen.warnings = append(warnings, gen.warnings...)
-	return &Result{Files: files, Warnings: gen.warnings, Fallbacks: fallbacks}, nil
+	return &Result{
+		Files:            files,
+		Warnings:         gen.warnings,
+		Fallbacks:        fallbacks,
+		NominalEffects:   nominalEffects,
+		NominalOwnership: nominalOwnership,
+	}, nil
 }
 
 func (c *Compiler) validateFallbackPolicy(fallbacks []FallbackInfo, dynamicReport *DynamicFeatureReport) error {

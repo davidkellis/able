@@ -1,0 +1,8 @@
+{
+  "description": "nested type arguments are invariant across static call boundaries",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/exec/07_11_invariant_type_arguments_diag/main.able:7:9 typechecker: argument 1 has type Array i8, expected Array i32"
+    ]
+  }
+}

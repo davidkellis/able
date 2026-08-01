@@ -1,0 +1,417 @@
+{
+  "generated_at": "2026-07-31T03:15:49.582222Z",
+  "suite": "coverage",
+  "benchmarks": [
+    "concurrent_graph_visitors",
+    "concurrent_event_routing",
+    "validated_job_pipeline"
+  ],
+  "timeout_seconds": 60,
+  "telemetry_build": true,
+  "telemetry_mode": "typed-boundary",
+  "rows": [
+    {
+      "benchmark": "concurrent_graph_visitors",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "categories": {
+          "any_to_runtime": 0,
+          "array_from_runtime": 1,
+          "array_to_runtime": 0,
+          "callable_from_runtime": 0,
+          "callable_to_runtime": 0,
+          "control_from_error": 9,
+          "control_to_error": 0,
+          "integer_from_runtime": 0,
+          "interface_from_runtime": 0,
+          "interface_lift_via_runtime": 0,
+          "interface_to_runtime": 0,
+          "struct_from_runtime": 4,
+          "struct_to_runtime": 4,
+          "union_from_runtime": 0,
+          "union_to_runtime": 0
+        },
+        "shapes": [
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "error",
+            "category": "control_from_error",
+            "count": 9,
+            "generated_function": "__able_control_from_error_with_node",
+            "id": 4,
+            "immediate_consumer": "*__ableControl",
+            "reason": "preserve Able raise and runtime-error control semantics"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_graph_visitors/concurrent_graph_visitors.able:32:1",
+            "carrier": "runtime.Value",
+            "category": "struct_from_runtime",
+            "count": 4,
+            "generated_function": "__able_struct_VisitReport_from",
+            "id": 139,
+            "immediate_consumer": "*VisitReport",
+            "reason": "recover a nominal Able value from semantic runtime encoding"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_graph_visitors/concurrent_graph_visitors.able:32:1",
+            "carrier": "*VisitReport",
+            "category": "struct_to_runtime",
+            "count": 4,
+            "generated_function": "__able_struct_VisitReport_to_seen",
+            "id": 140,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "core::Array<string>",
+            "carrier": "runtime.Value",
+            "category": "array_from_runtime",
+            "count": 1,
+            "generated_function": "__able_array_String_from",
+            "id": 171,
+            "immediate_consumer": "*__able_array_String",
+            "reason": "recover a static primitive Array carrier from runtime representation"
+          }
+        ]
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "concurrent_event_routing",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "categories": {
+          "any_to_runtime": 0,
+          "array_from_runtime": 1,
+          "array_to_runtime": 0,
+          "callable_from_runtime": 0,
+          "callable_to_runtime": 0,
+          "control_from_error": 43048,
+          "control_to_error": 0,
+          "integer_from_runtime": 16399,
+          "interface_from_runtime": 0,
+          "interface_lift_via_runtime": 0,
+          "interface_to_runtime": 0,
+          "struct_from_runtime": 12300,
+          "struct_to_runtime": 13320,
+          "union_from_runtime": 4101,
+          "union_to_runtime": 4100
+        },
+        "shapes": [
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "error",
+            "category": "control_from_error",
+            "count": 43048,
+            "generated_function": "__able_control_from_error_with_node",
+            "id": 0,
+            "immediate_consumer": "*__ableControl",
+            "reason": "preserve Able raise and runtime-error control semantics"
+          },
+          {
+            "able_source": "<compiler-runtime>::channel-handle",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 16397,
+            "generated_function": "__able_int64_from_value",
+            "id": 3,
+            "immediate_consumer": "int64 channel handle",
+            "reason": "recover an opaque channel-service handle at its runtime ABI"
+          },
+          {
+            "able_source": "<compiler-runtime>::channel-capacity",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 2,
+            "generated_function": "__able_int64_from_value",
+            "id": 4,
+            "immediate_consumer": "int64 channel capacity",
+            "reason": "validate channel capacity at the runtime channel-construction ABI"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:35:1",
+            "carrier": "runtime.Value",
+            "category": "struct_from_runtime",
+            "count": 3072,
+            "generated_function": "__able_struct_AcceptedRoute_from",
+            "id": 6,
+            "immediate_consumer": "*AcceptedRoute",
+            "reason": "recover a nominal Able value from semantic runtime encoding"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:35:1",
+            "carrier": "*AcceptedRoute",
+            "category": "struct_to_runtime",
+            "count": 3072,
+            "generated_function": "__able_struct_AcceptedRoute_to_seen",
+            "id": 7,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:30:1",
+            "carrier": "runtime.Value",
+            "category": "struct_from_runtime",
+            "count": 4100,
+            "generated_function": "__able_struct_EventTask_from",
+            "id": 55,
+            "immediate_consumer": "*EventTask",
+            "reason": "recover a nominal Able value from semantic runtime encoding"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:30:1",
+            "carrier": "*EventTask",
+            "category": "struct_to_runtime",
+            "count": 4096,
+            "generated_function": "__able_struct_EventTask_to_seen",
+            "id": 56,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:40:1",
+            "carrier": "runtime.Value",
+            "category": "struct_from_runtime",
+            "count": 1028,
+            "generated_function": "__able_struct_RejectedRoute_from",
+            "id": 121,
+            "immediate_consumer": "*RejectedRoute",
+            "reason": "recover a nominal Able value from semantic runtime encoding"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:40:1",
+            "carrier": "*RejectedRoute",
+            "category": "struct_to_runtime",
+            "count": 1028,
+            "generated_function": "__able_struct_RejectedRoute_to_seen",
+            "id": 122,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:47:1",
+            "carrier": "runtime.Value",
+            "category": "struct_from_runtime",
+            "count": 4100,
+            "generated_function": "__able_struct_RoutedEvent_from",
+            "id": 125,
+            "immediate_consumer": "*RoutedEvent",
+            "reason": "recover a nominal Able value from semantic runtime encoding"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:47:1",
+            "carrier": "*RoutedEvent",
+            "category": "struct_to_runtime",
+            "count": 4100,
+            "generated_function": "__able_struct_RoutedEvent_to_seen",
+            "id": 126,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/concurrent_event_routing/concurrent_event_routing.able:15:1",
+            "carrier": "*RoutingError",
+            "category": "struct_to_runtime",
+            "count": 1024,
+            "generated_function": "__able_struct_RoutingError_to_seen",
+            "id": 128,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "core::Array<string>",
+            "carrier": "runtime.Value",
+            "category": "array_from_runtime",
+            "count": 1,
+            "generated_function": "__able_array_String_from",
+            "id": 179,
+            "immediate_consumer": "*__able_array_String",
+            "reason": "recover a static primitive Array carrier from runtime representation"
+          },
+          {
+            "able_source": "concurrent_event_routing.concurrent_event_routing::AcceptedRoute | RejectedRoute",
+            "carrier": "runtime.Value",
+            "category": "union_from_runtime",
+            "count": 4100,
+            "generated_function": "__able_union__AcceptedRoute_or__RejectedRoute_try_from_value",
+            "id": 293,
+            "immediate_consumer": "__able_union__AcceptedRoute_or__RejectedRoute",
+            "reason": "recover a statically represented union with runtime type matching"
+          },
+          {
+            "able_source": "concurrent_event_routing.concurrent_event_routing::AcceptedRoute | RejectedRoute",
+            "carrier": "__able_union__AcceptedRoute_or__RejectedRoute",
+            "category": "union_to_runtime",
+            "count": 4100,
+            "generated_function": "__able_union__AcceptedRoute_or__RejectedRoute_to_value",
+            "id": 294,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a statically represented union for runtime-visible semantics"
+          },
+          {
+            "able_source": "able.os::IOError | String",
+            "carrier": "runtime.Value",
+            "category": "union_from_runtime",
+            "count": 1,
+            "generated_function": "__able_union__IOError_or_string_try_from_value",
+            "id": 317,
+            "immediate_consumer": "__able_union__IOError_or_string",
+            "reason": "recover a statically represented union with runtime type matching"
+          }
+        ]
+      },
+      "verification": "verified"
+    },
+    {
+      "benchmark": "validated_job_pipeline",
+      "command_exit": 0,
+      "interpreter_dependency": false,
+      "status": "ok",
+      "strict_no_fallbacks": true,
+      "telemetry": {
+        "categories": {
+          "any_to_runtime": 0,
+          "array_from_runtime": 1,
+          "array_to_runtime": 0,
+          "callable_from_runtime": 0,
+          "callable_to_runtime": 0,
+          "control_from_error": 16927,
+          "control_to_error": 0,
+          "integer_from_runtime": 8207,
+          "interface_from_runtime": 0,
+          "interface_lift_via_runtime": 0,
+          "interface_to_runtime": 0,
+          "struct_from_runtime": 4104,
+          "struct_to_runtime": 4608,
+          "union_from_runtime": 1,
+          "union_to_runtime": 0
+        },
+        "shapes": [
+          {
+            "able_source": "<compiler-runtime>::error-control",
+            "carrier": "error",
+            "category": "control_from_error",
+            "count": 16927,
+            "generated_function": "__able_control_from_error_with_node",
+            "id": 0,
+            "immediate_consumer": "*__ableControl",
+            "reason": "preserve Able raise and runtime-error control semantics"
+          },
+          {
+            "able_source": "<compiler-runtime>::channel-handle",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 8205,
+            "generated_function": "__able_int64_from_value",
+            "id": 3,
+            "immediate_consumer": "int64 channel handle",
+            "reason": "recover an opaque channel-service handle at its runtime ABI"
+          },
+          {
+            "able_source": "<compiler-runtime>::channel-capacity",
+            "carrier": "runtime.Value",
+            "category": "integer_from_runtime",
+            "count": 2,
+            "generated_function": "__able_int64_from_value",
+            "id": 4,
+            "immediate_consumer": "int64 channel capacity",
+            "reason": "validate channel capacity at the runtime channel-construction ABI"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able:20:1",
+            "carrier": "runtime.Value",
+            "category": "struct_from_runtime",
+            "count": 2052,
+            "generated_function": "__able_struct_JobResult_from",
+            "id": 73,
+            "immediate_consumer": "*JobResult",
+            "reason": "recover a nominal Able value from semantic runtime encoding"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able:20:1",
+            "carrier": "*JobResult",
+            "category": "struct_to_runtime",
+            "count": 2052,
+            "generated_function": "__able_struct_JobResult_to_seen",
+            "id": 74,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able:25:1",
+            "carrier": "runtime.Value",
+            "category": "struct_from_runtime",
+            "count": 2052,
+            "generated_function": "__able_struct_JobTask_from",
+            "id": 75,
+            "immediate_consumer": "*JobTask",
+            "reason": "recover a nominal Able value from semantic runtime encoding"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able:25:1",
+            "carrier": "*JobTask",
+            "category": "struct_to_runtime",
+            "count": 2048,
+            "generated_function": "__able_struct_JobTask_to_seen",
+            "id": 76,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "/home/david/sync/projects/able/v12/examples/benchmarks/validated_job_pipeline/validated_job_pipeline.able:13:1",
+            "carrier": "*ValidationError",
+            "category": "struct_to_runtime",
+            "count": 508,
+            "generated_function": "__able_struct_ValidationError_to_seen",
+            "id": 138,
+            "immediate_consumer": "runtime.Value",
+            "reason": "encode a nominal Able value for semantic runtime visibility"
+          },
+          {
+            "able_source": "core::Array<string>",
+            "carrier": "runtime.Value",
+            "category": "array_from_runtime",
+            "count": 1,
+            "generated_function": "__able_array_String_from",
+            "id": 167,
+            "immediate_consumer": "*__able_array_String",
+            "reason": "recover a static primitive Array carrier from runtime representation"
+          },
+          {
+            "able_source": "able.os::IOError | String",
+            "carrier": "runtime.Value",
+            "category": "union_from_runtime",
+            "count": 1,
+            "generated_function": "__able_union__IOError_or_string_try_from_value",
+            "id": 283,
+            "immediate_consumer": "__able_union__IOError_or_string",
+            "reason": "recover a statically represented union with runtime type matching"
+          }
+        ]
+      },
+      "verification": "verified"
+    }
+  ],
+  "totals": {
+    "any_to_runtime": 0,
+    "integer_from_runtime": 24606,
+    "array_from_runtime": 3,
+    "array_to_runtime": 0,
+    "struct_from_runtime": 16408,
+    "struct_to_runtime": 17932,
+    "union_from_runtime": 4102,
+    "union_to_runtime": 4100,
+    "interface_from_runtime": 0,
+    "interface_to_runtime": 0,
+    "callable_from_runtime": 0,
+    "callable_to_runtime": 0,
+    "control_from_error": 59984,
+    "control_to_error": 0
+  }
+}

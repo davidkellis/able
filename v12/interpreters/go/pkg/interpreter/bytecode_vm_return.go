@@ -162,6 +162,11 @@ func (vm *bytecodeVM) coerceCachedCanonicalProgramReturnValue(canonical ast.Type
 			}
 		}
 	}
+	if info, ok := parseTypeExpression(canonical); ok && info.name != "" {
+		if _, isInterface := vm.interp.interfaces[vm.interp.canonicalInterfaceName(info.name)]; isInterface {
+			return vm.interp.coerceValueToTypeInEnv(canonical, val, vm.env)
+		}
+	}
 	if !vm.interp.matchesType(canonical, val) {
 		expected := typeExpressionToString(canonical)
 		actual := val.Kind().String()
@@ -174,7 +179,7 @@ func (vm *bytecodeVM) coerceCachedCanonicalProgramReturnValue(canonical ast.Type
 		}
 		return nil, err
 	}
-	coerced, err := vm.interp.coerceValueToType(canonical, val)
+	coerced, err := vm.interp.coerceValueToTypeInEnv(canonical, val, vm.env)
 	if err != nil {
 		if instr != nil && instr.node != nil {
 			err = vm.interp.attachRuntimeContext(err, instr.node, vm.interp.stateFromEnv(vm.env))

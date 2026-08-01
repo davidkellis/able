@@ -104,6 +104,7 @@ type methodCacheKey struct {
 	typeName    string
 	methodName  string
 	ifaceFilter string
+	packageName string
 }
 
 type methodCacheEntry struct {
@@ -115,6 +116,7 @@ type interfaceImplCacheKey struct {
 	typeName      string
 	interfaceName string
 	ifaceArgs     typeExpressionSliceKey
+	packageName   string
 }
 
 type interfaceImplCacheEntry struct {
@@ -132,6 +134,7 @@ type interfaceMethodDictionaryCacheKey struct {
 	typeName      string
 	interfaceName string
 	ifaceArgs     typeExpressionSliceKey
+	packageName   string
 }
 
 type interfaceMethodDictionaryCacheEntry struct {

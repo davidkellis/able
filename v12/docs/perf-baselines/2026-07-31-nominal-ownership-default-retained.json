@@ -1,0 +1,249 @@
+{
+  "kind": "able-nominal-ownership-default",
+  "schema_version": 1,
+  "date": "2026-07-31",
+  "decision": {
+    "disposition": "retained-default-execution",
+    "production_execution_change": true,
+    "default_compilation_changed": true,
+    "diagnostic_opt_out": "--no-nominal-ownership",
+    "compatibility_flag": "--experimental-nominal-ownership",
+    "storage_reuse_enabled": true,
+    "carrier_selection_changed": false,
+    "runtime_changed": false,
+    "interpreter_changed": false,
+    "bytecode_changed": false,
+    "stdlib_changed": false,
+    "language_changed": false,
+    "benchmark_changed": false,
+    "wasm_changed": false
+  },
+  "execution_rule": {
+    "default": "prepare and consume the fail-closed interprocedural nominal ownership report",
+    "opt_out": "retain the former fresh-allocation execution path for diagnostic A/B comparison",
+    "proof_report_collection": "independent and opt-in",
+    "fail_closed": [
+      "parameter-origin source",
+      "dynamic or unresolved dispatch",
+      "retained alias",
+      "stored alias",
+      "returned alias",
+      "captured source",
+      "conditional or nonstraight replacement",
+      "incomplete interface implementation set",
+      "embedded result path deeper than one field"
+    ]
+  },
+  "strict_census": {
+    "selected": 66,
+    "successful": 66,
+    "failed": 0,
+    "dependency_resolved": 66,
+    "dependency_failed": 0,
+    "interpreter_linked_rows": 0,
+    "nominal_ownership_execution_enabled": true,
+    "experimental_nominal_ownership": false,
+    "generated_bytes": 288134658,
+    "generated_go_lines": 7082742,
+    "generated_files": 3316,
+    "generation_ms": {
+      "minimum": 378,
+      "maximum": 14983,
+      "mean": 4103.242424242424
+    },
+    "raw_aggregate_sha256": "b1c357bd772b8e58df51de50d6fed0bcd92d5892155a7452baa3a678d96aedb4"
+  },
+  "balanced_timing": {
+    "cohorts_per_application": 120,
+    "orders": 6,
+    "verified_processes": 1800,
+    "cpu_affinity": "12-15",
+    "environment": {
+      "GOMAXPROCS": "4",
+      "GOGC": "50",
+      "GOMEMLIMIT": "1GiB"
+    },
+    "raw_report": {
+      "path": "v12/docs/perf-baselines/2026-07-31-nominal-ownership-default-balanced-timings.json",
+      "sha256": "34680f3445111f440455bcb20470236b8f7dd92948116d93e1bd837b2bb953f5"
+    },
+    "rows": [
+      {
+        "benchmark": "concurrent_graph_visitors",
+        "optout_seconds_mean": 0.006097661291666666,
+        "default_seconds_mean": 0.005883668650000001,
+        "go_seconds_mean": 0.0017025088666666667,
+        "default_delta_percent": -3.509421586914274,
+        "default_go_ratio": 3.455881355566509
+      },
+      {
+        "benchmark": "concurrent_packet_codecs",
+        "optout_seconds_mean": 0.007062159008333333,
+        "default_seconds_mean": 0.005707857266666667,
+        "go_seconds_mean": 0.0015534603666666666,
+        "default_delta_percent": -19.17687976252861,
+        "default_go_ratio": 3.674285735988416
+      },
+      {
+        "benchmark": "concurrent_tree_folds",
+        "optout_seconds_mean": 0.0050885357,
+        "default_seconds_mean": 0.004631427341666666,
+        "go_seconds_mean": 0.0015361067166666665,
+        "default_delta_percent": -8.983102119797138,
+        "default_go_ratio": 3.015042699453075
+      },
+      {
+        "benchmark": "concurrent_audio_voices",
+        "optout_seconds_mean": 0.011983339875,
+        "default_seconds_mean": 0.010925402166666666,
+        "go_seconds_mean": 0.0018079281000000001,
+        "default_delta_percent": -8.828404429556702,
+        "default_go_ratio": 6.043051251134746
+      },
+      {
+        "benchmark": "concurrent_scene_tiles",
+        "optout_seconds_mean": 0.006059886608333333,
+        "default_seconds_mean": 0.005427225641666667,
+        "go_seconds_mean": 0.0013876342416666667,
+        "default_delta_percent": -10.440145295732995,
+        "default_go_ratio": 3.9111355706732254
+      }
+    ]
+  },
+  "allocation_ab": {
+    "runs_per_product": 5,
+    "phase": "main",
+    "verified_processes": 50,
+    "raw_report": {
+      "path": "v12/docs/perf-baselines/2026-07-31-nominal-ownership-default-allocation-summary.json",
+      "sha256": "5ef72c8b480172c94f46103ec2fdbcb0bc59bf478aff34f3c990d51639fef67d"
+    },
+    "rows": [
+      {
+        "benchmark": "concurrent_graph_visitors",
+        "optout_bytes_mean": 1201897.6,
+        "default_bytes_mean": 803873.6,
+        "bytes_delta_percent": -33.11629875956156,
+        "optout_objects_mean": 46906.2,
+        "default_objects_mean": 38698.2,
+        "objects_delta_percent": -17.49875283011627
+      },
+      {
+        "benchmark": "concurrent_packet_codecs",
+        "optout_bytes_mean": 2407104,
+        "default_bytes_mean": 567192,
+        "bytes_delta_percent": -76.43674722820451,
+        "optout_objects_mean": 49405.6,
+        "default_objects_mean": 16620.6,
+        "objects_delta_percent": -66.35887429765047
+      },
+      {
+        "benchmark": "concurrent_tree_folds",
+        "optout_bytes_mean": 929992,
+        "default_bytes_mean": 537032,
+        "bytes_delta_percent": -42.25412691722079,
+        "optout_objects_mean": 24779.2,
+        "default_objects_mean": 16591.6,
+        "objects_delta_percent": -33.04222896622975
+      },
+      {
+        "benchmark": "concurrent_audio_voices",
+        "optout_bytes_mean": 3690915.2,
+        "default_bytes_mean": 1591337.6,
+        "bytes_delta_percent": -56.8850132346579,
+        "optout_objects_mean": 98546.8,
+        "default_objects_mean": 65774.4,
+        "objects_delta_percent": -33.25567141703232
+      },
+      {
+        "benchmark": "concurrent_scene_tiles",
+        "optout_bytes_mean": 1197952,
+        "default_bytes_mean": 406433.6,
+        "bytes_delta_percent": -66.07263062292981,
+        "optout_objects_mean": 37088.6,
+        "default_objects_mean": 24783.6,
+        "objects_delta_percent": -33.177310548254724
+      }
+    ]
+  },
+  "official_scorecard": {
+    "able_verified_processes": 25,
+    "go_verified_processes": 25,
+    "go_toolchain": "go1.26.5",
+    "scorecard": {
+      "path": "v12/docs/perf-baselines/2026-07-31-nominal-ownership-default-scorecard-five.json",
+      "sha256": "a041dfb69b1b35a62f1186c5c023bee2a9a82661d65cdefa0c5b086f6058dd94"
+    },
+    "go_references": {
+      "path": "v12/docs/perf-baselines/2026-07-31-nominal-ownership-default-go-references.json",
+      "sha256": "e20ebd40286accd0b377023acd61a09a376ece8ea8bd2944668323e3c91cd6b1"
+    },
+    "aggregate_rows": 132,
+    "changed_rows": 5,
+    "preserved_rows": 127,
+    "frontier_actionable_groups": 0
+  },
+  "broad_verification": {
+    "products": 18,
+    "verified_products": 18,
+    "inspected_able_dependency_graphs": 13,
+    "interpreter_linked_products": 0,
+    "additional_default_applications": [
+      "binary_event_log",
+      "concurrent_document_pipeline",
+      "versioned_telemetry_pipeline"
+    ]
+  },
+  "verification": {
+    "focused_ownership_guards_seconds": 6.276,
+    "cli_default_optout_guards_seconds": 5.165,
+    "interface_alias_result_option_guards_seconds": 37.942,
+    "ablec_tests_seconds": 5.437,
+    "generated_boundary_census_tests_seconds": 0.002,
+    "strict_census_complete": true,
+    "dependency_census_complete": true,
+    "public_output_verification": true,
+    "source_files_under_1000_lines": true,
+    "individual_tests_under_60_seconds": true
+  },
+  "ledger": {
+    "closure_count": 23,
+    "current_count": 11,
+    "invalidated_count": 12,
+    "reason": "scope-content-drift:compiler-production",
+    "report": {
+      "path": "v12/docs/perf-baselines/2026-07-31-nominal-ownership-default-ledger-invalidation.json",
+      "sha256": "9ba36f4906d11d98120e0d45e24b0404ead7554d2409ed67739f32c277a6a2ae"
+    },
+    "advanced": false
+  },
+  "inputs": {
+    "compiler": {
+      "path": "v12/interpreters/go/pkg/compiler/compiler.go",
+      "sha256": "60e8f59eaed8841551107c1464285f97c57826e7c8ff1b862aaf82a3493ffeae"
+    },
+    "ablec": {
+      "path": "v12/interpreters/go/cmd/ablec/main.go",
+      "sha256": "cfe3edc74309094e7a8ba8272780189526d25cdd62e448b2323a6732b28cb58b"
+    },
+    "census_driver": {
+      "path": "v12/bench_compiled_static_boundary_census",
+      "sha256": "855788a6866fe3108697354e763fb1ed41d5ed571fb3c9db20c8b8a25a29f928"
+    },
+    "frontier": {
+      "path": "v12/docs/perf-baselines/2026-07-20-cross-mode-performance-frontier.json",
+      "sha256": "560f4cdcfc66247fcc52c7ebefa680ab867b61cba02f2a5d85d734cc990195b1"
+    }
+  },
+  "cleanup": {
+    "disk_backed_workspace_removed_kib": 2240196,
+    "remaining_default_task_directories": 0,
+    "ram_backed_tmp_used": false
+  },
+  "next": {
+    "action": "Refresh the 12 closures selected by the performance-evidence ledger.",
+    "why": "The default compiler change invalidated their compiler-production scope, while this tranche measured only the five applications needed to promote the rule.",
+    "entails": "Remeasure each selected closure with verifier-backed repeated default and pinned-Go runs, preserve interpreter-free dependency gates, update only stale evidence, and reconcile the cross-family closure last.",
+    "importance": "Current compiler-wide closures are required to select the next general lowering owner from fresh evidence rather than stale pre-default profiles."
+  }
+}

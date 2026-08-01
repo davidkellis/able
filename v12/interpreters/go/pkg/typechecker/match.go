@@ -42,6 +42,7 @@ func (c *Checker) checkMatchExpression(env *Environment, expr *ast.MatchExpressi
 	}
 
 	resultType := mergeBranchTypes(branchTypes)
+	c.recordPatternCoverage(env, expr, subjectType, expr.Clauses)
 	c.infer.set(expr, resultType)
 	return diags, resultType
 }

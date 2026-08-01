@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+"""Check or safely refresh the ordered architecture-evidence report chain."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_REPO_ROOT = SCRIPT_DIR.parent
+DEFAULT_MANIFEST = SCRIPT_DIR / "bench-architecture-evidence-chain.json"
+
+
+@dataclass(frozen=True)
+class Node:
+    identifier: str
+    generator: Path
+    evidence: Path
+    checked_json: Path
+    checked_markdown: Path
+    dependencies: tuple[str, ...]
+
+
+def load_object(path: Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise ValueError(f"{label} not found: {path}") from None
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{label} is invalid JSON: {error}") from None
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    return value
+
+
+def resolve(root: Path, value: Any, label: str) -> Path:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{label} must be a non-empty path string")
+    path = Path(value)
+    return path.resolve() if path.is_absolute() else (root / path).resolve()
+
+
+def repo_path(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root).as_posix()
+    except ValueError:
+        return os.path.relpath(path.resolve(), root)
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except FileNotFoundError:
+        raise ValueError(f"source not found: {path}") from None
+    return digest.hexdigest()
+
+
+def source_paths(root: Path, evidence: dict[str, Any], label: str) -> set[Path]:
+    raw_sources = evidence.get("sources")
+    if not isinstance(raw_sources, dict):
+        raise ValueError(f"{label} needs a sources object")
+    paths: set[Path] = set()
+    for source_id, record in raw_sources.items():
+        raw_path = record.get("path") if isinstance(record, dict) else record
+        paths.add(resolve(root, raw_path, f"{label} source {source_id}"))
+    return paths
+
+
+def load_manifest(path: Path, root: Path) -> list[Node]:
+    manifest = load_object(path, "architecture evidence manifest")
+    if manifest.get("kind") != "able-architecture-evidence-chain":
+        raise ValueError("architecture evidence manifest has the wrong kind")
+    if manifest.get("version") != 1:
+        raise ValueError("architecture evidence manifest has an unsupported version")
+    raw_nodes = manifest.get("nodes")
+    if not isinstance(raw_nodes, list) or not raw_nodes:
+        raise ValueError("architecture evidence manifest needs a non-empty nodes array")
+
+    nodes: list[Node] = []
+    seen: set[str] = set()
+    for index, raw_node in enumerate(raw_nodes):
+        if not isinstance(raw_node, dict):
+            raise ValueError(f"manifest node {index} must be an object")
+        identifier = raw_node.get("id")
+        if not isinstance(identifier, str) or not identifier:
+            raise ValueError(f"manifest node {index} needs a non-empty id")
+        if identifier in seen:
+            raise ValueError(f"duplicate architecture evidence node: {identifier}")
+        dependencies = raw_node.get("dependencies")
+        if not isinstance(dependencies, list) or not all(
+            isinstance(item, str) and item for item in dependencies
+        ):
+            raise ValueError(f"node {identifier} dependencies must be an array of ids")
+        if len(set(dependencies)) != len(dependencies):
+            raise ValueError(f"node {identifier} has duplicate dependencies")
+        missing = [dependency for dependency in dependencies if dependency not in seen]
+        if missing:
+            raise ValueError(
+                f"node {identifier} is not topological; dependencies must precede it: "
+                + ", ".join(missing)
+            )
+        nodes.append(
+            Node(
+                identifier=identifier,
+                generator=resolve(root, raw_node.get("generator"), f"{identifier} generator"),
+                evidence=resolve(root, raw_node.get("evidence"), f"{identifier} evidence"),
+                checked_json=resolve(
+                    root, raw_node.get("checked_json"), f"{identifier} checked JSON"
+                ),
+                checked_markdown=resolve(
+                    root,
+                    raw_node.get("checked_markdown"),
+                    f"{identifier} checked Markdown",
+                ),
+                dependencies=tuple(dependencies),
+            )
+        )
+        seen.add(identifier)
+
+    checked_owners: dict[Path, str] = {}
+    for node in nodes:
+        previous = checked_owners.get(node.checked_json)
+        if previous is not None:
+            raise ValueError(
+                f"nodes {previous} and {node.identifier} share checked JSON "
+                f"{repo_path(root, node.checked_json)}"
+            )
+        checked_owners[node.checked_json] = node.identifier
+
+    for node in nodes:
+        evidence = load_object(node.evidence, f"{node.identifier} evidence")
+        referenced = {
+            checked_owners[path]
+            for path in source_paths(root, evidence, f"{node.identifier} evidence")
+            if path in checked_owners and checked_owners[path] != node.identifier
+        }
+        declared = set(node.dependencies)
+        if referenced != declared:
+            raise ValueError(
+                f"node {node.identifier} dependency mismatch: declared "
+                f"{sorted(declared)}, evidence references {sorted(referenced)}"
+            )
+    return nodes
+
+
+def validate_source_pins(root: Path, node: Node) -> None:
+    evidence = load_object(node.evidence, f"{node.identifier} evidence")
+    raw_sources = evidence["sources"]
+    for source_id, record in raw_sources.items():
+        if not isinstance(record, dict):
+            continue
+        raw_path = record.get("path")
+        expected = record.get("sha256")
+        if not isinstance(raw_path, str) or not isinstance(expected, str):
+            raise ValueError(
+                f"{node.identifier} source {source_id} needs path and sha256 strings"
+            )
+        source = resolve(root, raw_path, f"{node.identifier} source {source_id}")
+        actual = sha256(source)
+        if actual != expected:
+            raise ValueError(
+                f"{node.identifier} source {source_id} fingerprint drifted: "
+                f"expected {expected}, got {actual}"
+            )
+
+
+def refresh_source_pins(root: Path, node: Node) -> bytes | None:
+    original = node.evidence.read_bytes()
+    evidence = load_object(node.evidence, f"{node.identifier} evidence")
+    changed = False
+    for source_id, record in evidence["sources"].items():
+        if not isinstance(record, dict):
+            continue
+        raw_path = record.get("path")
+        expected = record.get("sha256")
+        if not isinstance(raw_path, str) or not isinstance(expected, str):
+            raise ValueError(
+                f"{node.identifier} source {source_id} needs path and sha256 strings"
+            )
+        actual = sha256(resolve(root, raw_path, f"{node.identifier} source {source_id}"))
+        if actual != expected:
+            record["sha256"] = actual
+            changed = True
+    if not changed:
+        return None
+    return (json.dumps(evidence, indent=2) + "\n").encode()
+
+
+def masked_source_hashes(value: Any) -> Any:
+    if isinstance(value, list):
+        return [masked_source_hashes(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    masked: dict[str, Any] = {}
+    source_record = isinstance(value.get("path"), str) and isinstance(
+        value.get("sha256"), str
+    )
+    for key, item in value.items():
+        masked[key] = "<source-sha256>" if source_record and key == "sha256" else (
+            masked_source_hashes(item)
+        )
+    return masked
+
+
+def compare_json_structure(node: Node, candidate: bytes) -> None:
+    try:
+        previous = json.loads(node.checked_json.read_text(encoding="utf-8"))
+        refreshed = json.loads(candidate)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{node.identifier} generated invalid JSON: {error}") from None
+    if masked_source_hashes(previous) != masked_source_hashes(refreshed):
+        raise ValueError(
+            f"{node.identifier} decision-bearing JSON changed; refresh refused"
+        )
+
+
+def atomic_write(path: Path, content: bytes) -> None:
+    mode = path.stat().st_mode
+    handle = tempfile.NamedTemporaryFile(
+        mode="wb", prefix=f".{path.name}.", dir=path.parent, delete=False
+    )
+    temporary = Path(handle.name)
+    try:
+        with handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def run_generator(root: Path, node: Node, *arguments: str) -> None:
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(node.generator),
+                "--evidence",
+                str(node.evidence),
+                *arguments,
+            ],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as error:
+        raise ValueError(
+            f"{node.identifier} generator could not start: {error}"
+        ) from None
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise ValueError(f"{node.identifier} generator failed: {detail}")
+
+
+def check_chain(root: Path, nodes: list[Node]) -> None:
+    for node in nodes:
+        validate_source_pins(root, node)
+        run_generator(root, node, "--check")
+
+
+def refresh_chain(root: Path, nodes: list[Node]) -> tuple[int, int]:
+    backups = {
+        path: path.read_bytes()
+        for node in nodes
+        for path in (node.evidence, node.checked_json)
+    }
+    written: set[Path] = set()
+    evidence_updates = 0
+    report_updates = 0
+    try:
+        temp_parent = Path(os.environ.get("TMPDIR", "/var/tmp"))
+        with tempfile.TemporaryDirectory(
+            prefix="able-architecture-evidence-chain-", dir=temp_parent
+        ) as raw_temp:
+            temp = Path(raw_temp)
+            for index, node in enumerate(nodes):
+                refreshed_evidence = refresh_source_pins(root, node)
+                if refreshed_evidence is not None:
+                    written.add(node.evidence)
+                    atomic_write(node.evidence, refreshed_evidence)
+                    evidence_updates += 1
+
+                candidate_json = temp / f"{index:02d}-{node.identifier}.json"
+                candidate_markdown = temp / f"{index:02d}-{node.identifier}.md"
+                run_generator(
+                    root,
+                    node,
+                    "--json-out",
+                    str(candidate_json),
+                    "--markdown-out",
+                    str(candidate_markdown),
+                )
+                candidate = candidate_json.read_bytes()
+                compare_json_structure(node, candidate)
+                if candidate_markdown.read_bytes() != node.checked_markdown.read_bytes():
+                    raise ValueError(
+                        f"{node.identifier} Markdown changed; refresh refused"
+                    )
+                if candidate != node.checked_json.read_bytes():
+                    written.add(node.checked_json)
+                    atomic_write(node.checked_json, candidate)
+                    report_updates += 1
+            check_chain(root, nodes)
+    except (OSError, ValueError) as error:
+        for path in written:
+            atomic_write(path, backups[path])
+        raise ValueError(f"{error}; rolled back {len(written)} changed file(s)") from None
+    return evidence_updates, report_updates
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    parser.add_argument("--repo-root", type=Path, default=DEFAULT_REPO_ROOT)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--check", action="store_true")
+    mode.add_argument("--refresh", action="store_true")
+    args = parser.parse_args()
+    root = args.repo_root.resolve()
+    manifest = args.manifest.resolve()
+    try:
+        nodes = load_manifest(manifest, root)
+        if args.check:
+            check_chain(root, nodes)
+            print(f"architecture evidence chain current: {len(nodes)} node(s)")
+        else:
+            evidence_updates, report_updates = refresh_chain(root, nodes)
+            print(
+                f"architecture evidence chain refreshed: {len(nodes)} node(s), "
+                f"{evidence_updates} evidence update(s), "
+                f"{report_updates} checked report update(s)"
+            )
+    except ValueError as error:
+        parser.error(str(error))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

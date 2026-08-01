@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Able WASM browser smoke</title>
+    <script type="importmap">
+      {"imports":{"web-tree-sitter":"/vendor/web-tree-sitter.js"}}
+    </script>
+  </head>
+  <body data-status="running" data-detail="starting browser smoke">
+    <pre id="result">starting browser smoke</pre>
+    <script src="/wasm_exec.js"></script>
+    <script type="module" src="/browser_smoke.mjs"></script>
+  </body>
+</html>

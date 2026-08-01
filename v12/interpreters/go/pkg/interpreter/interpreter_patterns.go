@@ -244,7 +244,7 @@ func (i *Interpreter) collectPatternBindings(pattern ast.Pattern, value runtime.
 			}
 			return bindings, patternMismatchError{message: fmt.Sprintf("Typed pattern mismatch in assignment: expected %s, got %s", expected, actual)}
 		}
-		coerced, err := i.coerceValueToType(typeExpr, value)
+		coerced, err := i.coerceValueToTypeInEnv(typeExpr, value, env)
 		if err != nil {
 			return bindings, err
 		}
@@ -439,7 +439,7 @@ func (i *Interpreter) matchPatternIntoClauseEnv(pattern ast.Pattern, value runti
 			}
 			return nil, patternMismatchError{message: fmt.Sprintf("Typed pattern mismatch in assignment: expected %s, got %s", expected, actual)}
 		}
-		coerced, err := i.coerceValueToType(typeExpr, value)
+		coerced, err := i.coerceValueToTypeInEnv(typeExpr, value, base)
 		if err != nil {
 			return nil, err
 		}
@@ -692,7 +692,7 @@ func (i *Interpreter) assignPattern(
 			}
 			return fmt.Errorf("Typed pattern mismatch in assignment: expected %s, got %s", expected, actual)
 		}
-		coerced, err := i.coerceValueToType(typeExpr, value)
+		coerced, err := i.coerceValueToTypeInEnv(typeExpr, value, env)
 		if err != nil {
 			return err
 		}
@@ -832,7 +832,7 @@ func (i *Interpreter) matchTypedPatternValueInEnv(typeExpr ast.TypeExpression, v
 	if !i.matchesType(typeExpr, value) {
 		return nil, false
 	}
-	coerced, err := i.coerceValueToType(typeExpr, value)
+	coerced, err := i.coerceValueToTypeInEnv(typeExpr, value, env)
 	if err != nil {
 		return nil, false
 	}

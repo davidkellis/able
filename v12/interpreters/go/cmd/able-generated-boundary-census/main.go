@@ -14,38 +14,47 @@ import (
 	"strings"
 )
 
-const schemaVersion = 1
+const schemaVersion = 4
 
 type report struct {
-	Kind             string                  `json:"kind"`
-	SchemaVersion    int                     `json:"schema_version"`
-	Directory        string                  `json:"directory"`
-	GoFiles          int                     `json:"go_files"`
-	FunctionCounts   map[string]int          `json:"function_counts"`
-	DeclaredNominals int                     `json:"declared_nominal_structs"`
-	Scopes           map[string]*scopeReport `json:"scopes"`
-	ParseErrors      []string                `json:"parse_errors,omitempty"`
+	Kind               string                         `json:"kind"`
+	SchemaVersion      int                            `json:"schema_version"`
+	Directory          string                         `json:"directory"`
+	GoFiles            int                            `json:"go_files"`
+	FunctionCounts     map[string]int                 `json:"function_counts"`
+	DeclaredNominals   int                            `json:"declared_nominal_structs"`
+	Scopes             map[string]*scopeReport        `json:"scopes"`
+	NominalProofs      map[string]*nominalProof       `json:"main_direct_reachable_nominal_proofs"`
+	NominalEffectLinks map[string][]nominalEffectLink `json:"nominal_effect_links,omitempty"`
+	ParseErrors        []string                       `json:"parse_errors,omitempty"`
 }
 
 type scopeReport struct {
-	Functions           int                       `json:"functions"`
-	RuntimeValueTypes   int                       `json:"runtime_value_type_sites"`
-	BoundaryCategories  map[string]int            `json:"boundary_categories"`
-	BoundaryCallees     map[string]int            `json:"boundary_callees"`
-	BoundaryCallers     map[string]map[string]int `json:"boundary_callers"`
-	HeapNominalLiterals map[string]int            `json:"heap_nominal_literals"`
+	Functions                int                                  `json:"functions"`
+	RuntimeValueTypes        int                                  `json:"runtime_value_type_sites"`
+	BoundaryCategories       map[string]int                       `json:"boundary_categories"`
+	BoundaryCallees          map[string]int                       `json:"boundary_callees"`
+	BoundaryCallers          map[string]map[string]int            `json:"boundary_callers"`
+	SemanticParentBoundaries map[string]map[string]map[string]int `json:"semantic_parent_boundaries"`
+	HeapNominalLiterals      map[string]int                       `json:"heap_nominal_literals"`
 }
 
 func newScopeReport() *scopeReport {
 	return &scopeReport{
-		BoundaryCategories:  make(map[string]int),
-		BoundaryCallees:     make(map[string]int),
-		BoundaryCallers:     make(map[string]map[string]int),
-		HeapNominalLiterals: make(map[string]int),
+		BoundaryCategories:       make(map[string]int),
+		BoundaryCallees:          make(map[string]int),
+		BoundaryCallers:          make(map[string]map[string]int),
+		SemanticParentBoundaries: make(map[string]map[string]map[string]int),
+		HeapNominalLiterals:      make(map[string]int),
 	}
 }
 
 func main() {
+	nominalEffectsJSON := flag.String(
+		"nominal-effects-json",
+		"",
+		"join compiler nominal-effect summaries to generated unknown call sites",
+	)
 	flag.Parse()
 	if flag.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "usage: able-generated-boundary-census GENERATED_GO_DIRECTORY")
@@ -58,6 +67,15 @@ func main() {
 	result, err := analyze(dir)
 	if err != nil {
 		exitErr(err)
+	}
+	if *nominalEffectsJSON != "" {
+		result.NominalEffectLinks, err = joinNominalEffects(
+			*nominalEffectsJSON,
+			result.NominalProofs,
+		)
+		if err != nil {
+			exitErr(err)
+		}
 	}
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetEscapeHTML(false)
@@ -147,6 +165,7 @@ func analyze(dir string) (*report, error) {
 		result.Scopes["main_direct_reachable"].Functions++
 		analyzeFunction(function, result.Scopes["main_direct_reachable"], nominals)
 	}
+	result.NominalProofs = analyzeNominalProofs(fset, files, functions, nominals)
 	return result, nil
 }
 
@@ -210,6 +229,12 @@ func analyzeFunction(function *ast.FuncDecl, result *scopeReport, nominals map[s
 		selector, ok := node.(*ast.SelectorExpr)
 		if ok && selectorName(selector) == "runtime.Value" {
 			result.RuntimeValueTypes++
+			recordSemanticParentBoundary(
+				result,
+				"runtime_value_type",
+				"runtime.Value",
+				caller,
+			)
 		}
 		return true
 	})
@@ -218,6 +243,12 @@ func analyzeFunction(function *ast.FuncDecl, result *scopeReport, nominals map[s
 		case *ast.SelectorExpr:
 			if selectorName(typed) == "runtime.Value" {
 				result.RuntimeValueTypes++
+				recordSemanticParentBoundary(
+					result,
+					"runtime_value_type",
+					"runtime.Value",
+					caller,
+				)
 			}
 		case *ast.CallExpr:
 			callee := expressionName(typed.Fun)
@@ -231,6 +262,7 @@ func analyzeFunction(function *ast.FuncDecl, result *scopeReport, nominals map[s
 				result.BoundaryCallers[caller] = make(map[string]int)
 			}
 			result.BoundaryCallers[caller][category]++
+			recordSemanticParentBoundary(result, category, callee, caller)
 		case *ast.UnaryExpr:
 			if typed.Op != token.AND {
 				break
@@ -242,10 +274,33 @@ func analyzeFunction(function *ast.FuncDecl, result *scopeReport, nominals map[s
 			name := typeName(literal.Type)
 			if _, ok := nominals[name]; ok {
 				result.HeapNominalLiterals[name]++
+				recordSemanticParentBoundary(
+					result,
+					"heap_nominal_literal",
+					"&"+name,
+					caller,
+				)
 			}
 		}
 		return true
 	})
+}
+
+func recordSemanticParentBoundary(
+	result *scopeReport,
+	category string,
+	callee string,
+	parent string,
+) {
+	if result.SemanticParentBoundaries[category] == nil {
+		result.SemanticParentBoundaries[category] =
+			make(map[string]map[string]int)
+	}
+	if result.SemanticParentBoundaries[category][callee] == nil {
+		result.SemanticParentBoundaries[category][callee] =
+			make(map[string]int)
+	}
+	result.SemanticParentBoundaries[category][callee][parent]++
 }
 
 func directlyReachableCompiledFunctions(

@@ -1,0 +1,8 @@
+{
+  "description": "explicit integer suffix rejects an incompatible typed context",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/exec/06_01_literals_explicit_suffix_mismatch_diag/main.able:7:3 typechecker: literal 1_u64 has type u64, expected i32"
+    ]
+  }
+}

@@ -4,11 +4,11 @@
   "sources": {
     "backend_adr": {
       "path": "v12/docs/perf-baselines/2026-07-22-portable-vm-backend-abi-dependency-adr.json",
-      "sha256": "11619c3d571fceca5456192337beb9497dbfafa5be786c3206f1b8743c5bee5b"
+      "sha256": "56c6cb9851b34c4393fd99735cc7653d843c523f233b2cbe5b2a8ddb7ef938ad"
     },
     "native_tier_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-bytecode-native-hot-tier-design-budget.json",
-      "sha256": "7e90ed56f56a3a31be3611bb7ece0c91fc0302ebc25e84dbfe29dba60a2cde55"
+      "sha256": "4c903dffcd1cc6e5d3e498f12a276a780412a0f1a723f41263b67fd453f8f5bf"
     },
     "bytecode_architecture_budget": {
       "path": "v12/docs/perf-baselines/2026-07-22-current-bytecode-architecture-target-budget.json",
@@ -20,7 +20,7 @@
     },
     "spec": {
       "path": "spec/full_spec_v12.md",
-      "sha256": "4f0405b86c122993723e8617abd6f825d9a8ff858d4c72acaf4e33469452f080"
+      "sha256": "35fddd094cae276cc0652612dd6ed309b88ab2778ffa17e425b40949be27dd6d"
     },
     "runtime_values": {
       "path": "v12/interpreters/go/pkg/runtime/values.go",
@@ -44,7 +44,7 @@
     },
     "compiled_runtime": {
       "path": "v12/interpreters/go/pkg/compiler/generator_render_runtime.go",
-      "sha256": "f2592ad97d5ad8cf9726da81bf728d981df30e70adc8f74efc374814916c3bac"
+      "sha256": "1046edb0095df9f4a9cf52e248fe6fe0cd2b7aca659c806a5de4f05329d6c5bc"
     }
   },
   "proposal": {

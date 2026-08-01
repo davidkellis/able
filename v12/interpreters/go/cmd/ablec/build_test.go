@@ -220,6 +220,70 @@ fn main() -> void {}
 	}
 }
 
+func TestAblecNominalOwnershipDefaultAndDiagnosticOptOut(t *testing.T) {
+	projectDir := t.TempDir()
+	entryPath := filepath.Join(projectDir, "main.able")
+	writeFile(t, entryPath, `
+struct State { value: i64 }
+
+methods State {
+  fn advance(self: Self) -> State {
+    State { value: self.value + 1_i64 }
+  }
+}
+
+fn main() -> void {
+  state := State { value: 1_i64 }
+  state = state.advance()
+  print(state.value)
+}
+`)
+
+	defaultDir := filepath.Join(projectDir, "default")
+	code, _, stderr := captureCLI(t, []string{"-o", defaultDir, entryPath})
+	if code != 0 {
+		t.Fatalf("default ablec compile returned exit code %d, stderr: %q", code, stderr)
+	}
+	defaultSource, err := os.ReadFile(filepath.Join(defaultDir, "compiled.go"))
+	if err != nil {
+		t.Fatalf("read default compiled.go: %v", err)
+	}
+	if !strings.Contains(string(defaultSource), "__able_compiled_method_State_advance_owned") {
+		t.Fatal("default compilation did not emit the proven owned-result path")
+	}
+
+	baselineDir := filepath.Join(projectDir, "baseline")
+	code, _, stderr = captureCLI(t, []string{
+		"-o", baselineDir,
+		"--no-nominal-ownership",
+		entryPath,
+	})
+	if code != 0 {
+		t.Fatalf("opt-out ablec compile returned exit code %d, stderr: %q", code, stderr)
+	}
+	baselineSource, err := os.ReadFile(filepath.Join(baselineDir, "compiled.go"))
+	if err != nil {
+		t.Fatalf("read baseline compiled.go: %v", err)
+	}
+	if strings.Contains(string(baselineSource), "__able_compiled_method_State_advance_owned") {
+		t.Fatal("diagnostic opt-out still emitted the owned-result path")
+	}
+}
+
+func TestAblecNominalOwnershipFlagsAreMutuallyExclusive(t *testing.T) {
+	code, _, stderr := captureCLI(t, []string{
+		"--experimental-nominal-ownership",
+		"--no-nominal-ownership",
+		"main.able",
+	})
+	if code != 2 {
+		t.Fatalf("conflicting ownership flags returned %d, want 2", code)
+	}
+	if !strings.Contains(stderr, "mutually exclusive") {
+		t.Fatalf("conflicting ownership flags error = %q", stderr)
+	}
+}
+
 func TestAblecNoFallbacksFlagRejectsResidualLowering(t *testing.T) {
 	projectDir := t.TempDir()
 	entryPath := filepath.Join(projectDir, "main.able")

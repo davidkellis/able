@@ -13,10 +13,10 @@ far too small to close even the smallest modeled VM target gap.
 
 | Mode | Rows | Meets | Misses | Excess seconds | Share |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| compiled | 66 | 6 | 60 | 8.473895 | 3.06% |
-| bytecode | 66 | 4 | 62 | 268.726526 | 96.94% |
+| compiled | 66 | 9 | 57 | 5.950737 | 2.17% |
+| bytecode | 66 | 4 | 62 | 268.726526 | 97.83% |
 
-The full 132-row frontier has 122 misses and 277.200421 seconds above its aggregate target. Bytecode owns 96.94% of that gap.
+The full 132-row frontier has 119 misses and 274.677263 seconds above its aggregate target. Bytecode owns 97.83% of that gap.
 
 ## Optimistic architecture bounds
 

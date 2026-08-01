@@ -1,0 +1,8 @@
+{
+  "description": "callable values require equivalent parameter and result signatures",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v12/fixtures/exec/07_12_callable_signature_diag/main.able:8:9 typechecker: argument 1 has type fn(i8) -> i8, expected fn(i32) -> i32"
+    ]
+  }
+}

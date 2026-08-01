@@ -154,8 +154,14 @@ func (g *generator) collectNativeInterfaceMethods(pkgName string, expr ast.TypeE
 			continue
 		}
 		returnExpr := normalizeTypeExprForPackage(g, ifacePkg, substituteTypeParams(sig.ReturnType, bindings))
+		returnsSelf := false
 		if typeExprUsesSelf(returnExpr) {
-			continue
+			simple, ok := returnExpr.(*ast.SimpleTypeExpression)
+			if !ok || simple == nil || simple.Name == nil || simple.Name.Name != "Self" {
+				continue
+			}
+			returnExpr = normalizeTypeExprForPackage(g, ifacePkg, expr)
+			returnsSelf = true
 		}
 		returnGoType, ok := mapper.Map(returnExpr)
 		returnGoType, ok = g.recoverRepresentableCarrierType(ifacePkg, returnExpr, returnGoType)
@@ -173,6 +179,7 @@ func (g *generator) collectNativeInterfaceMethods(pkgName string, expr ast.TypeE
 			ParamTypeExprs:   paramTypes,
 			ReturnGoType:     returnGoType,
 			ReturnTypeExpr:   returnExpr,
+			ReturnsSelf:      returnsSelf,
 			OptionalLast:     optionalLast,
 		}
 		if sig.DefaultImpl != nil {

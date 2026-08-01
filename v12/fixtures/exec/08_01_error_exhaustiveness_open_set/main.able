@@ -1,0 +1,62 @@
+package exec_08_01_error_exhaustiveness_open_set
+
+struct FirstError { details: String }
+struct SecondError { details: String }
+
+impl Error for FirstError {
+  fn message(self: Self) -> String { self.details }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for SecondError {
+  fn message(self: Self) -> String { self.details }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn value(ok: bool) -> !i32 {
+  if ok { 7 } else { FirstError { details: "first" } }
+}
+
+fn describe(result: !i32) -> String {
+  result match {
+    case number: i32 => `ok ${number}`,
+    case error: Error => `error ${error.message()}`
+  }
+}
+
+fn describe_error(error: Error) -> String {
+  error match {
+    case first: FirstError => `first ${first.message()}`,
+    case other: Error => `other ${other.message()}`
+  }
+}
+
+fn fail_second() -> void {
+  raise(SecondError { details: "second" })
+}
+
+fn partial_rescue_repropagates() -> String {
+  do {
+    do {
+      fail_second()
+      "unreachable"
+    } rescue {
+      case _: FirstError => "first"
+    }
+  } rescue {
+    case error: Error => `outer ${error.message()}`
+  }
+}
+
+fn main() -> void {
+  print(describe(value(true)))
+  print(describe(value(false)))
+  print(describe_error(SecondError { details: "second" }))
+  print(partial_rescue_repropagates())
+
+  label := 0 match {
+    case number if number > 0 => "positive",
+    case _: i32 => "zero"
+  }
+  print(`guard ${label}`)
+}

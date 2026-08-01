@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "kind": "able-v12-current-default-primitive-boxing-boundary-census",
+  "date": "2026-07-31",
+  "repository_commit": "c43c4e6825504cff6486ef6ce74aaed48aebc7e5",
+  "decision": {
+    "status": "retain-no-code",
+    "admitted_category": null,
+    "runtime_profiles_run": false,
+    "ab_prototype_run": false,
+    "reason": "The only exact primitive-to-runtime.Value identities spanning three unlike workload groups are one-shot main/host output conversions or the canonical runtime-backed HashMap service boundary. No non-named, materially reachable semantic category clears the admission gate."
+  },
+  "inputs": {
+    "frontier_sha256": "96dcfc3a443b0f5de892b229a9e2a40789087c6558dbac3f58da46ce9245c25e",
+    "census_sha256": "013e28eb7cad3d36db3c2daeea7c44380e5d90fba461922aa7cfdc97ad687b42",
+    "ablec_sha256": "ff4dfcc2d98117f1f48e177649f3b5a2a4e593a343e034563de60d38d9c04d74",
+    "analyzer_sha256": "cd06390198c7569514f5e580dc18582090aaa63e521ae463155ed9ee6183e33d",
+    "previous_exact_parent_record": "v12/docs/perf-baselines/2026-07-30-exact-semantic-parent-boundary-census-no-go.json",
+    "current_owner_record": "v12/docs/perf-baselines/2026-07-31-current-default-three-application-owner-no-go.json"
+  },
+  "protocol": {
+    "command": "./v12/bench_compiled_static_boundary_census --jobs 2 --timeout 55 --no-nominal-effects --no-nominal-ownership --workdir <disk-backed-task-dir> --output-json <disk-backed-task-dir>/current-default-census.json",
+    "compiler_mode": "ordinary current default with strict no fallbacks; proof-report collection disabled without disabling default ownership execution",
+    "scope": "direct-main-reachable generated functions",
+    "primitive_encode_callees": [
+      "bridge.ToBool",
+      "bridge.ToString",
+      "bridge.ToRune",
+      "bridge.ToFloat32",
+      "bridge.ToFloat64",
+      "bridge.ToInt",
+      "bridge.ToUint",
+      "bridge.ToDynamicI64"
+    ],
+    "identity": "boundary category plus exact callee plus exact generated semantic parent",
+    "admission": "an exact non-named semantic category must be material in at least three unlike current applications before runtime profiling or an A/B prototype"
+  },
+  "coverage": {
+    "selected_rows": 66,
+    "successful_rows": 66,
+    "failed_rows": 0,
+    "dependency_failed_rows": 0,
+    "interpreter_linked_rows": 0,
+    "analyzer_schema_version": 4,
+    "all_boundary_categories": 15,
+    "all_semantic_parent_identities": 1304,
+    "generation_ms": {
+      "minimum": 391,
+      "maximum": 13164,
+      "mean": 4252.379
+    },
+    "module_bytes": {
+      "minimum": 1124525,
+      "maximum": 9145785,
+      "mean": 4365676.636
+    },
+    "module_go_lines": {
+      "minimum": 30172,
+      "maximum": 213704,
+      "mean": 107314.273
+    }
+  },
+  "primitive_encode_coverage": {
+    "exact_identities": 40,
+    "identity_application_reach": 225,
+    "static_sites": 307,
+    "identities_in_at_least_three_applications": 19,
+    "identities_in_at_least_three_workload_groups": 5,
+    "maximum_applications": 29,
+    "maximum_workload_groups": 6,
+    "absent_direct_reachable_callees": [
+      "bridge.ToBool",
+      "bridge.ToRune",
+      "bridge.ToFloat32"
+    ]
+  },
+  "cross_group_identity_review": [
+    {
+      "callee": "bridge.ToString",
+      "semantic_parent": "__able_compiled_fn_main",
+      "applications": 29,
+      "workload_groups": 6,
+      "static_sites": 38,
+      "aggregate_excess_seconds": 4.704421053,
+      "class": "explicit-main-host-abi",
+      "disposition": "reject-cold-output-boundary"
+    },
+    {
+      "callee": "bridge.ToDynamicI64",
+      "semantic_parent": "__able_compiled_method_HashMap_raw_set_spec",
+      "applications": 11,
+      "workload_groups": 3,
+      "static_sites": 19,
+      "aggregate_excess_seconds": 1.677894737,
+      "class": "named-hashmap-kernel",
+      "disposition": "reject-prohibited-named-container-boundary"
+    },
+    {
+      "callee": "bridge.ToInt",
+      "semantic_parent": "__able_compiled_method_HashMap_with_capacity_spec_into",
+      "applications": 5,
+      "workload_groups": 3,
+      "static_sites": 5,
+      "aggregate_excess_seconds": 0.264631579,
+      "class": "named-hashmap-kernel",
+      "disposition": "reject-prohibited-named-container-boundary"
+    },
+    {
+      "callee": "bridge.ToFloat64",
+      "semantic_parent": "__able_compiled_fn_main",
+      "applications": 5,
+      "workload_groups": 3,
+      "static_sites": 9,
+      "aggregate_excess_seconds": 0.109578947,
+      "class": "explicit-main-host-abi",
+      "disposition": "reject-cold-output-boundary"
+    },
+    {
+      "callee": "bridge.ToDynamicI64",
+      "semantic_parent": "__able_compiled_method_HashMap_raw_get_spec",
+      "applications": 4,
+      "workload_groups": 3,
+      "static_sites": 6,
+      "aggregate_excess_seconds": 1.364631579,
+      "class": "named-hashmap-kernel",
+      "disposition": "reject-prohibited-named-container-boundary"
+    }
+  ],
+  "narrow_identity_review": {
+    "main_context": "bridge.ToString reaches 24 applications in two groups; bridge.ToDynamicI64 reaches 17 applications in the single concurrency group.",
+    "channel_and_mutex": "Channel send/receive/close/new and Mutex unlock encodes repeat only inside the concurrency workload group and remain explicit scheduler/runtime-service ABI.",
+    "other_hashmap": "String and i32 raw-set variants span only two groups; context variants span only the concurrency group.",
+    "maximum_other_reach": "No remaining exact primitive encode identity spans three workload groups."
+  },
+  "representative_provenance_inspection": [
+    {
+      "application": "concurrent_event_routing",
+      "finding": "main_ctx i64 encodes are child-spawn return values entering Future scheduler payloads; the final String encode is the print host boundary."
+    },
+    {
+      "application": "distance_field",
+      "finding": "the main Float64 encode directly supplies the single print call after native float64 computation."
+    },
+    {
+      "application": "fib",
+      "finding": "the main Int encode directly supplies the single print call after native i32 computation."
+    },
+    {
+      "application": "versioned_telemetry_pipeline",
+      "finding": "the final String encode directly supplies print; the profiled hot path retains native values and Sample pointers."
+    }
+  ],
+  "comparison": {
+    "previous_primitive_encode_exact_identities": 40,
+    "previous_identities_in_at_least_three_applications": 19,
+    "previous_identities_in_at_least_three_workload_groups": 5,
+    "previous_maximum_applications": 29,
+    "previous_maximum_workload_groups": 6,
+    "result": "The current-default compiler preserves the previous primitive-encode breadth exactly despite newer generated products."
+  },
+  "verification": {
+    "public_strict_generation": "66/66",
+    "dependency_graphs": "66/66",
+    "interpreter_links": 0,
+    "focused_go_test": "go test ./cmd/able-generated-boundary-census",
+    "shell_syntax": "bash -n v12/bench_compiled_static_boundary_census",
+    "per_process_timeout_seconds": 55
+  },
+  "cleanup": {
+    "task_workspace_kib": 364736,
+    "location_class": "/var/tmp disk-backed",
+    "removed": true,
+    "pointer_removed": true
+  },
+  "next": {
+    "recommendation": "Run the mode-aware evidence selector and ordinary release checks once against this closed current state. If they remain empty and green, pause speculative performance mutation and refresh the v12 correctness/stdlib completeness selection audit before choosing another bounded tranche.",
+    "why": "The corpus-wide compiled boundary census now exhausts the current primitive-boxing route without finding an admissible general owner.",
+    "entails": "Check all closure identities and the zero-actionable frontier, run focused compiler/census guards, then inventory current spec TODOs, fixtures, and canonical stdlib tests for one reproducible non-WASM gap.",
+    "importance": "This prevents cycling through cold host ABI or prohibited named-container rules while keeping the next lowering opportunity tied to real semantic or benchmark invalidation."
+  }
+}
